@@ -1,0 +1,367 @@
+id,user,question,lo,hi,ci,solution,state
+1,user1,Ansar Burney: Humanitarian activities: Prominent cases: Mehar Din: He was released in [____] after he was discovered by Burney of the Prisoners Aid Society.,1800,2020,0.9,1987,answered
+2,user1,Qalkhani Rural District: The rural district has [____] villages.,1,100,0.9,53,answered
+3,user1,"Tauqeer Raza Khan: Career: Political career: In the first municipal election the party contested, it won [____] seats.",0,600,0.9,10,answered
+5,user2,The Kidd Kraddick Morning Show: Affiliates: There are currently [____] affiliated stations airing The Kidd Kraddick Morning Show.,0,20,0.9,70,answered
+6,user3,The Kidd Kraddick Morning Show: Affiliates: There are currently [____] affiliated stations airing The Kidd Kraddick Morning Show.,0,16,0.9,70,answered
+7,user2,Project Grab Bag: Background: The descent to altitudes of the order of [____] ft could take of the order of two to three hours.,0,30000,0.9,15000,answered
+8,user3,Project Grab Bag: Background: The descent to altitudes of the order of [____] ft could take of the order of two to three hours.,1,15,0.9,15000,answered
+9,user2,WUUQ: History: The [____] frequency was sports talk.,0,1000,0.9,980,answered
+10,user3,WUUQ: History: The [____] frequency was sports talk.,1,500,0.9,980,answered
+11,user2,Rollerball (video game): Gameplay: Losing a ball: Scoring [____] points enables the credits after the final ball is drained.,-1000000,1000000,0.9,1000000,answered
+12,user3,Rollerball (video game): Gameplay: Losing a ball: Scoring [____] points enables the credits after the final ball is drained.,1,100000000,0.9,1000000,answered
+13,user2,Jeremy Cameron: He has been the Giants's leading goal-kicker for [____] consecutive seasons.,1,1000,0.9,8,answered
+14,user3,Jeremy Cameron: He has been the Giants's leading goal-kicker for [____] consecutive seasons.,2,20,0.9,8,answered
+15,user3,"Train Advise Assist Command - South: Regional Command - South: Terry, Commanding General, [____] Mountain Division, assumes command of Regional Command South.",0,500,0.9,10,answered
+16,user3,"William Augustine Morgan: Career: He would continue as deputy sheriff for [____] years, until his death.",1,50,0.9,26,answered
+17,user2,"Train Advise Assist Command - South: Regional Command - South: Terry, Commanding General, [____] Mountain Division, assumes command of Regional Command South.",-100000,100000,0.9,10,answered
+18,user2,"William Augustine Morgan: Career: He would continue as deputy sheriff for [____] years, until his death.",0,100,0.9,26,answered
+19,user1,AECC University College: Facilities: Interns in the clinic perform more than [____] treatments every year.,1,3,0.9,55000,answered
+22,user3,"Oka (mass): In Greece, an oka of oil was [____] kg.",0,10000,0.9,1.28,answered
+23,user2,"Oka (mass): In Greece, an oka of oil was [____] kg.",0.1,1000,0.9,1.28,answered
+24,user7,"Oka (mass): In Greece, an oka of oil was [____] kg.",3,5,0.9,1.28,answered
+25,user6,"Oka (mass): In Greece, an oka of oil was [____] kg.",1,1000,0.9,1.28,answered
+26,user8,"Oka (mass): In Greece, an oka of oil was [____] kg.",0.1,100,0.9,1.28,answered
+27,user5,"Oka (mass): In Greece, an oka of oil was [____] kg.",0.01,10,0.9,1.28,answered
+28,user9,"Oka (mass): In Greece, an oka of oil was [____] kg.",0.5,10,0.9,1.28,answered
+29,user9,David S Rosenblatt: Career: He has authored over [____] publications in peer reviewed journals.,1,250,0.9,200,answered
+30,user2,David S Rosenblatt: Career: He has authored over [____] publications in peer reviewed journals.,0,1000,0.9,200,answered
+32,user7,David S Rosenblatt: Career: He has authored over [____] publications in peer reviewed journals.,500,2000,0.9,200,answered
+33,user8,David S Rosenblatt: Career: He has authored over [____] publications in peer reviewed journals.,100,400,0.9,200,answered
+34,user3,David S Rosenblatt: Career: He has authored over [____] publications in peer reviewed journals.,1,4000,0.9,200,answered
+35,user4,David S Rosenblatt: Career: He has authored over [____] publications in peer reviewed journals.,20,700,0.9,200,answered
+36,user5,David S Rosenblatt: Career: He has authored over [____] publications in peer reviewed journals.,1,30,0.9,200,answered
+37,user6,David S Rosenblatt: Career: He has authored over [____] publications in peer reviewed journals.,15,900,0.9,200,answered
+38,user5,Oyne: Harthill Castle: It stood as a ruin for the next [____] years.,50,500,0.9,300,answered
+39,user6,Oyne: Harthill Castle: It stood as a ruin for the next [____] years.,200,900,0.9,300,answered
+40,user2,Oyne: Harthill Castle: It stood as a ruin for the next [____] years.,0,2000,0.9,300,answered
+41,user7,Oyne: Harthill Castle: It stood as a ruin for the next [____] years.,100,5000,0.9,300,answered
+42,user9,Oyne: Harthill Castle: It stood as a ruin for the next [____] years.,0,800,0.9,300,answered
+44,user8,Oyne: Harthill Castle: It stood as a ruin for the next [____] years.,40,200,0.9,300,answered
+45,user3,Oyne: Harthill Castle: It stood as a ruin for the next [____] years.,2,1600,0.9,300,answered
+46,user4,Oyne: Harthill Castle: It stood as a ruin for the next [____] years.,2,1000,0.9,300,answered
+47,user8,Tylochromis polylepis: This species can reach a length of [____] cm.,5,300,0.9,43.5,answered
+48,user9,"Rhyl Lifeboat Station: For over [____] years, the Lifeboat Crew in Rhyl have been saving lives at sea.",10,120,0.9,150,answered
+49,user5,"Rhyl Lifeboat Station: For over [____] years, the Lifeboat Crew in Rhyl have been saving lives at sea.",10,300,0.9,150,answered
+50,user2,"Rhyl Lifeboat Station: For over [____] years, the Lifeboat Crew in Rhyl have been saving lives at sea.",10,600,0.9,150,answered
+51,user0,"Rhyl Lifeboat Station: For over [____] years, the Lifeboat Crew in Rhyl have been saving lives at sea.",5,20,0.9,150,answered
+52,user8,"Rhyl Lifeboat Station: For over [____] years, the Lifeboat Crew in Rhyl have been saving lives at sea.",100,300,0.9,150,answered
+53,user3,"Rhyl Lifeboat Station: For over [____] years, the Lifeboat Crew in Rhyl have been saving lives at sea.",2,70,0.9,150,answered
+54,user5,Tylochromis polylepis: This species can reach a length of [____] cm.,0.1,500,0.9,43.5,answered
+56,user2,Tylochromis polylepis: This species can reach a length of [____] cm.,0.1,100,0.9,43.5,answered
+57,user6,Tylochromis polylepis: This species can reach a length of [____] cm.,0.1,10,0.9,43.5,answered
+58,user0,Tylochromis polylepis: This species can reach a length of [____] cm.,2,3,0.9,43.5,answered
+60,user9,Tylochromis polylepis: This species can reach a length of [____] cm.,1.5,70,0.9,43.5,answered
+61,user7,"Rhyl Lifeboat Station: For over [____] years, the Lifeboat Crew in Rhyl have been saving lives at sea.",15,60,0.9,150,answered
+62,user7,Tylochromis polylepis: This species can reach a length of [____] cm.,10,1000,0.9,43.5,answered
+63,user3,Tylochromis polylepis: This species can reach a length of [____] cm.,2,190,0.9,43.5,answered
+64,user4,"Rhyl Lifeboat Station: For over [____] years, the Lifeboat Crew in Rhyl have been saving lives at sea.",5,150,0.9,150,answered
+65,user6,"Rhyl Lifeboat Station: For over [____] years, the Lifeboat Crew in Rhyl have been saving lives at sea.",30,150,0.9,150,answered
+66,user4,Tylochromis polylepis: This species can reach a length of [____] cm.,1,30,0.9,43.5,answered
+67,user8,"Mission: Impossible III: Production: Development: Replacing Fincher was director Joe Carnahan, who worked on developing the film for [____] months.",6,24,0.9,15,answered
+68,user6,"Mission: Impossible III: Production: Development: Replacing Fincher was director Joe Carnahan, who worked on developing the film for [____] months.",2,30,0.9,15,answered
+69,user9,"Mission: Impossible III: Production: Development: Replacing Fincher was director Joe Carnahan, who worked on developing the film for [____] months.",3,17,0.9,15,answered
+71,user5,"Greifenstein: Tourism: For athletes, the community has over [____] km of well built cycling and hiking trails.",10,500,0.9,100,answered
+72,user8,"Greifenstein: Tourism: For athletes, the community has over [____] km of well built cycling and hiking trails.",50,800,0.9,100,answered
+73,user3,"Mission: Impossible III: Production: Development: Replacing Fincher was director Joe Carnahan, who worked on developing the film for [____] months.",2,24,0.9,15,answered
+74,user5,"Mission: Impossible III: Production: Development: Replacing Fincher was director Joe Carnahan, who worked on developing the film for [____] months.",3,24,0.9,15,answered
+75,user7,"Mission: Impossible III: Production: Development: Replacing Fincher was director Joe Carnahan, who worked on developing the film for [____] months.",1,12,0.9,15,answered
+76,user9,"Greifenstein: Tourism: For athletes, the community has over [____] km of well built cycling and hiking trails.",30,450,0.9,100,answered
+77,user6,"Greifenstein: Tourism: For athletes, the community has over [____] km of well built cycling and hiking trails.",20,1000,0.9,100,answered
+78,user0,"Mission: Impossible III: Production: Development: Replacing Fincher was director Joe Carnahan, who worked on developing the film for [____] months.",3,4,0.9,15,answered
+79,user7,"Greifenstein: Tourism: For athletes, the community has over [____] km of well built cycling and hiking trails.",300,3000,0.9,100,answered
+80,user3,"Greifenstein: Tourism: For athletes, the community has over [____] km of well built cycling and hiking trails.",9,300,0.9,100,answered
+81,user4,"Mission: Impossible III: Production: Development: Replacing Fincher was director Joe Carnahan, who worked on developing the film for [____] months.",2,16,0.9,15,answered
+82,user0,"Greifenstein: Tourism: For athletes, the community has over [____] km of well built cycling and hiking trails.",40,45,0.9,100,answered
+83,user2,"Mission: Impossible III: Production: Development: Replacing Fincher was director Joe Carnahan, who worked on developing the film for [____] months.",1,50,0.9,15,answered
+84,user4,"Greifenstein: Tourism: For athletes, the community has over [____] km of well built cycling and hiking trails.",10,600,0.9,100,answered
+85,user2,"Greifenstein: Tourism: For athletes, the community has over [____] km of well built cycling and hiking trails.",10,300,0.9,100,answered
+86,user6,Texas A&M Aggies football statistical leaders: The Aggies have played in [____] bowl games since then.,2,14,0.9,11,answered
+87,user9,Texas A&M Aggies football statistical leaders: The Aggies have played in [____] bowl games since then.,2,60,0.9,11,answered
+88,user7,Texas A&M Aggies football statistical leaders: The Aggies have played in [____] bowl games since then.,1,25,0.9,11,answered
+91,user9,Marco Ruas: Biography: Ruas debuted in Ultimate Fighting Championship at the UFC [____] event.,2,400,0.9,7,answered
+92,user6,Marco Ruas: Biography: Ruas debuted in Ultimate Fighting Championship at the UFC [____] event.,9,2010,0.9,7,answered
+93,user5,Kedi Billa Killadi Ranga: Release: It was Released in [____] Screens.,2,100000,0.9,332,answered
+94,user8,Texas A&M Aggies football statistical leaders: The Aggies have played in [____] bowl games since then.,10,1000,0.9,11,answered
+95,user0,Texas A&M Aggies football statistical leaders: The Aggies have played in [____] bowl games since then.,5,60,0.9,11,answered
+96,user7,"Quinson: History: Prehistory: The Baume Bonne was occupied first during the end of the Lower Paleolithic, [____] years ago.",30000,80000,0.9,400000,answered
+97,user6,Kedi Billa Killadi Ranga: Release: It was Released in [____] Screens.,35,1700,0.9,332,answered
+99,user5,Murder of Jane Longhurst: The possible role of violent pornography: A total of [____] violent pornographic images were found on Coutts' computer.,10,10000,0.9,69,answered
+100,user9,Kedi Billa Killadi Ranga: Release: It was Released in [____] Screens.,2,100,0.9,332,answered
+102,user6,"Quinson: History: Prehistory: The Baume Bonne was occupied first during the end of the Lower Paleolithic, [____] years ago.",8000,45000,0.9,400000,answered
+103,user0,Kedi Billa Killadi Ranga: Release: It was Released in [____] Screens.,1000,10000000,0.9,332,answered
+104,user9,"Quinson: History: Prehistory: The Baume Bonne was occupied first during the end of the Lower Paleolithic, [____] years ago.",2000000,10000000,0.9,400000,answered
+106,user6,Murder of Jane Longhurst: The possible role of violent pornography: A total of [____] violent pornographic images were found on Coutts' computer.,900,23000,0.9,69,answered
+107,user7,Murder of Jane Longhurst: The possible role of violent pornography: A total of [____] violent pornographic images were found on Coutts' computer.,1000,50000,0.9,69,answered
+108,user8,"Quinson: History: Prehistory: The Baume Bonne was occupied first during the end of the Lower Paleolithic, [____] years ago.",1000000,1000000000,0.9,400000,answered
+109,user9,Murder of Jane Longhurst: The possible role of violent pornography: A total of [____] violent pornographic images were found on Coutts' computer.,15,700,0.9,69,answered
+110,user8,Kedi Billa Killadi Ranga: Release: It was Released in [____] Screens.,1,1000000,0.9,332,answered
+111,user5,Marco Ruas: Biography: Ruas debuted in Ultimate Fighting Championship at the UFC [____] event.,10,2020,0.9,7,answered
+112,user8,Murder of Jane Longhurst: The possible role of violent pornography: A total of [____] violent pornographic images were found on Coutts' computer.,100,100000,0.9,69,answered
+113,user2,Texas A&M Aggies football statistical leaders: The Aggies have played in [____] bowl games since then.,10,30,0.9,11,answered
+114,user2,Marco Ruas: Biography: Ruas debuted in Ultimate Fighting Championship at the UFC [____] event.,0,2020,0.9,7,answered
+115,user0,"Quinson: History: Prehistory: The Baume Bonne was occupied first during the end of the Lower Paleolithic, [____] years ago.",30000,90000,0.9,400000,answered
+116,user5,"Quinson: History: Prehistory: The Baume Bonne was occupied first during the end of the Lower Paleolithic, [____] years ago.",50000,3000000000,0.9,400000,answered
+117,user0,Marco Ruas: Biography: Ruas debuted in Ultimate Fighting Championship at the UFC [____] event.,3,2020,0.9,7,answered
+118,user4,Texas A&M Aggies football statistical leaders: The Aggies have played in [____] bowl games since then.,5,1000,0.9,11,answered
+119,user8,Marco Ruas: Biography: Ruas debuted in Ultimate Fighting Championship at the UFC [____] event.,3,300,0.9,7,answered
+120,user5,Texas A&M Aggies football statistical leaders: The Aggies have played in [____] bowl games since then.,2,25,0.9,11,answered
+121,user0,Murder of Jane Longhurst: The possible role of violent pornography: A total of [____] violent pornographic images were found on Coutts' computer.,30,10000,0.9,69,answered
+122,user4,Marco Ruas: Biography: Ruas debuted in Ultimate Fighting Championship at the UFC [____] event.,1960,2016,0.9,7,answered
+124,user4,Kedi Billa Killadi Ranga: Release: It was Released in [____] Screens.,2,8,0.9,332,answered
+125,user7,Marco Ruas: Biography: Ruas debuted in Ultimate Fighting Championship at the UFC [____] event.,1980,2020,0.9,7,answered
+126,user2,Kedi Billa Killadi Ranga: Release: It was Released in [____] Screens.,1,10000,0.9,332,answered
+127,user4,"Quinson: History: Prehistory: The Baume Bonne was occupied first during the end of the Lower Paleolithic, [____] years ago.",10000,100000,0.9,400000,answered
+128,user4,Murder of Jane Longhurst: The possible role of violent pornography: A total of [____] violent pornographic images were found on Coutts' computer.,100,20000,0.9,69,answered
+129,user7,Kedi Billa Killadi Ranga: Release: It was Released in [____] Screens.,100,10000000,0.9,332,answered
+130,user9,Teddy Soeriaatmadja: Early life: The film debuted at the [____] Jakarta International Film Festival.,1910,1990,0.9,2000,answered
+131,user5,"Eastern University (Bangladesh): Campus: EU has purchased [____] Bigha of land in Uttara & Ashulia, Dhaka for constructing a permanent campus.",0.1,1000,0.9,20,answered
+132,user5,"Hawaiian Organic Act: Hawaii Senate: Establishing the Senate: The Senate had [____] members, having a four-year term.",3,100,0.9,25,answered
+133,user9,Dowty Arle Court: Both matches came in the [____] Benson and Hedges Cup.,1900,2010,0.9,1992,answered
+134,user8,"Hawaiian Organic Act: Hawaii Senate: Establishing the Senate: The Senate had [____] members, having a four-year term.",10,600,0.9,25,answered
+136,user8,Teddy Soeriaatmadja: Early life: The film debuted at the [____] Jakarta International Film Festival.,3,2020,0.9,2000,answered
+137,user9,It All Starts Today: It was entered into the [____] Berlin International Film Festival where it won an Honourable Mention.,1960,2018,0.9,49,answered
+139,user5,Teddy Soeriaatmadja: Early life: The film debuted at the [____] Jakarta International Film Festival.,5,2020,0.9,2000,answered
+140,user6,Teddy Soeriaatmadja: Early life: The film debuted at the [____] Jakarta International Film Festival.,1,50,0.9,2000,answered
+141,user5,Dowty Arle Court: Both matches came in the [____] Benson and Hedges Cup.,5,2020,0.9,1992,answered
+142,user5,It All Starts Today: It was entered into the [____] Berlin International Film Festival where it won an Honourable Mention.,5,2020,0.9,49,answered
+144,user2,Teddy Soeriaatmadja: Early life: The film debuted at the [____] Jakarta International Film Festival.,1900,2020,0.9,2000,answered
+145,user7,It All Starts Today: It was entered into the [____] Berlin International Film Festival where it won an Honourable Mention.,1,30,0.9,49,answered
+146,user6,Dowty Arle Court: Both matches came in the [____] Benson and Hedges Cup.,1,100,0.9,1992,answered
+147,user8,"Eastern University (Bangladesh): Campus: EU has purchased [____] Bigha of land in Uttara & Ashulia, Dhaka for constructing a permanent campus.",3,10000,0.9,20,answered
+148,user0,Teddy Soeriaatmadja: Early life: The film debuted at the [____] Jakarta International Film Festival.,1930,1990,0.9,2000,answered
+149,user9,"Hawaiian Organic Act: Hawaii Senate: Establishing the Senate: The Senate had [____] members, having a four-year term.",6,80,0.9,25,answered
+151,user8,It All Starts Today: It was entered into the [____] Berlin International Film Festival where it won an Honourable Mention.,2,2019,0.9,49,answered
+152,user7,"Eastern University (Bangladesh): Campus: EU has purchased [____] Bigha of land in Uttara & Ashulia, Dhaka for constructing a permanent campus.",1,10000,0.9,20,answered
+153,user8,Dowty Arle Court: Both matches came in the [____] Benson and Hedges Cup.,3,2019,0.9,1992,answered
+154,user6,It All Starts Today: It was entered into the [____] Berlin International Film Festival where it won an Honourable Mention.,1,70,0.9,49,answered
+155,user0,Dowty Arle Court: Both matches came in the [____] Benson and Hedges Cup.,5,2010,0.9,1992,answered
+156,user4,Teddy Soeriaatmadja: Early life: The film debuted at the [____] Jakarta International Film Festival.,3,2015,0.9,2000,answered
+157,user4,Dowty Arle Court: Both matches came in the [____] Benson and Hedges Cup.,3,2015,0.9,1992,answered
+158,user9,"Eastern University (Bangladesh): Campus: EU has purchased [____] Bigha of land in Uttara & Ashulia, Dhaka for constructing a permanent campus.",5,300,0.9,20,answered
+159,user6,"Hawaiian Organic Act: Hawaii Senate: Establishing the Senate: The Senate had [____] members, having a four-year term.",20,250,0.9,25,answered
+160,user4,It All Starts Today: It was entered into the [____] Berlin International Film Festival where it won an Honourable Mention.,3,2015,0.9,49,answered
+161,user2,"Eastern University (Bangladesh): Campus: EU has purchased [____] Bigha of land in Uttara & Ashulia, Dhaka for constructing a permanent campus.",0,10000,0.9,20,answered
+162,user0,"Hawaiian Organic Act: Hawaii Senate: Establishing the Senate: The Senate had [____] members, having a four-year term.",40,300,0.9,25,answered
+163,user7,"Hawaiian Organic Act: Hawaii Senate: Establishing the Senate: The Senate had [____] members, having a four-year term.",10,500,0.9,25,answered
+164,user4,"Hawaiian Organic Act: Hawaii Senate: Establishing the Senate: The Senate had [____] members, having a four-year term.",20,400,0.9,25,answered
+165,user6,"Eastern University (Bangladesh): Campus: EU has purchased [____] Bigha of land in Uttara & Ashulia, Dhaka for constructing a permanent campus.",3,3000,0.9,20,answered
+166,user0,It All Starts Today: It was entered into the [____] Berlin International Film Festival where it won an Honourable Mention.,5,2010,0.9,49,answered
+167,user2,"Hawaiian Organic Act: Hawaii Senate: Establishing the Senate: The Senate had [____] members, having a four-year term.",10,1000,0.9,25,answered
+168,user7,Dowty Arle Court: Both matches came in the [____] Benson and Hedges Cup.,1,30,0.9,1992,answered
+169,user4,"Eastern University (Bangladesh): Campus: EU has purchased [____] Bigha of land in Uttara & Ashulia, Dhaka for constructing a permanent campus.",2,3000,0.9,20,answered
+170,user7,Teddy Soeriaatmadja: Early life: The film debuted at the [____] Jakarta International Film Festival.,1,30,0.9,2000,answered
+171,user0,"Eastern University (Bangladesh): Campus: EU has purchased [____] Bigha of land in Uttara & Ashulia, Dhaka for constructing a permanent campus.",1000000,1000000000,0.9,20,answered
+172,user8,"Human rights in South Korea: Civil liberties: Criminal Justice System: Of those prosecuted, four were found guilty; the remaining [____] were on trial as of year's end.",2,20,0.9,23,answered
+173,user9,"Human rights in South Korea: Civil liberties: Criminal Justice System: Of those prosecuted, four were found guilty; the remaining [____] were on trial as of year's end.",2,30,0.9,23,answered
+174,user7,"Human rights in South Korea: Civil liberties: Criminal Justice System: Of those prosecuted, four were found guilty; the remaining [____] were on trial as of year's end.",1,1000,0.9,23,answered
+176,user8,Glacial Lake Iroquois: Remnant shorelines: About [____] km inland from the shore a ridge known as the Iroquois Shoreline can be discerned.,0.1,30,0.9,2,answered
+177,user7,Glacial Lake Iroquois: Remnant shorelines: About [____] km inland from the shore a ridge known as the Iroquois Shoreline can be discerned.,200,2000,0.9,2,answered
+178,user9,Glacial Lake Iroquois: Remnant shorelines: About [____] km inland from the shore a ridge known as the Iroquois Shoreline can be discerned.,1,30,0.9,2,answered
+179,user3,"Human rights in South Korea: Civil liberties: Criminal Justice System: Of those prosecuted, four were found guilty; the remaining [____] were on trial as of year's end.",2,40,0.9,23,answered
+181,user9,William S. Forbes: Biography: Forbes was promptly assigned the post of Medical Director of the [____] Army Corps commanded by Maj.,1,80,0.9,13,answered
+182,user5,"Human rights in South Korea: Civil liberties: Criminal Justice System: Of those prosecuted, four were found guilty; the remaining [____] were on trial as of year's end.",2,46,0.9,23,answered
+183,user4,"Human rights in South Korea: Civil liberties: Criminal Justice System: Of those prosecuted, four were found guilty; the remaining [____] were on trial as of year's end.",2,25,0.9,23,answered
+184,user0,"Human rights in South Korea: Civil liberties: Criminal Justice System: Of those prosecuted, four were found guilty; the remaining [____] were on trial as of year's end.",2,20,0.9,23,answered
+185,user6,William S. Forbes: Biography: Forbes was promptly assigned the post of Medical Director of the [____] Army Corps commanded by Maj.,1,700,0.9,13,answered
+186,user7,William S. Forbes: Biography: Forbes was promptly assigned the post of Medical Director of the [____] Army Corps commanded by Maj.,50,500,0.9,13,answered
+187,user5,Glacial Lake Iroquois: Remnant shorelines: About [____] km inland from the shore a ridge known as the Iroquois Shoreline can be discerned.,1,20,0.9,2,answered
+188,user9,Bobby Howlett: Career: He made a further [____] league appearances for the U's.,2,50,0.9,15,answered
+189,user8,William S. Forbes: Biography: Forbes was promptly assigned the post of Medical Director of the [____] Army Corps commanded by Maj.,3,2019,0.9,13,answered
+190,user7,Bobby Howlett: Career: He made a further [____] league appearances for the U's.,1,30,0.9,15,answered
+191,user6,Bobby Howlett: Career: He made a further [____] league appearances for the U's.,2,500,0.9,15,answered
+192,user0,Glacial Lake Iroquois: Remnant shorelines: About [____] km inland from the shore a ridge known as the Iroquois Shoreline can be discerned.,5,100,0.9,2,answered
+194,user8,Bobby Howlett: Career: He made a further [____] league appearances for the U's.,2,10,0.9,15,answered
+195,user2,"Human rights in South Korea: Civil liberties: Criminal Justice System: Of those prosecuted, four were found guilty; the remaining [____] were on trial as of year's end.",4,10,0.9,23,answered
+196,user2,Glacial Lake Iroquois: Remnant shorelines: About [____] km inland from the shore a ridge known as the Iroquois Shoreline can be discerned.,1,100,0.9,2,answered
+197,user6,Potentilla recta: Description: It produces upright to erect leafy stems up to [____] cm tall.,3,500,0.9,80,answered
+198,user5,William S. Forbes: Biography: Forbes was promptly assigned the post of Medical Director of the [____] Army Corps commanded by Maj.,2,490,0.9,13,answered
+199,user9,Potentilla recta: Description: It produces upright to erect leafy stems up to [____] cm tall.,3,90,0.9,80,answered
+200,user8,Potentilla recta: Description: It produces upright to erect leafy stems up to [____] cm tall.,5,30,0.9,80,answered
+201,user4,Glacial Lake Iroquois: Remnant shorelines: About [____] km inland from the shore a ridge known as the Iroquois Shoreline can be discerned.,4,500,0.9,2,answered
+202,user7,Potentilla recta: Description: It produces upright to erect leafy stems up to [____] cm tall.,2,1000,0.9,80,answered
+203,user0,William S. Forbes: Biography: Forbes was promptly assigned the post of Medical Director of the [____] Army Corps commanded by Maj.,10,500,0.9,13,answered
+204,user0,Bobby Howlett: Career: He made a further [____] league appearances for the U's.,2,15,0.9,15,answered
+205,user3,Glacial Lake Iroquois: Remnant shorelines: About [____] km inland from the shore a ridge known as the Iroquois Shoreline can be discerned.,1,50,0.9,2,answered
+206,user5,Bobby Howlett: Career: He made a further [____] league appearances for the U's.,2,100,0.9,15,answered
+207,user2,Bobby Howlett: Career: He made a further [____] league appearances for the U's.,1,1000,0.9,15,answered
+208,user5,Potentilla recta: Description: It produces upright to erect leafy stems up to [____] cm tall.,1,20,0.9,80,answered
+209,user3,William S. Forbes: Biography: Forbes was promptly assigned the post of Medical Director of the [____] Army Corps commanded by Maj.,1,14,0.9,13,answered
+210,user3,Bobby Howlett: Career: He made a further [____] league appearances for the U's.,2,40,0.9,15,answered
+212,user0,Potentilla recta: Description: It produces upright to erect leafy stems up to [____] cm tall.,2,70,0.9,80,answered
+213,user2,Potentilla recta: Description: It produces upright to erect leafy stems up to [____] cm tall.,1,200,0.9,80,answered
+214,user3,Potentilla recta: Description: It produces upright to erect leafy stems up to [____] cm tall.,3,110,0.9,80,answered
+215,user6,"Human rights in South Korea: Civil liberties: Criminal Justice System: Of those prosecuted, four were found guilty; the remaining [____] were on trial as of year's end.",3,545,0.9,23,answered
+216,user4,William S. Forbes: Biography: Forbes was promptly assigned the post of Medical Director of the [____] Army Corps commanded by Maj.,3,400,0.9,13,answered
+217,user4,Bobby Howlett: Career: He made a further [____] league appearances for the U's.,2,35,0.9,15,answered
+218,user2,William S. Forbes: Biography: Forbes was promptly assigned the post of Medical Director of the [____] Army Corps commanded by Maj.,0,1000,0.9,13,answered
+219,user6,Glacial Lake Iroquois: Remnant shorelines: About [____] km inland from the shore a ridge known as the Iroquois Shoreline can be discerned.,3,90,0.9,2,answered
+220,user4,Potentilla recta: Description: It produces upright to erect leafy stems up to [____] cm tall.,1,200,0.9,80,answered
+221,user7,Commando (book): Content: He began writing the book in [____] when he was diagnosed with prostate cancer.,1970,1985,0.9,1999,answered
+223,user7,RAF Debach: United States Army Air Forces use: It was assigned USAAF designation Station [____] (DC).,1,100,0.9,152,answered
+224,user7,Captain Ultra (TV series): So only [____] episodes of Captain Ultra were ordered by the network.,1,20,0.9,24,answered
+226,user9,RAF Debach: United States Army Air Forces use: It was assigned USAAF designation Station [____] (DC).,2,150,0.9,152,answered
+227,user7,Switzerland: History: Napoleonic era: Swiss troops still served foreign governments until [____] when they fought in the Siege of Gaeta.,1600,1800,0.9,1860,answered
+228,user9,Commando (book): Content: He began writing the book in [____] when he was diagnosed with prostate cancer.,1955,2018,0.9,1999,answered
+229,user9,Captain Ultra (TV series): So only [____] episodes of Captain Ultra were ordered by the network.,2,20,0.9,24,answered
+231,user9,Switzerland: History: Napoleonic era: Swiss troops still served foreign governments until [____] when they fought in the Siege of Gaeta.,1750,1875,0.9,1860,answered
+232,user7,Nike Cross Nationals: History: Kroy XC Club of York High School won the boys' race with [____] points.,15,100,0.9,92,answered
+233,user4,RAF Debach: United States Army Air Forces use: It was assigned USAAF designation Station [____] (DC).,3,400,0.9,152,answered
+235,user9,Nike Cross Nationals: History: Kroy XC Club of York High School won the boys' race with [____] points.,2,90,0.9,92,answered
+236,user5,Switzerland: History: Napoleonic era: Swiss troops still served foreign governments until [____] when they fought in the Siege of Gaeta.,1750,1850,0.9,1860,answered
+237,user4,Commando (book): Content: He began writing the book in [____] when he was diagnosed with prostate cancer.,1900,2015,0.9,1999,answered
+238,user5,Captain Ultra (TV series): So only [____] episodes of Captain Ultra were ordered by the network.,2,50,0.9,24,answered
+239,user0,Captain Ultra (TV series): So only [____] episodes of Captain Ultra were ordered by the network.,2,30,0.9,24,answered
+240,user2,Commando (book): Content: He began writing the book in [____] when he was diagnosed with prostate cancer.,1900,2000,0.9,1999,answered
+241,user4,Captain Ultra (TV series): So only [____] episodes of Captain Ultra were ordered by the network.,3,35,0.9,24,answered
+242,user0,RAF Debach: United States Army Air Forces use: It was assigned USAAF designation Station [____] (DC).,2,300,0.9,152,answered
+243,user5,Commando (book): Content: He began writing the book in [____] when he was diagnosed with prostate cancer.,1939,2015,0.9,1999,answered
+244,user3,RAF Debach: United States Army Air Forces use: It was assigned USAAF designation Station [____] (DC).,3,30,0.9,152,answered
+245,user3,Commando (book): Content: He began writing the book in [____] when he was diagnosed with prostate cancer.,1920,2005,0.9,1999,answered
+246,user5,RAF Debach: United States Army Air Forces use: It was assigned USAAF designation Station [____] (DC).,2,10000,0.9,152,answered
+247,user0,Commando (book): Content: He began writing the book in [____] when he was diagnosed with prostate cancer.,1930,2010,0.9,1999,answered
+248,user5,Nike Cross Nationals: History: Kroy XC Club of York High School won the boys' race with [____] points.,3,1000,0.9,92,answered
+249,user2,Captain Ultra (TV series): So only [____] episodes of Captain Ultra were ordered by the network.,2,20,0.9,24,answered
+250,user3,Captain Ultra (TV series): So only [____] episodes of Captain Ultra were ordered by the network.,6,19,0.9,24,answered
+252,user4,Switzerland: History: Napoleonic era: Swiss troops still served foreign governments until [____] when they fought in the Siege of Gaeta.,1788,1830,0.9,1860,answered
+253,user0,Switzerland: History: Napoleonic era: Swiss troops still served foreign governments until [____] when they fought in the Siege of Gaeta.,1750,1870,0.9,1860,answered
+254,user4,Nike Cross Nationals: History: Kroy XC Club of York High School won the boys' race with [____] points.,2,50,0.9,92,answered
+255,user3,Switzerland: History: Napoleonic era: Swiss troops still served foreign governments until [____] when they fought in the Siege of Gaeta.,1550,1780,0.9,1860,answered
+256,user6,Nike Cross Nationals: History: Kroy XC Club of York High School won the boys' race with [____] points.,1,1500,0.9,92,answered
+257,user0,Nike Cross Nationals: History: Kroy XC Club of York High School won the boys' race with [____] points.,1950,2005,0.9,92,answered
+258,user6,Switzerland: History: Napoleonic era: Swiss troops still served foreign governments until [____] when they fought in the Siege of Gaeta.,1794,1814,0.9,1860,answered
+259,user8,Nike Cross Nationals: History: Kroy XC Club of York High School won the boys' race with [____] points.,10,1000,0.9,92,answered
+260,user6,Captain Ultra (TV series): So only [____] episodes of Captain Ultra were ordered by the network.,2,50,0.9,24,answered
+261,user6,Commando (book): Content: He began writing the book in [____] when he was diagnosed with prostate cancer.,1870,2010,0.9,1999,answered
+262,user6,RAF Debach: United States Army Air Forces use: It was assigned USAAF designation Station [____] (DC).,1,9750,0.9,152,answered
+263,user8,RAF Debach: United States Army Air Forces use: It was assigned USAAF designation Station [____] (DC).,1,1000,0.9,152,answered
+264,user8,Commando (book): Content: He began writing the book in [____] when he was diagnosed with prostate cancer.,1800,2100,0.9,1999,answered
+265,user8,Captain Ultra (TV series): So only [____] episodes of Captain Ultra were ordered by the network.,3,20,0.9,24,answered
+266,user8,Switzerland: History: Napoleonic era: Swiss troops still served foreign governments until [____] when they fought in the Siege of Gaeta.,1500,1600,0.9,1860,answered
+267,user3,Nike Cross Nationals: History: Kroy XC Club of York High School won the boys' race with [____] points.,3,35,0.9,92,answered
+270,user4,Barthélemy-Christophe Fagan: Biography: Here he won a position for his son who had married at the age of [____] a much older widow than him.,16,30,0.9,20,answered
+272,user3,Barthélemy-Christophe Fagan: Biography: Here he won a position for his son who had married at the age of [____] a much older widow than him.,17,50,0.9,20,answered
+275,user2,Barthélemy-Christophe Fagan: Biography: Here he won a position for his son who had married at the age of [____] a much older widow than him.,10,40,0.9,20,answered
+276,user5,Barthélemy-Christophe Fagan: Biography: Here he won a position for his son who had married at the age of [____] a much older widow than him.,18,50,0.9,20,answered
+277,user7,Barthélemy-Christophe Fagan: Biography: Here he won a position for his son who had married at the age of [____] a much older widow than him.,15,30,0.9,20,answered
+278,user6,Mastixia macrocarpa: Distribution and habitat: Its habitat is mixed dipterocarp forests at around [____] m altitude.,15,5000,0.9,75,answered
+279,user3,Mastixia macrocarpa: Distribution and habitat: Its habitat is mixed dipterocarp forests at around [____] m altitude.,-50,1700,0.9,75,answered
+280,user6,Adele Ilfeld Auditorium: Its address is [____] University Avenue.,1,9000,0.9,900,answered
+281,user2,Mastixia macrocarpa: Distribution and habitat: Its habitat is mixed dipterocarp forests at around [____] m altitude.,0,6000,0.9,75,answered
+282,user7,Mastixia macrocarpa: Distribution and habitat: Its habitat is mixed dipterocarp forests at around [____] m altitude.,1000,100000,0.9,75,answered
+283,user3,Adele Ilfeld Auditorium: Its address is [____] University Avenue.,1,140,0.9,900,answered
+284,user6,Ettore Ovazza: World War I: His patriotic letters from the front were published in [____] and received general praise.,1915,2000,0.9,1928,answered
+285,user7,Adele Ilfeld Auditorium: Its address is [____] University Avenue.,1,300,0.9,900,answered
+287,user8,Mastixia macrocarpa: Distribution and habitat: Its habitat is mixed dipterocarp forests at around [____] m altitude.,200,6000,0.9,75,answered
+288,user6,Pilgrim's Rest (TV series): Episodes: Each episode lasted for [____] minutes.,12,60,0.9,30,answered
+289,user2,Adele Ilfeld Auditorium: Its address is [____] University Avenue.,1,30,0.9,900,answered
+291,user4,Mastixia macrocarpa: Distribution and habitat: Its habitat is mixed dipterocarp forests at around [____] m altitude.,50,6000,0.9,75,answered
+292,user6,Country Bear Jamboree: Characters: Other Animals: The Tokyo Disneyland and the Former Disneyland versions of the show houses [____] theatres.,2,9,0.9,2,answered
+294,user5,Mastixia macrocarpa: Distribution and habitat: Its habitat is mixed dipterocarp forests at around [____] m altitude.,100,5000,0.9,75,answered
+295,user4,Adele Ilfeld Auditorium: Its address is [____] University Avenue.,1,300,0.9,900,answered
+296,user7,Ettore Ovazza: World War I: His patriotic letters from the front were published in [____] and received general praise.,1922,1950,0.9,1928,answered
+297,user3,Ettore Ovazza: World War I: His patriotic letters from the front were published in [____] and received general praise.,1917,1945,0.9,1928,answered
+298,user7,Pilgrim's Rest (TV series): Episodes: Each episode lasted for [____] minutes.,30,60,0.9,30,answered
+299,user5,Adele Ilfeld Auditorium: Its address is [____] University Avenue.,2,10000,0.9,900,answered
+300,user8,Pilgrim's Rest (TV series): Episodes: Each episode lasted for [____] minutes.,10,50,0.9,30,answered
+301,user4,Ettore Ovazza: World War I: His patriotic letters from the front were published in [____] and received general praise.,1914,1970,0.9,1928,answered
+302,user7,Country Bear Jamboree: Characters: Other Animals: The Tokyo Disneyland and the Former Disneyland versions of the show houses [____] theatres.,5,30,0.9,2,answered
+303,user8,Country Bear Jamboree: Characters: Other Animals: The Tokyo Disneyland and the Former Disneyland versions of the show houses [____] theatres.,2,2000,0.9,2,answered
+304,user3,Pilgrim's Rest (TV series): Episodes: Each episode lasted for [____] minutes.,15,90,0.9,30,answered
+305,user5,Ettore Ovazza: World War I: His patriotic letters from the front were published in [____] and received general praise.,1914,1945,0.9,1928,answered
+306,user6,"Volcanology of Canada: Northern Canada: In the Strand Fiord Formation, flood basalt lavas reach a thickness of at least [____] km.",0.1,5,0.9,1,answered
+307,user8,"Volcanology of Canada: Northern Canada: In the Strand Fiord Formation, flood basalt lavas reach a thickness of at least [____] km.",1,8,0.9,1,answered
+308,user5,Pilgrim's Rest (TV series): Episodes: Each episode lasted for [____] minutes.,5,120,0.9,30,answered
+309,user4,Pilgrim's Rest (TV series): Episodes: Each episode lasted for [____] minutes.,5,80,0.9,30,answered
+310,user8,"The Amateur Scientist: C. L. Stong: However, limited to paper and ink, Stong could only fit in [____] projects.",3,1000,0.9,57,answered
+311,user6,"The Amateur Scientist: C. L. Stong: However, limited to paper and ink, Stong could only fit in [____] projects.",2,95,0.9,57,answered
+312,user7,"Volcanology of Canada: Northern Canada: In the Strand Fiord Formation, flood basalt lavas reach a thickness of at least [____] km.",1,100,0.9,1,answered
+313,user3,Country Bear Jamboree: Characters: Other Animals: The Tokyo Disneyland and the Former Disneyland versions of the show houses [____] theatres.,2,13,0.9,2,answered
+314,user5,Country Bear Jamboree: Characters: Other Animals: The Tokyo Disneyland and the Former Disneyland versions of the show houses [____] theatres.,2,100,0.9,2,answered
+315,user8,Waleska Amaya: Career: She scored a goal in a [____] FIFA Women's World Cup qualifying match against Belize.,3,2018,0.9,2015,answered
+316,user7,"The Amateur Scientist: C. L. Stong: However, limited to paper and ink, Stong could only fit in [____] projects.",3,10,0.9,57,answered
+317,user4,Country Bear Jamboree: Characters: Other Animals: The Tokyo Disneyland and the Former Disneyland versions of the show houses [____] theatres.,3,25,0.9,2,answered
+318,user8,"Neglected tropical diseases: List of diseases: Leishmaniasis: Around [____] percent of mucocutaneous leishmaniasis occurs in Bolivia, Brazil, and Peru.",3,80,0.9,90,answered
+319,user6,Waleska Amaya: Career: She scored a goal in a [____] FIFA Women's World Cup qualifying match against Belize.,1900,2018,0.9,2015,answered
+320,user5,"Volcanology of Canada: Northern Canada: In the Strand Fiord Formation, flood basalt lavas reach a thickness of at least [____] km.",0.1,20,0.9,1,answered
+321,user5,"The Amateur Scientist: C. L. Stong: However, limited to paper and ink, Stong could only fit in [____] projects.",2,20,0.9,57,answered
+322,user8,Barthélemy-Christophe Fagan: Biography: Here he won a position for his son who had married at the age of [____] a much older widow than him.,10,30,0.9,20,answered
+323,user6,"Neglected tropical diseases: List of diseases: Leishmaniasis: Around [____] percent of mucocutaneous leishmaniasis occurs in Bolivia, Brazil, and Peru.",20,99,0.9,90,answered
+324,user7,Waleska Amaya: Career: She scored a goal in a [____] FIFA Women's World Cup qualifying match against Belize.,1990,2020,0.9,2015,answered
+325,user8,Adele Ilfeld Auditorium: Its address is [____] University Avenue.,1,800,0.9,900,answered
+326,user3,"Volcanology of Canada: Northern Canada: In the Strand Fiord Formation, flood basalt lavas reach a thickness of at least [____] km.",0.3,7,0.9,1,answered
+327,user5,Waleska Amaya: Career: She scored a goal in a [____] FIFA Women's World Cup qualifying match against Belize.,1950,2020,0.9,2015,answered
+328,user8,Ettore Ovazza: World War I: His patriotic letters from the front were published in [____] and received general praise.,1930,2000,0.9,1928,answered
+329,user7,"Neglected tropical diseases: List of diseases: Leishmaniasis: Around [____] percent of mucocutaneous leishmaniasis occurs in Bolivia, Brazil, and Peru.",10,50,0.9,90,answered
+330,user4,"Volcanology of Canada: Northern Canada: In the Strand Fiord Formation, flood basalt lavas reach a thickness of at least [____] km.",1,50,0.9,1,answered
+331,user3,"The Amateur Scientist: C. L. Stong: However, limited to paper and ink, Stong could only fit in [____] projects.",2,8,0.9,57,answered
+332,user2,Pilgrim's Rest (TV series): Episodes: Each episode lasted for [____] minutes.,5,50,0.9,30,answered
+333,user4,"The Amateur Scientist: C. L. Stong: However, limited to paper and ink, Stong could only fit in [____] projects.",2,25,0.9,57,answered
+334,user5,"Neglected tropical diseases: List of diseases: Leishmaniasis: Around [____] percent of mucocutaneous leishmaniasis occurs in Bolivia, Brazil, and Peru.",10,98,0.9,90,answered
+335,user4,Waleska Amaya: Career: She scored a goal in a [____] FIFA Women's World Cup qualifying match against Belize.,7,2015,0.9,2015,answered
+336,user4,"Neglected tropical diseases: List of diseases: Leishmaniasis: Around [____] percent of mucocutaneous leishmaniasis occurs in Bolivia, Brazil, and Peru.",5,95,0.9,90,answered
+337,user3,Waleska Amaya: Career: She scored a goal in a [____] FIFA Women's World Cup qualifying match against Belize.,1,20,0.9,2015,answered
+338,user6,Barthélemy-Christophe Fagan: Biography: Here he won a position for his son who had married at the age of [____] a much older widow than him.,17,39,0.9,20,answered
+339,user2,"The Amateur Scientist: C. L. Stong: However, limited to paper and ink, Stong could only fit in [____] projects.",1,100,0.9,57,answered
+340,user3,"Neglected tropical diseases: List of diseases: Leishmaniasis: Around [____] percent of mucocutaneous leishmaniasis occurs in Bolivia, Brazil, and Peru.",3,90,0.9,90,answered
+341,user8,"Old Lorimier Cemetery: There are believed to be more than [____] graves in the cemetery, most of them unmarked.",100,10000,0.9,6500,answered
+342,user6,"Old Lorimier Cemetery: There are believed to be more than [____] graves in the cemetery, most of them unmarked.",40,10000,0.9,6500,answered
+343,user6,Roy Jones Jr.: Professional career: Comeback trail: Back to winning ways: Hanshaw was ranked [____] by the IBF at super middleweight.,1,40,0.9,11,answered
+344,user6,Ingolstadt Hauptbahnhof: Services: Connections to the bus network: It also runs line [____] RBO to Regensburg.,1,10000,0.9,6008,answered
+345,user7,"Old Lorimier Cemetery: There are believed to be more than [____] graves in the cemetery, most of them unmarked.",30,5000,0.9,6500,answered
+346,user6,French Island (Victoria): History: He then introduced it to French Island where it became the main source of income for over [____] years.,5,300,0.9,70,answered
+348,user7,Roy Jones Jr.: Professional career: Comeback trail: Back to winning ways: Hanshaw was ranked [____] by the IBF at super middleweight.,5,500,0.9,11,answered
+349,user6,Wildlife of Alaska: Fish: Salmon Shark: The salmon shark is a small shark that can grow up to [____] feet.,1,8,0.9,8,answered
+350,user4,"Old Lorimier Cemetery: There are believed to be more than [____] graves in the cemetery, most of them unmarked.",5,3000,0.9,6500,answered
+351,user6,Tolbo Lake: The reason why is the lake has [____] deep places that are just like pots.,2,200,0.9,100,answered
+352,user6,Giraffatitan: History of discovery: In [____] limb and girdle elements were dug up.,1700,2017,0.9,1909,answered
+353,user7,Ingolstadt Hauptbahnhof: Services: Connections to the bus network: It also runs line [____] RBO to Regensburg.,5,500,0.9,6008,answered
+354,user6,Ruben Van Hirtum: He participated at the [____] Men's European Volleyball Championship.,1,2018,0.9,2017,answered
+355,user4,Roy Jones Jr.: Professional career: Comeback trail: Back to winning ways: Hanshaw was ranked [____] by the IBF at super middleweight.,1,150,0.9,11,answered
+356,user8,Roy Jones Jr.: Professional career: Comeback trail: Back to winning ways: Hanshaw was ranked [____] by the IBF at super middleweight.,2,1000,0.9,11,answered
+357,user5,Wildlife of Alaska: Fish: Salmon Shark: The salmon shark is a small shark that can grow up to [____] feet.,1,5,0.9,8,answered
+358,user6,Catherston Leweston: It lies approximately [____] mi northeast of Lyme Regis.,2,950,0.9,2,answered
+359,user4,Ingolstadt Hauptbahnhof: Services: Connections to the bus network: It also runs line [____] RBO to Regensburg.,1,600,0.9,6008,answered
+360,user6,Nagata Station (Chiba): It is [____] kilometers from the terminus of the Sotobō Line at Chiba Station.,1,150,0.9,25.3,answered
+361,user8,Ingolstadt Hauptbahnhof: Services: Connections to the bus network: It also runs line [____] RBO to Regensburg.,1,999,0.9,6008,answered
+362,user7,French Island (Victoria): History: He then introduced it to French Island where it became the main source of income for over [____] years.,20,200,0.9,70,answered
+363,user5,French Island (Victoria): History: He then introduced it to French Island where it became the main source of income for over [____] years.,10,150,0.9,70,answered
+364,user3,"Old Lorimier Cemetery: There are believed to be more than [____] graves in the cemetery, most of them unmarked.",110,1100,0.9,6500,answered
+365,user4,French Island (Victoria): History: He then introduced it to French Island where it became the main source of income for over [____] years.,2,600,0.9,70,answered
+366,user5,Ingolstadt Hauptbahnhof: Services: Connections to the bus network: It also runs line [____] RBO to Regensburg.,1,1000,0.9,6008,answered
+367,user7,Wildlife of Alaska: Fish: Salmon Shark: The salmon shark is a small shark that can grow up to [____] feet.,8,20,0.9,8,answered
+368,user8,French Island (Victoria): History: He then introduced it to French Island where it became the main source of income for over [____] years.,100,500,0.9,70,answered
+369,user5,Roy Jones Jr.: Professional career: Comeback trail: Back to winning ways: Hanshaw was ranked [____] by the IBF at super middleweight.,1,20,0.9,11,answered
+370,user7,Tolbo Lake: The reason why is the lake has [____] deep places that are just like pots.,2,20,0.9,100,answered
+371,user8,Wildlife of Alaska: Fish: Salmon Shark: The salmon shark is a small shark that can grow up to [____] feet.,6,600,0.9,8,answered
+372,user7,Giraffatitan: History of discovery: In [____] limb and girdle elements were dug up.,2,200,0.9,1909,answered
+373,user7,Ruben Van Hirtum: He participated at the [____] Men's European Volleyball Championship.,1980,2020,0.9,2017,answered
+374,user5,"Old Lorimier Cemetery: There are believed to be more than [____] graves in the cemetery, most of them unmarked.",100,10000,0.9,6500,answered
+375,user8,Tolbo Lake: The reason why is the lake has [____] deep places that are just like pots.,2,200,0.9,100,answered
+376,user7,Catherston Leweston: It lies approximately [____] mi northeast of Lyme Regis.,20,500,0.9,2,answered
+377,user4,Wildlife of Alaska: Fish: Salmon Shark: The salmon shark is a small shark that can grow up to [____] feet.,2,30,0.9,8,answered
+378,user7,Nagata Station (Chiba): It is [____] kilometers from the terminus of the Sotobō Line at Chiba Station.,10,500,0.9,25.3,answered
+379,user8,Giraffatitan: History of discovery: In [____] limb and girdle elements were dug up.,5,5000,0.9,1909,answered
+380,user5,Tolbo Lake: The reason why is the lake has [____] deep places that are just like pots.,2,100,0.9,100,answered
+381,user8,Ruben Van Hirtum: He participated at the [____] Men's European Volleyball Championship.,3,80,0.9,2017,answered
+382,user5,Giraffatitan: History of discovery: In [____] limb and girdle elements were dug up.,1800,2020,0.9,1909,answered
+383,user8,Catherston Leweston: It lies approximately [____] mi northeast of Lyme Regis.,3,500,0.9,2,answered
+384,user5,Ruben Van Hirtum: He participated at the [____] Men's European Volleyball Championship.,5,2020,0.9,2017,answered
+386,user4,Tolbo Lake: The reason why is the lake has [____] deep places that are just like pots.,2,100,0.9,100,answered
+387,user8,Nagata Station (Chiba): It is [____] kilometers from the terminus of the Sotobō Line at Chiba Station.,2,100,0.9,25.3,answered
+388,user5,Catherston Leweston: It lies approximately [____] mi northeast of Lyme Regis.,0.5,50,0.9,2,answered
+389,user5,Nagata Station (Chiba): It is [____] kilometers from the terminus of the Sotobō Line at Chiba Station.,0.1,100,0.9,25.3,answered
+390,user4,Giraffatitan: History of discovery: In [____] limb and girdle elements were dug up.,1870,2015,0.9,1909,answered
+391,user4,Ruben Van Hirtum: He participated at the [____] Men's European Volleyball Championship.,1970,2018,0.9,2017,answered
+392,user4,Catherston Leweston: It lies approximately [____] mi northeast of Lyme Regis.,1,70,0.9,2,answered
+393,user4,Nagata Station (Chiba): It is [____] kilometers from the terminus of the Sotobō Line at Chiba Station.,2,70,0.9,25.3,answered
+394,user2,Melica longiligulata: Description: The main panicle branches are ascending and are [____] cm long.,0.1,100,0.9,6,answered
+395,user3,Melica longiligulata: Description: The main panicle branches are ascending and are [____] cm long.,5,110,0.9,6,answered
+396,user2,"Tekels Park: Tekels Park, Camberley, Surrey consists of about [____] acre of land, grassland and houses.",1,1000,0.9,50,answered
+397,user3,"Tekels Park: Tekels Park, Camberley, Surrey consists of about [____] acre of land, grassland and houses.",50,900,0.9,50,answered
+398,user2,"Mainzer Kammerorchester: Depending on a project, between eight and [____] players are recruited from this pool.",8,20,0.9,25,answered
+399,user3,"Mainzer Kammerorchester: Depending on a project, between eight and [____] players are recruited from this pool.",10,25,0.9,25,answered
+400,user2,"TOG (hackerspace): Events: National Events: TOG has also participated in the annual Dublin Maker event, which attracts over [____] attendees.",1,10000,0.9,10000,answered
+401,user3,"TOG (hackerspace): Events: National Events: TOG has also participated in the annual Dublin Maker event, which attracts over [____] attendees.",100,2000,0.9,10000,answered
+402,user2,"Lincoln Square, Manhattan: History: Over [____] residents were displaced during the redevelopment project.",1,1000000,0.9,7700,answered
+403,user3,"Lincoln Square, Manhattan: History: Over [____] residents were displaced during the redevelopment project.",1000,2000,0.9,7700,answered
