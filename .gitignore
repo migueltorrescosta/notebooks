@@ -1,0 +1,5 @@
+*.ipynb
+.cache/*
+.ipython/*
+.jupyter/*
+.local/*
