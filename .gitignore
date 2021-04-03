@@ -1,4 +1,3 @@
-*.ipynb
 .cache/*
 .ipython/*
 .jupyter/*
