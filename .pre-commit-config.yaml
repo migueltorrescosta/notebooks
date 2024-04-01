@@ -6,4 +6,4 @@ repos:
         files: \.ipynb
         stages: [pre-push, manual]
         language: system
-        entry: poetry run nbqa black .
+        entry: poetry run nbqa black . && git add * && git commit -m "Apply black to all files"
