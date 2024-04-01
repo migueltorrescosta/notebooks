@@ -1,9 +1,0 @@
-repos:
-  - repo: local
-    hooks:
-      - id: lint-all-notebooks-with-black
-        name: lint-all-notebooks-with-black
-        files: \.ipynb
-        stages: [pre-push, manual]
-        language: system
-        entry: poetry run nbqa black .
