@@ -33,6 +33,7 @@ types-requests = "^2.31.0.20240311"
 types-beautifulsoup4 = "^4.12.0.20240229"
 types-seaborn = "^0.13.2.20240311"
 black = "^24.3.0"
+pre-commit = "^3.7.0"
 
 
 [build-system]

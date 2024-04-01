@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: lint-all-notebooks
+        name: lint-all-notebooks
+        files: \.ipynb$
+        stages: [pre-push]
+        language: system
+        entry: poetry run nbqa black . --check
