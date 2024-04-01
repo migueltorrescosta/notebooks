@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "notebooks"
+version = "0.1.0"
+description = ""
+authors = ["migueltorrescosta <miguelptcosta1995@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+jupyter = "^1.0.0"
+numpy = "^1.26.4"
+matplotlib = "^3.8.3"
+scipy = "^1.12.0"
+sympy = "^1.12"
+pandas = "^2.2.1"
+jupyterlab = "^4.1.5"
+tqdm = "^4.66.2"
+qiskit = {extras = ["visualization"], version = "^1.0.2"}
+qiskit-ibm-provider = "^0.10.0"
+qiskit-aer = "^0.13.3"
+qiskit-algorithms = "^0.3.0"
+setuptools = "^69.2.0"
+qiskit-ibm-runtime = "^0.22.0"
+torch = "^2.2.2"
+torchvision = "^0.17.2"
+torchaudio = "^2.2.2"
+scikit-learn = "^1.4.1.post1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
