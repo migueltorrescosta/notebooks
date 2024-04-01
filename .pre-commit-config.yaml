@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: lint-all-notebooks
         name: lint-all-notebooks
-        files: \.ipynb$
-        stages: [pre-push]
+        files: \.ipynb
+        stages: [pre-push, manual]
         language: system
         entry: poetry run nbqa black . --check
