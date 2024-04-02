@@ -4,4 +4,4 @@
 .jupyter/*
 .local/*
 Quantum/Grenoble
-data/*
+data/
