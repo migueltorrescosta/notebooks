@@ -5,3 +5,4 @@
 .local/*
 Quantum/Grenoble
 data/
+__pycache__/
