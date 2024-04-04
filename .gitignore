@@ -4,5 +4,5 @@
 .jupyter/*
 .local/*
 Quantum/Grenoble
-data/
 __pycache__/
+data/
