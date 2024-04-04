@@ -1,8 +1,8 @@
+*.pyc
 .cache/*
 .ipynb_checkpoints/
 .ipython/*
 .jupyter/*
 .local/*
 Quantum/Grenoble
-__pycache__/
 data/
