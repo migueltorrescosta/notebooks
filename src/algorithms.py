@@ -26,7 +26,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
         pass
 
     @abstractmethod
-    def state_likelihood(self, T) -> float:
+    def state_likelihood(self, configuration: T) -> float:
         # This is proportional to the state probability
         pass
 
