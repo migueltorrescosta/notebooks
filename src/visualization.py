@@ -21,7 +21,7 @@ def fourier_transform(
     fig.tight_layout(pad=1)
     axs[0].set_title("Time Domain")
     axs[1].set_title("Frequency Domain, absolute value")
-    axs[1].set_title("Frequency Domain, angle")
+    axs[2].set_title("Frequency Domain, angle")
     axs[0].plot(x, y)
     axs[1].plot(xf, [np.sqrt(t.real**2 + t.imag**2) for t in yf])
     axs[2].plot(xf, [np.angle(t) for t in yf])
