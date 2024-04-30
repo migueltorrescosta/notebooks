@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -29,7 +29,10 @@ def fourier_transform(
 
 
 def finite_dimensional_populations_over_time(
-    hamiltonian: np.array, rho0: np.array, time_window_upper_bound: int = 10
+    hamiltonian: np.array,
+    rho0: np.array,
+    time_window_upper_bound: int = 10,
+    labels: Optional[List[str]] = None,
 ) -> None:
     n_states = hamiltonian.shape[0]
 
@@ -39,6 +42,13 @@ def finite_dimensional_populations_over_time(
     ), "The initial state rho0 does not match the hamiltonian's dimension"
     assert time_window_upper_bound > 0, "The time cannot be negative"
     assert np.einsum("ii", rho0) == 1, "The diagonals of rho0 must add up to 1"
+
+    if labels is None:
+        labels = range(rho0.shape[1])
+    else:
+        assert (
+            len(labels) == rho0.shape[1]
+        ), f"We have {len(labels)} labels but {rho0.shape[1]} possible states"
 
     time_axis = np.linspace(0, time_window_upper_bound, 1000)
 
@@ -52,7 +62,7 @@ def finite_dimensional_populations_over_time(
         time_axis,
         [np.vectorize(np.abs)(full_rho[:, t, t]) for t in range(full_rho.shape[1])],
         baseline="zero",
-        labels=range(full_rho.shape[1]),
+        labels=labels,
     )
     plt.legend()
 
