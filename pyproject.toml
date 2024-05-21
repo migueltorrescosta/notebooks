@@ -1,12 +1,13 @@
 [tool.poetry]
-name = "notebooks"
+name = "collapsedwave"
 version = "0.1.0"
 description = ""
 authors = ["migueltorrescosta <miguelptcosta1995@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-black = "^24.3.0"
+fastparquet = "^2024.2.0"
+ipympl = "^0.9.3"
 jupyter = "^1.0.0"
 jupyterlab = "^4.1.5"
 lightgbm = "^4.3.0"
@@ -16,7 +17,6 @@ nbqa = "^1.8.5"
 numerapi = "^2.18.0"
 numpy = "^1.26.4"
 pandas = "^2.2.1"
-pandas-stubs = "^2.2.1.240316"
 python = "^3.12"
 qiskit = { extras = ["visualization"], version = "^1.0.2" }
 qiskit-aer = "^0.13.3"
@@ -25,20 +25,28 @@ qiskit-ibm-provider = "^0.10.0"
 qiskit-ibm-runtime = "^0.22.0"
 scikit-learn = "^1.4.1.post1"
 scipy = "^1.12.0"
-setuptools = "^69.2.0"
 sympy = "^1.12"
 torch = "^2.2.2"
 torchaudio = "^2.2.2"
 torchvision = "^0.17.2"
 tqdm = "^4.66.2"
+qutip = "^5.0.1"
+
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.3.0"
+pandas-stubs = "^2.2.1.240316"
+pdflatex = "^0.1.3"
+setuptools = "^69.2.0"
 types-beautifulsoup4 = "^4.12.0.20240229"
 types-requests = "^2.31.0.20240311"
 types-seaborn = "^0.13.2.20240311"
 types-tqdm = "^4.66.0.20240106"
-fastparquet = "^2024.2.0"
-pdflatex = "^0.1.3"
-ipympl = "^0.9.3"
 
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.2.0"
 
 [build-system]
 requires = ["poetry-core"]

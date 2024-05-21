@@ -10,6 +10,9 @@ T = TypeVar("T")
 
 
 class AbstractMetropolisHastings(ABC, Generic[T]):
+    """Inner workings of the MetropolistHastings algorithm
+    """
+
     # Based on https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm#Description
 
     def __init__(self, initial_configuration: T):
@@ -32,11 +35,11 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
 
     def approval_function(self, new_configuration: T) -> bool:
         return (
-            self.state_likelihood(new_configuration)
-            >= self.state_likelihood(self.current_configuration) * np.random.random()
+                self.state_likelihood(new_configuration)
+                >= self.state_likelihood(self.current_configuration) * np.random.random()
         )
 
-    def run_single_iteration(self, limit_tries=10**5) -> T:
+    def run_single_iteration(self, limit_tries=10 ** 5) -> T:
         tries = 0
         while True:
             new_state = self.generator_function()
@@ -65,16 +68,36 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
             update_frequency = 2 ** (int(np.log(iterations_per_second) / np.log(2)) - 1)
 
             if n % update_frequency == 0:
-
                 rejection_rate = np.divide(
                     self.rejected_configuration_count,
                     self.accepted_configuration_count
                     + self.rejected_configuration_count,
                 )
                 pbar.set_description(
-                    f"Rejected {100*rejection_rate:.1f}%",
+                    f"Rejected {100 * rejection_rate:.1f}%",
                     refresh=True,
                 )
 
     def plot(self) -> None:
         plt.plot(self.configuration_history)
+
+
+class GaussianMetropolisHastings(AbstractMetropolisHastings[float]):
+    """Example implementation
+    This takes sample from a Gaussian distribution
+
+    >>> smh = GaussianMetropolisHastings(initial_configuration=0)
+    >>> n = 10**5
+    >>> smh.run_iterations(n)
+
+    Ensuring that roughly half of the observations are negative
+    >>> negative_configurations = len([x for x in smh.configuration_history if x < 0])
+    >>> .48 * n < negative_configurations < .52 * n # Probabilistic check
+    True
+    """
+
+    def generator_function(self):
+        return self.current_configuration + np.random.normal(0, 1)
+
+    def state_likelihood(self, configuration: float):
+        return np.exp(-1 * configuration ** 2)
