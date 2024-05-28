@@ -1,0 +1,1394 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Game &#8212; Notebooks</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "light";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+<link href="../_static/styles/bootstrap.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+
+  
+  <link href="../_static/vendor/fontawesome/6.5.1/css/all.min.css?digest=8d27b9dea8ad943066ae" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../_static/vendor/fontawesome/6.5.1/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=384b581d" />
+    <link rel="stylesheet" type="text/css" href="../_static/togglebutton.css?v=13237357" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/mystnb.4510f1fc1dee50b3e5859aac5469c37c29e427902b24a333a5f9fcb2f0b3ac41.css?v=be8a1c11" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-thebe.css?v=4fa983c6" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=87e54e7c" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae" />
+  <script src="../_static/vendor/fontawesome/6.5.1/js/all.min.js?digest=8d27b9dea8ad943066ae"></script>
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=efea14e4"></script>
+    <script>let toggleHintShow = 'Click to show';</script>
+    <script>let toggleHintHide = 'Click to hide';</script>
+    <script>let toggleOpenOnPrint = 'true';</script>
+    <script src="../_static/togglebutton.js?v=4a39c7ea"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script src="../_static/design-tabs.js?v=36754332"></script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script async="async" src="../_static/sphinx-thebe.js?v=c100c467"></script>
+    <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+    <script>const THEBE_JS_URL = "https://unpkg.com/thebe@0.8.2/lib/index.js"; const thebe_selector = ".thebe,.cell"; const thebe_selector_input = "pre"; const thebe_selector_output = ".output, .cell_output"</script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'Tournments/LiarsGame';</script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <a id="pst-skip-link" class="skip-link" href="#main-content">Skip to main content</a>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>
+    Back to top
+  </button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__primary"
+          id="__primary"/>
+  <label class="overlay overlay-primary" for="__primary"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          name="__secondary"
+          id="__secondary"/>
+  <label class="overlay overlay-secondary" for="__secondary"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search this book..."
+         aria-label="Search this book..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+
+<a class="navbar-brand logo" href="../intro.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/og-image.png" class="logo__image only-light" alt="Notebooks - Home"/>
+    <script>document.write(`<img src="../_static/og-image.png" class="logo__image only-dark" alt="Notebooks - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+ <script>
+ document.write(`
+   <button class="btn navbar-btn search-button-field search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <span class="search-button__default-text">Search</span>
+    <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+   </button>
+ `);
+ </script></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        
+        <ul class="nav bd-sidenav bd-sidenav__home-link">
+            <li class="toctree-l1">
+                <a class="reference internal" href="../intro.html">
+                    Collapsed Wave Notebooks
+                </a>
+            </li>
+        </ul>
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Quantum</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../Quantum/QuantumErrorCorrectionWithQiskit.html">Quantum Error Correction</a></li>
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="../Quantum/MetropolisHastingsAppliedToADoublet.html">Metropolis Hastings applied to a Doublet</a></li>
+
+
+
+
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Scribbles</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/Expectations.html">Expectations</a></li>
+
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/ExpectedOpportunityLoss.html">Expected Opportunity Loss</a></li>
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/MedicalTestAccuracy.html">Medical Test Accuracy</a></li>
+
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/Monocrata.html">Monocrata</a></li>
+
+
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/MultiArmedBandit.html">Multi Armed Bandit</a></li>
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/MutualInformation.html">Mutual Information</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/PhasePlanes.html">Phase Planes</a></li>
+
+
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/ApproximatingPIviaMonteCarlo.html">Approximating <span class="math notranslate nohighlight">\(\pi\)</span> via Monte Carlo</a></li>
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/SigmoidVsExponential.html">Sigmoid vs Exponential Modelling</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/SparseMatrixOperations.html">Example matrix</a></li>
+
+
+
+
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/Sperners_Lemma.html">Sperner’s Lemma: Methodology for splitting <span class="math notranslate nohighlight">\(a\)</span> assets fairly between <span class="math notranslate nohighlight">\(n\)</span> people</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../Scribbles/TimeComplexityProfiling.html">Time Complexity Profiling</a></li>
+
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><label class="sidebar-toggle primary-toggle btn btn-sm" for="__primary" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</label></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/executablebooks/jupyter-book" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/executablebooks/jupyter-book/issues/new?title=Issue%20on%20page%20%2FTournments/LiarsGame.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/Tournments/LiarsGame.ipynb" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.ipynb</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="theme-switch nav-link" data-mode="light"><i class="fa-solid fa-sun fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="dark"><i class="fa-solid fa-moon fa-lg"></i></span>
+    <span class="theme-switch nav-link" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg"></i></span>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm navbar-btn search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<label class="sidebar-toggle secondary-toggle btn btn-sm" for="__secondary"title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</label>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Game</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Game</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-started">Getting started</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#links">Links</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#remark">Remark</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#current-best-strategies">Current Best Strategies:</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#all-imports">All imports</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#game-class">Game Class</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#player-parent-class">Player Parent Class</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#submitted-strategies">Submitted Strategies</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#your-playground">Your playground</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#setup-variables">Setup variables</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#sample-run">Sample Run</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#distribution-of-rounds-survived">Distribution of Rounds survived</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#online-play">Online Play</a></li>
+</ul>
+
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="game">
+<h1>Game<a class="headerlink" href="#game" title="Link to this heading">#</a></h1>
+<ol class="arabic simple">
+<li><p>In Liars Game, a community of <span class="math notranslate nohighlight">\(n\)</span> players start with the same amount of money each.</p></li>
+<li><p>Every round each individual selects how much they want to contribute to the central pot.</p></li>
+<li><p>After each round the central point is distributed between the entire community.</p></li>
+<li><p>The community does not like selfish people, so they kick out the person who gives the least amount of money each round.</p></li>
+<li><p>This also means that if you give too much in the beginning, you will not have enough in the end to survive.</p></li>
+<li><p>What strategy increases the odds of you coming out victorious?</p></li>
+</ol>
+</section>
+<section id="getting-started">
+<h1>Getting started<a class="headerlink" href="#getting-started" title="Link to this heading">#</a></h1>
+<p>There’s a cell below titled <em>Your Custom Player</em>. Make the improvements you want to it, uncomment your player from the strategies list, and then run the entire notebook :)</p>
+</section>
+<section id="links">
+<h1>Links<a class="headerlink" href="#links" title="Link to this heading">#</a></h1>
+<ul class="simple">
+<li><p>GitRepo: <a class="github reference external" href="https://github.com/migueltorrescosta/nash_equilibria/tree/main/tournments/liars_game">migueltorrescosta/nash_equilibria</a></p></li>
+</ul>
+</section>
+<section id="remark">
+<h1>Remark<a class="headerlink" href="#remark" title="Link to this heading">#</a></h1>
+<ul class="simple">
+<li><p>The Uniformly Random function might not perform very well, but for now it is the only one introducing a significant amount of randomness. Without it the other strategies become deterministic and provide for a very boring analysis</p></li>
+<li><p>In a game where all opponents always put everything, then you are limited to do the same. However as soon as someone else has a different strategy, you can beat it by putting slightly more and then always putting almost everything.</p></li>
+</ul>
+</section>
+<section id="current-best-strategies">
+<h1>Current Best Strategies:<a class="headerlink" href="#current-best-strategies" title="Link to this heading">#</a></h1>
+<ol class="arabic simple">
+<li><p>Slightly More</p></li>
+<li><p>Exponential Decay</p></li>
+<li><p>Two Over N Players</p></li>
+<li><p>Everything</p></li>
+<li><p>Everything Except First Round</p></li>
+<li><p>Ninety Percentile</p></li>
+<li><p>Half</p></li>
+<li><p>Uniformly Random</p></li>
+<li><p>Tenth Percentile</p></li>
+</ol>
+<p>(ordered by average number of rounds survived. Descriptions and more details below)</p>
+</section>
+<section id="all-imports">
+<h1>All imports<a class="headerlink" href="#all-imports" title="Link to this heading">#</a></h1>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span> <span class="nn">seaborn</span> <span class="k">as</span> <span class="nn">sns</span>
+<span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+
+<span class="n">cm</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">light_palette</span><span class="p">(</span><span class="s2">&quot;green&quot;</span><span class="p">,</span> <span class="n">as_cmap</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="game-class">
+<h1>Game Class<a class="headerlink" href="#game-class" title="Link to this heading">#</a></h1>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">LiarsGame</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">strategies</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">strategies</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;You need at least 3 players to start a game&quot;</span>
+
+        <span class="c1"># Secret attributes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__players</span> <span class="o">=</span> <span class="p">[</span><span class="n">strategy</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">strategy</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span> <span class="k">for</span> <span class="n">strategy</span> <span class="ow">in</span> <span class="n">strategies</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__initial_n_players</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__players</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__money</span> <span class="o">=</span> <span class="p">{</span><span class="n">player</span><span class="p">:</span> <span class="mi">100</span> <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__players</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__game_history</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+            <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">player</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__players</span><span class="p">],</span> <span class="n">index</span><span class="o">=</span><span class="p">[],</span> <span class="n">data</span><span class="o">=</span><span class="mi">0</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__eliminations</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__run_game</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;LiarsGame: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">n_players</span><span class="si">}</span><span class="s2"> with </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">total_money</span><span class="si">}</span><span class="s2">¥&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__weight</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coin_list</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">__coin_weights</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">coin_list</span><span class="p">])</span>
+
+    <span class="c1"># Accessible attributes</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">money</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__money</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">total_money</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__money</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">players</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__players</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_players</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__players</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">eliminations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__eliminations</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">game_history</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__game_history</span>
+
+    <span class="k">def</span> <span class="nf">show_game_history_heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__game_history</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">background_gradient</span><span class="p">(</span><span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">set_precision</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">highlight_null</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">show_game_history_bar_plot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__game_history</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span>
+            <span class="n">stacked</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">width</span><span class="o">=</span><span class="mf">0.95</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s2">&quot;center right&quot;</span><span class="p">,</span> <span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span> <span class="n">prop</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;size&quot;</span><span class="p">:</span> <span class="mi">18</span><span class="p">})</span>
+
+    <span class="k">def</span> <span class="nf">my_money</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">player</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__money</span><span class="p">[</span><span class="n">player</span><span class="p">]</span>
+
+    <span class="c1"># Key Methods</span>
+
+    <span class="k">def</span> <span class="nf">__run_round</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">__game_history</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__initial_n_players</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_players</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">player</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">money</span><span class="p">[</span><span class="n">player</span><span class="p">]</span> <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">players</span>
+        <span class="p">}</span>
+
+        <span class="n">current_move</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">player</span><span class="p">:</span> <span class="nb">max</span><span class="p">([</span><span class="nb">min</span><span class="p">([</span><span class="n">player</span><span class="o">.</span><span class="n">move</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="mi">1</span><span class="p">]),</span> <span class="mi">0</span><span class="p">])</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">money</span><span class="p">[</span><span class="n">player</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">players</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__verbose</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">players</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">player</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">current_move</span><span class="p">[</span><span class="n">player</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> / </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">money</span><span class="p">[</span><span class="n">player</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">50</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">lowest_contribution</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">current_move</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="n">smallest_contributor</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span>
+            <span class="p">[</span>
+                <span class="n">player</span>
+                <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__players</span>
+                <span class="k">if</span> <span class="n">current_move</span><span class="p">[</span><span class="n">player</span><span class="p">]</span> <span class="o">==</span> <span class="n">lowest_contribution</span>
+            <span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__eliminations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">smallest_contributor</span><span class="p">)</span>
+        <span class="n">current_move</span><span class="p">[</span><span class="n">smallest_contributor</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__money</span><span class="p">[</span><span class="n">smallest_contributor</span><span class="p">]</span>
+        <span class="n">pot</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">current_move</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__players</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">player</span> <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">__players</span> <span class="k">if</span> <span class="n">player</span> <span class="o">!=</span> <span class="n">smallest_contributor</span>
+        <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__money</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">player</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">__money</span><span class="p">[</span><span class="n">player</span><span class="p">]</span> <span class="o">-</span> <span class="n">current_move</span><span class="p">[</span><span class="n">player</span><span class="p">]</span> <span class="o">+</span> <span class="n">pot</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_players</span>
+            <span class="k">for</span> <span class="n">player</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">players</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">__run_game</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_players</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">__run_round</span><span class="p">()</span>
+
+        <span class="n">winner</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">players</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__game_history</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">__initial_n_players</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_players</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">winner</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">money</span><span class="p">[</span><span class="n">winner</span><span class="p">]</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__eliminations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">winner</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">__verbose</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Winner: </span><span class="si">{</span><span class="n">winner</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">winner</span><span class="o">.</span><span class="n">name</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="player-parent-class">
+<h1>Player Parent Class<a class="headerlink" href="#player-parent-class" title="Link to this heading">#</a></h1>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">Player</span><span class="p">:</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">pass</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="submitted-strategies">
+<h1>Submitted Strategies<a class="headerlink" href="#submitted-strategies" title="Link to this heading">#</a></h1>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Always contributes half of their wealth</span>
+<span class="k">class</span> <span class="nc">half</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mf">0.5</span>
+
+
+<span class="c1"># Always contributes all their wealth</span>
+
+
+<span class="k">class</span> <span class="nc">everything</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mi">1</span>
+
+
+<span class="c1"># Always contributes 90% of their wealth</span>
+
+
+<span class="k">class</span> <span class="nc">ninety_percentile</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mf">0.9</span>
+
+
+<span class="c1"># Always contributes 10% of their wealth</span>
+
+
+<span class="k">class</span> <span class="nc">tenth_percentile</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mf">0.1</span>
+
+
+<span class="c1"># Contributes an uniformly random amount of their wealth</span>
+
+
+<span class="k">class</span> <span class="nc">uniformly_random</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span>
+
+
+<span class="c1"># Contributes a weird amount</span>
+
+
+<span class="k">class</span> <span class="nc">two_over_n_players</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_number_of_players</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_number_of_players</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_number_of_players</span> <span class="o">=</span> <span class="n">status</span><span class="o">.</span><span class="n">n_players</span>
+        <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">n_players</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_number_of_players</span>
+
+
+<span class="c1"># In the first random it contributes a random amount, otherwise it contributes everything</span>
+
+
+<span class="k">class</span> <span class="nc">everything_except_first_round</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">1</span>
+
+
+<span class="c1"># Contributes an amount that converges to 1 exponentially</span>
+
+
+<span class="k">class</span> <span class="nc">exponential_decay</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_number_of_players</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_number_of_players</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_number_of_players</span> <span class="o">=</span> <span class="n">status</span><span class="o">.</span><span class="n">n_players</span>
+
+        <span class="k">return</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">0.3</span> <span class="o">**</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_number_of_players</span> <span class="o">-</span> <span class="n">status</span><span class="o">.</span><span class="n">n_players</span><span class="p">)</span>
+
+
+<span class="c1"># First round it contributes an uniformly random amount, after that it contributes the minimum needed to ensure survival.</span>
+
+
+<span class="k">class</span> <span class="nc">slightly_more</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">n_players</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">least_money</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">money</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+            <span class="k">return</span> <span class="n">least_money</span> <span class="o">/</span> <span class="n">status</span><span class="o">.</span><span class="n">my_money</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">+</span> <span class="mf">10e-9</span>
+
+
+<span class="k">class</span> <span class="nc">slightly_less</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="n">least_money</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">money</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">n_players</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">least_money</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">money</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+            <span class="k">return</span> <span class="n">least_money</span> <span class="o">-</span> <span class="mf">10e-9</span>
+
+
+<span class="k">class</span> <span class="nc">hrna_ox</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">num_risk_rounds</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">risk_min_frac</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">risk_bias</span><span class="o">=</span><span class="mf">0.1</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">risk_rounds</span> <span class="o">=</span> <span class="n">num_risk_rounds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">risk_min_frac</span> <span class="o">=</span> <span class="n">risk_min_frac</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">risk_bias</span> <span class="o">=</span> <span class="n">risk_bias</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_round</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="c1"># For the first risk_rounds, adopt an agressive, risky strategy based on fraction of the minimum with bias. Otherwise, minimum</span>
+        <span class="n">min_money</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">money</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_round</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">risk_rounds</span><span class="p">:</span>
+            <span class="c1"># Risky bet!</span>
+            <span class="n">bet</span> <span class="o">=</span> <span class="n">min_money</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">risk_bias</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">risk_min_frac</span> <span class="o">*</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">())</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">current_round</span> <span class="o">+=</span> <span class="mi">1</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">bet</span> <span class="o">=</span> <span class="n">min_money</span> <span class="o">+</span> <span class="mf">1e-9</span>
+
+        <span class="k">return</span> <span class="n">bet</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="your-playground">
+<h1>Your playground<a class="headerlink" href="#your-playground" title="Link to this heading">#</a></h1>
+<p>Edit the code below with your own ideas :)</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">your_custom_player</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">is_first_move</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">*</span> <span class="mf">0.9</span> <span class="o">+</span> <span class="mf">0.1</span>
+        <span class="k">if</span> <span class="n">status</span><span class="o">.</span><span class="n">n_players</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="mi">1</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">least_money</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">money</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+            <span class="k">return</span> <span class="n">least_money</span> <span class="o">/</span> <span class="n">status</span><span class="o">.</span><span class="n">my_money</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">+</span> <span class="mf">10e-9</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="setup-variables">
+<h1>Setup variables<a class="headerlink" href="#setup-variables" title="Link to this heading">#</a></h1>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">best_strategies</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">exponential_decay</span><span class="p">,</span>
+    <span class="n">half</span><span class="p">,</span>
+    <span class="n">everything</span><span class="p">,</span>
+    <span class="c1">#    tenth_percentile,</span>
+    <span class="n">ninety_percentile</span><span class="p">,</span>
+    <span class="n">two_over_n_players</span><span class="p">,</span>
+    <span class="n">uniformly_random</span><span class="p">,</span>
+    <span class="n">everything_except_first_round</span><span class="p">,</span>
+    <span class="n">slightly_more</span><span class="p">,</span>
+    <span class="n">slightly_less</span><span class="p">,</span>
+    <span class="n">your_custom_player</span><span class="p">,</span>
+    <span class="n">hrna_ox</span><span class="p">,</span>
+<span class="p">]</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="sample-run">
+<h1>Sample Run<a class="headerlink" href="#sample-run" title="Link to this heading">#</a></h1>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">x</span> <span class="o">=</span> <span class="n">LiarsGame</span><span class="p">(</span><span class="n">strategies</span><span class="o">=</span><span class="n">best_strategies</span><span class="p">)</span>
+<span class="n">x</span><span class="o">.</span><span class="n">show_game_history_heatmap</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output traceback highlight-ipythontb notranslate"><div class="highlight"><pre><span></span><span class="gt">---------------------------------------------------------------------------</span>
+<span class="ne">AttributeError</span><span class="g g-Whitespace">                            </span>Traceback (most recent call last)
+<span class="n">Cell</span> <span class="n">In</span><span class="p">[</span><span class="mi">7</span><span class="p">],</span> <span class="n">line</span> <span class="mi">2</span>
+<span class="g g-Whitespace">      </span><span class="mi">1</span> <span class="n">x</span> <span class="o">=</span> <span class="n">LiarsGame</span><span class="p">(</span><span class="n">strategies</span><span class="o">=</span><span class="n">best_strategies</span><span class="p">)</span>
+<span class="ne">----&gt; </span><span class="mi">2</span> <span class="n">x</span><span class="o">.</span><span class="n">show_game_history_heatmap</span><span class="p">()</span>
+
+<span class="nn">Cell In[2], line 51,</span> in <span class="ni">LiarsGame.show_game_history_heatmap</span><span class="nt">(self)</span>
+<span class="g g-Whitespace">     </span><span class="mi">48</span> <span class="k">def</span> <span class="nf">show_game_history_heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="g g-Whitespace">     </span><span class="mi">49</span>     <span class="k">return</span> <span class="p">(</span>
+<span class="g g-Whitespace">     </span><span class="mi">50</span>         <span class="bp">self</span><span class="o">.</span><span class="n">__game_history</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">background_gradient</span><span class="p">(</span><span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="p">)</span>
+<span class="ne">---&gt; </span><span class="mi">51</span>         <span class="o">.</span><span class="n">set_precision</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="g g-Whitespace">     </span><span class="mi">52</span>         <span class="o">.</span><span class="n">highlight_null</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>
+<span class="g g-Whitespace">     </span><span class="mi">53</span>     <span class="p">)</span>
+
+<span class="ne">AttributeError</span>: &#39;Styler&#39; object has no attribute &#39;set_precision&#39;
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">x</span><span class="o">.</span><span class="n">show_game_history_bar_plot</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;matplotlib.legend.Legend at 0x7ff3290b26d0&gt;
+</pre></div>
+</div>
+<img alt="../_images/97f9abb215d18dee50a6a30bc7dc716531b4f1de77ae90f5af9bc76ab10b654b.png" src="../_images/97f9abb215d18dee50a6a30bc7dc716531b4f1de77ae90f5af9bc76ab10b654b.png" />
+</div>
+</div>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="distribution-of-rounds-survived">
+<h1>Distribution of Rounds survived<a class="headerlink" href="#distribution-of-rounds-survived" title="Link to this heading">#</a></h1>
+<p>The more rounds one survives, the better the strategy is</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">runs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">10e4</span><span class="p">)</span>
+<span class="n">strategy_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">strategy</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">for</span> <span class="n">strategy</span> <span class="ow">in</span> <span class="n">best_strategies</span><span class="p">]</span>
+<span class="n">rounds_survived</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+    <span class="n">columns</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">strategy_names</span><span class="p">)),</span> <span class="n">index</span><span class="o">=</span><span class="n">strategy_names</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="mi">0</span>
+<span class="p">)</span>
+
+<span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">tqdm</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">runs</span><span class="p">)):</span>
+    <span class="n">eliminations</span> <span class="o">=</span> <span class="n">LiarsGame</span><span class="p">(</span><span class="n">strategies</span><span class="o">=</span><span class="n">best_strategies</span><span class="p">)</span><span class="o">.</span><span class="n">eliminations</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">player</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">eliminations</span><span class="p">):</span>
+        <span class="n">rounds_survived</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">player</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+<span class="n">rounds_survived</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">plot</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span><span class="n">stacked</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">5</span><span class="p">),</span> <span class="n">width</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
+    <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;center right&quot;</span><span class="p">,</span> <span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span> <span class="n">prop</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;size&quot;</span><span class="p">:</span> <span class="mi">18</span><span class="p">}</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>100%|██████████| 100000/100000 [1:09:32&lt;00:00, 23.97it/s]
+</pre></div>
+</div>
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;matplotlib.legend.Legend at 0x7ff3283dee20&gt;
+</pre></div>
+</div>
+<img alt="../_images/2adfb24e57eafc30017534f030d712ca04278cbd7dec4bd83ae64e89f88d23e2.png" src="../_images/2adfb24e57eafc30017534f030d712ca04278cbd7dec4bd83ae64e89f88d23e2.png" />
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">average_survival</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">rounds_survived</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">rounds_survived</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+    <span class="o">/</span> <span class="p">(</span><span class="n">runs</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">best_strategies</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">strategy_names</span>
+<span class="p">}</span>
+<span class="n">rounds_survived</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">rounds_survived</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">average_survival</span><span class="p">)</span>
+<span class="n">rounds_survived</span> <span class="o">=</span> <span class="n">rounds_survived</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Results from </span><span class="si">{</span><span class="n">runs</span><span class="si">}</span><span class="s2"> runs&quot;</span><span class="p">)</span>
+<span class="n">rounds_survived</span><span class="o">.</span><span class="n">style</span><span class="o">.</span><span class="n">background_gradient</span><span class="p">(</span><span class="n">cmap</span><span class="o">=</span><span class="n">cm</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Results from 100000 runs
+</pre></div>
+</div>
+<div class="output text_html"><style  type="text/css" >
+#T_904d8_row0_col0{
+            background-color:  #cfe5cf;
+            color:  #000000;
+        }#T_904d8_row0_col1,#T_904d8_row0_col2,#T_904d8_row0_col3,#T_904d8_row0_col4,#T_904d8_row0_col5,#T_904d8_row0_col6,#T_904d8_row0_col7,#T_904d8_row0_col8,#T_904d8_row1_col1,#T_904d8_row1_col2,#T_904d8_row1_col3,#T_904d8_row1_col4,#T_904d8_row1_col5,#T_904d8_row1_col6,#T_904d8_row1_col7,#T_904d8_row1_col8,#T_904d8_row2_col0,#T_904d8_row2_col1,#T_904d8_row2_col2,#T_904d8_row2_col3,#T_904d8_row2_col4,#T_904d8_row2_col5,#T_904d8_row2_col6,#T_904d8_row2_col7,#T_904d8_row2_col10,#T_904d8_row3_col0,#T_904d8_row3_col1,#T_904d8_row3_col2,#T_904d8_row3_col3,#T_904d8_row3_col9,#T_904d8_row3_col10,#T_904d8_row4_col0,#T_904d8_row4_col1,#T_904d8_row4_col2,#T_904d8_row4_col3,#T_904d8_row4_col9,#T_904d8_row4_col10,#T_904d8_row5_col1,#T_904d8_row5_col2,#T_904d8_row5_col3,#T_904d8_row5_col9,#T_904d8_row5_col10,#T_904d8_row6_col1,#T_904d8_row6_col2,#T_904d8_row6_col3,#T_904d8_row6_col9,#T_904d8_row6_col10,#T_904d8_row7_col0,#T_904d8_row7_col1,#T_904d8_row7_col5,#T_904d8_row7_col6,#T_904d8_row7_col7,#T_904d8_row7_col8,#T_904d8_row7_col9,#T_904d8_row7_col10,#T_904d8_row8_col0,#T_904d8_row8_col4,#T_904d8_row8_col5,#T_904d8_row8_col6,#T_904d8_row8_col7,#T_904d8_row8_col8,#T_904d8_row8_col9,#T_904d8_row8_col10,#T_904d8_row9_col6,#T_904d8_row9_col7,#T_904d8_row9_col8,#T_904d8_row9_col9,#T_904d8_row9_col10,#T_904d8_row10_col3,#T_904d8_row10_col4,#T_904d8_row10_col5,#T_904d8_row10_col6,#T_904d8_row10_col7,#T_904d8_row10_col8,#T_904d8_row10_col9,#T_904d8_row10_col10,#T_904d8_row10_col11{
+            background-color:  #ebf3eb;
+            color:  #000000;
+        }#T_904d8_row0_col9,#T_904d8_row0_col10,#T_904d8_row0_col11,#T_904d8_row2_col8,#T_904d8_row3_col5,#T_904d8_row3_col7,#T_904d8_row4_col5,#T_904d8_row4_col6,#T_904d8_row7_col3,#T_904d8_row7_col4,#T_904d8_row8_col2,#T_904d8_row10_col0,#T_904d8_row10_col1{
+            background-color:  #008000;
+            color:  #f1f1f1;
+        }#T_904d8_row1_col0,#T_904d8_row9_col0{
+            background-color:  #9dcd9d;
+            color:  #000000;
+        }#T_904d8_row1_col9{
+            background-color:  #058205;
+            color:  #f1f1f1;
+        }#T_904d8_row1_col10{
+            background-color:  #219021;
+            color:  #000000;
+        }#T_904d8_row1_col11{
+            background-color:  #188c18;
+            color:  #000000;
+        }#T_904d8_row2_col9{
+            background-color:  #82c082;
+            color:  #000000;
+        }#T_904d8_row2_col11{
+            background-color:  #1a8d1a;
+            color:  #000000;
+        }#T_904d8_row3_col4,#T_904d8_row4_col4,#T_904d8_row6_col4,#T_904d8_row7_col11{
+            background-color:  #a1cfa1;
+            color:  #000000;
+        }#T_904d8_row3_col6{
+            background-color:  #018001;
+            color:  #f1f1f1;
+        }#T_904d8_row3_col8,#T_904d8_row4_col8,#T_904d8_row5_col8,#T_904d8_row6_col8{
+            background-color:  #deedde;
+            color:  #000000;
+        }#T_904d8_row3_col11,#T_904d8_row4_col11{
+            background-color:  #5cad5c;
+            color:  #000000;
+        }#T_904d8_row4_col7{
+            background-color:  #038103;
+            color:  #f1f1f1;
+        }#T_904d8_row5_col0,#T_904d8_row6_col0{
+            background-color:  #9ccd9c;
+            color:  #000000;
+        }#T_904d8_row5_col4{
+            background-color:  #a2cfa2;
+            color:  #000000;
+        }#T_904d8_row5_col5{
+            background-color:  #279327;
+            color:  #000000;
+        }#T_904d8_row5_col6,#T_904d8_row6_col6{
+            background-color:  #289328;
+            color:  #000000;
+        }#T_904d8_row5_col7{
+            background-color:  #259225;
+            color:  #000000;
+        }#T_904d8_row5_col11,#T_904d8_row6_col11{
+            background-color:  #73b873;
+            color:  #000000;
+        }#T_904d8_row6_col5{
+            background-color:  #269226;
+            color:  #000000;
+        }#T_904d8_row6_col7{
+            background-color:  #299429;
+            color:  #000000;
+        }#T_904d8_row7_col2{
+            background-color:  #d6e9d6;
+            color:  #000000;
+        }#T_904d8_row8_col1{
+            background-color:  #85c185;
+            color:  #000000;
+        }#T_904d8_row8_col3{
+            background-color:  #53a953;
+            color:  #000000;
+        }#T_904d8_row8_col11{
+            background-color:  #c4e0c4;
+            color:  #000000;
+        }#T_904d8_row9_col1{
+            background-color:  #0d860d;
+            color:  #f1f1f1;
+        }#T_904d8_row9_col2{
+            background-color:  #52a852;
+            color:  #000000;
+        }#T_904d8_row9_col3{
+            background-color:  #b2d7b2;
+            color:  #000000;
+        }#T_904d8_row9_col4{
+            background-color:  #ddecdd;
+            color:  #000000;
+        }#T_904d8_row9_col5{
+            background-color:  #e8f2e8;
+            color:  #000000;
+        }#T_904d8_row9_col11{
+            background-color:  #d5e9d5;
+            color:  #000000;
+        }#T_904d8_row10_col2{
+            background-color:  #97ca97;
+            color:  #000000;
+        }</style><table id="T_904d8_" ><thead>    <tr>        <th class="blank level0" ></th>        <th class="col_heading level0 col0" >0</th>        <th class="col_heading level0 col1" >1</th>        <th class="col_heading level0 col2" >2</th>        <th class="col_heading level0 col3" >3</th>        <th class="col_heading level0 col4" >4</th>        <th class="col_heading level0 col5" >5</th>        <th class="col_heading level0 col6" >6</th>        <th class="col_heading level0 col7" >7</th>        <th class="col_heading level0 col8" >8</th>        <th class="col_heading level0 col9" >9</th>        <th class="col_heading level0 col10" >10</th>        <th class="col_heading level0 col11" >mean</th>    </tr></thead><tbody>
+                <tr>
+                        <th id="T_904d8_level0_row0" class="row_heading level0 row0" >your_custom_player</th>
+                        <td id="T_904d8_row0_col0" class="data row0 col0" >4896</td>
+                        <td id="T_904d8_row0_col1" class="data row0 col1" >0</td>
+                        <td id="T_904d8_row0_col2" class="data row0 col2" >0</td>
+                        <td id="T_904d8_row0_col3" class="data row0 col3" >0</td>
+                        <td id="T_904d8_row0_col4" class="data row0 col4" >0</td>
+                        <td id="T_904d8_row0_col5" class="data row0 col5" >0</td>
+                        <td id="T_904d8_row0_col6" class="data row0 col6" >0</td>
+                        <td id="T_904d8_row0_col7" class="data row0 col7" >0</td>
+                        <td id="T_904d8_row0_col8" class="data row0 col8" >9</td>
+                        <td id="T_904d8_row0_col9" class="data row0 col9" >41217</td>
+                        <td id="T_904d8_row0_col10" class="data row0 col10" >53878</td>
+                        <td id="T_904d8_row0_col11" class="data row0 col11" >0.909805</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row1" class="row_heading level0 row1" >slightly_more</th>
+                        <td id="T_904d8_row1_col0" class="data row1 col0" >13540</td>
+                        <td id="T_904d8_row1_col1" class="data row1 col1" >0</td>
+                        <td id="T_904d8_row1_col2" class="data row1 col2" >0</td>
+                        <td id="T_904d8_row1_col3" class="data row1 col3" >0</td>
+                        <td id="T_904d8_row1_col4" class="data row1 col4" >0</td>
+                        <td id="T_904d8_row1_col5" class="data row1 col5" >0</td>
+                        <td id="T_904d8_row1_col6" class="data row1 col6" >0</td>
+                        <td id="T_904d8_row1_col7" class="data row1 col7" >0</td>
+                        <td id="T_904d8_row1_col8" class="data row1 col8" >8</td>
+                        <td id="T_904d8_row1_col9" class="data row1 col9" >40331</td>
+                        <td id="T_904d8_row1_col10" class="data row1 col10" >46121</td>
+                        <td id="T_904d8_row1_col11" class="data row1 col11" >0.824253</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row2" class="row_heading level0 row2" >exponential_decay</th>
+                        <td id="T_904d8_row2_col0" class="data row2 col0" >0</td>
+                        <td id="T_904d8_row2_col1" class="data row2 col1" >0</td>
+                        <td id="T_904d8_row2_col2" class="data row2 col2" >0</td>
+                        <td id="T_904d8_row2_col3" class="data row2 col3" >0</td>
+                        <td id="T_904d8_row2_col4" class="data row2 col4" >0</td>
+                        <td id="T_904d8_row2_col5" class="data row2 col5" >0</td>
+                        <td id="T_904d8_row2_col6" class="data row2 col6" >0</td>
+                        <td id="T_904d8_row2_col7" class="data row2 col7" >0</td>
+                        <td id="T_904d8_row2_col8" class="data row2 col8" >81547</td>
+                        <td id="T_904d8_row2_col9" class="data row2 col9" >18452</td>
+                        <td id="T_904d8_row2_col10" class="data row2 col10" >1</td>
+                        <td id="T_904d8_row2_col11" class="data row2 col11" >0.818454</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row3" class="row_heading level0 row3" >hrna_ox</th>
+                        <td id="T_904d8_row3_col0" class="data row3 col0" >0</td>
+                        <td id="T_904d8_row3_col1" class="data row3 col1" >0</td>
+                        <td id="T_904d8_row3_col2" class="data row3 col2" >0</td>
+                        <td id="T_904d8_row3_col3" class="data row3 col3" >150</td>
+                        <td id="T_904d8_row3_col4" class="data row3 col4" >13598</td>
+                        <td id="T_904d8_row3_col5" class="data row3 col5" >27072</td>
+                        <td id="T_904d8_row3_col6" class="data row3 col6" >27180</td>
+                        <td id="T_904d8_row3_col7" class="data row3 col7" >27410</td>
+                        <td id="T_904d8_row3_col8" class="data row3 col8" >4590</td>
+                        <td id="T_904d8_row3_col9" class="data row3 col9" >0</td>
+                        <td id="T_904d8_row3_col10" class="data row3 col10" >0</td>
+                        <td id="T_904d8_row3_col11" class="data row3 col11" >0.581872</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row4" class="row_heading level0 row4" >everything</th>
+                        <td id="T_904d8_row4_col0" class="data row4 col0" >0</td>
+                        <td id="T_904d8_row4_col1" class="data row4 col1" >0</td>
+                        <td id="T_904d8_row4_col2" class="data row4 col2" >0</td>
+                        <td id="T_904d8_row4_col3" class="data row4 col3" >159</td>
+                        <td id="T_904d8_row4_col4" class="data row4 col4" >13593</td>
+                        <td id="T_904d8_row4_col5" class="data row4 col5" >27169</td>
+                        <td id="T_904d8_row4_col6" class="data row4 col6" >27363</td>
+                        <td id="T_904d8_row4_col7" class="data row4 col7" >27045</td>
+                        <td id="T_904d8_row4_col8" class="data row4 col8" >4671</td>
+                        <td id="T_904d8_row4_col9" class="data row4 col9" >0</td>
+                        <td id="T_904d8_row4_col10" class="data row4 col10" >0</td>
+                        <td id="T_904d8_row4_col11" class="data row4 col11" >0.581555</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row5" class="row_heading level0 row5" >everything_except_first_round</th>
+                        <td id="T_904d8_row5_col0" class="data row5 col0" >13580</td>
+                        <td id="T_904d8_row5_col1" class="data row5 col1" >0</td>
+                        <td id="T_904d8_row5_col2" class="data row5 col2" >0</td>
+                        <td id="T_904d8_row5_col3" class="data row5 col3" >142</td>
+                        <td id="T_904d8_row5_col4" class="data row5 col4" >13365</td>
+                        <td id="T_904d8_row5_col5" class="data row5 col5" >22623</td>
+                        <td id="T_904d8_row5_col6" class="data row5 col6" >22671</td>
+                        <td id="T_904d8_row5_col7" class="data row5 col7" >23056</td>
+                        <td id="T_904d8_row5_col8" class="data row5 col8" >4563</td>
+                        <td id="T_904d8_row5_col9" class="data row5 col9" >0</td>
+                        <td id="T_904d8_row5_col10" class="data row5 col10" >0</td>
+                        <td id="T_904d8_row5_col11" class="data row5 col11" >0.500923</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row6" class="row_heading level0 row6" >slightly_less</th>
+                        <td id="T_904d8_row6_col0" class="data row6 col0" >13595</td>
+                        <td id="T_904d8_row6_col1" class="data row6 col1" >0</td>
+                        <td id="T_904d8_row6_col2" class="data row6 col2" >0</td>
+                        <td id="T_904d8_row6_col3" class="data row6 col3" >141</td>
+                        <td id="T_904d8_row6_col4" class="data row6 col4" >13631</td>
+                        <td id="T_904d8_row6_col5" class="data row6 col5" >22780</td>
+                        <td id="T_904d8_row6_col6" class="data row6 col6" >22753</td>
+                        <td id="T_904d8_row6_col7" class="data row6 col7" >22488</td>
+                        <td id="T_904d8_row6_col8" class="data row6 col8" >4612</td>
+                        <td id="T_904d8_row6_col9" class="data row6 col9" >0</td>
+                        <td id="T_904d8_row6_col10" class="data row6 col10" >0</td>
+                        <td id="T_904d8_row6_col11" class="data row6 col11" >0.499677</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row7" class="row_heading level0 row7" >ninety_percentile</th>
+                        <td id="T_904d8_row7_col0" class="data row7 col0" >0</td>
+                        <td id="T_904d8_row7_col1" class="data row7 col1" >0</td>
+                        <td id="T_904d8_row7_col2" class="data row7 col2" >4121</td>
+                        <td id="T_904d8_row7_col3" class="data row7 col3" >52721</td>
+                        <td id="T_904d8_row7_col4" class="data row7 col4" >43158</td>
+                        <td id="T_904d8_row7_col5" class="data row7 col5" >0</td>
+                        <td id="T_904d8_row7_col6" class="data row7 col6" >0</td>
+                        <td id="T_904d8_row7_col7" class="data row7 col7" >0</td>
+                        <td id="T_904d8_row7_col8" class="data row7 col8" >0</td>
+                        <td id="T_904d8_row7_col9" class="data row7 col9" >0</td>
+                        <td id="T_904d8_row7_col10" class="data row7 col10" >0</td>
+                        <td id="T_904d8_row7_col11" class="data row7 col11" >0.339037</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row8" class="row_heading level0 row8" >half</th>
+                        <td id="T_904d8_row8_col0" class="data row8 col0" >0</td>
+                        <td id="T_904d8_row8_col1" class="data row8 col1" >18115</td>
+                        <td id="T_904d8_row8_col2" class="data row8 col2" >47770</td>
+                        <td id="T_904d8_row8_col3" class="data row8 col3" >34115</td>
+                        <td id="T_904d8_row8_col4" class="data row8 col4" >0</td>
+                        <td id="T_904d8_row8_col5" class="data row8 col5" >0</td>
+                        <td id="T_904d8_row8_col6" class="data row8 col6" >0</td>
+                        <td id="T_904d8_row8_col7" class="data row8 col7" >0</td>
+                        <td id="T_904d8_row8_col8" class="data row8 col8" >0</td>
+                        <td id="T_904d8_row8_col9" class="data row8 col9" >0</td>
+                        <td id="T_904d8_row8_col10" class="data row8 col10" >0</td>
+                        <td id="T_904d8_row8_col11" class="data row8 col11" >0.216000</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row9" class="row_heading level0 row9" >uniformly_random</th>
+                        <td id="T_904d8_row9_col0" class="data row9 col0" >13525</td>
+                        <td id="T_904d8_row9_col1" class="data row9 col1" >39748</td>
+                        <td id="T_904d8_row9_col2" class="data row9 col2" >31110</td>
+                        <td id="T_904d8_row9_col3" class="data row9 col3" >12572</td>
+                        <td id="T_904d8_row9_col4" class="data row9 col4" >2655</td>
+                        <td id="T_904d8_row9_col5" class="data row9 col5" >356</td>
+                        <td id="T_904d8_row9_col6" class="data row9 col6" >33</td>
+                        <td id="T_904d8_row9_col7" class="data row9 col7" >1</td>
+                        <td id="T_904d8_row9_col8" class="data row9 col8" >0</td>
+                        <td id="T_904d8_row9_col9" class="data row9 col9" >0</td>
+                        <td id="T_904d8_row9_col10" class="data row9 col10" >0</td>
+                        <td id="T_904d8_row9_col11" class="data row9 col11" >0.152289</td>
+            </tr>
+            <tr>
+                        <th id="T_904d8_level0_row10" class="row_heading level0 row10" >two_over_n_players</th>
+                        <td id="T_904d8_row10_col0" class="data row10 col0" >40864</td>
+                        <td id="T_904d8_row10_col1" class="data row10 col1" >42137</td>
+                        <td id="T_904d8_row10_col2" class="data row10 col2" >16999</td>
+                        <td id="T_904d8_row10_col3" class="data row10 col3" >0</td>
+                        <td id="T_904d8_row10_col4" class="data row10 col4" >0</td>
+                        <td id="T_904d8_row10_col5" class="data row10 col5" >0</td>
+                        <td id="T_904d8_row10_col6" class="data row10 col6" >0</td>
+                        <td id="T_904d8_row10_col7" class="data row10 col7" >0</td>
+                        <td id="T_904d8_row10_col8" class="data row10 col8" >0</td>
+                        <td id="T_904d8_row10_col9" class="data row10 col9" >0</td>
+                        <td id="T_904d8_row10_col10" class="data row10 col10" >0</td>
+                        <td id="T_904d8_row10_col11" class="data row10 col11" >0.076135</td>
+            </tr>
+    </tbody></table></div></div>
+</div>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="online-play">
+<h1>Online Play<a class="headerlink" href="#online-play" title="Link to this heading">#</a></h1>
+<p>You can use this section to play directly against the above strategies</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pprint</span>
+
+<span class="n">pp</span> <span class="o">=</span> <span class="n">pprint</span><span class="o">.</span><span class="n">PrettyPrinter</span><span class="p">()</span>
+
+
+<span class="k">class</span> <span class="nc">online_player</span><span class="p">(</span><span class="n">Player</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">move</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">status</span><span class="p">):</span>
+        <span class="n">pp</span><span class="o">.</span><span class="n">pprint</span><span class="p">(</span><span class="n">status</span><span class="o">.</span><span class="n">money</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="nb">input</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">/</span> <span class="n">status</span><span class="o">.</span><span class="n">my_money</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">best_strategies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">online_player</span><span class="p">)</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">LiarsGame</span><span class="p">(</span><span class="n">strategies</span><span class="o">=</span><span class="n">best_strategies</span><span class="p">)</span>
+<span class="n">x</span><span class="o">.</span><span class="n">show_game_history_heatmap</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{everything: 100,
+ everything_except_first_round: 100,
+ exponential_decay: 100,
+ half: 100,
+ hrna_ox: 100,
+ ninety_percentile: 100,
+ online_player: 100,
+ slightly_less: 100,
+ slightly_more: 100,
+ two_over_n_players: 100,
+ uniformly_random: 100,
+ your_custom_player: 100}
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+
+    <script type="text/x-thebe-config">
+    {
+        requestKernel: true,
+        binderOptions: {
+            repo: "binder-examples/jupyter-stacks-datascience",
+            ref: "master",
+        },
+        codeMirrorConfig: {
+            theme: "abcdef",
+            mode: "python"
+        },
+        kernelOptions: {
+            name: "python3",
+            path: "./Tournments"
+        },
+        predefinedOutput: true
+    }
+    </script>
+    <script>kernelName = 'python3'</script>
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Game</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#getting-started">Getting started</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#links">Links</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#remark">Remark</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#current-best-strategies">Current Best Strategies:</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#all-imports">All imports</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#game-class">Game Class</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#player-parent-class">Player Parent Class</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#submitted-strategies">Submitted Strategies</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#your-playground">Your playground</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#setup-variables">Setup variables</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#sample-run">Sample Run</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#distribution-of-rounds-survived">Distribution of Rounds survived</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#online-play">Online Play</a></li>
+</ul>
+
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Miguel Torres Costa
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2023.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../_static/scripts/bootstrap.js?digest=8d27b9dea8ad943066ae"></script>
+<script src="../_static/scripts/pydata-sphinx-theme.js?digest=8d27b9dea8ad943066ae"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

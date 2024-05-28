@@ -34,6 +34,7 @@ qutip = "^5.0.1"
 jupyter-cache = "^1.0.0"
 bokeh = "^3.4.1"
 networkx = "^3.3"
+opencv-python = "^4.9.0.80"
 
 
 
