@@ -39,7 +39,7 @@ def finite_dimensional_populations_over_time(
     assert hamiltonian.shape[1] == n_states, "the hamiltonian is not square"
     assert (
         rho0.shape == hamiltonian.shape
-    ), "The initial state rho0 does not match the hamiltonian's dimension"
+    ), "The initial state \rho0 does not match the hamiltonian's dimension"
     assert time_window_upper_bound > 0, "The time cannot be negative"
     assert np.einsum("ii", rho0) == 1, "The diagonals of rho0 must add up to 1"
 
