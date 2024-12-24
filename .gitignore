@@ -4,6 +4,6 @@
 .ipython/*
 .jupyter/*
 .local/*
-Quantum/Grenoble
+jupyter/Quantum/Grenoble
 data/
 private/
