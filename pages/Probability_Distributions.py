@@ -13,7 +13,7 @@ import pandas as pd
 import streamlit as st
 from multiprocessing import Pool
 
-st.set_page_config(page_title="Numerical Quantum Time Evolution", page_icon="🦖️", layout="wide")
+st.set_page_config(page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide")
 
 st.cache_data.clear()
 st.cache_resource.clear()

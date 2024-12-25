@@ -1,7 +1,7 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Quantum Home base",
+    page_title="quantum Home base",
     page_icon="⚛️",
     layout="wide"
 )

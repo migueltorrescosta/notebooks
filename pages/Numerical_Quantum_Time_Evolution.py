@@ -9,7 +9,7 @@ import streamlit as st
 from src.enums import WavePacket, PotentialFunction, BoundaryCondition
 from src.plotting import plot_array
 
-st.set_page_config(page_title="Numerical Quantum Time Evolution", page_icon="🦖️", layout="wide")
+st.set_page_config(page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide")
 
 st.cache_data.clear()
 st.cache_resource.clear()
