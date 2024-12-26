@@ -72,6 +72,4 @@ with c3:
     st.line_chart(bayes_context_object.df["posterior"], x_label="posterior")
 
 st.header("Raw data", divider="orange")
-st.text([prior(x) for x in domain])
-st.text(bayes_context_object.df["likelihood"])
 st.dataframe(bayes_context_object.df.T)
