@@ -15,9 +15,6 @@ from multiprocessing import Pool
 
 st.set_page_config(page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide")
 
-st.cache_data.clear()
-st.cache_resource.clear()
-
 # START
 with st.sidebar:
 
