@@ -1,5 +1,4 @@
 from enum import Enum
-from src.bayesian_statistics import BayesUpdate
 import numpy as np
 import pandas as pd
 import streamlit as st

@@ -4,7 +4,7 @@ from pandas.api.types import is_numeric_dtype
 class BayesUpdate:
 
     def __init__(self, df):
-        "Dataframe with a likelihood and prior column"
+        """Dataframe with a likelihood and prior column"""
         assert set(df.columns) == {"prior", "likelihood"}
         self.df = df
         self.calculate_posterior()

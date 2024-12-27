@@ -10,7 +10,7 @@ T = TypeVar("T")
 
 
 class AbstractMetropolisHastings(ABC, Generic[T]):
-    """Inner workings of the MetropolistHastings algorithm
+    """Inner workings of the MetropolisHastings algorithm
     """
 
     # Based on https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm#Description
