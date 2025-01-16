@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["migueltorrescosta <miguelptcosta1995@gmail.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 fastparquet = "^2024.2.0"
@@ -54,7 +55,6 @@ types-requests = "^2.31.0.20240311"
 types-seaborn = "^0.13.2.20240311"
 types-tqdm = "^4.66.0.20240106"
 jupyter-book = "^1.0.0"
-
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.2.0"
