@@ -46,7 +46,7 @@ with st.sidebar:
                 st.latex("e^{{-d(x-x_0)^2 + ipx }}")
                 d = st.number_input("$d$", min_value=.0, value=1.)
                 initial_momentum = st.number_input("$p$", value=2.)
-                initial_center_of_mass = st.number_input("$x_0$", value=-0.)
+                initial_center_of_mass = st.number_input("$x_0$", value=-1.)
                 phi_zero_x = lambda x: np.exp(-1 * d * (x - initial_center_of_mass) ** 2 - initial_momentum * 1.j * x)
             case WavePacket.Step.value:
                 st.latex("\\mathbb{1}_{{[r,s]}}e^{{ipx}}")
@@ -76,11 +76,13 @@ with st.sidebar:
                 potential_x = lambda x: potential_increase * (potential_center - x) ** 4
 
             case PotentialFunction.Trigonometric.value:
-                st.latex("a\\cos(\\phi + fx)")
+                width = x_max - x_min
+                st.latex("a\\cos(\\phi + 2 \\pi k x)")
                 amplitude = st.number_input("$a$", min_value=.0, value=1.)
                 phase = st.number_input("$\\phi$", value=0.0)
-                frequency = st.number_input("$f$", min_value=.0, value=np.divide(x_max-x_min, np.pi))
-                potential_x = lambda x: amplitude * np.cos(phase + frequency * x)
+                width = x_max-x_min
+                k = st.number_input("$k$", min_value=.0, value=4.)
+                potential_x = lambda x: amplitude * np.cos(phase + np.divide(k * 2 * np.pi * x, width))
 
             case PotentialFunction.Uniform.value:
                 st.latex("ax")

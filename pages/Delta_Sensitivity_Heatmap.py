@@ -12,13 +12,13 @@ st.set_page_config(page_title="Delta Sensitivity Heatmap", page_icon="📈️", 
 
 # SENSITIVITY CALCULATION
 def sensitivity(
-        n: int,  # Ancillary dimension
-        k: int,  # Level
-        j_s: float,  # system_tunneling_strength
-        delta_s: float,  # system_energy_shift
-        alpha_x: float,  # sigma_x_coupling_coefficient
-        alpha_z: float,  # sigma_z_coupling_coefficient
-        t: float  # time
+    n: int,  # Ancillary dimension
+    k: int,  # Level
+    j_s: float,  # system_tunneling_strength
+    delta_s: float,  # system_energy_shift
+    alpha_x: float,  # sigma_x_coupling_coefficient
+    alpha_z: float,  # sigma_z_coupling_coefficient
+    t: float  # time
 ):
     # Returns the sensitivity wrt the tunneling strength and wrt the energy shift of the system for a given level |k>
     assert k <= n, "The level k must be smaller than the ancilliary dimension n"
