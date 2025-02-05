@@ -31,7 +31,6 @@ with st.sidebar:
         number_of_energy_levels = st.number_input("$E_{levels}$", min_value=2, value=20)
 
     boundary_condition: BoundaryCondition = st.selectbox("Boundary Condition", [f.value for f in BoundaryCondition])
-
     valid_x = np.linspace(x_min, x_max, resolution)
 
     st.header("Potential $V(x)$", divider="blue")
