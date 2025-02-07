@@ -108,8 +108,6 @@ st.line_chart(
     x="x"
 )
 
-st.header("Energy levels $\\ket{n}$", divider="green")
-
 hamiltonian = build_1d_hamiltonian(
     inner_n=resolution,
     inner_dx=valid_x[1] - valid_x[0],  # noqa
@@ -133,6 +131,14 @@ energy_levels = [
     in zip(range(number_of_energy_levels), np.real(eigenvalues), eigenvectors.T)
 ]
 
+with st.sidebar:
+    st.header("Orthonormality check", divider="green")
+    error_matrix = np.abs(eigenvectors.T @ eigenvectors) - np.eye(number_of_energy_levels)
+    st.caption(f"Biggest error: {np.max(error_matrix):.2g}")
+    plot_array(error_matrix)
+
+st.header("Energy levels $\\ket{n}$", divider="green")
+
 tabs = st.tabs([str(e) for e in range(number_of_energy_levels)])
 for tab, energy_level in zip(tabs, energy_levels):
     with tab:
@@ -145,5 +151,6 @@ for tab, energy_level in zip(tabs, energy_levels):
             }),
             x="x"
         )
+
         st.markdown("Copy pastable values:")
         st.code(energy_level.wave_function, language="python")
