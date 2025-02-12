@@ -46,6 +46,7 @@ numba = "^0.60.0"
 snakeviz = "^2.2.2"
 tensorflow = {version = "^2.18.0", extras = ["gpu"]}
 nvidia-cudnn-cu11 = "^9.7.0.66"
+torchviz = "^0.0.3"
 
 
 
