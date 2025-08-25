@@ -47,6 +47,7 @@ torchaudio = "^2.2.2"
 torchvision = "^0.21.0"
 torchviz = "^0.0.3"
 tqdm = "^4.66.2"
+ncon = "^2.0.0"
 
 
 
