@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from plotly import express as px
+from plotly import express as px  # type: ignore[import-untyped]
 from typing import Callable, List
 import numpy as np
 import pandas as pd
-import scipy
+import scipy  # type: ignore[import-untyped]
 import streamlit as st
 
 from src.enums import WavePacket, PotentialFunction, BoundaryCondition
@@ -41,7 +41,7 @@ with st.sidebar:
     c1, c2 = st.columns(2)
     with c1:
         st.header("Initial state $\\ket{\\psi_0}$", divider="orange")
-        initial_wave_packet: WavePacket = st.selectbox(
+        initial_wave_packet = st.selectbox(
             "$\\psi_0(x)$", [psi.value for psi in WavePacket]
         )
         match initial_wave_packet:
@@ -61,12 +61,12 @@ with st.sidebar:
                 momentum = st.number_input("$p$", value=5.0)
                 phi_zero_x = lambda x: np.exp(1j * momentum * x) * (x >= r) * (x <= s)
 
-        phi_zero = np.array([phi_zero_x(x) for x in valid_x])
+        phi_zero = np.array([phi_zero_x(x) for x in valid_x])  # type: ignore[no-untyped-call]
         phi_zero /= np.sqrt(np.sum(np.abs(phi_zero) ** 2))
 
     with c2:
         st.header("Potential $V(x)$", divider="green")
-        potential_function: PotentialFunction = st.selectbox(
+        potential_function = st.selectbox(
             "$V(x)$", [f.value for f in PotentialFunction]
         )
         match potential_function:
@@ -107,7 +107,7 @@ with st.sidebar:
                     a * (x**4 + 2 * x**2) + b * np.exp(-1 * c * x**2)
                 )
 
-        boundary_condition: BoundaryCondition = st.selectbox(
+        boundary_condition = st.selectbox(
             "Boundary Condition", [f.value for f in BoundaryCondition]
         )
 
@@ -138,8 +138,8 @@ methodology_info = {
     """,
 }
 
-tabs = st.tabs(methodology_info.keys())
-for tab, content in zip(tabs, methodology_info.keys()):
+tabs = st.tabs(list(methodology_info.keys()))
+for tab, content in zip(tabs, list(methodology_info.keys())):
     with tab:
         st.markdown(methodology_info[content])
 
@@ -337,7 +337,7 @@ time_evolution_data = pd.DataFrame(
     index=valid_x,
 )
 
-plot_array(time_evolution_data.T, midpoint=None, text_auto=False)
+plot_array(np.array(time_evolution_data.T), midpoint=None, text_auto=False)
 
 st.header(f"Final state $\\ket{{\\psi_{{ {time:g} }} }}$")
 phi_time = evolve(t=time)

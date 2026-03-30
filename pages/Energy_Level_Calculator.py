@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Callable
 import numpy as np
 import pandas as pd
-import scipy
+import scipy  # type: ignore[import-untyped]
 import streamlit as st
 
 from src.enums import PotentialFunction, BoundaryCondition
@@ -25,9 +25,9 @@ with st.sidebar:
 
     c1, c2 = st.columns(2)
     with c1:
-        resolution = st.number_input("$N_x$", value=200)
+        resolution: int = int(st.number_input("$N_x$", value=200))
     with c2:
-        number_of_energy_levels = st.number_input("$E_{levels}$", min_value=2, value=20)
+        number_of_energy_levels = int(st.number_input("$E_{levels}$", min_value=2, value=20))
 
     boundary_condition: BoundaryCondition = st.selectbox(
         "Boundary Condition", [f.value for f in BoundaryCondition]
@@ -41,7 +41,7 @@ with st.sidebar:
     match potential_function:
         case PotentialFunction.Quadratic.value:
             st.latex("a(x-c)^2")
-            potential_increase = st.number_input("$a$", value=10)
+            potential_increase = st.number_input("$a$", value=10.0)
             potential_center = st.number_input("$c$", value=0.0)
             potential_x = lambda x: potential_increase * (potential_center - x) ** 2
 

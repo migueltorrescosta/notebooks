@@ -3,8 +3,8 @@ from collections.abc import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.fft import fft, fftfreq
-from scipy.linalg import expm
+from scipy.fft import fft, fftfreq  # type: ignore[import-untyped]
+from scipy.linalg import expm  # type: ignore[import-untyped]
 
 
 def fourier_transform(
@@ -43,7 +43,7 @@ def finite_dimensional_populations_over_time(
     assert np.einsum("ii", rho0) == 1, "The diagonals of rho0 must add up to 1"
 
     if labels is None:
-        labels = range(rho0.shape[1])
+        labels = [str(i) for i in range(rho0.shape[1])]
     else:
         assert len(labels) == rho0.shape[1], f"We have {len(labels)} labels but {rho0.shape[1]} possible states"
 

@@ -7,7 +7,7 @@ import itertools
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import scipy
+import scipy  # type: ignore[import-untyped]
 import streamlit as st
 
 # LAYOUT
@@ -58,7 +58,7 @@ match distribution:
 
 df_pdf = pd.DataFrame(
     data=[
-        (x, p, pdf(x, p))
+        (x, p, pdf(x, p))  # type: ignore[no-untyped-call]
         for x, p in tqdm(
             itertools.product(valid_x, valid_theta),
             total=len(valid_x) * len(valid_theta),
@@ -67,7 +67,7 @@ df_pdf = pd.DataFrame(
     columns=["x", "theta", "pdf"],
 ).pivot(columns="x", index="theta", values="pdf")
 
-plot_array(df_pdf, midpoint=None, text_auto=False)
+plot_array(np.array(df_pdf), midpoint=None, text_auto=False)
 
 
 def quick_and_dirty(my_array: np.ndarray) -> None:
@@ -78,17 +78,17 @@ def quick_and_dirty(my_array: np.ndarray) -> None:
 
 c1, c2, c3, c4 = st.columns(4)
 with c1:
-    st.latex("f_\\theta(x)")
+    st.latex(r"f_\theta(x)")
     quick_and_dirty(np.array(df_pdf))
 with c2:
-    st.latex("\log_\\theta f(x)")
+    st.latex(r"\log_\theta f(x)")
     quick_and_dirty(np.log(np.array(df_pdf)))
 with c3:
-    st.latex("\\left ( \\frac{\partial}{\partial \\theta} \log_\\theta f(x) \\right )")
+    st.latex(r"\left ( \frac{\partial}{\partial \theta} \log_\theta f(x) \right )")
     quick_and_dirty(np.gradient(np.log(np.array(df_pdf)), axis=0))
 with c4:
     st.latex(
-        "\\left ( \\frac{\partial}{\partial \\theta} \log f_\\theta(x) \\right )^2"
+        r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2"
     )
     quick_and_dirty(np.gradient(np.log(np.array(df_pdf)), axis=0) ** 2)
 
@@ -113,15 +113,15 @@ st.dataframe(
 )  # TODO: Understand why increasing the size of N impacts the number of Nones in this pd.DataFrame
 c1, c2 = st.columns(2)
 with c1:
-    st.latex("""
-        \\mathcal{I}(\\theta) \\coloneqq
-        \\mathbb{E}_X\\left [ \\left (
-            \\frac{\partial}{\partial \\theta} \log f_\\theta(x)
-            \\right )^2 | \\theta \\right ]
+    st.latex(r"""
+        \mathcal{I}(\theta) \coloneqq
+        \mathbb{E}_X\left [ \left (
+            \frac{\partial}{\partial \theta} \log f_\theta(x)
+            \right )^2 | \theta \right ]
     """)
     st.line_chart(data=fisher_information_df, x="theta", y="fisher_information")
 
 with c2:
-    st.latex("\\mathrm{var}[\hat \\theta] \geq \\frac{1}{\mathcal{I}(\\theta)}")
+    st.latex(r"\mathrm{var}[\hat \theta] \geq \frac{1}{\mathcal{I}(\theta)}")
 
     st.line_chart(data=fisher_information_df, x="theta", y="cramer_rao_bound")

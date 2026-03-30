@@ -13,13 +13,15 @@ class Distributions(str, Enum):
 
 
 domain = np.linspace(-1, 1, 201)
+prior_vector = np.array([0.0])
+likelihood_vector = np.array([0.0])
 
 
 with st.sidebar:
     st.header("Setup", divider="blue")
     c1, c2 = st.columns(2)
     with c1:
-        prior_distribution: Distributions = st.selectbox(
+        prior_distribution = st.selectbox(
             "Prior", [dist.value for dist in Distributions]
         )
         match prior_distribution:
@@ -41,11 +43,11 @@ with st.sidebar:
                 mu = st.number_input("$\\mu_1$", value=0.0)
                 prior = lambda x: np.exp(-1 * a * (x - mu) ** 2)
 
-        prior_vector = [max(prior(x), 0) for x in domain]
-        prior_vector /= sum(prior_vector)
+        prior_vector = np.array([max(prior(x), 0) for x in domain])  # type: ignore[no-untyped-call]
+        prior_vector = prior_vector / np.sum(prior_vector)
 
     with c2:
-        likelihood_distribution: Distributions = st.selectbox(
+        likelihood_distribution = st.selectbox(
             "Likelihood", [dist.value for dist in Distributions]
         )
         match likelihood_distribution:
@@ -67,11 +69,11 @@ with st.sidebar:
                 mu = st.number_input("$\\mu_2$", value=0.0)
                 likelihood = lambda x: np.exp(-1 * a * (x - mu) ** 2)
 
-        likelihood_vector = [max(likelihood(x), 0) for x in domain]
-        likelihood_vector /= sum(likelihood_vector)
+        likelihood_vector = np.array([max(likelihood(x), 0) for x in domain])  # type: ignore[no-untyped-call]
+        likelihood_vector = likelihood_vector / np.sum(likelihood_vector)
 
-posterior_vector = prior_vector * likelihood_vector
-posterior_vector /= sum(posterior_vector)
+    posterior_vector = prior_vector * likelihood_vector
+    posterior_vector = posterior_vector / np.sum(posterior_vector)
 c1, c2, c3 = st.columns(3)
 with c1:
     st.line_chart(prior_vector, x_label="prior")

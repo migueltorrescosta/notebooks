@@ -2,12 +2,12 @@ from dataclasses import dataclass
 from src.angular_momentum import generate_spin_matrices
 from src.plotting import plot_array
 from tqdm import tqdm
-from typing import Dict
+from typing import Dict, List
 import functools
 import multiprocessing
 import numpy as np
 import pandas as pd
-import scipy
+import scipy  # type: ignore[import-untyped]
 import streamlit as st
 
 tqdm.pandas()
@@ -216,14 +216,11 @@ st.latex(f"""
 
 # DATAFRAME CREATION
 granularity = 500
-iterable = (
-    RunOptions(
-        t=time
-    )  # For some weird reason, starmap needs a tuple, even if it has a single element
-    for time in np.round(np.linspace(0, 10, granularity + 1), 3)
-)
+iterable_1: List[RunOptions] = [
+    RunOptions(t=time) for time in np.round(np.linspace(0, 10, granularity + 1), 3)
+]
 
-data = map(full_calculation, iterable)
+data = list(map(full_calculation, iterable_1))
 df = pd.DataFrame(data=data, columns=Settings.recorded_variables)
 
 # PLOTS
@@ -254,28 +251,26 @@ with st.sidebar:
 true_probability = float(np.array(df[df["time"] == time]["<1|rho_system_t|1>"])[0])
 
 # DATAFRAME CREATION
-iterable = (
-    (
-        RunOptions(delta_s=inner_delta_s, t=time),
-    )  # starmap needs a tuple, even if it has a single element
+iterable_2: List[RunOptions] = [
+    RunOptions(delta_s=inner_delta_s, t=time)
     for inner_delta_s in np.round(
         np.linspace(
             guessed_delta_s - delta_s_var, guessed_delta_s + delta_s_var, 200 + 1
         ),
         3,
     )
-)
+]
 
 
 cpus = multiprocessing.cpu_count()
 pool = multiprocessing.Pool(processes=cpus)
 df = pd.DataFrame(
-    data=pool.starmap(full_calculation, iterable), columns=Settings.recorded_variables
+    data=pool.starmap(full_calculation, iterable_2), columns=Settings.recorded_variables  # type: ignore[arg-type]
 )
 
 df.drop("time", axis=1, inplace=True)
 
-polynomial_fit = np.polynomial.Polynomial.fit(
+polynomial_fit = np.polynomial.Polynomial.fit(  # type: ignore[no-untyped-call]
     np.array(df["expected_sigma_z"]), np.array(df["delta_s"]) - guessed_delta_s, deg=1
 )
 a0, a1 = polynomial_fit.coef
@@ -313,9 +308,9 @@ with st.sidebar:
         confidence_interval = st.number_input(
             "Confidence", value=0.9, min_value=0.0001, max_value=0.9999, step=0.0001
         )
-        confidence_interval_multiplier = scipy.stats.norm.interval(confidence_interval)[
+        confidence_interval_multiplier = float(scipy.stats.norm.interval(confidence_interval)[
             1
-        ]
+        ])
     if n_trials > 500:
         st.error(f"Since $N_{{trials}} = {n_trials} \\geq 500$, this will be slooow ⚠️")
     show_log_likelihood = st.toggle("Show log likelihood", value=False)
@@ -344,13 +339,11 @@ df["likelihood"] = np.divide(df["likelihood"], df["likelihood"].mean())
 
 
 st.subheader("Likelihood", divider="green")
-estimated_delta_mean = np.divide(
-    df["delta_s"] @ df["likelihood"], df["likelihood"].sum()
-)
-estimated_delta_var = np.divide(
-    (df["delta_s"] - estimated_delta_mean) ** 2 @ df["likelihood"],
-    df["likelihood"].sum(),
-)
+likelihood_arr = np.array(df["likelihood"])
+likelihood_sum = float(np.sum(likelihood_arr))
+delta_s_arr = np.array(df["delta_s"])
+estimated_delta_mean = float(np.dot(delta_s_arr, likelihood_arr)) / likelihood_sum
+estimated_delta_var = float(np.dot(((delta_s_arr - estimated_delta_mean) ** 2), likelihood_arr)) / likelihood_sum
 st.latex(
     f"\\delta_s \\approx {estimated_delta_mean:.6f} \\pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}"
 )
@@ -366,11 +359,11 @@ st.area_chart(
 
 # HISTORY
 st.header("History", divider="red")
-data = {
+history_data: Dict[str, float] = {
     "j_s": j_s,
     "delta_s": delta_s,
-    "dim_a": dim_a,
-    "k": k,
+    "dim_a": float(dim_a),
+    "k": float(k),
     "j_a": j_a,
     "u_a": u_a,
     "delta_a": delta_a,
@@ -381,12 +374,12 @@ data = {
     "time": time,
     "guessed_delta_s": guessed_delta_s,
     "delta_s_var": delta_s_var,
-    "log_2_n_trials": np.log2(n_trials),
+    "log_2_n_trials": float(np.log2(n_trials)),
     "confidence_interval": confidence_interval,
     "confidence_interval_multiplier": confidence_interval_multiplier,
-    "estimated_delta_mean": estimated_delta_mean,
-    "estimated_delta_var": estimated_delta_var,
-    "log_2_estimated_delta_var": np.log2(estimated_delta_var),
+    "estimated_delta_mean": float(estimated_delta_mean),
+    "estimated_delta_var": float(estimated_delta_var),
+    "log_2_estimated_delta_var": float(np.log2(estimated_delta_var)),
 }
 
 with st.sidebar:
@@ -396,16 +389,16 @@ with st.sidebar:
         if st.button("Delete session data ( irreversible )", type="primary"):
             st.session_state.pop("experiment_history_df")
 
-    history_y_axis = st.selectbox("y-axis", sorted(data.keys()))
-    history_x_axis = st.selectbox("x-axis", sorted(data.keys()))
+    history_y_axis = st.selectbox("y-axis", sorted(list(history_data.keys())))
+    history_x_axis = st.selectbox("x-axis", sorted(list(history_data.keys())))
 
 if "experiment_history_df" not in st.session_state:
-    st.session_state.experiment_history_df = pd.DataFrame([data])
+    st.session_state.experiment_history_df = pd.DataFrame([history_data])
 else:
     st.session_state.experiment_history_df.reset_index(drop=True, inplace=True)
     st.session_state.experiment_history_df.loc[
         len(st.session_state.experiment_history_df)
-    ] = data
+    ] = history_data
     st.session_state.experiment_history_df.drop_duplicates(inplace=True)
 
 c1, c2 = st.columns(2)

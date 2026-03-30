@@ -67,8 +67,8 @@ class TestBayesUpdate:
         # posterior = prior * likelihood, then normalized
         expected_A = (0.4 * 0.5) / ((0.4 * 0.5) + (0.6 * 0.5))  # = 0.4
         expected_B = (0.6 * 0.5) / ((0.4 * 0.5) + (0.6 * 0.5))  # = 0.6
-        assert np.isclose(bayes.df.loc["A", "posterior"], expected_A)
-        assert np.isclose(bayes.df.loc["B", "posterior"], expected_B)
+        assert np.isclose(float(bayes.df.loc["A", "posterior"]), expected_A)  # type: ignore[arg-type]
+        assert np.isclose(float(bayes.df.loc["B", "posterior"]), expected_B)  # type: ignore[arg-type]
 
     def test_plot_returns_figure(self) -> None:
         """Test that plot method returns a figure."""

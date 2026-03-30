@@ -41,15 +41,15 @@ st.markdown("""
     In particular this can be used to visualize the [Moiré effect](https://en.wikipedia.org/wiki/Moir%C3%A9_pattern).
     """)
 
-grid = itertools.product(np.linspace(0, 1, resolution), np.linspace(0, 1, resolution))
+grid = list(itertools.product(np.linspace(0, 1, resolution), np.linspace(0, 1, resolution)))
 df = pd.DataFrame(
     [
         {
             "x": x,
             "y": y,
-            "wave_a": wave_a(x, y),
-            "wave_b": wave_b(x, y),
-            "f": wave_a(x, y) + wave_b(x, y),
+            "wave_a": wave_a(x, y),  # type: ignore[no-untyped-call]
+            "wave_b": wave_b(x, y),  # type: ignore[no-untyped-call]
+            "f": wave_a(x, y) + wave_b(x, y),  # type: ignore[no-untyped-call]
         }
         for x, y in tqdm(grid, total=resolution**2)
     ]
@@ -63,30 +63,30 @@ st.header("Real part", divider="orange")
 c1, c2, c3 = st.columns(3)
 with c1:
     plot_array(
-        np.real(df.pivot(columns="x", index="y", values="wave_a")), text_auto=False
+        np.real(df.pivot(columns="x", index="y", values="wave_a").values), text_auto=False
     )
 with c2:
     plot_array(
-        np.real(df.pivot(columns="x", index="y", values="wave_b")), text_auto=False
+        np.real(df.pivot(columns="x", index="y", values="wave_b").values), text_auto=False
     )
 with c3:
-    plot_array(np.real(df.pivot(columns="x", index="y", values="f")), text_auto=False)
+    plot_array(np.real(df.pivot(columns="x", index="y", values="f").values), text_auto=False)
 
 st.header("Imaginary part", divider="green")
 c1, c2, c3 = st.columns(3)
 with c1:
     plot_array(
-        np.imag(df.pivot(columns="x", index="y", values="wave_a")), text_auto=False
+        np.imag(df.pivot(columns="x", index="y", values="wave_a").values), text_auto=False
     )
 with c2:
     plot_array(
-        np.imag(df.pivot(columns="x", index="y", values="wave_b")), text_auto=False
+        np.imag(df.pivot(columns="x", index="y", values="wave_b").values), text_auto=False
     )
 with c3:
-    plot_array(np.imag(df.pivot(columns="x", index="y", values="f")), text_auto=False)
+    plot_array(np.imag(df.pivot(columns="x", index="y", values="f").values), text_auto=False)
 
-st.header("$\\| \\cdot \\|_2$ Norm", divider="green")
-plot_array(np.abs(df.pivot(columns="x", index="y", values="f")), text_auto=False)
+st.header(r"$\| \cdot \|_2$ Norm", divider="green")
+plot_array(np.abs(df.pivot(columns="x", index="y", values="f").values), text_auto=False)
 # st.header("Raw data", divider="green")
 # st.dataframe(df.pivot(columns="y", index="x", values="f"))
 
@@ -97,8 +97,8 @@ width = 6
 Y, X = np.mgrid[
     -width : width : np.divide(width, 10), -width : width : np.divide(width, 10)
 ]
-wave_a_grid = np.array([wave_a(x, y) for (x, y) in zip(X, Y)])
-wave_b_grid = np.array([wave_b(x, y) for (x, y) in zip(X, Y)])
+wave_a_grid = np.array([wave_a(x, y) for (x, y) in zip(X, Y)])  # type: ignore[no-untyped-call]
+wave_b_grid = np.array([wave_b(x, y) for (x, y) in zip(X, Y)])  # type: ignore[no-untyped-call]
 
 fig, ax = plt.subplots(figsize=(6, 6))
 ax.quiver(X, Y, np.real(wave_a_grid), np.imag(wave_a_grid), color="orange")

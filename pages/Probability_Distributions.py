@@ -1,4 +1,4 @@
-from scipy.special import comb
+from scipy.special import comb  # type: ignore[import-untyped]
 from src.enums import ProbabilityDistribution
 from src.plotting import plot_array
 from tqdm import tqdm
@@ -23,12 +23,12 @@ with st.sidebar:
         case ProbabilityDistribution.ParticleDecay.value:
             c1, c2, c3 = st.columns(3)
             with c1:
-                n_particles = st.number_input(
+                n_particles: int = st.number_input(
                     "$N$ particles", min_value=1, value=50, max_value=5000
                 )
             with c2:
                 decay_lambda = st.number_input(
-                    "$\lambda$ ( decay )", min_value=0.001, value=1.0
+                    r"$\lambda$ ( decay )", min_value=0.001, value=1.0
                 )
             with c3:
                 t_max = st.number_input("$t_{max}$", min_value=1, value=2)
@@ -71,7 +71,7 @@ match initial_wave_packet:
             ]
         )
         plot_array(
-            df.pivot(columns="t", index="k", values="prob"),
+            np.array(df.pivot(columns="t", index="k", values="prob")),
             midpoint=None,
             text_auto=False,
         )

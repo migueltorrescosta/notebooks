@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 from matplotlib import pyplot as plt
-from scipy.optimize import minimize
+from scipy.optimize import minimize  # type: ignore[import-untyped]
 import itertools
 import numpy as np
 import pandas as pd
@@ -136,7 +136,7 @@ with st.sidebar:
 def gen_surface_df(f: str) -> pd.DataFrame:
     return pd.DataFrame(
         [
-            {"x": round(x, 3), "y": round(y, 3), "f": test_functions[f](x, y)}
+            {"x": round(x, 3), "y": round(y, 3), "f": test_functions[f](x, y)}  # type: ignore[no-untyped-call]
             for x, y in itertools.product(np.linspace(-3, 3, 501), repeat=2)
         ]
     )
@@ -157,12 +157,13 @@ def gen_performance_df() -> pd.DataFrame:
             )
         ]
     )
-    df["min"] = df.apply(
-        lambda row: test_functions[row["test_function"]](
-            row["argmin"][0], row["argmin"][1]
-        ),
-        axis=1,
-    )
+
+    def calc_min(row: pd.Series[Any]) -> float:
+        test_func = test_functions[row["test_function"]]  # type: ignore[no-untyped-call]
+        argmin = row["argmin"]
+        return test_func(argmin[0], argmin[1])  # type: ignore[no-untyped-call]
+
+    df["min"] = df.apply(calc_min, axis=1)  # type: ignore[no-untyped-call]
     df["normalized_min"] = df.groupby("test_function")[["min"]].transform(
         lambda x: (x - x.min()) / (x.max() - x.min())
     )

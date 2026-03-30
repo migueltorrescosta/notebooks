@@ -78,7 +78,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
                 )
 
     def plot(self) -> None:
-        plt.plot(self.configuration_history)
+        plt.plot(self.configuration_history)  # type: ignore[no-untyped-call, arg-type]
 
 
 class GaussianMetropolisHastings(AbstractMetropolisHastings[float]):
