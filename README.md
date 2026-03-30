@@ -1,15 +1,6 @@
 # Miguel's Playground
 I use these [jupyter](https://jupyter.org/) notebooks to and [streamlit](https://streamlit.io/) pages to play with different topics.
 
-# Quick ref
-```bash
-uv sync                                  # Install all dependencies
-uv sync --update-existing                 # Update dependencies to latest versions
-uv run streamlit run Home.py              # Run local streamlit app
-```
-
-
-
 ## Notes
 
 Julia was installed from https://julialang.org/downloads/
