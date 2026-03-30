@@ -43,53 +43,50 @@ with st.sidebar:
     )
     potential_function: PotentialFunction = PotentialFunction(potential_function_str)
 
-    def make_quadratic(x: float) -> float:
-        a = st.number_input("$a$", value=10.0)
-        c = st.number_input("$c$", value=0.0)
-        return a * (c - x) ** 2
-
-    def make_quartic(x: float) -> float:
-        a = st.number_input("$a$", value=0.05)
-        c = st.number_input("$c$", value=0.0)
-        return a * (c - x) ** 4
-
-    def make_trigonometric(x: float) -> float:
-        width = x_max - x_min
-        a = st.number_input("$a$", min_value=0.0, value=1.0)
-        phi = st.number_input("$\\phi$", value=0.0)
-        k = st.number_input("$k$ ( number of wells )", min_value=0.0, value=4.0)
-        return a * np.cos(phi + np.divide(k * 2 * np.pi * x, width))
-
-    def make_uniform(x: float) -> float:
-        a = st.number_input("$a$", value=1.0)
-        return a * x
-
-    def make_double_well(x: float) -> float:
-        a = st.number_input("$a$", min_value=0.0, value=1.0)
-        b = st.number_input("$b$", min_value=0.0, value=30.0)
-        c = st.number_input("$c$", min_value=0.0, value=3.0)
-        return a * (x**4 + 2 * x**2) + b * np.exp(-1 * c * x**2)
-
+    # Create widgets FIRST, then define pure functions that use those values
+    # This avoids the duplicate key issue when the function is called multiple times
     match potential_function:
         case PotentialFunction.Quadratic.value:
             st.latex("a(x-c)^2")
-            potential_x = make_quadratic
+            a = st.number_input("$a$", value=10.0)
+            c = st.number_input("$c$", value=0.0)
+
+            def potential_x(x: float) -> float:
+                return a * (c - x) ** 2
 
         case PotentialFunction.Quartic.value:
             st.latex("a(x-c)^4")
-            potential_x = make_quartic
+            a = st.number_input("$a$", value=0.05)
+            c = st.number_input("$c$", value=0.0)
+
+            def potential_x(x: float) -> float:
+                return a * (c - x) ** 4
 
         case PotentialFunction.Trigonometric.value:
             st.latex("a\\cos(\\phi + 2 \\pi k x)")
-            potential_x = make_trigonometric
+            width = x_max - x_min
+            a = st.number_input("$a$", min_value=0.0, value=1.0)
+            phi = st.number_input("$\\phi$", value=0.0)
+            k = st.number_input("$k$ ( number of wells )", min_value=0.0, value=4.0)
+
+            def potential_x(x: float) -> float:
+                return a * np.cos(phi + np.divide(k * 2 * np.pi * x, width))
 
         case PotentialFunction.Uniform.value:
             st.latex("ax")
-            potential_x = make_uniform
+            a = st.number_input("$a$", value=1.0)
+
+            def potential_x(x: float) -> float:
+                return a * x
 
         case PotentialFunction.DoubleWell.value:
             st.latex("a ( x^4 - 2 x^2 ) + be^{-cx^2}")
-            potential_x = make_double_well
+            a = st.number_input("$a$", min_value=0.0, value=1.0)
+            b = st.number_input("$b$", min_value=0.0, value=30.0)
+            c = st.number_input("$c$", min_value=0.0, value=3.0)
+
+            def potential_x(x: float) -> float:
+                return a * (x**4 + 2 * x**2) + b * np.exp(-1 * c * x**2)
 
 
 # Based on https://medium.com/@natsunoyuki/quantum-mechanics-with-python-de2a7f8edd1f
