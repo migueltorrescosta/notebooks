@@ -79,12 +79,12 @@ if debug_mode:
         "generator": list((i, j) for i in range(3) for j in range(4)),
     }
 
-    i, j, k, l = st.columns(4)
-    with i:
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
         st.dataframe(vectors)
-    with j:
+    with col2:
         st.dataframe(energy_levels)
-    with k:
+    with col3:
         st.dataframe(level_expectations[:, :, 0].T)
 
 st.header("Energy levels", divider="orange")

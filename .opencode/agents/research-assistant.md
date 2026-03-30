@@ -67,6 +67,7 @@ notebooks/                   # Root folder (streamlit app)
 
 ```bash
 jupyter-book build .               # Build the jupyter notebook.
+uv run mypy .                      # Type checks
 uv run pytest . --quiet --tb=short # Run tests
 uv run radon mi . -n B             # Code complexity analysis
 uv run ruff check . --fix          # Lint

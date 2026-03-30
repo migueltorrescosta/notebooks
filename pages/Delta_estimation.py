@@ -265,14 +265,16 @@ iterable_2: List[RunOptions] = [
 
 cpus = multiprocessing.cpu_count()
 pool = multiprocessing.Pool(processes=cpus)
+# starmap expects Iterable[Iterable[Any]], but we pass list[RunOptions]
+# (using starmap with single-element tuples instead of map)
 df = pd.DataFrame(
-    data=pool.starmap(full_calculation, iterable_2),
-    columns=Settings.recorded_variables,  # type: ignore[arg-type]
+    data=pool.starmap(full_calculation, iterable_2),  # type: ignore[arg-type]
+    columns=Settings.recorded_variables,  # type: ignore[assignment]
 )
 
 df.drop("time", axis=1, inplace=True)
 
-polynomial_fit = Polynomial.fit(
+polynomial_fit = Polynomial.fit(  # type: ignore[no-untyped-call]
     np.array(df["expected_sigma_z"]), np.array(df["delta_s"]) - guessed_delta_s, deg=1
 )
 a0, a1 = polynomial_fit.coef

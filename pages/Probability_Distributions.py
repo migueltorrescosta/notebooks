@@ -15,9 +15,10 @@ st.set_page_config(
 # START
 with st.sidebar:
     st.header("Setup", divider="blue")
-    initial_wave_packet: ProbabilityDistribution = st.selectbox(
+    initial_wave_packet_str = st.selectbox(
         "$X$", [prob_dist.value for prob_dist in ProbabilityDistribution]
     )
+    initial_wave_packet: ProbabilityDistribution = ProbabilityDistribution(initial_wave_packet_str)
 
     match initial_wave_packet:
         case ProbabilityDistribution.ParticleDecay.value:

@@ -19,7 +19,9 @@ def potential_quartic(x: float, a: float, c: float) -> float:
     return a * (c - x) ** 4
 
 
-def potential_trigonometric(x: float, amplitude: float, phase: float, k: float, width: float) -> float:
+def potential_trigonometric(
+    x: float, amplitude: float, phase: float, k: float, width: float
+) -> float:
     return amplitude * np.cos(phase + np.divide(k * 2 * np.pi * x, width))
 
 
@@ -29,6 +31,7 @@ def potential_uniform(x: float, a: float) -> float:
 
 def potential_double_well(x: float, a: float, b: float, c: float) -> float:
     return a * (x**4 + 2 * x**2) + b * np.exp(-1 * c * x**2)
+
 
 st.set_page_config(
     page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide"
@@ -97,13 +100,17 @@ with st.sidebar:
                 st.latex("a(x-c)^2")
                 potential_increase = st.number_input("$a$", value=0.2)
                 potential_center = st.number_input("$c$", value=0.0)
-                potential_x = partial(potential_quadratic, a=potential_increase, c=potential_center)
+                potential_x = partial(
+                    potential_quadratic, a=potential_increase, c=potential_center
+                )
 
             case PotentialFunction.Quartic.value:
                 st.latex("a(x-c)^4")
                 potential_increase = st.number_input("$a$", value=0.05)
                 potential_center = st.number_input("$c$", value=0.0)
-                potential_x = partial(potential_quartic, a=potential_increase, c=potential_center)
+                potential_x = partial(
+                    potential_quartic, a=potential_increase, c=potential_center
+                )
 
             case PotentialFunction.Trigonometric.value:
                 width = x_max - x_min
@@ -112,7 +119,13 @@ with st.sidebar:
                 phase = st.number_input("$\\phi$", value=0.0)
                 width = x_max - x_min
                 k = st.number_input("$k$", min_value=0.0, value=4.0)
-                potential_x = partial(potential_trigonometric, amplitude=amplitude, phase=phase, k=k, width=width)
+                potential_x = partial(
+                    potential_trigonometric,
+                    amplitude=amplitude,
+                    phase=phase,
+                    k=k,
+                    width=width,
+                )
 
             case PotentialFunction.Uniform.value:
                 st.latex("ax")
@@ -240,8 +253,8 @@ class EnergyLevel:
 
 
 energy_levels = [
-    EnergyLevel(level=l, energy=e, wave_function=wf, component=phi_zero.T @ wf)
-    for l, e, wf in zip(
+    EnergyLevel(level=level, energy=energy, wave_function=wf, component=phi_zero.T @ wf)
+    for level, energy, wf in zip(
         range(number_of_energy_levels), np.real(eigenvalues), eigenvectors.T
     )
 ]
