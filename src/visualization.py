@@ -3,8 +3,8 @@ from collections.abc import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.fft import fft, fftfreq  # type: ignore[import-untyped]
-from scipy.linalg import expm  # type: ignore[import-untyped]
+from scipy.fft import fft, fftfreq
+from scipy.linalg import expm
 
 
 def fourier_transform(

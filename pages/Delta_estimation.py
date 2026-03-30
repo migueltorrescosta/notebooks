@@ -8,7 +8,7 @@ import functools
 import multiprocessing
 import numpy as np
 import pandas as pd
-import scipy  # type: ignore[import-untyped]
+import scipy
 import streamlit as st
 
 tqdm.pandas()
@@ -93,7 +93,7 @@ class RunOptions:
 
 @dataclass
 class Settings:
-    recorded_variables = [
+    recorded_variables: list[str] = [
         "time",
         "<0|rho_system_t|0>",
         "<1|rho_system_t|1>",

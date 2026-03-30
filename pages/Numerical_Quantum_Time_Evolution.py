@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from functools import partial
-from plotly import express as px  # type: ignore[import-untyped]
+from plotly import express as px
 from typing import Callable, List
 import numpy as np
 import pandas as pd
-import scipy  # type: ignore[import-untyped]
+import scipy
 import streamlit as st
 
 from src.enums import WavePacket, PotentialFunction, BoundaryCondition
@@ -197,7 +197,7 @@ def build_1d_hamiltonian(
     inner_dx: float,
     inner_potential_function: Callable[[float], float],
     inner_boundary_condition: BoundaryCondition,
-) -> np.ndarray:
+) -> scipy.sparse.csc_matrix:
     # https://docs.scipy.org/doc/scipy/reference/sparse.html#sparse-array-classes
     inner_hamiltonian = scipy.sparse.eye(inner_n, inner_n, format="lil") * 2
     # P^2 term
@@ -210,7 +210,7 @@ def build_1d_hamiltonian(
         inner_hamiltonian[0, inner_n - 1] = -1
         inner_hamiltonian[inner_n - 1, 0] = -1
 
-    inner_hamiltonian = np.divide(inner_hamiltonian, inner_dx**2)
+    inner_hamiltonian = inner_hamiltonian / inner_dx**2  # type: ignore[assignment]
     # V(X) term
     for i in range(inner_n):
         inner_hamiltonian[i, i] = inner_hamiltonian[i, i] + inner_potential_function(

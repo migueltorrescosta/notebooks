@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 from matplotlib import pyplot as plt
-from scipy.optimize import minimize  # type: ignore[import-untyped]
+from scipy.optimize import minimize
 import itertools
 import numpy as np
 import pandas as pd
@@ -132,9 +132,11 @@ test_functions: dict[str, Callable[[float, float], float]] = {
 
 
 def gen_minimizer_from_scipy(method: str) -> Callable[..., Any]:
-    return lambda temp_f, x0: minimize(
-        lambda v: temp_f(v[0], v[1]), x0=x0, method=method
-    )
+    def minimizer(temp_f: Callable[..., float], x0: float) -> Any:
+        def wrapped(v: np.ndarray) -> Any:
+            return temp_f(v[0], v[1])
+        return minimize(wrapped, x0=x0, method=method)  # type: ignore[call-overload]
+    return minimizer
 
 
 minimizers = {

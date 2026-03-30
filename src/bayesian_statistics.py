@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+from matplotlib.figure import Figure
 from pandas import DataFrame
 from pandas.api.types import is_numeric_dtype
 
@@ -19,7 +20,7 @@ class BayesUpdate:
         posterior = self.df["prior"] * self.df["likelihood"]
         self.df["posterior"] = posterior / sum(posterior)
 
-    def plot(self) -> plt.Figure:
+    def plot(self) -> Figure:
         fig, ax = plt.subplots(figsize=(15, 5), ncols=3, sharey=True)
         if self.is_categorical:
             self.df.plot.bar(ax=ax, subplots=True)

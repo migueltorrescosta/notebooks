@@ -1,4 +1,4 @@
-from scipy.special import comb  # type: ignore[import-untyped]
+from scipy.special import comb
 from src.enums import ProbabilityDistribution
 from src.plotting import plot_array
 from tqdm import tqdm

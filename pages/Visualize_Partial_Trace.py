@@ -1,7 +1,7 @@
 import functools
 import numpy as np
-import scipy.linalg  # type: ignore[import-untyped]
-import scipy  # type: ignore[import-untyped]
+import scipy.linalg
+import scipy
 import streamlit as st
 from src.angular_momentum import generate_spin_matrices
 from src.plotting import plot_array

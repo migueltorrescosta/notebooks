@@ -1,6 +1,6 @@
 from typing import Optional
 import numpy as np
-import plotly.express as px  # type: ignore[import-untyped]
+import plotly.express as px
 import streamlit as st
 
 

@@ -152,9 +152,6 @@ import mlflow
 
 with mlflow.start_run():
     mlflow.log_param("seed", seed)
-    mlflow.log_param("n_paths", n_paths)
-    mlflow.log_param("phase", phase)
-    mlflow.log_metric("mean_visibility", visibility)
     mlflow.log_metric("execution_time_ms", elapsed * 1000)
 ```
 
@@ -194,6 +191,7 @@ Before completing any task, verify:
 - [ ] No duplicated logic exists
 - [ ] `pytest` passes with no errors
 - [ ] `ruff` passes with no warnings
+- [ ] `mypy` passes with no warnings
 - [ ] No silent physics errors (assertions in place)
 - [ ] Experiment logged in MLflow
 - [ ] Performance within 100ms constraint

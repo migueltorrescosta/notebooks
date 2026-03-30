@@ -8,7 +8,7 @@ import itertools
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import scipy  # type: ignore[import-untyped]
+import scipy
 import streamlit as st
 
 # LAYOUT
@@ -21,7 +21,7 @@ class Distributions(Enum):
 
 # INPUTS
 def binomial_pdf(x: int, p: float, n: int) -> float:
-    return scipy.stats.binom.cdf(x, n=n, p=p) - scipy.stats.binom.cdf(x - 1, n=n, p=p)
+    return float(scipy.stats.binom.cdf(x, n=n, p=p) - scipy.stats.binom.cdf(x - 1, n=n, p=p))
 
 
 with st.sidebar:
