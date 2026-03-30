@@ -40,15 +40,27 @@ Follow these steps **in order** for every task:
 # Project Structure
 
 ```
-mach-zehnder-interferometry/ # Root folder
-├── experiments/             # Simulation configurations (wiring models + simulators)
-├── models/                  # Quantum physics definitions (operators, states, noise)
+notebooks/                   # Root folder (streamlit app)
 ├── pages/                   # Streamlit UI (one page per simulation)
-│   ├── docs/                # Documentation components for the UI
-│   ├── app.py               # Entrypoint
-│   └── ligo_simulator.py    # Example simulation
-├── simulators/              # Numerical evolution logic
-└── tests/                   # Integration, regression, performance, UI tests
+│   ├── Bayes_updates.py
+│   ├── Delta_estimation.py
+│   ├── Fisher_information.py
+│   ├── Heisenberg_model.py
+│   ├── Numerical_Quantum_Time_Evolution.py
+│   ├── Wave_interference.py
+│   └── ...                  # Other simulation pages
+├── src/                     # Core modules (physics, algorithms, plotting)
+│   ├── algorithms.py
+│   ├── angular_momentum.py
+│   ├── bayesian_statistics.py
+│   ├── enums.py
+│   ├── plotting.py
+│   └── visualization.py
+├── jupyter/                 # Jupyter notebooks for exploration
+├── mathematica/             # Mathematica notebooks
+├── Home.py                  # Main streamlit entrypoint
+├── pyproject.toml           # Project configuration
+└── uv.lock                  # Dependency lock file
 ```
 
 # Quick Reference
