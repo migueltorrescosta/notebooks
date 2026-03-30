@@ -6,5 +6,4 @@
 .local/*
 data/
 jupyter/quantum/Grenoble
-poetry.lock
 private/

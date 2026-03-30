@@ -1,15 +1,14 @@
 # Miguel's Playground
 I use these [jupyter](https://jupyter.org/) notebooks to and [streamlit](https://streamlit.io/) pages to play with different topics.
 
-We use [poetry](https://python-poetry.org/) to manage dependencies. The local streamlit apps can be accessed on https://collapsedwave.strealit.app.
-
 # Quick ref
 ```bash
-poetry install --no-root                   # Install all dependencies
-poetry update                              # check for later versions of the used dependencies
-poetry run python -m streamlit run Home.py # Run local streamlit app
-jupyter-book build .                       # Build the jupyter notebook. I haven't used this command in a while, so it is likely to be broken
+uv sync                                  # Install all dependencies
+uv sync --update-existing                 # Update dependencies to latest versions
+uv run streamlit run Home.py              # Run local streamlit app
 ```
+
+
 
 ## Notes
 

@@ -54,11 +54,12 @@ mach-zehnder-interferometry/ # Root folder
 # Quick Reference
 
 ```bash
-uv run radon mi . -n B             # Code complexity analysis
+jupyter-book build .               # Build the jupyter notebook.
 uv run pytest . --quiet --tb=short # Run tests
+uv run radon mi . -n B             # Code complexity analysis
 uv run ruff check . --fix          # Lint
 uv run ruff format .               # Format
-uv run streamlit run pages/app.py  # Start streamlit app
+uv run streamlit run Home.py       # Start streamlit app
 uv sync                            # Update dependencies
 ```
 
