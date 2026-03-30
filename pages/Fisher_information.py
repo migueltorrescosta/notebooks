@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import partial
 
 from matplotlib import pyplot as plt
 from src.plotting import plot_array
@@ -19,6 +20,10 @@ class Distributions(Enum):
 
 
 # INPUTS
+def binomial_pdf(x: int, p: float, n: int) -> float:
+    return scipy.stats.binom.cdf(x, n=n, p=p) - scipy.stats.binom.cdf(x - 1, n=n, p=p)
+
+
 with st.sidebar:
     st.header("Fisher Information", divider="blue")
     distribution = st.selectbox("Function", [dist.value for dist in Distributions])
@@ -36,12 +41,9 @@ with st.sidebar:
                 st.error(
                     f"There are {n * theta_sample_size} $(x,\\theta)$ tuples to calculate. This will be slow ⚠️"
                 )
-            pdf = lambda x, p: (
-                scipy.stats.binom.cdf(x, n=n, p=p)
-                - scipy.stats.binom.cdf(x - 1, n=n, p=p)
-            )
             valid_x = range(n + 1)
             valid_theta = np.linspace(0, 1, theta_sample_size + 1)
+            pdf = partial(binomial_pdf, n=n)
 
     st.header("Cramer Rao", divider="orange")
     fisher_clip = st.number_input(
@@ -58,7 +60,7 @@ match distribution:
 
 df_pdf = pd.DataFrame(
     data=[
-        (x, p, pdf(x, p))  # type: ignore[no-untyped-call]
+        (x, p, binomial_pdf(x, p, n))
         for x, p in tqdm(
             itertools.product(valid_x, valid_theta),
             total=len(valid_x) * len(valid_theta),
@@ -87,9 +89,7 @@ with c3:
     st.latex(r"\left ( \frac{\partial}{\partial \theta} \log_\theta f(x) \right )")
     quick_and_dirty(np.gradient(np.log(np.array(df_pdf)), axis=0))
 with c4:
-    st.latex(
-        r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2"
-    )
+    st.latex(r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2")
     quick_and_dirty(np.gradient(np.log(np.array(df_pdf)), axis=0) ** 2)
 
 # axis 0 is x, axis 1 is p

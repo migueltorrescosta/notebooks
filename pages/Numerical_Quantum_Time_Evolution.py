@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import partial
 from plotly import express as px  # type: ignore[import-untyped]
 from typing import Callable, List
 import numpy as np
@@ -8,6 +9,26 @@ import streamlit as st
 
 from src.enums import WavePacket, PotentialFunction, BoundaryCondition
 from src.plotting import plot_array
+
+
+def potential_quadratic(x: float, a: float, c: float) -> float:
+    return a * (c - x) ** 2
+
+
+def potential_quartic(x: float, a: float, c: float) -> float:
+    return a * (c - x) ** 4
+
+
+def potential_trigonometric(x: float, amplitude: float, phase: float, k: float, width: float) -> float:
+    return amplitude * np.cos(phase + np.divide(k * 2 * np.pi * x, width))
+
+
+def potential_uniform(x: float, a: float) -> float:
+    return a * x
+
+
+def potential_double_well(x: float, a: float, b: float, c: float) -> float:
+    return a * (x**4 + 2 * x**2) + b * np.exp(-1 * c * x**2)
 
 st.set_page_config(
     page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide"
@@ -50,18 +71,20 @@ with st.sidebar:
                 d = st.number_input("$d$", min_value=0.0, value=1.0)
                 initial_momentum = st.number_input("$p$", value=2.0)
                 initial_center_of_mass = st.number_input("$x_0$", value=-1.0)
-                phi_zero_x = lambda x: np.exp(
-                    -1 * d * (x - initial_center_of_mass) ** 2
-                    - initial_momentum * 1.0j * x
+                phi_zero = np.exp(
+                    -1 * d * (valid_x - initial_center_of_mass) ** 2
+                    - initial_momentum * 1.0j * valid_x
                 )
             case WavePacket.Step.value:
                 st.latex("\\mathbb{1}_{{[r,s]}}e^{{ipx}}")
                 r = st.number_input("$r$", value=-1.0)
                 s = st.number_input("$s$", min_value=r, value=1.0)
                 momentum = st.number_input("$p$", value=5.0)
-                phi_zero_x = lambda x: np.exp(1j * momentum * x) * (x >= r) * (x <= s)
+                phi_zero = (
+                    np.exp(1j * momentum * valid_x) * (valid_x >= r) * (valid_x <= s)
+                )
 
-        phi_zero = np.array([phi_zero_x(x) for x in valid_x])  # type: ignore[no-untyped-call]
+        phi_zero = np.array(phi_zero)
         phi_zero /= np.sqrt(np.sum(np.abs(phi_zero) ** 2))
 
     with c2:
@@ -74,13 +97,13 @@ with st.sidebar:
                 st.latex("a(x-c)^2")
                 potential_increase = st.number_input("$a$", value=0.2)
                 potential_center = st.number_input("$c$", value=0.0)
-                potential_x = lambda x: potential_increase * (potential_center - x) ** 2
+                potential_x = partial(potential_quadratic, a=potential_increase, c=potential_center)
 
             case PotentialFunction.Quartic.value:
                 st.latex("a(x-c)^4")
                 potential_increase = st.number_input("$a$", value=0.05)
                 potential_center = st.number_input("$c$", value=0.0)
-                potential_x = lambda x: potential_increase * (potential_center - x) ** 4
+                potential_x = partial(potential_quartic, a=potential_increase, c=potential_center)
 
             case PotentialFunction.Trigonometric.value:
                 width = x_max - x_min
@@ -89,23 +112,19 @@ with st.sidebar:
                 phase = st.number_input("$\\phi$", value=0.0)
                 width = x_max - x_min
                 k = st.number_input("$k$", min_value=0.0, value=4.0)
-                potential_x = lambda x: (
-                    amplitude * np.cos(phase + np.divide(k * 2 * np.pi * x, width))
-                )
+                potential_x = partial(potential_trigonometric, amplitude=amplitude, phase=phase, k=k, width=width)
 
             case PotentialFunction.Uniform.value:
                 st.latex("ax")
                 a = st.number_input("$a$", value=1.0)
-                potential_x = lambda x: a * x
+                potential_x = partial(potential_uniform, a=a)
 
             case PotentialFunction.DoubleWell.value:
                 st.latex("a ( x^4 - 2 x^2 ) + be^{-cx^2}")
                 a = st.number_input("$a$", min_value=0.0, value=1.0)
                 b = st.number_input("$b$", min_value=0.0, value=30.0)
                 c = st.number_input("$c$", min_value=0.0, value=3.0)
-                potential_x = lambda x: (
-                    a * (x**4 + 2 * x**2) + b * np.exp(-1 * c * x**2)
-                )
+                potential_x = partial(potential_double_well, a=a, b=b, c=c)
 
         boundary_condition = st.selectbox(
             "Boundary Condition", [f.value for f in BoundaryCondition]

@@ -1,3 +1,5 @@
+from functools import partial
+
 from matplotlib import pyplot as plt
 from src.plotting import plot_array
 from tqdm import tqdm
@@ -7,6 +9,15 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(page_title="Interference Patterns", page_icon="〰", layout="wide")
+
+
+def wave_a(x: float, y: float, wavelength: float, angle: float) -> complex:
+    return np.exp(2j * wavelength * np.pi * (np.sin(angle) * x + np.cos(angle) * y))
+
+
+def wave_b(x: float, y: float, wavelength: float, angle: float) -> complex:
+    return np.exp(2j * wavelength * np.pi * (np.sin(angle) * x + np.cos(angle) * y))
+
 
 # START
 with st.sidebar:
@@ -18,9 +29,6 @@ with st.sidebar:
         angle_a = st.slider("$\\theta_a$", min_value=0.0, max_value=1.0, value=0.24)
     with c3:
         st.latex(f"\\bold{{a}} = {wavelength_a:g}e^{{2 i \\pi {angle_a:g}}}")
-        wave_a = lambda x, y: np.exp(
-            2j * wavelength_a * np.pi * (np.sin(angle_a) * x + np.cos(angle_a) * y)
-        )
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -29,11 +37,11 @@ with st.sidebar:
         angle_b = st.slider("$\\theta_b$", min_value=0.0, max_value=1.0, value=0.26)
     with c3:
         st.latex(f"\\bold{{b}} = {wavelength_b:g}e^{{2 i \\pi {angle_b:g}i}}")
-        wave_b = lambda x, y: np.exp(
-            2j * wavelength_b * np.pi * (np.sin(angle_b) * x + np.cos(angle_b) * y)
-        )
 
     resolution = st.number_input("Resolution", value=20)
+
+    wave_a = partial(wave_a, wavelength_a, angle_a)
+    wave_b = partial(wave_b, wavelength_b, angle_b)
 
 st.header("Setup", divider="blue")
 st.markdown("""
@@ -41,15 +49,17 @@ st.markdown("""
     In particular this can be used to visualize the [Moiré effect](https://en.wikipedia.org/wiki/Moir%C3%A9_pattern).
     """)
 
-grid = list(itertools.product(np.linspace(0, 1, resolution), np.linspace(0, 1, resolution)))
+grid = list(
+    itertools.product(np.linspace(0, 1, resolution), np.linspace(0, 1, resolution))
+)
 df = pd.DataFrame(
     [
         {
             "x": x,
             "y": y,
-            "wave_a": wave_a(x, y),  # type: ignore[no-untyped-call]
-            "wave_b": wave_b(x, y),  # type: ignore[no-untyped-call]
-            "f": wave_a(x, y) + wave_b(x, y),  # type: ignore[no-untyped-call]
+            "wave_a": wave_a(x, y),
+            "wave_b": wave_b(x, y),
+            "f": wave_a(x, y) + wave_b(x, y),
         }
         for x, y in tqdm(grid, total=resolution**2)
     ]
@@ -63,27 +73,35 @@ st.header("Real part", divider="orange")
 c1, c2, c3 = st.columns(3)
 with c1:
     plot_array(
-        np.real(df.pivot(columns="x", index="y", values="wave_a").values), text_auto=False
+        np.real(df.pivot(columns="x", index="y", values="wave_a").values),
+        text_auto=False,
     )
 with c2:
     plot_array(
-        np.real(df.pivot(columns="x", index="y", values="wave_b").values), text_auto=False
+        np.real(df.pivot(columns="x", index="y", values="wave_b").values),
+        text_auto=False,
     )
 with c3:
-    plot_array(np.real(df.pivot(columns="x", index="y", values="f").values), text_auto=False)
+    plot_array(
+        np.real(df.pivot(columns="x", index="y", values="f").values), text_auto=False
+    )
 
 st.header("Imaginary part", divider="green")
 c1, c2, c3 = st.columns(3)
 with c1:
     plot_array(
-        np.imag(df.pivot(columns="x", index="y", values="wave_a").values), text_auto=False
+        np.imag(df.pivot(columns="x", index="y", values="wave_a").values),
+        text_auto=False,
     )
 with c2:
     plot_array(
-        np.imag(df.pivot(columns="x", index="y", values="wave_b").values), text_auto=False
+        np.imag(df.pivot(columns="x", index="y", values="wave_b").values),
+        text_auto=False,
     )
 with c3:
-    plot_array(np.imag(df.pivot(columns="x", index="y", values="f").values), text_auto=False)
+    plot_array(
+        np.imag(df.pivot(columns="x", index="y", values="f").values), text_auto=False
+    )
 
 st.header(r"$\| \cdot \|_2$ Norm", divider="green")
 plot_array(np.abs(df.pivot(columns="x", index="y", values="f").values), text_auto=False)
@@ -97,8 +115,8 @@ width = 6
 Y, X = np.mgrid[
     -width : width : np.divide(width, 10), -width : width : np.divide(width, 10)
 ]
-wave_a_grid = np.array([wave_a(x, y) for (x, y) in zip(X, Y)])  # type: ignore[no-untyped-call]
-wave_b_grid = np.array([wave_b(x, y) for (x, y) in zip(X, Y)])  # type: ignore[no-untyped-call]
+wave_a_grid = np.array([wave_a(x, y) for (x, y) in zip(X, Y)])
+wave_b_grid = np.array([wave_b(x, y) for (x, y) in zip(X, Y)])
 
 fig, ax = plt.subplots(figsize=(6, 6))
 ax.quiver(X, Y, np.real(wave_a_grid), np.imag(wave_a_grid), color="orange")

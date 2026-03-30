@@ -14,76 +14,120 @@ st.set_page_config(page_title="Minimize Heatmap", page_icon="📐️", layout="w
 # 2. Add Nelder-Mead, Simulated Annealing, Q-learning?
 # 3. Plot the evolution of estimated optimal parameters over time
 
-test_functions = {
-    "Rastrigin": lambda x, y: (
+
+def rastrigin(x: float, y: float) -> float:
+    return (
         10 * 2
         + (x**2 - 10 * np.cos(2 * np.pi * x))
         + (y**2 - 10 * np.cos(2 * np.pi * y))
-    ),
-    "Ackley": lambda x, y: -20 * np.exp(-0.2 * np.sqrt(0.5 * (x**2 + y**2))),
-    "Sphere": lambda x, y: x**2 + y**2,
-    "Rosenbrock": lambda x, y: np.log(
-        1 + (1 - x) ** 2 + 100 * (y - x**2) ** 2
-    ),  # Logged Rosenbrock
-    "Beale": lambda x, y: np.log(
+    )
+
+
+def ackley(x: float, y: float) -> float:
+    return -20 * np.exp(-0.2 * np.sqrt(0.5 * (x**2 + y**2)))
+
+
+def sphere(x: float, y: float) -> float:
+    return x**2 + y**2
+
+
+def rosenbrock(x: float, y: float) -> float:
+    return np.log(1 + (1 - x) ** 2 + 100 * (y - x**2) ** 2)
+
+
+def beale(x: float, y: float) -> float:
+    return np.log(
         (1.5 - x + x * y) ** 2
         + (2.25 - x + x * y**2) ** 2
         + (2.625 - x + x * y**3) ** 2
-    ),  # Logged Beale
-    "Goldstein-Price": lambda x, y: (
-        (
-            1
-            + (x + y + 1) ** 2
-            * (19 - 14 * x + 3 * x**2 - 14 * y + 6 * x * y + 3 * y**2)
-        )
-        * (
-            30
-            + (2 * x - 3 * y) ** 2
-            * (18 - 32 * x + 12 * x**2 + 48 * y - 36 * x * y + 27 * y**2)
-        )
-    ),
-    "Booth": lambda x, y: (x + 2 * y - 7) ** 2 + (2 * x + y - 5) ** 2,
-    "Bukin": lambda x, y: (
-        100 * np.sqrt(np.abs(y - 0.01 * x**2)) + 0.01 * np.abs(x + 10)
-    ),
-    "Matyas": lambda x, y: 0.26 * (x**2 + y**2) - 0.48 * x * y,
-    "Levi": lambda x, y: (
+    )
+
+
+def goldstein_price(x: float, y: float) -> float:
+    return (
+        1 + (x + y + 1) ** 2 * (19 - 14 * x + 3 * x**2 - 14 * y + 6 * x * y + 3 * y**2)
+    ) * (
+        30
+        + (2 * x - 3 * y) ** 2
+        * (18 - 32 * x + 12 * x**2 + 48 * y - 36 * x * y + 27 * y**2)
+    )
+
+
+def booth(x: float, y: float) -> float:
+    return (x + 2 * y - 7) ** 2 + (2 * x + y - 5) ** 2
+
+
+def bukin(x: float, y: float) -> float:
+    return 100 * np.sqrt(np.abs(y - 0.01 * x**2)) + 0.01 * np.abs(x + 10)
+
+
+def matyas(x: float, y: float) -> float:
+    return 0.26 * (x**2 + y**2) - 0.48 * x * y
+
+
+def levi(x: float, y: float) -> float:
+    return (
         np.sin(3 * np.pi * x) ** 2
         + (x - 1) ** 2 * (1 + np.sin(3 * np.pi * y) ** 2)
         + (y - 1) ** 2 * (1 + np.sin(2 * np.pi + y) ** 2)
-    ),
-    "Himmelblau": lambda x, y: (x**2 + y - 11) ** 2 + (x + y**2 - 7) ** 2,
-    "Three-hump camel": lambda x, y: (
-        2 * x**2 - 1.05 * x**4 + np.divide(x**6, 6) + x * y + y**2
-    ),
-    "Eggholder": lambda x, y: (
-        (-1000 * y + 47) * np.sin(np.sqrt(np.abs(500 * x + 1000 * y + 47)))
-        - 1000 * x * np.sin(np.sqrt(np.abs(1000 * (x - y) + 47)))
-    ),
-    "Holder table": lambda x, y: (
-        -1
-        * np.abs(
-            np.sin(x)
-            * np.cos(y)
-            * np.exp(np.abs(1 - np.divide(np.sqrt(x**2 + y**2), np.pi)))
-        )
-    ),
-    "Schaffer": lambda x, y: (
-        0.5
-        + np.divide(
-            np.cos(np.sin(np.abs(x**2 - y**2))) ** 2 - 0.5,
-            (1 + 0.001 * (x**2 + y**2)) ** 2,
-        )
-    ),
-    "Shekel": lambda x, y: (
-        -1
-        * sum(
-            [
-                np.divide(1, c + (x - a) ** 2 + (y - b) ** 2)
-                for c, b, a in [(4, 1, 1), (5, 0, 1), (6, 0, 1)]
-            ]
-        )
-    ),
+    )
+
+
+def himmelblau(x: float, y: float) -> float:
+    return (x**2 + y - 11) ** 2 + (x + y**2 - 7) ** 2
+
+
+def three_hump_camel(x: float, y: float) -> float:
+    return 2 * x**2 - 1.05 * x**4 + np.divide(x**6, 6) + x * y + y**2
+
+
+def eggholder(x: float, y: float) -> float:
+    return (-1000 * y + 47) * np.sin(
+        np.sqrt(np.abs(500 * x + 1000 * y + 47))
+    ) - 1000 * x * np.sin(np.sqrt(np.abs(1000 * (x - y) + 47)))
+
+
+def holder_table(x: float, y: float) -> float:
+    return -1 * np.abs(
+        np.sin(x)
+        * np.cos(y)
+        * np.exp(np.abs(1 - np.divide(np.sqrt(x**2 + y**2), np.pi)))
+    )
+
+
+def schaffer(x: float, y: float) -> float:
+    return 0.5 + np.divide(
+        np.cos(np.sin(np.abs(x**2 - y**2))) ** 2 - 0.5,
+        (1 + 0.001 * (x**2 + y**2)) ** 2,
+    )
+
+
+def shekel(x: float, y: float) -> float:
+    return -1 * sum(
+        [
+            np.divide(1, c + (x - a) ** 2 + (y - b) ** 2)
+            for c, b, a in [(4, 1, 1), (5, 0, 1), (6, 0, 1)]
+        ]
+    )
+
+
+test_functions: dict[str, Callable[[float, float], float]] = {
+    "Rastrigin": rastrigin,
+    "Ackley": ackley,
+    "Sphere": sphere,
+    "Rosenbrock": rosenbrock,
+    "Beale": beale,
+    "Goldstein-Price": goldstein_price,
+    "Booth": booth,
+    "Bukin": bukin,
+    "Matyas": matyas,
+    "Levi": levi,
+    "Himmelblau": himmelblau,
+    "Three-hump camel": three_hump_camel,
+    "Eggholder": eggholder,
+    "Holder table": holder_table,
+    "Schaffer": schaffer,
+    "Shekel": shekel,
 }  # https://en.wikipedia.org/wiki/Test_functions_for_optimization
 
 
@@ -136,7 +180,7 @@ with st.sidebar:
 def gen_surface_df(f: str) -> pd.DataFrame:
     return pd.DataFrame(
         [
-            {"x": round(x, 3), "y": round(y, 3), "f": test_functions[f](x, y)}  # type: ignore[no-untyped-call]
+            {"x": round(x, 3), "y": round(y, 3), "f": test_functions[f](x, y)}
             for x, y in itertools.product(np.linspace(-3, 3, 501), repeat=2)
         ]
     )
@@ -159,11 +203,11 @@ def gen_performance_df() -> pd.DataFrame:
     )
 
     def calc_min(row: pd.Series[Any]) -> float:
-        test_func = test_functions[row["test_function"]]  # type: ignore[no-untyped-call]
+        test_func = test_functions[row["test_function"]]
         argmin = row["argmin"]
-        return test_func(argmin[0], argmin[1])  # type: ignore[no-untyped-call]
+        return test_func(argmin[0], argmin[1])
 
-    df["min"] = df.apply(calc_min, axis=1)  # type: ignore[no-untyped-call]
+    df["min"] = df.apply(calc_min, axis=1)
     df["normalized_min"] = df.groupby("test_function")[["min"]].transform(
         lambda x: (x - x.min()) / (x.max() - x.min())
     )

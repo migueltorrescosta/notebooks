@@ -1,4 +1,6 @@
 from enum import Enum
+from functools import partial
+
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -10,6 +12,22 @@ class Distributions(str, Enum):
     Geometric = "Geometric"
     Linear = "Linear"
     Gaussian = "Gaussian"
+
+
+def prior_polynomial(x: float, a: float, b: float, c: float) -> float:
+    return a * (x - b) ** c
+
+
+def prior_gaussian(x: float, a: float, mu: float) -> float:
+    return np.exp(-1 * a * (x - mu) ** 2)
+
+
+def likelihood_polynomial(x: float, a: float, b: float, c: float) -> float:
+    return a * (x - b) ** c
+
+
+def likelihood_gaussian(x: float, a: float, mu: float) -> float:
+    return np.exp(-1 * a * (x - mu) ** 2)
 
 
 domain = np.linspace(-1, 1, 201)
@@ -30,20 +48,21 @@ with st.sidebar:
                 a = st.number_input("$a_1$", value=1.0)
                 b = st.number_input("$b_1$", value=0.0)
                 c = st.number_input("$c_1$", value=1.0)
-                prior = lambda x: a * (x - b) ** c
                 st.latex(f"{a}(x{-1 * b:+})^{{ {c} }}")
+                prior_fn = partial(prior_polynomial, a=a, b=b, c=c)
             case Distributions.Linear.value:
                 st.latex("a_1x+b_1")
                 a = st.number_input("$a_1$", value=1.0)
                 b = st.number_input("$b_1$", value=0.0)
-                prior = lambda x: a * x + b
+                c = 1.0  # Linear is polynomial with c=1
+                prior_fn = partial(prior_polynomial, a=a, b=b, c=c)
             case Distributions.Gaussian.value:
                 st.latex("e^{-a_1(x-\\mu_1)^2}")
                 a = st.number_input("$a_1$", value=1.0)
                 mu = st.number_input("$\\mu_1$", value=0.0)
-                prior = lambda x: np.exp(-1 * a * (x - mu) ** 2)
+                prior_fn = partial(prior_gaussian, a=a, mu=mu)
 
-        prior_vector = np.array([max(prior(x), 0) for x in domain])  # type: ignore[no-untyped-call]
+        prior_vector = np.array([max(prior_fn(x), 0) for x in domain])
         prior_vector = prior_vector / np.sum(prior_vector)
 
     with c2:
@@ -56,20 +75,21 @@ with st.sidebar:
                 a = st.number_input("$a_2$", value=1.0)
                 b = st.number_input("$b_2$", value=0.0)
                 c = st.number_input("$c_2$", value=1.0)
-                likelihood = lambda x: a * (x - b) ** c
                 st.latex(f"{a}(x{-1 * b:+})^{{ {c} }}")
+                likelihood_fn = partial(likelihood_polynomial, a=a, b=b, c=c)
             case Distributions.Linear.value:
                 st.latex("a_2x+b_2")
                 a = st.number_input("$a_2$", value=1.0)
                 b = st.number_input("$b_2$", value=0.0)
-                likelihood = lambda x: a * x + b
+                c = 1.0  # Linear is polynomial with c=1
+                likelihood_fn = partial(likelihood_polynomial, a=a, b=b, c=c)
             case Distributions.Gaussian.value:
                 st.latex("e^{-a_2(x-\\mu_2)^2}")
                 a = st.number_input("$a_2$", value=1.0)
                 mu = st.number_input("$\\mu_2$", value=0.0)
-                likelihood = lambda x: np.exp(-1 * a * (x - mu) ** 2)
+                likelihood_fn = partial(likelihood_gaussian, a=a, mu=mu)
 
-        likelihood_vector = np.array([max(likelihood(x), 0) for x in domain])  # type: ignore[no-untyped-call]
+        likelihood_vector = np.array([max(likelihood_fn(x), 0) for x in domain])
         likelihood_vector = likelihood_vector / np.sum(likelihood_vector)
 
     posterior_vector = prior_vector * likelihood_vector

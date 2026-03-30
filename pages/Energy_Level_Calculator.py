@@ -27,7 +27,9 @@ with st.sidebar:
     with c1:
         resolution: int = int(st.number_input("$N_x$", value=200))
     with c2:
-        number_of_energy_levels = int(st.number_input("$E_{levels}$", min_value=2, value=20))
+        number_of_energy_levels = int(
+            st.number_input("$E_{levels}$", min_value=2, value=20)
+        )
 
     boundary_condition: BoundaryCondition = st.selectbox(
         "Boundary Condition", [f.value for f in BoundaryCondition]

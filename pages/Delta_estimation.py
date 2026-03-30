@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from numpy.polynomial import Polynomial
 from src.angular_momentum import generate_spin_matrices
 from src.plotting import plot_array
 from tqdm import tqdm
@@ -265,12 +266,13 @@ iterable_2: List[RunOptions] = [
 cpus = multiprocessing.cpu_count()
 pool = multiprocessing.Pool(processes=cpus)
 df = pd.DataFrame(
-    data=pool.starmap(full_calculation, iterable_2), columns=Settings.recorded_variables  # type: ignore[arg-type]
+    data=pool.starmap(full_calculation, iterable_2),
+    columns=Settings.recorded_variables,  # type: ignore[arg-type]
 )
 
 df.drop("time", axis=1, inplace=True)
 
-polynomial_fit = np.polynomial.Polynomial.fit(  # type: ignore[no-untyped-call]
+polynomial_fit = Polynomial.fit(
     np.array(df["expected_sigma_z"]), np.array(df["delta_s"]) - guessed_delta_s, deg=1
 )
 a0, a1 = polynomial_fit.coef
@@ -308,9 +310,9 @@ with st.sidebar:
         confidence_interval = st.number_input(
             "Confidence", value=0.9, min_value=0.0001, max_value=0.9999, step=0.0001
         )
-        confidence_interval_multiplier = float(scipy.stats.norm.interval(confidence_interval)[
-            1
-        ])
+        confidence_interval_multiplier = float(
+            scipy.stats.norm.interval(confidence_interval)[1]
+        )
     if n_trials > 500:
         st.error(f"Since $N_{{trials}} = {n_trials} \\geq 500$, this will be slooow ⚠️")
     show_log_likelihood = st.toggle("Show log likelihood", value=False)
@@ -343,7 +345,10 @@ likelihood_arr = np.array(df["likelihood"])
 likelihood_sum = float(np.sum(likelihood_arr))
 delta_s_arr = np.array(df["delta_s"])
 estimated_delta_mean = float(np.dot(delta_s_arr, likelihood_arr)) / likelihood_sum
-estimated_delta_var = float(np.dot(((delta_s_arr - estimated_delta_mean) ** 2), likelihood_arr)) / likelihood_sum
+estimated_delta_var = (
+    float(np.dot(((delta_s_arr - estimated_delta_mean) ** 2), likelihood_arr))
+    / likelihood_sum
+)
 st.latex(
     f"\\delta_s \\approx {estimated_delta_mean:.6f} \\pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}"
 )
