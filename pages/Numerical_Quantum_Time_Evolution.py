@@ -33,7 +33,7 @@ with st.sidebar:
     with c3:
         trotterization_steps = st.number_input("$N_t$", min_value=5, value=500)
 
-    assert x_min < x_max, f"We need x_min < x_max"
+    assert x_min < x_max, "We need x_min < x_max"
 
     valid_x = np.linspace(x_min, x_max, number_of_spatial_points)
 
@@ -243,7 +243,7 @@ with c3:
         f"\n $\\left \\| (\\sum_i \\ket{{\\lambda_i}})(\\sum_i \\bra{{\\lambda_i}}) - \\mathbb{{1}}) \\right \\|_{{sup}} = {orthonormality_error:g}$")
 
 # plot_array(np.real(np.conjugate(eigenvectors.T) @ eigenvectors))
-assert orthonormality_error < 1e-8, f"Your energy levels are not orthonormal"
+assert orthonormality_error < 1e-8, "Your energy levels are not orthonormal"
 
 explained_psi_zero = np.sum([np.abs(el.component) ** 2 for el in energy_levels])
 explanation = pd.DataFrame({"component": el.component, "level": str(el.level)} for el in energy_levels)
@@ -264,8 +264,8 @@ with c1:
         f"""We known ${100 * np.sum([np.abs(el.component) ** 2 for el in energy_levels]):.20g} \\%$ of $\\ket{{\\psi_0}}$""")
 
 with c2:
-    st.caption(f"""
-        $\\begin{{array}}{{c}} 100\\ket{{\\psi_0}} \\\\ \\parallel \\\\
+    st.caption("""
+        $\\begin{array}{c} 100\\ket{\\psi_0} \\\\ \\parallel \\\\
         """ + "\\\\".join([
         f"{100 * el.component:+.2f}\\ket{{ {el.level} }}"
         for el

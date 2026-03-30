@@ -1,12 +1,11 @@
 from dataclasses import dataclass
-from plotly import express as px
-from typing import Callable, List
+from typing import Callable
 import numpy as np
 import pandas as pd
 import scipy
 import streamlit as st
 
-from src.enums import WavePacket, PotentialFunction, BoundaryCondition
+from src.enums import PotentialFunction, BoundaryCondition
 from src.plotting import plot_array
 
 st.set_page_config(page_title="Energy level calculator", page_icon="🛢", layout="wide")
@@ -22,7 +21,7 @@ with st.sidebar:
         x_min = st.number_input("$x_{min}$", value=-3.)
     with c2:
         x_max = st.number_input("$x_{max}$", value=3.)
-    assert x_min < x_max, f"We need x_min < x_max"
+    assert x_min < x_max, "We need x_min < x_max"
 
     c1, c2 = st.columns(2)
     with c1:
