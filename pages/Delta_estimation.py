@@ -22,44 +22,47 @@ with st.sidebar:
     st.subheader("System controls")
     c1, c2 = st.columns(2)
     with c1:
-        j_s = st.number_input("$J_S$", value=-5.2515, step=.0001)
+        j_s = st.number_input("$J_S$", value=-5.2515, step=0.0001)
     with c2:
-        delta_s = st.number_input("$\\delta_S$", value=3., step=.0001)
+        delta_s = st.number_input("$\\delta_S$", value=3.0, step=0.0001)
 
     st.subheader("Ancillary setup")
     c1, c2 = st.columns(2)
     with c1:
-        dim_a = st.number_input("$N$ ( Ancillary dim )", min_value=0, value=5, max_value=100)
+        dim_a = st.number_input(
+            "$N$ ( Ancillary dim )", min_value=0, value=5, max_value=100
+        )
     with c2:
         k = st.number_input("$\\ket{k}$", min_value=0, value=0, max_value=dim_a - 1)
 
     st.subheader("Ancillary controls")
     c1, c2, c3 = st.columns(3)
     with c1:
-        j_a = st.number_input("$J_A$", value=0.27688, step=.0001)
+        j_a = st.number_input("$J_A$", value=0.27688, step=0.0001)
     with c2:
-        u_a = st.number_input("$U_A$", value=3.9666, step=.0001)
+        u_a = st.number_input("$U_A$", value=3.9666, step=0.0001)
     with c3:
-        delta_a = st.number_input("$\\delta_A$", value=-3.8515472, step=.0001)
+        delta_a = st.number_input("$\\delta_A$", value=-3.8515472, step=0.0001)
 
     st.subheader("Interaction controls")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        alpha_xx = st.number_input(r"$\alpha_{xx}$", value=0.501046930, step=.0001)
+        alpha_xx = st.number_input(r"$\alpha_{xx}$", value=0.501046930, step=0.0001)
     with c2:
-        alpha_xz = st.number_input(r"$\alpha_{xz}$", value=-0.843229248, step=.0001)
+        alpha_xz = st.number_input(r"$\alpha_{xz}$", value=-0.843229248, step=0.0001)
     with c3:
-        alpha_zx = st.number_input(r"$\alpha_{zx}$", value=-1.66364957, step=.0001)
+        alpha_zx = st.number_input(r"$\alpha_{zx}$", value=-1.66364957, step=0.0001)
     with c4:
-        alpha_zz = st.number_input(r"$\alpha_{zz}$", value=-3.09656175, step=.0001)
+        alpha_zz = st.number_input(r"$\alpha_{zz}$", value=-3.09656175, step=0.0001)
 
 # Assumptions
 # 1. dim_S = 2
 
 # AUXILIARY FUNCTIONS
 
+
 @st.cache_data
-def generate_initial_state(ancillary_dimension: int, initial_state: int) -> np.array:
+def generate_initial_state(ancillary_dimension: int, initial_state: int) -> np.ndarray:
     # |rho_0><rho_0| \otimes |k><k|
     assert initial_state <= ancillary_dimension
     rho0 = np.array([1, 0])
@@ -95,21 +98,26 @@ class Settings:
         "<1|rho_system_t|1>",
         "expected_sigma_z",
         "variance_sigma_z",
-        "delta_s"
+        "delta_s",
     ]
     sigma_x, sigma_z = generate_spin_matrices(dim=2)
     jx, jz = generate_spin_matrices(dim=dim_a)
     initial_state = generate_initial_state(ancillary_dimension=dim_a, initial_state=k)
 
 
-def generate_hamiltonian(run_options: RunOptions) -> np.array:
+def generate_hamiltonian(run_options: RunOptions) -> np.ndarray:
     system_hamiltonian = np.kron(
-        -1 * run_options.j_s * Settings.sigma_x + run_options.delta_s * Settings.sigma_z,
-        np.divide(np.eye(run_options.ancillary_dimension), run_options.ancillary_dimension)
+        -1 * run_options.j_s * Settings.sigma_x
+        + run_options.delta_s * Settings.sigma_z,
+        np.divide(
+            np.eye(run_options.ancillary_dimension), run_options.ancillary_dimension
+        ),
     )
     ancillary_hamiltonian = np.kron(
         np.divide(np.eye(2), 2),
-        -1 * run_options.j_a * Settings.jx + run_options.u_a * Settings.jz @ Settings.jz + run_options.delta_a * Settings.jz
+        -1 * run_options.j_a * Settings.jx
+        + run_options.u_a * Settings.jz @ Settings.jz
+        + run_options.delta_a * Settings.jz,
     )
     interaction_hamiltonian = functools.reduce(
         lambda x, y: x + y,
@@ -118,47 +126,45 @@ def generate_hamiltonian(run_options: RunOptions) -> np.array:
             run_options.alpha_xz * np.kron(Settings.sigma_x, Settings.jz),
             run_options.alpha_zx * np.kron(Settings.sigma_z, Settings.jx),
             run_options.alpha_zz * np.kron(Settings.sigma_z, Settings.jz),
-        ]
+        ],
     )
     return system_hamiltonian + ancillary_hamiltonian + interaction_hamiltonian
 
 
 def generate_evolved_system_state(
-        hamiltonian: np.array,
-        initial_state: np.array,
-        time: float
-) -> np.array:
+    hamiltonian: np.ndarray, initial_state: np.ndarray, time: float
+) -> np.ndarray:
     return np.array(
-        scipy.linalg.expm(-1j * time * hamiltonian) @ initial_state @ scipy.linalg.expm(1j * time * hamiltonian),
-        dtype=complex
+        scipy.linalg.expm(-1j * time * hamiltonian)
+        @ initial_state
+        @ scipy.linalg.expm(1j * time * hamiltonian),
+        dtype=complex,
     )
 
 
 def trace_out_ancillary(full_system: np.ndarray) -> np.ndarray:
-    derived_ancillary_dimension: int = full_system.shape[0] // 2  # only works if dim_S = 2
+    derived_ancillary_dimension: int = (
+        full_system.shape[0] // 2
+    )  # only works if dim_S = 2
     return np.trace(
-        np.array(full_system).reshape(2, derived_ancillary_dimension, 2, derived_ancillary_dimension),
+        np.array(full_system).reshape(
+            2, derived_ancillary_dimension, 2, derived_ancillary_dimension
+        ),
         axis1=1,
-        axis2=3
+        axis2=3,
     )
 
 
 def full_calculation(run_options: RunOptions) -> Dict[str, float]:
-    hamiltonian = generate_hamiltonian(
-        run_options=run_options
-    )
+    hamiltonian = generate_hamiltonian(run_options=run_options)
     initial_state = generate_initial_state(
         ancillary_dimension=run_options.ancillary_dimension,
-        initial_state=run_options.ancillary_initial_state
+        initial_state=run_options.ancillary_initial_state,
     )
     rho_t = generate_evolved_system_state(
-        hamiltonian=hamiltonian,
-        initial_state=initial_state,
-        time=run_options.t
+        hamiltonian=hamiltonian, initial_state=initial_state, time=run_options.t
     )
-    rho_system_t = trace_out_ancillary(
-        full_system=rho_t
-    )
+    rho_system_t = trace_out_ancillary(full_system=rho_t)
     observable = np.array([[1, 0], [0, -1]])  # sigma_z
 
     return {
@@ -167,12 +173,14 @@ def full_calculation(run_options: RunOptions) -> Dict[str, float]:
         "<1|rho_system_t|1>": rho_system_t[1][1].real,
         "expected_sigma_z": np.trace(rho_system_t @ observable).real,
         "variance_sigma_z": 1 - np.trace(rho_system_t @ observable).real ** 2,
-        "delta_s": run_options.delta_s
+        "delta_s": run_options.delta_s,
     }
 
 
 # RELEVANT OPERATORS
-info_0, info_1, info_2, info_3, info_4 = st.tabs(["$\\sigma_x$", "$\\sigma_z$", "$J_x$", "$J_z$", "$H$"])
+info_0, info_1, info_2, info_3, info_4 = st.tabs(
+    ["$\\sigma_x$", "$\\sigma_z$", "$J_x$", "$J_z$", "$H$"]
+)
 
 temp_sigma_x, temp_sigma_z = generate_spin_matrices(dim=2)
 with info_0:
@@ -208,16 +216,15 @@ st.latex(f"""
 
 # DATAFRAME CREATION
 granularity = 500
-iterable = (RunOptions(t=time)  # For some weird reason, starmap needs a tuple, even if it has a single element
-    for time
-    in np.round(np.linspace(0, 10, granularity + 1), 3)
+iterable = (
+    RunOptions(
+        t=time
+    )  # For some weird reason, starmap needs a tuple, even if it has a single element
+    for time in np.round(np.linspace(0, 10, granularity + 1), 3)
 )
 
 data = map(full_calculation, iterable)
-df = pd.DataFrame(
-    data=data,
-    columns=Settings.recorded_variables
-)
+df = pd.DataFrame(data=data, columns=Settings.recorded_variables)
 
 # PLOTS
 # st.dataframe(data=df)
@@ -234,35 +241,42 @@ with st.sidebar:
     st.header(r"""Estimating $\delta_S$""", divider="orange")
     c1, c2, c3 = st.columns(3)
     with c1:
-        time = st.number_input("$t$", min_value=0., value=9.580, step=.0001)
+        time = st.number_input("$t$", min_value=0.0, value=9.580, step=0.0001)
     with c2:
-        guessed_delta_s = st.number_input("$\\hat{\\delta}_s$", value=delta_s, step=.0001)
+        guessed_delta_s = st.number_input(
+            "$\\hat{\\delta}_s$", value=delta_s, step=0.0001
+        )
     with c3:
-        delta_s_var = st.number_input("$\\Delta \\delta_s$", min_value=0.01, value=1., step=.0001)
+        delta_s_var = st.number_input(
+            "$\\Delta \\delta_s$", min_value=0.01, value=1.0, step=0.0001
+        )
 
 true_probability = float(np.array(df[df["time"] == time]["<1|rho_system_t|1>"])[0])
 
 # DATAFRAME CREATION
 iterable = (
-    (RunOptions(delta_s=inner_delta_s, t=time),) # starmap needs a tuple, even if it has a single element
-    for inner_delta_s
-    in np.round(np.linspace(guessed_delta_s - delta_s_var, guessed_delta_s + delta_s_var, 200 + 1), 3)
+    (
+        RunOptions(delta_s=inner_delta_s, t=time),
+    )  # starmap needs a tuple, even if it has a single element
+    for inner_delta_s in np.round(
+        np.linspace(
+            guessed_delta_s - delta_s_var, guessed_delta_s + delta_s_var, 200 + 1
+        ),
+        3,
+    )
 )
 
 
 cpus = multiprocessing.cpu_count()
 pool = multiprocessing.Pool(processes=cpus)
 df = pd.DataFrame(
-    data=pool.starmap(full_calculation, iterable),
-    columns=Settings.recorded_variables
+    data=pool.starmap(full_calculation, iterable), columns=Settings.recorded_variables
 )
 
 df.drop("time", axis=1, inplace=True)
 
 polynomial_fit = np.polynomial.Polynomial.fit(
-    np.array(df["expected_sigma_z"]),
-    np.array(df["delta_s"]) - guessed_delta_s,
-    deg=1
+    np.array(df["expected_sigma_z"]), np.array(df["delta_s"]) - guessed_delta_s, deg=1
 )
 a0, a1 = polynomial_fit.coef
 
@@ -281,7 +295,12 @@ st.latex(f"""
 st.line_chart(
     data=df,
     x="delta_s",
-    y=["<0|rho_system_t|0>", "<1|rho_system_t|1>", "expected_sigma_z", "variance_sigma_z"],
+    y=[
+        "<0|rho_system_t|0>",
+        "<1|rho_system_t|1>",
+        "expected_sigma_z",
+        "variance_sigma_z",
+    ],
 )
 
 # Calculating expected likelihood based on observations
@@ -291,14 +310,18 @@ with st.sidebar:
     with c1:
         n_trials = st.number_input("$N_{trials}$", value=50)
     with c2:
-        confidence_interval = st.number_input("Confidence", value=.9, min_value=0.0001, max_value=.9999, step=.0001)
-        confidence_interval_multiplier = scipy.stats.norm.interval(confidence_interval)[1]
-    if n_trials>500:
+        confidence_interval = st.number_input(
+            "Confidence", value=0.9, min_value=0.0001, max_value=0.9999, step=0.0001
+        )
+        confidence_interval_multiplier = scipy.stats.norm.interval(confidence_interval)[
+            1
+        ]
+    if n_trials > 500:
         st.error(f"Since $N_{{trials}} = {n_trials} \\geq 500$, this will be slooow ⚠️")
     show_log_likelihood = st.toggle("Show log likelihood", value=False)
 
 
-def calculate_probability_density_function(n: int, p: float) -> np.array:
+def calculate_probability_density_function(n: int, p: float) -> np.ndarray:
     # Returns full binomial pdf
     # Example: (n=3, p=.6 ) -> [0.064, 0.288, 0.432, 0.216]
     dist = scipy.stats.binom(n=n, p=p)
@@ -307,8 +330,10 @@ def calculate_probability_density_function(n: int, p: float) -> np.array:
 
 
 def calculate_likelihood(
-        prob: float,
-        true_pdf: np.array = calculate_probability_density_function(n=n_trials, p=true_probability)
+    prob: float,
+    true_pdf: np.ndarray = calculate_probability_density_function(
+        n=n_trials, p=true_probability
+    ),
 ) -> float:
     inner_pdf = calculate_probability_density_function(n=n_trials, p=prob)
     return np.dot(inner_pdf, true_pdf)
@@ -319,9 +344,16 @@ df["likelihood"] = np.divide(df["likelihood"], df["likelihood"].mean())
 
 
 st.subheader("Likelihood", divider="green")
-estimated_delta_mean = np.divide(df["delta_s"] @ df["likelihood"], df["likelihood"].sum())
-estimated_delta_var = np.divide((df["delta_s"]-estimated_delta_mean)**2 @ df["likelihood"], df["likelihood"].sum())
-st.latex(f"\\delta_s \\approx {estimated_delta_mean:.6f} \\pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}")
+estimated_delta_mean = np.divide(
+    df["delta_s"] @ df["likelihood"], df["likelihood"].sum()
+)
+estimated_delta_var = np.divide(
+    (df["delta_s"] - estimated_delta_mean) ** 2 @ df["likelihood"],
+    df["likelihood"].sum(),
+)
+st.latex(
+    f"\\delta_s \\approx {estimated_delta_mean:.6f} \\pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}"
+)
 
 df["loglikelihood"] = np.log(df["likelihood"])
 df["loglikelihood"] -= min(df["loglikelihood"])
@@ -347,7 +379,6 @@ data = {
     "alpha_zx": alpha_zx,
     "alpha_zz": alpha_zz,
     "time": time,
-
     "guessed_delta_s": guessed_delta_s,
     "delta_s_var": delta_s_var,
     "log_2_n_trials": np.log2(n_trials),
@@ -368,11 +399,13 @@ with st.sidebar:
     history_y_axis = st.selectbox("y-axis", sorted(data.keys()))
     history_x_axis = st.selectbox("x-axis", sorted(data.keys()))
 
-if 'experiment_history_df' not in st.session_state:
+if "experiment_history_df" not in st.session_state:
     st.session_state.experiment_history_df = pd.DataFrame([data])
 else:
     st.session_state.experiment_history_df.reset_index(drop=True, inplace=True)
-    st.session_state.experiment_history_df.loc[len(st.session_state.experiment_history_df)] = data
+    st.session_state.experiment_history_df.loc[
+        len(st.session_state.experiment_history_df)
+    ] = data
     st.session_state.experiment_history_df.drop_duplicates(inplace=True)
 
 c1, c2 = st.columns(2)
@@ -393,4 +426,3 @@ with c2:
 # st.plotly_chart(fig)
 
 # NEXT: Plot the variance of our likelihood as a function of the Number of trials n_trials
-

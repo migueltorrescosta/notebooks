@@ -21,5 +21,6 @@ class BoundaryCondition(str, Enum):
     Cyclic = "Cyclic"
     Dirichlet = "Dirichlet"
 
+
 class ProbabilityDistribution(str, Enum):
     ParticleDecay = "ParticleDecay"

@@ -10,8 +10,7 @@ T = TypeVar("T")
 
 
 class AbstractMetropolisHastings(ABC, Generic[T]):
-    """Inner workings of the MetropolisHastings algorithm
-    """
+    """Inner workings of the MetropolisHastings algorithm"""
 
     # Based on https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm#Description
 
@@ -35,11 +34,11 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
 
     def approval_function(self, new_configuration: T) -> bool:
         return (
-                self.state_likelihood(new_configuration)
-                >= self.state_likelihood(self.current_configuration) * np.random.random()
+            self.state_likelihood(new_configuration)
+            >= self.state_likelihood(self.current_configuration) * np.random.random()
         )
 
-    def run_single_iteration(self, limit_tries=10 ** 5) -> T:
+    def run_single_iteration(self, limit_tries=10**5) -> T:
         tries = 0
         while True:
             new_state = self.generator_function()
@@ -96,8 +95,8 @@ class GaussianMetropolisHastings(AbstractMetropolisHastings[float]):
     True
     """
 
-    def generator_function(self):
+    def generator_function(self) -> float:
         return self.current_configuration + np.random.normal(0, 1)
 
-    def state_likelihood(self, configuration: float):
-        return np.exp(-1 * configuration ** 2)
+    def state_likelihood(self, configuration: float) -> float:
+        return np.exp(-1 * configuration**2)

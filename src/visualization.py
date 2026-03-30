@@ -30,30 +30,26 @@ def fourier_transform(
 
 
 def finite_dimensional_populations_over_time(
-    hamiltonian: np.array,
-    rho0: np.array,
+    hamiltonian: np.ndarray,
+    rho0: np.ndarray,
     time_window_upper_bound: int = 10,
     labels: Optional[List[str]] = None,
 ) -> None:
     n_states = hamiltonian.shape[0]
 
     assert hamiltonian.shape[1] == n_states, "the hamiltonian is not square"
-    assert (
-        rho0.shape == hamiltonian.shape
-    ), "The initial state \rho0 does not match the hamiltonian's dimension"
+    assert rho0.shape == hamiltonian.shape, "The initial state \rho0 does not match the hamiltonian's dimension"
     assert time_window_upper_bound > 0, "The time cannot be negative"
     assert np.einsum("ii", rho0) == 1, "The diagonals of rho0 must add up to 1"
 
     if labels is None:
         labels = range(rho0.shape[1])
     else:
-        assert (
-            len(labels) == rho0.shape[1]
-        ), f"We have {len(labels)} labels but {rho0.shape[1]} possible states"
+        assert len(labels) == rho0.shape[1], f"We have {len(labels)} labels but {rho0.shape[1]} possible states"
 
     time_axis = np.linspace(0, time_window_upper_bound, 1000)
 
-    def rho(t: float) -> np.array:
+    def rho(t: float) -> np.ndarray:
         return expm(-1j * hamiltonian * t) @ rho0 @ expm(1j * hamiltonian * t)
 
     full_rho = np.array(
@@ -68,7 +64,9 @@ def finite_dimensional_populations_over_time(
     plt.legend()
 
 
-def quantum_state_heatmap(hamiltonian: np.array, rho0: np.array, t: float = 0) -> None:
+def quantum_state_heatmap(
+    hamiltonian: np.ndarray, rho0: np.ndarray, t: float = 0
+) -> None:
     rho_t = expm(-1j * hamiltonian * t) @ rho0 @ expm(1j * hamiltonian * t)
     fig, (ax1, ax2) = plt.subplots(1, 2)
 
