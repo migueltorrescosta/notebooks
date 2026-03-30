@@ -8,7 +8,7 @@ from src.bayesian_statistics import BayesUpdate
 
 
 class TestBayesUpdate:
-    def test_instantiation_with_valid_columns(self):
+    def test_instantiation_with_valid_columns(self) -> None:
         """Test that BayesUpdate can be instantiated with correct columns."""
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]}, index=["A", "B"]
@@ -17,13 +17,13 @@ class TestBayesUpdate:
         bayes = BayesUpdate(df)
         assert bayes is not None
 
-    def test_raises_on_missing_columns(self):
+    def test_raises_on_missing_columns(self) -> None:
         """Test that BayesUpdate raises on missing columns."""
         df = pd.DataFrame({"prior": [0.5, 0.5]})
         with pytest.raises(AssertionError):
             BayesUpdate(df)
 
-    def test_raises_on_extra_columns(self):
+    def test_raises_on_extra_columns(self) -> None:
         """Test that BayesUpdate raises on extra columns."""
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [0.8, 0.2], "extra": [1, 2]},
@@ -32,7 +32,7 @@ class TestBayesUpdate:
         with pytest.raises(AssertionError):
             BayesUpdate(df)
 
-    def test_posterior_is_calculated(self):
+    def test_posterior_is_calculated(self) -> None:
         """Test that posterior column is created and normalized."""
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]}, index=["A", "B"]
@@ -40,7 +40,7 @@ class TestBayesUpdate:
         bayes = BayesUpdate(df)
         assert "posterior" in bayes.df.columns
 
-    def test_posterior_sums_to_one(self):
+    def test_posterior_sums_to_one(self) -> None:
         """Test that posterior is normalized."""
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]}, index=["A", "B"]
@@ -48,7 +48,7 @@ class TestBayesUpdate:
         bayes = BayesUpdate(df)
         assert np.isclose(bayes.df["posterior"].sum(), 1.0)
 
-    def test_normalize_columns_works(self):
+    def test_normalize_columns_works(self) -> None:
         """Test that normalize_columns divides by row sums."""
         df = pd.DataFrame(
             {"prior": [1.0, 2.0], "likelihood": [4.0, 2.0]}, index=["A", "B"]
@@ -58,7 +58,7 @@ class TestBayesUpdate:
         assert np.isclose(bayes.df["prior"].sum(), 1.0)
         assert np.isclose(bayes.df["likelihood"].sum(), 1.0)
 
-    def test_calculate_posterior_basic(self):
+    def test_calculate_posterior_basic(self) -> None:
         """Test posterior calculation: prior * likelihood."""
         df = pd.DataFrame(
             {"prior": [0.4, 0.6], "likelihood": [0.5, 0.5]}, index=["A", "B"]
@@ -70,7 +70,7 @@ class TestBayesUpdate:
         assert np.isclose(bayes.df.loc["A", "posterior"], expected_A)
         assert np.isclose(bayes.df.loc["B", "posterior"], expected_B)
 
-    def test_plot_returns_figure(self):
+    def test_plot_returns_figure(self) -> None:
         """Test that plot method returns a figure."""
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]}, index=["A", "B"]
@@ -85,7 +85,7 @@ class TestBayesUpdate:
 
         plt.close(fig)
 
-    def test_categorical_index_detection(self):
+    def test_categorical_index_detection(self) -> None:
         """Test that categorical index is detected."""
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]},
@@ -94,7 +94,7 @@ class TestBayesUpdate:
         bayes = BayesUpdate(df)
         assert bayes.is_categorical is True
 
-    def test_numeric_index_detection(self):
+    def test_numeric_index_detection(self) -> None:
         """Test that numeric index is detected."""
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]},

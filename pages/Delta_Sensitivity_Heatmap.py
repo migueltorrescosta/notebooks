@@ -1,4 +1,5 @@
 import itertools
+from typing import Any
 import matplotlib.pyplot as plt
 import multiprocessing
 import numpy as np
@@ -22,7 +23,7 @@ def sensitivity(
     alpha_x: float,  # sigma_x_coupling_coefficient
     alpha_z: float,  # sigma_z_coupling_coefficient
     t: float,  # time
-):
+) -> dict[str, Any]:
     # Returns the sensitivity wrt the tunneling strength and wrt the energy shift of the system for a given level |k>
     assert k <= n, "The level k must be smaller than the ancilliary dimension n"
     assert k >= 0, "The level k must be greater than or equal to 0"
@@ -117,7 +118,7 @@ sensitivity_df = pd.DataFrame(
 )
 
 
-def plot_sensitivity(df, title: str, values: str):
+def plot_sensitivity(df: pd.DataFrame, title: str, values: str) -> None:
     fig, ax = plt.subplots()
     ax.set_title(title)
     sns.heatmap(

@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 
 
 class TestFourierTransform:
-    def test_fourier_transform_runs_without_error(self):
+    def test_fourier_transform_runs_without_error(self) -> None:
         """Test that fourier_transform executes without raising an exception."""
         # Mock matplotlib to avoid display errors
         with patch("src.visualization.plt.subplots") as mock_subplots:
@@ -15,7 +15,7 @@ class TestFourierTransform:
             mock_subplots.return_value = (mock_fig, mock_axs)
 
             # Simple Gaussian function
-            def f(t):
+            def f(t: float) -> float:
                 return np.exp(-(t**2))
 
             from src.visualization import fourier_transform
@@ -23,13 +23,13 @@ class TestFourierTransform:
             # Should not raise
             fourier_transform(f, a=-10, b=10, time_domain_n=100)
 
-    def test_fourier_transform_with_default_parameters(self):
+    def test_fourier_transform_with_default_parameters(self) -> None:
         with patch("src.visualization.plt.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
 
-            def f(t):
+            def f(t: float) -> float:
                 return np.sin(t)
 
             from src.visualization import fourier_transform
@@ -39,7 +39,7 @@ class TestFourierTransform:
 
 
 class TestFiniteDimensionalPopulationsOverTime:
-    def test_runs_with_valid_inputs(self):
+    def test_runs_with_valid_inputs(self) -> None:
         """Test with valid Hamiltonian and density matrix."""
         # 2x2 Hamiltonian (simple case)
         hamiltonian = np.array([[1, 0], [0, -1]])
@@ -56,7 +56,7 @@ class TestFiniteDimensionalPopulationsOverTime:
                 hamiltonian, rho0, time_window_upper_bound=1
             )
 
-    def test_raises_on_non_square_hamiltonian(self):
+    def test_raises_on_non_square_hamiltonian(self) -> None:
         hamiltonian = np.array([[1, 0, 0], [0, -1, 0]])  # Not square
         rho0 = np.array([[1, 0], [0, 0]])
 
@@ -65,7 +65,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         with pytest.raises(AssertionError, match="not square"):
             finite_dimensional_populations_over_time(hamiltonian, rho0)
 
-    def test_raises_on_mismatched_dimensions(self):
+    def test_raises_on_mismatched_dimensions(self) -> None:
         hamiltonian = np.array([[1, 0], [0, -1]])
         rho0 = np.array([[1, 0, 0], [0, 0, 0], [0, 0, 0]])  # 3x3, wrong size
 
@@ -74,7 +74,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         with pytest.raises(AssertionError, match="does not match"):
             finite_dimensional_populations_over_time(hamiltonian, rho0)
 
-    def test_raises_on_negative_time(self):
+    def test_raises_on_negative_time(self) -> None:
         hamiltonian = np.array([[1, 0], [0, -1]])
         rho0 = np.array([[1, 0], [0, 0]])
 
@@ -85,7 +85,7 @@ class TestFiniteDimensionalPopulationsOverTime:
                 hamiltonian, rho0, time_window_upper_bound=-1
             )
 
-    def test_raises_on_non_traceless_rho0(self):
+    def test_raises_on_non_traceless_rho0(self) -> None:
         hamiltonian = np.array([[1, 0], [0, -1]])
         rho0 = np.array([[0.5, 0], [0, 0.3]])  # Trace = 0.8, not 1
 
@@ -94,7 +94,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         with pytest.raises(AssertionError, match="add up to 1"):
             finite_dimensional_populations_over_time(hamiltonian, rho0)
 
-    def test_accepts_custom_labels(self):
+    def test_accepts_custom_labels(self) -> None:
         hamiltonian = np.array([[1, 0], [0, -1]])
         rho0 = np.array([[1, 0], [0, 0]])
 
@@ -110,7 +110,7 @@ class TestFiniteDimensionalPopulationsOverTime:
 
 
 class TestQuantumStateHeatmap:
-    def test_runs_with_valid_inputs(self):
+    def test_runs_with_valid_inputs(self) -> None:
         """Test with valid Hamiltonian and density matrix."""
         hamiltonian = np.array([[1, 0], [0, -1]])
         rho0 = np.array([[1, 0], [0, 0]])
@@ -129,7 +129,7 @@ class TestQuantumStateHeatmap:
             # Should not raise
             quantum_state_heatmap(hamiltonian, rho0, t=0)
 
-    def test_accepts_time_parameter(self):
+    def test_accepts_time_parameter(self) -> None:
         hamiltonian = np.array([[1, 0], [0, -1]])
         rho0 = np.array([[1, 0], [0, 0]])
 

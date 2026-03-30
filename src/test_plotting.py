@@ -6,7 +6,7 @@ import numpy as np
 
 
 class TestPlotArray:
-    def test_plot_array_runs_without_error(self):
+    def test_plot_array_runs_without_error(self) -> None:
         """Test that plot_array executes without raising an exception."""
         # Mock streamlit components to avoid display errors
         with (
@@ -31,7 +31,7 @@ class TestPlotArray:
             assert "text_auto" in call_kwargs
             assert "color_continuous_midpoint" in call_kwargs
 
-    def test_plot_array_with_custom_midpoint(self):
+    def test_plot_array_with_custom_midpoint(self) -> None:
         with (
             patch("src.plotting.st.plotly_chart"),
             patch("src.plotting.px.imshow") as mock_imshow,
@@ -47,7 +47,7 @@ class TestPlotArray:
             call_kwargs = mock_imshow.call_args.kwargs
             assert call_kwargs["color_continuous_midpoint"] == 0.5
 
-    def test_plot_array_with_text_auto_false(self):
+    def test_plot_array_with_text_auto_false(self) -> None:
         with (
             patch("src.plotting.st.plotly_chart"),
             patch("src.plotting.px.imshow") as mock_imshow,
@@ -63,7 +63,7 @@ class TestPlotArray:
             call_kwargs = mock_imshow.call_args.kwargs
             assert call_kwargs["text_auto"] is False
 
-    def test_plot_array_with_custom_key(self):
+    def test_plot_array_with_custom_key(self) -> None:
         with (
             patch("src.plotting.st.plotly_chart") as mock_plotly,
             patch("src.plotting.px.imshow") as mock_imshow,

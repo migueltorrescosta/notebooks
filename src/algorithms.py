@@ -38,7 +38,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
             >= self.state_likelihood(self.current_configuration) * np.random.random()
         )
 
-    def run_single_iteration(self, limit_tries=10**5) -> T:
+    def run_single_iteration(self, limit_tries: int = 10**5) -> T:
         tries = 0
         while True:
             new_state = self.generator_function()

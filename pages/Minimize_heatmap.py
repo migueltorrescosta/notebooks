@@ -1,3 +1,5 @@
+from collections.abc import Callable
+from typing import Any
 from matplotlib import pyplot as plt
 from scipy.optimize import minimize
 import itertools
@@ -85,7 +87,7 @@ test_functions = {
 }  # https://en.wikipedia.org/wiki/Test_functions_for_optimization
 
 
-def gen_minimizer_from_scipy(method: str):
+def gen_minimizer_from_scipy(method: str) -> Callable[..., Any]:
     return lambda temp_f, x0: minimize(
         lambda v: temp_f(v[0], v[1]), x0=x0, method=method
     )
