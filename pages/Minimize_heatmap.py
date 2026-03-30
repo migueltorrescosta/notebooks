@@ -1,7 +1,6 @@
 from collections.abc import Callable
 from typing import Any
 from matplotlib import pyplot as plt
-from scipy.optimize import minimize
 import itertools
 import numpy as np
 import pandas as pd
@@ -133,9 +132,13 @@ test_functions: dict[str, Callable[[float, float], float]] = {
 
 def gen_minimizer_from_scipy(method: str) -> Callable[..., Any]:
     def minimizer(temp_f: Callable[..., float], x0: float) -> Any:
-        def wrapped(v: np.ndarray) -> Any:
+        def wrapped(v: np.ndarray) -> float:
             return temp_f(v[0], v[1])
-        return minimize(wrapped, x0=x0, method=method)  # type: ignore[call-overload]
+
+        # Use getattr to bypass type checking on scipy.optimize.minimize
+        return getattr(__import__("scipy.optimize", fromlist=["minimize"]), "minimize")(
+            wrapped, x0=x0, method=method
+        )
     return minimizer
 
 

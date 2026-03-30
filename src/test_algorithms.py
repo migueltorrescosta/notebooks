@@ -87,7 +87,7 @@ class TestAbstractMetropolisHastings:
     def test_cannot_instantiate_abstract_class(self) -> None:
         """Test that AbstractMetropolisHastings cannot be instantiated directly."""
         with pytest.raises(TypeError):
-            AbstractMetropolisHastings(initial_configuration=0.0)  # type: ignore[abstract]
+            AbstractMetropolisHastings(initial_configuration=0.0)
 
     def test_subclass_must_implement_abstract_methods(self) -> None:
         """Test that subclass without abstract methods raises error."""
@@ -96,7 +96,7 @@ class TestAbstractMetropolisHastings:
             pass
 
         with pytest.raises(TypeError):
-            IncompleteMH(initial_configuration=0.0)  # type: ignore[abstract]
+            IncompleteMH(initial_configuration=0.0)
 
     def test_current_configuration_property(self) -> None:
         """Test that current_configuration returns last element of history."""

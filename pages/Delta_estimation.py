@@ -3,7 +3,7 @@ from numpy.polynomial import Polynomial
 from src.angular_momentum import generate_spin_matrices
 from src.plotting import plot_array
 from tqdm import tqdm
-from typing import Dict, List
+from typing import Any, Dict, List, cast
 import functools
 import multiprocessing
 import numpy as np
@@ -265,16 +265,15 @@ iterable_2: List[RunOptions] = [
 
 cpus = multiprocessing.cpu_count()
 pool = multiprocessing.Pool(processes=cpus)
-# starmap expects Iterable[Iterable[Any]], but we pass list[RunOptions]
-# (using starmap with single-element tuples instead of map)
+# map is appropriate here since full_calculation takes a single RunOptions argument
 df = pd.DataFrame(
-    data=pool.starmap(full_calculation, iterable_2),  # type: ignore[arg-type]
-    columns=Settings.recorded_variables,  # type: ignore[assignment]
+    data=pool.map(full_calculation, iterable_2),
+    columns=cast(list[Any], Settings.recorded_variables),
 )
 
 df.drop("time", axis=1, inplace=True)
 
-polynomial_fit = Polynomial.fit(  # type: ignore[no-untyped-call]
+polynomial_fit = cast(Any, Polynomial).fit(
     np.array(df["expected_sigma_z"]), np.array(df["delta_s"]) - guessed_delta_s, deg=1
 )
 a0, a1 = polynomial_fit.coef

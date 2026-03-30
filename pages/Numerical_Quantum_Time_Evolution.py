@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import partial
 from plotly import express as px
-from typing import Callable, List
+from typing import Callable, List, cast
 import numpy as np
 import pandas as pd
 import scipy
@@ -210,7 +210,7 @@ def build_1d_hamiltonian(
         inner_hamiltonian[0, inner_n - 1] = -1
         inner_hamiltonian[inner_n - 1, 0] = -1
 
-    inner_hamiltonian = inner_hamiltonian / inner_dx**2  # type: ignore[assignment]
+    inner_hamiltonian = cast(scipy.sparse.lil_matrix, inner_hamiltonian / inner_dx**2)
     # V(X) term
     for i in range(inner_n):
         inner_hamiltonian[i, i] = inner_hamiltonian[i, i] + inner_potential_function(
