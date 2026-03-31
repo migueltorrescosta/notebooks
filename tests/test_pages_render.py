@@ -22,10 +22,7 @@ PAGE_FILES = sorted(PAGES_DIR.glob("*.py"))
 # Pages that are computationally expensive and may timeout
 # We'll skip the full run test for these but still check for duplicate ID errors
 EXPENSIVE_PAGES = {
-    "Delta_Sensitivity_Heatmap.py",
-    "Delta_estimation.py",
     "Energy_Level_Calculator.py",
-    "Minimize_heatmap.py",
     "Numerical_Quantum_Time_Evolution.py",
 }
 

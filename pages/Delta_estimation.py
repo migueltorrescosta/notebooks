@@ -239,14 +239,21 @@ st.latex(f"""
     \\end{{array}}
     """)
 
-# DATAFRAME CREATION
-granularity = 500
-iterable_1: List[RunOptions] = [
-    RunOptions(t=time) for time in np.round(np.linspace(0, 10, granularity + 1), 3)
-]
 
-data = list(map(full_calculation, iterable_1))
-df = pd.DataFrame(data=data, columns=Settings.recorded_variables)
+# DATAFRAME CREATION
+@st.cache_data
+def compute_evolution_df(dim_a: int, k: int, granularity: int=100) -> pd.DataFrame:
+    iterable_1: List[RunOptions] = [
+        RunOptions(ancillary_dimension=dim_a, ancillary_initial_state=k, t=time)
+        for time in np.round(np.linspace(0, 10, granularity + 1), 3)
+    ]
+    cpus = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(processes=cpus)
+    data = pool.map(full_calculation, iterable_1)
+    return pd.DataFrame(data=data, columns=Settings.recorded_variables)
+
+
+df = compute_evolution_df(dim_a, k)
 
 # PLOTS
 # st.dataframe(data=df)
@@ -273,32 +280,47 @@ with st.sidebar:
             "$\\Delta \\delta_s$", min_value=0.01, value=1.0, step=0.0001
         )
 
-true_probability = float(np.array(df[df["time"] == time]["<1|rho_system_t|1>"])[0])
+# Find closest time value in cached dataframe
+closest_idx = (df["time"] - time).abs().idxmin()
+true_probability = float(cast(Any, df.loc[closest_idx, "<1|rho_system_t|1>"]))
 
-# DATAFRAME CREATION
-iterable_2: List[RunOptions] = [
-    RunOptions(delta_s=inner_delta_s, t=time)
-    for inner_delta_s in np.round(
-        np.linspace(
-            guessed_delta_s - delta_s_var, guessed_delta_s + delta_s_var, 200 + 1
-        ),
-        3,
+
+@st.cache_data
+def compute_estimation_df(
+    guessed_delta_s: float, delta_s_var: float, time: float, dim_a: int, k: int
+) -> pd.DataFrame:
+    """Cached estimation computation to avoid redundant calculations."""
+    iterable_2: List[RunOptions] = [
+        RunOptions(
+            ancillary_dimension=dim_a,
+            ancillary_initial_state=k,
+            delta_s=inner_delta_s,
+            t=time,
+        )
+        for inner_delta_s in np.round(
+            np.linspace(
+                guessed_delta_s - delta_s_var, guessed_delta_s + delta_s_var, 50 + 1
+            ),
+            3,
+        )
+    ]
+    cpus = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(processes=cpus)
+    data = pool.map(full_calculation, iterable_2)
+    df = pd.DataFrame(
+        data=data,
+        columns=cast(list[Any], Settings.recorded_variables),
     )
-]
+    df.drop("time", axis=1, inplace=True)
+    return df
 
 
-cpus = multiprocessing.cpu_count()
-pool = multiprocessing.Pool(processes=cpus)
-# map is appropriate here since full_calculation takes a single RunOptions argument
-df = pd.DataFrame(
-    data=pool.map(full_calculation, iterable_2),
-    columns=cast(list[Any], Settings.recorded_variables),
-)
-
-df.drop("time", axis=1, inplace=True)
+estimation_df = compute_estimation_df(guessed_delta_s, delta_s_var, time, dim_a, k)
 
 polynomial_fit = cast(Any, Polynomial).fit(
-    np.array(df["expected_sigma_z"]), np.array(df["delta_s"]) - guessed_delta_s, deg=1
+    np.array(estimation_df["expected_sigma_z"]),
+    np.array(estimation_df["delta_s"]) - guessed_delta_s,
+    deg=1,
 )
 a0, a1 = polynomial_fit.coef
 
@@ -315,7 +337,7 @@ st.latex(f"""
 
 # PLOTS
 st.line_chart(
-    data=df,
+    data=estimation_df,
     x="delta_s",
     y=[
         "<0|rho_system_t|0>",
@@ -361,14 +383,18 @@ def calculate_likelihood(
     return np.dot(inner_pdf, true_pdf)
 
 
-df["likelihood"] = df["<1|rho_system_t|1>"].progress_apply(calculate_likelihood)
-df["likelihood"] = np.divide(df["likelihood"], df["likelihood"].mean())
+estimation_df["likelihood"] = estimation_df["<1|rho_system_t|1>"].progress_apply(
+    calculate_likelihood
+)
+estimation_df["likelihood"] = np.divide(
+    estimation_df["likelihood"], estimation_df["likelihood"].mean()
+)
 
 
 st.subheader("Likelihood", divider="green")
-likelihood_arr = np.array(df["likelihood"])
+likelihood_arr = np.array(estimation_df["likelihood"])
 likelihood_sum = float(np.sum(likelihood_arr))
-delta_s_arr = np.array(df["delta_s"])
+delta_s_arr = np.array(estimation_df["delta_s"])
 estimated_delta_mean = float(np.dot(delta_s_arr, likelihood_arr)) / likelihood_sum
 estimated_delta_var = (
     float(np.dot(((delta_s_arr - estimated_delta_mean) ** 2), likelihood_arr))
@@ -378,11 +404,11 @@ st.latex(
     f"\\delta_s \\approx {estimated_delta_mean:.6f} \\pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}"
 )
 
-df["loglikelihood"] = np.log(df["likelihood"])
-df["loglikelihood"] -= min(df["loglikelihood"])
+estimation_df["loglikelihood"] = np.log(estimation_df["likelihood"])
+estimation_df["loglikelihood"] -= min(estimation_df["loglikelihood"])
 y_variable = "loglikelihood" if show_log_likelihood else "likelihood"
 st.area_chart(
-    data=df[["delta_s", y_variable]],
+    data=estimation_df[["delta_s", y_variable]],
     x="delta_s",
     y=[y_variable],
 )

@@ -210,39 +210,58 @@ with st.sidebar:
         y_max = st.number_input("$y_{max}$", min_value=y_min, value=3.0)
 
 
+@st.cache_data
 def gen_surface_df(f: str) -> pd.DataFrame:
+    """Cached surface dataframe generation with reduced resolution."""
     return pd.DataFrame(
         [
             {"x": round(x, 3), "y": round(y, 3), "f": test_functions[f](x, y)}
-            for x, y in itertools.product(np.linspace(-3, 3, 501), repeat=2)
+            for x, y in itertools.product(np.linspace(-3, 3, 101), repeat=2)
         ]
     )
 
 
+@st.cache_data
 def gen_performance_df() -> pd.DataFrame:
+    """Cached performance dataframe generation."""
+    # Limit to a subset of functions for faster computation
+    subset_functions = {
+        "Rastrigin": rastrigin,
+        "Ackley": ackley,
+        "Sphere": sphere,
+        "Rosenbrock": rosenbrock,
+        "Himmelblau": himmelblau,
+    }
+    subset_minimizers = {
+        "Nelder-Mead": minimizers["Nelder-Mead"],
+        "Powell": minimizers["Powell"],
+        "CG": minimizers["CG"],
+        "BFGS": minimizers["BFGS"],
+    }
+
     df = pd.DataFrame(
         [
             {
                 "minimizer": minimizer,
                 "test_function": function,
-                "argmin": minimizers[minimizer](test_functions[function], x0=[0, 0])[
-                    "x"
-                ],
+                "argmin": subset_minimizers[minimizer](
+                    subset_functions[function], x0=[0, 0]
+                )["x"],
             }
             for function, minimizer in itertools.product(
-                test_functions.keys(), minimizers.keys()
+                subset_functions.keys(), subset_minimizers.keys()
             )
         ]
     )
 
     def calc_min(row: pd.Series) -> float:
-        test_func = test_functions[row["test_function"]]
+        test_func = subset_functions[row["test_function"]]
         argmin = row["argmin"]
         return test_func(argmin[0], argmin[1])
 
     df["min"] = df.apply(calc_min, axis=1)
     df["normalized_min"] = df.groupby("test_function")[["min"]].transform(
-        lambda x: (x - x.min()) / (x.max() - x.min())
+        lambda x: (x - x.min()) / (x.max() - x.min() + 1e-10)
     )
 
     return df

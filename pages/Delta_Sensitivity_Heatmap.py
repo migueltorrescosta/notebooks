@@ -114,29 +114,37 @@ with st.sidebar:
     with c3:
         t = st.number_input("$t$", 0.0, 20.0, 3.0)
 
+
 # DATAFRAME CREATION
-resolution = [round(v, 3) for v in np.linspace(-5, 5, 500 + 1)]
-generator = itertools.product(resolution, repeat=2)
-star_generator = [
-    (n, k, j_s, delta_s, alpha_x, alpha_z, t)
-    for (alpha_x, alpha_z) in itertools.product(resolution, repeat=2)
-]
-pool = multiprocessing.Pool(processes=cpus)
-pool.starmap(sensitivity, star_generator)  # Parallelizes the data generation
-sensitivity_df = pd.DataFrame(
-    data=pool.starmap(sensitivity, star_generator),
-    columns=[
-        "n",
-        "k",
-        "j_s",
-        "delta_s",
-        "alpha_x",
-        "alpha_z",
-        "t",
-        "sensitivity_to_j",
-        "sensitivity_to_delta",
-    ],
-)
+@st.cache_data
+def compute_sensitivity_df(
+    n: int, k: int, j_s: float, delta_s: float, alpha_x: float, alpha_z: float, t: float
+) -> pd.DataFrame:
+    """Cached sensitivity computation to avoid redundant calculations."""
+    resolution = [round(v, 3) for v in np.linspace(-5, 5, 50 + 1)]
+    star_generator = [
+        (n, k, j_s, delta_s, ax, az, t)
+        for (ax, az) in itertools.product(resolution, repeat=2)
+    ]
+    pool = multiprocessing.Pool(processes=cpus)
+    results = pool.starmap(sensitivity, star_generator)
+    return pd.DataFrame(
+        data=results,
+        columns=[
+            "n",
+            "k",
+            "j_s",
+            "delta_s",
+            "alpha_x",
+            "alpha_z",
+            "t",
+            "sensitivity_to_j",
+            "sensitivity_to_delta",
+        ],
+    )
+
+
+sensitivity_df = compute_sensitivity_df(n, k, j_s, delta_s, alpha_x, alpha_z, t)
 
 
 def plot_sensitivity(df: pd.DataFrame, title: str, values: str) -> None:
