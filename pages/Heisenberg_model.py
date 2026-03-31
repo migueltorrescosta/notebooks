@@ -8,6 +8,34 @@ from src.plotting import plot_array
 
 st.set_page_config(page_title="Heisenberg Model", page_icon="⛓️", layout="wide")
 
+st.header("Heisenberg Model", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Transverse Field Heisenberg Model** describes a 1D spin chain with nearest-neighbor interactions.
+    
+    **The Hamiltonian:**
+    $$H = H_J + H_U = J \\sum_{i=0}^{N} \\sigma_i^x \\sigma_{i+1}^x + \\frac{U}{2} \\sum_{i=1}^{N} \\sigma_i^z$$
+    
+    Where:
+    - $J$: Coupling strength between neighboring spins (ferromagnetic if $J > 0$)
+    - $U$: Transverse field strength along the z-direction
+    - $\\sigma_i^x, \\sigma_i^z$: Pauli matrices acting on site $i$
+    
+    **Methodology:**
+    1. **Hilbert Space**: For $N$ spin-1/2 particles, the Hilbert space dimension is $2^N$
+    2. **Operator Construction**: Build $H$ as a $2^N \\times 2^N$ matrix using Kronecker products
+       - $H_J$: Sum of $\\sigma^x_i \\sigma^x_{i+1}$ for all bonds
+       - $H_U$: Sum of $\\sigma^z_i$ for all sites (weighted by $U/2$)
+    3. **Diagonalization**: Compute all eigenvalues and eigenvectors using `np.linalg.eig`
+    4. **Expectation Values**: Calculate $\\langle n|\\sigma_i^z|n\\rangle$ for each eigenstate $n$ using Einstein summation
+    
+    **Physical Context:** This model exhibits quantum phase transitions between ferromagnetic and paramagnetic phases,
+    and serves as a testbed for many-body physics and quantum information concepts.
+    
+    **Note:** Limited to $N < 26$ sites due to exponential growth of Hilbert space ($2^N$ states).
+    """)
+
 with st.sidebar:
     st.header("Parameters", divider="blue")
     c1, c2, c3 = st.columns(3)

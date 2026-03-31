@@ -40,6 +40,34 @@ st.set_page_config(
 st.cache_data.clear()
 st.cache_resource.clear()
 
+st.header("Numerical Quantum Time Evolution", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Quantum Time Evolution** evolves an initial quantum state under a time-independent Hamiltonian using spectral decomposition.
+    
+    **The Problem:** Solve the time-dependent Schrödinger equation:
+    $$i\\hbar \\frac{d}{dt}|\\psi(t)\\rangle = H|\\psi(t)\\rangle$$
+    
+    **Methodology:**
+    1. **Hamiltonian Construction**: Build the discretized Hamiltonian matrix $H = \\frac{\\hat{p}^2}{2m} + V(x)$
+       using finite differences on a spatial grid of $N_x$ points
+    2. **Eigendecomposition**: Find eigenvalues $E_i$ and eigenvectors $\\ket{E_i}$ of $H$
+    3. **Initial State Decomposition**: Expand $\\ket{\\psi_0}$ in the energy eigenbasis:
+       $$\\ket{\\psi_0} = \\sum_i \\lambda_i \\ket{E_i}, \\quad \\lambda_i = \\langle E_i|\\psi_0 \\rangle$$
+    4. **Time Evolution**: Apply the unitary evolution operator:
+       $$\\ket{\\psi(t)} = \\sum_i \\lambda_i e^{-iE_it/\\hbar} \\ket{E_i}$$
+    5. **Visualization**: Generate a heatmap of $|\\psi(x,t)|^2$ over time
+    
+    **Initial State Options:**
+    - **Gaussian wave packet**: $\\psi(x) = e^{-d(x-x_0)^2 + ipx}$ with position/momentum
+    - **Step function**: $\\psi(x) = e^{ipx} \\cdot \\mathbb{1}_{[r,s]}(x)$ for localized states
+    
+    **Validation:** Verify orthonormality of eigenstates and conservation of total probability.
+    
+    **Note:** The algorithm uses $\\hbar = 1$ units and $\\Delta t = 0.1$ in the phase evolution.
+    """)
+
 # START
 with st.sidebar:
     st.header("Setup", divider="blue")

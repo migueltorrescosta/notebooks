@@ -9,6 +9,33 @@ from src.plotting import plot_array
 
 st.set_page_config(page_title="Partial Trace", page_icon="📐️", layout="wide")
 
+st.header("Partial Trace Visualization", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Partial Trace** is an operation that traces out (averages over) a subsystem of a composite quantum system,
+    yielding the reduced density matrix of the remaining subsystem.
+    
+    **Physical System:** Two quantum systems A and B with Hilbert space dimensions $N_A$ and $N_B$:
+    - System A: Hamiltonian $H_A = -J_A J_x + U_A J_z^2 + \\delta_A J_z$
+    - System B: Hamiltonian $H_B = -J_B J_x + U_B J_z^2 + \\delta_B J_z$
+    - Interaction: $H_{int} = \\alpha_{xx} J_x \\otimes J_x + \\alpha_{xz} J_x \\otimes J_z + \\alpha_{zx} J_z \\otimes J_x + \\alpha_{zz} J_z \\otimes J_z$
+    
+    **Methodology:**
+    1. **Full Hamiltonian**: Construct $H = H_A \\otimes \\mathbb{1}_B + \\mathbb{1}_A \\otimes H_B + H_{int}$
+    2. **State Evolution**: Start from $\\ket{\\psi_0} = \\ket{0}_A \\otimes \\ket{0}_B$ and evolve:
+       $$\\ket{\\psi_t} = e^{-itH}\\ket{\\psi_0}$$
+    3. **Density Matrix**: Compute $\\rho_t = |\\psi_t\\rangle\\langle\\psi_t|$
+    4. **Partial Trace**: 
+       - $\\rho^{(A)}_t = \\mathrm{Tr}_B[\\rho_t] = \\sum_{j=1}^{N_B} (\\mathbb{1}_A \\otimes \\langle j|_B) \\rho_t (\\mathbb{1}_A \\otimes |j\\rangle_B)$
+       - $\\rho^{(B)}_t = \\mathrm{Tr}_A[\\rho_t] = \\sum_{i=1}^{N_A} (\\langle i|_A \\otimes \\mathbb{1}_B) \\rho_t (|i\\rangle_A \\otimes \\mathbb{1}_B)$
+    5. **Hamiltonian Tracing**: Trace over subsystems for each local Hamiltonian
+    
+    **Visualizations:**
+    - Local Hamiltonians $H_A, H_B$ and interaction $H_{int}$
+    - Full Hamiltonian $H$
+    - Reduced density matrices showing entanglement structure
+    """)
 
 with st.sidebar:
     st.subheader("System A", divider="blue")

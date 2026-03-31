@@ -7,6 +7,29 @@ import streamlit as st
 
 st.set_page_config(page_title="Bayesian Updates", page_icon="👶️", layout="wide")
 
+st.header("Bayesian Updates", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Bayesian Updates** is a method for updating probability estimates based on new evidence.
+    
+    **Core Concept:** We start with a **prior** belief about a parameter, incorporate new data through a **likelihood** function,
+    and obtain an updated **posterior** distribution.
+    
+    **Methodology:**
+    1. **Prior Distribution**: Define an initial probability distribution over the parameter space
+       - Polynomial prior: $a(x-b)^c$ for geometric/linear cases
+       - Gaussian prior: $e^{-a(x-\mu)^2}$ for smooth peaked distributions
+    2. **Likelihood Function**: Model how likely observed data is given different parameter values
+       - Uses the same functional forms as the prior
+    3. **Posterior Calculation**: Apply Bayes' theorem: $P(\theta|data) \propto P(data|\theta) \cdot P(\theta)$
+       - Normalize the product of prior and likelihood
+    4. **Visualization**: Compare prior, likelihood, and posterior side-by-side
+    
+    **Physical Context:** In quantum metrology, this approach is used to update estimates of unknown phase shifts
+    based on measurement outcomes, combining prior knowledge with experimental data.
+    """)
+
 
 class Distributions(str, Enum):
     Geometric = "Geometric"

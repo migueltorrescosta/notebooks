@@ -9,6 +9,33 @@ import streamlit as st
 
 st.set_page_config(page_title="Minimize Heatmap", page_icon="📐️", layout="wide")
 
+st.header("Minimize Heatmap", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Optimization Benchmarking** compares different numerical optimization algorithms on standard test functions.
+    
+    **Test Functions:** Standard benchmark functions from optimization literature include:
+    - **Sphere**: $f(x,y) = x^2 + y^2$ (simple convex quadratic)
+    - **Rastrigin**: Non-convex with many local minima
+    - **Ackley**: Global minimum surrounded by local minima
+    - **Rosenbrock**: Banana-shaped valley
+    - **Himmelblau**: Four global minima
+    - **Eggholder**: Highly irregular with many local optima
+    
+    **Methodology:**
+    1. **Function Evaluation**: Compute $f(x,y)$ over a grid to visualize the landscape
+    2. **Algorithm Selection**: Choose from gradient-based (CG, BFGS, L-BFGS-B, TNC, SLSQP) and derivative-free (Nelder-Mead, Powell, COBYLA, COBYQA, trust-constr) methods
+    3. **Optimization**: Run each algorithm from starting point $(0, 0)$ to find local/global minimum
+    4. **Performance Comparison**: Compute normalized minimum values across all algorithms/functions
+    5. **Visualization**: Heatmap shows algorithm performance (yellow = poor, purple = good)
+    
+    **Key Insight:** No single algorithm performs best on all functions—derivative-free methods
+    work well for non-smooth problems, while gradient methods excel on smooth convex functions.
+    
+    **Reference:** [Test functions for optimization](https://en.wikipedia.org/wiki/Test_functions_for_optimization)
+    """)
+
 # 1. Use the functions in https://en.wikipedia.org/wiki/Test_functions_for_optimization
 # 2. Add Nelder-Mead, Simulated Annealing, Q-learning?
 # 3. Plot the evolution of estimated optimal parameters over time
@@ -139,6 +166,7 @@ def gen_minimizer_from_scipy(method: str) -> Callable[..., Any]:
         return getattr(__import__("scipy.optimize", fromlist=["minimize"]), "minimize")(
             wrapped, x0=x0, method=method
         )
+
     return minimizer
 
 

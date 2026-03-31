@@ -13,6 +13,27 @@ st.set_page_config(
     page_title="Delta Sensitivity Heatmap", page_icon="📈️", layout="wide"
 )
 
+st.header("Delta Sensitivity Heatmap", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Sensitivity Analysis** quantifies how the system observable depends on parameter variations.
+    
+    **Physical System:** A reduced model where the ancillary system is prepared in a single Fock state $\\ket{k}$:
+    $$H = (-J_S \\sigma_x + \\delta_S \\sigma_z) + \\alpha_x \\sigma_x J_z + \\alpha_z \\sigma_z J_z$$
+    
+    The system observable is:
+    $$\\mathrm{Tr}[\\rho_t^{(S)}\\sigma_z] = \\sum_{k=0}^{N} \\braket{k|\\rho^{(A)}|k} \\left(\\cos^2(\\omega_k t) + \\sin^2(\\omega_k t) \\left(\\frac{\\alpha_z \\frac{N-2k}{2} + \\delta_S}{\\omega_k}\\right)^2 - \\sin^2(\\omega_k t) \\left(\\frac{\\alpha_x \\frac{N-2k}{2} - J_S}{\\omega_k}\\right)\\right)^2$$
+    
+    **Methodology:**
+    1. **Rabi Frequency**: Compute $\\omega_k = \\sqrt{\\left(\\alpha_z \\frac{N-2k}{2} + \\delta_S\\right)^2 + \\left(\\alpha_x \\frac{N-2k}{2} - J_S\\right)^2}$
+    2. **Sensitivity to $J_S$**: $\\frac{\\partial \\langle\\sigma_z\\rangle}{\\partial J_S} = \\sin^2(\\omega_k t) \\cdot \\frac{\\alpha_x x_{coeff}}{\\omega_k^2}$
+    3. **Sensitivity to $\\delta_S$**: $\\frac{\\partial \\langle\\sigma_z\\rangle}{\\partial \\delta_S} = \\sin^2(\\omega_k t) \\cdot \\frac{\\alpha_z z_{coeff}}{\\omega_k^2}$
+    
+    **Interpretation:** The heatmap shows regions of high sensitivity (yellow) where small parameter changes produce large observable changes,
+    useful for identifying optimal measurement configurations.
+    """)
+
 
 # SENSITIVITY CALCULATION
 def sensitivity(

@@ -21,7 +21,9 @@ class Distributions(Enum):
 
 # INPUTS
 def binomial_pdf(x: int, p: float, n: int) -> float:
-    return float(scipy.stats.binom.cdf(x, n=n, p=p) - scipy.stats.binom.cdf(x - 1, n=n, p=p))
+    return float(
+        scipy.stats.binom.cdf(x, n=n, p=p) - scipy.stats.binom.cdf(x - 1, n=n, p=p)
+    )
 
 
 with st.sidebar:
@@ -51,6 +53,23 @@ with st.sidebar:
     )
 
 st.header("Fisher Information", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Fisher Information** measures how much information a random variable $X$ carries about an unknown parameter $\\theta$.
+    The Fisher Information for a parameter $\\theta$ is defined as
+    $\\mathcal{I}(\\theta) = \\mathbb{E}\\left[\\left(\\frac{\\partial}{\\partial \\theta}\\log f_\\theta(X)\\right)^2\\,\\bigg|\\,\\theta\\right]$,
+    where $f_\\theta(x)$ is the probability density (or mass) function of $X$ parameterized by $\\theta$.
+    
+    **Methodology:**
+    1. **PDF computation**: For each combination of outcome $x$ and parameter value $\\theta$, compute the probability $f_\\theta(x)$
+    2. **Log-likelihood gradient**: Approximate $\\frac{\\partial}{\\partial \\theta}\\log f_\\theta(x)$ using finite differences along the $\\theta$ axis
+    3. **Expectation**: Weight the squared gradient by the PDF values and average over all outcomes $x$
+    
+    **Cramer-Rao Bound:** The variance of any unbiased estimator $\\hat{\\theta}$ of $\\theta$ satisfies 
+    $\\mathrm{var}[\\hat{\\theta}] \\geq \\frac{1}{\\mathcal{I}(\\theta)}$.    
+    This bound provides a fundamental limit on the precision of parameter estimation.
+    """)
 
 match distribution:
     case Distributions.Binomial.value:
@@ -83,10 +102,10 @@ with c1:
     st.latex(r"f_\theta(x)")
     quick_and_dirty(np.array(df_pdf))
 with c2:
-    st.latex(r"\log_\theta f(x)")
+    st.latex(r"\log f_\theta(x)")
     quick_and_dirty(np.log(np.array(df_pdf)))
 with c3:
-    st.latex(r"\left ( \frac{\partial}{\partial \theta} \log_\theta f(x) \right )")
+    st.latex(r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )")
     quick_and_dirty(np.gradient(np.log(np.array(df_pdf)), axis=0))
 with c4:
     st.latex(r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2")

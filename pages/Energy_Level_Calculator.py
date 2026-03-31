@@ -13,6 +13,30 @@ st.set_page_config(page_title="Energy level calculator", page_icon="🛢", layou
 st.cache_data.clear()
 st.cache_resource.clear()
 
+st.header("Energy Level Calculator", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Energy Level Calculator** solves the 1D time-independent Schrödinger equation to find eigenenergies and eigenstates.
+    
+    **The Problem:** Find solutions to $H\\ket{\\psi_n} = E_n \\ket{\\psi_n}$ where
+    $$H = \\frac{\\hat{p}^2}{2m} + V(x)$$
+    
+    **Methodology:**
+    1. **Spatial Discretization**: Discretize the domain $[x_{min}, x_{max}]$ into $N_x$ grid points
+    2. **Kinetic Operator**: Approximate $\\hat{p}^2$ using the finite difference matrix:
+       $$(\\hat{p}^2)_{i,j} \\approx \\frac{\\psi_{i+1} - 2\\psi_i + \\psi_{i-1}}{(\\Delta x)^2}$$
+       with optional cyclic boundary conditions for periodic potentials
+    3. **Hamiltonian Assembly**: Construct the $N_x \\times N_x$ sparse matrix $H = T + V$
+    4. **Eigensolver**: Use `scipy.sparse.linalg.eigs` to find the $N$ lowest eigenvalues/eigenvectors
+    5. **Normalization**: Verify orthonormality of eigenstates via inner product matrix
+    
+    **Physical Context:** The potential $V(x)$ can be quadratic (harmonic oscillator), quartic, trigonometric (multi-well),
+    uniform (linear potential), or double-well (tunneling systems).
+    
+    **Validation:** Orthonormality error should be $< 10^{-8}$ for reliable results.
+    """)
+
 # START
 with st.sidebar:
     st.header("Settings", divider="orange")

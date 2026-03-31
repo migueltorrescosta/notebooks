@@ -10,6 +10,40 @@ import streamlit as st
 
 st.set_page_config(page_title="Interference Patterns", page_icon="〰", layout="wide")
 
+st.header("Wave Interference", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Wave Interference** visualizes the superposition of two coherent waves and the resulting interference patterns.
+    
+    **Physical Model:**
+    Two plane waves propagating in the 2D plane:
+    $$\\psi_a(x,y) = a \\cdot e^{2i\\pi\\lambda_a^{-1}(\\sin\\theta_a \\cdot x + \\cos\\theta_a \\cdot y)}$$
+    $$\\psi_b(x,y) = b \\cdot e^{2i\\pi\\lambda_b^{-1}(\\sin\\theta_b \\cdot x + \\cos\\theta_b \\cdot y)}$$
+    
+    Where:
+    - $\\lambda_a, \\lambda_b$: Wavelengths of each wave
+    - $\\theta_a, \\theta_b$: Propagation angles
+    - $a, b$: Amplitudes (normalized to 1)
+    
+    **Methodology:**
+    1. **Grid Generation**: Create a uniform grid of $(x,y)$ points
+    2. **Wave Evaluation**: Compute complex values of both waves at each grid point
+    3. **Superposition**: $\\psi_{total} = \\psi_a + \\psi_b$
+    4. **Visualization**:
+       - Real part: Shows wave-like oscillations
+       - Imaginary part: Phase-shifted view
+       - Amplitude $|\\psi|^2$: Shows interference fringes (constructive/destructive)
+    5. **Vector Field**: Phase portrait showing direction of local wave vector
+    
+    **Key Phenomena:**
+    - **Constructive interference**: When waves are in phase ($\\Delta\\phi = 2\\pi n$)
+    - **Destructive interference**: When waves are out of phase ($\\Delta\\phi = (2n+1)\\pi$)
+    - **Moiré patterns**: Arise when two periodic patterns with slightly different angles or wavelengths overlap
+    
+    **Applications:** Understanding optical interferometry, quantum measurement theory, and wave physics.
+    """)
+
 
 def wave_a(x: float, y: float, wavelength: float, angle: float) -> complex:
     return np.exp(2j * wavelength * np.pi * (np.sin(angle) * x + np.cos(angle) * y))

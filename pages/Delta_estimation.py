@@ -16,6 +16,31 @@ tqdm.pandas()
 # LAYOUT
 st.set_page_config(page_title="Delta Optimization", page_icon="📈️", layout="wide")
 
+st.header("Delta Optimization", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Delta Optimization** estimates unknown parameters in a bipartite quantum system using the Cramer-Rao bound.
+    
+    **Physical System:** A two-dimensional system qubit (S) coupled to an N-dimensional ancillary system (A):
+    $$H = H_S \\otimes \\mathbb{1}_A + \\mathbb{1}_S \\otimes H_A + H_{int}$$
+    
+    Where:
+    - $H_S = -J_S \\sigma_x + \\delta_S \\sigma_z$ (system Hamiltonian)
+    - $H_A = -J_A J_x + U_A J_z^2 + \\delta_A J_z$ (ancillary Hamiltonian with spin operators $J_x, J_z$)
+    - $H_{int} = \\alpha_{xx}\\sigma_x J_x + \\alpha_{xz}\\sigma_x J_z + \\alpha_{zx}\\sigma_z J_x + \\alpha_{zz}\\sigma_z J_z$
+    
+    **Methodology:**
+    1. **State Evolution**: Evolve the initial state $\\ket{\\psi_0} = \\ket{0}_S \\otimes \\ket{k}_A$ under the Hamiltonian
+    2. **Partial Trace**: Trace out the ancillary system to obtain the reduced system density matrix $\\rho_t^{(S)}$
+    3. **Observable Measurement**: Compute $\\langle \\sigma_z \\rangle = \\mathrm{Tr}[\\rho_t^{(S)} \\sigma_z]$
+    4. **Parameter Estimation**: Use polynomial fitting to estimate $\\delta_S$ from the observable
+    5. **Likelihood Analysis**: Construct likelihood function from binomial statistics of repeated measurements
+    
+    **Key Result:** The posterior distribution over $\\delta_S$ is obtained by combining the physical model with experimental observations,
+    providing both a point estimate and uncertainty bounds.
+    """)
+
 # INPUTS
 with st.sidebar:
     st.header("System evolution", divider="blue")

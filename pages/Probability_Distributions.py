@@ -12,13 +12,46 @@ st.set_page_config(
     page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide"
 )
 
+st.header("Probability Distributions", divider="blue")
+
+with st.expander("📖 Methodology", expanded=False):
+    st.markdown("""
+    **Particle Decay Model** calculates the probability distribution for the number of particles remaining
+    after time $t$ in a system with exponential decay.
+    
+    **Physical Model:**
+    - $N$: Initial number of particles
+    - $\\lambda$: Decay rate (probability per unit time that a particle decays)
+    - $t$: Observation time
+    
+    **The Decay Process:**
+    - Each particle decays independently with probability $p_{decay}(t) = 1 - e^{-\\lambda t}$
+    - The number of particles that have decayed by time $t$ follows a binomial distribution
+    
+    **Methodology:**
+    1. **Decay Probability**: Compute $p = 1 - e^{-\\lambda t}$ for each time step
+    2. **Binomial Distribution**: For $k$ particles remaining:
+       $$P(K = k) = \\binom{N}{k} p^k (1-p)^{N-k}$$
+    3. **Heatmap Visualization**: Display $P(K = k, t)$ over all $k \\in [0, N]$ and $t \\in [0, t_{max}]$
+    
+    **Key Properties:**
+    - **Halflife**: $t_{1/2} = \\frac{\\ln 2}{\\lambda}$ — time for half the particles to decay
+    - **Expected value**: $\\mathbb{E}[K] = N e^{-\\lambda t}$
+    - **Variance**: $\\mathrm{Var}(K) = N e^{-\\lambda t}(1 - e^{-\\lambda t})$
+    
+    **Physical Context:** This model describes first-order chemical reactions, radioactive decay,
+    and other Poisson processes in the binomial approximation.
+    """)
+
 # START
 with st.sidebar:
     st.header("Setup", divider="blue")
     initial_wave_packet_str = st.selectbox(
         "$X$", [prob_dist.value for prob_dist in ProbabilityDistribution]
     )
-    initial_wave_packet: ProbabilityDistribution = ProbabilityDistribution(initial_wave_packet_str)
+    initial_wave_packet: ProbabilityDistribution = ProbabilityDistribution(
+        initial_wave_packet_str
+    )
 
     match initial_wave_packet:
         case ProbabilityDistribution.ParticleDecay.value:
