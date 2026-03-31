@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+from typing import cast
 
 from src.bayesian_statistics import BayesUpdate
 
@@ -68,8 +69,10 @@ class TestBayesUpdate:
         expected_A = (0.4 * 0.5) / ((0.4 * 0.5) + (0.6 * 0.5))  # = 0.4
         expected_B = (0.6 * 0.5) / ((0.4 * 0.5) + (0.6 * 0.5))  # = 0.6
         # DataFrame.at returns scalar value directly
-        assert np.isclose(bayes.df.at["A", "posterior"], expected_A)
-        assert np.isclose(bayes.df.at["B", "posterior"], expected_B)
+        posterior_A = cast(float, bayes.df.at["A", "posterior"])
+        posterior_B = cast(float, bayes.df.at["B", "posterior"])
+        assert np.isclose(posterior_A, expected_A)
+        assert np.isclose(posterior_B, expected_B)
 
     def test_plot_returns_figure(self) -> None:
         """Test that plot method returns a figure."""

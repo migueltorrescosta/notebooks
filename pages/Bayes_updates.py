@@ -10,7 +10,7 @@ st.set_page_config(page_title="Bayesian Updates", page_icon="👶️", layout="w
 st.header("Bayesian Updates", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
-    st.markdown("""
+    st.markdown(r"""
     **Bayesian Updates** is a method for updating probability estimates based on new evidence.
     
     **Core Concept:** We start with a **prior** belief about a parameter, incorporate new data through a **likelihood** function,

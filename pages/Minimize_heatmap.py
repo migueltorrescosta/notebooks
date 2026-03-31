@@ -235,7 +235,7 @@ def gen_performance_df() -> pd.DataFrame:
         ]
     )
 
-    def calc_min(row: pd.Series[Any]) -> float:
+    def calc_min(row: pd.Series) -> float:
         test_func = test_functions[row["test_function"]]
         argmin = row["argmin"]
         return test_func(argmin[0], argmin[1])

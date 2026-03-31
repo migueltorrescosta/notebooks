@@ -116,7 +116,6 @@ class RunOptions:
     t: float = 0
 
 
-@dataclass
 class Settings:
     recorded_variables: list[str] = [
         "time",
