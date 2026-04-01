@@ -71,10 +71,11 @@ default-groups = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["src"]
+testpaths = ["tests", "src"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+addopts = "--ignore=src/test_algorithms.py --ignore=src/test_heisenberg_model_new.py --ignore=src/test_fisher_information_new.py --ignore=src/test_bayes_updates_new.py --ignore=src/test_delta_estimation_new.py --ignore=src/test_angular_momentum_new.py --ignore=src/test_algorithms_new.py"
 
 [tool.ruff]
 exclude = [
