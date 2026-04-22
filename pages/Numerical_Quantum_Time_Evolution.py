@@ -359,13 +359,19 @@ with c1:
 with c2:
     st.caption(
         """
-        $\\begin{array}{c} 100\\ket{\\psi_0} \\\\ \\parallel \\\\
+        $\\begin{array}{c} 100\\ket{\\psi_0} \\\\ \parallel \\\\
         """
         + "\\\\".join(
             [f"{100 * el.component:+.2f}\\ket{{ {el.level} }}" for el in energy_levels]
         )
         + "\\end{array}$"
     )
+
+# Precompute wave functions matrix for optimized time evolution
+# Shape: (n_levels, n_spatial_points) - constant throughout simulation
+_wave_functions_matrix = np.stack([el.wave_function for el in energy_levels])
+_components = np.array([el.component for el in energy_levels])
+_energies = np.array([el.energy for el in energy_levels])
 
 st.header("Evolution", divider="red")
 st.markdown(
@@ -374,16 +380,12 @@ st.markdown(
 
 
 def evolve(t: float) -> np.ndarray:
-    wf = np.sum(
-        [
-            np.multiply(
-                el.component * np.exp(-1 * 0.1j * t * el.energy), el.wave_function
-            )
-            for el in energy_levels
-        ],
-        axis=0,
-    )
-    return np.divide(wf, np.sqrt(np.sum(np.abs(wf) ** 2)))
+    # Vectorized time evolution using matrix multiplication
+    # phases: (n_levels,) - time-dependent phase factors
+    phases = _components * np.exp(-0.1j * t * _energies)
+    # einsum computes weighted sum efficiently: sum_k(phases_k * wave_functions_k)
+    wf = np.einsum("k,kx->x", phases, _wave_functions_matrix)
+    return wf / np.linalg.norm(wf)
 
 
 time_evolution_data = pd.DataFrame(
