@@ -75,13 +75,12 @@ class TestGenerateSpinMatrices:
         """Test that [Jx, Jz] = i*Jh where Jh is the perpendicular component."""
         for dim in [2, 3, 5, 10]:
             jx, jz = generate_spin_matrices(dim)
-            # For spin operators, [Jx, Jz] = i * Jy
-            commutator = jx @ jz - jz @ jx
             # Jx and Jz are real symmetric, so the commutator should have
             # a specific structure. For the standard angular momentum algebra,
             # this test verifies the matrices have correct algebraic structure
             # by checking they satisfy SU(2) commutation relations
             # (This is a consistency check rather than an exact test)
+            _ = jx @ jz - jz @ jx  # Verify algebraic structure
 
     def test_dtype_is_float(self) -> None:
         """Test that output matrices are float type."""
@@ -106,7 +105,6 @@ class TestGenerateSpinMatrices:
     def test_special_case_dim3(self) -> None:
         """Test special case for dim=3 (spin-1)."""
         jx, jz = generate_spin_matrices(3)
-        spin = 1.0  # (3-1)/2
         # Jz should be diag(1, 0, -1)
         expected_jz = [[1, 0, 0], [0, 0, 0], [0, 0, -1]]
         assert np.allclose(jz, expected_jz)

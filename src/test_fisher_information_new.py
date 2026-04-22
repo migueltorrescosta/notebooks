@@ -213,9 +213,6 @@ class TestFisherInformationPhysical:
 
     def test_fisher_information_infinite_at_boundaries(self) -> None:
         """Test that Fisher information is infinite at theta=0 or theta=1."""
-        n = 3
-        valid_x = range(n + 1)
-
         # At boundaries, some probabilities go to 0
         # log(0) = -inf, so Fisher information may diverge
         for p_boundary in [0.0, 1.0]:
@@ -243,14 +240,13 @@ class TestFisherInformationPhysical:
 
             n = 10
             valid_x = range(n + 1)
-            valid_theta = np.array([p_low, p_high])
 
             # Compute Fisher information for both p values
             fisher_low = 0.0
             fisher_high = 0.0
 
             for p, fisher_val_ref in [(p_low, fisher_low), (p_high, fisher_high)]:
-                df_pdf = pd.DataFrame(
+                _ = pd.DataFrame(
                     data=[
                         (x, theta, binomial_pdf(x, p, n))
                         for x, theta in itertools.product(valid_x, [p])
@@ -302,7 +298,7 @@ class TestFisherInformationPerformance:
         valid_theta = np.linspace(0, 1, theta_sample_size + 1)
 
         start = time.perf_counter()
-        df_pdf = pd.DataFrame(
+        _ = pd.DataFrame(
             data=[
                 (x, p, binomial_pdf(x, p, n))
                 for x, p in itertools.product(valid_x, valid_theta)

@@ -242,7 +242,7 @@ st.latex(f"""
 
 # DATAFRAME CREATION
 @st.cache_data
-def compute_evolution_df(dim_a: int, k: int, granularity: int=100) -> pd.DataFrame:
+def compute_evolution_df(dim_a: int, k: int, granularity: int = 100) -> pd.DataFrame:
     iterable_1: List[RunOptions] = [
         RunOptions(ancillary_dimension=dim_a, ancillary_initial_state=k, t=time)
         for time in np.round(np.linspace(0, 10, granularity + 1), 3)

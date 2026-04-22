@@ -26,30 +26,30 @@ from src.mzi_simulation import (
 class TestFockStates:
     """Test Fock state creation."""
 
-    def test_vacuum_state(self):
+    def test_vacuum_state(self) -> None:
         state = vacuum_state(max_photons=2)
         assert validate_state(state)
         assert np.isclose(state[0], 1.0)  # |0,0> is first state
 
-    def test_single_photon_state_mode0(self):
+    def test_single_photon_state_mode0(self) -> None:
         state = single_photon_state(mode=0, max_photons=2)
         assert validate_state(state)
         # |1,0> should have amplitude 1
 
-    def test_single_photon_state_mode1(self):
+    def test_single_photon_state_mode1(self) -> None:
         state = single_photon_state(mode=1, max_photons=2)
         assert validate_state(state)
 
-    def test_noon_state(self):
+    def test_noon_state(self) -> None:
         state = noon_state(N=2, max_photons=3)
         assert validate_state(state)
         # Should be (|2,0> + |0,2>)/sqrt(2)
 
-    def test_coherent_state(self):
+    def test_coherent_state(self) -> None:
         state = coherent_state(alpha=0.5 + 0.5j, max_photons=5)
         assert validate_state(state)
 
-    def test_fock_state_n(self):
+    def test_fock_state_n(self) -> None:
         state = fock_state_n(n=3, max_photons=5)
         assert validate_state(state)
 
@@ -57,13 +57,13 @@ class TestFockStates:
 class TestOperators:
     """Test operator creation and properties."""
 
-    def test_system_operators_dimensions(self):
+    def test_system_operators_dimensions(self) -> None:
         a0, a1, a0_dag, a1_dag = create_system_operators(max_photons=2)
         dim = (2 + 1) ** 2
         assert a0.shape == (dim, dim)
         assert a1.shape == (dim, dim)
 
-    def test_beam_splitter_preserves_norm(self):
+    def test_beam_splitter_preserves_norm(self) -> None:
         # Beam splitter should preserve norm of any state
         bs = beam_splitter_unitary(theta=np.pi / 4, phi=0.0, max_photons=2)
         # Test with vacuum
@@ -75,11 +75,11 @@ class TestOperators:
         sp_out = bs @ sp
         assert np.isclose(np.sum(np.abs(sp_out) ** 2), 1.0, atol=1e-6)
 
-    def test_phase_shift_unitarity(self):
+    def test_phase_shift_unitarity(self) -> None:
         ps = phase_shift_unitary(phi=np.pi / 2, max_photons=2)
         assert validate_unitary(ps, tol=1e-10)
 
-    def test_ancilla_coupling_hermitian(self):
+    def test_ancilla_coupling_hermitian(self) -> None:
         H = system_ancilla_interaction_unitary(
             g=1.0,
             interaction_time=1.0,
@@ -94,7 +94,7 @@ class TestOperators:
 class TestEvolution:
     """Test state evolution."""
 
-    def test_vacuum_produces_vacuum(self):
+    def test_vacuum_produces_vacuum(self) -> None:
         state = vacuum_state(max_photons=1)
         evolved = evolve_mzi(
             initial_system_state=state,
@@ -110,7 +110,7 @@ class TestEvolution:
         # Vacuum should remain vacuum (no phase to apply)
         assert validate_state(evolved)
 
-    def test_evolution_conserves_probability(self):
+    def test_evolution_conserves_probability(self) -> None:
         state = vacuum_state(max_photons=2)
         evolved = evolve_mzi(
             initial_system_state=state,
@@ -126,7 +126,7 @@ class TestEvolution:
         prob = np.sum(np.abs(evolved) ** 2)
         assert np.isclose(prob, 1.0)
 
-    def test_output_probabilities_sum_to_one(self):
+    def test_output_probabilities_sum_to_one(self) -> None:
         state = vacuum_state(max_photons=2)
         evolved = evolve_mzi(
             initial_system_state=state,
@@ -146,7 +146,7 @@ class TestEvolution:
 class TestInterference:
     """Test interference pattern computation."""
 
-    def test_interference_fringe_shape(self):
+    def test_interference_fringe_shape(self) -> None:
         state = vacuum_state(max_photons=2)
         phases = np.linspace(0, 2 * np.pi, 50)
         fringe = compute_interference_fringe(
@@ -164,7 +164,7 @@ class TestInterference:
         # All probabilities should be in [0, 1]
         assert np.all(fringe >= 0) and np.all(fringe <= 1)
 
-    def test_interference_with_noon_state(self):
+    def test_interference_with_noon_state(self) -> None:
         state = noon_state(N=2, max_photons=3)
         phases = np.linspace(0, 2 * np.pi, 20)
         fringe = compute_interference_fringe(
@@ -184,23 +184,23 @@ class TestInterference:
 class TestInputStatePreparation:
     """Test input state preparation function."""
 
-    def test_prepare_vacuum(self):
+    def test_prepare_vacuum(self) -> None:
         state = prepare_input_state("vacuum", max_photons=2)
         assert validate_state(state)
 
-    def test_prepare_single_photon(self):
+    def test_prepare_single_photon(self) -> None:
         state = prepare_input_state("single_photon", max_photons=2, mode=0)
         assert validate_state(state)
 
-    def test_prepare_coherent(self):
+    def test_prepare_coherent(self) -> None:
         state = prepare_input_state("coherent", max_photons=5, alpha=0.5)
         assert validate_state(state)
 
-    def test_prepare_fock(self):
+    def test_prepare_fock(self) -> None:
         state = prepare_input_state("fock", max_photons=5, n_particles=3)
         assert validate_state(state)
 
-    def test_prepare_noon(self):
+    def test_prepare_noon(self) -> None:
         state = prepare_input_state("noon", max_photons=5, n_particles=2)
         assert validate_state(state)
 
@@ -208,18 +208,18 @@ class TestInputStatePreparation:
 class TestValidation:
     """Test validation functions."""
 
-    def test_validate_normalized_state(self):
+    def test_validate_normalized_state(self) -> None:
         state = np.array([1, 0, 0], dtype=complex)
         assert validate_state(state)
 
-    def test_validate_unnormalized_state(self):
+    def test_validate_unnormalized_state(self) -> None:
         state = np.array([1, 1, 1], dtype=complex)
         assert not validate_state(state)
 
-    def test_validate_unitary_matrix(self):
+    def test_validate_unitary_matrix(self) -> None:
         U = np.array([[1, 0], [0, 1]], dtype=complex)
         assert validate_unitary(U)
 
-    def test_validate_non_unitary(self):
+    def test_validate_non_unitary(self) -> None:
         U = np.array([[1, 1], [0, 1]], dtype=complex)
         assert not validate_unitary(U)

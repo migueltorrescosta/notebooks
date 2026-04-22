@@ -416,7 +416,7 @@ class TestPerformance:
 
             start = time.perf_counter()
             for _ in range(10):
-                H = generate_hamiltonian(run_options)
+                _ = generate_hamiltonian(run_options)
             elapsed = time.perf_counter() - start
 
             # Should be under 1 second for 10 iterations

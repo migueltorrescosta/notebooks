@@ -49,17 +49,15 @@ class TestGaussianMetropolisHastings:
 
     def test_approval_function_accepts_higher_likelihood(self) -> None:
         """Test that acceptance is more likely for higher likelihood states."""
-        sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         np.random.seed(42)
 
-        # Move to a state with higher likelihood (closer to 0)
-        higher_likelihood = sampler.approval_function(-0.1)
-        # Should often accept (but not always due to randomness)
+        # Verify acceptance ratio (higher likelihood should be accepted)
+        current_likelihood = 1.0  # Likelihood at configuration=0
         accepted_count = sum(
             1
             for _ in range(100)
             if GaussianMetropolisHastings(initial_configuration=0.0).approval_function(
-                -0.1
+                -0.1, current_likelihood
             )
         )
         # Should accept more than 50% of the time
@@ -71,11 +69,12 @@ class TestGaussianMetropolisHastings:
         """Test that acceptance is less likely for lower likelihood states."""
         np.random.seed(42)
         # Move to a state with much lower likelihood (far from 0)
+        current_likelihood = 1.0  # Likelihood at configuration=0
         accepted_count = sum(
             1
             for _ in range(100)
             if GaussianMetropolisHastings(initial_configuration=0.0).approval_function(
-                5.0
+                5.0, current_likelihood
             )
         )
         # Should accept much less than 50% of the time
@@ -88,12 +87,7 @@ class TestGaussianMetropolisHastings:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         np.random.seed(123)
 
-        initial = sampler.current_configuration
-        sampler.run_single_iteration()
-        new = sampler.current_configuration
-
-        # State should change (at least sometimes)
-        # After many iterations, we should see changes
+        # State should change after many iterations
         for _ in range(100):
             sampler.run_single_iteration()
 
@@ -153,7 +147,6 @@ class TestMetropolisHastingsEdgeCases:
         """Test behavior as temperature goes to zero (deterministic acceptance)."""
         # In our implementation, temperature is implicit in the acceptance ratio
         # At very low "temperature", we should only accept moves that increase likelihood
-        sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         np.random.seed(42)
 
         # With current config at 0, likelihood = 1.0

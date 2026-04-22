@@ -174,7 +174,9 @@ class TestFiniteDimensionalPopulationsOverTime:
                 # First arg should be time axis, second should be array-like populations
                 call_args = mock_stackplot.call_args
                 assert isinstance(call_args[0][0], np.ndarray)  # time axis
-                assert isinstance(call_args[0][1], np.ndarray)  # populations (array-like)
+                assert isinstance(
+                    call_args[0][1], np.ndarray
+                )  # populations (array-like)
 
     def test_legend_is_called(
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray

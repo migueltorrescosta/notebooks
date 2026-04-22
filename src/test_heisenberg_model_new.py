@@ -301,7 +301,6 @@ class TestHeisenbergModelPhysicalConstraints:
             eigenvalues = np.linalg.eigvalsh(H)
 
             # Energy per site should be bounded
-            energy_per_site = eigenvalues / n_sites
             # Should be within reasonable bounds for spin-1/2 chain
             max_energy = 2 * n_sites  # Upper bound estimate
             min_energy = -2 * n_sites  # Lower bound estimate

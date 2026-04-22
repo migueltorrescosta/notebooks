@@ -17,12 +17,14 @@ class Distributions(str, Enum):
     Gaussian = "Gaussian"
 
 
-def prior_polynomial(x: float, a: float, b: float, c: float) -> float:
+def prior_polynomial(
+    x: float | np.ndarray, a: float, b: float, c: float
+) -> float | np.ndarray:
     """Polynomial prior distribution."""
     return a * (x - b) ** c
 
 
-def prior_gaussian(x: float, a: float, mu: float) -> float:
+def prior_gaussian(x: float | np.ndarray, a: float, mu: float) -> float | np.ndarray:
     """Gaussian prior distribution."""
     return np.exp(-1 * a * (x - mu) ** 2)
 
@@ -99,7 +101,9 @@ class TestVectorizedPriorComputation:
         vectorized = np.maximum(prior_gaussian(domain, a, mu), 0)
 
         # Element-wise computation
-        element_wise = np.array([max(prior_gaussian(x, a, mu), 0) for x in domain])
+        element_wise = np.array(
+            [float(np.maximum(prior_gaussian(x, a, mu), 0)) for x in domain]
+        )
 
         assert np.allclose(vectorized, element_wise), (
             "Vectorized computation should match element-wise"
@@ -114,7 +118,9 @@ class TestVectorizedPriorComputation:
         vectorized = np.maximum(prior_polynomial(domain, a, b, c), 0)
 
         # Element-wise computation
-        element_wise = np.array([max(prior_polynomial(x, a, b, c), 0) for x in domain])
+        element_wise = np.array(
+            [float(np.maximum(prior_polynomial(x, a, b, c), 0)) for x in domain]
+        )
 
         assert np.allclose(vectorized, element_wise), (
             "Vectorized computation should match element-wise"
@@ -130,7 +136,9 @@ class TestVectorizedPriorComputation:
         # Element-wise
         start = time.perf_counter()
         for _ in range(100):
-            _ = np.array([max(prior_gaussian(x, a, mu), 0) for x in domain])
+            _ = np.array(
+                [float(np.maximum(prior_gaussian(x, a, mu), 0)) for x in domain]
+            )
         loop_time = time.perf_counter() - start
 
         # Vectorized

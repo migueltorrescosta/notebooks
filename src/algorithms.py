@@ -32,7 +32,9 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
         # This is proportional to the state probability
         pass
 
-    def approval_function(self, new_configuration: T, current_likelihood: float) -> bool:
+    def approval_function(
+        self, new_configuration: T, current_likelihood: float
+    ) -> bool:
         return (
             self.state_likelihood(new_configuration)
             >= current_likelihood * np.random.random()

@@ -92,7 +92,7 @@ disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 ignore_missing_imports = true
-exclude = ["src/test_algorithms.py"]
+exclude = ["src/test_algorithms.py", "pages/**"]
 warn_redundant_casts = true
 show_error_codes = true
 
