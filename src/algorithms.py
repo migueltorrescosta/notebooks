@@ -32,17 +32,18 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
         # This is proportional to the state probability
         pass
 
-    def approval_function(self, new_configuration: T) -> bool:
+    def approval_function(self, new_configuration: T, current_likelihood: float) -> bool:
         return (
             self.state_likelihood(new_configuration)
-            >= self.state_likelihood(self.current_configuration) * np.random.random()
+            >= current_likelihood * np.random.random()
         )
 
     def run_single_iteration(self, limit_tries: int = 10**5) -> T:
+        current_likelihood = self.state_likelihood(self.current_configuration)
         tries = 0
         while True:
             new_state = self.generator_function()
-            if self.approval_function(new_state):
+            if self.approval_function(new_state, current_likelihood):
                 self.configuration_history.append(new_state)
                 self.accepted_configuration_count += 1
                 return new_state
