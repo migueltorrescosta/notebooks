@@ -3,8 +3,6 @@ from functools import partial
 
 from matplotlib import pyplot as plt
 from src.plotting import plot_array
-from tqdm import tqdm
-import itertools
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -77,16 +75,17 @@ match distribution:
             f_\\theta(x) = \\mathbb{{P}}[X=x] = {{{n} \\choose x}} x^{{\\theta}}({n}-x)^{{1 - \\theta}}, x \\in \\{{ 0 , 1 , \\dots , {n} \\}} 
         """)
 
+# Vectorized PDF computation using broadcasting
+x_arr = np.arange(n + 1)[:, None]  # (n+1, 1)
+theta_arr = np.linspace(0, 1, theta_sample_size + 1)[None, :]  # (1, m)
+pdf_values = scipy.stats.binom.pmf(x_arr, n=n, p=theta_arr)  # (n+1, m)
+
+# Create DataFrame directly from array - no Python loops
 df_pdf = pd.DataFrame(
-    data=[
-        (x, p, binomial_pdf(x, p, n))
-        for x, p in tqdm(
-            itertools.product(valid_x, valid_theta),
-            total=len(valid_x) * len(valid_theta),
-        )
-    ],
-    columns=["x", "theta", "pdf"],
-).pivot(columns="x", index="theta", values="pdf")
+    pdf_values.T,  # Transpose to (m, n+1) with theta as rows, x as columns
+    index=pd.Index(theta_arr.flatten(), name="theta"),
+    columns=pd.Index(x_arr.flatten(), name="x"),
+)
 
 plot_array(np.array(df_pdf), midpoint=None, text_auto=False)
 
