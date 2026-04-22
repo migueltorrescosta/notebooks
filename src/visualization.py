@@ -78,6 +78,6 @@ def quantum_state_heatmap(
         ax.set_xticks(range(rho_t.shape[0]), range(rho_t.shape[0]))
         ax.set_yticks(range(rho_t.shape[0]), range(rho_t.shape[0]))
 
-    ax1.imshow(np.vectorize(lambda x: x.real)(rho_t), vmin=-1, vmax=1)
-    ax2.imshow(np.vectorize(lambda x: x.imag)(rho_t), vmin=-1, vmax=1)
+    ax1.imshow(rho_t.real, vmin=-1, vmax=1)
+    ax2.imshow(rho_t.imag, vmin=-1, vmax=1)
     plt.draw()
