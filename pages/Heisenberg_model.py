@@ -59,16 +59,14 @@ sigma_x = np.array([[0, 1], [1, 0]])
 sigma_z = np.array([[1, 0], [0, -1]])
 eye_2 = np.array([[1, 0], [0, 1]])
 
-hamiltonian_coupling = functools.reduce(
-    lambda a, b: a + b,
-    [
-        functools.reduce(
-            np.kron,
-            [sigma_x if j == i or j == i + 1 else eye_2 for j in range(1, n_sites + 1)],
-        )
-        for i in range(1, n_sites)
-    ],
-)
+# Optimized: precompute identities once, then modify in-place for each coupling term
+identities = [eye_2] * n_sites
+hamiltonian_coupling = np.zeros_like(functools.reduce(np.kron, identities))
+for i in range(n_sites - 1):
+    op = identities.copy()
+    op[i] = sigma_x
+    op[i + 1] = sigma_x
+    hamiltonian_coupling += functools.reduce(np.kron, op)
 
 hamiltonian_local = functools.reduce(np.kron, [sigma_z for _ in range(1, n_sites + 1)])
 hamiltonian = j * hamiltonian_local + (0.5 * u) * hamiltonian_coupling
