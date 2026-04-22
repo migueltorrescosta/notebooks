@@ -85,7 +85,7 @@ with st.sidebar:
                 mu = st.number_input("$\\mu_1$", value=0.0)
                 prior_fn = partial(prior_gaussian, a=a, mu=mu)
 
-        prior_vector = np.array([max(prior_fn(x), 0) for x in domain])
+        prior_vector = np.maximum(prior_fn(domain), 0)
         prior_vector = prior_vector / np.sum(prior_vector)
 
     with c2:
@@ -112,7 +112,7 @@ with st.sidebar:
                 mu = st.number_input("$\\mu_2$", value=0.0)
                 likelihood_fn = partial(likelihood_gaussian, a=a, mu=mu)
 
-        likelihood_vector = np.array([max(likelihood_fn(x), 0) for x in domain])
+        likelihood_vector = np.maximum(likelihood_fn(domain), 0)
         likelihood_vector = likelihood_vector / np.sum(likelihood_vector)
 
     posterior_vector = prior_vector * likelihood_vector
