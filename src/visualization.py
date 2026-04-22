@@ -45,6 +45,9 @@ def finite_dimensional_populations_over_time(
     n_states = hamiltonian.shape[0]
 
     assert hamiltonian.shape[1] == n_states, "the hamiltonian is not square"
+    assert np.allclose(hamiltonian, hamiltonian.conj().T), (
+        "Hamiltonian must be Hermitian"
+    )
     assert rho0.shape == hamiltonian.shape, (
         "The initial state ρ0 does not match the hamiltonian's dimension"
     )
