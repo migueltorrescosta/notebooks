@@ -130,30 +130,63 @@ class Settings:
     initial_state = generate_initial_state(ancillary_dimension=dim_a, initial_state=k)
 
 
-def generate_hamiltonian(run_options: RunOptions) -> np.ndarray:
+def _hamiltonian_params(
+    run_options: RunOptions,
+) -> tuple[float, float, float, float, float, float, float, float, float, int]:
+    """Extract cacheable parameters from RunOptions for Hamiltonian computation."""
+    return (
+        float(run_options.ancillary_dimension),
+        run_options.j_s,
+        run_options.delta_s,
+        run_options.j_a,
+        run_options.u_a,
+        run_options.delta_a,
+        run_options.alpha_xx,
+        run_options.alpha_xz,
+        run_options.alpha_zx,
+        run_options.alpha_zz,
+    )
+
+
+@functools.lru_cache(maxsize=128)
+def _cached_generate_hamiltonian(
+    ancillary_dimension: float,
+    j_s: float,
+    delta_s: float,
+    j_a: float,
+    u_a: float,
+    delta_a: float,
+    alpha_xx: float,
+    alpha_xz: float,
+    alpha_zx: float,
+    alpha_zz: float,
+) -> np.ndarray:
+    """Cached Hamiltonian generation to avoid redundant matrix computations."""
+    anc_dim = int(ancillary_dimension)
     system_hamiltonian = np.kron(
-        -1 * run_options.j_s * Settings.sigma_x
-        + run_options.delta_s * Settings.sigma_z,
-        np.divide(
-            np.eye(run_options.ancillary_dimension), run_options.ancillary_dimension
-        ),
+        -1 * j_s * Settings.sigma_x + delta_s * Settings.sigma_z,
+        np.divide(np.eye(anc_dim), anc_dim),
     )
     ancillary_hamiltonian = np.kron(
         np.divide(np.eye(2), 2),
-        -1 * run_options.j_a * Settings.jx
-        + run_options.u_a * Settings.jz @ Settings.jz
-        + run_options.delta_a * Settings.jz,
+        -1 * j_a * Settings.jx
+        + u_a * Settings.jz @ Settings.jz
+        + delta_a * Settings.jz,
     )
     interaction_hamiltonian = functools.reduce(
         lambda x, y: x + y,
         [
-            run_options.alpha_xx * np.kron(Settings.sigma_x, Settings.jx),
-            run_options.alpha_xz * np.kron(Settings.sigma_x, Settings.jz),
-            run_options.alpha_zx * np.kron(Settings.sigma_z, Settings.jx),
-            run_options.alpha_zz * np.kron(Settings.sigma_z, Settings.jz),
+            alpha_xx * np.kron(Settings.sigma_x, Settings.jx),
+            alpha_xz * np.kron(Settings.sigma_x, Settings.jz),
+            alpha_zx * np.kron(Settings.sigma_z, Settings.jx),
+            alpha_zz * np.kron(Settings.sigma_z, Settings.jz),
         ],
     )
     return system_hamiltonian + ancillary_hamiltonian + interaction_hamiltonian
+
+
+def generate_hamiltonian(run_options: RunOptions) -> np.ndarray:
+    return _cached_generate_hamiltonian(*_hamiltonian_params(run_options))
 
 
 def generate_evolved_system_state(
