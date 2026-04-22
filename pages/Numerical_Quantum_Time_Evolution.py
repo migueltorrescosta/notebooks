@@ -98,7 +98,7 @@ with st.sidebar:
         )
         match initial_wave_packet:
             case WavePacket.Gaussian.value:
-                st.latex("e^{{-d(x-x_0)^2 + ipx }}")
+                st.latex(r"e^{{-d(x-x_0)^2 + ipx }}")
                 d = st.number_input("$d$", min_value=0.0, value=1.0)
                 initial_momentum = st.number_input("$p$", value=2.0)
                 initial_center_of_mass = st.number_input("$x_0$", value=-1.0)
@@ -107,7 +107,7 @@ with st.sidebar:
                     - initial_momentum * 1.0j * valid_x
                 )
             case WavePacket.Step.value:
-                st.latex("\\mathbb{1}_{{[r,s]}}e^{{ipx}}")
+                st.latex(r"\\mathbb{1}_{{[r,s]}}e^{{ipx}}")
                 r = st.number_input("$r$", value=-1.0)
                 s = st.number_input("$s$", min_value=r, value=1.0)
                 momentum = st.number_input("$p$", value=5.0)
@@ -125,7 +125,7 @@ with st.sidebar:
         )
         match potential_function:
             case PotentialFunction.Quadratic.value:
-                st.latex("a(x-c)^2")
+                st.latex(r"a(x-c)^2")
                 potential_increase = st.number_input("$a$", value=0.2)
                 potential_center = st.number_input("$c$", value=0.0)
                 potential_x = partial(
@@ -133,7 +133,7 @@ with st.sidebar:
                 )
 
             case PotentialFunction.Quartic.value:
-                st.latex("a(x-c)^4")
+                st.latex(r"a(x-c)^4")
                 potential_increase = st.number_input("$a$", value=0.05)
                 potential_center = st.number_input("$c$", value=0.0)
                 potential_x = partial(
@@ -142,7 +142,7 @@ with st.sidebar:
 
             case PotentialFunction.Trigonometric.value:
                 width = x_max - x_min
-                st.latex("a\\cos(\\phi + 2 \\pi k x)")
+                st.latex(r"a\\cos(\\phi + 2 \pi k x)")
                 amplitude = st.number_input("$a$", min_value=0.0, value=1.0)
                 phase = st.number_input("$\\phi$", value=0.0)
                 width = x_max - x_min
@@ -156,12 +156,12 @@ with st.sidebar:
                 )
 
             case PotentialFunction.Uniform.value:
-                st.latex("ax")
+                st.latex(r"ax")
                 a = st.number_input("$a$", value=1.0)
                 potential_x = partial(potential_uniform, a=a)
 
             case PotentialFunction.DoubleWell.value:
-                st.latex("a ( x^4 - 2 x^2 ) + be^{-cx^2}")
+                st.latex(r"a ( x^4 - 2 x^2 ) + be^{-cx^2}")
                 a = st.number_input("$a$", min_value=0.0, value=1.0)
                 b = st.number_input("$b$", min_value=0.0, value=30.0)
                 c = st.number_input("$c$", min_value=0.0, value=3.0)

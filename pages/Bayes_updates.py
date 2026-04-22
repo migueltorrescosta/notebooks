@@ -67,20 +67,20 @@ with st.sidebar:
         )
         match prior_distribution:
             case Distributions.Geometric.value:
-                st.latex("a_1(x-b_1)^{c_1}")
+                st.latex(r"a_1(x-b_1)^{c_1}")
                 a = st.number_input("$a_1$", value=1.0)
                 b = st.number_input("$b_1$", value=0.0)
                 c = st.number_input("$c_1$", value=1.0)
                 st.latex(f"{a}(x{-1 * b:+})^{{ {c} }}")
                 prior_fn = partial(prior_polynomial, a=a, b=b, c=c)
             case Distributions.Linear.value:
-                st.latex("a_1x+b_1")
+                st.latex(r"a_1x+b_1")
                 a = st.number_input("$a_1$", value=1.0)
                 b = st.number_input("$b_1$", value=0.0)
                 c = 1.0  # Linear is polynomial with c=1
                 prior_fn = partial(prior_polynomial, a=a, b=b, c=c)
             case Distributions.Gaussian.value:
-                st.latex("e^{-a_1(x-\\mu_1)^2}")
+                st.latex(r"e^{-a_1(x-\\mu_1)^2}")
                 a = st.number_input("$a_1$", value=1.0)
                 mu = st.number_input("$\\mu_1$", value=0.0)
                 prior_fn = partial(prior_gaussian, a=a, mu=mu)
@@ -94,20 +94,20 @@ with st.sidebar:
         )
         match likelihood_distribution:
             case Distributions.Geometric.value:
-                st.latex("a_2(x-b_2)^{c_2}")
+                st.latex(r"a_2(x-b_2)^{c_2}")
                 a = st.number_input("$a_2$", value=1.0)
                 b = st.number_input("$b_2$", value=0.0)
                 c = st.number_input("$c_2$", value=1.0)
                 st.latex(f"{a}(x{-1 * b:+})^{{ {c} }}")
                 likelihood_fn = partial(likelihood_polynomial, a=a, b=b, c=c)
             case Distributions.Linear.value:
-                st.latex("a_2x+b_2")
+                st.latex(r"a_2x+b_2")
                 a = st.number_input("$a_2$", value=1.0)
                 b = st.number_input("$b_2$", value=0.0)
                 c = 1.0  # Linear is polynomial with c=1
                 likelihood_fn = partial(likelihood_polynomial, a=a, b=b, c=c)
             case Distributions.Gaussian.value:
-                st.latex("e^{-a_2(x-\\mu_2)^2}")
+                st.latex(r"e^{-a_2(x-\\mu_2)^2}")
                 a = st.number_input("$a_2$", value=1.0)
                 mu = st.number_input("$\\mu_2$", value=0.0)
                 likelihood_fn = partial(likelihood_gaussian, a=a, mu=mu)

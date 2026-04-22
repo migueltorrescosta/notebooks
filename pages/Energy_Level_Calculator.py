@@ -71,7 +71,7 @@ with st.sidebar:
     # This avoids the duplicate key issue when the function is called multiple times
     match potential_function:
         case PotentialFunction.Quadratic.value:
-            st.latex("a(x-c)^2")
+            st.latex(r"a(x-c)^2")
             a = st.number_input("$a$", value=10.0)
             c = st.number_input("$c$", value=0.0)
 
@@ -79,7 +79,7 @@ with st.sidebar:
                 return a * (c - x) ** 2
 
         case PotentialFunction.Quartic.value:
-            st.latex("a(x-c)^4")
+            st.latex(r"a(x-c)^4")
             a = st.number_input("$a$", value=0.05)
             c = st.number_input("$c$", value=0.0)
 
@@ -87,7 +87,7 @@ with st.sidebar:
                 return a * (c - x) ** 4
 
         case PotentialFunction.Trigonometric.value:
-            st.latex("a\\cos(\\phi + 2 \\pi k x)")
+            st.latex(r"a\\cos(\\phi + 2 \pi k x)")
             width = x_max - x_min
             a = st.number_input("$a$", min_value=0.0, value=1.0)
             phi = st.number_input("$\\phi$", value=0.0)
@@ -97,14 +97,14 @@ with st.sidebar:
                 return a * np.cos(phi + np.divide(k * 2 * np.pi * x, width))
 
         case PotentialFunction.Uniform.value:
-            st.latex("ax")
+            st.latex(r"ax")
             a = st.number_input("$a$", value=1.0)
 
             def potential_x(x: float) -> float:
                 return a * x
 
         case PotentialFunction.DoubleWell.value:
-            st.latex("a ( x^4 - 2 x^2 ) + be^{-cx^2}")
+            st.latex(r"a ( x^4 - 2 x^2 ) + be^{-cx^2}")
             a = st.number_input("$a$", min_value=0.0, value=1.0)
             b = st.number_input("$b$", min_value=0.0, value=30.0)
             c = st.number_input("$c$", min_value=0.0, value=3.0)
