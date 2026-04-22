@@ -160,7 +160,7 @@ class TestFiniteDimensionalPopulationsOverTime:
     def test_stackplot_called_with_populations(
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray
     ) -> None:
-        """Stackplot should receive population arrays as a list."""
+        """Stackplot should receive population arrays (array-like, time-invariant)."""
         with patch("src.visualization.plt.stackplot") as mock_stackplot:
             with patch("src.visualization.plt.legend"):
                 from src.visualization import finite_dimensional_populations_over_time
@@ -171,10 +171,10 @@ class TestFiniteDimensionalPopulationsOverTime:
 
                 # Check that stackplot was called
                 mock_stackplot.assert_called()
-                # First arg should be time axis, second should be a list of populations
+                # First arg should be time axis, second should be array-like populations
                 call_args = mock_stackplot.call_args
                 assert isinstance(call_args[0][0], np.ndarray)  # time axis
-                assert isinstance(call_args[0][1], list)  # list of populations
+                assert isinstance(call_args[0][1], np.ndarray)  # populations (array-like)
 
     def test_legend_is_called(
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray

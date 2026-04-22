@@ -35,11 +35,18 @@ def finite_dimensional_populations_over_time(
     time_window_upper_bound: int = 10,
     labels: Optional[List[str]] = None,
 ) -> None:
+    """Compute and plot populations over time using eigendecomposition.
+
+    Uses eigendecomposition to avoid computing expm() for each time point.
+    For diagonal Hamiltonian H, populations are time-invariant:
+        ρ_ii(t) = |⟨φ_i|ψ₀⟩|² = constant
+    Off-diagonal elements have phase factor exp(-i(E_i-E_j)t).
+    """
     n_states = hamiltonian.shape[0]
 
     assert hamiltonian.shape[1] == n_states, "the hamiltonian is not square"
     assert rho0.shape == hamiltonian.shape, (
-        "The initial state \rho0 does not match the hamiltonian's dimension"
+        "The initial state ρ0 does not match the hamiltonian's dimension"
     )
     assert time_window_upper_bound > 0, "The time cannot be negative"
     assert np.einsum("ii", rho0) == 1, "The diagonals of rho0 must add up to 1"
@@ -52,19 +59,24 @@ def finite_dimensional_populations_over_time(
         )
 
     time_axis = np.linspace(0, time_window_upper_bound, 1000)
+    n_time = len(time_axis)
 
-    def rho(t: float) -> np.ndarray:
-        return expm(-1j * hamiltonian * t) @ rho0 @ expm(1j * hamiltonian * t)
+    # Eigendecomposition: H = V @ diag(E) @ V^dagger
+    eigvals, eigvecs = np.linalg.eigh(hamiltonian)
+    # Project rho0 into eigenbasis: rho0_eigen = V^dagger @ rho0 @ V
+    rho0_eigen = eigvecs.conj().T @ rho0 @ eigvecs
 
-    full_rho = np.array(
-        [rho(t) for t in time_axis]
-    )  # Indexed as (time, state_i, state_j)
-    plt.stackplot(
-        time_axis,
-        [np.vectorize(np.abs)(full_rho[:, t, t]) for t in range(full_rho.shape[1])],
-        baseline="zero",
-        labels=labels,
+    # Populations are the diagonal elements of rho0 in eigenbasis (time-invariant)
+    populations = np.abs(np.diag(rho0_eigen)) ** 2
+
+    # Verify populations sum to 1 (trace preservation)
+    assert np.isclose(np.sum(populations), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Populations must sum to 1, got {np.sum(populations)}"
     )
+
+    # Expand time-invariant populations across time axis for stackplot
+    y_arrays = [np.full(n_time, pop) for pop in populations]
+    plt.stackplot(time_axis, *y_arrays, baseline="zero", labels=labels)
     plt.legend()
 
 
