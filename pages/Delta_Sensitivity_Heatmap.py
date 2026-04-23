@@ -1,89 +1,45 @@
+"""Delta Sensitivity Heatmap UI page - imports physics from src.sensitivity_analysis."""
+
 import itertools
 from typing import Any
-import matplotlib.pyplot as plt
 import multiprocessing
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import streamlit as st
+
+from src.sensitivity_analysis import sensitivity
+from src.sensitivity_analysis import compute_sensitivity_grid
 
 cpus = multiprocessing.cpu_count()
 
-st.set_page_config(
-    page_title="Delta Sensitivity Heatmap", page_icon="📈️", layout="wide"
-)
+st.set_page_config(page_title="Delta Sensitivity Heatmap", page_icon="📈️", layout="wide")
 
 st.header("Delta Sensitivity Heatmap", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
-    st.markdown("""
+    st.markdown(r"""
     **Sensitivity Analysis** quantifies how the system observable depends on parameter variations.
     
-    **Physical System:** A reduced model where the ancillary system is prepared in a single Fock state $\\ket{k}$:
-    $$H = (-J_S \\sigma_x + \\delta_S \\sigma_z) + \\alpha_x \\sigma_x J_z + \\alpha_z \\sigma_z J_z$$
+    **Physical System:** A reduced model where the ancillary system is prepared in a single Fock state $\ket{k}$:
+    $$H = (-J_S \sigma_x + \delta_S \sigma_z) + \alpha_x \sigma_x J_z + \alpha_z \sigma_z J_z$$
     
     The system observable is:
-    $$\\mathrm{Tr}[\\rho_t^{(S)}\\sigma_z] = \\sum_{k=0}^{N} \\braket{k|\\rho^{(A)}|k} \\left(\\cos^2(\\omega_k t) + \\sin^2(\\omega_k t) \\left(\\frac{\\alpha_z \\frac{N-2k}{2} + \\delta_S}{\\omega_k}\\right)^2 - \\sin^2(\\omega_k t) \\left(\\frac{\\alpha_x \\frac{N-2k}{2} - J_S}{\\omega_k}\\right)\\right)^2$$
+    $$\mathrm{Tr}[\rho_t^{(S)}\sigma_z] = \sum_{k=0}^{N} \braket{k|\rho^{(A)}|k} (\cos^2(\omega_k t) + \sin^2(\omega_k t) (\frac{\alpha_z \frac{N-2k}{2} + \delta_S}{\omega_k})^2 - \sin^2(\omega_k t) (\frac{\alpha_x \frac{N-2k}{2} - J_S}{\omega_k})^2)$$
     
     **Methodology:**
-    1. **Rabi Frequency**: Compute $\\omega_k = \\sqrt{\\left(\\alpha_z \\frac{N-2k}{2} + \\delta_S\\right)^2 + \\left(\\alpha_x \\frac{N-2k}{2} - J_S\\right)^2}$
-    2. **Sensitivity to $J_S$**: $\\frac{\\partial \\langle\\sigma_z\\rangle}{\\partial J_S} = \\sin^2(\\omega_k t) \\cdot \\frac{\\alpha_x x_{coeff}}{\\omega_k^2}$
-    3. **Sensitivity to $\\delta_S$**: $\\frac{\\partial \\langle\\sigma_z\\rangle}{\\partial \\delta_S} = \\sin^2(\\omega_k t) \\cdot \\frac{\\alpha_z z_{coeff}}{\\omega_k^2}$
-    
-    **Interpretation:** The heatmap shows regions of high sensitivity (yellow) where small parameter changes produce large observable changes,
-    useful for identifying optimal measurement configurations.
+    1. **Rabi Frequency**: Compute $\omega_k$
+    2. **Sensitivity to $J_S$**: $\frac{\partial \langle\sigma_z\rangle}{\partial J_S}$
+    3. **Sensitivity to $\delta_S$**: $\frac{\partial \langle\sigma_z\rangle}{\partial \delta_S}$
     """)
 
 
-# SENSITIVITY CALCULATION
-def sensitivity(
-    n: int,  # Ancillary dimension
-    k: int,  # Level
-    j_s: float,  # system_tunneling_strength
-    delta_s: float,  # system_energy_shift
-    alpha_x: float,  # sigma_x_coupling_coefficient
-    alpha_z: float,  # sigma_z_coupling_coefficient
-    t: float,  # time
-) -> dict[str, Any]:
-    # Returns the sensitivity wrt the tunneling strength and wrt the energy shift of the system for a given level |k>
-    assert k <= n, "The level k must be smaller than the ancilliary dimension n"
-    assert k >= 0, "The level k must be greater than or equal to 0"
-
-    x_coefficient = alpha_x * np.divide(n - 2 * k, 2) - j_s
-    z_coefficient = alpha_z * np.divide(n - 2 * k, 2) + delta_s
-    omega_k = np.sqrt(x_coefficient**2 + z_coefficient**2)
-
-    sensitivity_to_j = np.multiply(
-        np.sin(omega_k * t) ** 2, np.divide(alpha_x * x_coefficient, omega_k**2)
-    )
-    sensitivity_to_delta = np.multiply(
-        np.sin(omega_k * t) ** 2, np.divide(alpha_z * z_coefficient, omega_k**2)
-    )
-    return {
-        "n": n,
-        "k": k,
-        "j_s": j_s,
-        "delta_s": delta_s,
-        "alpha_x": alpha_x,
-        "alpha_z": alpha_z,
-        "t": t,
-        "omega_k": omega_k,
-        "sensitivity_to_j": sensitivity_to_j,
-        "sensitivity_to_delta": sensitivity_to_delta,
-    }
-
-
-# LAYOUT
-st.latex(r"""H =
-    ( -J_S \sigma_x + \delta_S \sigma_z) +
+# SENSITIVITY CALCULATION is now in physics module
+st.latex(r"""H = ( -J_S \sigma_x + \delta_S \sigma_z) +
     ( U_A J_z^2 + \delta_AJ_z ) +
     (\alpha_x \sigma_x J_z + \alpha_z \sigma_z J_z )
 """)
-st.latex(r"""\mathrm{Tr}[\rho_t^{(S)}\sigma_z] =
-    \sum_{k=0}^{N}
-    \braket{k | \rho^{(A)} | k}
-    \left ( \cos^2 (\omega_k t) + \sin^2 (\omega_k t) \left ( \frac{\alpha_z \frac{N-2k}{2} + \delta_S}{\omega_k} \right )^2 - \sin^2(\omega_k t) \left ( \frac{\alpha_x \frac{N-2k}{2} - J_S}{\omega_k } \right ) \right )^2
-""")
+st.latex(r"""\mathrm{Tr}[\rho_t^{(S)}\sigma_z] = \sum_{k=0}^{N}\braket{k | \rho^{(A)} | k}
+    \left ( \cos^2 (\omega_k t) + \sin^2 (\omega_k t) \left ( \frac{\alpha_z \frac{N-2k}{2} + \delta_S}{\omega_k} \right )^2 - \sin^2(\omega_k t) \left ( \frac{\alpha_x \frac{N-2k}{2} - J_S }{\omega_k } \right ) \right )^2""")
 
 sensitivity_column_1, sensitivity_column_2 = st.columns(2)
 
@@ -96,7 +52,7 @@ with st.sidebar:
     with c1:
         j_s = st.number_input("$J_S$:", -10.0, 10.0, 0.0)
     with c2:
-        delta_s = st.number_input("$\\delta_S$", -10.0, 10.0, 0.0)
+        delta_s = st.number_input(r"$\delta_S$", -10.0, 10.0, 0.0)
 
     st.subheader("Ancillary", divider="orange")
     c1, c2 = st.columns(2)
@@ -108,72 +64,48 @@ with st.sidebar:
     st.subheader("Interactions", divider="green")
     c1, c2, c3 = st.columns(3)
     with c1:
-        alpha_x = st.number_input("$\\alpha_x$", 0.0, 10.0, 1.0)
+        alpha_x = st.number_input(r"$\alpha_x$", 0.0, 10.0, 1.0)
     with c2:
-        alpha_z = st.number_input("$\\alpha_z$", 0.0, 10.0, 1.0)
+        alpha_z = st.number_input(r"$\alpha_z$", 0.0, 10.0, 1.0)
     with c3:
         t = st.number_input("$t$", 0.0, 20.0, 3.0)
 
 
-# DATAFRAME CREATION
+# DATAFRAME CREATION using physics module
 @st.cache_data
 def compute_sensitivity_df(
     n: int, k: int, j_s: float, delta_s: float, alpha_x: float, alpha_z: float, t: float
 ) -> pd.DataFrame:
-    """Cached sensitivity computation to avoid redundant calculations."""
-    resolution = [round(v, 3) for v in np.linspace(-5, 5, 50 + 1)]
+    resolution = [round(v, 3) for v in np.linspace(-5, 5, 51)]
     star_generator = [
         (n, k, j_s, delta_s, ax, az, t)
         for (ax, az) in itertools.product(resolution, repeat=2)
     ]
     pool = multiprocessing.Pool(processes=cpus)
     results = pool.starmap(sensitivity, star_generator)
-    return pd.DataFrame(
-        data=results,
-        columns=[
-            "n",
-            "k",
-            "j_s",
-            "delta_s",
-            "alpha_x",
-            "alpha_z",
-            "t",
-            "sensitivity_to_j",
-            "sensitivity_to_delta",
-        ],
-    )
+    return pd.DataFrame(data=results, columns=[
+        "n", "k", "j_s", "delta_s", "alpha_x", "alpha_z", "t",
+        "omega_k", "sensitivity_to_j", "sensitivity_to_delta",
+    ])
 
 
 sensitivity_df = compute_sensitivity_df(n, k, j_s, delta_s, alpha_x, alpha_z, t)
 
 
-def plot_sensitivity(df: pd.DataFrame, title: str, values: str) -> None:
+# PLOTS
+def plot_sensitivity(df: pd.DataFrame, title: str, values: str):
+    import matplotlib.pyplot as plt
+    import seaborn as sns
     fig, ax = plt.subplots()
     ax.set_title(title)
-    sns.heatmap(
-        df.pivot(index="alpha_x", columns="alpha_z", values=values),
-        ax=ax,
-        vmin=-1,
-        vmax=1,
-        cmap="viridis",
-    )
-    st.write(fig)
+    sns.heatmap(df.pivot(index="alpha_x", columns="alpha_z", values=values), ax=ax, vmin=-1, vmax=1, cmap="viridis")
+    st.pyplot(fig)
 
 
-# PLOTS
 with sensitivity_column_1:
-    plot_sensitivity(
-        sensitivity_df, title="Sensitivity to J_S", values="sensitivity_to_j"
-    )
+    plot_sensitivity(sensitivity_df, "Sensitivity to J_S", "sensitivity_to_j")
 
 with sensitivity_column_2:
-    plot_sensitivity(
-        sensitivity_df, title="Sensitivity to delta_S", values="sensitivity_to_delta"
-    )
+    plot_sensitivity(sensitivity_df, "Sensitivity to delta_S", "sensitivity_to_delta")
 
-st.latex(
-    r"""\omega_k :=  \sqrt{\left ( \alpha_z \frac{N-2k}{2} + \delta_S \right )^2 +  \left ( \alpha_x \frac{N-2k}{2} - J_S \right )^2}"""
-)
-
-# st.text("Full data")
-# sensitivity_df.T
+st.latex(r"""\omega_k :=  \sqrt{\left ( \alpha_z \frac{N-2k}{2} + \delta_S \right )^2 +  \left ( \alpha_x \frac{N-2k}{2} - J_S \right )^2}""")
