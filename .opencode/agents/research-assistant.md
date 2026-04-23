@@ -1,8 +1,8 @@
 ---
-description: Note taker, as streamlit apps, of various experiments.
+description: Coding agent for Mach–Zehnder interferometer simulations as Streamlit apps.
 mode: primary
 tools:
-  task: false
+  task: true
   todowrite: false
   todoread: false
 ---
@@ -20,12 +20,12 @@ Follow these steps **in order** for every task:
 
 ## 1. Before starting work
 1. **Run tests**: Ensure nothing is broke before starting changes
-2. **Read relevant code**: Understand existing patterns in `simulators/`, `models/`, and `experiments/`
+2. **Read relevant code**: Understand existing patterns in `pages/` and `src/`
 3. **Plan the physical model**: Document the Hilbert space, basis, and operators to use
 4. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
 
 ## 2. During implementation
-1. Add **tests first** (TDD approach) in `tests/`
+1. Add **tests first** (TDD approach) — unit tests in `src/test_*.py`, integration tests in `tests/`
 2. Match existing patterns in the codebase
 3. Choose the simpler approach; avoid large refactors or unrelated changes
 4. **UI (`pages/`) MUST NOT contain physics logic** — keep layers strictly separated
@@ -48,14 +48,34 @@ notebooks/                   # Root folder (streamlit app)
 │   ├── Heisenberg_model.py
 │   ├── Numerical_Quantum_Time_Evolution.py
 │   ├── Wave_interference.py
+│   ├── Probability_Distributions.py
+│   ├── MZI_Ancilla.py
+│   ├── Delta_Sensitivity_Heatmap.py
+│   ├── Minimize_heatmap.py
+│   ├── Visualize_Partial_Trace.py
+│   ├── Energy_Level_Calculator.py
 │   └── ...                  # Other simulation pages
 ├── src/                     # Core modules (physics, algorithms, plotting)
 │   ├── algorithms.py
 │   ├── angular_momentum.py
 │   ├── bayesian_statistics.py
+│   ├── delta_estimation.py
 │   ├── enums.py
+│   ├── heisenberg_model.py
+│   ├── mzi_simulation.py
+│   ├── optimization.py
+│   ├── partial_trace.py
 │   ├── plotting.py
-│   └── visualization.py
+│   ├── quantum_time_evolution.py
+│   ├── sensitivity_analysis.py
+│   ├── visualization.py
+│   ├── validators.py
+│   └── test_*.py             # Co-located unit tests
+├── tests/                   # Integration and E2E tests
+│   ├── test_e2e_navigation.py
+│   ├── test_pages_render.py
+│   ├── test_visualization.py
+│   └── test_angular_momentum.py
 ├── jupyter/                 # Jupyter notebooks for exploration
 ├── mathematica/             # Mathematica notebooks
 ├── Home.py                  # Main streamlit entrypoint
