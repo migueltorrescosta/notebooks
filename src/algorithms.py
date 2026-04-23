@@ -1,3 +1,11 @@
+"""
+Metropolis-Hastings algorithm implementations for statistical sampling.
+
+This module provides abstract base classes and concrete implementations for
+the Metropolis-Hastings MCMC algorithm, useful for sampling from complex
+probability distributions in quantum state estimation problems.
+"""
+
 import datetime
 from abc import ABC, abstractmethod
 from typing import Generic, List, TypeVar
@@ -10,37 +18,95 @@ T = TypeVar("T")
 
 
 class AbstractMetropolisHastings(ABC, Generic[T]):
-    """Inner workings of the MetropolisHastings algorithm"""
+    """Abstract base class for Metropolis-Hastings MCMC sampling.
 
-    # Based on https://en.wikipedia.org/wiki/Metropolis%E2%80%93Hastings_algorithm#Description
+    Implements the core Metropolis-Hastings algorithm for generating
+    correlated samples from a target distribution. Subclasses must define
+    how to propose new configurations and compute their likelihoods.
 
-    def __init__(self, initial_configuration: T):
+    The algorithm works by proposing random perturbations to the current
+    configuration and accepting/rejecting based on the likelihood ratio.
+    This creates a Markov chain that asymptotically samples from the
+    target distribution.
+
+    Attributes:
+        configuration_history: List of accepted configurations.
+        accepted_configuration_count: Number of accepted proposals.
+        rejected_configuration_count: Number of rejected proposals.
+    """
+
+    def __init__(self, initial_configuration: T) -> None:
+        """Initialize the sampler with a starting configuration.
+
+        Args:
+            initial_configuration: Starting point for the Markov chain.
+                Must have non-zero probability under the target distribution.
+        """
         self.configuration_history: List[T] = [initial_configuration]
         self.accepted_configuration_count: int = 0
         self.rejected_configuration_count: int = 0
 
     @property
     def current_configuration(self) -> T:
+        """Return the most recent accepted configuration."""
         return self.configuration_history[-1]
 
     @abstractmethod
     def generator_function(self) -> T:
-        pass
+        """Generate a proposal configuration from the current state.
+
+        Returns:
+            A new proposed configuration based on the current state.
+            Common choices: Gaussian random walk, uniform perturbation, etc.
+        """
 
     @abstractmethod
     def state_likelihood(self, configuration: T) -> float:
-        # This is proportional to the state probability
-        pass
+        """Compute unnormalized probability of a configuration.
+
+        Args:
+            configuration: The configuration to evaluate.
+
+        Returns:
+            Unnormalized probability (likelihood) under the target distribution.
+            Only needs to be proportional to the true probability.
+        """
 
     def approval_function(
         self, new_configuration: T, current_likelihood: float
     ) -> bool:
+        """Determine whether to accept a proposed configuration.
+
+        Uses the standard Metropolis acceptance ratio: min(1, P_new/P_curr).
+        For symmetric proposal distributions, this simplifies to comparing
+        likelihoods directly.
+
+        Args:
+            new_configuration: Proposed new configuration.
+            current_likelihood: Likelihood of the current configuration.
+
+        Returns:
+            True if the proposal is accepted, False otherwise.
+        """
         return (
             self.state_likelihood(new_configuration)
             >= current_likelihood * np.random.random()
         )
 
     def run_single_iteration(self, limit_tries: int = 10**5) -> T:
+        """Execute one iteration of the Metropolis-Hastings algorithm.
+
+        Proposes a new configuration and accepts/rejects based on likelihood.
+        If rejected, increments the rejection counter and returns the current
+        configuration.
+
+        Args:
+            limit_tries: Maximum number of proposal attempts before
+                printing a warning (useful for debugging flat likelihoods).
+
+        Returns:
+            The newly accepted configuration (or current if rejected).
+        """
         current_likelihood = self.state_likelihood(self.current_configuration)
         tries = 0
         while True:
@@ -59,6 +125,16 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
                 print(f"{new_state:e}", end=", ")
 
     def run_iterations(self, n: int) -> None:
+        """Run the Metropolis-Hastings algorithm for n iterations.
+
+        Executes n iterations while displaying a progress bar with the
+        current rejection rate. The rejection rate is a useful diagnostic:
+        too high (>99%) suggests the proposal distribution is poorly tuned,
+        too low (<1%) may indicate the chain is mixing too slowly.
+
+        Args:
+            n: Number of iterations to run.
+        """
         pbar = trange(n, desc="Bar desc", leave=True)
         for _ in pbar:
             self.run_single_iteration()
@@ -81,25 +157,46 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
                 )
 
     def plot(self) -> None:
+        """Plot the configuration history as a time series.
+
+        Useful for visualizing the trajectory of the Markov chain and
+        checking for convergence.
+        """
         plt.plot(np.asarray(self.configuration_history))
 
 
 class GaussianMetropolisHastings(AbstractMetropolisHastings[float]):
-    """Example implementation
-    This takes sample from a Gaussian distribution
+    """Metropolis-Hastings sampler for a standard normal distribution.
 
-    >>> smh = GaussianMetropolisHastings(initial_configuration=0)
-    >>> n = 10**5
-    >>> smh.run_iterations(n)
+    A concrete implementation demonstrating the abstract base class.
+    Uses a Gaussian random walk proposal centered on the current state,
+    which targets a standard normal distribution N(0, 1) as the stationary
+    distribution.
 
-    Ensuring that roughly half of the observations are negative
-    >>> negative_configurations = len([x for x in smh.configuration_history if x < 0])
-    >>> .48 * n < negative_configurations < .52 * n # Probabilistic check
-    True
+    The algorithm works because the proposal is symmetric, so the acceptance
+    probability reduces to min(1, exp(-x_new²) / exp(-x_curr²)) = min(1, exp(-(x_new² - x_curr²))).
+    This creates a Markov chain that converges to N(0, 1).
+
+    Example:
+        >>> sampler = GaussianMetropolisHastings(initial_configuration=0)
+        >>> sampler.run_iterations(10**5)
+        >>> samples = sampler.configuration_history[1000:]  # discard burn-in
+        >>> np.mean(samples)  # should be close to 0
+        >>> np.std(samples)   # should be close to 1
     """
 
     def generator_function(self) -> float:
+        """Propose a new sample using Gaussian random walk.
+
+        Adds a standard normal perturbation to the current configuration.
+        This symmetric proposal simplifies the acceptance criterion.
+        """
         return self.current_configuration + np.random.normal(0, 1)
 
     def state_likelihood(self, configuration: float) -> float:
+        """Compute unnormalized probability under N(0, 1).
+
+        Returns exp(-x²), which is proportional to the standard normal PDF
+        up to a normalizing constant.
+        """
         return np.exp(-1 * configuration**2)

@@ -1,5 +1,5 @@
 """
-Mach-Zehnder Interferometer with Ancilla Simulation
+Mach-Zehnder Interferometer with Ancilla Simulation.
 
 Physical Model:
 - Two-mode bosonic system (interferometer arms)
@@ -11,6 +11,15 @@ Physical Model:
 Hilbert Space:
 - System: Fock basis for 2 modes with max N photons (dimension: (N+1)²)
 - Ancilla: Spin-J system (dimension: 2J+1)
+
+Units:
+- Dimensionless throughout. Phase is measured in radians.
+- Time is dimensionless when multiplied by coupling strength g.
+
+Conventions:
+- Beam splitter transformation: a → cos(θ)a + i*e^{iφ}sin(θ)b
+- Phase convention: e^{iφn} applied to mode 1 (second mode)
+- State ordering: |n₁, n₂⟩ with n₁ as first mode, n₂ as second mode
 """
 
 from typing import Tuple
@@ -25,7 +34,40 @@ import scipy
 
 
 def fock_state(n1: int, n2: int, max_photons: int) -> np.ndarray:
-    """Create a Fock state vector |n1, n2> in the two-mode Fock basis."""
+    """Create a Fock state vector |n₁, n₂⟩ in the two-mode Fock basis.
+
+    Constructs a pure Fock state with exactly n₁ photons in mode 0
+    and n₂ photons in mode 1. The state is represented as a vector
+    in a truncated Fock space with maximum photon number max_photons
+    per mode.
+
+    Args:
+        n1: Photon number in mode 0 (first arm). Must be non-negative
+            and ≤ max_photons.
+        n2: Photon number in mode 1 (second arm). Must be non-negative
+            and ≤ max_photons.
+        max_photons: Maximum photon number per mode. Truncation parameter
+            for the Hilbert space.
+
+    Returns:
+        Complex state vector of dimension (max_photons+1)² with a single
+        1 at index n₁ × (max_photons+1) + n₂.
+
+    Raises:
+        ValueError: If n1 or n2 exceeds max_photons or is negative.
+
+    Example:
+        >>> state = fock_state(1, 0, max_photons=2)
+        >>> state.shape
+        (9,)
+        >>> np.abs(state[3])  # Index for |1,0⟩: 1*3 + 0 = 3
+        1.0
+    """
+    if n1 < 0 or n2 < 0:
+        raise ValueError("Photon numbers must be non-negative")
+    if n1 > max_photons or n2 > max_photons:
+        raise ValueError(f"Photon numbers must not exceed max_photons={max_photons}")
+
     dim = (max_photons + 1) ** 2
     state = np.zeros(dim, dtype=complex)
     idx = n1 * (max_photons + 1) + n2
@@ -34,20 +76,59 @@ def fock_state(n1: int, n2: int, max_photons: int) -> np.ndarray:
 
 
 def vacuum_state(max_photons: int) -> np.ndarray:
-    """Create vacuum state |0,0>."""
+    """Create the vacuum state |0, 0⟩ (no photons in either mode).
+
+    Args:
+        max_photons: Maximum photon number per mode for the truncated
+            Hilbert space.
+
+    Returns:
+        Complex state vector representing the two-mode vacuum.
+    """
     return fock_state(0, 0, max_photons)
 
 
 def single_photon_state(mode: int, max_photons: int) -> np.ndarray:
-    """Create single photon state |1,0> or |0,1>."""
+    """Create a single-photon state in a specific mode.
+
+    Args:
+        mode: Which mode to place the photon in (0 or 1).
+        max_photons: Maximum photon number per mode.
+
+    Returns:
+        State vector |1, 0⟩ if mode=0, or |0, 1⟩ if mode=1.
+
+    Raises:
+        ValueError: If mode is not 0 or 1.
+    """
     if mode == 0:
         return fock_state(1, 0, max_photons)
-    else:
+    elif mode == 1:
         return fock_state(0, 1, max_photons)
+    else:
+        raise ValueError("Mode must be 0 or 1")
 
 
 def noon_state(N: int, max_photons: int) -> np.ndarray:
-    """Create NOON state (|N,0> + |0,N>)/sqrt(2)."""
+    """Create a NOON state (|N, 0⟩ + |0, N⟩)/√2.
+
+    NOON states are maximally path-entangled states useful for
+    quantum metrology. They achieve Heisenberg scaling in phase
+    estimation precision.
+
+    Args:
+        N: Total photon number (N photons in either mode, none in the other).
+        max_photons: Maximum photon number per mode. Must be ≥ N to
+            accommodate the state.
+
+    Returns:
+        Normalized NOON state vector.
+
+    Example:
+        >>> noon = noon_state(3, max_photons=3)  # |3,0⟩ + |0,3⟩
+        >>> np.allclose(noon, noon)  # Check normalization
+        True
+    """
     # Need max_photons >= N for NOON state to fit in basis
     effective_max = max(N, max_photons)
     state = fock_state(N, 0, effective_max) + fock_state(0, N, effective_max)
@@ -55,7 +136,28 @@ def noon_state(N: int, max_photons: int) -> np.ndarray:
 
 
 def coherent_state(alpha: complex, max_photons: int) -> np.ndarray:
-    """Create coherent state |alpha> in one mode (other mode vacuum)."""
+    """Create a coherent state |α⟩ in mode 0 with mode 1 as vacuum.
+
+    A coherent state is the quantum state most closely resembling
+    a classical electromagnetic field. It has Poisson photon number
+    distribution and minimum uncertainty (balanced).
+
+    Args:
+        alpha: Complex amplitude of the coherent state. The mean
+            photon number is |α|².
+        max_photons: Maximum photon number for truncation. Should be
+            significantly larger than |α|² for accurate representation.
+
+    Returns:
+        State vector representing the coherent state in the truncated
+        Fock basis.
+
+    Example:
+        >>> alpha = 1.0 + 0j
+        >>> state = coherent_state(alpha, max_photons=10)
+        >>> # Mean photon number ≈ |α|² = 1
+        >>> # Probability of n photons = |α|^{2n} e^{-|α|²} / n!
+    """
     state = np.zeros((max_photons + 1) ** 2, dtype=complex)
     for n in range(max_photons + 1):
         amplitude = (
@@ -68,7 +170,15 @@ def coherent_state(alpha: complex, max_photons: int) -> np.ndarray:
 
 
 def fock_state_n(n: int, max_photons: int) -> np.ndarray:
-    """Create Fock state |n> in mode 0 (mode 1 vacuum)."""
+    """Create Fock state |n⟩ in mode 0 (mode 1 as vacuum).
+
+    Args:
+        n: Photon number (must be non-negative and ≤ max_photons).
+        max_photons: Maximum photon number per mode.
+
+    Returns:
+        State vector |n, 0⟩.
+    """
     return fock_state(n, 0, max_photons)
 
 
@@ -80,7 +190,26 @@ def fock_state_n(n: int, max_photons: int) -> np.ndarray:
 def create_system_operators(
     max_photons: int,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Create annihilation and creation operators for two-mode system."""
+    """Create annihilation and creation operators for the two-mode system.
+
+    Constructs the bosonic annihilation (a) and creation (a†) operators
+    for both modes of the interferometer. The operators act in the
+    truncated Fock space with dimension (max_photons+1)².
+
+    The operators satisfy:
+    - a |n⟩ = √n |n-1⟩ (annihilation)
+    - a† |n⟩ = √(n+1) |n+1⟩ (creation)
+
+    Args:
+        max_photons: Maximum photon number per mode (truncation).
+
+    Returns:
+        Tuple of (a₀, a₁, a₀†, a₁†) where:
+        - a₀: Annihilation operator for mode 0
+        - a₁: Annihilation operator for mode 1
+        - a₀†: Creation operator for mode 0
+        - a₁†: Creation operator for mode 1
+    """
     dim = (max_photons + 1) ** 2
 
     a0 = np.zeros((dim, dim), dtype=complex)
@@ -108,7 +237,26 @@ def create_system_operators(
 
 
 def create_ancilla_operators(ancilla_dim: int) -> Tuple[np.ndarray, np.ndarray]:
-    """Create spin operators for ancilla (dimension = 2J+1)."""
+    """Create spin operators for the ancilla system.
+
+    Constructs the J_x and J_z angular momentum operators for a
+    spin-J system where ancilla_dim = 2J + 1. These operators act
+    on the ancilla Hilbert space and can be used to couple the
+    interferometer to a quantum memory/probe.
+
+    Args:
+        ancilla_dim: Dimension of the ancilla Hilbert space.
+            For spin-J, ancilla_dim = 2J + 1 (must be odd).
+
+    Returns:
+        Tuple of (Jx, Jz) where both are Hermitian operators
+        of dimension ancilla_dim × ancilla_dim.
+
+    Example:
+        >>> Jx, Jz = create_ancilla_operators(3)  # Spin-1 system
+        >>> Jz.diagonal()  # Eigenvalues: +1, 0, -1
+        array([ 1.,  0., -1.])
+    """
     j = (ancilla_dim - 1) / 2
 
     # J_z operator (diagonal in computational basis)
@@ -133,14 +281,29 @@ def create_ancilla_operators(ancilla_dim: int) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def beam_splitter_unitary(theta: float, phi: float, max_photons: int) -> np.ndarray:
-    r"""
-    Beam splitter unitary in Fock space.
+    r"""Compute the beam splitter unitary transformation in Fock space.
 
-    Transforms mode operators:
-    a -> cos(θ)*a + i*sin(θ)*e^{i*φ}*b
-    b -> cos(θ)*b - i*sin(θ)*e^{-i*φ}*a
+    The beam splitter implements the mode transformation:
+        a → cos(θ)·a + i·e^{iφ}·sin(θ)·b
+        b → cos(θ)·b - i·e^{-iφ}·sin(θ)·a
 
-    This creates a symmetric 50/50 beam splitter for θ=π/4.
+    For a symmetric 50/50 beam splitter, use θ = π/4.
+    The phase φ controls the reflection amplitude phase.
+
+    Args:
+        theta: Beam splitter transmittance angle. θ = 0 gives identity,
+            θ = π/4 gives 50/50 splitter.
+        phi: Phase shift applied to reflected photons.
+        max_photons: Maximum photon number per mode for truncation.
+
+    Returns:
+        Unitary matrix of dimension (max_photons+1)² × (max_photons+1)²
+        representing the beam splitter transformation.
+
+    Example:
+        >>> bs = beam_splitter_unitary(np.pi/4, 0, max_photons=2)
+        >>> np.allclose(bs @ bs.conj().T, np.eye(9))  # Check unitarity
+        True
     """
     dim = (max_photons + 1) ** 2
     bs = np.zeros((dim, dim), dtype=complex)
@@ -173,9 +336,21 @@ def beam_splitter_unitary(theta: float, phi: float, max_photons: int) -> np.ndar
 
 
 def phase_shift_unitary(phi: float, max_photons: int) -> np.ndarray:
-    """
-    Phase shift unitary on mode 1.
-    P(phi) = exp(i * phi * n1)
+    r"""Compute the phase shift unitary on mode 1.
+
+    Applies a phase shift proportional to the photon number in mode 1:
+        P(φ) = exp(i · φ · n₁)
+
+    where n₁ is the number operator for mode 1. This implements the
+    physical effect of introducing an optical path difference
+    (phase shift) in one arm of the interferometer.
+
+    Args:
+        phi: Phase shift in radians.
+        max_photons: Maximum photon number per mode for truncation.
+
+    Returns:
+        Diagonal unitary matrix of dimension (max_photons+1)².
     """
     dim = (max_photons + 1) ** 2
     phase_op = np.zeros((dim, dim), dtype=complex)
@@ -195,12 +370,27 @@ def system_ancilla_interaction_unitary(
     max_photons: int,
     ancilla_dim: int,
 ) -> np.ndarray:
-    """
-    System-ancilla interaction unitary: U = exp(-i * H_int * t)
+    r"""Compute the system-ancilla interaction unitary.
 
-    Types:
-    - "phase_coupling": H = g * n_photon * J_z (phase-dependent)
-    - "flip_flop": H = g * (a + a^dagger) * J_x (exchange)
+    Implements U = exp(-i · H_int · t) where H_int depends on the
+    coupling type. This entangles the interferometer with the ancilla,
+    enabling quantum-enhanced metrology protocols.
+
+    Coupling types:
+    - "phase_coupling": H = g · n_photon · J_z
+      Phase-dependent coupling (phase estimation).
+    - "flip_flop": H = g · (a + a†) ⊗ J_x
+      Exchange coupling (useful for entanglement generation).
+
+    Args:
+        g: Coupling strength (dimensionless when combined with time).
+        interaction_time: Interaction duration (dimensionless).
+        coupling_type: Type of system-ancilla coupling.
+        max_photons: Maximum photon number in the system.
+        ancilla_dim: Dimension of the ancilla Hilbert space.
+
+    Returns:
+        Unitary matrix of dimension (sys_dim × ancilla_dim)².
     """
     a0, a1, a0_dag, a1_dag = create_system_operators(max_photons)
     jx, jz = create_ancilla_operators(ancilla_dim)
@@ -235,14 +425,38 @@ def evolve_mzi(
     max_photons: int,
     ancilla_dim: int,
 ) -> np.ndarray:
-    """
-    Evolve initial state through MZI with ancilla.
+    """Evolve an initial system state through a Mach-Zehnder interferometer.
 
-    Circuit:
-    1. BS1: Beam splitter 1
-    2. Phase shift in arm 1
-    3. System-ancilla interaction
-    4. BS2: Beam splitter 2
+    Simulates the full interferometer circuit including beam splitters,
+    phase shift, and optional system-ancilla coupling for quantum-enhanced
+    protocols. The ancilla is initialized in its ground state.
+
+    Circuit sequence:
+        1. BS1: First beam splitter (mode mixing)
+        2. Phase: Phase shift on mode 1 (the parameter to estimate)
+        3. Interaction: System-ancilla coupling (entanglement)
+        4. BS2: Second beam splitter (interference)
+
+    Args:
+        initial_system_state: Initial state of the two-mode system
+            (vector in truncated Fock space).
+        theta: Beam splitter transmittance angle (π/4 for 50/50).
+        phi_bs: Beam splitter phase parameter.
+        phi_phase: Phase shift in arm 1 (the unknown parameter).
+        g: System-ancilla coupling strength.
+        interaction_time: Duration of system-ancilla interaction.
+        coupling_type: Type of coupling ("phase_coupling" or "flip_flop").
+        max_photons: Maximum photons per mode (Hilbert space truncation).
+        ancilla_dim: Dimension of ancilla Hilbert space.
+
+    Returns:
+        Final state vector of dimension (sys_dim × ancilla_dim).
+
+    Example:
+        >>> state = vacuum_state(max_photons=2)
+        >>> final = evolve_mzi(state, np.pi/4, 0, 1.0, 0, 0, "phase_coupling", 2, 3)
+        >>> final.shape  # (9 * 3,) = (27,)
+        (27,)
     """
     ancilla_dim_val = ancilla_dim
 
@@ -281,11 +495,30 @@ def get_reduced_density_matrix(
     ancilla_dim: int,
     trace_out_ancilla: bool = True,
 ) -> np.ndarray:
-    """
-    Get density matrix.
+    """Compute the density matrix from a pure state vector.
 
-    If trace_out_ancilla=True: returns reduced system density matrix
-    If trace_out_ancilla=False: returns full system+ancilla density matrix
+    Constructs the density matrix ρ = |ψ⟩⟨ψ| from the state vector.
+    Optionally traces out the ancilla to obtain the reduced system
+    density matrix (useful for computing expectation values and
+    probabilities).
+
+    Args:
+        full_state: State vector in the combined system-ancilla Hilbert
+            space of dimension (sys_dim × ancilla_dim).
+        max_photons: Maximum photons per mode (determines sys_dim).
+        ancilla_dim: Dimension of the ancilla Hilbert space.
+        trace_out_ancilla: If True, return reduced system density matrix
+            by tracing out ancilla. If False, return full density matrix.
+
+    Returns:
+        Density matrix. If trace_out_ancilla=True, dimension is
+        (sys_dim × sys_dim). Otherwise (full_dim × full_dim).
+
+    Example:
+        >>> rho_full = get_reduced_density_matrix(state, 2, 3, trace_out=False)
+        >>> rho_sys = get_reduced_density_matrix(state, 2, 3, trace_out=True)
+        >>> rho_sys.shape  # (9, 9)
+        (9, 9)
     """
     sys_dim = (max_photons + 1) ** 2
 
@@ -304,8 +537,27 @@ def get_reduced_density_matrix(
 def compute_output_probabilities(
     full_state: np.ndarray, max_photons: int, ancilla_dim: int
 ) -> Tuple[float, float]:
-    """
-    Compute probability of finding photon in output mode 0 vs mode 1.
+    """Compute detection probabilities at the two output ports.
+
+    Calculates the probability of finding photons in output mode 0
+    versus output mode 1 after the second beam splitter. This is
+    the probability distribution measured by photon counters at
+    the interferometer outputs.
+
+    The probability is computed as the expectation value of the
+    photon number operator in each mode, weighted by the diagonal
+    elements of the reduced density matrix.
+
+    Args:
+        full_state: Final state after MZI evolution.
+        max_photons: Maximum photons per mode in the truncation.
+        ancilla_dim: Dimension of ancilla Hilbert space.
+
+    Returns:
+        Tuple (P0, P1) where:
+        - P0: Probability of detecting photon in output mode 0
+        - P1: Probability of detecting photon in output mode 1
+        Both sum to 1 (if total photon number > 0).
     """
     rho_sys = get_reduced_density_matrix(
         full_state, max_photons, ancilla_dim, trace_out_ancilla=True
@@ -340,7 +592,34 @@ def compute_interference_fringe(
     max_photons: int,
     ancilla_dim: int,
 ) -> np.ndarray:
-    """Compute interference pattern: P(out0) vs phase."""
+    """Compute the interference fringe: output probability vs phase.
+
+    Sweeps the phase shift parameter and computes the output
+    probability at each phase value. This produces the characteristic
+    interference pattern used in phase estimation experiments.
+
+    Args:
+        phase_range: Array of phase values (in radians) to evaluate.
+        initial_system_state: Initial state injected into the interferometer.
+        theta: Beam splitter transmittance angle.
+        phi_bs: Beam splitter phase parameter.
+        g: System-ancilla coupling strength.
+        interaction_time: Interaction duration.
+        coupling_type: Coupling type for system-ancilla entanglement.
+        max_photons: Maximum photons per mode.
+        ancilla_dim: Dimension of ancilla Hilbert space.
+
+    Returns:
+        Array of P0 probabilities corresponding to each phase in
+        phase_range.
+
+    Example:
+        >>> phases = np.linspace(0, 2*np.pi, 100)
+        >>> fringe = compute_interference_fringe(phases, vacuum_state(2),
+        ...     np.pi/4, 0, 0, 0, "phase_coupling", 2, 3)
+        >>> fringe.shape
+        (100,)
+    """
     probs = []
     for phi in phase_range:
         state = evolve_mzi(
@@ -370,7 +649,31 @@ def compute_all_stage_states(
     max_photons: int,
     ancilla_dim: int,
 ) -> dict:
-    """Compute states at each stage of MZI."""
+    """Compute the quantum state at each stage of the MZI circuit.
+
+    Provides access to intermediate states for debugging, visualization,
+    and analysis of the interferometer evolution. Useful for understanding
+    how information propagates through the circuit.
+
+    Args:
+        initial_system_state: Initial system state before BS1.
+        theta: Beam splitter transmittance angle.
+        phi_bs: Beam splitter phase.
+        phi_phase: Phase shift in arm 1.
+        g: System-ancilla coupling strength.
+        interaction_time: Interaction duration.
+        coupling_type: Type of coupling.
+        max_photons: Maximum photons per mode.
+        ancilla_dim: Dimension of ancilla.
+
+    Returns:
+        Dictionary with keys:
+        - "initial": State before BS1 (system ⊗ ancilla)
+        - "after_bs1": State after first beam splitter
+        - "after_phase": State after phase shift
+        - "after_interaction": State after system-ancilla coupling
+        - "final": State after second beam splitter (output)
+    """
     anc = ancilla_dim
 
     # Initial ancilla
@@ -418,7 +721,37 @@ def prepare_input_state(
     alpha: complex = 1.0 + 0j,
     mode: int = 0,
 ) -> np.ndarray:
-    """Prepare input state based on type."""
+    """Prepare an input state for the interferometer.
+
+    Factory function that creates various initial states commonly
+    used in quantum optics and quantum metrology experiments.
+
+    Args:
+        state_type: Type of state to prepare. Options:
+            - "vacuum": |0, 0⟩ (no photons)
+            - "single_photon": |1, 0⟩ or |0, 1⟩ (use mode parameter)
+            - "coherent": Coherent state |α⟩ (use alpha parameter)
+            - "fock": Fock state |n, 0⟩ (use n_particles)
+            - "noon": NOON state (|N,0⟩ + |0,N⟩)/√2 (use n_particles)
+        max_photons: Maximum photon number per mode for truncation.
+        n_particles: Number of photons for "fock" or "noon" states.
+        alpha: Complex amplitude for coherent state (default: 1.0).
+        mode: Which mode for single photon (0 or 1).
+
+    Returns:
+        State vector in the truncated Fock basis.
+
+    Raises:
+        ValueError: If state_type is not recognized.
+
+    Example:
+        >>> # Single photon in mode 0
+        >>> state = prepare_input_state("single_photon", max_photons=2, mode=0)
+        >>> # Coherent state with amplitude 2
+        >>> state = prepare_input_state("coherent", max_photons=10, alpha=2.0)
+        >>> # NOON state for 5 photons
+        >>> state = prepare_input_state("noon", max_photons=5, n_particles=5)
+    """
     match state_type:
         case "vacuum":
             return vacuum_state(max_photons)
@@ -442,11 +775,44 @@ def prepare_input_state(
 
 
 def validate_state(state: np.ndarray) -> bool:
-    """Validate that state is normalized."""
+    """Check if a state vector is normalized.
+
+    Validates that the input is a proper quantum state by checking
+    that its L2 norm equals 1 (within numerical tolerance).
+
+    Args:
+        state: State vector to validate.
+
+    Returns:
+        True if the state is normalized (||ψ|| = 1), False otherwise.
+
+    Example:
+        >>> state = fock_state(1, 0, max_photons=2)
+        >>> validate_state(state)
+        True
+        >>> validate_state(state * 0.5)  # Not normalized
+        False
+    """
     norm = np.sqrt(np.sum(np.abs(state) ** 2))
     return np.isclose(norm, 1.0, atol=1e-10)
 
 
 def validate_unitary(U: np.ndarray, tol: float = 1e-8) -> bool:
-    """Validate that matrix is unitary."""
+    """Check if a matrix is unitary.
+
+    Validates that U†U = I within numerical tolerance. This is
+    essential for verifying that operator constructions are correct.
+
+    Args:
+        U: Matrix to validate.
+        tol: Numerical tolerance for the check (default: 1e-8).
+
+    Returns:
+        True if the matrix is unitary, False otherwise.
+
+    Example:
+        >>> bs = beam_splitter_unitary(np.pi/4, 0, max_photons=2)
+        >>> validate_unitary(bs)
+        True
+    """
     return np.allclose(U @ U.conj().T, np.eye(U.shape[0]), atol=tol)

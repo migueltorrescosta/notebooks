@@ -1,3 +1,15 @@
+"""
+Visualization utilities for quantum dynamics and state evolution.
+
+This module provides plotting functions for:
+- Fourier transforms of time-domain signals
+- Population dynamics of quantum states over time
+- Density matrix heatmaps showing real and imaginary parts
+
+All functions use Matplotlib for rendering and include appropriate
+assertions to validate physical constraints (Hermiticity, normalization).
+"""
+
 from typing import List, Optional
 from collections.abc import Callable
 
@@ -13,6 +25,25 @@ def fourier_transform(
     b: float = 10**2,
     time_domain_n: int = 10**5,
 ) -> None:
+    """Compute and visualize the Fourier transform of a real-valued function.
+
+    Samples the function over the interval [a, b] and displays three panels:
+    1. Time domain (original signal)
+    2. Frequency domain (magnitude of FFT)
+    3. Frequency domain (phase of FFT)
+
+    Args:
+        f: Real-valued function to transform. Should be well-behaved
+            over the interval [a, b].
+        a: Start of time interval (default: -100).
+        b: End of time interval (default: 100).
+        time_domain_n: Number of sampling points (default: 100000).
+            Higher values give better frequency resolution.
+
+    Note:
+        The FFT assumes periodic boundary conditions. Non-periodic
+        signals will show spectral leakage.
+    """
     x_axis = np.linspace(a, b, time_domain_n)
     time_frequency = np.divide(b - a, time_domain_n)
     y = [f(t) for t in x_axis]
@@ -35,12 +66,36 @@ def finite_dimensional_populations_over_time(
     time_window_upper_bound: int = 10,
     labels: Optional[List[str]] = None,
 ) -> None:
-    """Compute and plot populations over time using eigendecomposition.
+    """Compute and plot quantum state populations over time.
 
-    Uses eigendecomposition to avoid computing expm() for each time point.
-    For diagonal Hamiltonian H, populations are time-invariant:
-        ρ_ii(t) = |⟨φ_i|ψ₀⟩|² = constant
-    Off-diagonal elements have phase factor exp(-i(E_i-E_j)t).
+    Uses eigendecomposition to compute time evolution of populations
+    (diagonal elements of the density matrix in the energy basis).
+    For time-independent Hamiltonians, populations are constants of
+    motion when expressed in the energy eigenbasis.
+
+    For a diagonal Hamiltonian H = diag(E₀, E₁, ...), the population
+    of eigenstate |i⟩ is time-independent:
+        ρ_ii(t) = |⟨φ_i|ψ₀⟩|² = |(V^dagger @ ψ₀)_i|²
+
+    Off-diagonal elements acquire phase factors exp(-i(E_i - E_j)t).
+
+    Args:
+        hamiltonian: Square Hermitian matrix representing the system
+            Hamiltonian. Must be square and symmetric (Hermitian).
+        rho0: Initial density matrix. Must have same dimension as
+            Hamiltonian and trace 1.
+        time_window_upper_bound: Upper bound of the time interval
+            for plotting (default: 10 in dimensionless units).
+        labels: Optional list of labels for each state. Must match
+            the dimension of rho0.
+
+    Raises:
+        AssertionError: If Hamiltonian is not square.
+        AssertionError: If Hamiltonian is not Hermitian.
+        AssertionError: If rho0 dimension doesn't match Hamiltonian.
+        AssertionError: If time_window_upper_bound is not positive.
+        AssertionError: If rho0 doesn't have trace 1.
+        AssertionError: If number of labels doesn't match dimension.
     """
     n_states = hamiltonian.shape[0]
 
@@ -86,6 +141,33 @@ def finite_dimensional_populations_over_time(
 def quantum_state_heatmap(
     hamiltonian: np.ndarray, rho0: np.ndarray, t: float = 0
 ) -> None:
+    """Plot the real and imaginary parts of a time-evolved density matrix.
+
+    Computes the density matrix at time t via unitary evolution:
+        ρ(t) = U(t) ρ₀ U(t)⁻¹  where U(t) = exp(-iHt)
+
+    Displays two heatmaps side by side showing the real and imaginary
+    components of the density matrix. This is useful for visualizing
+    quantum state coherence and off-diagonal elements.
+
+    Args:
+        hamiltonian: Square Hermitian matrix representing the system
+            Hamiltonian.
+        rho0: Initial density matrix at time t=0.
+        t: Time at which to evaluate the evolved density matrix
+            (default: 0, which shows the initial state).
+
+    Raises:
+        AssertionError: If Hamiltonian is not square.
+        AssertionError: If Hamiltonian is not Hermitian.
+        AssertionError: If rho0 dimension doesn't match Hamiltonian.
+
+    Note:
+        This function directly computes expm(-iHt), which becomes
+        inefficient for large Hilbert spaces. For large systems,
+        consider using the eigendecomposition method in
+        `finite_dimensional_populations_over_time`.
+    """
     rho_t = expm(-1j * hamiltonian * t) @ rho0 @ expm(1j * hamiltonian * t)
     fig, (ax1, ax2) = plt.subplots(1, 2)
 
