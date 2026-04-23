@@ -54,6 +54,7 @@ class TestInitialStates:
 class TestHamiltonian:
     def test_hamiltonian_hermitian(self) -> None:
         """Hamiltonian should be Hermitian."""
+
         def pot(x: float) -> float:
             return 0.1 * x**2
 
@@ -64,8 +65,6 @@ class TestHamiltonian:
 class TestEigendecomposition:
     def test_energy_levels_positive(self) -> None:
         """Energy levels should be positive for bound potential."""
-        x = np.linspace(-3, 3, 100)
-        dx = x[1] - x[0]
 
         def pot(x: float) -> float:
             return 0.1 * x**2
@@ -80,8 +79,6 @@ class TestEigendecomposition:
 
     def test_normalize_energy_levels(self) -> None:
         """Normalized components should be real."""
-        x = np.linspace(-3, 3, 100)
-        dx = x[1] - x[0]
 
         def pot(x: float) -> float:
             return 0.1 * x**2
@@ -100,7 +97,6 @@ class TestEigendecomposition:
 class TestTimeEvolution:
     def test_evolver_conserves_probability(self) -> None:
         """Time evolver should conserve probability."""
-        x = np.linspace(-3, 3, 100)
 
         def pot(x: float) -> float:
             return 0.1 * x**2

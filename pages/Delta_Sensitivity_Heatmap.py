@@ -1,18 +1,18 @@
 """Delta Sensitivity Heatmap UI page - imports physics from src.sensitivity_analysis."""
 
 import itertools
-from typing import Any
 import multiprocessing
 import numpy as np
 import pandas as pd
 import streamlit as st
 
 from src.sensitivity_analysis import sensitivity
-from src.sensitivity_analysis import compute_sensitivity_grid
 
 cpus = multiprocessing.cpu_count()
 
-st.set_page_config(page_title="Delta Sensitivity Heatmap", page_icon="📈️", layout="wide")
+st.set_page_config(
+    page_title="Delta Sensitivity Heatmap", page_icon="📈️", layout="wide"
+)
 
 st.header("Delta Sensitivity Heatmap", divider="blue")
 
@@ -83,10 +83,21 @@ def compute_sensitivity_df(
     ]
     pool = multiprocessing.Pool(processes=cpus)
     results = pool.starmap(sensitivity, star_generator)
-    return pd.DataFrame(data=results, columns=[
-        "n", "k", "j_s", "delta_s", "alpha_x", "alpha_z", "t",
-        "omega_k", "sensitivity_to_j", "sensitivity_to_delta",
-    ])
+    return pd.DataFrame(
+        data=results,
+        columns=[
+            "n",
+            "k",
+            "j_s",
+            "delta_s",
+            "alpha_x",
+            "alpha_z",
+            "t",
+            "omega_k",
+            "sensitivity_to_j",
+            "sensitivity_to_delta",
+        ],
+    )
 
 
 sensitivity_df = compute_sensitivity_df(n, k, j_s, delta_s, alpha_x, alpha_z, t)
@@ -96,9 +107,16 @@ sensitivity_df = compute_sensitivity_df(n, k, j_s, delta_s, alpha_x, alpha_z, t)
 def plot_sensitivity(df: pd.DataFrame, title: str, values: str):
     import matplotlib.pyplot as plt
     import seaborn as sns
+
     fig, ax = plt.subplots()
     ax.set_title(title)
-    sns.heatmap(df.pivot(index="alpha_x", columns="alpha_z", values=values), ax=ax, vmin=-1, vmax=1, cmap="viridis")
+    sns.heatmap(
+        df.pivot(index="alpha_x", columns="alpha_z", values=values),
+        ax=ax,
+        vmin=-1,
+        vmax=1,
+        cmap="viridis",
+    )
     st.pyplot(fig)
 
 
@@ -108,4 +126,6 @@ with sensitivity_column_1:
 with sensitivity_column_2:
     plot_sensitivity(sensitivity_df, "Sensitivity to delta_S", "sensitivity_to_delta")
 
-st.latex(r"""\omega_k :=  \sqrt{\left ( \alpha_z \frac{N-2k}{2} + \delta_S \right )^2 +  \left ( \alpha_x \frac{N-2k}{2} - J_S \right )^2}""")
+st.latex(
+    r"""\omega_k :=  \sqrt{\left ( \alpha_z \frac{N-2k}{2} + \delta_S \right )^2 +  \left ( \alpha_x \frac{N-2k}{2} - J_S \right )^2}"""
+)

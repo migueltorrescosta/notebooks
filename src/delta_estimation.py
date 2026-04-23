@@ -19,12 +19,21 @@ Units:
 
 from dataclasses import dataclass
 from typing import Dict, Tuple
+
 import functools
 
 import numpy as np
 import scipy.linalg
 
 from src.angular_momentum import generate_spin_matrices
+from src.validators import (
+    validate_hamiltonian_delta_estimation,
+    validate_state_delta_estimation,
+)
+
+# Aliases for backward compatibility
+validate_state = validate_state_delta_estimation
+validate_hamiltonian = validate_hamiltonian_delta_estimation
 
 
 # =============================================================================
@@ -69,7 +78,9 @@ class DeltaEstimationConfig:
 _paired_operators: Dict[int, Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = {}
 
 
-def _get_paired_operators(dim: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def _get_paired_operators(
+    dim: int,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Get or compute paired spin matrices for system and ancilla.
 
     Args:
@@ -90,9 +101,7 @@ def _get_paired_operators(dim: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray,
 # =============================================================================
 
 
-def generate_initial_state(
-    ancillary_dimension: int, initial_state: int
-) -> np.ndarray:
+def generate_initial_state(ancillary_dimension: int, initial_state: int) -> np.ndarray:
     """Generate the initial density matrix for system-ancilla state.
 
     Creates |ρ₀⟩⟨ρ₀| ⊗ |k⟩⟨k| where:
@@ -208,7 +217,7 @@ def generate_hamiltonian(config: DeltaEstimationConfig) -> np.ndarray:
 # =============================================================================
 
 
-def generate_evolved_system_state(
+def evolve_density_matrix(
     hamiltonian: np.ndarray, initial_state: np.ndarray, time: float
 ) -> np.ndarray:
     """Evolve the initial state under the Hamiltonian.
@@ -236,7 +245,7 @@ def generate_evolved_system_state(
 # =============================================================================
 
 
-def trace_out_ancilla(full_system: np.ndarray) -> np.ndarray:
+def partial_trace_b(full_system: np.ndarray) -> np.ndarray:
     """Trace out the ancilla system to get reduced system density matrix.
 
     Performs Tr_A[ρ_SA] where ρ_SA is the full density matrix.
@@ -319,12 +328,12 @@ def full_calculation(config: DeltaEstimationConfig) -> Dict[str, float]:
         ancillary_dimension=config.ancillary_dimension,
         initial_state=config.ancillary_initial_state,
     )
-    rho_t = generate_evolved_system_state(
+    rho_t = evolve_density_matrix(
         hamiltonian=hamiltonian,
         initial_state=initial_state,
         time=config.t,
     )
-    rho_system_t = trace_out_ancilla(rho_t)
+    rho_system_t = partial_trace_b(rho_t)
     observables = compute_observables(rho_system_t)
 
     return {
@@ -338,45 +347,3 @@ def full_calculation(config: DeltaEstimationConfig) -> Dict[str, float]:
 
 
 # =============================================================================
-# Validation
-# =============================================================================
-
-
-def validate_state(state: np.ndarray, expected_dims: Tuple[int, int]) -> bool:
-    """Validate that a state matrix has the expected dimensions and is a valid density matrix.
-
-    Args:
-        state: State matrix to validate.
-        expected_dims: Expected dimensions (rows, cols).
-
-    Returns:
-        True if valid, False otherwise.
-    """
-    if state.shape != expected_dims:
-        return False
-    # Check Hermitian
-    if not np.allclose(state, state.conj().T):
-        return False
-    # Check trace = 1
-    if not np.isclose(np.trace(state), 1.0):
-        return False
-    # Check positive semidefinite (eigenvalues >= 0)
-    eigenvals = np.linalg.eigvalsh(state)
-    if not np.all(eigenvals >= -1e-10):
-        return False
-    return True
-
-
-def validate_hamiltonian(hamiltonian: np.ndarray) -> bool:
-    """Validate that a matrix is a valid Hermitian Hamiltonian.
-
-    Args:
-        hamiltonian: Hamiltonian matrix to validate.
-
-    Returns:
-        True if valid, False otherwise.
-    """
-    # Check Hermitian: H = H^\dagger
-    if not np.allclose(hamiltonian, hamiltonian.conj().T):
-        return False
-    return True

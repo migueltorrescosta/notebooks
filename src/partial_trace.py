@@ -26,6 +26,10 @@ import numpy as np
 import scipy.linalg
 
 from src.angular_momentum import generate_spin_matrices
+from src.validators import validate_partial_trace
+
+# Alias for backward compatibility
+validate_partial_trace = validate_partial_trace
 
 
 # =============================================================================
@@ -306,49 +310,3 @@ def compute_reduced_densities(
 
 
 # =============================================================================
-# Validation
-# =============================================================================
-
-
-def validate_partial_trace(
-    rho_full: np.ndarray,
-    rho_a: np.ndarray,
-    rho_b: np.ndarray,
-    tolerance: float = 1e-8,
-) -> bool:
-    """Validate partial trace properties.
-
-    Checks:
-    1. Tr_A[Tr_B[ρ]] = Tr[ρ] = 1
-    2. Tr_B[ρ] has trace = Tr_A[ρ]
-    3. Reduced matrices are positive semidefinite
-
-    Args:
-        full_density: Full density matrix.
-        rho_a: Reduced density for A.
-        rho_b: Reduced density for B.
-        tolerance: Tolerance.
-
-    Returns:
-        True if valid.
-    """
-    # Check trace = 1
-    if not np.isclose(np.trace(rho_full), 1.0, atol=tolerance):
-        return False
-
-    # Check equality of traces
-    if not np.isclose(
-        np.trace(rho_a), np.trace(rho_b), atol=tolerance
-    ):
-        return False
-
-    # Check Hermitian
-    if not np.allclose(rho_full, rho_full.conj().T):
-        return False
-
-    # Check positive semidefinite (full)
-    eigenvals = np.linalg.eigvalsh(rho_full)
-    if not np.all(eigenvals >= -tolerance):
-        return False
-
-    return True

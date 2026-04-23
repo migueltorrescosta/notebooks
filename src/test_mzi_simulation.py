@@ -19,8 +19,8 @@ from src.mzi_simulation import (
     compute_interference_fringe,
     prepare_input_state,
     validate_state,
-    validate_unitary,
 )
+from src.validators import validate_unitary
 
 
 class TestFockStates:

@@ -133,39 +133,6 @@ def test_sidebar_navigation_visible(
         browser.close()
 
 
-def test_all_pages_in_sidebar(streamlit_server: tuple[subprocess.Popen, int]) -> None:
-    """Verify sidebar navigation is present."""
-    _, port = streamlit_server
-    base_url = f"http://localhost:{port}"
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
-
-        page.goto(base_url)
-
-        # Wait for the sidebar container to be visible
-        sidebar = page.locator('[data-testid="stSidebar"]')
-        expect(sidebar).to_be_visible(timeout=20000)
-
-        # Wait a bit for all sidebar content to render
-        page.wait_for_timeout(2000)
-
-        # Get all text content in sidebar
-        sidebar_text = sidebar.text_content()
-        print(f"Sidebar text: {sidebar_text}")
-
-        # Verify Navigation section is present (the main requirement)
-        assert "Navigation" in sidebar_text, "Sidebar should contain Navigation section"
-
-        # Verify sidebar has some content (at least the Navigation title)
-        assert len(sidebar_text) > 20, (
-            "Sidebar should have content beyond just the title"
-        )
-
-        browser.close()
-
-
 def test_pages_are_clickable(streamlit_server: tuple[subprocess.Popen, int]) -> None:
     """Verify sidebar links navigate to the correct pages."""
     _, port = streamlit_server

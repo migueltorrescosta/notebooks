@@ -2,126 +2,19 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
-import scipy.linalg
 
-from src.angular_momentum import generate_spin_matrices
+from src.delta_estimation import (
+    DeltaEstimationConfig,
+    full_calculation,
+    generate_initial_state,
+    generate_hamiltonian,
+    evolve_density_matrix,
+    partial_trace_b,
+)
 
-
-# Import the functions we need to test
-# We'll recreate them here to avoid Streamlit dependencies
-
-
-@dataclass
-class RunOptions:
-    """Configuration for a single simulation run."""
-
-    ancillary_dimension: int = 5
-    ancillary_initial_state: int = 0
-    j_s: float = -5.2515
-    delta_s: float = 3.0
-    j_a: float = 0.27688
-    u_a: float = 3.9666
-    delta_a: float = -3.8515472
-    alpha_xx: float = 0.501046930
-    alpha_xz: float = -0.843229248
-    alpha_zx: float = -1.66364957
-    alpha_zz: float = -3.09656175
-    t: float = 0
-
-
-def generate_initial_state(ancillary_dimension: int, initial_state: int) -> np.ndarray:
-    """Generate the initial density matrix state."""
-    assert initial_state <= ancillary_dimension
-    rho0 = np.array([1, 0])
-    rho_aux_0 = np.zeros(ancillary_dimension)
-    rho_aux_0[initial_state] = 1
-    return np.kron(
-        np.outer(rho0, rho0),
-        np.outer(rho_aux_0, rho_aux_0),
-    )
-
-
-def generate_hamiltonian(run_options: RunOptions) -> np.ndarray:
-    """Generate the full system Hamiltonian."""
-    import functools
-
-    sigma_x, sigma_z = generate_spin_matrices(dim=2)
-    jx, jz = generate_spin_matrices(dim=run_options.ancillary_dimension)
-
-    system_hamiltonian = np.kron(
-        -1 * run_options.j_s * sigma_x + run_options.delta_s * sigma_z,
-        np.divide(
-            np.eye(run_options.ancillary_dimension), run_options.ancillary_dimension
-        ),
-    )
-    ancillary_hamiltonian = np.kron(
-        np.divide(np.eye(2), 2),
-        -1 * run_options.j_a * jx
-        + run_options.u_a * jz @ jz
-        + run_options.delta_a * jz,
-    )
-    interaction_hamiltonian = functools.reduce(
-        lambda x, y: x + y,
-        [
-            run_options.alpha_xx * np.kron(sigma_x, jx),
-            run_options.alpha_xz * np.kron(sigma_x, jz),
-            run_options.alpha_zx * np.kron(sigma_z, jx),
-            run_options.alpha_zz * np.kron(sigma_z, jz),
-        ],
-    )
-    return system_hamiltonian + ancillary_hamiltonian + interaction_hamiltonian
-
-
-def generate_evolved_system_state(
-    hamiltonian: np.ndarray, initial_state: np.ndarray, time: float
-) -> np.ndarray:
-    """Generate the time-evolved state."""
-    return np.array(
-        scipy.linalg.expm(-1j * time * hamiltonian)
-        @ initial_state
-        @ scipy.linalg.expm(1j * time * hamiltonian),
-        dtype=complex,
-    )
-
-
-def trace_out_ancillary(full_system: np.ndarray) -> np.ndarray:
-    """Trace out the ancillary system to get reduced density matrix."""
-    derived_ancillary_dimension: int = (
-        full_system.shape[0] // 2
-    )  # only works if dim_S = 2
-    return np.trace(
-        np.array(full_system).reshape(
-            2, derived_ancillary_dimension, 2, derived_ancillary_dimension
-        ),
-        axis1=1,
-        axis2=3,
-    )
-
-
-def full_calculation(run_options: RunOptions) -> dict[str, float]:
-    """Perform the full calculation for a given configuration."""
-    hamiltonian = generate_hamiltonian(run_options=run_options)
-    initial_state = generate_initial_state(
-        ancillary_dimension=run_options.ancillary_dimension,
-        initial_state=run_options.ancillary_initial_state,
-    )
-    rho_t = generate_evolved_system_state(
-        hamiltonian=hamiltonian, initial_state=initial_state, time=run_options.t
-    )
-    rho_system_t = trace_out_ancillary(full_system=rho_t)
-    observable = np.array([[1, 0], [0, -1]])  # sigma_z
-
-    return {
-        "time": run_options.t,
-        "<0|rho_system_t|0>": rho_system_t[0][0].real,
-        "<1|rho_system_t|1>": rho_system_t[1][1].real,
-        "expected_sigma_z": np.trace(rho_system_t @ observable).real,
-        "variance_sigma_z": 1 - np.trace(rho_system_t @ observable).real ** 2,
-        "delta_s": run_options.delta_s,
-    }
+# Alias for backward compatibility in tests
+RunOptions = DeltaEstimationConfig
 
 
 class TestInitialStateGeneration:
@@ -213,7 +106,7 @@ class TestStateEvolution:
             H = generate_hamiltonian(run_options)
 
             for t in [0.0, 0.5, 1.0, 2.0]:
-                rho_t = generate_evolved_system_state(H, initial_state, t)
+                rho_t = evolve_density_matrix(H, initial_state, t)
                 trace = np.trace(rho_t)
                 assert np.isclose(trace.real, 1.0, atol=1e-10), (
                     f"Trace should be 1 at t={t}, got {trace}"
@@ -226,7 +119,7 @@ class TestStateEvolution:
         H = generate_hamiltonian(run_options)
 
         for t in [0.0, 0.5, 1.0]:
-            rho_t = generate_evolved_system_state(H, initial_state, t)
+            rho_t = evolve_density_matrix(H, initial_state, t)
             assert np.allclose(rho_t, rho_t.conj().T, atol=1e-10), (
                 f"Density matrix should be Hermitian at t={t}"
             )
@@ -237,7 +130,7 @@ class TestStateEvolution:
         initial_state = generate_initial_state(run_options.ancillary_dimension, 0)
         H = generate_hamiltonian(run_options)
 
-        rho_t = generate_evolved_system_state(H, initial_state, 0.0)
+        rho_t = evolve_density_matrix(H, initial_state, 0.0)
         assert np.allclose(rho_t, initial_state, atol=1e-10), (
             "At t=0, should return initial state"
         )
@@ -248,7 +141,7 @@ class TestStateEvolution:
         initial_state = generate_initial_state(run_options.ancillary_dimension, 0)
         H = generate_hamiltonian(run_options)
 
-        rho_t = generate_evolved_system_state(H, initial_state, 1.0)
+        rho_t = evolve_density_matrix(H, initial_state, 1.0)
 
         # Check trace = 1
         assert np.isclose(np.trace(rho_t).real, 1.0, atol=1e-10)
@@ -272,7 +165,7 @@ class TestPartialTrace:
             full_system = full_system @ full_system.conj().T
             full_system = full_system / np.trace(full_system)
 
-            rho_system = trace_out_ancillary(full_system)
+            rho_system = partial_trace_b(full_system)
             assert rho_system.shape == (2, 2), (
                 f"Reduced system should be 2x2, got {rho_system.shape}"
             )
@@ -287,7 +180,7 @@ class TestPartialTrace:
             full_system = full_system / np.trace(full_system)
 
             original_trace = np.trace(full_system).real
-            rho_system = trace_out_ancillary(full_system)
+            rho_system = partial_trace_b(full_system)
             reduced_trace = np.trace(rho_system).real
 
             assert np.isclose(original_trace, reduced_trace, atol=1e-10), (
@@ -299,7 +192,7 @@ class TestPartialTrace:
         dim_a = 5
         rho0 = generate_initial_state(dim_a, 0)
 
-        rho_system = trace_out_ancillary(rho0)
+        rho_system = partial_trace_b(rho0)
 
         # For |0><0| ⊗ |k><k|, the reduced system should be |0><0|
         expected = np.array([[1, 0], [0, 0]])
@@ -435,7 +328,7 @@ class TestPerformance:
 
             start = time.perf_counter()
             for _ in range(5):
-                generate_evolved_system_state(H, initial_state, 1.0)
+                evolve_density_matrix(H, initial_state, 1.0)
             elapsed = time.perf_counter() - start
 
             # Should be under 5 seconds for 5 iterations

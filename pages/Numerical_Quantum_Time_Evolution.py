@@ -3,10 +3,9 @@
 from dataclasses import dataclass
 from functools import partial
 from plotly import express as px
-from typing import List, cast
+from typing import List
 import numpy as np
 import pandas as pd
-import scipy
 import streamlit as st
 
 from src.enums import WavePacket, PotentialFunction, BoundaryCondition
@@ -26,7 +25,9 @@ from src.quantum_time_evolution import (
 from src.plotting import plot_array
 
 
-st.set_page_config(page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide")
+st.set_page_config(
+    page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide"
+)
 
 st.cache_data.clear()
 st.cache_resource.clear()
@@ -93,7 +94,9 @@ with st.sidebar:
                 d = st.number_input("$d$", min_value=0.0, value=1.0)
                 initial_momentum = st.number_input("$p$", value=2.0)
                 initial_center_of_mass = st.number_input("$x_0$", value=-1.0)
-                phi_zero = gaussian_wave_packet(valid_x, d=d, x0=initial_center_of_mass, p=initial_momentum)
+                phi_zero = gaussian_wave_packet(
+                    valid_x, d=d, x0=initial_center_of_mass, p=initial_momentum
+                )
             case WavePacket.Step.value:
                 st.latex(r"\mathbb{1}_{{[r,s]}}e^{{ipx}}")
                 r = st.number_input("$r$", value=-1.0)
@@ -114,12 +117,16 @@ with st.sidebar:
                 st.latex(r"a(x-c)^2")
                 potential_increase = st.number_input("$a$", value=0.2)
                 potential_center = st.number_input("$c$", value=0.0)
-                potential_x = partial(potential_quadratic, a=potential_increase, c=potential_center)
+                potential_x = partial(
+                    potential_quadratic, a=potential_increase, c=potential_center
+                )
             case PotentialFunction.Quartic.value:
                 st.latex(r"a(x-c)^4")
                 potential_increase = st.number_input("$a$", value=0.05)
                 potential_center = st.number_input("$c$", value=0.0)
-                potential_x = partial(potential_quartic, a=potential_increase, c=potential_center)
+                potential_x = partial(
+                    potential_quartic, a=potential_increase, c=potential_center
+                )
             case PotentialFunction.Trigonometric.value:
                 width = x_max - x_min
                 st.latex(r"a\cos(\phi + 2\pi kx)")
@@ -127,7 +134,13 @@ with st.sidebar:
                 phase = st.number_input(r"$\phi$", value=0.0)
                 width = x_max - x_min
                 k = st.number_input("$k$", min_value=0.0, value=4.0)
-                potential_x = partial(potential_trigonometric, amplitude=amplitude, phase=phase, k=k, width=width)
+                potential_x = partial(
+                    potential_trigonometric,
+                    amplitude=amplitude,
+                    phase=phase,
+                    k=k,
+                    width=width,
+                )
             case PotentialFunction.Uniform.value:
                 st.latex(r"ax")
                 a = st.number_input("$a$", value=1.0)
@@ -139,7 +152,9 @@ with st.sidebar:
                 c = st.number_input("$c$", min_value=0.0, value=3.0)
                 potential_x = partial(potential_double_well, a=a, b=b, c=c)
 
-        boundary_condition = st.selectbox("Boundary Condition", [f.value for f in BoundaryCondition])
+        boundary_condition = st.selectbox(
+            "Boundary Condition", [f.value for f in BoundaryCondition]
+        )
 
 st.header("Setup", divider="blue")
 
@@ -163,12 +178,17 @@ for tab, content in zip(tabs, list(methodology_info.keys())):
 c1, c2, c3 = st.columns([5, 1, 5])
 with c1:
     st.header(r"Initial state $\ket{\psi_0}$", divider="orange")
-    st.line_chart(pd.DataFrame({
-        "Re": np.real(phi_zero),
-        "Im": np.imag(phi_zero),
-        "Norm": np.sqrt(np.real(phi_zero) ** 2 + np.imag(phi_zero) ** 2),
-        "x": valid_x,
-    }), x="x")
+    st.line_chart(
+        pd.DataFrame(
+            {
+                "Re": np.real(phi_zero),
+                "Im": np.imag(phi_zero),
+                "Norm": np.sqrt(np.real(phi_zero) ** 2 + np.imag(phi_zero) ** 2),
+                "x": valid_x,
+            }
+        ),
+        x="x",
+    )
 
 
 # Build Hamiltonian using physics module
@@ -178,7 +198,9 @@ def build_hamiltonian_wrapper(
     inner_potential_function,  # type: ignore
     inner_boundary_condition: BoundaryCondition,
 ):
-    return build_1d_hamiltonian(inner_n, inner_dx, inner_potential_function, inner_boundary_condition)
+    return build_1d_hamiltonian(
+        inner_n, inner_dx, inner_potential_function, inner_boundary_condition
+    )
 
 
 hamiltonian = build_hamiltonian_wrapper(
@@ -196,10 +218,15 @@ wf_matrix, components, energies = normalize_energy_levels(levels)
 
 with c3:
     st.header(r"Potential $V(x)$", divider="green")
-    st.line_chart(pd.DataFrame({
-        "Potential": map(potential_x, valid_x),
-        "x": valid_x,
-    }), x="x")
+    st.line_chart(
+        pd.DataFrame(
+            {
+                "Potential": map(potential_x, valid_x),
+                "x": valid_x,
+            }
+        ),
+        x="x",
+    )
 
 
 @dataclass
@@ -211,8 +238,15 @@ class EnergyLevel:
 
 
 energy_levels = [
-    EnergyLevel(level=level, energy=energy, wave_function=wf, component=phi_zero.T @ wf)
-    for level, energy, wf in zip(range(number_of_energy_levels), np.real(energies), wf_matrix.T)
+    EnergyLevel(
+        level=level,
+        energy=energy,
+        wave_function=wf,
+        component=np.vdot(phi_zero, wf),
+    )
+    for level, energy, wf in zip(
+        range(number_of_energy_levels), np.real(energies), wf_matrix
+    )
 ]
 
 # Rotate wave functions so that all components are real valued
@@ -228,38 +262,64 @@ with c3:
         options=[el.level for el in energy_levels],
         default=range(min(4, number_of_energy_levels)),
     )
-    st.line_chart(pd.DataFrame({
-        "x": valid_x,
-        **{str(el.level): np.abs(el.wave_function) ** 2 for el in energy_levels if el.level in visible_energy_levels},
-    }), x="x")
+    st.line_chart(
+        pd.DataFrame(
+            {
+                "x": valid_x,
+                **{
+                    str(el.level): np.abs(el.wave_function) ** 2
+                    for el in energy_levels
+                    if el.level in visible_energy_levels
+                },
+            }
+        ),
+        x="x",
+    )
 
 # Orthonormality check
-ortho_error = np.sum(np.abs(np.real(wf_matrix.conj().T @ wf_matrix) - np.eye(number_of_energy_levels)))
+ortho_error = np.sum(
+    np.abs(np.real(wf_matrix @ wf_matrix.conj().T) - np.eye(number_of_energy_levels))
+)
 with c3:
     st.caption(f"Orthonormality error = {ortho_error:g}")
-assert orthonormality_error < 1e-8, "Your energy levels are not orthonormal"
+assert ortho_error < 1e-8, "Your energy levels are not orthonormal"
 
 explained_psi_zero = np.sum([np.abs(el.component) ** 2 for el in energy_levels])
 
 with c1:
     st.subheader(r"Decomposition $\ket{\psi_0} = \sum_i \lambda_i \ket{E_i}$")
-    st.scatter_chart(pd.DataFrame({
-        "probability": [np.abs(el.component) ** 2 for el in energy_levels],
-        "level": [el.level for el in energy_levels],
-        "energy": [el.energy for el in energy_levels],
-    }), x="level", y="energy", size="probability")
-    st.caption(f"We know {100 * np.sum([np.abs(el.component) ** 2 for el in energy_levels]):.20g}% of $\ket{{\psi_0}}$")
+    st.scatter_chart(
+        pd.DataFrame(
+            {
+                "probability": [np.abs(el.component) ** 2 for el in energy_levels],
+                "level": [el.level for el in energy_levels],
+                "energy": [el.energy for el in energy_levels],
+            }
+        ),
+        x="level",
+        y="energy",
+        size="probability",
+    )
+    st.caption(
+        f"We know {100 * np.sum([np.abs(el.component) ** 2 for el in energy_levels]):.20g}% of $\ket{{\psi_0}}$"
+    )
 
 with c2:
-    st.caption("\\begin{array}{c}100\\ket{\psi_0}\\\\ \\\parallel\\\\" + "\\\\".join(
-        [f"{100 * el.component:+.2f}\\ket{{ {el.level} }}" for el in energy_levels]
-    ) + "\\end{array}")
+    st.caption(
+        "\\begin{array}{c}100\\ket{\psi_0}\\\\ \\\parallel\\\\"
+        + "\\\\".join(
+            [f"{100 * el.component:+.2f}\\ket{{ {el.level} }}" for el in energy_levels]
+        )
+        + "\\end{array}"
+    )
 
 # Create evolver and compute time evolution
 evolver = TimeEvolver(wf_matrix, components, energies)
 
 st.header("Evolution", divider="red")
-st.markdown("Green represents an higher wave function amplitude, purple a lower amplitude")
+st.markdown(
+    "Green represents an higher wave function amplitude, purple a lower amplitude"
+)
 
 
 def evolve(t: float) -> np.ndarray:
@@ -269,7 +329,12 @@ def evolve(t: float) -> np.ndarray:
 
 
 time_evolution_data = pd.DataFrame(
-    data=np.array([np.abs(evolve(temp_t)) ** 2 for temp_t in np.linspace(0, time, trotterization_steps + 1)]).T,
+    data=np.array(
+        [
+            np.abs(evolve(temp_t)) ** 2
+            for temp_t in np.linspace(0, time, trotterization_steps + 1)
+        ]
+    ).T,
     columns=np.linspace(0, time, trotterization_steps + 1),
     index=valid_x,
 )
@@ -278,12 +343,14 @@ plot_array(np.array(time_evolution_data.T), midpoint=None, text_auto=False)
 
 st.header(f"Final state $\ket{{\psi_{{{time:g}}} }}$")
 phi_time = evolve(t=time)
-phi_time_df = pd.DataFrame({
-    "Re": np.real(phi_time),
-    "Im": np.imag(phi_time),
-    "Norm": np.abs(phi_time),
-    "x": valid_x,
-})
+phi_time_df = pd.DataFrame(
+    {
+        "Re": np.real(phi_time),
+        "Im": np.imag(phi_time),
+        "Norm": np.abs(phi_time),
+        "x": valid_x,
+    }
+)
 
 st.line_chart(phi_time_df, x="x")
 

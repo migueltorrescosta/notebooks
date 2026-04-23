@@ -152,9 +152,7 @@ def holder_table(x: float, y: float) -> float:
     Global minima at (±8.055, ±9.664) with f ≈ -19.2085.
     """
     return -1 * np.abs(
-        np.sin(x)
-        * np.cos(y)
-        * np.exp(np.abs(1 - np.sqrt(x**2 + y**2) / np.pi))
+        np.sin(x) * np.cos(y) * np.exp(np.abs(1 - np.sqrt(x**2 + y**2) / np.pi))
     )
 
 
@@ -163,9 +161,11 @@ def schaffer(x: float, y: float) -> float:
 
     Global minimum at (0, 0) with f(0, 0) = 0.
     """
-    return 0.5 + (
-        np.cos(np.sin(np.abs(x**2 - y**2))) ** 2 - 0.5
-    ) / (1 + 0.001 * (x**2 + y**2)) ** 2
+    return (
+        0.5
+        + (np.cos(np.sin(np.abs(x**2 - y**2))) ** 2 - 0.5)
+        / (1 + 0.001 * (x**2 + y**2)) ** 2
+    )
 
 
 def shekel(x: float, y: float) -> float:
@@ -175,7 +175,10 @@ def shekel(x: float, y: float) -> float:
     Global minimum at ~[4, 2] with f ≈ -10.536.
     """
     return -1 * sum(
-        [1 / (c + (x - a) ** 2 + (y - b) ** 2) for c, b, a in [(4, 1, 1), (5, 0, 1), (6, 0, 1)]]
+        [
+            1 / (c + (x - a) ** 2 + (y - b) ** 2)
+            for c, b, a in [(4, 1, 1), (5, 0, 1), (6, 0, 1)]
+        ]
     )
 
 
@@ -205,7 +208,9 @@ TEST_FUNCTIONS: Dict[str, Callable[[float, float], float]] = {
 # =============================================================================
 
 
-def create_minimizer(method: str) -> Callable[[Callable[..., float], np.ndarray], Dict[str, Any]]:
+def create_minimizer(
+    method: str,
+) -> Callable[[Callable[..., float], np.ndarray], Dict[str, Any]]:
     """Create a minimizer function for a given method.
 
     Args:
@@ -216,11 +221,9 @@ def create_minimizer(method: str) -> Callable[[Callable[..., float], np.ndarray]
     """
     from scipy.optimize import minimize
 
-    def minimizer(
-        func: Callable[..., float], x0: np.ndarray
-    ) -> Dict[str, Any]:
+    def minimizer(func: Callable[..., float], x0: np.ndarray) -> Dict[str, Any]:
         """Wrapper to scipy.optimize.minimize."""
-        
+
         def wrap(x: np.ndarray) -> float:
             return func(x[0], x[1])
 
@@ -303,13 +306,15 @@ def benchmark_optimizers(
         for min_name in minimizer_names:
             minimizer = MINIMIZERS[min_name]
             result = minimizer(func, x0)
-            results.append({
-                "function": func_name,
-                "minimizer": min_name,
-                "argmin": result["x"],
-                "minimum": result["fun"],
-                "success": result["success"],
-            })
+            results.append(
+                {
+                    "function": func_name,
+                    "minimizer": min_name,
+                    "argmin": result["x"],
+                    "minimum": result["fun"],
+                    "success": result["success"],
+                }
+            )
 
     return {"results": results}
 
@@ -341,7 +346,11 @@ def normalize_benchmark_results(
         range_val = max_val - min_val + 1e-10
 
         for j, min_name in enumerate(minimizers):
-            r = next(x for x in results if x["function"] == func and x["minimizer"] == min_name)
+            r = next(
+                x
+                for x in results
+                if x["function"] == func and x["minimizer"] == min_name
+            )
             values[i, j] = (r["minimum"] - min_val) / range_val
 
     return values

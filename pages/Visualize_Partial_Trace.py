@@ -4,7 +4,12 @@ import numpy as np
 import scipy.linalg
 import streamlit as st
 
-from src.partial_trace import BipartiteConfig, build_bipartite_hamiltonian_components, partial_trace_a, partial_trace_b
+from src.partial_trace import (
+    BipartiteConfig,
+    build_bipartite_hamiltonian_components,
+    partial_trace_a,
+    partial_trace_b,
+)
 from src.plotting import plot_array
 
 st.set_page_config(page_title="Partial Trace", page_icon="📐️", layout="wide")
@@ -67,12 +72,18 @@ with st.sidebar:
 
 # Build config and compute using physics module
 config = BipartiteConfig(
-    dim_a=n_a, dim_b=n_b,
-    j_a=j_a, j_b=j_b,
-    u_a=u_a, u_b=u_b,
-    delta_a=delta_a, delta_b=delta_b,
-    alpha_xx=alpha_xx, alpha_xz=alpha_xz,
-    alpha_zx=alpha_zx, alpha_zz=alpha_zz,
+    dim_a=n_a,
+    dim_b=n_b,
+    j_a=j_a,
+    j_b=j_b,
+    u_a=u_a,
+    u_b=u_b,
+    delta_a=delta_a,
+    delta_b=delta_b,
+    alpha_xx=alpha_xx,
+    alpha_xz=alpha_xz,
+    alpha_zx=alpha_zx,
+    alpha_zz=alpha_zz,
 )
 
 h_a, h_b, h_int, full_hamiltonian = build_bipartite_hamiltonian_components(config)
@@ -124,7 +135,9 @@ with c2:
     st.latex(r"H")
     plot_array(full_hamiltonian, key="H")
     st.latex(r"\ket{\psi_t} := e^{-itH} \ket{0}_A \ket{0}_B")
-    plot_array(np.abs(np.outer(evolved_state, evolved_state)) ** 2, midpoint=None, key="phi_t")
+    plot_array(
+        np.abs(np.outer(evolved_state, evolved_state)) ** 2, midpoint=None, key="phi_t"
+    )
 
 with c3:
     st.header("System B", divider="orange")

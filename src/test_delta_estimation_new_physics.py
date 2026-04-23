@@ -7,7 +7,7 @@ from src.delta_estimation import (
     DeltaEstimationConfig,
     generate_initial_state,
     generate_hamiltonian,
-    generate_evolved_system_state,
+    evolve_density_matrix,
     compute_observables,
     full_calculation,
     validate_state,
@@ -53,8 +53,10 @@ class TestEvolution:
         """Evolved state should remain normalized."""
         config = DeltaEstimationConfig()
         H = generate_hamiltonian(config)
-        rho0 = generate_initial_state(config.ancillary_dimension, config.ancillary_initial_state)
-        rho_t = generate_evolved_system_state(H, rho0, time=1.0)
+        rho0 = generate_initial_state(
+            config.ancillary_dimension, config.ancillary_initial_state
+        )
+        rho_t = evolve_density_matrix(H, rho0, time=1.0)
         # For pure state evolution, trace should be 1
         assert np.isclose(np.trace(rho_t), 1.0)
 

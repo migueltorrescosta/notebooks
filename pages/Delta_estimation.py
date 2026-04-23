@@ -2,7 +2,11 @@
 
 from numpy.polynomial import Polynomial
 from src.angular_momentum import generate_spin_matrices
-from src.delta_estimation import DeltaEstimationConfig, generate_hamiltonian, full_calculation
+from src.delta_estimation import (
+    DeltaEstimationConfig,
+    generate_hamiltonian,
+    full_calculation,
+)
 from src.plotting import plot_array
 from tqdm import tqdm
 from typing import Any, cast
@@ -146,7 +150,9 @@ st.latex(f"""
 # DATAFRAME CREATION using physics module
 @st.cache_data
 def compute_evolution_df(dim_a: int, k: int, granularity: int = 100) -> pd.DataFrame:
-    base_config = DeltaEstimationConfig(ancillary_dimension=dim_a, ancillary_initial_state=k)
+    base_config = DeltaEstimationConfig(
+        ancillary_dimension=dim_a, ancillary_initial_state=k
+    )
     j_s = base_config.j_s
     delta_s = base_config.delta_s
     j_a = base_config.j_a
@@ -156,7 +162,7 @@ def compute_evolution_df(dim_a: int, k: int, granularity: int = 100) -> pd.DataF
     alpha_xz = base_config.alpha_xz
     alpha_zx = base_config.alpha_zx
     alpha_zz = base_config.alpha_zz
-    
+
     iterable_1 = []
     for t_val in np.round(np.linspace(0, 10, granularity + 1), 3):
         c = DeltaEstimationConfig(
@@ -215,16 +221,30 @@ true_probability = float(cast(Any, df.loc[closest_idx, "<1|rho_system_t|1>"]))
 def compute_estimation_df(
     guessed_delta_s: float, delta_s_var: float, time: float, dim_a: int, k: int
 ) -> pd.DataFrame:
-    base_config = DeltaEstimationConfig(ancillary_dimension=dim_a, ancillary_initial_state=k)
+    base_config = DeltaEstimationConfig(
+        ancillary_dimension=dim_a, ancillary_initial_state=k
+    )
+    # Extract only the fields that DON'T include delta_s (which we'll vary)
     config_vars = {}
-    for field in ['j_s', 'delta_s', 'j_a', 'u_a', 'delta_a', 'alpha_xx', 'alpha_xz', 'alpha_zx', 'alpha_zz']:
+    for field in [
+        "j_s",
+        "j_a",
+        "u_a",
+        "delta_a",
+        "alpha_xx",
+        "alpha_xz",
+        "alpha_zx",
+        "alpha_zz",
+    ]:
         config_vars[field] = getattr(base_config, field)
-    
+
     iterable_2 = []
-    for d_val in np.round(np.linspace(guessed_delta_s - delta_s_var, guessed_delta_s + delta_s_var, 51), 3):
+    for d_val in np.round(
+        np.linspace(guessed_delta_s - delta_s_var, guessed_delta_s + delta_s_var, 51), 3
+    ):
         c = DeltaEstimationConfig(**config_vars, delta_s=float(d_val), t=float(time))
         iterable_2.append(c)
-    
+
     cpus = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(processes=cpus)
     data = pool.map(full_calculation, iterable_2)
@@ -257,7 +277,12 @@ st.latex(f"""
 st.line_chart(
     data=estimation_df,
     x="delta_s",
-    y=["<0|rho_system_t|0>", "<1|rho_system_t|1>", "expected_sigma_z", "variance_sigma_z"],
+    y=[
+        "<0|rho_system_t|0>",
+        "<1|rho_system_t|1>",
+        "expected_sigma_z",
+        "variance_sigma_z",
+    ],
 )
 
 # Calculating expected likelihood based on observations
@@ -270,7 +295,9 @@ with st.sidebar:
         confidence_interval = st.number_input(
             "Confidence", value=0.9, min_value=0.0001, max_value=0.9999, step=0.0001
         )
-        confidence_interval_multiplier = float(scipy.stats.norm.interval(confidence_interval)[1])
+        confidence_interval_multiplier = float(
+            scipy.stats.norm.interval(confidence_interval)[1]
+        )
     if n_trials > 500:
         st.error(f"Since $N_{{trials}} = {n_trials} \geq 500$, this will be slooow ⚠️")
     show_log_likelihood = st.toggle("Show log likelihood", value=False)
@@ -284,14 +311,20 @@ def calculate_probability_density_function(n: int, p: float) -> np.ndarray:
 
 def calculate_likelihood(
     prob: float,
-    true_pdf: np.ndarray = calculate_probability_density_function(n=n_trials, p=true_probability),
+    true_pdf: np.ndarray = calculate_probability_density_function(
+        n=n_trials, p=true_probability
+    ),
 ) -> float:
     inner_pdf = calculate_probability_density_function(n=n_trials, p=prob)
     return np.dot(inner_pdf, true_pdf)
 
 
-estimation_df["likelihood"] = estimation_df["<1|rho_system_t|1>"].progress_apply(calculate_likelihood)
-estimation_df["likelihood"] = np.divide(estimation_df["likelihood"], estimation_df["likelihood"].mean())
+estimation_df["likelihood"] = estimation_df["<1|rho_system_t|1>"].progress_apply(
+    calculate_likelihood
+)
+estimation_df["likelihood"] = np.divide(
+    estimation_df["likelihood"], estimation_df["likelihood"].mean()
+)
 
 
 st.subheader("Likelihood", divider="green")
@@ -299,8 +332,13 @@ likelihood_arr = np.array(estimation_df["likelihood"])
 likelihood_sum = float(np.sum(likelihood_arr))
 delta_s_arr = np.array(estimation_df["delta_s"])
 estimated_delta_mean = float(np.dot(delta_s_arr, likelihood_arr)) / likelihood_sum
-estimated_delta_var = float(np.dot(((delta_s_arr - estimated_delta_mean) ** 2), likelihood_arr)) / likelihood_sum
-st.latex(f"\delta_s \approx {estimated_delta_mean:.6f} \pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}")
+estimated_delta_var = (
+    float(np.dot(((delta_s_arr - estimated_delta_mean) ** 2), likelihood_arr))
+    / likelihood_sum
+)
+st.latex(
+    f"\delta_s \approx {estimated_delta_mean:.6f} \pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}"
+)
 
 estimation_df["loglikelihood"] = np.log(estimation_df["likelihood"])
 estimation_df["loglikelihood"] -= min(estimation_df["loglikelihood"])
@@ -348,11 +386,15 @@ if "experiment_history_df" not in st.session_state:
     st.session_state.experiment_history_df = pd.DataFrame([history_data])
 else:
     st.session_state.experiment_history_df.reset_index(drop=True, inplace=True)
-    st.session_state.experiment_history_df.loc[len(st.session_state.experiment_history_df)] = history_data
+    st.session_state.experiment_history_df.loc[
+        len(st.session_state.experiment_history_df)
+    ] = history_data
     st.session_state.experiment_history_df.drop_duplicates(inplace=True)
 
 c1, c2 = st.columns(2)
 with c1:
-    st.scatter_chart(st.session_state.experiment_history_df, x=history_x_axis, y=history_y_axis)
+    st.scatter_chart(
+        st.session_state.experiment_history_df, x=history_x_axis, y=history_y_axis
+    )
 with c2:
     plot_array(st.session_state.experiment_history_df.T, midpoint=None)

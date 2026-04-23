@@ -18,11 +18,21 @@ Units:
 """
 
 from dataclasses import dataclass
-from typing import Callable, List, Tuple,Any
+from typing import Callable, List, Tuple, Any
+from src.enums import BoundaryCondition
 
 import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
+
+from src.validators import (
+    validate_orthonormality,
+    validate_probability_conservation,
+)
+
+# Aliases for backward compatibility
+validate_orthonormality = validate_orthonormality
+validate_probability_conservation = validate_probability_conservation
 
 
 # =============================================================================
@@ -62,9 +72,7 @@ def potential_double_well(x: float, a: float, b: float, c: float) -> float:
 # =============================================================================
 
 
-def gaussian_wave_packet(
-    x: np.ndarray, d: float, x0: float, p: float
-) -> np.ndarray:
+def gaussian_wave_packet(x: np.ndarray, d: float, x0: float, p: float) -> np.ndarray:
     """Gaussian wave packet ψ(x) = exp(-d(x-x₀)² + ipx).
 
     Args:
@@ -79,9 +87,7 @@ def gaussian_wave_packet(
     return np.exp(-d * (x - x0) ** 2 - 1.0j * p * x)
 
 
-def step_wave_packet(
-    x: np.ndarray, r: float, s: float, p: float
-) -> np.ndarray:
+def step_wave_packet(x: np.ndarray, r: float, s: float, p: float) -> np.ndarray:
     """Step wave packet ψ(x) = exp(ipx) * 1_[r,s](x).
 
     Args:
@@ -99,14 +105,6 @@ def step_wave_packet(
 # =============================================================================
 # Hamiltonian Construction
 # =============================================================================
-
-
-@dataclass
-class BoundaryCondition:
-    """Boundary condition type."""
-
-    Dirichlet = "Dirichlet"  # Fixed boundaries (wavefunction = 0)
-    Cyclic = "Cyclic"  # Periodic boundaries
 
 
 def build_1d_hamiltonian(
@@ -353,52 +351,10 @@ class TimeEvolver:
         Returns:
             Matrix of shape (n_times, n_points) with |ψ(x,t)|².
         """
-        return np.array(
-            [np.abs(self.evolve(t)) ** 2 for t in times]
-        )
+        return np.array([np.abs(self.evolve(t)) ** 2 for t in times])
 
 
 # =============================================================================
-# Validation
-# =============================================================================
-
-
-def validate_orthonormality(
-    eigenvectors: np.ndarray,
-    tolerance: float = 1e-8,
-) -> float:
-    """Check orthonormality of eigenvectors.
-
-    Returns maximum deviation from identity.
-
-    Args:
-        eigenvectors: Matrix with eigenvectors as columns.
-        tolerance: Tolerance for assertion.
-
-    Returns:
-        Maximum deviation from orthonormality.
-    """
-    n = eigenvectors.shape[1]
-    overlap = np.real(np.conjugate(eigenvectors.T) @ eigenvectors)
-    deviation = np.sum(np.abs(overlap - np.eye(n)))
-    return deviation
-
-
-def validate_probability_conservation(
-    wf: np.ndarray,
-    tolerance: float = 1e-8,
-) -> bool:
-    """Verify that total probability is conserved.
-
-    Args:
-        wf: Wavefunction.
-        tolerance: Tolerance for check.
-
-    Returns:
-        True if probability is conserved.
-    """
-    prob = np.sum(np.abs(wf) ** 2)
-    return np.isclose(prob, 1.0, rtol=tolerance)
 
 
 # =============================================================================
@@ -445,10 +401,12 @@ def run_simulation(
     psi0 = psi0 / np.sqrt(np.sum(np.abs(psi0) ** 2))
 
     # Hamiltonian
-    bc = BoundaryCondition.Cyclic if boundary == "Cyclic" else BoundaryCondition.Dirichlet
-    hamiltonian = build_1d_hamiltonian(
-        num_points, dx, potential_fn, bc
+    bc = (
+        BoundaryCondition.Cyclic
+        if boundary == "Cyclic"
+        else BoundaryCondition.Dirichlet
     )
+    hamiltonian = build_1d_hamiltonian(num_points, dx, potential_fn, bc)
 
     # Energy levels
     levels = compute_energy_levels(hamiltonian, psi0, num_levels)

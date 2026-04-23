@@ -52,7 +52,10 @@ class TestBipartiteHamiltonian:
         assert h_a.shape == (config.dim_a, config.dim_a)
         assert h_b.shape == (config.dim_b, config.dim_b)
         assert h_int.shape == (config.dim_a * config.dim_b, config.dim_a * config.dim_b)
-        assert h_full.shape == (config.dim_a * config.dim_b, config.dim_a * config.dim_b)
+        assert h_full.shape == (
+            config.dim_a * config.dim_b,
+            config.dim_a * config.dim_b,
+        )
 
 
 class TestEvolution:
@@ -110,7 +113,10 @@ class TestComputeReducedDensities:
         rho_a, rho_b, rho_full = compute_reduced_densities(config, time=0.0)
         assert rho_a.shape == (config.dim_a, config.dim_a)
         assert rho_b.shape == (config.dim_b, config.dim_b)
-        assert rho_full.shape == (config.dim_a * config.dim_b, config.dim_a * config.dim_b)
+        assert rho_full.shape == (
+            config.dim_a * config.dim_b,
+            config.dim_a * config.dim_b,
+        )
 
     def test_validate_reduced_densities(self) -> None:
         """Reduced densities should pass validation."""

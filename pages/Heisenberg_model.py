@@ -1,10 +1,13 @@
 """Heisenberg Model UI page - imports physics from src.heisenberg_model."""
 
-import numpy as np
 import pandas as pd
 import streamlit as st
 
-from src.heisenberg_model import heisenberg_hamiltonian, diagonalize_hamiltonian, compute_expectation_values
+from src.heisenberg_model import (
+    heisenberg_hamiltonian,
+    diagonalize_hamiltonian,
+    compute_expectation_values,
+)
 from src.plotting import plot_array
 
 st.set_page_config(page_title="Heisenberg Model", page_icon="⛓️", layout="wide")
@@ -47,7 +50,9 @@ with st.sidebar:
 
 st.header("Setup", divider="blue")
 st.markdown("Transverse Heisenberg Model")
-st.markdown(f"$H = H_J + H_U = {j} sum_{{i=0}}^{{ {n_sites + 1} }} \sigma^x_i\sigma^x_{{i+1}} + \frac{{{u}}}{{2}} sum_{{i=1}}^{{{n_sites}}} \sigma^z_i$")
+st.markdown(
+    f"$H = H_J + H_U = {j} sum_{{i=0}}^{{ {n_sites + 1} }} \sigma^x_i\sigma^x_{{i+1}} + \frac{{{u}}}{{2}} sum_{{i=1}}^{{{n_sites}}} \sigma^z_i$"
+)
 
 # Build Hamiltonian using physics module
 hamiltonian = heisenberg_hamiltonian(n_sites, j, u)

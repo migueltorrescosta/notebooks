@@ -24,6 +24,17 @@ import functools
 
 import numpy as np
 
+from src.validators import (
+    validate_eigendecomposition,
+    validate_eigenvectors_orthonormal,
+    validate_hamiltonian_hermitian,
+)
+
+# Aliases for backward compatibility
+validate_hamiltonian_hermitian = validate_hamiltonian_hermitian
+validate_eigenvectors_orthonormal = validate_eigenvectors_orthonormal
+validate_eigendecomposition = validate_eigendecomposition
+
 
 # =============================================================================
 # Pauli Matrices
@@ -81,9 +92,7 @@ def heisenberg_hamiltonian(
         hamiltonian_coupling += functools.reduce(np.kron, op)
 
     # Build field term H_U = (U/2) Σ σ_i^z
-    hamiltonian_field = functools.reduce(
-        np.kron, [SIGMA_Z for _ in range(n_sites)]
-    )
+    hamiltonian_field = functools.reduce(np.kron, [SIGMA_Z for _ in range(n_sites)])
 
     # Total Hamiltonian
     hamiltonian = j * hamiltonian_field + (0.5 * u) * hamiltonian_coupling
@@ -243,59 +252,3 @@ def run_simulation(
 
 
 # =============================================================================
-# Validation
-# =============================================================================
-
-
-def validate_hamiltonian_hermitian(hamiltonian: np.ndarray) -> bool:
-    """Check Hamiltonian is Hermitian.
-
-    Args:
-        hamiltonian: Hamiltonian matrix.
-
-    Returns:
-        True if H = H^\dagger.
-    """
-    return np.allclose(hamiltonian, hamiltonian.conj().T)
-
-
-def validate_eigenvectors_orthonormal(
-    vectors: np.ndarray,
-    tolerance: float = 1e-8,
-) -> bool:
-    """Check eigenvectors are orthonormal.
-
-    Args:
-        vectors: Eigenvectors as columns.
-        tolerance: Tolerance.
-
-    Returns:
-        True if V^\dagger V = I.
-    """
-    overlap = vectors.conj().T @ vectors
-    return np.allclose(overlap, np.eye(vectors.shape[1]), atol=tolerance)
-
-
-def validate_eigendecomposition(
-    hamiltonian: np.ndarray,
-    eigenvalues: np.ndarray,
-    eigenvectors: np.ndarray,
-    tolerance: float = 1e-8,
-) -> bool:
-    """Verify H|v⟩ = E|v⟩ for all eigenpairs.
-
-    Args:
-        hamiltonian: Hamiltonian.
-        eigenvalues: Eigenvalues.
-        eigenvectors: Eigenvectors.
-        tolerance: Tolerance.
-
-    Returns:
-        True if all equations hold.
-    """
-    for i in range(len(eigenvalues)):
-        Hv = hamiltonian @ eigenvectors[:, i]
-        Ev = eigenvalues[i] * eigenvectors[:, i]
-        if not np.allclose(Hv, Ev, atol=tolerance):
-            return False
-    return True

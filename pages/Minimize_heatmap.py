@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from src.optimization import TEST_FUNCTIONS, MINIMIZERS, generate_surface, benchmark_optimizers
+from src.optimization import TEST_FUNCTIONS, MINIMIZERS
 
 st.set_page_config(page_title="Minimize Heatmap", page_icon="📐️", layout="wide")
 
@@ -54,10 +54,12 @@ with st.sidebar:
 @st.cache_data
 def gen_surface_df(f: str) -> pd.DataFrame:
     """Cached surface dataframe generation."""
-    return pd.DataFrame([
-        {"x": round(x, 3), "y": round(y, 3), "f": TEST_FUNCTIONS[f](x, y)}
-        for x, y in itertools.product(np.linspace(-3, 3, 101), repeat=2)
-    ])
+    return pd.DataFrame(
+        [
+            {"x": round(x, 3), "y": round(y, 3), "f": TEST_FUNCTIONS[f](x, y)}
+            for x, y in itertools.product(np.linspace(-3, 3, 101), repeat=2)
+        ]
+    )
 
 
 @st.cache_data
@@ -72,11 +74,13 @@ def gen_performance_df() -> pd.DataFrame:
         opt = MINIMIZERS[minimizer]
         func = TEST_FUNCTIONS[function]
         result = opt(func, [0, 0])
-        results.append({
-            "minimizer": minimizer,
-            "test_function": function,
-            "argmin": result["x"],
-        })
+        results.append(
+            {
+                "minimizer": minimizer,
+                "test_function": function,
+                "argmin": result["x"],
+            }
+        )
 
     df = pd.DataFrame(results)
 
@@ -98,9 +102,16 @@ c1, c2 = st.columns(2)
 with c1:
     import matplotlib.pyplot as plt
     import seaborn as sns
+
     argmin_df = gen_performance_df()
     fig, ax = plt.subplots()
-    sns.heatmap(argmin_df.pivot(index="test_function", columns="minimizer", values="normalized_min"), ax=ax, cmap="viridis")
+    sns.heatmap(
+        argmin_df.pivot(
+            index="test_function", columns="minimizer", values="normalized_min"
+        ),
+        ax=ax,
+        cmap="viridis",
+    )
     st.pyplot(fig)
     st.caption("Yellow is BAD")
 

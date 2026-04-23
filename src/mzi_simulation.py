@@ -27,6 +27,13 @@ from typing import Tuple
 import numpy as np
 import scipy
 
+from src.validators import (
+    validate_state_mzi,
+)
+
+# Aliases for backward compatibility
+validate_state = validate_state_mzi
+
 
 # =============================================================================
 # State Preparation
@@ -770,49 +777,3 @@ def prepare_input_state(
 
 
 # =============================================================================
-# Validation
-# =============================================================================
-
-
-def validate_state(state: np.ndarray) -> bool:
-    """Check if a state vector is normalized.
-
-    Validates that the input is a proper quantum state by checking
-    that its L2 norm equals 1 (within numerical tolerance).
-
-    Args:
-        state: State vector to validate.
-
-    Returns:
-        True if the state is normalized (||ψ|| = 1), False otherwise.
-
-    Example:
-        >>> state = fock_state(1, 0, max_photons=2)
-        >>> validate_state(state)
-        True
-        >>> validate_state(state * 0.5)  # Not normalized
-        False
-    """
-    norm = np.sqrt(np.sum(np.abs(state) ** 2))
-    return np.isclose(norm, 1.0, atol=1e-10)
-
-
-def validate_unitary(U: np.ndarray, tol: float = 1e-8) -> bool:
-    """Check if a matrix is unitary.
-
-    Validates that U†U = I within numerical tolerance. This is
-    essential for verifying that operator constructions are correct.
-
-    Args:
-        U: Matrix to validate.
-        tol: Numerical tolerance for the check (default: 1e-8).
-
-    Returns:
-        True if the matrix is unitary, False otherwise.
-
-    Example:
-        >>> bs = beam_splitter_unitary(np.pi/4, 0, max_photons=2)
-        >>> validate_unitary(bs)
-        True
-    """
-    return np.allclose(U @ U.conj().T, np.eye(U.shape[0]), atol=tol)

@@ -18,6 +18,11 @@ from typing import Any, Dict
 
 import numpy as np
 
+from src.validators import validate_sensitivity
+
+# Alias for backward compatibility
+validate_sensitivity = validate_sensitivity
+
 
 # =============================================================================
 # Sensitivity Calculation
@@ -224,58 +229,11 @@ def compute_observable(
     cos_sq = np.cos(omega_k * t) ** 2
     sin_sq = np.sin(omega_k * t) ** 2
 
-    return cos_sq + sin_sq * (z_coefficient / omega_k) ** 2 - sin_sq * (x_coefficient / omega_k)
+    return (
+        cos_sq
+        + sin_sq * (z_coefficient / omega_k) ** 2
+        - sin_sq * (x_coefficient / omega_k)
+    )
 
 
 # =============================================================================
-# Validation
-# =============================================================================
-
-
-def validate_sensitivity(
-    n: int,
-    k: int,
-    j_s: float,
-    delta_s: float,
-    alpha_x: float,
-    alpha_z: float,
-    t: float,
-    tolerance: float = 1e-6,
-) -> bool:
-    """Validate sensitivity calculation via finite differences.
-
-    Args:
-        n: Ancillary dimension.
-        k: Level.
-        j_s: System parameter.
-        delta_s: System parameter.
-        alpha_x: Coupling.
-        alpha_z: Coupling.
-        t: Time.
-        tolerance: Required accuracy.
-
-    Returns:
-        True if numerical derivative matches analytical.
-    """
-    eps = 1e-5
-
-    # Get sensitivities
-    result = sensitivity(n, k, j_s, delta_s, alpha_x, alpha_z, t)
-
-    # Numerical derivative wrt j_s
-    obs_plus = compute_observable(n, k, j_s + eps, delta_s, alpha_x, alpha_z, t)
-    obs_minus = compute_observable(n, k, j_s - eps, delta_s, alpha_x, alpha_z, t)
-    num_deriv_j = (obs_plus - obs_minus) / (2 * eps)
-
-    # Numerical derivative wrt delta_s
-    obs_plus = compute_observable(n, k, j_s, delta_s + eps, alpha_x, alpha_z, t)
-    obs_minus = compute_observable(n, k, j_s, delta_s - eps, alpha_x, alpha_z, t)
-    num_deriv_delta = (obs_plus - obs_minus) / (2 * eps)
-
-    # Compare
-    if abs(num_deriv_j - result["sensitivity_to_j"]) > tolerance:
-        return False
-    if abs(num_deriv_delta - result["sensitivity_to_delta"]) > tolerance:
-        return False
-
-    return True
