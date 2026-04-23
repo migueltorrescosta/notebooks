@@ -1,10 +1,47 @@
 # Miguel's Playground
-I use these [jupyter](https://jupyter.org/) notebooks to and [streamlit](https://streamlit.io/) pages to play with different topics.
 
-## Notes
+Streamlit apps + Jupyter notebooks for quantum physics simulations.
 
-Julia was installed from https://julialang.org/downloads/
-After download, run the command below to have julia available as an executable.
+## Setup
+
 ```bash
-tar zxvf julia-1.11.5-linux-x86_64.tar.gz # Replace the filename if using a different version
+# Python dependencies
+uv sync
+
+# Jupyter kernels
+uv pip install ipykernel
+python -m ipykernel install --user --name=playground
 ```
+
+## Dev Commands
+
+| Command | Description |
+|---------|-------------|
+| `uv run streamlit run Home.py` | Start Streamlit app |
+| `uv run pytest . --quiet --tb=short` | Run tests |
+| `uv run mypy .` | Type check |
+| `uv run ruff check . --fix` | Lint |
+| `uv run ruff format .` | Format |
+| `jupyter-book build .` | Build docs to `_build/` |
+
+## Projects
+
+- `pages/` — Streamlit pages (MZI simulations)
+- `src/` — Core physics modules
+- `jupyter/` — Notebooks by category
+- `mathematica/` — Mathematica notebooks
+
+## Notebooks
+
+```bash
+# Launch Jupyter
+jupyter notebook
+```
+
+Add new kernels via `python -m ipykernel install --user --name=<name>`.
+
+## Mathematica
+
+1. Download from [julialang.org](https://julialang.org/downloads/)
+2. Extract: `tar zxvf julia-*-linux-x86_64.tar.gz`
+3. Run: `./julia`
