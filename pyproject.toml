@@ -61,7 +61,7 @@ dev = [
     "types-tqdm>=4.66.0.20240106,<5",
     "jupyter-book>=1.0.0,<2",
 ]
-test = ["pytest>=8.2.0,<9"]
+test = ["pytest>=8.2.0,<9", "playwright>=1.42.0,<2"]
 
 [tool.uv]
 package = false
@@ -79,11 +79,7 @@ addopts = "--ignore=src/test_algorithms.py --ignore=src/test_heisenberg_model_ne
 
 [tool.ruff]
 exclude = [
-    "jupyter/PhD/**",
-    "jupyter/devops/**",
-    "jupyter/graph_theory/**",
-    "jupyter/quantum/**",
-    "jupyter/scribbles/**",
+    "jupyter/**",
     "mathematica/**",
 ]
 
