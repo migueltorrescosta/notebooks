@@ -42,7 +42,7 @@ with st.sidebar:
     with c3:
         u_a = st.number_input("$U_A$", value=0.0)
     with c4:
-        delta_a = st.number_input("$\delta_A$", value=0.0)
+        delta_a = st.number_input(r"$\delta_A$", value=0.0)
 
     st.subheader("System B", divider="orange")
     c1, c2, c3, c4 = st.columns(4)
@@ -53,7 +53,7 @@ with st.sidebar:
     with c3:
         u_b = st.number_input("$U_B$", value=0.0)
     with c4:
-        delta_b = st.number_input("$\delta_B$", value=1.0)
+        delta_b = st.number_input(r"$\delta_B$", value=1.0)
 
     st.subheader("Interactions", divider="green")
     c1, c2, c3, c4 = st.columns(4)
@@ -109,9 +109,9 @@ st.latex(f"""
 \\begin{{array}}{{ccccc}}
 &&H\\\\
 H_A &+& H_{{int}} &+& H_B \\\\
-(-J_A J_x + U_A J_z^2 + \delta_S J_z) \\mathbb{{1}}_B  &+&
+(-J_A J_x + U_A J_z^2 + \\delta_S J_z) \\mathbb{{1}}_B  &+&
 \\alpha_{{xx}} J_x J_x + \\alpha_{{xz}} J_x J_z + \\alpha_{{zx}} J_z J_x + \\alpha_{{zz}} J_z J_z &+&
-\\mathbb{{1}}_A (-J_B J_x + U_BJ_z ^ 2 + \delta_BJ_z) \\\\
+\\mathbb{{1}}_A (-J_B J_x + U_BJ_z ^ 2 + \\delta_BJ_z) \\\\
 ( {-1 * j_a:.2f} J_x {u_a:+.2f} J_z^2 {delta_a:+.2f} J_z ) \\mathbb{{1}}_B&+&
 {alpha_xx:.2f} J_x J_x  {alpha_xz:+.2f} J_x J_z  {alpha_zx:+.2f} J_z J_x {alpha_zz:+.2f} J_z J_z &+& 
 \\mathbb{{1}}_A ( {-1 * j_b:.2f} J_x {u_b:+.2f}J_z ^ 2 {delta_b:+.2f}J_z )

@@ -24,7 +24,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 class TestFourierTransform:
     def test_creates_three_subplots(self) -> None:
         """Fourier transform should create a figure with exactly 3 subplots."""
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
@@ -41,7 +41,7 @@ class TestFourierTransform:
 
     def test_sets_correct_titles(self) -> None:
         """Each subplot should have the expected title."""
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
@@ -58,7 +58,7 @@ class TestFourierTransform:
 
     def test_calls_plot_for_each_subplot(self) -> None:
         """Each subplot should have plot called on it."""
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
@@ -72,7 +72,7 @@ class TestFourierTransform:
 
     def test_uses_fig_tight_layout(self) -> None:
         """Figure should use tight_layout for proper spacing."""
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
@@ -85,7 +85,7 @@ class TestFourierTransform:
 
     def test_default_parameters_work(self) -> None:
         """Default parameters should allow the function to run."""
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
@@ -98,7 +98,7 @@ class TestFourierTransform:
     @pytest.mark.parametrize("n_samples", [10, 100, 1000])
     def test_different_sample_counts(self, n_samples: int) -> None:
         """Function should work with various sample counts."""
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
@@ -129,8 +129,8 @@ class TestFiniteDimensionalPopulationsOverTime:
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray
     ) -> None:
         """Function should call plt.stackplot to create the population plot."""
-        with patch("src.visualization.plt.stackplot") as mock_stackplot:
-            with patch("src.visualization.plt.legend"):
+        with patch("matplotlib.pyplot.stackplot") as mock_stackplot:
+            with patch("matplotlib.pyplot.legend"):
                 from src.visualization.visualization import (
                     finite_dimensional_populations_over_time,
                 )
@@ -145,8 +145,8 @@ class TestFiniteDimensionalPopulationsOverTime:
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray
     ) -> None:
         """Stackplot should receive the time axis as first argument."""
-        with patch("src.visualization.plt.stackplot") as mock_stackplot:
-            with patch("src.visualization.plt.legend"):
+        with patch("matplotlib.pyplot.stackplot") as mock_stackplot:
+            with patch("matplotlib.pyplot.legend"):
                 from src.visualization.visualization import (
                     finite_dimensional_populations_over_time,
                 )
@@ -165,8 +165,8 @@ class TestFiniteDimensionalPopulationsOverTime:
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray
     ) -> None:
         """Stackplot should receive population arrays (array-like, time-invariant)."""
-        with patch("src.visualization.plt.stackplot") as mock_stackplot:
-            with patch("src.visualization.plt.legend"):
+        with patch("matplotlib.pyplot.stackplot") as mock_stackplot:
+            with patch("matplotlib.pyplot.legend"):
                 from src.visualization.visualization import (
                     finite_dimensional_populations_over_time,
                 )
@@ -188,8 +188,8 @@ class TestFiniteDimensionalPopulationsOverTime:
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray
     ) -> None:
         """Function should call plt.legend when labels are provided."""
-        with patch("src.visualization.plt.stackplot"):
-            with patch("src.visualization.plt.legend") as mock_legend:
+        with patch("matplotlib.pyplot.stackplot"):
+            with patch("matplotlib.pyplot.legend") as mock_legend:
                 from src.visualization.visualization import (
                     finite_dimensional_populations_over_time,
                 )
@@ -283,8 +283,8 @@ class TestFiniteDimensionalPopulationsOverTime:
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray
     ) -> None:
         """Should accept labels array with correct count."""
-        with patch("src.visualization.plt.stackplot"):
-            with patch("src.visualization.plt.legend"):
+        with patch("matplotlib.pyplot.stackplot"):
+            with patch("matplotlib.pyplot.legend"):
                 from src.visualization.visualization import (
                     finite_dimensional_populations_over_time,
                 )
@@ -308,7 +308,7 @@ class TestQuantumStateHeatmap:
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
         rho0 = np.array([[1.0, 0.0], [0.0, 0.0]], dtype=complex)
 
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_ax1 = MagicMock()
             mock_ax2 = MagicMock()
@@ -324,7 +324,7 @@ class TestQuantumStateHeatmap:
         """Both subplots should call imshow to display the density matrix."""
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
 
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_ax1 = MagicMock()
             mock_ax2 = MagicMock()
@@ -341,7 +341,7 @@ class TestQuantumStateHeatmap:
         """Imshow should use vmin=-1 and vmax=1 for proper color scaling."""
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
 
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_ax1 = MagicMock()
             mock_ax2 = MagicMock()
@@ -361,7 +361,7 @@ class TestQuantumStateHeatmap:
         """Both subplots should have x and y tick labels set."""
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
 
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_ax1 = MagicMock()
             mock_ax2 = MagicMock()
@@ -383,7 +383,7 @@ class TestQuantumStateHeatmap:
         # Track what imshow was called with
         call_args_list = []
 
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_ax1 = MagicMock()
             mock_ax2 = MagicMock()
@@ -411,8 +411,8 @@ class TestLargerDimensions:
         hamiltonian = np.diag([1.0, 0.5, -0.5, -1.0])
         rho0 = np.diag([1.0, 0.0, 0.0, 0.0])
 
-        with patch("src.visualization.plt.stackplot"):
-            with patch("src.visualization.plt.legend"):
+        with patch("matplotlib.pyplot.stackplot"):
+            with patch("matplotlib.pyplot.legend"):
                 from src.visualization.visualization import (
                     finite_dimensional_populations_over_time,
                 )
@@ -429,7 +429,7 @@ class TestLargerDimensions:
             [[0.5, 0.2, 0.1], [0.2, 0.3, 0.1], [0.1, 0.1, 0.2]], dtype=complex
         )
 
-        with patch("src.visualization.plt.subplots") as mock_subplots:
+        with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_ax1 = MagicMock()
             mock_ax2 = MagicMock()

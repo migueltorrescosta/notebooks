@@ -47,9 +47,10 @@ class TestGaussianMetropolisHastings:
         mh = GaussianMetropolisHastings(initial_configuration=0.0)
         # Current: exp(0) = 1.0, New: exp(-0.5^2) ≈ 0.78
         # Current likelihood is higher, so any random > current/new will reject
-        with patch("src.algorithms.np.random.random", return_value=0.5):
+        with patch("numpy.random.random", return_value=0.5):
             # For Gaussian: new(0.5) = exp(-0.25) ≈ 0.78
-            result = mh.approval_function(0.5)
+            # current_likelihood = 1.0
+            result = mh.approval_function(0.5, current_likelihood=1.0)
             # ratio = 0.78/1.0 = 0.78; 0.78 >= 0.5 is True
             assert result
 
@@ -57,7 +58,7 @@ class TestGaussianMetropolisHastings:
         mh = GaussianMetropolisHastings(initial_configuration=0.0)
         # Return 0.0 so approval always passes (likelihood ratio >= 0)
         with (
-            patch("src.algorithms.np.random.random", return_value=0.0),
+            patch("numpy.random.random", return_value=0.0),
             patch.object(mh, "generator_function", return_value=1.0),
         ):
             new_state = mh.run_single_iteration()
@@ -72,7 +73,7 @@ class TestGaussianMetropolisHastings:
         mock_pbar.start_t = 1000.0
         mock_pbar.__iter__ = lambda self: iter(range(5))
 
-        with patch("src.algorithms.trange", return_value=mock_pbar):
+        with patch("tqdm.trange", return_value=mock_pbar):
             # Manually call iterations a few times without the loop to test
             for _ in range(3):
                 mh.run_single_iteration()
@@ -81,7 +82,7 @@ class TestGaussianMetropolisHastings:
     def test_plot_does_not_raise(self) -> None:
         mh = GaussianMetropolisHastings(initial_configuration=0.0)
         mh.configuration_history = [0.0, 1.0, 0.5, 0.8]
-        with patch("src.algorithms.plt.plot") as mock_plot:
+        with patch("matplotlib.pyplot.plot") as mock_plot:
             mh.plot()
             mock_plot.assert_called_once()
 

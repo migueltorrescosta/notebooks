@@ -160,14 +160,14 @@ st.header("Setup", divider="blue")
 
 methodology_info = {
     "Methodology": "These tabs describe the methodology used",
-    "Wave": f"We choose a 1-dimensional {initial_wave_packet} as the original state $\ket{{\psi_0}}$.",
+    "Wave": rf"We choose a 1-dimensional {initial_wave_packet} as the original state $\ket{{\psi_0}}$.",
     "Potential": f"We choose a {potential_function} potential with {boundary_condition} boundary.",
-    "Hamiltonian": f"""We calculate the Hamiltonian using the tri-diagonal representation of $H=\frac{{\hat{{P}}^2}}{{2m}} + V(x)$,
+    "Hamiltonian": f"""We calculate the Hamiltonian using the tri-diagonal representation of $H=\frac{{\\hat{{P}}^2}}{{2m}} + V(x)$,
     with ${number_of_spatial_points}$ spatial points.""",
     "Energy levels": f"We calculate the {number_of_energy_levels} lowest eigenvalues/eigenvectors.",
-    "Decomposition": f"""We decompose $\ket{{\psi_0}}$ by projecting it into $\ket{{E_i}}$,
+    "Decomposition": rf"""We decompose $\ket{{\psi_0}}$ by projecting it into $\ket{{E_i}}$,
     for $i \in \{{ 1, 2, \dots, {number_of_energy_levels} }}$.""",
-    "Evolution": f"We evolve $\ket{{\psi_0}}$ and produce a heatmap up to time $t={time:g}$.",
+    "Evolution": rf"We evolve $\ket{{\psi_0}}$ and produce a heatmap up to time $t={time:g}$.",
 }
 
 tabs = st.tabs(list(methodology_info.keys()))
@@ -301,12 +301,12 @@ with c1:
         size="probability",
     )
     st.caption(
-        f"We know {100 * np.sum([np.abs(el.component) ** 2 for el in energy_levels]):.20g}% of $\ket{{\psi_0}}$"
+        rf"We know {100 * np.sum([np.abs(el.component) ** 2 for el in energy_levels]):.20g}% of $\ket{{\psi_0}}$"
     )
 
 with c2:
     st.caption(
-        "\\begin{array}{c}100\\ket{\psi_0}\\\\ \\\parallel\\\\"
+        "\\begin{array}{c}100\\ket{\\psi_0}\\\\ \\\\parallel\\\\"
         + "\\\\".join(
             [f"{100 * el.component:+.2f}\\ket{{ {el.level} }}" for el in energy_levels]
         )
@@ -341,7 +341,7 @@ time_evolution_data = pd.DataFrame(
 
 plot_array(np.array(time_evolution_data.T), midpoint=None, text_auto=False)
 
-st.header(f"Final state $\ket{{\psi_{{{time:g}}} }}$")
+st.header(rf"Final state $\ket{{\psi_{{{time:g}}} }}$")
 phi_time = evolve(t=time)
 phi_time_df = pd.DataFrame(
     {

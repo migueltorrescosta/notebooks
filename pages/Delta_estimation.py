@@ -36,13 +36,13 @@ with st.expander("📖 Methodology", expanded=False):
     - $H_{int} = \\alpha_{xx}\\sigma_x J_x + \\alpha_{xz}\\sigma_x J_z + \\alpha_{zx}\\sigma_z J_x + \\alpha_{zz}\\sigma_z J_z$
     
     **Methodology:**
-    1. **State Evolution**: Evolve the initial state $\\ket{\\psi_0} = \ket{0}_S \otimes \ket{k}_A$ under the Hamiltonian
+    1. **State Evolution**: Evolve the initial state $\\ket{\\psi_0} = \\ket{0}_S \\otimes \\ket{k}_A$ under the Hamiltonian
     2. **Partial Trace**: Trace out the ancillary system to obtain the reduced system density matrix $\rho_t^{(S)}$
-    3. **Observable Measurement**: Compute $\langle \\sigma_z \rangle = \mathrm{Tr}[\rho_t^{(S)} \\sigma_z]$
-    4. **Parameter Estimation**: Use polynomial fitting to estimate $\delta_S$ from the observable
+    3. **Observable Measurement**: Compute $\\langle \\sigma_z \rangle = \\mathrm{Tr}[\rho_t^{(S)} \\sigma_z]$
+    4. **Parameter Estimation**: Use polynomial fitting to estimate $\\delta_S$ from the observable
     5. **Likelihood Analysis**: Construct likelihood function from binomial statistics of repeated measurements
     
-    **Key Result:** The posterior distribution over $\delta_S$ is obtained by combining the physical model with experimental observations,
+    **Key Result:** The posterior distribution over $\\delta_S$ is obtained by combining the physical model with experimental observations,
     providing both a point estimate and uncertainty bounds.
     """)
 
@@ -64,7 +64,7 @@ with st.sidebar:
             "$N$ ( Ancillary dim )", min_value=0, value=5, max_value=100
         )
     with c2:
-        k = st.number_input("$\ket{k}$", min_value=0, value=0, max_value=dim_a - 1)
+        k = st.number_input(r"$\ket{k}$", min_value=0, value=0, max_value=dim_a - 1)
 
     st.subheader("Ancillary controls")
     c1, c2, c3 = st.columns(3)
@@ -73,7 +73,7 @@ with st.sidebar:
     with c2:
         u_a = st.number_input("$U_A$", value=3.9666, step=0.0001)
     with c3:
-        delta_a = st.number_input("$\delta_A$", value=-3.8515472, step=0.0001)
+        delta_a = st.number_input(r"$\delta_A$", value=-3.8515472, step=0.0001)
 
     st.subheader("Interaction controls")
     c1, c2, c3, c4 = st.columns(4)
@@ -264,11 +264,11 @@ a0, a1 = polynomial_fit.coef
 
 
 st.latex(f"""
-\mathrm{{Tr}}[\sigma_z \rho^{{(S)}}_t] \approx
+\\mathrm{{Tr}}[\\sigma_z \rho^{{(S)}}_t] \approx
 {a0:.3f}
-{a1:+.3f}(\delta_S - \hat{{\delta}}_S)
-+ O((\delta_S - \hat{{\delta}}_S)^2) \\
-\Downarrow \\
+{a1:+.3f}(\\delta_S - \\hat{{\\delta}}_S)
++ O((\\delta_S - \\hat{{\\delta}}_S)^2) \\
+\\Downarrow \\
 <1|\rho_{{ {time:.2f} }}^{{(S)}}|1> = {true_probability * 100:.2f}%
 """)
 
@@ -299,7 +299,7 @@ with st.sidebar:
             scipy.stats.norm.interval(confidence_interval)[1]
         )
     if n_trials > 500:
-        st.error(f"Since $N_{{trials}} = {n_trials} \geq 500$, this will be slooow ⚠️")
+        st.error(rf"Since $N_{{trials}} = {n_trials} \geq 500$, this will be slooow ⚠️")
     show_log_likelihood = st.toggle("Show log likelihood", value=False)
 
 
@@ -337,7 +337,7 @@ estimated_delta_var = (
     / likelihood_sum
 )
 st.latex(
-    f"\delta_s \approx {estimated_delta_mean:.6f} \pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}"
+    f"\\delta_s \approx {estimated_delta_mean:.6f} \\pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}"
 )
 
 estimation_df["loglikelihood"] = np.log(estimation_df["likelihood"])

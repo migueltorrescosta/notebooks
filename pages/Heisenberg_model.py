@@ -51,7 +51,7 @@ with st.sidebar:
 st.header("Setup", divider="blue")
 st.markdown("Transverse Heisenberg Model")
 st.markdown(
-    f"$H = H_J + H_U = {j} sum_{{i=0}}^{{ {n_sites + 1} }} \sigma^x_i\sigma^x_{{i+1}} + \frac{{{u}}}{{2}} sum_{{i=1}}^{{{n_sites}}} \sigma^z_i$"
+    f"$H = H_J + H_U = {j} sum_{{i=0}}^{{ {n_sites + 1} }} \\sigma^x_i\\sigma^x_{{i+1}} + \frac{{{u}}}{{2}} sum_{{i=1}}^{{{n_sites}}} \\sigma^z_i$"
 )
 
 # Build Hamiltonian using physics module

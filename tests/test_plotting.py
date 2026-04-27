@@ -10,8 +10,8 @@ class TestPlotArray:
         """Test that plot_array executes without raising an exception."""
         # Mock streamlit components to avoid display errors
         with (
-            patch("src.plotting.st.plotly_chart"),
-            patch("src.plotting.px.imshow") as mock_imshow,
+            patch("src.visualization.plotting.st.plotly_chart"),
+            patch("src.visualization.plotting.px.imshow") as mock_imshow,
         ):
             mock_fig = MagicMock()
             mock_imshow.return_value = mock_fig
@@ -33,8 +33,8 @@ class TestPlotArray:
 
     def test_plot_array_with_custom_midpoint(self) -> None:
         with (
-            patch("src.plotting.st.plotly_chart"),
-            patch("src.plotting.px.imshow") as mock_imshow,
+            patch("src.visualization.plotting.st.plotly_chart"),
+            patch("src.visualization.plotting.px.imshow") as mock_imshow,
         ):
             mock_fig = MagicMock()
             mock_imshow.return_value = mock_fig
@@ -49,8 +49,8 @@ class TestPlotArray:
 
     def test_plot_array_with_text_auto_false(self) -> None:
         with (
-            patch("src.plotting.st.plotly_chart"),
-            patch("src.plotting.px.imshow") as mock_imshow,
+            patch("src.visualization.plotting.st.plotly_chart"),
+            patch("src.visualization.plotting.px.imshow") as mock_imshow,
         ):
             mock_fig = MagicMock()
             mock_imshow.return_value = mock_fig
@@ -65,8 +65,8 @@ class TestPlotArray:
 
     def test_plot_array_with_custom_key(self) -> None:
         with (
-            patch("src.plotting.st.plotly_chart") as mock_plotly,
-            patch("src.plotting.px.imshow") as mock_imshow,
+            patch("src.visualization.plotting.st.plotly_chart") as mock_plotly,
+            patch("src.visualization.plotting.px.imshow") as mock_imshow,
         ):
             mock_fig = MagicMock()
             mock_imshow.return_value = mock_fig
