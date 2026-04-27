@@ -145,7 +145,7 @@ class TestSpecificPages:
         script = page_file.read_text()
 
         # Check that the page imports and uses plot_array
-        assert "from src.plotting import plot_array" in script, (
+        assert "from src.visualization.plotting import plot_array" in script, (
             "Wave_interference should import plot_array"
         )
         assert "plot_array(" in script, "Wave_interference should call plot_array"

@@ -1,6 +1,6 @@
 from scipy.special import comb
-from src.enums import ProbabilityDistribution
-from src.plotting import plot_array
+from src.utils.enums import ProbabilityDistribution
+from src.visualization.plotting import plot_array
 from tqdm import tqdm
 from typing import Any, Dict, Tuple
 import itertools

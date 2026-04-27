@@ -16,7 +16,7 @@ import pandas as pd
 import streamlit as st
 from plotly import graph_objects as go
 
-from src.mzi_simulation import (
+from src.physics.mzi_simulation import (
     prepare_input_state,
     evolve_mzi,
     get_reduced_density_matrix,
@@ -24,7 +24,7 @@ from src.mzi_simulation import (
     compute_interference_fringe,
     compute_all_stage_states,
 )
-from src.plotting import plot_array
+from src.visualization.plotting import plot_array
 
 
 # Page configuration

@@ -1,0 +1,101 @@
+# Table of Contents for Jupyter Book
+# Learn more at https://jupyterbook.org/customize/toc.html
+
+format: jb-book
+root: README
+
+parts:
+  - caption: PhD Research
+    chapters:
+      - file: jupyter/phd/2503_PhaseEstimation
+      - file: jupyter/phd/2503_PhaseEstimationWithoutAncillary
+      - file: jupyter/phd/2503_DeltaOptimisation
+      - file: jupyter/phd/2504_CreateNthQuantumEnergyLevel
+      - file: jupyter/phd/2504_CreateNthQuantumEnergyLevelWithTorch
+      - file: jupyter/phd/2504_CreateNthQuantumEnergyLevelWithTensorflow
+      - file: jupyter/phd/2504_JuliaPlayground
+      - file: jupyter/phd/2505_HermitePolynomialsAndQuantumHarmonicOscillator
+      - file: jupyter/phd/2506_DMRGonTFIM
+      - file: jupyter/phd/2506_DoubleWellPhaseEstimation
+      - file: jupyter/phd/2506_GraphBasedTensorNetworks
+      - file: jupyter/phd/2506_MZPhaseEstimation
+      - file: jupyter/phd/2506_QuantumHarmonicOscillatorSpacialScaling
+      - file: jupyter/phd/2506_TensorNetworksTutorial
+      - file: jupyter/phd/2507_EnergyLevelsBoseHubbard
+
+  - caption: Quantum Computing
+    chapters:
+      - file: jupyter/quantum/2503_1DWaveFunctionNumericalEvolution
+      - file: jupyter/quantum/2503_FiniteDimentionalQuantumStateEvolution
+      - file: jupyter/quantum/2503_FourierTransform
+      - file: jupyter/quantum/2503_InfiniteDoubleSquareWell
+      - file: jupyter/quantum/2503_Kronecker
+      - file: jupyter/quantum/2503_MachineLearningCatalysisOfQuantumTunneling
+      - file: jupyter/quantum/2503_Measurement_Operators
+      - file: jupyter/quantum/2503_MetropolisHastingsAppliedToADoublet
+      - file: jupyter/quantum/2503_Plotting_1D_waves
+      - file: jupyter/quantum/2503_QutipPlayground
+      - file: jupyter/quantum/2503_QuantumErrorCorrectionWithQiskit
+      - file: jupyter/quantum/2503_VisualizingPotentials
+      - file: jupyter/quantum/2503_VisualizeQuantumCircuits
+      - file: jupyter/quantum/2503_deBruijnNewmanConstantExploration
+
+  - caption: Numerical Analysis
+    chapters:
+      - file: jupyter/numerical_analysis/2503_ApproximatingPIviaMonteCarlo
+      - file: jupyter/numerical_analysis/2503_DaskPlayground
+      - file: jupyter/numerical_analysis/2503_NumericalIntegration
+      - file: jupyter/numerical_analysis/2503_SigmoidVsExponential
+
+  - caption: Study Cases
+    chapters:
+      - file: jupyter/study_cases/2500_00_harmonic_oscillator_state_preparation
+      - file: jupyter/study_cases/2500_01_machzehnder_on_a_shaken_lattice
+      - file: jupyter/study_cases/2500_02_delta_estimation_through_an_ancilla
+
+  - caption: Graph Theory
+    chapters:
+      - file: jupyter/graph_theory/2503_AStartAlgorithm
+
+  - caption: Project Euler
+    chapters:
+      - file: jupyter/project_euler/2503_167
+
+  - caption: DevOps
+    chapters:
+      - file: jupyter/devops/2503_MigratingClusters
+
+  - caption: Hackathons
+    chapters:
+      - file: jupyter/hackathons/2507_AqoraHackathon
+
+  - caption: Tournaments
+    chapters:
+      - file: jupyter/tournaments/2503_coins_doe
+      - file: jupyter/tournaments/2503_liars_game
+
+  - caption: Scribbles
+    chapters:
+      - file: jupyter/scribbles/2502_BrokenLinkChecker
+      - file: jupyter/scribbles/2502_Sperners_Lemma
+      - file: jupyter/scribbles/2503_DesktopOSMarketShare
+      - file: jupyter/scribbles/2503_EpidemicTestingAccuracy
+      - file: jupyter/scribbles/2504_ExpectedOpportunityLoss
+      - file: jupyter/scribbles/2504_FunctionGrowthComparison
+      - file: jupyter/scribbles/2505_GraphFlowAnalysis
+      - file: jupyter/scribbles/2505_LogisticFunctionBehaviour
+      - file: jupyter/scribbles/2505_MedicalTestAccuracy
+      - file: jupyter/scribbles/2505_Monocrata
+      - file: jupyter/scribbles/2506_MultiArmedBandit
+      - file: jupyter/scribbles/2506_MutualInformation
+      - file: jupyter/scribbles/2506_Numerai
+      - file: jupyter/scribbles/2506_PhasePlanes
+      - file: jupyter/scribbles/2506_Playground
+      - file: jupyter/scribbles/2507_ProductionLineOptimization
+      - file: jupyter/scribbles/2507_QuantXHackathon
+      - file: jupyter/scribbles/2507_SparseMatrixOperations
+      - file: jupyter/scribbles/2508_ackerman_function
+      - file: jupyter/scribbles/2509_bayesian_updating
+      - file: jupyter/scribbles/2508_SynapticPatternFormationDuringCellularRecognition
+      - file: jupyter/scribbles/2508_TimeComplexityProfiling
+      - file: jupyter/scribbles/2508_WebsocketsUsedOnTwoMillionCheckboxes

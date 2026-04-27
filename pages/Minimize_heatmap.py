@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from src.optimization import TEST_FUNCTIONS, MINIMIZERS
+from src.algorithms.optimization import TEST_FUNCTIONS, MINIMIZERS
 
 st.set_page_config(page_title="Minimize Heatmap", page_icon="📐️", layout="wide")
 

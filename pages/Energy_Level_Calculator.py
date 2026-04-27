@@ -5,8 +5,8 @@ import pandas as pd
 import scipy
 import streamlit as st
 
-from src.enums import PotentialFunction, BoundaryCondition
-from src.plotting import plot_array
+from src.utils.enums import PotentialFunction, BoundaryCondition
+from src.visualization.plotting import plot_array
 
 st.set_page_config(page_title="Energy level calculator", page_icon="🛢", layout="wide")
 

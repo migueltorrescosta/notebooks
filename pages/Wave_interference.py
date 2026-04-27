@@ -1,7 +1,7 @@
 from functools import partial
 
 from matplotlib import pyplot as plt
-from src.plotting import plot_array
+from src.visualization.plotting import plot_array
 from tqdm import tqdm
 import itertools
 import numpy as np

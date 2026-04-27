@@ -2,7 +2,7 @@ from enum import Enum
 from functools import partial
 
 from matplotlib import pyplot as plt
-from src.plotting import plot_array
+from src.visualization.plotting import plot_array
 import numpy as np
 import pandas as pd
 import seaborn as sns

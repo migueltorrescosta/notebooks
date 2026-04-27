@@ -4,13 +4,13 @@ import numpy as np
 import scipy.linalg
 import streamlit as st
 
-from src.partial_trace import (
+from src.physics.partial_trace import (
     BipartiteConfig,
     build_bipartite_hamiltonian_components,
     partial_trace_a,
     partial_trace_b,
 )
-from src.plotting import plot_array
+from src.visualization.plotting import plot_array
 
 st.set_page_config(page_title="Partial Trace", page_icon="📐️", layout="wide")
 

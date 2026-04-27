@@ -3,12 +3,12 @@
 import pandas as pd
 import streamlit as st
 
-from src.heisenberg_model import (
+from src.physics.heisenberg_model import (
     heisenberg_hamiltonian,
     diagonalize_hamiltonian,
     compute_expectation_values,
 )
-from src.plotting import plot_array
+from src.visualization.plotting import plot_array
 
 st.set_page_config(page_title="Heisenberg Model", page_icon="⛓️", layout="wide")
 

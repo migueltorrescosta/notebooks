@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from src.sensitivity_analysis import sensitivity
+from src.analysis.sensitivity_analysis import sensitivity
 
 cpus = multiprocessing.cpu_count()
 

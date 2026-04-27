@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from src.enums import WavePacket, PotentialFunction, BoundaryCondition
-from src.quantum_time_evolution import (
+from src.utils.enums import WavePacket, PotentialFunction, BoundaryCondition
+from src.evolution.quantum_time_evolution import (
     gaussian_wave_packet,
     step_wave_packet,
     potential_quadratic,
@@ -22,7 +22,7 @@ from src.quantum_time_evolution import (
     normalize_energy_levels,
     TimeEvolver,
 )
-from src.plotting import plot_array
+from src.visualization.plotting import plot_array
 
 
 st.set_page_config(

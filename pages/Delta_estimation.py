@@ -1,13 +1,13 @@
 """Delta Estimation UI page - imports physics from src.delta_estimation."""
 
 from numpy.polynomial import Polynomial
-from src.angular_momentum import generate_spin_matrices
-from src.delta_estimation import (
+from src.physics.angular_momentum import generate_spin_matrices
+from src.analysis.delta_estimation import (
     DeltaEstimationConfig,
     generate_hamiltonian,
     full_calculation,
 )
-from src.plotting import plot_array
+from src.visualization.plotting import plot_array
 from tqdm import tqdm
 from typing import Any, cast
 import multiprocessing
