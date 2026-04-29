@@ -39,7 +39,7 @@ with st.expander("📖 Methodology", expanded=False):
 
 # START
 with st.sidebar:
-    st.header("Settings", divider="orange")
+    st.header("Settings", divider="gray")
     c1, c2 = st.columns(2)
     with c1:
         x_min = st.number_input("$x_{min}$", value=-3.0)
@@ -61,7 +61,7 @@ with st.sidebar:
     boundary_condition: BoundaryCondition = BoundaryCondition(boundary_condition_str)
     valid_x = np.linspace(x_min, x_max, resolution)
 
-    st.header("Potential $V(x)$", divider="blue")
+    st.header("Potential $V(x)$", divider="green")
     potential_function_str = st.selectbox(
         "$V(x)$", [f.value for f in PotentialFunction]
     )
@@ -142,7 +142,7 @@ def build_1d_hamiltonian(
     return inner_hamiltonian.tocsc()
 
 
-st.header("Potential $V(x)$", divider="blue")
+st.header("Potential $V(x)$", divider="green")  # RESULTS/SUCCESS
 
 st.line_chart(
     pd.DataFrame(
@@ -181,7 +181,7 @@ energy_levels = [
 ]
 
 with st.sidebar:
-    st.header("Orthonormality check", divider="green")
+    st.header("Orthonormality check", divider="orange")
     error_matrix = np.abs(eigenvectors.T @ eigenvectors) - np.eye(
         number_of_energy_levels
     )

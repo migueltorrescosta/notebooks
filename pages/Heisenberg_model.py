@@ -36,7 +36,7 @@ with st.expander("📖 Methodology", expanded=False):
     """)
 
 with st.sidebar:
-    st.header("Parameters", divider="blue")
+    st.header("Parameters", divider="gray")
     c1, c2, c3 = st.columns(3)
     with c1:
         j = st.number_input("$J$", value=1)
@@ -48,7 +48,7 @@ with st.sidebar:
 
     debug_mode = st.toggle("Debug mode", value=True)
 
-st.header("Setup", divider="blue")
+st.header("Setup", divider="gray")
 st.markdown("Transverse Heisenberg Model")
 st.markdown(
     f"$H = H_J + H_U = {j} sum_{{i=0}}^{{ {n_sites + 1} }} \\sigma^x_i\\sigma^x_{{i+1}} + \frac{{{u}}}{{2}} sum_{{i=1}}^{{{n_sites}}} \\sigma^z_i$"
@@ -85,7 +85,7 @@ if debug_mode:
     with col3:
         st.dataframe(level_expectations[:, :, 0].T)
 
-st.header("Energy levels", divider="orange")
+st.header("Energy levels", divider="green")
 
 left, center, right = st.columns(3)
 with left:

@@ -62,7 +62,7 @@ with st.expander("📖 Methodology", expanded=False):
 
 # START
 with st.sidebar:
-    st.header("Setup", divider="blue")
+    st.header("Setup", divider="gray")
     c1, c2, c3 = st.columns(3)
     with c1:
         x_min = st.number_input("$x_{min}$", value=-3.0)
@@ -156,7 +156,7 @@ with st.sidebar:
             "Boundary Condition", [f.value for f in BoundaryCondition]
         )
 
-st.header("Setup", divider="blue")
+st.header("Setup", divider="gray")  # SETUP/CONFIG
 
 methodology_info = {
     "Methodology": "These tabs describe the methodology used",

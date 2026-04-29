@@ -47,7 +47,7 @@ variables_of_interest = ["j_s", "delta_s", "alpha_x", "alpha_z", "t"]
 
 # CONTROLS
 with st.sidebar:
-    st.subheader("System", divider="blue")
+    st.subheader("System", divider="gray")
     c1, c2 = st.columns(2)
     with c1:
         j_s = st.number_input("$J_S$:", -10.0, 10.0, 0.0)
@@ -62,13 +62,15 @@ with st.sidebar:
         k = st.number_input("$k$ ( initial state )", 0, n, 1)
 
     st.subheader("Interactions", divider="green")
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     with c1:
         alpha_x = st.number_input(r"$\alpha_x$", 0.0, 10.0, 1.0)
     with c2:
         alpha_z = st.number_input(r"$\alpha_z$", 0.0, 10.0, 1.0)
     with c3:
         t = st.number_input("$t$", 0.0, 20.0, 3.0)
+
+    st.subheader("Evolution", divider="red")
 
 
 # DATAFRAME CREATION using physics module

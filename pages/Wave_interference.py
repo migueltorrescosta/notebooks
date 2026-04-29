@@ -55,7 +55,7 @@ def wave_b(x: float, y: float, wavelength: float, angle: float) -> complex:
 
 # START
 with st.sidebar:
-    st.header("Setup", divider="blue")
+    st.header("Setup", divider="gray")
     c1, c2, c3 = st.columns(3)
     with c1:
         wavelength_a = st.number_input("$\\lambda_a$", value=5.0)
@@ -77,7 +77,7 @@ with st.sidebar:
     wave_a = partial(wave_a, wavelength_a, angle_a)
     wave_b = partial(wave_b, wavelength_b, angle_b)
 
-st.header("Setup", divider="blue")
+st.header("Setup", divider="gray")  # SETUP/CONFIG
 st.markdown("""
     This page aims to interactively show the interference pattern caused by two waves.
     In particular this can be used to visualize the [Moiré effect](https://en.wikipedia.org/wiki/Moir%C3%A9_pattern).

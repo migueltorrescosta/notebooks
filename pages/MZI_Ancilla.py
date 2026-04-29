@@ -73,7 +73,7 @@ with st.expander("📖 Methodology", expanded=False):
 # Sidebar Controls
 # =============================================================================
 with st.sidebar:
-    st.header("Setup", divider="blue")
+    st.header("Setup", divider="gray")
 
     # Input state selection
     st.subheader("Input State")
@@ -144,7 +144,7 @@ with st.sidebar:
     st.divider()
 
     # Visualization options
-    st.subheader("Visualization")
+    st.subheader("Visualization", divider="gray")
     show_fringe = st.toggle("Show interference fringe", value=True)
     show_evolution = st.toggle("Show state evolution", value=True)
     show_density = st.toggle("Show density matrix", value=True)

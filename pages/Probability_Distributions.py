@@ -9,10 +9,12 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide"
+    page_title="📊 Probability Distributions",
+    page_icon="📊",
+    layout="wide",
 )
 
-st.header("Probability Distributions", divider="blue")
+st.header("📊 Probability Distributions", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""
@@ -45,7 +47,7 @@ with st.expander("📖 Methodology", expanded=False):
 
 # START
 with st.sidebar:
-    st.header("Setup", divider="blue")
+    st.header("Setup", divider="gray")
     initial_wave_packet_str = st.selectbox(
         "$X$", [prob_dist.value for prob_dist in ProbabilityDistribution]
     )
@@ -73,7 +75,7 @@ with st.sidebar:
                 $\\frac{{\\log(2)}}{{\\lambda}} \\approx \\frac{{{np.log(2):.5f}}}{{{decay_lambda:.5f}}} \\approx {np.divide(np.log(2), decay_lambda):.5f}$.
             """)
 
-st.header("Setup", divider="blue")
+st.header("Setup", divider="gray")  # SETUP/CONFIG
 
 match initial_wave_packet:
     case ProbabilityDistribution.ParticleDecay.value:
@@ -109,5 +111,5 @@ match initial_wave_packet:
             midpoint=None,
             text_auto=False,
         )
-        st.header("Raw data", divider="green")
+        st.header("Raw data", divider="orange")
         st.dataframe(df.pivot(columns="k", index="t", values="prob"))

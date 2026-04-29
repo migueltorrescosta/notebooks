@@ -25,7 +25,7 @@ def binomial_pdf(x: int, p: float, n: int) -> float:
 
 
 with st.sidebar:
-    st.header("Fisher Information", divider="blue")
+    st.header("Fisher Information", divider="gray")
     distribution = st.selectbox("Function", [dist.value for dist in Distributions])
 
     match distribution:
@@ -37,18 +37,18 @@ with st.sidebar:
                 theta_sample_size = st.number_input(
                     "$\\theta$'s granularity", min_value=5, value=100
                 )
-            if n * theta_sample_size > 1000:
-                st.error(
-                    f"There are {n * theta_sample_size} $(x,\\theta)$ tuples to calculate. This will be slow ⚠️"
-                )
-            valid_x = range(n + 1)
-            valid_theta = np.linspace(0, 1, theta_sample_size + 1)
-            pdf = partial(binomial_pdf, n=n)
+    if n * theta_sample_size > 1000:
+        st.error(
+            f"There are {n * theta_sample_size} $(x,\\theta)$ tuples to calculate. This will be slow ⚠️"
+        )
+    valid_x = range(n + 1)
+    valid_theta = np.linspace(0, 1, theta_sample_size + 1)
+    pdf = partial(binomial_pdf, n=n)
 
-    st.header("Cramer Rao", divider="orange")
-    fisher_clip = st.number_input(
-        "Max absolute fisher information ( plot )", min_value=0.001, value=0.1
-    )
+st.header("Cramer Rao", divider="orange")
+fisher_clip = st.number_input(
+    "Max absolute fisher information ( plot )", min_value=0.001, value=0.1
+)
 
 st.header("Fisher Information", divider="blue")
 

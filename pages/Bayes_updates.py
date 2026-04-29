@@ -59,7 +59,7 @@ likelihood_vector = np.array([0.0])
 
 
 with st.sidebar:
-    st.header("Setup", divider="blue")
+    st.header("Setup", divider="gray")
     c1, c2 = st.columns(2)
     with c1:
         prior_distribution = st.selectbox(

@@ -267,7 +267,7 @@ with st.expander("📖 Methodology", expanded=False):
 
 
 with st.sidebar:
-    st.header("Parameters", divider="blue")
+    st.header("Parameters", divider="gray")
 
     # N slider
     N = st.slider(

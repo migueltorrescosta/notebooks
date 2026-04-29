@@ -33,7 +33,7 @@ with st.expander("📖 Methodology", expanded=False):
     """)
 
 with st.sidebar:
-    st.subheader("System A", divider="blue")
+    st.subheader("System A", divider="gray")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
         n_a = st.number_input("$N_A$", min_value=0, value=2)
@@ -120,7 +120,7 @@ H_A &+& H_{{int}} &+& H_B \\\\
 
 c1, c2, c3 = st.columns(3)
 with c1:
-    st.header("System A", divider="blue")
+    st.header("System A", divider="gray")
     st.latex(r"H_A")
     plot_array(h_a, key="H_A")
     st.latex(r"\mathrm{Tr}_B[H]")

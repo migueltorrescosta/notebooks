@@ -19,9 +19,13 @@ import streamlit as st
 tqdm.pandas()
 
 # LAYOUT
-st.set_page_config(page_title="Delta Optimization", page_icon="📈️", layout="wide")
+st.set_page_config(
+    page_title="📈 Delta Estimation",
+    page_icon="📈",
+    layout="wide",
+)
 
-st.header("Delta Optimization", divider="blue")
+st.header("📈 Delta Estimation", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""
@@ -48,7 +52,7 @@ with st.expander("📖 Methodology", expanded=False):
 
 # INPUTS
 with st.sidebar:
-    st.header("System evolution", divider="blue")
+    st.header("System evolution", divider="gray")
 
     st.subheader("System controls")
     c1, c2 = st.columns(2)
@@ -132,7 +136,7 @@ with info_4:
     static_hamiltonian = generate_hamiltonian(config)
     plot_array(static_hamiltonian)
 
-st.header("System evolution", divider="blue")
+st.header("System evolution", divider="green")
 
 st.latex(f"""
     \\begin{{array}}{{rrccccc}}
@@ -287,7 +291,7 @@ st.line_chart(
 
 # Calculating expected likelihood based on observations
 with st.sidebar:
-    st.subheader("Likelihood", divider="green")
+    st.subheader("Likelihood", divider="orange")
     c1, c2 = st.columns(2)
     with c1:
         n_trials = st.number_input("$N_{trials}$", value=50)

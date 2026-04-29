@@ -31,7 +31,7 @@ with st.expander("📖 Methodology", expanded=False):
 
 
 with st.sidebar:
-    st.header("Comparing minimizers", divider="blue")
+    st.header("Comparing minimizers", divider="gray")
     c1, c2 = st.columns(2)
     with c1:
         selected_optimizer = st.selectbox("Minimizer", list(MINIMIZERS.keys()))
@@ -96,7 +96,7 @@ def gen_performance_df() -> pd.DataFrame:
     return df
 
 
-st.header("Comparing minimizers", divider="blue")
+st.header("Comparing minimizers", divider="gray")  # SETUP/CONFIG
 
 c1, c2 = st.columns(2)
 with c1:

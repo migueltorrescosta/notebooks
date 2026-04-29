@@ -311,10 +311,10 @@ with st.expander("📖 Methodology", expanded=False):
 
 
 with st.sidebar:
-    st.header("Configuration", divider="blue")
+    st.header("Configuration", divider="gray")
 
     # State selection
-    st.subheader("State Selection")
+    st.subheader("State Selection", divider="gray")
     state_options = ["All", "CSS", "SSS", "Twin-Fock", "NOON"]
     selected_state = st.radio(
         "Quantum State",
@@ -324,7 +324,7 @@ with st.sidebar:
     )
 
     # N range
-    st.subheader("N Sweep Range")
+    st.subheader("N Sweep Range", divider="gray")
     c1, c2 = st.columns(2)
     with c1:
         N_min = st.number_input("N min", min_value=10, value=20, step=10)
@@ -333,7 +333,7 @@ with st.sidebar:
     N_points = st.slider("N points", min_value=5, value=10, max_value=20)
 
     # Method toggle
-    st.subheader("Method")
+    st.subheader("Method", divider="gray")
     method = st.segmented_control(
         "Simulation Method",
         ["Lindblad", "TWA"],
@@ -342,7 +342,7 @@ with st.sidebar:
     )
 
     # Noise parameters
-    st.subheader("Noise Channels")
+    st.subheader("Noise Channels", divider="orange")
     include_one_body = st.checkbox("One-body loss (γ₁)", value=False)
     gamma_1 = st.slider("γ₁", 0.0, 0.1, 0.0) if include_one_body else 0.0
 
@@ -353,11 +353,11 @@ with st.sidebar:
     gamma_phi = st.slider("γ_φ", 0.0, 0.1, 0.0) if include_phase_diff else 0.0
 
     # OAT strength
-    st.subheader("OAT Parameters")
+    st.subheader("OAT Parameters", divider="green")
     chi = st.number_input("χ (OAT strength)", value=1.0, min_value=0.0)
 
     # Export
-    st.subheader("Export")
+    st.subheader("Export", divider="red")
     export_csv = st.button("Export CSV", type="secondary")
 
 
