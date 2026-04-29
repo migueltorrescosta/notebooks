@@ -138,21 +138,27 @@ def build_1d_hamiltonian(
     # Kinetic term T = -∂²/2m (set mass=1 for simplicity)
     # Using second derivative central difference: d²ψ/dx² ≈ (ψ_{i+1} - 2ψ_i + ψ_{i-1})/dx²
     # T = -1/2 * d²/dx² → matrix with -1 on off-diagonals, 2 on diagonal
-    hamiltonian = scipy.sparse.eye(n, n, format="lil") * 2
+
+    # Build in LIL format for efficient construction, then convert to CSC
+    hamiltonian_lil = scipy.sparse.eye(n, n, format="lil") * 2
 
     # Add second derivative (neighbor connections)
     for i in range(n - 1):
-        hamiltonian[i, i + 1] = -1
-        hamiltonian[i + 1, i] = -1
+        hamiltonian_lil[i, i + 1] = -1
+        hamiltonian_lil[i + 1, i] = -1
 
     # Cyclic boundary conditions
     if boundary_condition == BoundaryCondition.Cyclic:
-        hamiltonian[0, n - 1] = -1
-        hamiltonian[n - 1, 0] = -1
+        hamiltonian_lil[0, n - 1] = -1
+        hamiltonian_lil[n - 1, 0] = -1
 
-    hamiltonian = hamiltonian.tocsc() / (2 * mass * dx**2)
+    # Convert to CSC format for efficient arithmetic
+    # Use explicit constructor to help mypy understand the type
+    hamiltonian: scipy.sparse.csc_matrix = scipy.sparse.csc_matrix(
+        hamiltonian_lil.tocsc() / (2 * mass * dx**2)
+    )
 
-    # Add potential term V(x)
+    # Add potential term V(x) - diagonal modification is efficient in CSC
     for i in range(n):
         hamiltonian[i, i] = hamiltonian[i, i] + potential_function(float(i * dx))
 
@@ -171,7 +177,7 @@ class EnergyLevel:
     level: int
     energy: float
     wave_function: np.ndarray
-    component: float  # Overlap with initial state
+    component: complex  # Overlap with initial state (complex)
 
 
 def compute_energy_levels(
@@ -200,7 +206,8 @@ def compute_energy_levels(
     for level, energy, wf in zip(
         range(num_levels), np.real(eigenvalues), eigenvectors.T
     ):
-        component = float(np.vdot(initial_state, wf))
+        # Store complex overlap - normalize_energy_levels will make it real
+        component = np.vdot(initial_state, wf)
         levels.append(
             EnergyLevel(
                 level=level,
@@ -238,7 +245,8 @@ def normalize_energy_levels(
 
     # Stack into matrices for efficient computation
     wave_functions_matrix = np.stack([el.wave_function for el in levels])
-    components = np.array([el.component for el in levels])
+    # Components are now real after normalization (np.abs returns float)
+    components = np.real(np.array([el.component for el in levels]))
     energies = np.array([el.energy for el in levels])
 
     return wave_functions_matrix, components, energies
@@ -252,7 +260,7 @@ def normalize_energy_levels(
 def prepare_initial_state(
     x_grid: np.ndarray,
     state_type: str,
-    **kwargs,
+    **kwargs: Any,
 ) -> np.ndarray:
     """Prepare an initial wavefunction.
 
@@ -260,6 +268,8 @@ def prepare_initial_state(
         x_grid: Spatial grid.
         state_type: Type of state ('gaussian' or 'step').
         **kwargs: Parameters specific to state_type.
+            For 'gaussian': d (float), x0 (float), p (float)
+            For 'step': r (float), s (float), p (float)
 
     Returns:
         Normalized wavefunction.

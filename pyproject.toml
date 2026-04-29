@@ -79,6 +79,12 @@ python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 addopts = ""
+filterwarnings = [
+    # Ignore multiprocessing fork warning in tests
+    "ignore::DeprecationWarning:multiprocessing",
+    # Ignore ComplexWarning for now (handled by our fix)
+    "ignore::numpy.exceptions.ComplexWarning",
+]
 
 [tool.ruff]
 exclude = [

@@ -87,7 +87,35 @@ df_pdf = pd.DataFrame(
     columns=pd.Index(x_arr.flatten(), name="x"),
 )
 
+# Physics assertion: PDF must sum to 1 for each theta
+assert np.allclose(df_pdf.sum(axis=1), 1.0, rtol=1e-5), (
+    "PDF must sum to 1 for each theta value"
+)
+
 plot_array(np.array(df_pdf), midpoint=None, text_auto=False)
+
+# Clip PDF to avoid log(0) issues - use small epsilon
+epsilon = 1e-12
+pdf_clipped = np.clip(pdf_values, epsilon, None)
+log_pdf = np.log(pdf_clipped)  # (n+1, m) - x rows, theta columns
+
+# Gradient of log_pdf along theta axis (axis=1)
+grad_log = np.gradient(log_pdf, axis=1)  # (n+1, m)
+grad_sq = grad_log**2  # (n+1, m)
+
+# Fisher information: for each theta, average (grad_log)^2 over x, weighted by pdf
+# I(theta_j) = sum_x pdf(x|theta_j) * (d/dtheta log pdf(x|theta_j))^2
+# fisher_information has shape (m,) - one value per theta
+fisher_information = np.average(
+    grad_sq, axis=0, weights=pdf_values
+)  # Average over x (axis=0)
+
+# Create DataFrames for visualization
+log_df = pd.DataFrame(
+    log_pdf.T,  # (m, n+1) - theta rows, x columns
+    index=pd.Index(theta_arr.flatten(), name="theta"),
+    columns=pd.Index(x_arr.flatten(), name="x"),
+)
 
 
 def quick_and_dirty(my_array: np.ndarray) -> None:
@@ -102,20 +130,13 @@ with c1:
     quick_and_dirty(np.array(df_pdf))
 with c2:
     st.latex(r"\log f_\theta(x)")
-    quick_and_dirty(np.log(np.array(df_pdf)))
+    quick_and_dirty(np.array(log_df))
 with c3:
     st.latex(r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )")
-    quick_and_dirty(np.gradient(np.log(np.array(df_pdf)), axis=0))
+    quick_and_dirty(grad_log.T)  # (m, n+1)
 with c4:
     st.latex(r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2")
-    quick_and_dirty(np.gradient(np.log(np.array(df_pdf)), axis=0) ** 2)
-
-# axis 0 is x, axis 1 is p
-fisher_information = np.average(
-    np.gradient(np.log(np.array(df_pdf)), axis=0) ** 2,
-    weights=np.array(df_pdf),
-    axis=1,
-)
+    quick_and_dirty(grad_sq.T)  # (m, n+1)
 fisher_information_df = pd.DataFrame(
     {
         "fisher_information": np.clip(
