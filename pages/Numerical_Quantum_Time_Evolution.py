@@ -26,13 +26,13 @@ from src.visualization.plotting import plot_array
 
 
 st.set_page_config(
-    page_title="Numerical quantum Time Evolution", page_icon="🦖️", layout="wide"
+    page_title="QM | Numerical Quantum Time Evolution", page_icon="🦖️", layout="wide"
 )
 
 st.cache_data.clear()
 st.cache_resource.clear()
 
-st.header("Numerical Quantum Time Evolution", divider="blue")
+st.header("QM | Numerical Quantum Time Evolution", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""

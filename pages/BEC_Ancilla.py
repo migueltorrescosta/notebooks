@@ -46,7 +46,7 @@ from src.physics.noise_channels import NoiseConfig
 
 # Page configuration
 st.set_page_config(
-    page_title="BEC Ancilla",
+    page_title="Metro | BEC Ancilla",
     page_icon="🔗",
     layout="wide",
 )
@@ -225,7 +225,7 @@ def compute_ttn_bond_growth(
 # =============================================================================
 
 
-st.header("BEC Ancilla-Enhanced Metrology", divider="blue")
+st.header("Metro | BEC Ancilla-Enhanced Metrology", divider="blue")
 
 
 with st.expander("📖 Methodology", expanded=False):

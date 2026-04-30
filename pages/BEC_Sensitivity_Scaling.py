@@ -52,7 +52,7 @@ from src.evolution.lindblad_solver import (
 
 # Page configuration
 st.set_page_config(
-    page_title="BEC Sensitivity Scaling",
+    page_title="Metro | BEC Sensitivity Scaling",
     page_icon="📊",
     layout="wide",
 )
@@ -277,7 +277,7 @@ def compute_scaling_exponent(N: np.ndarray, delta_phi: np.ndarray) -> float:
 # =============================================================================
 
 
-st.header("BEC Sensitivity Scaling", divider="blue")
+st.header("Metro | BEC Sensitivity Scaling", divider="blue")
 
 
 with st.expander("📖 Methodology", expanded=False):

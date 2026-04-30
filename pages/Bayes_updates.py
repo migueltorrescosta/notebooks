@@ -5,9 +5,9 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="Bayesian Updates", page_icon="👶️", layout="wide")
+st.set_page_config(page_title="Bayes | Bayesian Updates", page_icon="👶️", layout="wide")
 
-st.header("Bayesian Updates", divider="blue")
+st.header("Bayes | Bayesian Updates", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""

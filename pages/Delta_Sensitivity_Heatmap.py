@@ -11,10 +11,10 @@ from src.analysis.sensitivity_analysis import sensitivity
 cpus = multiprocessing.cpu_count()
 
 st.set_page_config(
-    page_title="Delta Sensitivity Heatmap", page_icon="📈️", layout="wide"
+    page_title="Metro | Delta Sensitivity Heatmap", page_icon="📈️", layout="wide"
 )
 
-st.header("Delta Sensitivity Heatmap", divider="blue")
+st.header("Metro | Delta Sensitivity Heatmap", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""

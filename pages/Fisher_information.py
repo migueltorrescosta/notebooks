@@ -10,7 +10,9 @@ import scipy
 import streamlit as st
 
 # LAYOUT
-st.set_page_config(page_title="Fisher information", page_icon="🛗️", layout="wide")
+st.set_page_config(
+    page_title="Metro | Fisher Information", page_icon="🛗️", layout="wide"
+)
 
 
 class Distributions(Enum):
@@ -45,12 +47,12 @@ with st.sidebar:
     valid_theta = np.linspace(0, 1, theta_sample_size + 1)
     pdf = partial(binomial_pdf, n=n)
 
-st.header("Cramer Rao", divider="orange")
+st.header("Metro | Cramer Rao", divider="orange")
 fisher_clip = st.number_input(
     "Max absolute fisher information ( plot )", min_value=0.001, value=0.1
 )
 
-st.header("Fisher Information", divider="blue")
+st.header("Metro | Fisher Information", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""

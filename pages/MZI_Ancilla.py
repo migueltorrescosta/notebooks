@@ -28,10 +28,10 @@ from src.visualization.plotting import plot_array
 
 
 # Page configuration
-st.set_page_config(page_title="MZI with Ancilla", page_icon="🔬", layout="wide")
+st.set_page_config(page_title="MZI | MZI with Ancilla", page_icon="🔬", layout="wide")
 
 
-st.header("Mach-Zehnder Interferometer with Ancilla", divider="blue")
+st.header("MZI | Mach-Zehnder Interferometer with Ancilla", divider="blue")
 
 
 # =============================================================================

@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="Interference Patterns", page_icon="〰", layout="wide")
+st.set_page_config(page_title="MZI | Wave Interference", page_icon="〰", layout="wide")
 
-st.header("Wave Interference", divider="blue")
+st.header("MZI | Wave Interference", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""

@@ -7,9 +7,9 @@ import streamlit as st
 
 from src.algorithms.optimization import TEST_FUNCTIONS, MINIMIZERS
 
-st.set_page_config(page_title="Minimize Heatmap", page_icon="📐️", layout="wide")
+st.set_page_config(page_title="Math | Minimize Heatmap", page_icon="📐️", layout="wide")
 
-st.header("Minimize Heatmap", divider="blue")
+st.header("Math | Minimize Heatmap", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""

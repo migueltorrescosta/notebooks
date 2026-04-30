@@ -9,12 +9,12 @@ import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="📊 Probability Distributions",
+    page_title="Bayes | Probability Distributions",
     page_icon="📊",
     layout="wide",
 )
 
-st.header("📊 Probability Distributions", divider="blue")
+st.header("Bayes | Probability Distributions", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""

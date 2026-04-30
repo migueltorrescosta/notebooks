@@ -12,9 +12,11 @@ from src.physics.partial_trace import (
 )
 from src.visualization.plotting import plot_array
 
-st.set_page_config(page_title="Partial Trace", page_icon="📐️", layout="wide")
+st.set_page_config(
+    page_title="Info | Partial Trace Visualization", page_icon="📐️", layout="wide"
+)
 
-st.header("Partial Trace Visualization", divider="blue")
+st.header("Info | Partial Trace Visualization", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""

@@ -8,12 +8,14 @@ import streamlit as st
 from src.utils.enums import PotentialFunction, BoundaryCondition
 from src.visualization.plotting import plot_array
 
-st.set_page_config(page_title="Energy level calculator", page_icon="🛢", layout="wide")
+st.set_page_config(
+    page_title="QM | Energy Level Calculator", page_icon="🛢", layout="wide"
+)
 
 st.cache_data.clear()
 st.cache_resource.clear()
 
-st.header("Energy Level Calculator", divider="blue")
+st.header("QM | Energy Level Calculator", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""

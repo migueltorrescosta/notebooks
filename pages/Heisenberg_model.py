@@ -10,9 +10,9 @@ from src.physics.heisenberg_model import (
 )
 from src.visualization.plotting import plot_array
 
-st.set_page_config(page_title="Heisenberg Model", page_icon="⛓️", layout="wide")
+st.set_page_config(page_title="Spin | Heisenberg Model", page_icon="⛓️", layout="wide")
 
-st.header("Heisenberg Model", divider="blue")
+st.header("Spin | Heisenberg Model", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""

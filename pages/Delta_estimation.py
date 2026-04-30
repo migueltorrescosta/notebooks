@@ -20,12 +20,12 @@ tqdm.pandas()
 
 # LAYOUT
 st.set_page_config(
-    page_title="📈 Delta Estimation",
+    page_title="Metro | Delta Estimation",
     page_icon="📈",
     layout="wide",
 )
 
-st.header("📈 Delta Estimation", divider="blue")
+st.header("Metro | Delta Estimation", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""
