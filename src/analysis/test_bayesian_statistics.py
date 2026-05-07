@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from typing import cast
 
-from src.analysis.bayesian_statistics import BayesUpdate
+from .bayesian_statistics import BayesUpdate
 
 
 class TestBayesUpdate:

@@ -24,6 +24,8 @@ Note:
   to create input states.
 """
 
+from typing import Any
+
 import numpy as np
 import scipy.special
 
@@ -186,7 +188,7 @@ def input_state_factory(
     state_type: str,
     N: int,
     max_photons: int | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> np.ndarray:
     """Factory function for creating various input states for MZI.
 

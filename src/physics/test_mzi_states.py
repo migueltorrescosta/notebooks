@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 from src.physics.mzi_simulation import noon_state
-from src.physics.mzi_states import (
+from .mzi_states import (
     twin_fock_state,
     coherent_state_two_mode,
     input_state_factory,

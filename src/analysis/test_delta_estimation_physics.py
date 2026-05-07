@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from src.analysis.delta_estimation import (
+from .delta_estimation import (
     DeltaEstimationConfig,
     generate_initial_state,
     generate_hamiltonian,

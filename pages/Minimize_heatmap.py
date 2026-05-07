@@ -73,7 +73,7 @@ def gen_performance_df() -> pd.DataFrame:
     for function, minimizer in itertools.product(subset_functions, subset_minimizers):
         opt = MINIMIZERS[minimizer]
         func = TEST_FUNCTIONS[function]
-        result = opt(func, [0, 0])
+        result = opt(func, np.array([0.0, 0.0]))
         results.append(
             {
                 "minimizer": minimizer,

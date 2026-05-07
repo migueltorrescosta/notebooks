@@ -106,7 +106,7 @@ sensitivity_df = compute_sensitivity_df(n, k, j_s, delta_s, alpha_x, alpha_z, t)
 
 
 # PLOTS
-def plot_sensitivity(df: pd.DataFrame, title: str, values: str):
+def plot_sensitivity(df: pd.DataFrame, title: str, values: str) -> None:
     import matplotlib.pyplot as plt
     import seaborn as sns
 

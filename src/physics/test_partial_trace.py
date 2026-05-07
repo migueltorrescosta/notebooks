@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from src.physics.partial_trace import (
+from .partial_trace import (
     local_hamiltonian,
     BipartiteConfig,
     build_bipartite_hamiltonian,

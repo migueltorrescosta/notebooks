@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from src.algorithms.optimization import (
+from .optimization import (
     rastrigin,
     sphere,
     rosenbrock,

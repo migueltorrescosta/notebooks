@@ -511,7 +511,7 @@ def _evolve_scipy(
     rho0 = density_to_vector(initial_rho)
 
     # ODE function
-    def rhs(t, rho_vec):
+    def rhs(t: float, rho_vec: np.ndarray) -> np.ndarray:
         return vectorized_liouvillian(rho_vec, H, L_ops, gammas)
 
     # Integrate

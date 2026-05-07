@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from src.analysis.bayesian_phase_estimation import (
+from .bayesian_phase_estimation import (
     bayesian_estimator,
     bayesian_likelihood,
     bayesian_posterior,

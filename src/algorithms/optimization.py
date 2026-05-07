@@ -227,7 +227,7 @@ def create_minimizer(
         def wrap(x: np.ndarray) -> float:
             return func(x[0], x[1])
 
-        result = minimize(wrap, x0=x0, method=method)
+        result: Dict[str, Any] = minimize(wrap, x0=x0, method=method)  # type: ignore[call-overload]
         return result
 
     return minimizer

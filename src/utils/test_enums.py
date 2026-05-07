@@ -1,6 +1,6 @@
 """Smoke tests for enums module."""
 
-from src.utils.enums import (
+from .enums import (
     BoundaryCondition,
     PotentialFunction,
     ProbabilityDistribution,

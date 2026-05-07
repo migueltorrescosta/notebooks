@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.algorithms.spin_squeezing import (
+from .spin_squeezing import (
     coherent_spin_state,
     one_axis_twist,
     squeezing_parameter,

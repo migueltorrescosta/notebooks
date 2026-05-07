@@ -403,14 +403,14 @@ def compute_twa_expectations(
             all_trajectories.append(result["trajectory"])
 
     # Convert to arrays
-    Jz_samples = np.array(Jz_samples)
-    J_total_samples = np.array(J_total_samples)
+    Jz_samples_arr = np.array(Jz_samples)
+    J_total_samples_arr = np.array(J_total_samples)
 
     # Compute statistics
-    Jz_mean = np.mean(Jz_samples)
-    Jz_variance = np.var(Jz_samples)
-    Jz_std = np.std(Jz_samples)
-    J_total_mean = np.mean(J_total_samples)
+    Jz_mean = np.mean(Jz_samples_arr)
+    Jz_variance = np.var(Jz_samples_arr)
+    Jz_std = np.std(Jz_samples_arr)
+    J_total_mean = np.mean(J_total_samples_arr)
 
     # Return results
     result_dict = {

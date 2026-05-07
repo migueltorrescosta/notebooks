@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from src.analysis.sensitivity_analysis import (
+from .sensitivity_analysis import (
     compute_rabi_frequency,
     sensitivity,
     compute_sensitivity_grid,

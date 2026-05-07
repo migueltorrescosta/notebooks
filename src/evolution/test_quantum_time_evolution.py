@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from src.evolution.quantum_time_evolution import (
+from .quantum_time_evolution import (
     potential_quadratic,
     potential_quartic,
     potential_double_well,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.analysis.delta_estimation import (
+from .delta_estimation import (
     DeltaEstimationConfig,
     full_calculation,
     generate_initial_state,

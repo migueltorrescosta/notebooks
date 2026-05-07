@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from functools import partial
 from plotly import express as px
-from typing import List
+from typing import Any, Callable, List
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -195,12 +195,13 @@ with c1:
 def build_hamiltonian_wrapper(
     inner_n: int,
     inner_dx: float,
-    inner_potential_function,  # type: ignore
+    inner_potential_function: Callable,
     inner_boundary_condition: BoundaryCondition,
-):
-    return build_1d_hamiltonian(
+) -> Any:
+    result = build_1d_hamiltonian(
         inner_n, inner_dx, inner_potential_function, inner_boundary_condition
     )
+    return result
 
 
 hamiltonian = build_hamiltonian_wrapper(

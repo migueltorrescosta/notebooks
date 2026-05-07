@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from src.physics.heisenberg_model import (
+from .heisenberg_model import (
     heisenberg_hamiltonian,
     heisenberg_coupling_term,
     heisenberg_field_term,

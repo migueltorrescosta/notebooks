@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from src.algorithms.tensor_tree_network import TensorTreeNetwork, TTNNode
+from .tensor_tree_network import TensorTreeNetwork, TTNNode
 
 
 class TestTTNNode:

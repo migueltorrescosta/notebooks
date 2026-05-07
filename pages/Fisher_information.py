@@ -80,7 +80,7 @@ match distribution:
 # Vectorized PDF computation using broadcasting
 x_arr = np.arange(n + 1)[:, None]  # (n+1, 1)
 theta_arr = np.linspace(0, 1, theta_sample_size + 1)[None, :]  # (1, m)
-pdf_values = scipy.stats.binom.pmf(x_arr, n=n, p=theta_arr)  # (n+1, m)
+pdf_values = np.asarray(scipy.stats.binom.pmf(x_arr, n, theta_arr))  # (n+1, m)
 
 # Create DataFrame directly from array - no Python loops
 df_pdf = pd.DataFrame(
@@ -122,7 +122,7 @@ log_df = pd.DataFrame(
 
 def quick_and_dirty(my_array: np.ndarray) -> None:
     fig, ax = plt.subplots()
-    sns.heatmap(my_array, cmap="viridis")
+    sns.heatmap(np.asarray(my_array), cmap="viridis")
     st.write(fig)
 
 

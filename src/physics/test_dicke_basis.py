@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.physics.dicke_basis import (
+from .dicke_basis import (
     basis_transformation_matrix,
     dicke_states,
     from_dicke_basis,

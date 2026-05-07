@@ -4,7 +4,7 @@ Tests for MZI with Ancilla simulation module.
 
 import numpy as np
 
-from src.physics.mzi_simulation import (
+from .mzi_simulation import (
     vacuum_state,
     single_photon_state,
     noon_state,

@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import subprocess
 import time
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -42,7 +43,7 @@ _stored_port: int | None = None
 
 
 @pytest.fixture(scope="module")
-def streamlit_server() -> tuple[subprocess.Popen, int]:
+def streamlit_server() -> Generator[tuple[subprocess.Popen, int], None, None]:
     """Start Streamlit server in the background and yield the process and port."""
     global _stored_port
 

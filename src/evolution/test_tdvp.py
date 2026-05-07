@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from src.evolution.tdvp import (
+from .tdvp import (
     TDVPConfig,
     TDVPResult,
     tdvp_single_site,
@@ -87,6 +87,8 @@ class TestTDPVSingleSite:
         updated_ttn = tdvp_single_site(ttn, site_idx=0, H_eff=H_z, dt=dt)
 
         # Check norm preservation
+        assert ttn._state_vector is not None
+        assert updated_ttn._state_vector is not None
         norm_before = np.linalg.norm(ttn._state_vector)
         norm_after = np.linalg.norm(updated_ttn._state_vector)
         assert np.isclose(norm_before, norm_after, rtol=1e-6)
@@ -166,10 +168,12 @@ class TestApplyTrotterStep:
 
         # First-order Trotter
         result_1 = apply_trotter_step(ttn, [SIGMA_Z], dt, order=1)
+        assert result_1._state_vector is not None
         fidelity_1 = compute_state_fidelity(result_1._state_vector, exact)
 
         # Second-order Trotter
         result_2 = apply_trotter_step(ttn, [SIGMA_Z], dt, order=2)
+        assert result_2._state_vector is not None
         fidelity_2 = compute_state_fidelity(result_2._state_vector, exact)
 
         # Order 2 should be at least as good as order 1
@@ -357,6 +361,7 @@ class TestExactEvolution:
             config=TDVPConfig(dt=0.01, trotter_order=2),
         )
 
+        assert result.final_ttn._state_vector is not None
         fidelity = compute_state_fidelity(result.final_ttn._state_vector, psi_exact)
 
         # Should be reasonably accurate for small dt
@@ -494,6 +499,7 @@ class TestTDVPAgainstExact:
             config=TDVPConfig(dt=0.005, trotter_order=2),
         )
 
+        assert result.final_ttn._state_vector is not None
         fidelity = compute_state_fidelity(result.final_ttn._state_vector, psi_exact)
 
         # Should be accurate to within 10^-4 relative error
@@ -526,6 +532,7 @@ class TestTDVPAgainstExact:
 
         # Check against exact
         psi_exact = evolve_exact(state, H, t=0.05, rng=rng)
+        assert result.final_ttn._state_vector is not None
         fidelity = compute_state_fidelity(result.final_ttn._state_vector, psi_exact)
 
         # Relative error = 1 - fidelity
@@ -569,6 +576,7 @@ class TestTDVPSmallSystemComparison:
         psi_exact = evolve_exact(state, H, t=0.02, rng=rng)
 
         # Compare
+        assert result.final_ttn._state_vector is not None
         fidelity = compute_state_fidelity(result.final_ttn._state_vector, psi_exact)
 
         # TDVP should capture the dynamics reasonably well

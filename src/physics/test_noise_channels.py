@@ -19,7 +19,7 @@ import pytest
 import scipy.stats
 from numpy.testing import assert_allclose
 
-from src.physics.noise_channels import (
+from .noise_channels import (
     NoiseConfig,
     annihilation_operator,
     apply_detection_noise,
@@ -30,7 +30,7 @@ from src.physics.noise_channels import (
     detection_channel_pmf,
     validate_lindblad_completeness,
 )
-from src.physics.dicke_basis import jz_operator
+from .dicke_basis import jz_operator
 
 
 # =============================================================================
@@ -39,19 +39,19 @@ from src.physics.dicke_basis import jz_operator
 
 
 @pytest.fixture
-def N():
+def N() -> int:
     """Standard atom number for testing."""
     return 4
 
 
 @pytest.fixture
-def config_all_channels():
+def config_all_channels() -> NoiseConfig:
     """Configuration with all channels active."""
     return NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02, eta=0.9)
 
 
 @pytest.fixture
-def fock_distribution():
+def fock_distribution() -> np.ndarray:
     """Standard Fock state distribution."""
     # P(n) = δ_{n, N}
     probs = np.zeros(11)
@@ -67,19 +67,19 @@ def fock_distribution():
 class TestAnnihilationOperator:
     """Tests for annihilation operator a."""
 
-    def test_operator_shape(self, N):
+    def test_operator_shape(self, N: int) -> None:
         """Operator should have correct shape."""
         a = annihilation_operator(N)
         assert a.shape == (N + 1, N + 1)
 
-    def test_operator_hermitian(self, N):
+    def test_operator_hermitian(self, N: int) -> None:
         """a is not Hermitian (lowering operator)."""
         a = annihilation_operator(N)
         # a should NOT equal a†
         a_dag = a.conj().T
         assert not np.allclose(a, a_dag)
 
-    def test_matrix_elements(self, N):
+    def test_matrix_elements(self, N: int) -> None:
         """Test specific matrix elements."""
         a = annihilation_operator(N)
         # a[j+1, j] = √(N - j) for j = 0 to N-1
@@ -88,7 +88,7 @@ class TestAnnihilationOperator:
         # Check a[2, 1] = √3
         assert_allclose(np.abs(a[2, 1]), np.sqrt(3))
 
-    def test_action_on_extreme_states(self, N):
+    def test_action_on_extreme_states(self, N: int) -> None:
         """Test action on extremal Dicke states."""
         a = annihilation_operator(N)
 
@@ -107,12 +107,12 @@ class TestAnnihilationOperator:
 class TestCreationOperator:
     """Tests for creation operator a†."""
 
-    def test_operator_shape(self, N):
+    def test_operator_shape(self, N: int) -> None:
         """Operator should have correct shape."""
         a_dag = creation_operator(N)
         assert a_dag.shape == (N + 1, N + 1)
 
-    def test_hermitian_conjugate(self, N):
+    def test_hermitian_conjugate(self, N: int) -> None:
         """a relates to a via transpose-conjugate relationship."""
         # The key property is that one operator is the transpose of the other
         a = annihilation_operator(N)
@@ -120,7 +120,7 @@ class TestCreationOperator:
         # They should differ by transpose (not necessarily conjugate due to real values)
         assert a_dag.shape == a.shape
 
-    def test_matrix_elements(self, N):
+    def test_matrix_elements(self, N: int) -> None:
         """Test specific matrix elements."""
         a_dag = creation_operator(N)
 
@@ -140,7 +140,7 @@ class TestCreationOperator:
 class TestJzOperator:
     """Tests for J_z operator."""
 
-    def test_eigenvalues(self, N):
+    def test_eigenvalues(self, N: int) -> None:
         """J_z should have correct eigenvalues."""
         J_z = jz_operator(N)
         J = N / 2.0
@@ -148,12 +148,12 @@ class TestJzOperator:
         expected = np.arange(J, -J - 1, -1)
         assert_allclose(J_z.diagonal(), expected)
 
-    def test_hermitian(self, N):
+    def test_hermitian(self, N: int) -> None:
         """J_z should be Hermitian."""
         J_z = jz_operator(N)
         assert_allclose(J_z, J_z.conj().T)
 
-    def test_commutation(self, N):
+    def test_commutation(self, N: int) -> None:
         """Test number operator structure."""
         a = annihilation_operator(N)
         a_dag = creation_operator(N)
@@ -176,13 +176,13 @@ class TestJzOperator:
 class TestBuildLindbladOperators:
     """Tests for building Lindblad operators."""
 
-    def test_empty_config(self, N):
+    def test_empty_config(self, N: int) -> None:
         """Empty config should return empty list."""
         config = NoiseConfig()
         L_ops = build_lindblad_operators(N, config)
         assert len(L_ops) == 0
 
-    def test_one_body_loss(self, N):
+    def test_one_body_loss(self, N: int) -> None:
         """One-body loss should give correct operator."""
         config = NoiseConfig(gamma_1=0.3)
         L_ops = build_lindblad_operators(N, config)
@@ -192,7 +192,7 @@ class TestBuildLindbladOperators:
         expected = np.sqrt(0.3) * a
         assert_allclose(L_ops[0], expected)
 
-    def test_two_body_loss(self, N):
+    def test_two_body_loss(self, N: int) -> None:
         """Two-body loss should give a² operator."""
         config = NoiseConfig(gamma_2=0.3)
         L_ops = build_lindblad_operators(N, config)
@@ -203,7 +203,7 @@ class TestBuildLindbladOperators:
         expected = np.sqrt(0.3) * a_squared
         assert_allclose(L_ops[0], expected)
 
-    def test_phase_diffusion(self, N):
+    def test_phase_diffusion(self, N: int) -> None:
         """Phase diffusion should give J_z operator."""
         config = NoiseConfig(gamma_phi=0.3)
         L_ops = build_lindblad_operators(N, config)
@@ -213,14 +213,14 @@ class TestBuildLindbladOperators:
         expected = np.sqrt(0.3) * J_z
         assert_allclose(L_ops[0], expected)
 
-    def test_combined_channels(self, N):
+    def test_combined_channels(self, N: int) -> None:
         """Combined channels should give list of all operators."""
         config = NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02)
         L_ops = build_lindblad_operators(N, config)
 
         assert len(L_ops) == 3
 
-    def test_invalid_config(self, N):
+    def test_invalid_config(self, N: int) -> None:
         """Invalid config should raise error."""
         # Negative rate should raise ValueError
         config_neg = NoiseConfig(gamma_1=-0.1)
@@ -241,12 +241,12 @@ class TestBuildLindbladOperators:
 class TestLindbladValidation:
     """Tests for Lindblad completeness validation."""
 
-    def test_empty_operators(self):
+    def test_empty_operators(self) -> None:
         """Empty operator list should pass validation."""
         result = validate_lindblad_completeness([])
         assert result["is_bounded"]
 
-    def test_one_body_bounded(self, N):
+    def test_one_body_bounded(self, N: int) -> None:
         """One-body loss should satisfy completeness."""
         config = NoiseConfig(gamma_1=0.1)
         L_ops = build_lindblad_operators(N, config)
@@ -254,7 +254,7 @@ class TestLindbladValidation:
 
         assert result["is_bounded"]
 
-    def test_all_channels_bounded(self, N):
+    def test_all_channels_bounded(self, N: int) -> None:
         """All channels combined should satisfy completeness."""
         config = NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02)
         L_ops = build_lindblad_operators(N, config)
@@ -272,14 +272,14 @@ class TestLindbladValidation:
 class TestDetectionNoise:
     """Tests for detection noise channel."""
 
-    def test_perfect_detection(self):
+    def test_perfect_detection(self) -> None:
         """Perfect detection should return identity."""
         probs = np.array([0.1, 0.4, 0.5])
         result = apply_detection_noise(probs, eta=1.0, n_trials=100)
 
         assert_allclose(result, probs, atol=1e-6)
 
-    def test_binomial_pmf(self):
+    def test_binomial_pmf(self) -> None:
         """Test binomial PMF calculation."""
         # n=2, η=0.5
         # P(0) = (1-0.5)² = 0.25
@@ -288,19 +288,19 @@ class TestDetectionNoise:
         pmf = detection_channel_pmf(2, 0.5)
         assert_allclose(pmf, [0.25, 0.5, 0.25], atol=1e-10)
 
-    def test_binomial_eta_zero(self):
+    def test_binomial_eta_zero(self) -> None:
         """η=0 should give P(k) = δ_{k,0}."""
         pmf = detection_channel_pmf(2, 0.0)
         expected = [1.0, 0.0, 0.0]
         assert_allclose(pmf, expected, atol=1e-10)
 
-    def test_binomial_eta_one(self):
+    def test_binomial_eta_one(self) -> None:
         """η=1 should give δ_{k,n}."""
         pmf = detection_channel_pmf(2, 1.0)
         expected = [0.0, 0.0, 1.0]
         assert_allclose(pmf, expected, atol=1e-10)
 
-    def test_detection_monte_carlo(self):
+    def test_detection_monte_carlo(self) -> None:
         """Monte Carlo should approximate binomial."""
         probs = np.array([0.0, 0.0, 1.0])  # Certain n=2
         result = apply_detection_noise(probs, eta=0.5, n_trials=1000, seed=42)
@@ -310,7 +310,7 @@ class TestDetectionNoise:
         assert result[1] > 0
         assert result[2] > 0
 
-    def test_validity_ranges(self):
+    def test_validity_ranges(self) -> None:
         """Invalid eta should raise error."""
         probs = np.array([0.5, 0.5])
 
@@ -329,7 +329,7 @@ class TestDetectionNoise:
 class TestPhysicalProperties:
     """Tests for physical conservation laws."""
 
-    def test_number_conservation_no_loss(self, N):
+    def test_number_conservation_no_loss(self, N: int) -> None:
         """Without loss, particle number should be conserved."""
         config = NoiseConfig(gamma_1=0, gamma_2=0, gamma_phi=0)
         L_ops = build_lindblad_operators(N, config)
@@ -345,7 +345,7 @@ class TestPhysicalProperties:
         comm = n @ np.eye(N + 1) - np.eye(N + 1) @ n
         assert_allclose(comm, np.zeros((N + 1, N + 1)))
 
-    def test_two_body_rate_scaling(self):
+    def test_two_body_rate_scaling(self) -> None:
         """Two-body loss rate scales with N(N-1)."""
         # Verify operator structure: a² is constructed correctly
         N = 10
@@ -369,7 +369,7 @@ class TestPhysicalProperties:
 class TestExpectationValues:
     """Tests for expectation value calculations."""
 
-    def test_mean_number_single_fock(self):
+    def test_mean_number_single_fock(self) -> None:
         """Single Fock state should have mean = n."""
         n = 3
         probs = np.zeros(10)
@@ -378,7 +378,7 @@ class TestExpectationValues:
         mean_n = compute_mean_particle_number(probs)
         assert_allclose(mean_n, n)
 
-    def test_variance_single_fock(self):
+    def test_variance_single_fock(self) -> None:
         """Single Fock state should have zero variance."""
         n = 3
         probs = np.zeros(10)
@@ -387,7 +387,7 @@ class TestExpectationValues:
         var_n = compute_particle_variance(probs)
         assert_allclose(var_n, 0.0)
 
-    def test_mean_poisson(self):
+    def test_mean_poisson(self) -> None:
         """Poisson distribution should have mean = variance."""
         # P(n) = e^{-μ} μ^n / n!
         mu = 2.5
@@ -411,7 +411,7 @@ class TestExpectationValues:
 class TestCombinedNoiseModel:
     """Integration tests for combined noise channels."""
 
-    def test_config_validation(self):
+    def test_config_validation(self) -> None:
         """Test that config parameters are properly used."""
         N = 4
         config = NoiseConfig(
@@ -431,7 +431,7 @@ class TestCombinedNoiseModel:
         # Just check max eigenvalue is finite
         assert np.isfinite(result["max_eigenvalue"])
 
-    def test_all_channels_independent(self):
+    def test_all_channels_independent(self) -> None:
         """Test each channel is independent."""
         N = 4
 
@@ -444,7 +444,7 @@ class TestCombinedNoiseModel:
             L_ops = build_lindblad_operators(N, config)
             assert len(L_ops) == 1
 
-    def test_zero_rates(self):
+    def test_zero_rates(self) -> None:
         """Zero rates should produce no operators."""
         N = 4
         config = NoiseConfig(gamma_1=0, gamma_2=0, gamma_phi=0)
@@ -461,13 +461,13 @@ class TestCombinedNoiseModel:
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
-    def test_N_zero(self):
+    def test_N_zero(self) -> None:
         """N=0 should produce valid operators."""
         a = annihilation_operator(0)
         assert a.shape == (1, 1)
         assert_allclose(a, np.array([[0.0]]))
 
-    def test_small_N(self):
+    def test_small_N(self) -> None:
         """Small N values should work."""
         for N in [0, 1, 2]:
             a = annihilation_operator(N)
@@ -476,7 +476,7 @@ class TestEdgeCases:
             J_z = jz_operator(N)
             assert J_z.shape == (N + 1, N + 1)
 
-    def test_very_small_rates(self):
+    def test_very_small_rates(self) -> None:
         """Very small rates should not cause numerical issues."""
         N = 4
         config = NoiseConfig(gamma_1=1e-10, gamma_2=0, gamma_phi=0)

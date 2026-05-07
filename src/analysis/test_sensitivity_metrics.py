@@ -12,7 +12,7 @@ Tests validate:
 import numpy as np
 import pytest
 
-from src.analysis.sensitivity_metrics import (
+from .sensitivity_metrics import (
     all_sensitivity_metrics,
     compare_sensitivity_methods,
     error_propagation_sensitivity,
@@ -25,7 +25,7 @@ from src.physics.mzi_simulation import prepare_input_state
 class TestErrorPropagationSensitivity:
     """Tests for error propagation sensitivity."""
 
-    def test_error_propagation_single_photon(self):
+    def test_error_propagation_single_photon(self) -> None:
         """Basic test for error propagation with single photon."""
         max_photons = 1
         state = prepare_input_state("single_photon", max_photons=max_photons)
@@ -39,7 +39,7 @@ class TestErrorPropagationSensitivity:
         assert np.isfinite(result["delta_phi_ep"])
         assert result["delta_phi_ep"] > 0
 
-    def test_error_propagation_noon_state(self):
+    def test_error_propagation_noon_state(self) -> None:
         """Test with NOON state."""
         max_photons = 2
         state = prepare_input_state(
@@ -52,7 +52,7 @@ class TestErrorPropagationSensitivity:
         assert np.isfinite(result["delta_phi_ep"])
         assert result["delta_phi_ep"] > 0
 
-    def test_error_propagation_invalid_input(self):
+    def test_error_propagation_invalid_input(self) -> None:
         """Test invalid inputs raise errors."""
         max_photons = 1
         state = prepare_input_state("single_photon", max_photons=max_photons)
@@ -67,7 +67,7 @@ class TestErrorPropagationSensitivity:
                 state, max_photons, np.linspace(0, 2 * np.pi, 100), dphi=-0.1
             )
 
-    def test_error_propagation_dimension_mismatch(self):
+    def test_error_propagation_dimension_mismatch(self) -> None:
         """Test dimension mismatch raises error."""
         max_photons = 2
         # Create a state with wrong dimension (using single photon state)
@@ -81,7 +81,7 @@ class TestErrorPropagationSensitivity:
 class TestAllSensitivityMetrics:
     """Tests for all_sensitivity_metrics function."""
 
-    def test_single_photon_sensitivity(self):
+    def test_single_photon_sensitivity(self) -> None:
         """Test with single photon."""
         max_photons = 1
         state = prepare_input_state("single_photon", max_photons=max_photons)
@@ -97,7 +97,7 @@ class TestAllSensitivityMetrics:
         assert "delta_phi_bayes" in result
         assert result["n_mc"] == 50
 
-    def test_noon_state_sensitivity(self):
+    def test_noon_state_sensitivity(self) -> None:
         """Test with NOON state."""
         max_photons = 2
         state = prepare_input_state(
@@ -115,7 +115,7 @@ class TestAllSensitivityMetrics:
         assert np.isfinite(result["delta_phi_fq"])
         assert np.isfinite(result["delta_phi_bayes"])
 
-    def test_invalid_max_photons_raises(self):
+    def test_invalid_max_photons_raises(self) -> None:
         """Test invalid max_photons raises error."""
         state = prepare_input_state("single_photon", max_photons=1)
 
@@ -129,7 +129,7 @@ class TestAllSensitivityMetrics:
 class TestSensitivityScaling:
     """Tests for sensitivity_scaling function."""
 
-    def test_single_photon_scaling(self):
+    def test_single_photon_scaling(self) -> None:
         """Single photon should give SQL: Δφ ∝ 1 (constant)."""
         N_range = np.array([1, 2, 3, 4])
 
@@ -143,7 +143,7 @@ class TestSensitivityScaling:
 
         assert len(result.df) > 0
 
-    def test_noon_scaling(self):
+    def test_noon_scaling(self) -> None:
         """NOON should achieve Heisenberg limit: Δφ ∝ 1/N."""
         N_range = np.array([1, 2, 3, 4])
 
@@ -157,7 +157,7 @@ class TestSensitivityScaling:
 
         assert len(result.df) > 0
 
-    def test_invalid_state_type(self):
+    def test_invalid_state_type(self) -> None:
         """Invalid state type should raise."""
         with pytest.raises(ValueError):
             sensitivity_scaling(
@@ -169,7 +169,7 @@ class TestSensitivityScaling:
 class TestSensitivityValidation:
     """Tests for sensitivity validation and comparison."""
 
-    def test_validate_sensitivity_order(self):
+    def test_validate_sensitivity_order(self) -> None:
         """Test that validation checks EP >= CRB."""
         # Should pass: EP > CRB (less precise)
         assert validate_sensitivity_order(1.0, 0.5)
@@ -180,7 +180,7 @@ class TestSensitivityValidation:
         # Should fail: EP < CRB outside tolerance
         assert not validate_sensitivity_order(0.5, 1.0, rtol=0.1)
 
-    def test_compare_sensitivity_methods(self):
+    def test_compare_sensitivity_methods(self) -> None:
         """Test comparison of all methods."""
         max_photons = 2
         state = prepare_input_state(
@@ -193,7 +193,7 @@ class TestSensitivityValidation:
         assert "ep_valid" in result
         assert "methods_agree" in result
 
-    def test_methods_agree_large_sample_limit(self):
+    def test_methods_agree_large_sample_limit(self) -> None:
         """All methods should agree in large sample limit.
 
         With many measurements, Bayesian and Fisher should converge.
@@ -223,7 +223,7 @@ class TestSensitivityValidation:
 class TestScalingExponents:
     """Tests for scaling exponent accuracy."""
 
-    def test_noon_exponent_approx_heisenberg(self):
+    def test_noon_exponent_approx_heisenberg(self) -> None:
         """NOON should have exponent ≈ -1 (Heisenberg)."""
         N_range = np.array([1, 2, 3, 4])
 
@@ -246,7 +246,7 @@ class TestScalingExponents:
 class TestBoundaryConditions:
     """Tests for edge cases and boundary conditions."""
 
-    def test_zero_derivative_handling(self):
+    def test_zero_derivative_handling(self) -> None:
         """Should handle near-zero derivatives gracefully."""
         max_photons = 1
         state = prepare_input_state("single_photon", max_photons=max_photons)
@@ -257,7 +257,7 @@ class TestBoundaryConditions:
         # Should not return NaN or Inf
         assert np.isfinite(result["delta_phi_ep"])
 
-    def test_high_numerical_precision(self):
+    def test_high_numerical_precision(self) -> None:
         """Test with fine phi_grid for better precision."""
         max_photons = 2
         state = prepare_input_state(
@@ -275,7 +275,7 @@ class TestBoundaryConditions:
 class TestReproducibility:
     """Tests for reproducibility with seeds."""
 
-    def test_same_seed_same_results(self):
+    def test_same_seed_same_results(self) -> None:
         """Same seed should give same results."""
         max_photons = 2
         state = prepare_input_state(
@@ -292,7 +292,7 @@ class TestReproducibility:
         # Bayesian should be reproducible
         assert result1["delta_phi_bayes"] == result2["delta_phi_bayes"]
 
-    def test_different_seed_different_results(self):
+    def test_different_seed_different_results(self) -> None:
         """Different seeds can give different results (stochastic)."""
         max_photons = 2
         state = prepare_input_state(
@@ -315,7 +315,7 @@ class TestReproducibility:
 class TestPhysicsInvariants:
     """Tests for physical invariants and bounds."""
 
-    def test_qfi_non_negative(self):
+    def test_qfi_non_negative(self) -> None:
         """Quantum Fisher information must be non-negative."""
         max_photons = 2
         state = prepare_input_state(
@@ -328,7 +328,7 @@ class TestPhysicsInvariants:
 
         assert result["fisher_quantum"] >= 0
 
-    def test_sensitivity_positive(self):
+    def test_sensitivity_positive(self) -> None:
         """All sensitivity measures should be positive."""
         max_photons = 2
         state = prepare_input_state(

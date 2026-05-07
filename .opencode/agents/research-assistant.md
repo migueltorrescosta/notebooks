@@ -50,7 +50,8 @@ Follow these steps **in order** for every task that requires writing code.
 5. Use **type hints** for all function signatures
 
 ## 3. At the end
-1. Run all tests: `uv run pytest . --quiet --tb=short`
+1. Ensure added/removed/edited tests are co-located with the code they test.
+2. Run all tests: `uv run pytest . --quiet --tb=short`
 2. Run linter: `uv run ruff check . --fix && uv run ruff format .`
 3. Verify no physics errors via assertions
 4. If a new experiment was run based on an article, add a "Conclusions" section to the paper detailing the results.

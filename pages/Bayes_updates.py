@@ -80,12 +80,13 @@ with st.sidebar:
                 c = 1.0  # Linear is polynomial with c=1
                 prior_fn = partial(prior_polynomial, a=a, b=b, c=c)
             case Distributions.Gaussian.value:
-                st.latex(r"e^{-a_1(x-\\mu_1)^2}")
-                a = st.number_input("$a_1$", value=1.0)
-                mu = st.number_input("$\\mu_1$", value=0.0)
+                st.latex(r"e^{-a_2(x-\mu_2)^2}")
+                a = st.number_input("$a_2$", value=1.0)
+                mu = st.number_input("$\mu_2$", value=0.0)
                 prior_fn = partial(prior_gaussian, a=a, mu=mu)
 
-        prior_vector = np.maximum(prior_fn(domain), 0)
+        prior_vals = np.array([prior_fn(x) for x in domain])
+        prior_vector = np.maximum(prior_vals, 0)
         prior_vector = prior_vector / np.sum(prior_vector)
 
     with c2:
@@ -112,7 +113,8 @@ with st.sidebar:
                 mu = st.number_input("$\\mu_2$", value=0.0)
                 likelihood_fn = partial(likelihood_gaussian, a=a, mu=mu)
 
-        likelihood_vector = np.maximum(likelihood_fn(domain), 0)
+        likelihood_vals = np.array([likelihood_fn(x) for x in domain])
+        likelihood_vector = np.maximum(likelihood_vals, 0)
         likelihood_vector = likelihood_vector / np.sum(likelihood_vector)
 
     posterior_vector = prior_vector * likelihood_vector

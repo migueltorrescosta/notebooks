@@ -29,7 +29,7 @@ class TestFourierTransform:
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
 
-            from src.visualization.visualization import fourier_transform
+            from .visualization import fourier_transform
 
             def f(t: float) -> float:
                 return np.exp(-(t**2))
@@ -46,7 +46,7 @@ class TestFourierTransform:
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
 
-            from src.visualization.visualization import fourier_transform
+            from .visualization import fourier_transform
 
             fourier_transform(lambda t: t, a=0, b=1, time_domain_n=10)
 
@@ -63,7 +63,7 @@ class TestFourierTransform:
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
 
-            from src.visualization.visualization import fourier_transform
+            from .visualization import fourier_transform
 
             fourier_transform(lambda t: t, a=0, b=1, time_domain_n=10)
 
@@ -77,7 +77,7 @@ class TestFourierTransform:
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
 
-            from src.visualization.visualization import fourier_transform
+            from .visualization import fourier_transform
 
             fourier_transform(lambda t: 1.0, a=0, b=1, time_domain_n=10)
 
@@ -90,7 +90,7 @@ class TestFourierTransform:
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
 
-            from src.visualization.visualization import fourier_transform
+            from .visualization import fourier_transform
 
             # Should not raise
             fourier_transform(lambda t: np.sin(t))
@@ -103,7 +103,7 @@ class TestFourierTransform:
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
             mock_subplots.return_value = (mock_fig, mock_axs)
 
-            from src.visualization.visualization import fourier_transform
+            from .visualization import fourier_transform
 
             fourier_transform(lambda t: 1.0, a=-1, b=1, time_domain_n=n_samples)
 
@@ -131,7 +131,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         """Function should call plt.stackplot to create the population plot."""
         with patch("matplotlib.pyplot.stackplot") as mock_stackplot:
             with patch("matplotlib.pyplot.legend"):
-                from src.visualization.visualization import (
+                from .visualization import (
                     finite_dimensional_populations_over_time,
                 )
 
@@ -147,7 +147,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         """Stackplot should receive the time axis as first argument."""
         with patch("matplotlib.pyplot.stackplot") as mock_stackplot:
             with patch("matplotlib.pyplot.legend"):
-                from src.visualization.visualization import (
+                from .visualization import (
                     finite_dimensional_populations_over_time,
                 )
 
@@ -167,7 +167,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         """Stackplot should receive population arrays (array-like, time-invariant)."""
         with patch("matplotlib.pyplot.stackplot") as mock_stackplot:
             with patch("matplotlib.pyplot.legend"):
-                from src.visualization.visualization import (
+                from .visualization import (
                     finite_dimensional_populations_over_time,
                 )
 
@@ -190,7 +190,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         """Function should call plt.legend when labels are provided."""
         with patch("matplotlib.pyplot.stackplot"):
             with patch("matplotlib.pyplot.legend") as mock_legend:
-                from src.visualization.visualization import (
+                from .visualization import (
                     finite_dimensional_populations_over_time,
                 )
 
@@ -208,7 +208,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0], [0.0, 0.0]], dtype=complex)
         rho0 = np.array([[1.0, 0.0], [0.0, 0.0]], dtype=complex)
 
-        from src.visualization.visualization import (
+        from .visualization import (
             finite_dimensional_populations_over_time,
         )
 
@@ -222,7 +222,7 @@ class TestFiniteDimensionalPopulationsOverTime:
             [[1.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=complex
         )
 
-        from src.visualization.visualization import (
+        from .visualization import (
             finite_dimensional_populations_over_time,
         )
 
@@ -233,7 +233,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray
     ) -> None:
         """Should raise AssertionError for negative time window."""
-        from src.visualization.visualization import (
+        from .visualization import (
             finite_dimensional_populations_over_time,
         )
 
@@ -246,7 +246,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray
     ) -> None:
         """Should raise AssertionError for zero time window."""
-        from src.visualization.visualization import (
+        from .visualization import (
             finite_dimensional_populations_over_time,
         )
 
@@ -259,7 +259,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         """Should raise AssertionError when rho0 trace != 1."""
         rho0 = np.array([[0.8, 0.0], [0.0, 0.1]], dtype=complex)  # Trace = 0.9
 
-        from src.visualization.visualization import (
+        from .visualization import (
             finite_dimensional_populations_over_time,
         )
 
@@ -270,7 +270,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         self, simple_hamiltonian: np.ndarray, pure_state: np.ndarray
     ) -> None:
         """Should raise AssertionError when label count doesn't match state count."""
-        from src.visualization.visualization import (
+        from .visualization import (
             finite_dimensional_populations_over_time,
         )
 
@@ -285,7 +285,7 @@ class TestFiniteDimensionalPopulationsOverTime:
         """Should accept labels array with correct count."""
         with patch("matplotlib.pyplot.stackplot"):
             with patch("matplotlib.pyplot.legend"):
-                from src.visualization.visualization import (
+                from .visualization import (
                     finite_dimensional_populations_over_time,
                 )
 
@@ -314,7 +314,7 @@ class TestQuantumStateHeatmap:
             mock_ax2 = MagicMock()
             mock_subplots.return_value = (mock_fig, (mock_ax1, mock_ax2))
 
-            from src.visualization.visualization import quantum_state_heatmap
+            from .visualization import quantum_state_heatmap
 
             quantum_state_heatmap(hamiltonian, rho0, t=0)
 
@@ -330,7 +330,7 @@ class TestQuantumStateHeatmap:
             mock_ax2 = MagicMock()
             mock_subplots.return_value = (mock_fig, (mock_ax1, mock_ax2))
 
-            from src.visualization.visualization import quantum_state_heatmap
+            from .visualization import quantum_state_heatmap
 
             quantum_state_heatmap(hamiltonian, mixed_state, t=0)
 
@@ -347,7 +347,7 @@ class TestQuantumStateHeatmap:
             mock_ax2 = MagicMock()
             mock_subplots.return_value = (mock_fig, (mock_ax1, mock_ax2))
 
-            from src.visualization.visualization import quantum_state_heatmap
+            from .visualization import quantum_state_heatmap
 
             quantum_state_heatmap(hamiltonian, mixed_state, t=0)
 
@@ -367,7 +367,7 @@ class TestQuantumStateHeatmap:
             mock_ax2 = MagicMock()
             mock_subplots.return_value = (mock_fig, (mock_ax1, mock_ax2))
 
-            from src.visualization.visualization import quantum_state_heatmap
+            from .visualization import quantum_state_heatmap
 
             quantum_state_heatmap(hamiltonian, mixed_state, t=0)
 
@@ -389,7 +389,7 @@ class TestQuantumStateHeatmap:
             mock_ax2 = MagicMock()
             mock_subplots.return_value = (mock_fig, (mock_ax1, mock_ax2))
 
-            from src.visualization.visualization import quantum_state_heatmap
+            from .visualization import quantum_state_heatmap
 
             # Call at t=0
             quantum_state_heatmap(hamiltonian, rho0, t=0)
@@ -413,7 +413,7 @@ class TestLargerDimensions:
 
         with patch("matplotlib.pyplot.stackplot"):
             with patch("matplotlib.pyplot.legend"):
-                from src.visualization.visualization import (
+                from .visualization import (
                     finite_dimensional_populations_over_time,
                 )
 
@@ -435,7 +435,7 @@ class TestLargerDimensions:
             mock_ax2 = MagicMock()
             mock_subplots.return_value = (mock_fig, (mock_ax1, mock_ax2))
 
-            from src.visualization.visualization import quantum_state_heatmap
+            from .visualization import quantum_state_heatmap
 
             quantum_state_heatmap(hamiltonian, rho0, t=0)
 

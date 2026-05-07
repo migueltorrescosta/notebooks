@@ -340,6 +340,8 @@ with st.sidebar:
         default="TWA",
         help="Lindblad for small N, TWA for large N",
     )
+    if method is None:
+        method = "TWA"  # Default fallback
 
     # Noise parameters
     st.subheader("Noise Channels", divider="orange")
@@ -413,7 +415,9 @@ for idx, state_type in enumerate(states_to_analyze):
 
     if len(df) > 1:
         # Compute scaling exponent
-        α = compute_scaling_exponent(df["N"].values, df["delta_phi"].values)
+        α = compute_scaling_exponent(
+            np.array(df["N"].values), np.array(df["delta_phi"].values)
+        )
         scaling_exponents[state_type] = α
         all_results[state_type] = df
 

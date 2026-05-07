@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.algorithms.algorithms import GaussianMetropolisHastings
+from .algorithms import GaussianMetropolisHastings
 
 
 class TestGaussianMetropolisHastings:

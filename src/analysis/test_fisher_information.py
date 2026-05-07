@@ -12,7 +12,7 @@ Tests validate:
 import numpy as np
 import pytest
 
-from src.analysis.fisher_information import (
+from .fisher_information import (
     classical_fisher_information,
     generate_phase_generator,
     phase_sensitivity_from_fisher,
@@ -25,7 +25,7 @@ from src.analysis.fisher_information import (
 class TestQuantumFisherInformationPure:
     """Tests for QFI with pure states."""
 
-    def test_qfi_noon_state_heisenberg_scaling(self):
+    def test_qfi_noon_state_heisenberg_scaling(self) -> None:
         """NOON-like state should achieve F_Q = N² (Heisenberg scaling)."""
         for N in [2, 4, 8, 10]:
             # Generate state in symmetric subspace representation
@@ -46,7 +46,7 @@ class TestQuantumFisherInformationPure:
                 f"N={N}: F_Q={fq} should be ~{expected}"
             )
 
-    def test_qfi_css_state_scaling(self):
+    def test_qfi_css_state_scaling(self) -> None:
         """GHZ-like state should achieve F_Q = N² (same as NOON in J_z basis)."""
         for N in [2, 4, 8, 10]:
             dim = N + 1
@@ -64,7 +64,7 @@ class TestQuantumFisherInformationPure:
                 f"N={N}: F_Q={fq} should be ~{expected}"
             )
 
-    def test_qfi_noon_greater_than_eigenstate(self):
+    def test_qfi_noon_greater_than_eigenstate(self) -> None:
         """NOON should have higher QFI than an eigenstate."""
         N = 10
         dim = N + 1
@@ -88,7 +88,7 @@ class TestQuantumFisherInformationPure:
             f"NOON QFI {fq_noon} should exceed eigenstate QFI {fq_eigen}"
         )
 
-    def test_qfi_zero_for_eigenstate(self):
+    def test_qfi_zero_for_eigenstate(self) -> None:
         """QFI should be zero for an eigenstate of the generator."""
         N = 5
         dim = N + 1
@@ -105,7 +105,7 @@ class TestQuantumFisherInformationPure:
             f"QFI for eigenstate should be ~0, got {fq}"
         )
 
-    def test_qfi_variance_formula(self):
+    def test_qfi_variance_formula(self) -> None:
         """Test that F_Q = 4 Var(G) holds."""
         N = 5
         dim = N + 1
@@ -135,7 +135,7 @@ class TestQuantumFisherInformationPure:
 class TestQuantumFisherInformationMixed:
     """Tests for QFI with mixed states."""
 
-    def test_qfi_mixed_state_matches_pure(self):
+    def test_qfi_mixed_state_matches_pure(self) -> None:
         """Mixed state QFI should reduce to pure formula when pure."""
         N = 5
         dim = N + 1
@@ -155,7 +155,7 @@ class TestQuantumFisherInformationMixed:
             f"Pure state QFI={fq_pure}, DM QFI={fq_dm}"
         )
 
-    def test_qfi_mixed_state_lower_than_pure(self):
+    def test_qfi_mixed_state_lower_than_pure(self) -> None:
         """Mixed state QFI should be <= pure state QFI."""
         N = 5
 
@@ -183,7 +183,7 @@ class TestQuantumFisherInformationMixed:
 class TestClassicalFisherInformation:
     """Tests for classical Fisher information."""
 
-    def test_cfi_positive_for_nonzero_probabilities(self):
+    def test_cfi_positive_for_nonzero_probabilities(self) -> None:
         """F_C should be positive when all probabilities are nonzero."""
         n_phi = 10
         n_outcomes = 2
@@ -199,7 +199,7 @@ class TestClassicalFisherInformation:
         # Should be positive for everywhere where sin is not too flat
         assert np.all(fc >= 0), "F_C should be non-negative"
 
-    def test_cfi_smaller_than_qfi(self):
+    def test_cfi_smaller_than_qfi(self) -> None:
         """Classical Fisher <= Quantum Fisher (Cramér-Rao inequality)."""
         N = 5
         dim = N + 1
@@ -238,7 +238,7 @@ class TestClassicalFisherInformation:
 class TestPhaseSensitivity:
     """Tests for phase sensitivity from Fisher information."""
 
-    def test_phase_sensitivity_noon_heisenberg(self):
+    def test_phase_sensitivity_noon_heisenberg(self) -> None:
         """NOON state achieves Δφ = 1/N (Heisenberg scaling) when F_Q = N²."""
         # For NOON-like state with F_Q = N², Δφ = 1/√(N²) = 1/N
         N = 100
@@ -262,7 +262,7 @@ class TestPhaseSensitivity:
             f"Δφ={delta_phi} should be < SQL={expected_sql}"
         )
 
-    def test_phase_sensitivity_invalid_f(self):
+    def test_phase_sensitivity_invalid_f(self) -> None:
         """Should raise for non-positive Fisher information."""
         # Test zero
         with pytest.raises(ValueError):
@@ -276,12 +276,12 @@ class TestPhaseSensitivity:
 class TestValidation:
     """Tests for input validation."""
 
-    def test_validate_fisher_positive(self):
+    def test_validate_fisher_positive(self) -> None:
         """Should validate positive Fisher information."""
         validate_fisher_inputs(1.0)
         validate_fisher_inputs(100.0)
 
-    def test_validate_fisher_invalid(self):
+    def test_validate_fisher_invalid(self) -> None:
         """Should reject non-positive Fisher information."""
         with pytest.raises(ValueError):
             validate_fisher_inputs(0.0)
@@ -296,7 +296,7 @@ class TestValidation:
 class TestEdgeCases:
     """Tests for edge cases and numerical stability."""
 
-    def test_large_N_scaling(self):
+    def test_large_N_scaling(self) -> None:
         """Should handle large N without overflow."""
         N = 1000
         dim = N + 1
@@ -312,7 +312,7 @@ class TestEdgeCases:
         assert fq > 0, "QFI should be positive"
         assert np.isfinite(fq), "QFI should be finite"
 
-    def test_small_probability_handling(self):
+    def test_small_probability_handling(self) -> None:
         """Should handle small probabilities without division errors."""
         # Probabilities with very small values
         probs = np.array(
@@ -327,7 +327,7 @@ class TestEdgeCases:
         # Should be finite and positive
         assert np.all(np.isfinite(fc)), "F_C should be finite"
 
-    def test_generator_dimension_mismatch(self):
+    def test_generator_dimension_mismatch(self) -> None:
         """Should raise on dimension mismatch."""
         dim_state = 5
         dim_generator = 10
@@ -344,7 +344,7 @@ class TestEdgeCases:
 # =============================================================================
 
 
-def test_qfi_variance_relationship():
+def test_qfi_variance_relationship() -> None:
     """Verify F_Q = 4 Var(G) relationship."""
     N = 6
 
@@ -374,7 +374,7 @@ def test_qfi_variance_relationship():
 class TestPhysicsInvariants:
     """Validation tests for physics invariants."""
 
-    def test_cfi_less_than_equal_qfi(self):
+    def test_cfi_less_than_equal_qfi(self) -> None:
         """F_C ≤ F_Q always (Cramér-Rao bound)."""
         # Generate probability distributions for test states
         N = 5
@@ -404,7 +404,7 @@ class TestPhysicsInvariants:
         # F_C <= F_Q at each phi
         assert np.all(fc <= fq + 1e-5), f"Max F_C={np.max(fc)} should be <= F_Q={fq}"
 
-    def test_cfi_positive_for_nonzero_probs(self):
+    def test_cfi_positive_for_nonzero_probs(self) -> None:
         """F_C(φ) > 0 for all φ where P(m|φ) > 0."""
         n_phi = 20
         dim = 2
@@ -422,7 +422,7 @@ class TestPhysicsInvariants:
 
         assert np.all(fc >= 0), "F_C should be non-negative"
 
-    def test_phase_sensitivity_css_sql(self):
+    def test_phase_sensitivity_css_sql(self) -> None:
         """Verify phase sensitivity computes correctly from Fisher info."""
         for N in [10, 50, 100]:
             dim = N + 1
@@ -441,7 +441,7 @@ class TestPhysicsInvariants:
                 f"N={N}: Δφ={delta_phi:.6f} should be 1/√F={expected_delta:.6f}"
             )
 
-    def test_squeezed_state_sub_sql(self):
+    def test_squeezed_state_sub_sql(self) -> None:
         """Squeezed states should achieve F_Q > N (sub-SQL)."""
         N = 20
         dim = N + 1

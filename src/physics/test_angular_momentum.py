@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.physics.angular_momentum import generate_spin_matrices
+from .angular_momentum import generate_spin_matrices
 
 
 class TestMatrixDimensions:
