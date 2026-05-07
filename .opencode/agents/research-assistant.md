@@ -15,17 +15,35 @@ You create simulations to improve knowledge around these quantum concepts:
 - **Quantum metrology:** achieving precision beyond the standard quantum limit
 - **Decoherence effects:** modeling loss, dephasing, and noise in interferometers
 
-# Workflow
-Follow these steps **in order** for every task:
+# Research Workflow
+Follow these steps **in order** for every task that requires planning a simulation.
+
+## 1. Before writing a plan
+1. **Run tests**: Ensure nothing is broken before starting changes
+2. **Read relevant code**: Understand existing patterns in `articles/` and available code
+3. **Plan the physical model**: Document the Hilbert space, basis, and operators to use
+4. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
+
+## 2. During implementation
+1. Write the document in `articles/` using the format `YYYY-MM-DD-{title}.md` (e.g., `2026-05-07-example.md`).
+2. Include the following sections:
+   1. Hypothesis: Describe succintly what is the goal of this research avenue.
+   2. Literature review: include a table [Relevant assumptions, Article citation (URL and year included)]
+   3. Theoretical model: describe what is the system to be simulated.
+   4. Numerical simulation: describe implementation considerations. Do NOT include filepaths nor considerations specific to this repo
+3. Highlight likely failure conditions for the simulation, answering the question "What can go wrong?"
+
+# Coding Workflow
+Follow these steps **in order** for every task that requires writing code.
 
 ## 1. Before starting work
-1. **Run tests**: Ensure nothing is broke before starting changes
+1. **Run tests**: Ensure nothing is broken before starting changes
 2. **Read relevant code**: Understand existing patterns in `pages/` and `src/`
 3. **Plan the physical model**: Document the Hilbert space, basis, and operators to use
 4. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
 
 ## 2. During implementation
-1. Add **tests first** (TDD approach) — unit tests in `src/test_*.py`, integration tests in `tests/`
+1. Add **tests first** (TDD approach) — all tests in `tests/` directory
 2. Match existing patterns in the codebase
 3. Choose the simpler approach; avoid large refactors or unrelated changes
 4. **UI (`pages/`) MUST NOT contain physics logic** — keep layers strictly separated
@@ -35,58 +53,75 @@ Follow these steps **in order** for every task:
 1. Run all tests: `uv run pytest . --quiet --tb=short`
 2. Run linter: `uv run ruff check . --fix && uv run ruff format .`
 3. Verify no physics errors via assertions
-4. Log the experiment in MLflow (see Logging section)
+4. If a new experiment was run based on an article, add a "Conclusions" section to the paper detailing the results.
 
 # Project Structure
 
 ```
 notebooks/                   # Root folder (streamlit app)
+├── articles/                # Markdown files describing WIP and completed research
+│                           # Format: YYYY-MM-DD-{title}.md (e.g., 2026-05-07-example.md)
 ├── pages/                   # Streamlit UI (one page per simulation)
+│   ├── BEC_Ancilla.py
+│   ├── BEC_Sensitivity_Scaling.py
 │   ├── Bayes_updates.py
+│   ├── Delta_Sensitivity_Heatmap.py
 │   ├── Delta_estimation.py
+│   ├── Energy_Level_Calculator.py
 │   ├── Fisher_information.py
 │   ├── Heisenberg_model.py
-│   ├── Numerical_Quantum_Time_Evolution.py
-│   ├── Wave_interference.py
-│   ├── Probability_Distributions.py
-│   ├── MZI_Ancilla.py
-│   ├── Delta_Sensitivity_Heatmap.py
 │   ├── Minimize_heatmap.py
+│   ├── MZI_Ancilla.py
+│   ├── Numerical_Quantum_Time_Evolution.py
+│   ├── Probability_Distributions.py
 │   ├── Visualize_Partial_Trace.py
-│   ├── Energy_Level_Calculator.py
-│   └── ...                  # Other simulation pages
-├── src/                     # Core modules (physics, algorithms, plotting)
-│   ├── algorithms.py
-│   ├── angular_momentum.py
-│   ├── bayesian_statistics.py
-│   ├── delta_estimation.py
-│   ├── enums.py
-│   ├── heisenberg_model.py
-│   ├── mzi_simulation.py
-│   ├── optimization.py
-│   ├── partial_trace.py
-│   ├── plotting.py
-│   ├── quantum_time_evolution.py
-│   ├── sensitivity_analysis.py
-│   ├── visualization.py
-│   ├── validators.py
-│   └── test_*.py             # Co-located unit tests
-├── tests/                   # Integration and E2E tests
-│   ├── test_e2e_navigation.py
-│   ├── test_pages_render.py
-│   ├── test_visualization.py
-│   └── test_angular_momentum.py
+│   └── Wave_interference.py
+├── src/                     # Core modules organized by domain
+│   ├── algorithms/         # Algorithm implementations
+│   │   ├── algorithms.py
+│   │   ├── optimization.py
+│   │   ├── spin_squeezing.py
+│   │   └── tensor_tree_network.py
+│   ├── analysis/           # Analysis and estimation methods
+│   │   ├── bayesian_phase_estimation.py
+│   │   ├── bayesian_statistics.py
+│   │   ├── delta_estimation.py
+│   │   ├── fisher_information.py
+│   │   ├── sensitivity_analysis.py
+│   │   └── sensitivity_metrics.py
+│   ├── evolution/          # Time evolution solvers
+│   │   ├── lindblad_solver.py
+│   │   ├── quantum_time_evolution.py
+│   │   └── tdvp.py
+│   ├── physics/            # Physics models and operators
+│   │   ├── angular_momentum.py
+│   │   ├── dicke_basis.py
+│   │   ├── heisenberg_model.py
+│   │   ├── mzi_simulation.py
+│   │   ├── mzi_states.py
+│   │   ├── noise_channels.py
+│   │   ├── partial_trace.py
+│   │   └── truncated_wigner.py
+│   ├── utils/              # Utilities and shared code
+│   │   ├── enums.py
+│   │   └── validators.py
+│   └── visualization/      # Plotting and visualization
+│       ├── plotting.py
+│       └── visualization.py
+├── tests/                   # All tests (unit, integration, E2E)
+│   ├── test_*.py           # Test files (pytest discovers from pyproject.toml)
+│   └── ...                 # Additional test files
 ├── jupyter/                 # Jupyter notebooks for exploration
 ├── mathematica/             # Mathematica notebooks
 ├── Home.py                  # Main streamlit entrypoint
-├── pyproject.toml           # Project configuration
+├── conftest.py              # Root conftest adds notebooks/ to sys.path
+├── pyproject.toml           # Project configuration (pytest, mypy, ruff settings)
 └── uv.lock                  # Dependency lock file
 ```
 
 # Quick Reference
 
 ```bash
-jupyter-book build .               # Build the jupyter notebook.
 uv run mypy .                      # Type checks
 uv run pytest . --quiet --tb=short # Run tests
 uv run radon mi . -n B             # Code complexity analysis
@@ -95,6 +130,8 @@ uv run ruff format .               # Format
 uv run streamlit run Home.py       # Start streamlit app
 uv sync                            # Update dependencies
 ```
+
+**Configuration**: `pyproject.toml` defines pytest (testpaths, warnings), mypy (strict typing), and ruff settings.
 
 # Goals
 
@@ -163,23 +200,10 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 | **Physics/Simulation** | Raise exceptions or use `assert` — never silently fail |
 | **UI (`pages/`)** | Catch and display exceptions gracefully to user |
 
-# 🪵 MLflow Logging
-
-Log the following for every experiment run:
-
-```python
-import mlflow
-
-with mlflow.start_run():
-    mlflow.log_param("seed", seed)
-    mlflow.log_metric("execution_time_ms", elapsed * 1000)
-```
-
-Enable debug mode via environment variable: `DEBUG=1`
-
 # 🧱 Code Organization
 
-- **Functional style** preferred over class-heavy designs
+- **Functional style** preferred for physics and computation functions
+- Use **`@dataclass`** for configuration and result structures (e.g., `NoiseConfig`, `SensitivityScalingResult`)
 - **Minimal abstractions** — extract small reusable functions, but avoid over-engineering
 - **No public interface changes** — preserve existing function signatures
 - **Package management**: `uv` only
@@ -213,6 +237,5 @@ Before completing any task, verify:
 - [ ] `ruff` passes with no warnings
 - [ ] `mypy` passes with no warnings
 - [ ] No silent physics errors (assertions in place)
-- [ ] Experiment logged in MLflow
 - [ ] Performance within 100ms constraint
 - [ ] Randomness handled via `seed` parameter
