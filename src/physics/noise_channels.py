@@ -30,6 +30,8 @@ from typing import Optional
 
 import numpy as np
 
+from src.physics.dicke_basis import jz_operator
+
 
 # =============================================================================
 # Configuration
@@ -152,38 +154,6 @@ def creation_operator(N: int) -> np.ndarray:
         a_dag[j - 1, j] = element
 
     return a_dag
-
-
-def jz_operator(N: int) -> np.ndarray:
-    """Construct J_z operator in the Dicke basis.
-
-    IMPORTANT: This implementation uses DICKE BASIS |J, m⟩ with J = N/2.
-    Eigenvalues are m = N/2, N/2-1, ..., -N/2 (descending order).
-
-    This differs from lindblad_solver.py which uses BOSONIC FOCK basis:
-    - Dicke: [N/2, N/2-1, ..., -N/2]
-    - Fock:  [0, 1, 2, ..., N] mapped to eigenvalues (n - N/2)
-
-    J_z measures the population imbalance between the two modes.
-    Eigenvalues are m = N/2, N/2-1, ..., -N/2.
-
-    Args:
-        N: Total atom/photon number.
-
-    Returns:
-        J_z operator of shape (N+1, N+1).
-
-    Example:
-        >>> J_z = jz_operator(4)
-        >>> J_z.diagonal()
-        array([ 2.,  1.,  0., -1., -2.])
-    """
-    if N < 0:
-        raise ValueError(f"Number of atoms N must be non-negative, got {N}")
-
-    J = N / 2.0
-    eigenvalues = np.arange(J, -J - 1, -1)
-    return np.diag(eigenvalues)
 
 
 # =============================================================================

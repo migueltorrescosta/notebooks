@@ -21,7 +21,6 @@ from src.evolution.lindblad_solver import (
     create_fock_state,
     density_to_vector,
     evolve_lindblad,
-    jz_operator,
     ket_to_density,
     number_operator,
     simulate_trajectory,
@@ -30,6 +29,7 @@ from src.evolution.lindblad_solver import (
     validate_density_matrix,
     vector_to_density,
 )
+from src.physics.dicke_basis import jz_operator
 
 
 # =============================================================================

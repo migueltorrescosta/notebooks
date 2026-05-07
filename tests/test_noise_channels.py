@@ -28,9 +28,9 @@ from src.physics.noise_channels import (
     compute_particle_variance,
     creation_operator,
     detection_channel_pmf,
-    jz_operator,
     validate_lindblad_completeness,
 )
+from src.physics.dicke_basis import jz_operator
 
 
 # =============================================================================

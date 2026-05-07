@@ -35,7 +35,12 @@ Example:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from src.utils.enums import OperatorBasis
 
 
 def dicke_states(N: int) -> dict[float, int]:
@@ -223,41 +228,72 @@ def jz_eigenvalues(N: int) -> np.ndarray:
     return np.arange(J, -J - 1, -1)
 
 
-def jz_operator(N: int) -> np.ndarray:
-    """Construct the dense J_z operator in the Dicke basis.
+def jz_operator(N: int, basis: "OperatorBasis | None" = None) -> np.ndarray:
+    """Construct the dense J_z operator.
 
-    IMPORTANT: This implementation uses DICKE BASIS |J, m⟩ with J = N/2.
-    Eigenvalues are m = N/2, N/2-1, ..., -N/2 (descending order).
+    This is the single authoritative implementation of J_z for the project.
 
-    This differs from lindblad_solver.py which uses BOSONIC FOCK basis:
-    - Dicke: [N/2, N/2-1, ..., -N/2]
-    - Fock:  [0, 1, 2, ..., N] mapped to eigenvalues (n - N/2)
+    Basis Conventions:
+        DICKE (default): |J, m⟩ with J = N/2.
+            Eigenvalues: m = N/2, N/2-1, ..., -N/2 (descending).
+            Example N=4: diag([2., 1., 0., -1., -2.])
+        FOCK: Bosonic Fock basis |n⟩ with n = 0, 1, ..., N.
+            Eigenvalues: n - N/2 = -N/2, -N/2+1, ..., N/2 (ascending).
+            Example N=4: diag([-2., -1., 0., 1., 2.])
+
+    Both conventions yield the same eigenvalue range but with opposite
+    ordering. The choice of basis must be consistent across all operators
+    (Hamiltonian, Lindblad, observables) used together.
 
     Matrix elements:
-        ⟨J, m'|J_z|J, m⟩ = m δ_{m',m}
+        DICKE: ⟨J, m'|J_z|J, m⟩ = m δ_{m',m}
+        FOCK:  ⟨n'|J_z|n⟩ = (n - N/2) δ_{n',n}
 
     Args:
         N: Total number of two-level atoms. Must be non-negative.
+        basis: Basis convention. Defaults to DICKE if None.
 
     Returns:
-        Diagonal (N+1) × (N+1) matrix representing J_z in the
-        Dicke basis (m basis).
+        Diagonal (N+1) × (N+1) matrix representing J_z.
 
     Raises:
         ValueError: If N is negative.
 
     Example:
-        >>> J_z = jz_operator(N=4)
+        >>> from src.utils.enums import OperatorBasis
+        >>> J_z = jz_operator(N=4)  # DICKE basis (default)
         >>> J_z.diagonal()
         array([ 2.,  1.,  0., -1., -2.])
+        >>> J_z_fock = jz_operator(N=4, basis=OperatorBasis.FOCK)
+        >>> J_z_fock.diagonal()
+        array([-2., -1.,  0.,  1.,  2.])
         >>> np.allclose(J_z, J_z.T.conj())  # Hermitian check
         True
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
 
-    eigenvalues = jz_eigenvalues(N)
+    if basis is None:
+        basis = _default_basis()
+
+    from src.utils.enums import OperatorBasis
+
+    if basis == OperatorBasis.DICKE:
+        eigenvalues = jz_eigenvalues(N)
+    elif basis == OperatorBasis.FOCK:
+        # Ascending: n - N/2 for n = 0, 1, ..., N
+        eigenvalues = np.arange(N + 1) - N / 2.0
+    else:
+        raise ValueError(f"Unknown basis: {basis!r}. Use OperatorBasis.DICKE or FOCK.")
+
     return np.diag(eigenvalues)
+
+
+def _default_basis() -> "OperatorBasis":
+    """Return the project's default operator basis (DICKE)."""
+    from src.utils.enums import OperatorBasis
+
+    return OperatorBasis.DICKE
 
 
 def jx_operator(N: int) -> np.ndarray:

@@ -62,3 +62,22 @@ class ProbabilityDistribution(str, Enum):
     """
 
     ParticleDecay = "ParticleDecay"
+
+
+class OperatorBasis(str, Enum):
+    """Basis convention for angular momentum operators.
+
+    Attributes:
+        DICKE: Collective spin Dicke basis |J, m⟩ with J = N/2.
+            Eigenvalue ordering: m = N/2, N/2-1, ..., -N/2 (descending).
+            Dimension: N + 1.
+            This is the project's default convention.
+        FOCK: Bosonic Fock basis |n⟩ with n = 0, 1, ..., N.
+            Eigenvalue ordering: n - N/2 = -N/2, -N/2+1, ..., N/2 (ascending).
+            Dimension: N + 1.
+            Used internally by lindblad_solver.py for consistency with
+            bosonic Hamiltonian and Lindblad operators.
+    """
+
+    DICKE = "dicke"
+    FOCK = "fock"

@@ -37,6 +37,9 @@ import scipy.integrate
 import scipy.sparse
 import scipy.sparse.linalg
 
+from src.physics.dicke_basis import jz_operator as _jz_operator
+from src.utils.enums import OperatorBasis
+
 
 # =============================================================================
 # Configuration
@@ -104,34 +107,6 @@ def number_operator(N: int) -> np.ndarray:
     """
     a, a_dag = create_bosonic_operators(N)
     return a_dag @ a
-
-
-def jz_operator(N: int) -> np.ndarray:
-    """Create J_z operator for collective spin in bosonic Fock basis.
-
-    IMPORTANT: This implementation uses BOSONIC FOCK BASIS |n⟩ where n = 0, 1, ..., N.
-    Eigenvalues are n - N/2, giving: 0 - N/2, 1 - N/2, ..., N - N/2.
-    This differs from the Dicke basis convention (m = N/2, N/2-1, ..., -N/2)
-    used in dicke_basis.py and noise_channels.py.
-
-    For bosonic Fock basis |n⟩:
-        eigenvalues = [-(N/2), -(N/2)+1, ..., N/2]  # i.e., 0-N/2, 1-N/2, ..., N-N/2
-
-    Args:
-        N: Maximum photon number.
-
-    Returns:
-        J_z operator of shape (N+1, N+1) in Fock basis.
-
-    Example:
-        >>> jz = jz_operator(4)  # N=4, eigenvalues: -2, -1, 0, 1, 2
-        >>> jz.diagonal()
-        array([-2., -1.,  0.,  1.,  2.])
-    """
-    n = number_operator(N)
-    # J_z = n - N/2 in bosonic Fock basis
-    # For N=4: eigenvalues are 0-2, 1-2, 2-2, 3-2, 4-2 = -2, -1, 0, 1, 2
-    return n - (N / 2.0)
 
 
 def create_two_mode_operators(
@@ -421,7 +396,7 @@ def evolve_lindblad(
     # Use single-mode bosonic operators
     a, a_dag = create_bosonic_operators(N)
     n = a_dag @ a
-    jz = jz_operator(N)
+    jz = _jz_operator(N, basis=OperatorBasis.FOCK)
 
     # Build Hamiltonian with optional OAT squeezing
     if config.chi != 0:
@@ -445,9 +420,11 @@ def evolve_lindblad(
         gammas.append(1.0)
 
     if config.gamma_phi > 0:
-        # L_phi = √γ_phi * n (number operator) for phase diffusion
-        # This causes dephasing between number states while preserving populations
-        L_ops.append(np.sqrt(config.gamma_phi) * n)
+        # L_phi = √γ_phi * J_z for phase diffusion
+        # J_z = n - N/2 in Fock basis; the constant shift does not affect
+        # the Lindblad superoperator, so this is equivalent to using n.
+        # Dephasing rate between |n⟩ and |n'⟩ scales as (n - n')².
+        L_ops.append(np.sqrt(config.gamma_phi) * jz)
         gammas.append(1.0)
 
     # If no dissipation, use simple unitary evolution
