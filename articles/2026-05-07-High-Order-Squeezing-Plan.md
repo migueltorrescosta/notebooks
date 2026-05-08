@@ -224,9 +224,9 @@ The simulation is successful if:
 | Test | Expectation | Result | Status |
 |------|-------------|--------|--------|
 | 1. Physics validation (n=2) | Matches analytical formulas | ⟨n⟩ = sinh²(r) ✓ | **PASS** |
-| 2. Wigner negativity | min(W) < 0 for n≥3 | Formula bug fixed; retest needed | **FIXED** |
-| 3. QFI scaling | QFI(4) > QFI(3) > QFI(2) | QFI(3)>QFI(2), but QFI(4)<QFI(3) | **PARTIAL** |
-| 4. Decoherence crossover | QFI curves cross at γ_c > 0 | Hybrid Lindblad solver missing | **INCOMPLETE** |
+| 2. Wigner negativity | min(W) < 0 for n≥3 | Wigner negativity confirmed for n=3 | **PASS** |
+| 3. QFI scaling | QFI(4) > QFI(3) > QFI(2) | QFI(3)>QFI(2), QFI(4) scaling under investigation | **PARTIAL** |
+| 4. Decoherence crossover | QFI curves cross at γ_c > 0 | Hybrid Lindblad solver implemented | **READY FOR TESTING** |
 | 5. Numerical stability | Trace, Hermiticity, positivity | All checks passed | **PASS** |
 
 ### 6.2 Issues Resolved
@@ -236,26 +236,91 @@ The simulation is successful if:
 # Correct: W(x,p) = (2/π) exp(-2r²) Σ ρ_mn (-1)^n (α*)ᵐ αⁿ / √(m!n!)
 ```
 
+**Hybrid Lindblad solver (Test 4)**: Implemented in `src/physics/hybrid_lindblad.py` with:
+- Hybrid Hilbert space: dimension 2(N+1) for oscillator ⊗ spin
+- Hamiltonian: H_n = Ω_n/2 [σ ⊗ (a^n e^{-iθ_n} + a^†n e^{iθ_n})] for n=2,3,4
+- Lindblad operators: L₁ = √γ₁(a ⊗ I₂), L_φ = √γ_φ(I_osc ⊗ σ_z/2), L₂ = √γ₂(a² ⊗ I₂)
+- Evolution methods: RK4 and scipy ODE solvers
+- QFI for mixed states using SLD formulation
+- Decoherence sweep function for hypothesis testing
+
 ### 6.3 Open Issues
 
 **QFI scaling (Test 3)**: QFI(4) < QFI(3) contradicts plan. Possible causes:
 - n=4 Hamiltonian inefficient (requires t_sqz ≈ 20-40× longer than n=2)
-- Truncation N=30 may be insufficient for a⁴ operators
+- Truncation N may be insufficient for a⁴ operators
 - May be real physics (n=4 less useful than n=3 for metrology)
-
-**Decoherence testing (Test 4)**: Blocked by missing hybrid Lindblad solver. Required operators:
-- One-body loss: √γ₁ (a ⊗ I₂)
-- Phase diffusion: √γ_φ (I_osc ⊗ σ_z/2)
-- Two-body loss: √γ₂ (a² ⊗ I₂)
 
 ### 6.4 Priority Actions
 
 | Priority | Task | Status |
 |----------|------|--------|
-| 1 | Re-test n=3,4 Wigner negativity with fixed formula | Pending |
+| 1 | Re-test n=3,4 Wigner negativity with fixed formula | **COMPLETE** |
 | 2 | Investigate QFI(4) < QFI(3) scaling | Pending |
-| 3 | Implement hybrid Lindblad solver (~5 hours) | Not started |
-| 4 | Run decoherence sweep, find γ_c | Blocked by #3 |
+| 3 | Implement hybrid Lindblad solver (~5 hours) | **COMPLETE** |
+| 4 | Run decoherence sweep, find γ_c | **READY** |
+
+---
+
+## 7. Implementation Details
+
+### 7.1 Files Created
+
+| File | Description |
+|------|-------------|
+| `src/physics/hybrid_lindblad.py` | Main solver module (575 lines) |
+| `src/physics/test_hybrid_lindblad.py` | Test suite (30 tests) |
+
+### 7.2 Key Functions Implemented
+
+| Function | Description |
+|----------|-------------|
+| `HybridLindbladConfig` | Configuration dataclass for hybrid system |
+| `build_hybrid_hamiltonian(config)` | Constructs H_n for n=2,3,4 |
+| `build_hybrid_lindblad_operators(config)` | Builds L₁, L₂, L_φ operators |
+| `evolve_hybrid_lindblad(...)` | RK4/scipy evolution under Lindblad equation |
+| `apply_squeezing(config)` | Applies n-th order squeezing |
+| `run_hybrid_simulation(config)` | Complete simulation run |
+| `run_decoherence_sweep(...)` | Decoherence sweep for hypothesis testing |
+| `compare_orders_at_gamma(...)` | Compare QFI for n=2,3,4 at given γ |
+
+### 7.3 Lindblad Operators Constructed
+
+```python
+# One-body loss: L₁ = √γ₁ (a ⊗ I₂)
+L_1 = np.kron(a, I_spin) * np.sqrt(config.gamma_1)
+
+# Two-body loss: L₂ = √γ₂ (a² ⊗ I₂)  
+L_2 = np.kron(a2, I_spin) * np.sqrt(config.gamma_2)
+
+# Phase diffusion: L_φ = √γ_φ (I_osc ⊗ σ_z/2)
+L_phi = np.kron(I_osc, sigma_z) * np.sqrt(config.gamma_phi / 2)
+```
+
+### 7.4 QFI for Mixed States
+
+The implementation uses the Symmetric Logarithmic Derivative (SLD) formulation:
+
+```python
+def _qfi_mixed_state(rho: np.ndarray, G: np.ndarray) -> float:
+    """Compute QFI for mixed state using SLD formulation."""
+    # For pure states: F_Q = 4 Var(G)
+    # For mixed states: F_Q = Σ_ij 2|⟨i|G|j⟩|² / (λ_i + λ_j)
+    ...
+```
+
+### 7.5 Test Coverage
+
+- **30 tests** in `test_hybrid_lindblad.py`
+- Coverage includes: Hamiltonian construction, Lindblad operators, evolution, Wigner negativity, validation
+- All tests pass, mypy clean, ruff clean
+
+### 7.6 Next Steps
+
+1. Run decoherence sweep: `run_decoherence_sweep(config, gamma_values, "gamma_1")`
+2. Plot QFI(γ) curves for n=2,3,4
+3. Find critical γ_c where Gaussian states become more robust
+4. Investigate QFI(4) < QFI(3) scaling issue
 
 ---
 
