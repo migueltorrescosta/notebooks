@@ -217,6 +217,48 @@ The simulation is successful if:
 
 ---
 
+## 6. Implementation Status
+
+### 6.1 Test Results Summary
+
+| Test | Expectation | Result | Status |
+|------|-------------|--------|--------|
+| 1. Physics validation (n=2) | Matches analytical formulas | ⟨n⟩ = sinh²(r) ✓ | **PASS** |
+| 2. Wigner negativity | min(W) < 0 for n≥3 | Formula bug fixed; retest needed | **FIXED** |
+| 3. QFI scaling | QFI(4) > QFI(3) > QFI(2) | QFI(3)>QFI(2), but QFI(4)<QFI(3) | **PARTIAL** |
+| 4. Decoherence crossover | QFI curves cross at γ_c > 0 | Hybrid Lindblad solver missing | **INCOMPLETE** |
+| 5. Numerical stability | Trace, Hermiticity, positivity | All checks passed | **PASS** |
+
+### 6.2 Issues Resolved
+
+**Wigner function bug (Test 2)**: Code computed Husimi Q-function instead of Wigner function. Q(α) = ⟨α|ρ|α⟩/π is always ≥ 0. Fixed in `src/physics/wigner.py`:
+```python
+# Correct: W(x,p) = (2/π) exp(-2r²) Σ ρ_mn (-1)^n (α*)ᵐ αⁿ / √(m!n!)
+```
+
+### 6.3 Open Issues
+
+**QFI scaling (Test 3)**: QFI(4) < QFI(3) contradicts plan. Possible causes:
+- n=4 Hamiltonian inefficient (requires t_sqz ≈ 20-40× longer than n=2)
+- Truncation N=30 may be insufficient for a⁴ operators
+- May be real physics (n=4 less useful than n=3 for metrology)
+
+**Decoherence testing (Test 4)**: Blocked by missing hybrid Lindblad solver. Required operators:
+- One-body loss: √γ₁ (a ⊗ I₂)
+- Phase diffusion: √γ_φ (I_osc ⊗ σ_z/2)
+- Two-body loss: √γ₂ (a² ⊗ I₂)
+
+### 6.4 Priority Actions
+
+| Priority | Task | Status |
+|----------|------|--------|
+| 1 | Re-test n=3,4 Wigner negativity with fixed formula | Pending |
+| 2 | Investigate QFI(4) < QFI(3) scaling | Pending |
+| 3 | Implement hybrid Lindblad solver (~5 hours) | Not started |
+| 4 | Run decoherence sweep, find γ_c | Blocked by #3 |
+
+---
+
 ## Summary
 
 This plan models the generation of **high-order non-Gaussian squeezed states** via two simultaneous spin-dependent forces on a trapped ion (or similar hybrid oscillator-spin system). The core hypothesis is that **non-Gaussian states provide metrological advantage over Gaussian states at fixed mean oscillator photon number ⟨a†a⟩ at the MZI input, but this advantage is lost at high decoherence rates**.

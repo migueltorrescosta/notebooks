@@ -26,9 +26,15 @@ def wigner_function_single(
 ) -> np.ndarray:
     """Compute Wigner function for single-mode density matrix.
 
-    Uses the standard formula for truncated Fock basis:
-    W(α) = (2/π) Σ_{m,n} ρ_mn (-1)^n ⟨m|α⟩⟨α|n⟩
-    where ⟨n|α⟩ = exp(-|α|²/2) α^n / √n!
+    Uses the correct formula for truncated Fock basis:
+    W(x,p) = (2/π) exp(-x²-p²) Σ_{m,n} ρ_mn (-1)^n ψ_m(x,p) ψ_n(x,p)
+    where ψ_n(x,p) are harmonic oscillator eigenfunctions.
+
+    The eigenfunctions are:
+    ψ_n(x,p) = <x+ip|n> = exp(-(x²+p²)/2) * (x+ip)^n / √n!
+
+    This gives:
+    W(x,p) = (2/π) exp(-2(x²+p²)) Σ_{m,n} ρ_mn (-1)^n (x-ip)^m (x+ip)^n / √(m!n!)
 
     Args:
         rho_osc: Density matrix of oscillator (dim N+1, N+1).
@@ -50,37 +56,33 @@ def wigner_function_single(
 
     W = np.zeros((nx, np_), dtype=float)
 
-    # Precompute factorials and normalization
+    # Precompute factorials
     fact = np.array([scipy.special.factorial(n) for n in range(dim)])
 
     for ix, x in enumerate(x_range):
         for ip, p in enumerate(p_range):
-            # Complex amplitude α = x + i p (standard convention)
+            # Complex amplitude α = x + i p
             alpha = x + 1j * p
             alpha_conj = alpha.conjugate()
+            r_sq = x**2 + p**2
 
-            # Compute ⟨α|n⟩ = exp(-|α|²/2) α^n / √n!
-            alpha_abs_sq = np.abs(alpha) ** 2
-            coeff = np.exp(-alpha_abs_sq / 2)
-            fact = np.array([scipy.special.factorial(n) for n in range(dim)])
-
-            psi_n = coeff * np.array([
+            # Precompute (α)^n / √n! and (α*)^m / √m!
+            alpha_pow_n = np.array([
                 (alpha ** n) / np.sqrt(fact[n]) for n in range(dim)
             ])
-
-            # Compute ⟨m|α*⟩ = exp(-|α|²/2) (α*)^m / √m!
-            psi_m_star = coeff * np.array([
+            alpha_conj_pow_m = np.array([
                 (alpha_conj ** m) / np.sqrt(fact[m]) for m in range(dim)
             ])
 
-            # W = (1/π) Σ_{m,n} ρ_mn ⟨m|α*⟩⟨α|n⟩
-            # For vacuum: W(x,p) = (1/π) exp(-(x²+p²)) which integrates to 1
+            # W = (2/π) exp(-2r²) Σ_{m,n} ρ_mn (-1)^n (α*)^m α^n / √(m!n!)
+            coeff = (2.0 / np.pi) * np.exp(-2 * r_sq)
+
             total = 0.0
             for m in range(dim):
                 for n in range(dim):
-                    total += rho_osc[m, n] * psi_m_star[m] * psi_n[n]
+                    total += rho_osc[m, n] * (-1)**n * alpha_conj_pow_m[m] * alpha_pow_n[n]
 
-            W[ix, ip] = (1.0 / np.pi) * np.real(total)
+            W[ix, ip] = coeff * np.real(total)
 
     return W
 
