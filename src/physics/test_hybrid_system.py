@@ -37,6 +37,7 @@ from .hybrid_system import (
 # Test Spin Operators
 # =============================================================================
 
+
 class TestSpinOperators:
     """Test Pauli matrix properties."""
 
@@ -77,6 +78,7 @@ class TestSpinOperators:
 # Test Oscillator Operators
 # =============================================================================
 
+
 class TestOscillatorOperators:
     """Test bosonic operator properties."""
 
@@ -106,7 +108,7 @@ class TestOscillatorOperators:
         commutator = a @ a_dag - a_dag @ a
 
         # Compute expected [a, a†] in truncated basis
-        expected = np.eye(N +1, dtype=complex)
+        expected = np.eye(N + 1, dtype=complex)
         expected[N, N] = -N  # Truncation effect: [a,a†]|N⟩ = -N|N⟩
 
         assert np.allclose(commutator, expected, atol=1e-10)
@@ -155,6 +157,7 @@ class TestOscillatorOperators:
 # Test Hybrid Operators
 # =============================================================================
 
+
 class TestHybridOperators:
     """Test hybrid system operator construction."""
 
@@ -179,6 +182,7 @@ class TestHybridOperators:
 # =============================================================================
 # Test Hamiltonian Construction
 # =============================================================================
+
 
 class TestHybridHamiltonian:
     """Test n-th order squeezing Hamiltonian."""
@@ -220,6 +224,7 @@ class TestHybridHamiltonian:
 # Test State Preparation
 # =============================================================================
 
+
 class TestStatePreparation:
     """Test hybrid state creation."""
 
@@ -260,6 +265,7 @@ class TestStatePreparation:
 # Test Adaptive Truncation
 # =============================================================================
 
+
 class TestAdaptiveTruncation:
     """Test adaptive truncation formula."""
 
@@ -285,10 +291,19 @@ class TestAdaptiveTruncation:
         N = adaptive_truncation(alpha=100j, r_n=100.0, n=4, N_max=50)
         assert N <= 50
 
+    def test_higher_order_gives_larger_N(self) -> None:
+        """Higher order n should give larger N at same r_n (wider safety margin)."""
+        kwargs = dict(alpha=0j, r_n=1.0, N_max=200)
+        N2 = adaptive_truncation(n=2, **kwargs)
+        N3 = adaptive_truncation(n=3, **kwargs)
+        N4 = adaptive_truncation(n=4, **kwargs)
+        assert N4 >= N3 >= N2
+
 
 # =============================================================================
 # Test Expectation Values
 # =============================================================================
+
 
 class TestExpectationValues:
     """Test expectation value computations."""
@@ -310,6 +325,7 @@ class TestExpectationValues:
 # =============================================================================
 # Test Validation Functions
 # =============================================================================
+
 
 class TestValidation:
     """Test validation functions."""
@@ -340,6 +356,7 @@ class TestValidation:
 # =============================================================================
 # Test Unitary Evolution
 # =============================================================================
+
 
 class TestUnitaryEvolution:
     """Test time evolution under Hamiltonian."""

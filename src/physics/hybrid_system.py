@@ -24,10 +24,10 @@ import numpy as np
 import scipy
 
 
-
 # =============================================================================
 # Spin Operators (Pauli matrices)
 # =============================================================================
+
 
 def spin_operator_x() -> np.ndarray:
     """Return σ_x Pauli matrix."""
@@ -54,6 +54,7 @@ def spin_operator_phi(phi: float) -> np.ndarray:
 # =============================================================================
 # Oscillator Operators in Fock Basis
 # =============================================================================
+
 
 def oscillator_annihilation(N: int) -> np.ndarray:
     """Create annihilation operator a in truncated Fock basis.
@@ -126,6 +127,7 @@ def oscillator_power(a: np.ndarray, n: int) -> np.ndarray:
 # Hybrid System Operators (Oscillator ⊗ Spin)
 # =============================================================================
 
+
 def hybrid_operator(osc_op: np.ndarray, spin_op: np.ndarray, N: int) -> np.ndarray:
     """Construct operator in hybrid space via Kronecker product.
 
@@ -140,7 +142,9 @@ def hybrid_operator(osc_op: np.ndarray, spin_op: np.ndarray, N: int) -> np.ndarr
         Hybrid operator of shape (2(N+1), 2(N+1)).
     """
     dim_osc = N + 1
-    assert osc_op.shape == (dim_osc, dim_osc), f"osc_op shape {osc_op.shape} != {(dim_osc, dim_osc)}"
+    assert osc_op.shape == (dim_osc, dim_osc), (
+        f"osc_op shape {osc_op.shape} != {(dim_osc, dim_osc)}"
+    )
     return np.kron(osc_op, spin_op)
 
 
@@ -198,6 +202,7 @@ def hybrid_hamiltonian_n(
 # State Preparation
 # =============================================================================
 
+
 def hybrid_vacuum_state(N: int, spin_state: str = "down") -> np.ndarray:
     """Create hybrid vacuum state |0⟩ ⊗ |spin⟩.
 
@@ -221,7 +226,9 @@ def hybrid_vacuum_state(N: int, spin_state: str = "down") -> np.ndarray:
     return state
 
 
-def hybrid_coherent_state(N: int, alpha: complex, spin_state: str = "down") -> np.ndarray:
+def hybrid_coherent_state(
+    N: int, alpha: complex, spin_state: str = "down"
+) -> np.ndarray:
     """Create hybrid coherent state |α⟩ ⊗ |spin⟩.
 
     Args:
@@ -260,33 +267,40 @@ def hybrid_coherent_state(N: int, alpha: complex, spin_state: str = "down") -> n
 # Adaptive Truncation
 # =============================================================================
 
+
 def adaptive_truncation(
     alpha: complex,
     r_n: float,
     n: int,
-    N_max: int = 100,
+    N_max: int = 200,
 ) -> int:
     """Compute adaptive truncation for squeezed state.
 
-    N_osc = min(N_max, ceil(|α|² + n·r_n + 10·sqrt(|α|² + n·r_n + 1)))
+    Uses order-dependent safety margin to prevent boundary-induced revivals:
+    higher-order operators (a^n) have spectral norm ~N^{n/2}, requiring a
+    proportionally larger safety buffer.
+
+    N_osc = min(N_max, ceil(|α|² + n·r_n + (10·n)·sqrt(|α|² + n·r_n + 1)))
 
     Args:
         alpha: Coherent state amplitude (0 for vacuum).
         r_n: Squeezing parameter.
         n: Squeezing order.
-        N_max: Safety upper bound.
+        N_max: Safety upper bound (default 200).
 
     Returns:
         Truncation N (maximum photon number).
     """
     mean_photon = np.abs(alpha) ** 2 + n * r_n
-    N_suggested = int(np.ceil(mean_photon + 10 * np.sqrt(mean_photon + 1)))
+    safety_factor = 10 * n  # Wider safety margin for higher orders
+    N_suggested = int(np.ceil(mean_photon + safety_factor * np.sqrt(mean_photon + 1)))
     return min(N_suggested, N_max)
 
 
 # =============================================================================
 # Expectation Values
 # =============================================================================
+
 
 def hybrid_expectation(state: np.ndarray, op: np.ndarray) -> complex:
     """Compute expectation value ⟨ψ|O|ψ⟩ for pure state.
@@ -319,6 +333,7 @@ def hybrid_mean_photon(state: np.ndarray, N: int) -> float:
 # =============================================================================
 # Validation
 # =============================================================================
+
 
 def validate_hybrid_state(state: np.ndarray, N: int) -> bool:
     """Validate hybrid state vector.

@@ -27,13 +27,14 @@ from .hybrid_system import (
 # Test Wigner Function for Simple States
 # =============================================================================
 
+
 class TestWignerFunctionSingle:
     """Test Wigner function computation for single-mode states."""
 
     def test_vacuum_normalization(self) -> None:
         """∫∫ W(x,p) dx dp ≈ 1 for vacuum."""
         N = 10
-        rho = np.zeros((N +1, N + 1), dtype=complex)
+        rho = np.zeros((N + 1, N + 1), dtype=complex)
         rho[0, 0] = 1.0  # |0⟩⟨0|
 
         x = np.linspace(-5, 5, 100)
@@ -52,7 +53,7 @@ class TestWignerFunctionSingle:
     def test_vacuum_maximum(self) -> None:
         """Vacuum Wigner max should be 1/π ≈ 0.318 at origin."""
         N = 10
-        rho = np.zeros((N +1, N +1), dtype=complex)
+        rho = np.zeros((N + 1, N + 1), dtype=complex)
         rho[0, 0] = 1.0
 
         x = np.linspace(-3, 3, 50)
@@ -169,6 +170,7 @@ class TestWignerMinimum:
 # =============================================================================
 # Integration Tests
 # =============================================================================
+
 
 class TestWignerIntegration:
     """Integration tests for Wigner function."""

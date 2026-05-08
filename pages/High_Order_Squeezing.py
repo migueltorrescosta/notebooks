@@ -157,20 +157,18 @@ with st.sidebar:
 
 st.header("High-Order Non-Gaussian Squeezing", divider="blue")
 
-# Compute adaptive truncation
+# Compute adaptive truncation with order-aware safety margin
 N_adaptive = adaptive_truncation(
     alpha=complex(alpha_input, 0.0),
     r_n=t_sqz * omega_n,  # rₙ = Ωₙ · t_sqz
     n=n_order,
-    N_max=30,
+    N_max=100,
 )
 
 st.caption(f"Using adaptive truncation: N = {N_adaptive}")
 
-# Validate truncation
-N = min(N_adaptive, 15)  # Cap at 15 for performance
-if N < 8:
-    N = 8
+# Ensure minimum truncation
+N = max(N_adaptive, 8)
 
 # Prepare initial state
 if alpha_input == 0.0:
@@ -179,7 +177,7 @@ if alpha_input == 0.0:
 else:
     alpha = complex(alpha_input, 0.0)
     initial = hybrid_coherent_state(N, alpha=alpha, spin_state="down")
-    st.latex(fr"|\psi_{{in}}\rangle = |\alpha={alpha_input:.1f}, \downarrow\rangle")
+    st.latex(rf"|\psi_{{in}}\rangle = |\alpha={alpha_input:.1f}, \downarrow\rangle")
 
 # Apply squeezing Hamiltonian
 with st.spinner("Evolving under squeezing Hamiltonian..."):
@@ -265,7 +263,7 @@ if show_qfi:
 
         # SQL comparison
         sql_limit = 4 * mean_n  # Standard quantum limit
-        st.caption(fr"SQL = $4\langle n \rangle = {sql_limit:.2f}$")
+        st.caption(rf"SQL = $4\langle n \rangle = {sql_limit:.2f}$")
 
         if fq > sql_limit:
             st.success("✅ Exceeds SQL!")
@@ -294,7 +292,4 @@ with col4:
     else:
         st.metric("Wigner -", "N/A")
 
-st.caption(
-    f"Hybrid dim: {2*(N+1)} | "
-    f"rₙ = {omega_n * t_sqz:.3f}"
-)
+st.caption(f"Hybrid dim: {2 * (N + 1)} | rₙ = {omega_n * t_sqz:.3f}")

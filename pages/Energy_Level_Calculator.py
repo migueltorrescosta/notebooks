@@ -192,7 +192,9 @@ with st.sidebar:
     plot_array(error_matrix)
 
 st.subheader("Energy levels $\\ket{n}$")
-st.caption(f"Showing first {min(5, number_of_energy_levels)} of {number_of_energy_levels} levels")
+st.caption(
+    f"Showing first {min(5, number_of_energy_levels)} of {number_of_energy_levels} levels"
+)
 
 # Use tabs for first few levels
 tabs = st.tabs([str(e) for e in range(min(5, number_of_energy_levels))])

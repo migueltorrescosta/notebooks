@@ -34,6 +34,7 @@ from .hybrid_system import (
 # Test Embedding
 # =============================================================================
 
+
 class TestEmbedding:
     """Test hybrid state embedding into MZI space."""
 
@@ -73,6 +74,7 @@ class TestEmbedding:
 # Test MZI Operators
 # =============================================================================
 
+
 class TestMZIOperators:
     """Test MZI operator properties."""
 
@@ -105,6 +107,7 @@ class TestMZIOperators:
 # =============================================================================
 # Test MZI Evolution
 # =============================================================================
+
 
 class TestMZIEvolution:
     """Test evolution through MZI."""
@@ -142,6 +145,7 @@ class TestMZIEvolution:
 # Test Output Probabilities
 # =============================================================================
 
+
 class TestOutputProbabilities:
     """Test probability computations."""
 
@@ -178,6 +182,7 @@ class TestOutputProbabilities:
 # =============================================================================
 # Test QFI Computation
 # =============================================================================
+
 
 class TestQFIHybridMZI:
     """Test Quantum Fisher Information computation."""
@@ -218,6 +223,7 @@ class TestQFIHybridMZI:
 # Test Density Matrix Extraction
 # =============================================================================
 
+
 class TestDensityExtraction:
     """Test oscillator density matrix extraction."""
 
@@ -245,6 +251,7 @@ class TestDensityExtraction:
 # =============================================================================
 # Test Wigner Computation
 # =============================================================================
+
 
 class TestWignerComputation:
     """Test Wigner function computation."""

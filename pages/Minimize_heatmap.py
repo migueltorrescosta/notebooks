@@ -118,5 +118,7 @@ with c1:
 with c2:
     surface_df = gen_surface_df(f=selected_function)
     fig, ax = plt.subplots(figsize=(4, 3))
-    sns.heatmap(surface_df.pivot(index="x", columns="y", values="f"), cmap="viridis", ax=ax)
+    sns.heatmap(
+        surface_df.pivot(index="x", columns="y", values="f"), cmap="viridis", ax=ax
+    )
     st.pyplot(fig, use_container_width=True)

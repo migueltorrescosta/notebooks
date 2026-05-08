@@ -85,27 +85,21 @@ N_osc = min(N_max, ceil(|α|² + n·r_n + 10√(|α|² + n·r_n + 1))). After ea
 
 ---
 
-## Current Status
+## Results and Next Steps
 
-| Test | Result |
-|------|--------|
-| n=2 physics validation | PASS — ⟨n⟩ = sinh²(r) matches analytical |
-| Wigner negativity for n≥3 | PASS — confirmed for n=3 |
-| QFI scaling | PARTIAL — QFI(3) > QFI(2), QFI(4) scaling under investigation |
-| Decoherence crossover | READY — hybrid Lindblad solver implemented |
-| Numerical stability | PASS |
+| # | Test | Expectation | Status |
+|---|------|-------------|--------|
+| 1 | n=2 physics | ⟨n⟩ = sinh²(r) | **PASS** |
+| 2 | Wigner negativity for n≥3 | min(W) < 0 | **PARTIAL** (n=3 ✓, n=4 not detected) |
+| 3 | QFI at fixed ⟨n⟩ | QFI(n=3,4) > QFI(n=2) | **SUPPORTED** (both n=3,4 beat n=2 at all ⟨n⟩) |
+| 4 | Decoherence crossover | γ_c > 0 exists | **READY** (solver implemented, sweep not yet run) |
+| 5 | Numerical stability | Trace, positivity, truncation | **PASS** |
 
-**Open issue**: QFI(4) < QFI(3) contradicts the hypothesis. Possible causes: n=4 Hamiltonian
-requires 20–40× longer evolution than n=2, truncation may be insufficient for a⁴ operators,
-or n=4 may genuinely be less useful for metrology.
+The core hypothesis is supported: both n=3 and n=4 states achieve higher QFI than n=2
+at all tested ⟨n⟩ (0.5–3.0), with factors of 2–5×. The n=2 QFI matches the analytical
+formula F_Q = 2⟨n⟩² + 3⟨n⟩ (derived from F_Q = Var(n) + ⟨n⟩ for this MZI configuration).
 
----
-
-## Summary
-
-This model generates high-order non-Gaussian squeezed states via two simultaneous
-spin-dependent forces on a hybrid oscillator-spin system. The core hypothesis is that
-non-Gaussian states provide metrological advantage over Gaussian states at fixed mean
-photon number, but this advantage is lost above a critical decoherence rate. The simulation
-implements time evolution under the hybrid Hamiltonian, Lindblad decoherence, MZI readout
-with the spin as an ancilla, and QFI computation for hypothesis validation.
+Open items: (a) n=4 Wigner negativity remains undetected — may require finer grids or
+different squeezing times; (b) decoherence sweeps to find γ_c are ready but unrun;
+(c) the adaptive Fock truncation (safety factor 10n) may be insufficient for n=4 at
+moderate ⟨n⟩, potentially affecting QFI accuracy.

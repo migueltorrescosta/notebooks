@@ -55,8 +55,14 @@ class TestHybridLindbladConfig:
     def test_custom_values(self) -> None:
         """Custom values should be preserved."""
         config = HybridLindbladConfig(
-            N=10, n=3, omega_n=0.5, theta_n=np.pi / 4, phi=0.1,
-            gamma_1=0.01, gamma_phi=0.02, t_squeeze=2.0
+            N=10,
+            n=3,
+            omega_n=0.5,
+            theta_n=np.pi / 4,
+            phi=0.1,
+            gamma_1=0.01,
+            gamma_phi=0.02,
+            t_squeeze=2.0,
         )
         assert config.N == 10
         assert config.n == 3
@@ -276,7 +282,9 @@ class TestEvolveHybridLindblad:
     def test_hermiticity(self) -> None:
         """Density matrix should remain Hermitian."""
         N = 5
-        config = HybridLindbladConfig(N=N, n=2, omega_n=0.3, gamma_1=0.1, gamma_phi=0.05)
+        config = HybridLindbladConfig(
+            N=N, n=2, omega_n=0.3, gamma_1=0.1, gamma_phi=0.05
+        )
         psi0 = hybrid_vacuum_state(N, spin_state="down")
 
         rho_final = evolve_hybrid_lindblad(psi0, config, T=0.5, dt=0.01)
@@ -389,7 +397,9 @@ class TestRunHybridSimulation:
 
     def test_simulation_completes(self) -> None:
         """Simulation should complete without errors."""
-        config = HybridLindbladConfig(N=5, n=2, omega_n=0.5, t_squeeze=0.5, gamma_1=0.01)
+        config = HybridLindbladConfig(
+            N=5, n=2, omega_n=0.5, t_squeeze=0.5, gamma_1=0.01
+        )
         result = run_hybrid_simulation(config)
 
         assert "final_state" in result
@@ -490,7 +500,8 @@ class TestEdgeCases:
         config = HybridLindbladConfig(N=N, gamma_1=10.0)
         # Create a coherent state with photons (not vacuum)
         from .hybrid_system import hybrid_coherent_state, hybrid_mean_photon
-        psi0 = hybrid_coherent_state(N, alpha=1.0+0j, spin_state="down")
+
+        psi0 = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
 
         # Check initial photon number
         initial_n = hybrid_mean_photon(psi0, N)

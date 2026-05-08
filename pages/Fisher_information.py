@@ -136,7 +136,9 @@ with st.expander("Show PDF visualizations"):
         st.latex(r"\frac{\partial}{\partial \theta} \log f_\theta(x)")
         quick_and_dirty(grad_log.T, height=150)  # (m, n+1)
     with c4:
-        st.latex(r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2")
+        st.latex(
+            r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2"
+        )
         quick_and_dirty(grad_sq.T, height=150)  # (m, n+1)
 fisher_information_df = pd.DataFrame(
     {
@@ -159,8 +161,12 @@ with c1:
             \frac{\partial}{\partial \theta} \log f_\theta(x)
             \right )^2 | \theta \right ]
     """)
-    st.line_chart(data=fisher_information_df, x="theta", y="fisher_information", height=200)
+    st.line_chart(
+        data=fisher_information_df, x="theta", y="fisher_information", height=200
+    )
 
 with c2:
     st.latex(r"\mathrm{var}[\hat \theta] \geq \frac{1}{\mathcal{I}(\theta)}")
-    st.line_chart(data=fisher_information_df, x="theta", y="cramer_rao_bound", height=200)
+    st.line_chart(
+        data=fisher_information_df, x="theta", y="cramer_rao_bound", height=200
+    )

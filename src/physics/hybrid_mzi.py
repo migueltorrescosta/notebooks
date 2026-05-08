@@ -24,9 +24,15 @@ import scipy
 from .wigner import wigner_function_single
 
 
+def _oscillator_number(N: int) -> np.ndarray:
+    """Return diagonal number operator n̂ = a†a in truncated Fock basis (N+1)."""
+    return np.diag(np.arange(N + 1, dtype=complex))
+
+
 # =============================================================================
 # Two-Mode Embedding
 # =============================================================================
+
 
 def embed_hybrid_in_mzi(
     hybrid_state: np.ndarray,
@@ -54,10 +60,12 @@ def embed_hybrid_in_mzi(
     """
     dim_osc = N + 1
     dim_hybrid = 2 * dim_osc
-    dim_mzi = 2 * (dim_osc ** 2)  # hybrid ⊗ mode2
+    dim_mzi = 2 * (dim_osc**2)  # hybrid ⊗ mode2
 
     if hybrid_state.shape != (dim_hybrid,):
-        raise ValueError(f"hybrid_state must have shape ({dim_hybrid},), got {hybrid_state.shape}")
+        raise ValueError(
+            f"hybrid_state must have shape ({dim_hybrid},), got {hybrid_state.shape}"
+        )
 
     embedded = np.zeros(dim_mzi, dtype=complex)
 
@@ -76,6 +84,7 @@ def embed_hybrid_in_mzi(
 # MZI Operators
 # =============================================================================
 
+
 def mzi_beam_splitter(N: int, theta: float = np.pi / 4) -> np.ndarray:
     """Construct beam splitter unitary for modes 1 and 2.
 
@@ -92,7 +101,7 @@ def mzi_beam_splitter(N: int, theta: float = np.pi / 4) -> np.ndarray:
         Unitary of shape (2(N+1)², 2(N+1)²).
     """
     dim_osc = N + 1
-    dim_modes = dim_osc ** 2
+    dim_modes = dim_osc**2
 
     # Build annihilation operators for mode 1 and mode 2
     # Mode 1: a1 ⊗ I_2
@@ -100,7 +109,7 @@ def mzi_beam_splitter(N: int, theta: float = np.pi / 4) -> np.ndarray:
     for n1 in range(dim_osc):
         for n2 in range(dim_osc):
             idx = n1 * dim_osc + n2
-            if n1 >0:
+            if n1 > 0:
                 a1[idx - dim_osc, idx] = np.sqrt(n1)  # a1|n1,n2⟩ = √n1|n1-1,n2⟩
 
     # Mode 2: I_1 ⊗ a2
@@ -108,7 +117,7 @@ def mzi_beam_splitter(N: int, theta: float = np.pi / 4) -> np.ndarray:
     for n1 in range(dim_osc):
         for n2 in range(dim_osc):
             idx = n1 * dim_osc + n2
-            if n2 >0:
+            if n2 > 0:
                 a2[idx - 1, idx] = np.sqrt(n2)  # a2|n1,n2⟩ = √n2|n1,n2-1⟩
 
     # Beam splitter generator: G = i(a1†a2 - a1a2†)
@@ -138,7 +147,7 @@ def mzi_phase_shift(N: int, phi: float) -> np.ndarray:
         Unitary of shape (2(N+1)², 2(N+1)²).
     """
     dim_osc = N + 1
-    dim_modes = dim_osc ** 2
+    dim_modes = dim_osc**2
 
     phase_op = np.zeros((dim_modes, dim_modes), dtype=complex)
 
@@ -163,7 +172,7 @@ def mzi_phase_generator(N: int) -> np.ndarray:
         Generator matrix of shape (2(N+1)², 2(N+1)²).
     """
     dim_osc = N + 1
-    dim_modes = dim_osc ** 2
+    dim_modes = dim_osc**2
 
     # n₁ in mode space: diagonal with value n1
     n1_op = np.zeros((dim_modes, dim_modes), dtype=complex)
@@ -179,6 +188,7 @@ def mzi_phase_generator(N: int) -> np.ndarray:
 # =============================================================================
 # MZI Evolution
 # =============================================================================
+
 
 def evolve_hybrid_mzi(
     hybrid_state: np.ndarray,
@@ -219,6 +229,7 @@ def evolve_hybrid_mzi(
 # =============================================================================
 # Output Probabilities
 # =============================================================================
+
 
 def mzi_output_probabilities(
     final_state: np.ndarray,
@@ -273,45 +284,53 @@ def mzi_marginal_photon_probs(
 # QFI Computation
 # =============================================================================
 
+
 def qfi_hybrid_mzi(
     hybrid_state: np.ndarray,
     N: int,
 ) -> float:
     """Compute QFI for MZI phase estimation with hybrid input.
 
-    For pure state |ψ(φ)⟩, the QFI is:
-        F_Q = 4 Var(G) = 4(⟨G²⟩ - ⟨G⟩²)
-    where G = n₁ ⊗ I_mode2 ⊗ I_spin.
+    For the MZI, the phase shift exp(-iφ n₁) is applied between two
+    beam splitters.  The correct generator is n₁ acting on the state
+    *after* the first beam splitter.  For a 50:50 beam splitter and
+    a pure input |ψ⟩|0⟩, this reduces to an analytical expression
+    in terms of the input state's photon number statistics:
+
+        F_Q = ⟨n²⟩ - ⟨n⟩² + ⟨n⟩ = Var(n) + ⟨n⟩
+
+    where ⟨n⟩, ⟨n²⟩ are computed on the oscillator after tracing out
+    the spin.  This formula is exact for the |ψ⟩|0⟩ ⊗ |spin⟩ setup
+    and avoids constructing the BS matrix explicitly.
 
     Args:
-        hybrid_state: Input hybrid state (before MZI).
+        hybrid_state: Input hybrid state vector of shape (2(N+1),).
         N: Maximum photon number.
 
     Returns:
         Quantum Fisher Information F_Q.
     """
-    # Embed state into MZI space
-    embedded = embed_hybrid_in_mzi(hybrid_state, N)
+    # Extract oscillator density matrix (trace out spin)
+    rho_osc = extract_oscillator_density(hybrid_state, N)
 
-    # Phase generator
-    G = mzi_phase_generator(N)
+    # Photon number operator in oscillator space (diagonal)
+    n_op = _oscillator_number(N)
 
-    # Compute expectation values
-    G_psi = G @ embedded
-    G2_psi = G @ G_psi
+    # Compute first and second moments of n
+    mean_n = np.real(np.trace(rho_osc @ n_op))
+    mean_n2 = np.real(np.trace(rho_osc @ n_op @ n_op))
 
-    exp_G = np.vdot(embedded, G_psi).real
-    exp_G2 = np.vdot(embedded, G2_psi).real
+    var_n = mean_n2 - mean_n**2
+    var_n = max(0.0, var_n)  # Numerical safety
 
-    var_G = exp_G2 - exp_G ** 2
-    var_G = max(0.0, var_G)  # Numerical safety
-
-    return 4.0 * var_G
+    # F_Q = Var(n) + ⟨n⟩  (derived from 4·Var(n₁) after BS₁)
+    return var_n + mean_n
 
 
 # =============================================================================
 # Wigner Function for Hybrid State
 # =============================================================================
+
 
 def extract_oscillator_density(hybrid_state: np.ndarray, N: int) -> np.ndarray:
     """Extract oscillator density matrix from hybrid state (trace out spin).

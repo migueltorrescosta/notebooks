@@ -67,12 +67,10 @@ def wigner_function_single(
             r_sq = x**2 + p**2
 
             # Precompute (α)^n / √n! and (α*)^m / √m!
-            alpha_pow_n = np.array([
-                (alpha ** n) / np.sqrt(fact[n]) for n in range(dim)
-            ])
-            alpha_conj_pow_m = np.array([
-                (alpha_conj ** m) / np.sqrt(fact[m]) for m in range(dim)
-            ])
+            alpha_pow_n = np.array([(alpha**n) / np.sqrt(fact[n]) for n in range(dim)])
+            alpha_conj_pow_m = np.array(
+                [(alpha_conj**m) / np.sqrt(fact[m]) for m in range(dim)]
+            )
 
             # W = (2/π) exp(-2r²) Σ_{m,n} ρ_mn (-1)^n (α*)^m α^n / √(m!n!)
             coeff = (2.0 / np.pi) * np.exp(-2 * r_sq)
@@ -80,7 +78,9 @@ def wigner_function_single(
             total = 0.0
             for m in range(dim):
                 for n in range(dim):
-                    total += rho_osc[m, n] * (-1)**n * alpha_conj_pow_m[m] * alpha_pow_n[n]
+                    total += (
+                        rho_osc[m, n] * (-1) ** n * alpha_conj_pow_m[m] * alpha_pow_n[n]
+                    )
 
             W[ix, ip] = coeff * np.real(total)
 
@@ -113,7 +113,9 @@ def wigner_from_hybrid_state(
     dim_hybrid = 2 * dim_osc
 
     if hybrid_state.shape != (dim_hybrid,):
-        raise ValueError(f"hybrid_state must have shape ({dim_hybrid},), got {hybrid_state.shape}")
+        raise ValueError(
+            f"hybrid_state must have shape ({dim_hybrid},), got {hybrid_state.shape}"
+        )
 
     # Extract oscillator state for given spin component
     if spin_component == "down":

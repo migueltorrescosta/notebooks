@@ -306,7 +306,10 @@ with c2:
     st.caption(
         "\\begin{array}{c}\\ket{\\psi_0}\\\\ \\\\parallel\\\\"
         + "\\\\".join(
-            [f"{100 * el.component:+.0f}\\ket{{ {el.level} }}" for el in energy_levels[:5]]
+            [
+                f"{100 * el.component:+.0f}\\ket{{ {el.level} }}"
+                for el in energy_levels[:5]
+            ]
         )
         + "\\end{array}"
     )

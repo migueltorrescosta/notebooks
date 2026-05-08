@@ -356,7 +356,7 @@ with col1:
         f"{estimated_delta_mean:.6f}",
         f"±{confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}",
     )
-    st.caption(f"Confidence: {confidence_interval*100:.0f}%")
+    st.caption(f"Confidence: {confidence_interval * 100:.0f}%")
 with col2:
     y_variable = "loglikelihood" if show_log_likelihood else "likelihood"
     st.area_chart(
@@ -411,7 +411,10 @@ if st.sidebar.toggle("Show history", value=False):
     c1, c2 = st.columns(2)
     with c1:
         st.scatter_chart(
-            st.session_state.experiment_history_df, x=history_x_axis, y=history_y_axis, height=200
+            st.session_state.experiment_history_df,
+            x=history_x_axis,
+            y=history_y_axis,
+            height=200,
         )
     with c2:
         plot_array(st.session_state.experiment_history_df.T, midpoint=None)
