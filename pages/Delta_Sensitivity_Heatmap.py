@@ -106,12 +106,12 @@ sensitivity_df = compute_sensitivity_df(n, k, j_s, delta_s, alpha_x, alpha_z, t)
 
 
 # PLOTS
-def plot_sensitivity(df: pd.DataFrame, title: str, values: str) -> None:
+def plot_sensitivity(df: pd.DataFrame, title: str, values: str, height: int = 250) -> None:
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    fig, ax = plt.subplots()
-    ax.set_title(title)
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.set_title(title, fontsize=10)
     sns.heatmap(
         df.pivot(index="alpha_x", columns="alpha_z", values=values),
         ax=ax,
@@ -119,7 +119,7 @@ def plot_sensitivity(df: pd.DataFrame, title: str, values: str) -> None:
         vmax=1,
         cmap="viridis",
     )
-    st.pyplot(fig)
+    st.pyplot(fig, use_container_width=True)
 
 
 with sensitivity_column_1:

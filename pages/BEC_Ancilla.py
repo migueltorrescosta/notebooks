@@ -352,13 +352,13 @@ with col1:
     st.metric(
         "Δφ (no ancilla)",
         f"{results_no_ancilla['delta_phi']:.4f}",
-        f"{results_no_ancilla['delta_phi_sql']:.4f} (SQL)",
+        f"SQL: {results_no_ancilla['delta_phi_sql']:.4f}",
     )
 with col2:
     st.metric(
         "Δφ (with ancilla)",
         f"{results_with_ancilla['delta_phi_enhanced']:.4f}",
-        f"{results_no_ancilla['delta_phi_hl']:.4f} (HL)",
+        f"HL: {results_no_ancilla['delta_phi_hl']:.4f}",
     )
 with col3:
     st.metric(
@@ -479,34 +479,27 @@ if show_ttn:
     # Compute bond dimension growth
     ttn_data = compute_ttn_bond_growth(N, system_state)
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1, 2])
     with col1:
-        st.metric("Max Bond Dimension", str(ttn_data["max_bond_dim"]))
+        st.metric("Max Bond Dim", str(ttn_data["max_bond_dim"]))
+        st.metric("Compression", f"{(2**N) / ttn_data['max_bond_dim']:.1f}x")
     with col2:
-        st.metric(
-            "Compression",
-            f"{(2**N) / ttn_data['max_bond_dim']:.1f}x",
+        # Plot bond dimension vs epsilon
+        fig_ttn = go.Figure()
+        fig_ttn.add_trace(
+            go.Bar(
+                x=[f"ε = {e:.0e}" for e in ttn_data["epsilons"]],
+                y=ttn_data["bond_dims"],
+                marker_color="green",
+            )
         )
-
-    # Plot bond dimension vs epsilon
-    fig_ttn = go.Figure()
-
-    fig_ttn.add_trace(
-        go.Bar(
-            x=[f"ε = {e:.0e}" for e in ttn_data["epsilons"]],
-            y=ttn_data["bond_dims"],
-            marker_color="green",
+        fig_ttn.update_layout(
+            xaxis_title="SVD Threshold ε",
+            yaxis_title="Bond Dimension",
+            template="plotly_white",
+            height=250,
         )
-    )
-
-    fig_ttn.update_layout(
-        xaxis_title="SVD Threshold ε",
-        yaxis_title="Bond Dimension",
-        template="plotly_white",
-        height=300,
-    )
-
-    st.plotly_chart(fig_ttn, use_container_width=True)
+        st.plotly_chart(fig_ttn, use_container_width=True)
 
 
 # =============================================================================
@@ -514,7 +507,7 @@ if show_ttn:
 # =============================================================================
 
 
-st.header("Summary", divider="red")
+st.subheader("Summary")
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
@@ -526,16 +519,14 @@ with col3:
 with col4:
     st.metric("TTN Bond Dim", str(ttn_data.get("max_bond_dim", "N/A")))
 
-st.latex(rf"""
-\begin{{array}}{{lcl}}
-\Delta\phi^{{(no ancilla)}} & = & {results_no_ancilla["delta_phi"]:.4f} \\
-\Delta\phi^{{(with ancilla)}} & = & {results_with_ancilla["delta_phi_enhanced"]:.4f} \\
-\textEnhancement & = & {results_with_ancilla["enhancement"]:.2f} \\
-\xi^2 & = & \frac{{\Delta\phi^{{(no ancilla)}}}}{{\Delta\phi^{{(with ancilla)}}}} = {improvement:.2f}
-\end{{array}}
+st.caption(rf"""
+Δφ (no ancilla) = {results_no_ancilla["delta_phi"]:.4f} | 
+Δφ (with ancilla) = {results_with_ancilla["delta_phi_enhanced"]:.4f} | 
+Enhancement = {results_with_ancilla["enhancement"]:.2f}x | 
+ξ² = {improvement:.2f}
 """)
 
 st.caption(
-    f"BEC Ancilla-Enhanced Metrology | N={N} | λ={lambda_coupling:.2f} | "
-    f"TTN bond dim: {ttn_data.get('max_bond_dim', 'N/A')}"
+    f"BEC Ancilla | N={N} | λ={lambda_coupling:.2f} | "
+    f"TTN: {ttn_data.get('max_bond_dim', 'N/A')}"
 )

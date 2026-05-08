@@ -27,7 +27,6 @@ from .hybrid_system import (
     hybrid_vacuum_state,
     hybrid_coherent_state,
     adaptive_truncation,
-    hybrid_expectation,
     hybrid_mean_photon,
     validate_hybrid_state,
     validate_hybrid_unitary,

@@ -96,7 +96,7 @@ def gen_performance_df() -> pd.DataFrame:
     return df
 
 
-st.header("Comparing minimizers", divider="gray")  # SETUP/CONFIG
+st.subheader("Comparing minimizers")
 
 c1, c2 = st.columns(2)
 with c1:
@@ -104,7 +104,7 @@ with c1:
     import seaborn as sns
 
     argmin_df = gen_performance_df()
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(4, 3))
     sns.heatmap(
         argmin_df.pivot(
             index="test_function", columns="minimizer", values="normalized_min"
@@ -112,11 +112,11 @@ with c1:
         ax=ax,
         cmap="viridis",
     )
-    st.pyplot(fig)
+    st.pyplot(fig, use_container_width=True)
     st.caption("Yellow is BAD")
 
 with c2:
     surface_df = gen_surface_df(f=selected_function)
-    fig, ax = plt.subplots()
-    sns.heatmap(surface_df.pivot(index="x", columns="y", values="f"), cmap="viridis")
-    st.pyplot(fig)
+    fig, ax = plt.subplots(figsize=(4, 3))
+    sns.heatmap(surface_df.pivot(index="x", columns="y", values="f"), cmap="viridis", ax=ax)
+    st.pyplot(fig, use_container_width=True)

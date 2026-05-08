@@ -156,28 +156,22 @@ with st.sidebar:
             "Boundary Condition", [f.value for f in BoundaryCondition]
         )
 
-st.header("Setup", divider="gray")  # SETUP/CONFIG
+st.subheader("Setup")
 
-methodology_info = {
-    "Methodology": "These tabs describe the methodology used",
-    "Wave": rf"We choose a 1-dimensional {initial_wave_packet} as the original state $\ket{{\psi_0}}$.",
-    "Potential": f"We choose a {potential_function} potential with {boundary_condition} boundary.",
-    "Hamiltonian": f"""We calculate the Hamiltonian using the tri-diagonal representation of $H=\frac{{\\hat{{P}}^2}}{{2m}} + V(x)$,
-    with ${number_of_spatial_points}$ spatial points.""",
-    "Energy levels": f"We calculate the {number_of_energy_levels} lowest eigenvalues/eigenvectors.",
-    "Decomposition": rf"""We decompose $\ket{{\psi_0}}$ by projecting it into $\ket{{E_i}}$,
-    for $i \in \{{ 1, 2, \dots, {number_of_energy_levels} }}$.""",
-    "Evolution": rf"We evolve $\ket{{\psi_0}}$ and produce a heatmap up to time $t={time:g}$.",
-}
-
-tabs = st.tabs(list(methodology_info.keys()))
-for tab, content in zip(tabs, list(methodology_info.keys())):
-    with tab:
-        st.markdown(methodology_info[content])
+# Combine methodology into main expander
+with st.expander("Methodology details"):
+    st.markdown(f"""
+    - **Wave**: {initial_wave_packet} as $\ket{{\psi_0}}$
+    - **Potential**: {potential_function} with {boundary_condition} boundary
+    - **Hamiltonian**: Tri-diagonal representation with ${number_of_spatial_points}$ points
+    - **Energy levels**: {number_of_energy_levels} lowest eigenvalues/eigenvectors
+    - **Decomposition**: Project $\ket{{\psi_0}}$ into $\ket{{E_i}}$ for $i \\in \\{{ 1, 2, \\dots, {number_of_energy_levels} \\}}$
+    - **Evolution**: Heatmap up to time $t={time:g}$
+    """)
 
 c1, c2, c3 = st.columns([5, 1, 5])
 with c1:
-    st.header(r"Initial state $\ket{\psi_0}$", divider="orange")
+    st.subheader(r"Initial state $\ket{\psi_0}$")
     st.line_chart(
         pd.DataFrame(
             {
@@ -188,6 +182,7 @@ with c1:
             }
         ),
         x="x",
+        height=200,
     )
 
 
@@ -218,7 +213,7 @@ levels = compute_energy_levels(hamiltonian, phi_zero, number_of_energy_levels)
 wf_matrix, components, energies = normalize_energy_levels(levels)
 
 with c3:
-    st.header(r"Potential $V(x)$", divider="green")
+    st.subheader(r"Potential $V(x)$")
     st.line_chart(
         pd.DataFrame(
             {
@@ -227,6 +222,7 @@ with c3:
             }
         ),
         x="x",
+        height=200,
     )
 
 
@@ -288,7 +284,7 @@ assert ortho_error < 1e-8, "Your energy levels are not orthonormal"
 explained_psi_zero = np.sum([np.abs(el.component) ** 2 for el in energy_levels])
 
 with c1:
-    st.subheader(r"Decomposition $\ket{\psi_0} = \sum_i \lambda_i \ket{E_i}$")
+    st.subheader(r"Decomposition")
     st.scatter_chart(
         pd.DataFrame(
             {
@@ -300,16 +296,17 @@ with c1:
         x="level",
         y="energy",
         size="probability",
+        height=200,
     )
     st.caption(
-        rf"We know {100 * np.sum([np.abs(el.component) ** 2 for el in energy_levels]):.20g}% of $\ket{{\psi_0}}$"
+        rf"Coverage: {100 * np.sum([np.abs(el.component) ** 2 for el in energy_levels]):.2f}%"
     )
 
 with c2:
     st.caption(
-        "\\begin{array}{c}100\\ket{\\psi_0}\\\\ \\\\parallel\\\\"
+        "\\begin{array}{c}\\ket{\\psi_0}\\\\ \\\\parallel\\\\"
         + "\\\\".join(
-            [f"{100 * el.component:+.2f}\\ket{{ {el.level} }}" for el in energy_levels]
+            [f"{100 * el.component:+.0f}\\ket{{ {el.level} }}" for el in energy_levels[:5]]
         )
         + "\\end{array}"
     )
@@ -317,10 +314,8 @@ with c2:
 # Create evolver and compute time evolution
 evolver = TimeEvolver(wf_matrix, components, energies)
 
-st.header("Evolution", divider="red")
-st.markdown(
-    "Green represents an higher wave function amplitude, purple a lower amplitude"
-)
+st.subheader("Evolution")
+st.caption("Green = high amplitude, Purple = low amplitude")
 
 
 def evolve(t: float) -> np.ndarray:
@@ -342,7 +337,7 @@ time_evolution_data = pd.DataFrame(
 
 plot_array(np.array(time_evolution_data.T), midpoint=None, text_auto=False)
 
-st.header(rf"Final state $\ket{{\psi_{{{time:g}}} }}$")
+st.subheader(rf"Final state $\ket{{\psi_{{{time:g} }}$")
 phi_time = evolve(t=time)
 phi_time_df = pd.DataFrame(
     {
@@ -353,7 +348,11 @@ phi_time_df = pd.DataFrame(
     }
 )
 
-st.line_chart(phi_time_df, x="x")
+c1, c2 = st.columns([1, 1])
+with c1:
+    st.line_chart(phi_time_df, x="x", height=200)
 
-fig = px.line_3d(phi_time_df, x="x", y="Im", z="Re")
-st.plotly_chart(fig, use_container_width=True)
+with c2:
+    fig = px.line_3d(phi_time_df, x="x", y="Im", z="Re")
+    fig.update_layout(height=300)
+    st.plotly_chart(fig, use_container_width=True)

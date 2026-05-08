@@ -136,17 +136,16 @@ with info_4:
     static_hamiltonian = generate_hamiltonian(config)
     plot_array(static_hamiltonian)
 
-st.header("System evolution", divider="green")
-
+st.subheader("System evolution")
 st.latex(f"""
     \\begin{{array}}{{rrccccc}}
     H &=& H_S &+& H_A &+& H_{{int}} \\\\
     &=&  -J_S \\sigma_x + \\delta_S \\sigma_z  &+&
      -J_A J_x + U_AJ_z ^ 2 + \\delta_AJ_z &+&
-     \\alpha_{{xx}} \\sigma_x J_x + \\alpha_{{xz}} \\sigma_x J_z + \\alpha_{{zx}} \\sigma_z J_x + \\alpha_{{zz}} \\sigma_z J_z \\\\
+      \\alpha_{{xx}} \\sigma_x J_x + \\alpha_{{xz}} \\sigma_x J_z + \\alpha_{{zx}} \\sigma_z J_x + \\alpha_{{zz}} \\sigma_z J_z \\\\
     &=&  {-1 * j_s:.2f} \\sigma_x {delta_s:+.2f} \\sigma_z &+&
      {-1 * j_a:.2f} J_x {u_a:+.2f}J_z ^ 2 {delta_a:+.2f}J_z &+& 
-     {alpha_xx:.2f} \\sigma_x J_x  {alpha_xz:+.2f} \\sigma_x J_z  {alpha_zx:+.2f} \\sigma_z J_x {alpha_zz:+.2f} \\sigma_z J_z
+      {alpha_xx:.2f} \\sigma_x J_x  {alpha_xz:+.2f} \\sigma_x J_z  {alpha_zx:+.2f} \\sigma_z J_x {alpha_zz:+.2f} \\sigma_z J_z
     \\end{{array}}
     """)
 
@@ -193,17 +192,27 @@ def compute_evolution_df(dim_a: int, k: int, granularity: int = 100) -> pd.DataF
 df = compute_evolution_df(dim_a, k)
 
 # PLOTS
-st.line_chart(
-    data=df,
-    x="time",
-    y=[v for v in RECORDED_VARS if v not in ["time", "delta_s"]],
-)
+c1, c2 = st.columns(2)
+with c1:
+    st.line_chart(
+        data=df,
+        x="time",
+        y=["<0|rho_system_t|0>", "<1|rho_system_t|1>"],
+        height=250,
+    )
+with c2:
+    st.line_chart(
+        data=df,
+        x="time",
+        y=["expected_sigma_z", "variance_sigma_z"],
+        height=250,
+    )
 
 # ESTIMATION CONTROLS
-st.header(r"""Estimating $\delta_S$""", divider="orange")
+st.subheader(r"""Estimating $\delta_S$""")
 
 with st.sidebar:
-    st.header(r"""Estimating $\delta_S$""", divider="orange")
+    st.subheader(r"""Estimating $\delta_S$""")
     c1, c2, c3 = st.columns(3)
     with c1:
         time = st.number_input("$t$", min_value=0.0, value=9.580, step=0.0001)
@@ -340,65 +349,69 @@ estimated_delta_var = (
     float(np.dot(((delta_s_arr - estimated_delta_mean) ** 2), likelihood_arr))
     / likelihood_sum
 )
-st.latex(
-    f"\\delta_s \approx {estimated_delta_mean:.6f} \\pm {confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}"
-)
-
-estimation_df["loglikelihood"] = np.log(estimation_df["likelihood"])
-estimation_df["loglikelihood"] -= min(estimation_df["loglikelihood"])
-y_variable = "loglikelihood" if show_log_likelihood else "likelihood"
-st.area_chart(
-    data=estimation_df[["delta_s", y_variable]],
-    x="delta_s",
-    y=[y_variable],
-)
+col1, col2 = st.columns([1, 2])
+with col1:
+    st.metric(
+        "δₛ estimate",
+        f"{estimated_delta_mean:.6f}",
+        f"±{confidence_interval_multiplier * np.sqrt(estimated_delta_var):.6f}",
+    )
+    st.caption(f"Confidence: {confidence_interval*100:.0f}%")
+with col2:
+    y_variable = "loglikelihood" if show_log_likelihood else "likelihood"
+    st.area_chart(
+        data=estimation_df[["delta_s", y_variable]],
+        x="delta_s",
+        y=[y_variable],
+        height=200,
+    )
 
 # HISTORY
-st.header("History", divider="red")
-history_data: dict[str, float] = {
-    "j_s": j_s,
-    "delta_s": delta_s,
-    "dim_a": float(dim_a),
-    "k": float(k),
-    "j_a": j_a,
-    "u_a": u_a,
-    "delta_a": delta_a,
-    "alpha_xx": alpha_xx,
-    "alpha_xz": alpha_xz,
-    "alpha_zx": alpha_zx,
-    "alpha_zz": alpha_zz,
-    "time": time,
-    "guessed_delta_s": guessed_delta_s,
-    "delta_s_var": delta_s_var,
-    "log_2_n_trials": float(np.log2(n_trials)),
-    "confidence_interval": confidence_interval,
-    "confidence_interval_multiplier": confidence_interval_multiplier,
-    "estimated_delta_mean": float(estimated_delta_mean),
-    "estimated_delta_var": float(estimated_delta_var),
-    "log_2_estimated_delta_var": float(np.log2(estimated_delta_var)),
-}
+if st.sidebar.toggle("Show history", value=False):
+    st.subheader("History")
+    history_data: dict[str, float] = {
+        "j_s": j_s,
+        "delta_s": delta_s,
+        "dim_a": float(dim_a),
+        "k": float(k),
+        "j_a": j_a,
+        "u_a": u_a,
+        "delta_a": delta_a,
+        "alpha_xx": alpha_xx,
+        "alpha_xz": alpha_xz,
+        "alpha_zx": alpha_zx,
+        "alpha_zz": alpha_zz,
+        "time": time,
+        "guessed_delta_s": guessed_delta_s,
+        "delta_s_var": delta_s_var,
+        "log_2_n_trials": float(np.log2(n_trials)),
+        "confidence_interval": confidence_interval,
+        "confidence_interval_multiplier": confidence_interval_multiplier,
+        "estimated_delta_mean": float(estimated_delta_mean),
+        "estimated_delta_var": float(estimated_delta_var),
+        "log_2_estimated_delta_var": float(np.log2(estimated_delta_var)),
+    }
 
-with st.sidebar:
-    st.header("History", divider="red")
-    if st.button("Delete session data ( irreversible )", type="primary"):
-        st.session_state.pop("experiment_history_df")
+    with st.sidebar:
+        if st.button("Delete session data", type="primary"):
+            st.session_state.pop("experiment_history_df")
 
-    history_y_axis = st.selectbox("y-axis", sorted(list(history_data.keys())))
-    history_x_axis = st.selectbox("x-axis", sorted(list(history_data.keys())))
+        history_y_axis = st.selectbox("y-axis", sorted(list(history_data.keys())))
+        history_x_axis = st.selectbox("x-axis", sorted(list(history_data.keys())))
 
-if "experiment_history_df" not in st.session_state:
-    st.session_state.experiment_history_df = pd.DataFrame([history_data])
-else:
-    st.session_state.experiment_history_df.reset_index(drop=True, inplace=True)
-    st.session_state.experiment_history_df.loc[
-        len(st.session_state.experiment_history_df)
-    ] = history_data
-    st.session_state.experiment_history_df.drop_duplicates(inplace=True)
+    if "experiment_history_df" not in st.session_state:
+        st.session_state.experiment_history_df = pd.DataFrame([history_data])
+    else:
+        st.session_state.experiment_history_df.reset_index(drop=True, inplace=True)
+        st.session_state.experiment_history_df.loc[
+            len(st.session_state.experiment_history_df)
+        ] = history_data
+        st.session_state.experiment_history_df.drop_duplicates(inplace=True)
 
-c1, c2 = st.columns(2)
-with c1:
-    st.scatter_chart(
-        st.session_state.experiment_history_df, x=history_x_axis, y=history_y_axis
-    )
-with c2:
-    plot_array(st.session_state.experiment_history_df.T, midpoint=None)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.scatter_chart(
+            st.session_state.experiment_history_df, x=history_x_axis, y=history_y_axis, height=200
+        )
+    with c2:
+        plot_array(st.session_state.experiment_history_df.T, midpoint=None)

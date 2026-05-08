@@ -48,10 +48,10 @@ with st.sidebar:
 
     debug_mode = st.toggle("Debug mode", value=True)
 
-st.header("Setup", divider="gray")
+st.subheader("Setup")
 st.markdown("Transverse Heisenberg Model")
-st.markdown(
-    f"$H = H_J + H_U = {j} sum_{{i=0}}^{{ {n_sites + 1} }} \\sigma^x_i\\sigma^x_{{i+1}} + \frac{{{u}}}{{2}} sum_{{i=1}}^{{{n_sites}}} \\sigma^z_i$"
+st.latex(
+    f"H = H_J + H_U = {j} \\sum_{{i=0}}^{{ {n_sites + 1} }} \\sigma^x_i\\sigma^x_{{i+1}} + \\frac{{{u}}}{{2}} \\sum_{{i=1}}^{{{n_sites}}} \\sigma^z_i"
 )
 
 # Build Hamiltonian using physics module
@@ -77,19 +77,19 @@ level_expectations = compute_expectation_values(n_sites, eigenvectors)
 level_expectations = level_expectations.reshape(n_sites, len(eigenvectors), 2)
 
 if debug_mode:
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.dataframe(eigenvectors)
-    with col2:
-        st.dataframe(energy_levels)
-    with col3:
-        st.dataframe(level_expectations[:, :, 0].T)
+    with st.expander("Debug: Raw data"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.dataframe(eigenvectors, height=150)
+        with col2:
+            st.dataframe(energy_levels, height=150)
+        with col3:
+            st.dataframe(level_expectations[:, :, 0].T, height=150)
 
-st.header("Energy levels", divider="green")
-
+st.subheader("Energy levels")
 left, center, right = st.columns(3)
 with left:
-    st.bar_chart(sorted(eigenvalues))
+    st.bar_chart(sorted(eigenvalues), height=200)
 with center:
     plot_array(level_expectations[:, :, 0])
 with right:

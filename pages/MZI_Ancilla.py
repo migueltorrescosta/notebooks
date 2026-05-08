@@ -207,7 +207,7 @@ p0, p1 = compute_output_probabilities(evolved_state, effective_max, ancilla_dim)
 # Interference Fringe
 # =============================================================================
 if show_fringe:
-    st.header("Interference Fringe", divider="orange")
+    st.subheader("Interference Fringe")
 
     # Compute fringe over phase range
     phases = np.linspace(0, 2 * np.pi, 100)
@@ -248,19 +248,23 @@ if show_fringe:
         yaxis_title="P(out0)",
         yaxis_range=[0, 1],
         template="plotly_white",
-        height=400,
+        height=300,
     )
     st.plotly_chart(fig_fringe, use_container_width=True)
 
     # Current point info
-    st.metric("Current Output Probabilities", f"P₀ = {p0:.3f}, P₁ = {p1:.3f}")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("P₀", f"{p0:.3f}")
+    with col2:
+        st.metric("P₁", f"{p1:.3f}")
 
 
 # =============================================================================
 # State Evolution Visualization
 # =============================================================================
 if show_evolution:
-    st.header("State Evolution", divider="green")
+    st.subheader("State Evolution")
 
     # Compute states at each stage
     stages = compute_all_stage_states(
@@ -309,7 +313,7 @@ if show_evolution:
             ),
         ]
     )
-    fig_ev.update_layout(barmode="stack", template="plotly_white", height=300)
+    fig_ev.update_layout(barmode="stack", template="plotly_white", height=250)
     st.plotly_chart(fig_ev, use_container_width=True)
 
 
@@ -317,19 +321,21 @@ if show_evolution:
 # Density Matrix Visualization
 # =============================================================================
 if show_density:
-    st.header("Density Matrix", divider="violet")
+    st.subheader("Density Matrix")
 
     # Get reduced system density matrix
     rho_sys = get_reduced_density_matrix(
         evolved_state, effective_max, ancilla_dim, trace_out_ancilla=True
     )
 
-    # Plot using existing plot_array function
-    st.subheader("Real Part")
-    plot_array(np.real(rho_sys), midpoint=0, text_auto=False)
-
-    st.subheader("Imaginary Part")
-    plot_array(np.imag(rho_sys), midpoint=0, text_auto=False)
+    # Plot using columns
+    c1, c2 = st.columns(2)
+    with c1:
+        st.caption("Real Part")
+        plot_array(np.real(rho_sys), midpoint=0, text_auto=False)
+    with c2:
+        st.caption("Imaginary Part")
+        plot_array(np.imag(rho_sys), midpoint=0, text_auto=False)
 
     # Purity
     purity = np.real(np.trace(rho_sys @ rho_sys))
@@ -339,7 +345,7 @@ if show_density:
 # =============================================================================
 # Summary Info
 # =============================================================================
-st.header("Summary", divider="red")
+st.subheader("Summary")
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("Input State", state_type.replace("_", " ").title())
@@ -350,18 +356,11 @@ with col3:
 with col4:
     st.metric("Coupling g", f"{g:.2f}")
 
-st.latex(rf"""
-\begin{{array}}{{lcl}}
-\theta & = & {theta:.4f} \\
-\phi_{{bs}} & = & {phi_bs:.4f} \\
-\phi & = & {phi_phase:.4f} \\
-g & = & {g:.4f} \\
-t_{{int}} & = & {interaction_time:.4f}
-\end{{array}}
+st.caption(rf"""
+θ = {theta:.4f} | φ_bs = {phi_bs:.4f} | φ = {phi_phase:.4f} | g = {g:.2f} | t_int = {interaction_time:.2f}
 """)
 
-st.divider()
 st.caption(
-    "MZI with Ancilla Simulation | System dimension: "
+    "MZI with Ancilla | System dimension: "
     + f"{((effective_max + 1) ** 2) * ancilla_dim} (system ⊗ ancilla)"
 )

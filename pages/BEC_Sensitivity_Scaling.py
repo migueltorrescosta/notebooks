@@ -466,7 +466,7 @@ if all_results:
                 mode="lines+markers",
                 name=state_type,
                 line=dict(color=state_colors.get(state_type, "blue")),
-                marker=dict(size=8),
+                marker=dict(size=6),
             )
         )
 
@@ -476,7 +476,7 @@ if all_results:
         xaxis_title="N (atom number)",
         yaxis_title="Δφ (phase uncertainty)",
         template="plotly_white",
-        height=500,
+        height=350,
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
     )
 
@@ -491,58 +491,61 @@ if all_results:
 if scaling_exponents:
     st.subheader("Scaling Exponent Comparison")
 
-    # Create comparison bar chart
-    fig_bar = go.Figure()
+    col1, col2 = st.columns([2, 1])
 
-    states = list(scaling_exponents.keys())
-    exponents = list(scaling_exponents.values())
-    colors = [state_colors.get(s, "blue") for s in states]
+    with col1:
+        # Create comparison bar chart
+        fig_bar = go.Figure()
 
-    # Reference values
-    ref_exponents = {"CSS": -0.5, "SSS": -2 / 3, "Twin-Fock": -1.0, "NOON": -1.0}
+        states = list(scaling_exponents.keys())
+        exponents = list(scaling_exponents.values())
+        colors = [state_colors.get(s, "blue") for s in states]
 
-    fig_bar.add_trace(
-        go.Bar(
-            name="Computed",
-            x=states,
-            y=exponents,
-            marker_color=colors,
-        )
-    )
+        # Reference values
+        ref_exponents = {"CSS": -0.5, "SSS": -2 / 3, "Twin-Fock": -1.0, "NOON": -1.0}
 
-    # Add reference lines
-    for state_type, ref in ref_exponents.items():
-        if state_type in states:
-            fig_bar.add_hline(
-                y=ref,
-                line_dash="dash",
-                line_color="gray",
-                annotation_text=f"Ref: {ref:.2f}",
+        fig_bar.add_trace(
+            go.Bar(
+                name="Computed",
+                x=states,
+                y=exponents,
+                marker_color=colors,
             )
+        )
 
-    fig_bar.update_layout(
-        yaxis_title="Scaling exponent α",
-        yaxis_range=[min(exponents) - 0.2, 0.0],
-        template="plotly_white",
-        height=300,
-    )
+        # Add reference lines
+        for state_type, ref in ref_exponents.items():
+            if state_type in states:
+                fig_bar.add_hline(
+                    y=ref,
+                    line_dash="dash",
+                    line_color="gray",
+                    annotation_text=f"Ref: {ref:.2f}",
+                )
 
-    st.plotly_chart(fig_bar, use_container_width=True)
+        fig_bar.update_layout(
+            yaxis_title="Scaling exponent α",
+            yaxis_range=[min(exponents) - 0.2, 0.0],
+            template="plotly_white",
+            height=250,
+        )
 
-    # Display table
-    results_df = pd.DataFrame(
-        [
-            {
-                "State": state_type,
-                "Computed α": f"{α:.3f}",
-                "Expected α": f"{ref_exponents.get(state_type, 'N/A'):.3f}",
-                "Difference": f"{abs(α - ref_exponents.get(state_type, 0)):.3f}",
-            }
-            for state_type, α in scaling_exponents.items()
-        ]
-    )
+        st.plotly_chart(fig_bar, use_container_width=True)
 
-    st.table(results_df)
+    with col2:
+        # Display table
+        results_df = pd.DataFrame(
+            [
+                {
+                    "State": state_type,
+                    "α": f"{α:.3f}",
+                    "Ref": f"{ref_exponents.get(state_type, 'N/A'):.3f}",
+                }
+                for state_type, α in scaling_exponents.items()
+            ]
+        )
+
+        st.table(results_df)
 
 
 # =============================================================================
@@ -577,7 +580,7 @@ if export_csv and all_results:
 # =============================================================================
 
 
-st.header("Summary", divider="red")
+st.subheader("Summary")
 
 col1, col2, col3, col4 = st.columns(4)
 with col1:
@@ -595,6 +598,6 @@ with col4:
     st.metric("Noise", "On" if has_noise else "Off")
 
 st.caption(
-    f"BEC Sensitivity Scaling Analysis | {len(states_to_analyze)} states | "
+    f"BEC Scaling | {len(states_to_analyze)} states | "
     f"N ∈ [{N_min}, {N_max}] | Method: {method}"
 )

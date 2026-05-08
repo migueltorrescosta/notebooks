@@ -77,8 +77,8 @@ with st.sidebar:
     wave_a = partial(wave_a, wavelength_a, angle_a)
     wave_b = partial(wave_b, wavelength_b, angle_b)
 
-st.header("Setup", divider="gray")  # SETUP/CONFIG
-st.markdown("""
+st.subheader("Setup")
+st.caption("""
     This page aims to interactively show the interference pattern caused by two waves.
     In particular this can be used to visualize the [Moiré effect](https://en.wikipedia.org/wiki/Moir%C3%A9_pattern).
     """)
@@ -103,7 +103,7 @@ st.markdown(grid)
 # st.dataframe(df.T)
 # st.dataframe(df.pivot(columns="x", index="y", values="wave_a"))
 
-st.header("Real part", divider="orange")
+st.subheader("Real part")
 c1, c2, c3 = st.columns(3)
 with c1:
     plot_array(
@@ -120,7 +120,7 @@ with c3:
         np.real(df.pivot(columns="x", index="y", values="f").values), text_auto=False
     )
 
-st.header("Imaginary part", divider="green")
+st.subheader("Imaginary part")
 c1, c2, c3 = st.columns(3)
 with c1:
     plot_array(
@@ -137,33 +137,28 @@ with c3:
         np.imag(df.pivot(columns="x", index="y", values="f").values), text_auto=False
     )
 
-st.header(r"$\| \cdot \|_2$ Norm", divider="green")
+st.subheader(r"$\| \cdot \|_2$ Norm")
 plot_array(np.abs(df.pivot(columns="x", index="y", values="f").values), text_auto=False)
 # st.header("Raw data", divider="green")
 # st.dataframe(df.pivot(columns="y", index="x", values="f"))
 
-# QUIVER view
-# https://matplotlib.org/2.0.2/examples/pylab_examples/quiver_demo.html
+# QUIVER view - compact
+with st.expander("Show vector field"):
+    width = 6
+    Y, X = np.mgrid[
+        -width : width : np.divide(width, 10), -width : width : np.divide(width, 10)
+    ]
+    wave_a_grid = np.array([wave_a(x, y) for (x, y) in zip(X, Y)])
+    wave_b_grid = np.array([wave_b(x, y) for (x, y) in zip(X, Y)])
 
-width = 6
-Y, X = np.mgrid[
-    -width : width : np.divide(width, 10), -width : width : np.divide(width, 10)
-]
-wave_a_grid = np.array([wave_a(x, y) for (x, y) in zip(X, Y)])
-wave_b_grid = np.array([wave_b(x, y) for (x, y) in zip(X, Y)])
-
-fig, ax = plt.subplots(figsize=(6, 6))
-ax.quiver(X, Y, np.real(wave_a_grid), np.imag(wave_a_grid), color="orange")
-ax.quiver(X, Y, np.real(wave_b_grid), np.imag(wave_b_grid), color="green")
-ax.quiver(
-    X,
-    Y,
-    np.real(wave_a_grid + wave_b_grid),
-    np.imag(wave_a_grid + wave_b_grid),
-    color="red",
-)
-
-# strm = plt.quiver(X, Y, U, V, color="red", linewidth=1)
-# fig.colorbar(strm.lines)
-# ax.set_title("Phase Plane")
-st.pyplot(fig)
+    fig, ax = plt.subplots(figsize=(5, 5))
+    ax.quiver(X, Y, np.real(wave_a_grid), np.imag(wave_a_grid), color="orange")
+    ax.quiver(X, Y, np.real(wave_b_grid), np.imag(wave_b_grid), color="green")
+    ax.quiver(
+        X,
+        Y,
+        np.real(wave_a_grid + wave_b_grid),
+        np.imag(wave_a_grid + wave_b_grid),
+        color="red",
+    )
+    st.pyplot(fig, use_container_width=True)

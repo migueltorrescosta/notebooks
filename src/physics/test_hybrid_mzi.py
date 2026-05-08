@@ -10,7 +10,6 @@ Physical Validation:
 """
 
 import numpy as np
-import pytest
 
 from .hybrid_mzi import (
     embed_hybrid_in_mzi,
@@ -27,9 +26,7 @@ from .hybrid_mzi import (
 from .hybrid_system import (
     hybrid_vacuum_state,
     hybrid_coherent_state,
-    validate_hybrid_state,
     validate_hybrid_unitary,
-    hybrid_mean_photon,
 )
 
 

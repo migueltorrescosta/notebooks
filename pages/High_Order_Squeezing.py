@@ -197,18 +197,18 @@ if not validate_hybrid_state(squeezed, N):
     st.error("State validation failed!")
 
 # Display observables
-st.subheader("Squeezed State Properties", divider="green")
+st.subheader("Squeezed State Properties")
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
     mean_n = hybrid_mean_photon(squeezed, N)
-    st.metric("Mean photon ⟨n⟩", f"{mean_n:.3f}")
+    st.metric("⟨n⟩", f"{mean_n:.3f}")
 
 with col2:
     # Compute squeezing parameter
     r_n = omega_n * t_sqz
-    st.metric("Squeezing rₙ", f"{r_n:.3f}")
+    st.metric("rₙ", f"{r_n:.3f}")
 
 with col3:
     # Wigner negativity check
@@ -216,13 +216,13 @@ with col3:
         _, _, W = compute_wigner_for_state(squeezed, N, x_max=5.0, n_points=50)
         w_min = wigner_minimum(W)
         is_neg = wigner_is_negative(W)
-        st.metric("Wigner min", f"{w_min:.4f}", delta="Negative!" if is_neg else "Positive")
+        st.metric("Wigner min", f"{w_min:.4f}", "Negative!" if is_neg else "Positive")
     else:
         st.metric("Wigner min", "N/A")
 
 # Wigner function visualization
 if show_wigner:
-    st.subheader("Wigner Function W(x,p)", divider="orange")
+    st.subheader("Wigner Function W(x,p)")
 
     x, p, W = compute_wigner_for_state(squeezed, N, x_max=5.0, n_points=80)
 
@@ -240,57 +240,61 @@ if show_wigner:
         xaxis_title="x",
         yaxis_title="p",
         template="plotly_white",
-        height=400,
+        height=300,
     )
     st.plotly_chart(fig, use_container_width=True)
 
     # Wigner negativity warning
-    if show_wigner:
-        if is_neg:
-            st.success(f"✅ Wigner negativity detected! min(W) = {w_min:.4f}")
-            st.caption("Non-Gaussian state confirmed (for n ≥ 3)")
-        else:
-            st.info("Wigner function is non-negative (Gaussian-like state)")
+    if is_neg:
+        st.success(f"✅ Wigner negativity detected! min(W) = {w_min:.4f}")
+        st.caption("Non-Gaussian state confirmed (for n ≥ 3)")
+    else:
+        st.info("Wigner function is non-negative (Gaussian-like state)")
 
 # MZI QFI computation
 if show_qfi:
-    st.subheader("MZI Phase Estimation - QFI", divider="violet")
+    st.subheader("MZI Phase Estimation - QFI")
 
     # Compute QFI
     with st.spinner("Computing QFI..."):
         fq = qfi_hybrid_mzi(squeezed, N)
 
-    st.metric("Quantum Fisher Information $F_Q$", f"{fq:.4f}")
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        st.metric("QFI $F_Q$", f"{fq:.4f}")
 
-    # SQL comparison
-    sql_limit = 4 * mean_n  # Standard quantum limit
-    st.latex(fr"F_Q^{{SQL}} = 4\langle n \rangle = {sql_limit:.2f}")
+        # SQL comparison
+        sql_limit = 4 * mean_n  # Standard quantum limit
+        st.caption(fr"SQL = $4\langle n \rangle = {sql_limit:.2f}$")
 
-    if fq > sql_limit:
-        st.success("✅ QFI exceeds Standard Quantum Limit!")
-    else:
-        st.info("QFI below Standard Quantum Limit")
+        if fq > sql_limit:
+            st.success("✅ Exceeds SQL!")
+        else:
+            st.info("Below SQL")
+    with col2:
+        # Could add QFI vs phi plot here if needed
+        pass
 
 # Summary
-st.header("Summary", divider="red")
+st.subheader("Summary")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.metric("Order n", f"n={n_order}")
+    st.metric("Order", f"n={n_order}")
 with col2:
-    st.metric("Mean photons ⟨n⟩", f"{mean_n:.3f}")
+    st.metric("⟨n⟩", f"{mean_n:.3f}")
 with col3:
     if show_qfi:
-        st.metric("QFI F_Q", f"{fq:.2f}")
+        st.metric("QFI", f"{fq:.2f}")
     else:
-        st.metric("QFI F_Q", "N/A")
+        st.metric("QFI", "N/A")
 with col4:
     if show_wigner:
-        st.metric("Wigner negative", "Yes" if is_neg else "No")
+        st.metric("Wigner -", "Yes" if is_neg else "No")
     else:
-        st.metric("Wigner negative", "N/A")
+        st.metric("Wigner -", "N/A")
 
 st.caption(
-    f"Hybrid system dimension: {2*(N+1)} | "
-    f"Squeezing: rₙ = {omega_n * t_sqz:.3f}"
+    f"Hybrid dim: {2*(N+1)} | "
+    f"rₙ = {omega_n * t_sqz:.3f}"
 )

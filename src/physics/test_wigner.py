@@ -20,8 +20,6 @@ from .wigner import (
 from .hybrid_system import (
     hybrid_vacuum_state,
     hybrid_coherent_state,
-    oscillator_annihilation,
-    oscillator_creation,
 )
 
 
@@ -35,7 +33,6 @@ class TestWignerFunctionSingle:
     def test_vacuum_normalization(self) -> None:
         """∫∫ W(x,p) dx dp ≈ 1 for vacuum."""
         N = 10
-        a = oscillator_annihilation(N)
         rho = np.zeros((N +1, N + 1), dtype=complex)
         rho[0, 0] = 1.0  # |0⟩⟨0|
 

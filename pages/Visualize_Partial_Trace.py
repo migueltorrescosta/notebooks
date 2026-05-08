@@ -122,7 +122,7 @@ H_A &+& H_{{int}} &+& H_B \\\\
 
 c1, c2, c3 = st.columns(3)
 with c1:
-    st.header("System A", divider="gray")
+    st.subheader("System A")
     st.latex(r"H_A")
     plot_array(h_a, key="H_A")
     st.latex(r"\mathrm{Tr}_B[H]")
@@ -131,7 +131,7 @@ with c1:
     plot_array(np.abs(traced_evolved_state_a) ** 2, midpoint=None, key="Tr_Bphi_t")
 
 with c2:
-    st.header("Interactions", divider="green")
+    st.subheader("Interactions")
     st.latex(r"H_{int}")
     plot_array(h_int, key="H_int")
     st.latex(r"H")
@@ -142,7 +142,7 @@ with c2:
     )
 
 with c3:
-    st.header("System B", divider="orange")
+    st.subheader("System B")
     st.latex(r"H_B")
     plot_array(h_b, key="H_B")
     st.latex(r"\mathrm{Tr}_A[H]")

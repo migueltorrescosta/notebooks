@@ -75,7 +75,7 @@ with st.sidebar:
                 $\\frac{{\\log(2)}}{{\\lambda}} \\approx \\frac{{{np.log(2):.5f}}}{{{decay_lambda:.5f}}} \\approx {np.divide(np.log(2), decay_lambda):.5f}$.
             """)
 
-st.header("Setup", divider="gray")  # SETUP/CONFIG
+st.subheader("Setup")
 
 match initial_wave_packet:
     case ProbabilityDistribution.ParticleDecay.value:
@@ -111,5 +111,5 @@ match initial_wave_packet:
             midpoint=None,
             text_auto=False,
         )
-        st.header("Raw data", divider="orange")
-        st.dataframe(df.pivot(columns="k", index="t", values="prob"))
+        with st.expander("Show raw data"):
+            st.dataframe(df.pivot(columns="k", index="t", values="prob"), height=150)

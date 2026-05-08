@@ -121,19 +121,20 @@ with st.sidebar:
     posterior_vector = posterior_vector / np.sum(posterior_vector)
 c1, c2, c3 = st.columns(3)
 with c1:
-    st.line_chart(prior_vector, x_label="prior")
+    st.line_chart(prior_vector, x_label="prior", height=200)
 with c2:
-    st.line_chart(likelihood_vector, x_label="likelihood")
+    st.line_chart(likelihood_vector, x_label="likelihood", height=200)
 with c3:
-    st.line_chart(posterior_vector, x_label="posterior")
+    st.line_chart(posterior_vector, x_label="posterior", height=200)
 
-st.header("Raw data", divider="orange")
-st.dataframe(
-    pd.DataFrame(
-        {
-            "prior": prior_vector,
-            "likelihood": likelihood_vector,
-            "posterior": posterior_vector,
-        }
-    ).T
-)
+with st.expander("Show raw data"):
+    st.dataframe(
+        pd.DataFrame(
+            {
+                "prior": prior_vector,
+                "likelihood": likelihood_vector,
+                "posterior": posterior_vector,
+            }
+        ).T,
+        height=150,
+    )

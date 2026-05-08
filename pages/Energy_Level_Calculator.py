@@ -144,7 +144,7 @@ def build_1d_hamiltonian(
     return inner_hamiltonian.tocsc()
 
 
-st.header("Potential $V(x)$", divider="green")  # RESULTS/SUCCESS
+st.subheader("Potential $V(x)$")
 
 st.line_chart(
     pd.DataFrame(
@@ -154,6 +154,7 @@ st.line_chart(
         }
     ),
     x="x",
+    height=200,
 )
 
 hamiltonian = build_1d_hamiltonian(
@@ -190,22 +191,27 @@ with st.sidebar:
     st.caption(f"Biggest error: {np.max(error_matrix):.2g}")
     plot_array(error_matrix)
 
-st.header("Energy levels $\\ket{n}$", divider="green")
+st.subheader("Energy levels $\\ket{n}$")
+st.caption(f"Showing first {min(5, number_of_energy_levels)} of {number_of_energy_levels} levels")
 
-tabs = st.tabs([str(e) for e in range(number_of_energy_levels)])
-for tab, energy_level in zip(tabs, energy_levels):
+# Use tabs for first few levels
+tabs = st.tabs([str(e) for e in range(min(5, number_of_energy_levels))])
+for tab, energy_level in zip(tabs, energy_levels[:5]):
     with tab:
-        st.line_chart(
-            pd.DataFrame(
-                {
-                    "Re": np.real(energy_level.wave_function),
-                    "Im": np.imag(energy_level.wave_function),
-                    # "L_2": np.abs(energy_level.wave_function),
-                    "x": valid_x,
-                }
-            ),
-            x="x",
-        )
-
-        st.markdown("Copy pastable values:")
-        st.code(energy_level.wave_function, language="python")
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            st.line_chart(
+                pd.DataFrame(
+                    {
+                        "Re": np.real(energy_level.wave_function),
+                        "Im": np.imag(energy_level.wave_function),
+                        "x": valid_x,
+                    }
+                ),
+                x="x",
+                height=200,
+            )
+        with c2:
+            st.metric("Energy", f"{energy_level.energy:.4f}")
+            with st.expander("Show values"):
+                st.code(energy_level.wave_function, language="python")

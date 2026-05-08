@@ -47,12 +47,10 @@ with st.sidebar:
     valid_theta = np.linspace(0, 1, theta_sample_size + 1)
     pdf = partial(binomial_pdf, n=n)
 
-st.header("Metro | Cramer Rao", divider="orange")
+st.subheader("Fisher Information")
 fisher_clip = st.number_input(
     "Max absolute fisher information ( plot )", min_value=0.001, value=0.1
 )
-
-st.header("Metro | Fisher Information", divider="blue")
 
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""
@@ -120,25 +118,26 @@ log_df = pd.DataFrame(
 )
 
 
-def quick_and_dirty(my_array: np.ndarray) -> None:
-    fig, ax = plt.subplots()
-    sns.heatmap(np.asarray(my_array), cmap="viridis")
-    st.write(fig)
+def quick_and_dirty(my_array: np.ndarray, height: int = 200) -> None:
+    fig, ax = plt.subplots(figsize=(3, 2))
+    sns.heatmap(np.asarray(my_array), cmap="viridis", ax=ax)
+    st.pyplot(fig, use_container_width=True)
 
 
-c1, c2, c3, c4 = st.columns(4)
-with c1:
-    st.latex(r"f_\theta(x)")
-    quick_and_dirty(np.array(df_pdf))
-with c2:
-    st.latex(r"\log f_\theta(x)")
-    quick_and_dirty(np.array(log_df))
-with c3:
-    st.latex(r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )")
-    quick_and_dirty(grad_log.T)  # (m, n+1)
-with c4:
-    st.latex(r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2")
-    quick_and_dirty(grad_sq.T)  # (m, n+1)
+with st.expander("Show PDF visualizations"):
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.latex(r"f_\theta(x)")
+        quick_and_dirty(np.array(df_pdf), height=150)
+    with c2:
+        st.latex(r"\log f_\theta(x)")
+        quick_and_dirty(np.array(log_df), height=150)
+    with c3:
+        st.latex(r"\frac{\partial}{\partial \theta} \log f_\theta(x)")
+        quick_and_dirty(grad_log.T, height=150)  # (m, n+1)
+    with c4:
+        st.latex(r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2")
+        quick_and_dirty(grad_sq.T, height=150)  # (m, n+1)
 fisher_information_df = pd.DataFrame(
     {
         "fisher_information": np.clip(
@@ -148,10 +147,10 @@ fisher_information_df = pd.DataFrame(
         "theta": valid_theta,
     }
 )
-st.header("Cramer Rao", divider="orange")
-st.dataframe(
-    fisher_information_df.T
-)  # TODO: Understand why increasing the size of N impacts the number of Nones in this pd.DataFrame
+st.subheader("Cramer-Rao Bound")
+with st.expander("Show raw data"):
+    st.dataframe(fisher_information_df.T, height=150)
+
 c1, c2 = st.columns(2)
 with c1:
     st.latex(r"""
@@ -160,9 +159,8 @@ with c1:
             \frac{\partial}{\partial \theta} \log f_\theta(x)
             \right )^2 | \theta \right ]
     """)
-    st.line_chart(data=fisher_information_df, x="theta", y="fisher_information")
+    st.line_chart(data=fisher_information_df, x="theta", y="fisher_information", height=200)
 
 with c2:
     st.latex(r"\mathrm{var}[\hat \theta] \geq \frac{1}{\mathcal{I}(\theta)}")
-
-    st.line_chart(data=fisher_information_df, x="theta", y="cramer_rao_bound")
+    st.line_chart(data=fisher_information_df, x="theta", y="cramer_rao_bound", height=200)
