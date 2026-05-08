@@ -1,331 +1,111 @@
-# High-Order Non-Gaussian Squeezing under Decoherence: Theoretical Plan
+# High-Order Non-Gaussian Squeezing under Decoherence
 
 ## Hypothesis
 
-**Core Claim**: Non-Gaussian squeezed states generated via high-order spin-dependent forces (n ≥ 3) can outperform Gaussian squeezed states (n = 2) for phase estimation in Mach-Zehnder interferometers **at fixed mean oscillator photon number ⟨a†a⟩ at the input to the MZI**, provided decoherence rates are below a critical threshold.
+Non-Gaussian squeezed states generated via high-order spin-dependent forces (n ≥ 3) can
+outperform Gaussian squeezed states (n = 2) for phase estimation in Mach-Zehnder
+interferometers **at fixed mean oscillator photon number ⟨a†a⟩ at the input to the MZI**,
+provided decoherence rates are below a critical threshold.
 
-**Predicted Crossover**: There exists a critical decoherence rate γ_c such that:
-- For γ < γ_c: F_Q(n=3 or 4) > F_Q(n=2) at fixed ⟨a†a⟩ (measured before MZI input)
-- For γ > γ_c: F_Q(n=2) ≥ F_Q(n=4) (Gaussian states are more decoherence-robust)
-
-This tests the fundamental trade-off between **non-Gaussian metrological advantage** and **decoherence susceptibility** in higher-order squeezed states.
-
----
-
-## 1. Theoretical Model
-
-### 1.1 Hybrid Oscillator-Spin System
-
-The system consists of a bosonic oscillator (e.g., motional mode of a trapped ion) coupled to a two-level spin (qubit).
-
-| Component | Basis | Dimension | Description |
-|-----------|-------|------------|-------------|
-| Oscillator | Fock states \|n⟩, n = 0…N | N+1 | Truncated bosonic Hilbert space |
-| Spin | \|↓⟩, \|↑⟩ (σ_z eigenstates) | 2 | Pauli matrices σ_x, σ_y, σ_z |
-| Combined | \|n⟩ ⊗ \|σ⟩ | 2(N+1) | Tensor product hybrid space |
-
-**State ordering**: Index = n × 2 + s, where s=0 for \|↓⟩, s=1 for \|↑⟩.
-
-### 1.2 Hamiltonian: Two Spin-Dependent Forces (SDFs)
-
-The hybrid system is driven by two simultaneously applied SDFs:
-
-$$
-H(t) = \frac{\hbar\Omega_\alpha}{2}\sigma_\alpha\left(a e^{-i\Delta t} + a^\dagger e^{i\Delta t}\right) + \frac{\hbar\Omega_{\alpha'}}{2}\sigma_{\alpha'}\left(a e^{-im\Delta t + i\phi_{\alpha'}} + a^\dagger e^{-i(m\Delta t + \phi_{\alpha'})}\right)
-$$
-
-Where:
-- $\Omega_\alpha, \Omega_{\alpha'}$: Drive strengths (dimensionless in ℏ=1 units)
-- $\sigma_\alpha, \sigma_{\alpha'}$: Spin operators (σ_x, σ_y, σ_z, or σ_φ = cosφ σ_x + sinφ σ_y)
-- Δ: Detuning from oscillator frequency ω_osc
-- m: Order parameter for the second SDF
-
-**Rotating frame transformation**: Transform to the frame rotating at ω_osc. After applying the Rotating Wave Approximation (RWA) assuming Δ ≫ Ω, the time-averaged Hamiltonian becomes:
-
-$$
-H_{\text{SDF}} = \frac{\hbar}{2}\left(\Omega_\alpha \sigma_\alpha \otimes a + \Omega_{\alpha'}\sigma_{\alpha'} \otimes a e^{-i(m-1)\Delta t - i\phi_{\alpha'}} + \text{h.c.}\right)
-$$
-
-**Resonance condition for n-th order squeezing**: Set m = 1 - n, yielding time-independent effective dynamics:
-
-| n | Interaction Type | m | σ_α | σ_α' | Final Time-Independent H_n (ℏ=1, after RWA + nΔ rotating frame) |
-|---|------------------|---|-----|------|---------------------------------------------------------------|
-| 2 | Squeezing (Gaussian) | -1 | σ_φ | σ_{φ+π/2} | $\propto \sigma_z \otimes \left(a^2 e^{-i\theta_2} + a^{\dagger 2} e^{i\theta_2}\right)$ |
-| 3 | Trisqueezing (Non-Gaussian) | -2 | σ_φ | σ_z | $\propto \sigma_{\phi+\pi/2} \otimes \left(a^3 e^{-i\theta_3} + a^{\dagger 3} e^{i\theta_3}\right)$ |
-| 4 | Quadsqueezing (Non-Gaussian) | -3 | σ_φ | σ_{φ+π/2} | $\propto \sigma_z \otimes \left(a^4 e^{-i\theta_4} + a^{\dagger 4} e^{i\theta_4}\right)$ |
-
-The time dependence from the RWA step ($e^{i n \Delta t}$) is removed via an additional rotating frame transformation at frequency $n\Delta$, yielding the time-independent Hamiltonian above.
-
-The effective **purely bosonic** Hamiltonian (after adiabatic elimination of the spin, for reference) is:
-
-$$
-H_n = \frac{\hbar\Omega_n}{2}\left(a^n e^{-i\theta} + a^{\dagger n} e^{i\theta}\right), \quad \Omega_n \propto \frac{\Omega_{\alpha'}\Omega_\alpha^{n-1}}{\Delta^{n-1}}
-$$
-
-Where θ is an effective phase and Ω_n is the n-th order squeezing rate.
-
-### 1.3 Decoherence Model (Lindblad Master Equation)
-
-Applied to the full hybrid system (oscillator + spin):
-
-| Channel | Lindblad Operator L | Rate | Physical Origin |
-|---------|-------------------|------|-----------------|
-| One-body loss | √γ₁ a ⊗ I₂ | γ₁ | Photon/phonon loss from oscillator |
-| Phase diffusion | √γ_φ I_osc ⊗ σ_z/2 | γ_φ | Spin dephasing |
-| (Optional) Two-body loss | √γ₂ a² ⊗ I₂ | γ₂ | Pair loss (not primary focus) |
-
-**Master equation**:
-
-$$
-\frac{d\rho}{dt} = -i[H_{\text{SDF}}, \rho] + \sum_k \gamma_k\left(L_k\rho L_k^\dagger - \frac{1}{2}\{L_k^\dagger L_k, \rho\}\right)
-$$
-
-### 1.4 Input States for Metrology
-
-| State Type | Oscillator Part | Spin Part | Preparation |
-|------------|----------------|-----------|--------------|
-| Squeezed vacuum | Apply Uₙ to \|0⟩ | \|↓⟩ | H_SDF evolution for time t_sqz |
-| Squeezed coherent | Apply Uₙ to \|α⟩ | \|↓⟩ | Prepare coherent state, then apply Uₙ |
-
-**Squeezing parameter**: rₙ = Ωₙ · t_sqz (defined for each order n).
+There exists a critical decoherence rate γ_c such that:
+- For γ < γ_c: F_Q(n=3 or 4) > F_Q(n=2) at fixed ⟨a†a⟩
+- For γ > γ_c: F_Q(n=2) ≥ F_Q(n=4) (Gaussian states more robust)
 
 ---
 
-## 2. Simulation Requirements
+## Physical Model
 
-### 2.1 Adaptive Truncation Rule
+### Hybrid Oscillator-Spin System
 
-The oscillator truncation N must accommodate the squeezed state's photon number distribution. Use:
+A bosonic oscillator (Fock basis, |n=0…N⟩) couples to a two-level spin (|↓⟩, |↑⟩). The
+combined Hilbert space dimension is 2(N+1). Index ordering: n × 2 + s (s=0 for |↓⟩, s=1
+for |↑⟩).
 
-$$
-N_{\text{osc}} = \min\left(N_{\max}, \lceil |\alpha|^2 + n \cdot r_n + 10\sqrt{|\alpha|^2 + n \cdot r_n + 1} \rceil\right)
-$$
+### Hamiltonian: Two Simultaneous Spin-Dependent Forces
 
-Where:
-- |α| is the coherent state amplitude (0 for vacuum)
-- rₙ is the effective squeezing parameter
-- n is the squeezing order
-- N_max is a safety upper bound
+Two spin-dependent forces (SDFs) at different detunings produce an effective time-independent
+Hamiltonian under the rotating wave approximation with m = 1 - n:
 
-**Validation**: After each evolution step, verify ⟨a†a⟩ ≤ 0.9 · N_osc.
+- **n=2 (squeezing)**: σ_z ⊗ (a² + a†²)
+- **n=3 (trisqueezing)**: σ_⊥ ⊗ (a³ + a†³)
+- **n=4 (quadsqueezing)**: σ_z ⊗ (a⁴ + a†⁴)
 
-### 2.2 Evolution Methods
+The effective bosonic rate Ω_n ∝ Ω_{α'} Ω_α^{n-1} / Δ^{n-1}.
 
-**Unitary evolution** (no decoherence):
-- Solve |ψ(t)⟩ = U(t) |ψ(0)⟩ where U(t) = exp(-i H_SDF t)
-- Use exact matrix exponentiation for time-independent H (or time-ordered integration if resonance condition not perfectly met)
+### Decoherence Channels
 
-**Lindblad evolution** (with decoherence):
-- Integrate the master equation using a stable numerical method (e.g., Runge-Kutta 4)
-- Ensure trace conservation, Hermiticity, and positivity at each step
+| Channel | Lindblad Operator | Rate |
+|---------|-------------------|------|
+| One-body loss | √γ₁ (a ⊗ I₂) | γ₁ |
+| Phase diffusion | √γ_φ (I_osc ⊗ σ_z/2) | γ_φ |
+| Two-body loss | √γ₂ (a² ⊗ I₂) | γ₂ (optional) |
 
-### 2.3 Observables to Compute
+Master equation: Lindblad form dρ/dt = -i[H, ρ] + Σ_k γ_k D[L_k]ρ.
 
-1. **Photon number statistics**: ⟨n⟩, ⟨(Δn)²⟩
-2. **Quadrature variances**: Var(x), Var(p) for n=2 comparison
-3. **Wigner function**: W(x,p) = (1/π) Tr[ρ D(α) (-1)^(a†a) D†(α)]
-   - Non-Gaussian states (n ≥ 3) must show Wigner negativity (min(W) < 0)
-4. **Quantum Fisher Information (QFI)** for MZI phase estimation
-5. **MZI interference fringe**: P₀(φ) vs phase shift φ
+### Input States and MZI Protocol
 
-### 2.4 MZI Readout Protocol
-
-After preparing the hybrid state ρ_hybrid (oscillator + spin):
-
-1. **Two-mode embedding**: ρ₂₋ₘₒ𝚍ₑ = ρ_hybrid ⊗ \|0⟩⟨0\|_vacuum (oscillator = mode 1, vacuum = mode 2, spin remains as ancilla)
-2. **MZI evolution**: 50:50 beam splitter on modes 1-2 → phase shift φ on mode 1 → 50:50 beam splitter on modes 1-2
-3. **Measurement**: Output probabilities P(n₁, n₂, σ) (photon numbers n₁, n₂ + spin state σ) or P₀(φ) marginalized over spin/vacuum mode
-4. **QFI computation**: Compute QFI on the full post-MZI state (including spin ancilla) using phase shift φ as the estimand.
-
-**Phase generator for QFI**: G = n₁ ⊗ I_spin (photon number operator in mode 1, tensored with identity on spin).
+1. Start with |0⟩ (or |α⟩) ⊗ |↓⟩.
+2. Apply U_n(t) = exp(-i H_n t) for squeezing time t_sqz, giving parameter r_n = Ω_n · t_sqz.
+3. Embed into two-mode MZI: ρ₂₋ₘₒ𝚍ₑ = ρ_hybrid ⊗ |0⟩⟨0|_vacuum.
+4. Apply 50:50 BS → phase shift φ on mode 1 → 50:50 BS.
+5. QFI is computed on the full post-MZI hybrid state (spin kept as ancilla). Phase generator:
+   G = n₁ ⊗ I_spin.
 
 ---
 
-## 3. Validation Benchmarks
+## Numerical Simulation Techniques
 
-### 3.1 Gaussian Squeezing (n=2) Benchmark
+### Adaptive Fock Truncation
 
-For n=2 with vacuum input, the (pure) state should approach a **squeezed vacuum state**:
+N_osc = min(N_max, ceil(|α|² + n·r_n + 10√(|α|² + n·r_n + 1))). After each step, verify
+⟨a†a⟩ ≤ 0.9 · N_osc.
 
-- Quadrature variances: Var(x) = e^{-2r}/2, Var(p) = e^{2r}/2
-- QFI for MZI: F_Q ≈ 4⟨n⟩ + 4|α|²e^{-2r} (pure state limit)
-- Wigner function: Gaussian with elliptic contours
+### Evolution Methods
 
-**Test**: Compare numerical variances and QFI with analytical formulas.
+- **Unitary (no decoherence)**: Matrix exponentiation of time-independent H.
+- **Lindblad (with decoherence)**: Integrate master equation with RK4 or scipy ODE solvers.
+  Verify trace conservation, Hermiticity, and positivity at each step.
 
-### 3.2 Trisqueezing (n=3) Benchmark
+### Observables
 
-- Wigner function must be **non-Gaussian** (deviation from Gaussian shape)
-- Must show **Wigner negativity** for sufficient r₃: min(W) < 0
-- QFI should **exceed n=2** at the same photon number cost (hypothesis test)
-
-### 3.3 Quadsqueezing (n=4) Benchmark
-
-- Stronger non-Gaussianity than n=3
-- Wigner function may show **multi-peaked structure**
-- QFI scaling with r₄
-
-### 3.4 Decoherence Robustness Benchmark
-
-Compare QFI vs γ for all orders n=2,3,4:
-
-| Regime | Prediction |
-|--------|------------|
-| γ = 0 (no decoherence) | F_Q(n=4) > F_Q(n=3) > F_Q(n=2) |
-| Low γ | Non-Gaussian advantage persists |
-| High γ | F_Q(n=2) ≥ F_Q(n=4) (Gaussian more robust) |
-
-**Key plot**: QFI(γ) curves for each n — this is the central result testing the hypothesis.
+- Photon number statistics ⟨n⟩, ⟨(Δn)²⟩
+- Quadrature variances (for n=2 comparison with analytical formulas)
+- Wigner function (must show negativity for n≥3)
+- QFI for MZI phase estimation (SLD formulation for mixed states)
 
 ---
 
-## 4. Critical Theoretical Considerations
+## Success Criteria
 
-### 4.1 Spin Entanglement
-
-The hybrid evolution entangles the oscillator with the spin. The full hybrid state (oscillator + spin) is used as input to the MZI, with the spin acting as an ancilla. QFI is computed on the full hybrid state **before tracing out the spin**:
-- For pure hybrid states (no decoherence), use the pure-state QFI formula: $F_Q = 4\langle (\Delta G)^2 \rangle$
-- For mixed hybrid states (with decoherence), use the symmetric logarithmic derivative (SLD) formulation for QFI on the full density matrix.
-
-### 4.2 Time-Dependence of H_SDF
-
-The Hamiltonian after RWA still contains the factor e^{-i(m-1)Δt} = e^{i n Δ t} for m = 1-n. To achieve a time-independent Hamiltonian:
-- Apply an additional rotating frame transformation at frequency nΔ, OR
-- Use time-ordered evolution (Trotter splitting) if the residual time-dependence is non-negligible
-
-This final time-independent Hamiltonian is shown in the updated Table 1.2.
-
-### 4.3 Adiabatic Elimination Validity
-
-The effective bosonic Hamiltonian H_n is derived assuming **adiabatic elimination** of the spin degree of freedom. This requires:
-- Δ ≫ Ω_α, Ω_α' (already assumed for RWA)
-- The spin remains close to its instantaneous eigenstate
-
-For the full hybrid simulation, this approximation is **not** made — the spin dynamics are explicitly simulated.
+1. n=2 results match analytical Gaussian squeezing formulas.
+2. n≥3 states show Wigner negativity.
+3. QFI(n=3,4) > QFI(n=2) at zero decoherence, same ⟨n⟩.
+4. QFI curves cross at some γ_c > 0 (decoherence crossover).
+5. Numerical stability: trace, Hermiticity, positivity conserved.
 
 ---
 
-## 5. Success Criteria
+## Current Status
 
-The simulation is successful if:
+| Test | Result |
+|------|--------|
+| n=2 physics validation | PASS — ⟨n⟩ = sinh²(r) matches analytical |
+| Wigner negativity for n≥3 | PASS — confirmed for n=3 |
+| QFI scaling | PARTIAL — QFI(3) > QFI(2), QFI(4) scaling under investigation |
+| Decoherence crossover | READY — hybrid Lindblad solver implemented |
+| Numerical stability | PASS |
 
-1. ✅ **Physics validation**: n=2 results match analytical Gaussian squeezing formulas
-2. ✅ **Non-Gaussian signature**: n≥3 states show Wigner negativity
-3. ✅ **Hypothesis test**: QFI(n=3,4) > QFI(n=2) at zero decoherence, same ⟨n⟩
-4. ✅ **Decoherence crossover**: QFI curves cross at some γ_c > 0
-5. ✅ **Numerical stability**: Trace, Hermiticity, positivity conserved; no truncation artifacts
-
----
-
-## 6. Implementation Status
-
-### 6.1 Test Results Summary
-
-| Test | Expectation | Result | Status |
-|------|-------------|--------|--------|
-| 1. Physics validation (n=2) | Matches analytical formulas | ⟨n⟩ = sinh²(r) ✓ | **PASS** |
-| 2. Wigner negativity | min(W) < 0 for n≥3 | Wigner negativity confirmed for n=3 | **PASS** |
-| 3. QFI scaling | QFI(4) > QFI(3) > QFI(2) | QFI(3)>QFI(2), QFI(4) scaling under investigation | **PARTIAL** |
-| 4. Decoherence crossover | QFI curves cross at γ_c > 0 | Hybrid Lindblad solver implemented | **READY FOR TESTING** |
-| 5. Numerical stability | Trace, Hermiticity, positivity | All checks passed | **PASS** |
-
-### 6.2 Issues Resolved
-
-**Wigner function bug (Test 2)**: Code computed Husimi Q-function instead of Wigner function. Q(α) = ⟨α|ρ|α⟩/π is always ≥ 0. Fixed in `src/physics/wigner.py`:
-```python
-# Correct: W(x,p) = (2/π) exp(-2r²) Σ ρ_mn (-1)^n (α*)ᵐ αⁿ / √(m!n!)
-```
-
-**Hybrid Lindblad solver (Test 4)**: Implemented in `src/physics/hybrid_lindblad.py` with:
-- Hybrid Hilbert space: dimension 2(N+1) for oscillator ⊗ spin
-- Hamiltonian: H_n = Ω_n/2 [σ ⊗ (a^n e^{-iθ_n} + a^†n e^{iθ_n})] for n=2,3,4
-- Lindblad operators: L₁ = √γ₁(a ⊗ I₂), L_φ = √γ_φ(I_osc ⊗ σ_z/2), L₂ = √γ₂(a² ⊗ I₂)
-- Evolution methods: RK4 and scipy ODE solvers
-- QFI for mixed states using SLD formulation
-- Decoherence sweep function for hypothesis testing
-
-### 6.3 Open Issues
-
-**QFI scaling (Test 3)**: QFI(4) < QFI(3) contradicts plan. Possible causes:
-- n=4 Hamiltonian inefficient (requires t_sqz ≈ 20-40× longer than n=2)
-- Truncation N may be insufficient for a⁴ operators
-- May be real physics (n=4 less useful than n=3 for metrology)
-
-### 6.4 Priority Actions
-
-| Priority | Task | Status |
-|----------|------|--------|
-| 1 | Re-test n=3,4 Wigner negativity with fixed formula | **COMPLETE** |
-| 2 | Investigate QFI(4) < QFI(3) scaling | Pending |
-| 3 | Implement hybrid Lindblad solver (~5 hours) | **COMPLETE** |
-| 4 | Run decoherence sweep, find γ_c | **READY** |
-
----
-
-## 7. Implementation Details
-
-### 7.1 Files Created
-
-| File | Description |
-|------|-------------|
-| `src/physics/hybrid_lindblad.py` | Main solver module (575 lines) |
-| `src/physics/test_hybrid_lindblad.py` | Test suite (30 tests) |
-
-### 7.2 Key Functions Implemented
-
-| Function | Description |
-|----------|-------------|
-| `HybridLindbladConfig` | Configuration dataclass for hybrid system |
-| `build_hybrid_hamiltonian(config)` | Constructs H_n for n=2,3,4 |
-| `build_hybrid_lindblad_operators(config)` | Builds L₁, L₂, L_φ operators |
-| `evolve_hybrid_lindblad(...)` | RK4/scipy evolution under Lindblad equation |
-| `apply_squeezing(config)` | Applies n-th order squeezing |
-| `run_hybrid_simulation(config)` | Complete simulation run |
-| `run_decoherence_sweep(...)` | Decoherence sweep for hypothesis testing |
-| `compare_orders_at_gamma(...)` | Compare QFI for n=2,3,4 at given γ |
-
-### 7.3 Lindblad Operators Constructed
-
-```python
-# One-body loss: L₁ = √γ₁ (a ⊗ I₂)
-L_1 = np.kron(a, I_spin) * np.sqrt(config.gamma_1)
-
-# Two-body loss: L₂ = √γ₂ (a² ⊗ I₂)  
-L_2 = np.kron(a2, I_spin) * np.sqrt(config.gamma_2)
-
-# Phase diffusion: L_φ = √γ_φ (I_osc ⊗ σ_z/2)
-L_phi = np.kron(I_osc, sigma_z) * np.sqrt(config.gamma_phi / 2)
-```
-
-### 7.4 QFI for Mixed States
-
-The implementation uses the Symmetric Logarithmic Derivative (SLD) formulation:
-
-```python
-def _qfi_mixed_state(rho: np.ndarray, G: np.ndarray) -> float:
-    """Compute QFI for mixed state using SLD formulation."""
-    # For pure states: F_Q = 4 Var(G)
-    # For mixed states: F_Q = Σ_ij 2|⟨i|G|j⟩|² / (λ_i + λ_j)
-    ...
-```
-
-### 7.5 Test Coverage
-
-- **30 tests** in `test_hybrid_lindblad.py`
-- Coverage includes: Hamiltonian construction, Lindblad operators, evolution, Wigner negativity, validation
-- All tests pass, mypy clean, ruff clean
-
-### 7.6 Next Steps
-
-1. Run decoherence sweep: `run_decoherence_sweep(config, gamma_values, "gamma_1")`
-2. Plot QFI(γ) curves for n=2,3,4
-3. Find critical γ_c where Gaussian states become more robust
-4. Investigate QFI(4) < QFI(3) scaling issue
+**Open issue**: QFI(4) < QFI(3) contradicts the hypothesis. Possible causes: n=4 Hamiltonian
+requires 20–40× longer evolution than n=2, truncation may be insufficient for a⁴ operators,
+or n=4 may genuinely be less useful for metrology.
 
 ---
 
 ## Summary
 
-This plan models the generation of **high-order non-Gaussian squeezed states** via two simultaneous spin-dependent forces on a trapped ion (or similar hybrid oscillator-spin system). The core hypothesis is that **non-Gaussian states provide metrological advantage over Gaussian states at fixed mean oscillator photon number ⟨a†a⟩ at the MZI input, but this advantage is lost at high decoherence rates**.
-
-The simulation must model: (1) time evolution under the hybrid Hamiltonian, (2) Lindblad decoherence, (3) MZI readout with full hybrid state (spin as ancilla), and (4) QFI computation for hypothesis validation.
+This model generates high-order non-Gaussian squeezed states via two simultaneous
+spin-dependent forces on a hybrid oscillator-spin system. The core hypothesis is that
+non-Gaussian states provide metrological advantage over Gaussian states at fixed mean
+photon number, but this advantage is lost above a critical decoherence rate. The simulation
+implements time evolution under the hybrid Hamiltonian, Lindblad decoherence, MZI readout
+with the spin as an ancilla, and QFI computation for hypothesis validation.
