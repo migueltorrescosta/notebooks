@@ -187,7 +187,8 @@ class TestLindbladRHS:
         N = 5
         config = HybridLindbladConfig(N=N, n=2, omega_n=1.0)
         H = build_hybrid_hamiltonian(config)
-        L_ops, gammas = [], []
+        L_ops: list[np.ndarray] = []
+        gammas: list[float] = []
 
         dim = 2 * (N + 1)
         rho = np.eye(dim, dtype=complex) / dim  # Maximally mixed state

@@ -12,7 +12,7 @@ This script tests:
 
 import numpy as np
 import scipy
-from typing import Tuple
+from typing import Any, Tuple
 
 # Import physics modules
 from src.physics.hybrid_system import (
@@ -113,7 +113,7 @@ def find_squeezing_time_for_target_photon(
     return t_final, mean_n, squeezed
 
 
-def test_1_physics_validation_n2():
+def test_1_physics_validation_n2() -> list[dict[str, Any]]:
     """
     Test 1: Physics validation for n=2 (Gaussian squeezing).
 
@@ -219,7 +219,7 @@ def test_1_physics_validation_n2():
     return results
 
 
-def test_2_non_gaussian_signature():
+def test_2_non_gaussian_signature() -> dict[int, list[dict[str, Any]]]:
     """
     Test 2: Non-Gaussian signature for n≥3.
 
@@ -236,7 +236,7 @@ def test_2_non_gaussian_signature():
     omega_n = 1.0
 
     # Test n=3 and n=4 with various squeezing parameters
-    results = {}
+    results: dict[int, list[dict[str, Any]]] = {}
 
     for n in [3, 4]:
         results[n] = []
@@ -290,7 +290,7 @@ def test_2_non_gaussian_signature():
     return results
 
 
-def test_3_hypothesis_qfi_comparison():
+def test_3_hypothesis_qfi_comparison() -> dict[int, list[dict[str, Any]]]:
     """
     Test 3: Hypothesis test - QFI comparison at same ⟨n⟩.
 
@@ -312,7 +312,7 @@ def test_3_hypothesis_qfi_comparison():
     # Target photon numbers to test
     target_ns = [0.5, 1.0, 2.0, 3.0]
 
-    results = {2: [], 3: [], 4: []}
+    results: dict[int, list[dict[str, Any]]] = {2: [], 3: [], 4: []}
 
     for target_n in target_ns:
         print(f"\n  Target ⟨n⟩ = {target_n}:")
@@ -383,7 +383,7 @@ def test_3_hypothesis_qfi_comparison():
     return results
 
 
-def test_4_decoherence_crossover():
+def test_4_decoherence_crossover() -> None:
     """
     Test 4: Decoherence crossover.
 
@@ -420,7 +420,7 @@ def test_4_decoherence_crossover():
     return None
 
 
-def test_5_numerical_stability():
+def test_5_numerical_stability() -> bool:
     """
     Test 5: Numerical stability.
 
@@ -483,7 +483,7 @@ def test_5_numerical_stability():
     return True
 
 
-def run_all_tests():
+def run_all_tests() -> None:
     """Run all comparison tests and summarize results."""
 
     print("\n" + "=" * 60)

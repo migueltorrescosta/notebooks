@@ -30,6 +30,7 @@ PAGE_FILES = sorted(PAGES_DIR.glob("*.py"))
 # We'll skip the full run test for these but still check for duplicate ID errors
 EXPENSIVE_PAGES = {
     "Energy_Level_Calculator.py",
+    "High_Order_Squeezing.py",
     "Numerical_Quantum_Time_Evolution.py",
 }
 

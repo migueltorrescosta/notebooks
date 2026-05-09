@@ -82,7 +82,7 @@ with st.sidebar:
             case Distributions.Gaussian.value:
                 st.latex(r"e^{-a_2(x-\mu_2)^2}")
                 a = st.number_input("$a_2$", value=1.0)
-                mu = st.number_input("$\mu_2$", value=0.0)
+                mu = st.number_input(r"$\mu_2$", value=0.0)
                 prior_fn = partial(prior_gaussian, a=a, mu=mu)
 
         prior_vals = np.array([prior_fn(x) for x in domain])

@@ -293,10 +293,9 @@ class TestAdaptiveTruncation:
 
     def test_higher_order_gives_larger_N(self) -> None:
         """Higher order n should give larger N at same r_n (wider safety margin)."""
-        kwargs = dict(alpha=0j, r_n=1.0, N_max=200)
-        N2 = adaptive_truncation(n=2, **kwargs)
-        N3 = adaptive_truncation(n=3, **kwargs)
-        N4 = adaptive_truncation(n=4, **kwargs)
+        N2 = adaptive_truncation(alpha=0j, r_n=1.0, n=2, N_max=200)
+        N3 = adaptive_truncation(alpha=0j, r_n=1.0, n=3, N_max=200)
+        N4 = adaptive_truncation(alpha=0j, r_n=1.0, n=4, N_max=200)
         assert N4 >= N3 >= N2
 
 

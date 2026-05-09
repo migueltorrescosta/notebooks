@@ -208,12 +208,17 @@ with col2:
     r_n = omega_n * t_sqz
     st.metric("rₙ", f"{r_n:.3f}")
 
+# Wigner function computation (computed once, used for both metric and visualization)
+if show_wigner:
+    x, p, W = compute_wigner_for_state(squeezed, N, x_max=5.0, n_points=80)
+    w_min = wigner_minimum(W)
+    is_neg = wigner_is_negative(W)
+else:
+    w_min = 0.0
+    is_neg = False
+
 with col3:
-    # Wigner negativity check
     if show_wigner:
-        _, _, W = compute_wigner_for_state(squeezed, N, x_max=5.0, n_points=50)
-        w_min = wigner_minimum(W)
-        is_neg = wigner_is_negative(W)
         st.metric("Wigner min", f"{w_min:.4f}", "Negative!" if is_neg else "Positive")
     else:
         st.metric("Wigner min", "N/A")
@@ -221,8 +226,6 @@ with col3:
 # Wigner function visualization
 if show_wigner:
     st.subheader("Wigner Function W(x,p)")
-
-    x, p, W = compute_wigner_for_state(squeezed, N, x_max=5.0, n_points=80)
 
     fig = go.Figure(
         data=go.Heatmap(

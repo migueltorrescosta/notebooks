@@ -160,12 +160,12 @@ st.subheader("Setup")
 
 # Combine methodology into main expander
 with st.expander("Methodology details"):
-    st.markdown(f"""
+    st.markdown(rf"""
     - **Wave**: {initial_wave_packet} as $\ket{{\psi_0}}$
     - **Potential**: {potential_function} with {boundary_condition} boundary
     - **Hamiltonian**: Tri-diagonal representation with ${number_of_spatial_points}$ points
     - **Energy levels**: {number_of_energy_levels} lowest eigenvalues/eigenvectors
-    - **Decomposition**: Project $\ket{{\psi_0}}$ into $\ket{{E_i}}$ for $i \\in \\{{ 1, 2, \\dots, {number_of_energy_levels} \\}}$
+    - **Decomposition**: Project $\ket{{\psi_0}}$ into $\ket{{E_i}}$ for $i \in \{{ 1, 2, \dots, {number_of_energy_levels} \}}$
     - **Evolution**: Heatmap up to time $t={time:g}$
     """)
 
