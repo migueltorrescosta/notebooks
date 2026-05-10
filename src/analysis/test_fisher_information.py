@@ -179,6 +179,147 @@ class TestQuantumFisherInformationMixed:
             f"Mixed QFI {fq_mixed} should be <= pure QFI {fq_pure}"
         )
 
+    def test_qfi_maximally_mixed_is_zero(self) -> None:
+        """Maximally mixed state should have F_Q = 0."""
+        dim = 4
+        rho = np.eye(dim, dtype=complex) / dim
+        G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        G = G + G.conj().T
+
+        fq = quantum_fisher_information_dm(rho, G)
+        assert np.isclose(fq, 0.0, atol=1e-12), (
+            f"Maximally mixed QFI should be 0, got {fq}"
+        )
+
+    def test_qfi_commuting_rho_G_is_zero(self) -> None:
+        """When [G, ρ] = 0, the state carries no phase info: F_Q = 0."""
+        dim = 5
+        # Diagonal state and diagonal generator — they commute
+        eigenvalues = np.array([0.4, 0.3, 0.2, 0.1, 0.0])
+        rho = np.diag(eigenvalues)
+        G = np.diag(np.arange(dim, dtype=float))
+
+        fq = quantum_fisher_information_dm(rho, G)
+        assert np.isclose(fq, 0.0, atol=1e-12), (
+            f"Commuting ρ and G should give F_Q=0, got {fq}"
+        )
+
+    def test_qfi_mixed_matches_first_principles_2d(self) -> None:
+        """Verify against the textbook SLD formula for 2D mixed states."""
+        np.random.seed(42)
+        for _ in range(5):
+            # Random 2D mixed state
+            a = np.random.uniform(0.1, 0.9)
+            rho = np.diag([a, 1.0 - a])
+            # Random Hermitian generator
+            g11, g22 = np.random.uniform(-2, 2, 2)
+            g_off = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
+            G = np.array([[g11, g_off], [np.conj(g_off), g22]], dtype=complex)
+
+            # First-principles: F_Q = Σ_{i≠j} 2·(λ_i-λ_j)²/(λ_i+λ_j)·|G_ij|²
+            w, v = np.linalg.eigh(rho)
+            w = w[::-1]
+            v = v[:, ::-1]
+            expected = 0.0
+            for i in range(2):
+                for j in range(2):
+                    if i == j:
+                        continue
+                    denom = w[i] + w[j]
+                    if denom > 0:
+                        g_ij = np.vdot(v[:, i], G @ v[:, j])
+                        expected += 2.0 * (w[i] - w[j]) ** 2 / denom * np.abs(g_ij) ** 2
+
+            fq = quantum_fisher_information_dm(rho, G)
+            assert np.isclose(fq, expected, rtol=1e-10), (
+                f"2D mixed F_Q={fq} != first-principles={expected}"
+            )
+            assert fq >= 0.0, f"QFI should be non-negative, got {fq}"
+
+    def test_qfi_mixed_matches_first_principles_high_dim(self) -> None:
+        """Verify against textbook SLD formula for higher-dimensional mixed states."""
+        np.random.seed(123)
+        for dim in [3, 5, 8]:
+            # Random mixed state
+            A = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+            rho = A @ A.conj().T
+            rho = rho / np.trace(rho)
+
+            # Random Hermitian generator
+            G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+            G = G + G.conj().T
+
+            # First-principles
+            w, v = np.linalg.eigh(rho)
+            w = w[::-1]
+            v = v[:, ::-1]
+            expected = 0.0
+            for i in range(dim):
+                for j in range(dim):
+                    if i == j:
+                        continue
+                    denom = w[i] + w[j]
+                    if denom > 1e-12:
+                        g_ij = np.vdot(v[:, i], G @ v[:, j])
+                        expected += 2.0 * (w[i] - w[j]) ** 2 / denom * np.abs(g_ij) ** 2
+
+            fq = quantum_fisher_information_dm(rho, G)
+            assert np.isclose(fq, expected, rtol=1e-10), (
+                f"dim={dim}: F_Q={fq} != first-principles={expected}"
+            )
+            assert fq >= 0.0, f"QFI should be non-negative, got {fq}"
+
+    def test_qfi_mixed_equal_eigenvalues(self) -> None:
+        """When two eigenvalues are equal, their contribution to F_Q is 0."""
+        # 3-level system with λ₁=λ₂ (degenerate)
+        dim = 3
+        rho = np.diag([0.4, 0.4, 0.2])
+        G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        G = G + G.conj().T
+
+        fq = quantum_fisher_information_dm(rho, G)
+
+        # Hand-corrected check: only the non-degenerate pair (λ₁,λ₃) and (λ₂,λ₃)
+        # contribute. λ₁-λ₂=0 so that pair vanishes.
+        w, v = np.linalg.eigh(rho)
+        w = w[::-1]
+        v = v[:, ::-1]
+        expected = 0.0
+        for i in range(dim):
+            for j in range(dim):
+                if i == j:
+                    continue
+                denom = w[i] + w[j]
+                if denom > 1e-12 and not np.isclose(w[i], w[j]):
+                    g_ij = np.vdot(v[:, i], G @ v[:, j])
+                    expected += 2.0 * (w[i] - w[j]) ** 2 / denom * np.abs(g_ij) ** 2
+
+        assert np.isclose(fq, expected, rtol=1e-10), (
+            f"Degenerate F_Q={fq} != expected={expected}"
+        )
+
+    def test_qfi_mixed_pure_state_limit(self) -> None:
+        """As mixedness → 0, F_Q should approach the pure-state value."""
+        dim = 4
+        np.random.seed(7)
+        G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        G = G + G.conj().T
+
+        # Pure reference
+        state = np.zeros(dim, dtype=complex)
+        state[0] = 1.0
+        fq_pure = quantum_fisher_information(state, G)
+
+        # Nearly-pure mixed state
+        for eps in [1e-3, 1e-6, 1e-10]:
+            rho = (1.0 - eps) * np.outer(state, state.conj()) + eps * np.eye(dim) / dim
+            fq = quantum_fisher_information_dm(rho, G)
+            # Should approach pure-state value from below
+            assert fq <= fq_pure + 1e-10, f"eps={eps}: F_Q={fq} > pure={fq_pure}"
+            assert fq >= fq_pure * (1.0 - 10 * eps) or np.isclose(
+                fq, fq_pure, rtol=1e-3
+            ), f"eps={eps}: F_Q={fq} too far from pure={fq_pure}"
+
 
 class TestClassicalFisherInformation:
     """Tests for classical Fisher information."""

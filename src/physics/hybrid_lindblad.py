@@ -327,39 +327,21 @@ def run_decoherence_sweep(
 
 
 def _qfi_mixed_state(rho: np.ndarray, G: np.ndarray) -> float:
-    """Compute QFI for mixed state using SLD formulation."""
-    d = rho.shape[0]
-    purity = np.real(np.trace(rho @ rho))
+    """Compute QFI for mixed state using SLD formulation.
 
-    if purity > 0.99:
-        G_rho = G @ rho
-        G2_rho = G @ G_rho
-        exp_G = np.real(np.trace(G_rho))
-        exp_G2 = np.real(np.trace(G2_rho))
-        var_G = exp_G2 - exp_G**2
-        var_G = max(0.0, var_G)
-        return 4.0 * var_G
+    Delegates to ``quantum_fisher_information_dm`` in the analysis module,
+    which provides the correct SLD-based implementation.
 
-    eigenvalues, eigenvectors = np.linalg.eigh(rho)
-    eigenvalues = np.maximum(eigenvalues, 0.0)
-    eigenvalues = eigenvalues / np.sum(eigenvalues)
+    Args:
+        rho: Density matrix (dim, dim).
+        G: Phase generator Hermitian operator (dim, dim).
 
-    fq = 0.0
-    for i in range(d):
-        if eigenvalues[i] < 1e-12:
-            continue
-        for j in range(d):
-            if eigenvalues[j] < 1e-12:
-                continue
-            G_ij = np.vdot(eigenvectors[:, i], G @ eigenvectors[:, j])
-            if i == j:
-                fq += 2.0 * np.abs(G_ij) ** 2 / eigenvalues[i]
-            else:
-                denom = eigenvalues[i] + eigenvalues[j]
-                if denom > 1e-12:
-                    fq += 2.0 * np.real(G_ij**2) / denom
+    Returns:
+        Quantum Fisher Information value F_Q.
+    """
+    from ..analysis.fisher_information import quantum_fisher_information_dm
 
-    return np.real(fq)
+    return quantum_fisher_information_dm(rho, G)
 
 
 def compare_orders_at_gamma(

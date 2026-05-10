@@ -169,13 +169,18 @@ def quantum_fisher_information(state: np.ndarray, generator: np.ndarray) -> floa
 def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> float:
     """Compute Quantum Fisher Information for a mixed state.
 
-    Uses the symmetric formula:
-        F_Q = 2 Σ_{i<j} (λ_i - λ_j)² / (λ_i + λ_j) |⟨i|G|j⟩|²
-            + Σ_i 4 λ_i ΔG_i ΔG_i^*
+    Uses the symmetric logarithmic derivative (SLD) formula:
+        F_Q = 4 Σ_{i<j} (λ_i - λ_j)² / (λ_i + λ_j) · |⟨i|G|j⟩|²
 
-    where ΔG_i = ⟨i|G|i⟩ - ⟨G⟩, λ_i are sorted eigenvalues.
+    where λ_i and |i⟩ are eigenvalues/eigenvectors of ρ, and G is the
+    phase generator. This is derived from the SLD expression:
 
-    For pure states (ρ = |ψ⟩⟨ψ|, λ_0 = 1), this simplifies to 4 Var(G).
+        F_Q = Σ_{i≠j} 2 (λ_i - λ_j)² / (λ_i + λ_j) · |⟨i|G|j⟩|²
+
+    and simplified to the i<j form above using symmetry.
+
+    For pure states (ρ = |ψ⟩⟨ψ|, only one λ > 0), this reduces to
+    4·Var(G), which is handled as a special case for numerical stability.
 
     Args:
         rho: Density matrix (dim, dim).
@@ -215,64 +220,47 @@ def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> flo
     eigenvectors = eigenvectors[:, idx]
 
     # Clean up small negative eigenvalues (numerical precision)
-    eigenvalues = np.where(eigenvalues < 1e-15, 0.0, eigenvalues)
+    eigenvalues = np.where(eigenvalues < 0, 0.0, eigenvalues)
 
     # Trace should be 1, but normalize just in case
     trace = np.sum(eigenvalues)
     if trace > 1e-12 and not np.isclose(trace, 1.0):
         eigenvalues = eigenvalues / trace
 
+    # Determine effective numerical rank of ρ
+    rank_tol = max(1e-12, eigenvalues[0] * 1e-10)
+    nonzero_idx = np.where(eigenvalues > rank_tol)[0]
+    n_nonzero = len(nonzero_idx)
+
     # Compute F_Q
-    fq = 0.0
-    n = len(eigenvalues)
-
-    # First: off-diagonal terms i ≠ j
-    for i in range(n):
-        if eigenvalues[i] < 1e-15:
-            continue
-        for j in range(i + 1, n):
-            if eigenvalues[j] < 1e-15:
-                continue
-
-            # Matrix element ⟨i|G|j⟩
-            vi = eigenvectors[:, i]
-            gij = np.vdot(vi, generator @ eigenvectors[:, j])
-            gij_abs_sq = np.abs(gij) ** 2
-
-            # Weight term: 2(λ_i - λ_j)² / (λ_i + λ_j)
-            lambda_sum = eigenvalues[i] + eigenvalues[j]
-            lambda_diff_sq = (eigenvalues[i] - eigenvalues[j]) ** 2
-
-            if lambda_sum > 1e-12:
-                weight = 2.0 * lambda_diff_sq / lambda_sum
-            else:
-                # For pure state limit (only λ_i > 0): weight → ∞
-                # but we handle separately
-                weight = 0.0
-
-            fq += weight * gij_abs_sq
-
-    # Second: diagonal terms for pure state variance
-    # Find the index of the non-zero eigenvalue (pure state)
-    nonzero_idx = np.where(eigenvalues > 0.5)[0]
-    if len(nonzero_idx) == 1:
-        # Pure state: F_Q = 4 Var(G)
+    if n_nonzero == 1:
+        # Effectively pure state: F_Q = 4·Var(G)
         i = nonzero_idx[0]
         state = eigenvectors[:, i]
         g_exp = np.vdot(state, generator @ state).real
         g2_exp = np.vdot(state, generator @ generator @ state).real
-        fq = 4.0 * (g2_exp - g_exp**2)
+        var_g = max(0.0, g2_exp - g_exp**2)
+        fq = 4.0 * var_g
     else:
-        # Mixed state: include diagonal contributions
-        g_exp = np.trace(rho @ generator).real
-        for i in range(n):
-            if eigenvalues[i] < 1e-15:
-                continue
+        # Mixed state: SLD formula over all pairs of non-zero eigenvalues
+        fq = 0.0
+        for p in range(n_nonzero):
+            i = nonzero_idx[p]
             vi = eigenvectors[:, i]
-            # Diagonal element: ΔG_ii = ⟨i|G|i⟩ - ⟨G⟩
-            g_ii = np.vdot(vi, generator @ vi).real
-            delta_g = g_ii - g_exp
-            fq += 4.0 * eigenvalues[i] * delta_g * delta_g.conjugate()
+            for q in range(p + 1, n_nonzero):
+                j = nonzero_idx[q]
+                vj = eigenvectors[:, j]
+
+                # Matrix element ⟨i|G|j⟩
+                gij = np.vdot(vi, generator @ vj)
+                gij_abs_sq = np.abs(gij) ** 2
+
+                # Weight: 4 (λ_i - λ_j)² / (λ_i + λ_j)
+                lambda_sum = eigenvalues[i] + eigenvalues[j]
+                if lambda_sum > 1e-12:
+                    lambda_diff_sq = (eigenvalues[i] - eigenvalues[j]) ** 2
+                    weight = 4.0 * lambda_diff_sq / lambda_sum
+                    fq += weight * gij_abs_sq
 
     return float(np.real(fq))
 
