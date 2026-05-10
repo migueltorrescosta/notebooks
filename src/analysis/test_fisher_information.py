@@ -605,5 +605,628 @@ class TestPhysicsInvariants:
         assert fq > sql_fisher, f"Squeezed F_Q={fq} should exceed SQL={sql_fisher}"
 
 
+# =============================================================================
+# Mixed-state QFI: Input Validation
+# =============================================================================
+
+
+class TestInputValidationDM:
+    """Tests that mixed-state QFI correctly validates inputs, preventing silent errors."""
+
+    def test_non_hermitian_rho_raises(self) -> None:
+        """Non-Hermitian ρ should raise ValueError (eigh silently wrong otherwise)."""
+        dim = 4
+        # Non-Hermitian: A + i·A^T (asymmetric imaginary part)
+        rho = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        rho = rho @ rho.conj().T  # Start Hermitian then break it
+        rho[0, 1] += 1.0j  # Make asymmetric → non-Hermitian
+        G = np.eye(dim, dtype=complex)
+
+        with pytest.raises(ValueError, match="Hermitian"):
+            quantum_fisher_information_dm(rho, G)
+
+    def test_nan_in_rho_raises(self) -> None:
+        """ρ containing NaN should raise ValueError."""
+        dim = 3
+        rho = np.eye(dim, dtype=complex) / dim
+        rho[0, 0] = np.nan
+        G = np.eye(dim, dtype=complex)
+
+        with pytest.raises(ValueError, match="NaN"):
+            quantum_fisher_information_dm(rho, G)
+
+    def test_inf_in_rho_raises(self) -> None:
+        """ρ containing Inf should raise ValueError."""
+        dim = 3
+        rho = np.eye(dim, dtype=complex) / dim
+        rho[0, 0] = np.inf
+        G = np.eye(dim, dtype=complex)
+
+        with pytest.raises(ValueError, match="infinite"):
+            quantum_fisher_information_dm(rho, G)
+
+    def test_nan_in_generator_raises(self) -> None:
+        """Generator containing NaN should raise ValueError."""
+        dim = 3
+        rho = np.eye(dim, dtype=complex) / dim
+        G = np.eye(dim, dtype=complex)
+        G[0, 0] = np.nan
+
+        with pytest.raises(ValueError, match="NaN"):
+            quantum_fisher_information_dm(rho, G)
+
+    def test_inf_in_generator_raises(self) -> None:
+        """Generator containing Inf should raise ValueError."""
+        dim = 3
+        rho = np.eye(dim, dtype=complex) / dim
+        G = np.eye(dim, dtype=complex)
+        G[0, 0] = np.inf
+
+        with pytest.raises(ValueError, match="infinite"):
+            quantum_fisher_information_dm(rho, G)
+
+    def test_non_hermitian_generator_raises(self) -> None:
+        """Non-Hermitian generator should raise ValueError."""
+        dim = 4
+        rho = np.eye(dim, dtype=complex) / dim
+        G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        # G is explicitly non-Hermitian (no symmetrization)
+
+        with pytest.raises(ValueError, match="Hermitian"):
+            quantum_fisher_information_dm(rho, G)
+
+    def test_dimension_mismatch_generator_raises(self) -> None:
+        """Generator with wrong dimension should raise ValueError."""
+        rho = np.eye(3, dtype=complex) / 3
+        G = np.eye(5, dtype=complex)  # Wrong dimension
+
+        with pytest.raises(ValueError, match="dimension|match"):
+            quantum_fisher_information_dm(rho, G)
+
+    def test_non_square_rho_raises(self) -> None:
+        """Non-square ρ should raise ValueError."""
+        rho = np.ones((3, 4), dtype=complex)
+        G = np.eye(3, dtype=complex)
+
+        with pytest.raises(ValueError, match="square"):
+            quantum_fisher_information_dm(rho, G)
+
+    def test_non_square_generator_raises(self) -> None:
+        """Non-square generator should raise ValueError (dimension mismatch)."""
+        rho = np.eye(3, dtype=complex) / 3
+        G = np.ones((3, 4), dtype=complex)
+
+        with pytest.raises(ValueError, match="dimension"):
+            quantum_fisher_information_dm(rho, G)
+
+    def test_zero_trace_rho_handled(self) -> None:
+        """Zero-trace ρ should produce finite result (handled gracefully)."""
+        dim = 3
+        # Zero matrix should have trace=0, eigenvalues all zero
+        rho = np.zeros((dim, dim), dtype=complex)
+        G = np.eye(dim, dtype=complex)
+
+        fq = quantum_fisher_information_dm(rho, G)
+        assert np.isfinite(fq), "QFI should be finite even for zero-trace ρ"
+        assert fq >= 0.0, "QFI should be non-negative"
+
+
+class TestInputValidationPure:
+    """Tests that pure-state QFI validates NaN/Inf inputs."""
+
+    def test_nan_in_state_raises(self) -> None:
+        """State vector containing NaN should raise ValueError."""
+        dim = 4
+        state = np.ones(dim, dtype=complex)
+        state[0] = np.nan
+        G = np.eye(dim, dtype=complex)
+
+        with pytest.raises(ValueError, match="NaN"):
+            quantum_fisher_information(state, G)
+
+    def test_inf_in_state_raises(self) -> None:
+        """State vector containing Inf should raise ValueError."""
+        dim = 4
+        state = np.ones(dim, dtype=complex)
+        state[0] = np.inf
+        G = np.eye(dim, dtype=complex)
+
+        with pytest.raises(ValueError, match="infinite"):
+            quantum_fisher_information(state, G)
+
+
+# =============================================================================
+# Mixed-state QFI: Physical Invariants
+# =============================================================================
+
+
+class TestPhysicalInvariantsDM:
+    """Tests that mixed-state QFI satisfies fundamental physical invariants."""
+
+    def test_convexity(self) -> None:
+        """QFI is convex: F_Q(p·ρ₁+(1-p)·ρ₂) ≤ p·F_Q(ρ₁)+(1-p)·F_Q(ρ₂)."""
+        rng = np.random.default_rng(42)
+        dim = 5
+
+        # Two different mixed states
+        A1 = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        rho1 = A1 @ A1.conj().T
+        rho1 = rho1 / np.trace(rho1)
+
+        A2 = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        rho2 = A2 @ A2.conj().T
+        rho2 = rho2 / np.trace(rho2)
+
+        # Random Hermitian generator
+        G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        G = G + G.conj().T
+
+        fq1 = quantum_fisher_information_dm(rho1, G)
+        fq2 = quantum_fisher_information_dm(rho2, G)
+
+        for p in [0.2, 0.5, 0.8]:
+            rho_mix = p * rho1 + (1.0 - p) * rho2
+            fq_mix = quantum_fisher_information_dm(rho_mix, G)
+            weighted_avg = p * fq1 + (1.0 - p) * fq2
+            # Convexity: mixed ≤ weighted average
+            assert fq_mix <= weighted_avg + 1e-10, (
+                f"Convexity violated at p={p}: F_Q(mix)={fq_mix:.8f} > "
+                f"p·FQ₁+(1-p)·FQ₂={weighted_avg:.8f}"
+            )
+
+    def test_additivity(self) -> None:
+        """QFI is additive for product states with summed generators.
+
+        F_Q(ρ₁⊗ρ₂, G₁⊗I+I⊗G₂) = F_Q(ρ₁, G₁) + F_Q(ρ₂, G₂)
+        """
+        rng = np.random.default_rng(42)
+        d1, d2 = 3, 2
+
+        # System 1
+        A1 = rng.normal(size=(d1, d1)) + 1j * rng.normal(size=(d1, d1))
+        rho1 = A1 @ A1.conj().T
+        rho1 = rho1 / np.trace(rho1)
+        G1 = rng.normal(size=(d1, d1)) + 1j * rng.normal(size=(d1, d1))
+        G1 = G1 + G1.conj().T
+
+        # System 2
+        A2 = rng.normal(size=(d2, d2)) + 1j * rng.normal(size=(d2, d2))
+        rho2 = A2 @ A2.conj().T
+        rho2 = rho2 / np.trace(rho2)
+        G2 = rng.normal(size=(d2, d2)) + 1j * rng.normal(size=(d2, d2))
+        G2 = G2 + G2.conj().T
+
+        # Individual QFIs
+        fq1 = quantum_fisher_information_dm(rho1, G1)
+        fq2 = quantum_fisher_information_dm(rho2, G2)
+
+        # Product state
+        rho_product = np.kron(rho1, rho2)
+        G_product = np.kron(G1, np.eye(d2)) + np.kron(np.eye(d1), G2)
+
+        fq_product = quantum_fisher_information_dm(rho_product, G_product)
+
+        # Additivity: product QFI = sum of individual QFIs
+        expected = fq1 + fq2
+        assert np.isclose(fq_product, expected, rtol=1e-10), (
+            f"Additivity violated: F_Q(product)={fq_product:.10f} != "
+            f"F_Q₁+F_Q₂={expected:.10f} (diff={fq_product - expected:.2e})"
+        )
+
+    def test_shift_invariance(self) -> None:
+        """QFI is invariant under generator shift: F_Q(ρ, G + cI) = F_Q(ρ, G)."""
+        rng = np.random.default_rng(42)
+        dim = 4
+
+        # Mixed state
+        A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        rho = A @ A.conj().T
+        rho = rho / np.trace(rho)
+
+        G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        G = G + G.conj().T
+
+        fq_base = quantum_fisher_information_dm(rho, G)
+
+        for c in [-2.5, 0.0, 1.0, 10.0]:
+            G_shifted = G + c * np.eye(dim)
+            fq_shifted = quantum_fisher_information_dm(rho, G_shifted)
+
+            assert np.isclose(fq_base, fq_shifted, rtol=1e-12), (
+                f"Shift invariance violated at c={c}: F_Q={fq_shifted} != {fq_base}"
+            )
+
+    def test_unitary_covariance(self) -> None:
+        """QFI is unitarily covariant: F_Q(UρU†, UGU†) = F_Q(ρ, G)."""
+        rng = np.random.default_rng(42)
+        dim = 4
+
+        # Random mixed state
+        A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        rho = A @ A.conj().T
+        rho = rho / np.trace(rho)
+
+        # Random Hermitian generator
+        G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        G = G + G.conj().T
+
+        # Random unitary (Haar-distributed via QR)
+        X = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        U, _ = np.linalg.qr(X)
+
+        fq_original = quantum_fisher_information_dm(rho, G)
+
+        # Transformed: ρ' = UρU†, G' = UGU†
+        rho_transformed = U @ rho @ U.conj().T
+        G_transformed = U @ G @ U.conj().T
+        fq_transformed = quantum_fisher_information_dm(rho_transformed, G_transformed)
+
+        assert np.isclose(fq_original, fq_transformed, rtol=1e-10), (
+            f"Unitary covariance violated: F_Q(ρ,G)={fq_original:.10f} != "
+            f"F_Q(UρU†,UGU†)={fq_transformed:.10f}"
+        )
+
+    def test_qfi_leq_four_variance(self) -> None:
+        """F_Q(ρ, G) ≤ 4·Var_ρ(G) for all ρ, with equality iff ρ is pure."""
+        rng = np.random.default_rng(42)
+
+        for dim in [3, 5]:
+            G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+            G = G + G.conj().T
+
+            # Pure state: should saturate bound
+            vec = rng.normal(size=dim) + 1j * rng.normal(size=dim)
+            vec = vec / np.linalg.norm(vec)
+            rho_pure = np.outer(vec, vec.conj())
+
+            g_exp = np.vdot(vec, G @ vec).real
+            g2_exp = np.vdot(vec, G @ G @ vec).real
+            var_g = max(0.0, g2_exp - g_exp**2)
+
+            fq_pure = quantum_fisher_information_dm(rho_pure, G)
+            assert np.isclose(fq_pure, 4.0 * var_g, rtol=1e-10), (
+                f"Pure state: F_Q={fq_pure} != 4·Var={4 * var_g}"
+            )
+
+            # Mixed state: F_Q < 4·Var (strict for genuinely mixed)
+            A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+            rho_mixed = A @ A.conj().T
+            rho_mixed = rho_mixed / np.trace(rho_mixed)
+
+            fq_mixed = quantum_fisher_information_dm(rho_mixed, G)
+            var_g_mixed = np.real(
+                np.trace(rho_mixed @ G @ G) - (np.trace(rho_mixed @ G)) ** 2
+            )
+            assert fq_mixed <= 4.0 * var_g_mixed + 1e-10, (
+                f"Mixed state: F_Q={fq_mixed:.10f} > 4·Var={4 * var_g_mixed:.10f}. "
+                "F_Q cannot exceed 4·Var(G) for any state."
+            )
+
+    def test_zero_generator(self) -> None:
+        """F_Q(ρ, 0) = 0 for any ρ."""
+        rng = np.random.default_rng(42)
+        dim = 4
+
+        A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        rho = A @ A.conj().T
+        rho = rho / np.trace(rho)
+
+        G_zero = np.zeros((dim, dim), dtype=complex)
+        fq = quantum_fisher_information_dm(rho, G_zero)
+        assert np.isclose(fq, 0.0, atol=1e-15), (
+            f"F_Q with zero generator should be 0, got {fq}"
+        )
+
+
+# =============================================================================
+# Mixed-state QFI: Numerical Stability
+# =============================================================================
+
+
+class TestNumericalStabilityDM:
+    """Tests that mixed-state QFI handles numerical edge cases stably."""
+
+    def test_rank_deficient_with_null_space(self) -> None:
+        """Rank-deficient ρ with multiple zero eigenvalues should be handled."""
+        dim = 6
+        # ρ with rank 3: 3 non-zero, 3 zero eigenvalues
+        w = np.array([0.5, 0.3, 0.2, 0.0, 0.0, 0.0])
+        rho = np.diag(w)
+
+        # Non-diagonal generator to activate off-diagonal contributions
+        G = np.zeros((dim, dim), dtype=complex)
+        G[0, 1] = G[1, 0] = 1.0
+        G[2, 3] = G[3, 2] = 0.5
+
+        fq = quantum_fisher_information_dm(rho, G)
+
+        # Should be finite and non-negative
+        assert np.isfinite(fq), "QFI should be finite for rank-deficient ρ"
+        assert fq >= 0.0, "QFI should be non-negative"
+
+        # Manually compute expected value
+        # Only pairs with non-zero eigenvalues contribute:
+        # λ₀=0.5, λ₁=0.3 pair: (0.5-0.3)²/(0.5+0.3) = 0.04/0.8 = 0.05
+        #   |G₀₁|² = 1, contribution: 4 * 0.05 * 1 = 0.2
+        # λ₀=0.5, λ₂=0.2 pair: (0.5-0.2)²/(0.5+0.2) = 0.09/0.7 = 0.12857...
+        #   G₀₂ = 0 (no coupling), contribution: 0
+        # λ₁=0.3, λ₂=0.2 pair: (0.3-0.2)²/(0.3+0.2) = 0.01/0.5 = 0.02
+        #   G₁₂ = 0 (no coupling), contribution: 0
+        # Pairs involving zero eigenvalues:
+        # λ₂=0.2, λ₃=0.0: (0.2-0)²/(0.2+0) = 0.04/0.2 = 0.2
+        #   G₂₃ = 0.5, |G₂₃|² = 0.25, contribution: 4 * 0.2 * 0.25 = 0.2
+        # All other pairs with zero eigenvalues: G = 0, contribution = 0
+        expected = 0.2 + 0.2  # = 0.4
+        assert np.isclose(fq, expected, rtol=1e-10), (
+            f"Rank-deficient: F_Q={fq} != expected={expected}"
+        )
+
+    def test_rank_deficient_diagonal_basis(self) -> None:
+        """Rank-deficient ρ with G off-diagonal coupling eigen/support ↔ null-space."""
+        dim = 5
+        # ρ with rank 2: eigenvalues on 0 and 1 indices
+        # Support: |0⟩, |1⟩; Null-space: |2⟩, |3⟩, |4⟩
+        w = np.array([0.6, 0.4, 0.0, 0.0, 0.0])
+        rho = np.diag(w)
+
+        # G couples support-0 ↔ null-3 and support-1 ↔ null-2
+        G = np.zeros((dim, dim), dtype=complex)
+        G[0, 3] = G[3, 0] = 2.0
+        G[1, 2] = G[2, 1] = 1.0
+
+        fq = quantum_fisher_information_dm(rho, G)
+
+        # Manually (only support↔null pairs contribute since G is zero within support):
+        # λ₀=0.6, λ₃=0.0: (0.6-0)²/(0.6+0) = 0.36/0.6 = 0.6
+        #   |G₀₃|² = 4, contribution: 4 * 0.6 * 4 = 9.6
+        # λ₁=0.4, λ₂=0.0: (0.4-0)²/(0.4+0) = 0.16/0.4 = 0.4
+        #   |G₁₂|² = 1, contribution: 4 * 0.4 * 1 = 1.6
+        # Total: 9.6 + 1.6 = 11.2
+        expected = 9.6 + 1.6
+        assert np.isclose(fq, expected, rtol=1e-10), (
+            f"Rank-deficient null-space: F_Q={fq} != expected={expected}"
+        )
+
+    def test_near_degenerate_eigenvalues(self) -> None:
+        """Near-degenerate eigenvalues should not cause numerical instability."""
+        rng = np.random.default_rng(99)
+        dim = 4
+
+        G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        G = G + G.conj().T
+
+        # Start with equal eigenvalues (degenerate): F_Q depends on support↔null
+        for eps in [1e-2, 1e-4, 1e-6, 1e-8, 1e-10]:
+            w = np.array([0.5 - eps / 2, 0.5 + eps / 2, 0.0, 0.0])
+            w = w / np.sum(w)
+            rho = np.diag(w)
+
+            fq = quantum_fisher_information_dm(rho, G)
+            assert np.isfinite(fq), f"F_Q not finite at ε={eps}"
+            assert fq >= 0.0, f"F_Q negative at ε={eps}"
+
+            # As eps → 0, F_Q should be continuous
+            # When eigenvalues are equal, (λᵢ-λⱼ)² term → 0 for that pair
+            # Other pairs (with null-space) contribute normally
+            if eps > 1e-10:
+                # Very rough bound: F_Q should be O(1) and finite
+                assert fq < 1e6, f"Unreasonably large F_Q={fq} at ε={eps}"
+
+    def test_large_dimension_does_not_crash(self) -> None:
+        """QFI computation should handle dim=100 without error."""
+        dim = 100
+        rng = np.random.default_rng(42)
+
+        # Random mixed state (density from Wishart-like construction)
+        A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        rho = A @ A.conj().T
+        rho = rho / np.trace(rho)
+
+        G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        G = G + G.conj().T
+
+        fq = quantum_fisher_information_dm(rho, G)
+        assert np.isfinite(fq), "QFI should be finite for large dim"
+        assert fq >= 0.0, "QFI should be non-negative for large dim"
+        # F_Q should scale as O(dim) for a random density with random G
+        assert fq < dim**3, (
+            f"F_Q={fq:.2f} unreasonably large for dim={dim}. Expected O(dim) scaling."
+        )
+
+    def test_diagonal_g_in_rho_eigenbasis(self) -> None:
+        """When G is diagonal in ρ's eigenbasis, F_Q = 0."""
+        dim = 5
+        rng = np.random.default_rng(42)
+
+        # Diagonal ρ in J_z eigenbasis (Dicke convention)
+        w = np.array([0.3, 0.25, 0.2, 0.15, 0.1])
+        rho = np.diag(w)
+
+        # G diagonal in same basis → [ρ, G] = 0 → F_Q = 0
+        G = np.diag(rng.uniform(-2, 2, size=dim))
+        G = np.array(G, dtype=complex)
+
+        fq = quantum_fisher_information_dm(rho, G)
+        assert np.isclose(fq, 0.0, atol=1e-15), (
+            f"Diagonal G in ρ eigenbasis should give F_Q=0, got {fq}"
+        )
+
+    def test_generator_all_diagonal_equal(self) -> None:
+        """When G = c·I (all eigenvalues equal), F_Q = 0 for any ρ."""
+        rng = np.random.default_rng(42)
+        dim = 4
+
+        A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        rho = A @ A.conj().T
+        rho = rho / np.trace(rho)
+
+        G = 3.0 * np.eye(dim, dtype=complex)
+
+        fq = quantum_fisher_information_dm(rho, G)
+        assert np.isclose(fq, 0.0, atol=1e-15), (
+            f"G=cI should give F_Q=0 for any ρ, got {fq}"
+        )
+
+
+# =============================================================================
+# Mixed-state QFI: Noise Integration (Phase Diffusion)
+# =============================================================================
+
+
+class TestNoiseIntegrationDM:
+    """Tests that mixed-state QFI correctly captures noise effects.
+
+    Phase diffusion on a GHZ-like state provides an analytically tractable
+    benchmark:
+        |ψ⟩ = (|J⟩_z + |-J⟩_z)/√2  with J = N/2
+        ρ_diff(t) = (1/2)(|J⟩⟨J| + |-J⟩⟨-J|)
+                  + (e^{-γ·t·N²/2}/2)(|J⟩⟨-J| + |-J⟩⟨J|)
+        F_Q(t) = N² · exp(-γ·t·N²)
+
+    This follows from the SLD formula applied to ρ_diff with G = J_z.
+    """
+
+    def _phase_diffused_ghz(self, N: int, gamma_phi: float, t: float) -> np.ndarray:
+        """Construct phase-diffused GHZ density matrix in Dicke basis.
+
+        Args:
+            N: Total particle number (dim = N+1, J = N/2).
+            gamma_phi: Phase diffusion rate.
+            t: Evolution time.
+
+        Returns:
+            Density matrix of phase-diffused GHZ state.
+        """
+        dim = N + 1
+        rho = np.zeros((dim, dim), dtype=complex)
+
+        # Populations
+        rho[0, 0] = 0.5  # |J=N/2⟩⟨J=N/2|
+        rho[dim - 1, dim - 1] = 0.5  # |-J=-N/2⟩⟨-J=-N/2|
+
+        # Coherence decay
+        decay = np.exp(-gamma_phi * t * N**2 / 2)
+        rho[0, dim - 1] = decay / 2
+        rho[dim - 1, 0] = decay / 2
+
+        return rho
+
+    def test_phase_diffusion_reduces_qfi(self) -> None:
+        """QFI should decrease monotonically with increasing phase noise."""
+        N = 6
+        G = generate_phase_generator(N, "Jz")
+
+        # No noise: pure GHZ → F_Q = N²
+        rho_pure = self._phase_diffused_ghz(N, gamma_phi=0.0, t=1.0)
+        fq_pure = quantum_fisher_information_dm(rho_pure, G)
+
+        assert np.isclose(fq_pure, N**2, rtol=1e-10), (
+            f"Pure GHZ F_Q={fq_pure} should equal N²={N**2}"
+        )
+
+        # Increasing noise → decreasing QFI
+        fq_prev = fq_pure
+        for gamma_phi in [0.01, 0.05, 0.1, 0.5, 1.0]:
+            rho = self._phase_diffused_ghz(N, gamma_phi, t=1.0)
+            fq = quantum_fisher_information_dm(rho, G)
+
+            assert fq <= fq_prev + 1e-10, (
+                f"QFI should decrease monotonically with γ_φ. "
+                f"At γ_φ={gamma_phi}: F_Q={fq} > previous={fq_prev}"
+            )
+            assert fq >= 0.0, f"QFI should be non-negative, got {fq}"
+            fq_prev = fq
+
+        # Strong noise → QFI → 0
+        rho_dead = self._phase_diffused_ghz(N, gamma_phi=100.0, t=1.0)
+        fq_dead = quantum_fisher_information_dm(rho_dead, G)
+        assert np.isclose(fq_dead, 0.0, atol=1e-10), (
+            f"Strong dephasing should give F_Q≈0, got {fq_dead}"
+        )
+
+    def test_phase_diffusion_analytical_formula(self) -> None:
+        """F_Q matches analytical formula N²·exp(-γ·t·N²)."""
+        for N in [4, 6]:
+            G = generate_phase_generator(N, "Jz")
+
+            for gamma_phi in [0.0, 0.02, 0.05, 0.1]:
+                t = 1.0
+                rho = self._phase_diffused_ghz(N, gamma_phi, t)
+                fq = quantum_fisher_information_dm(rho, G)
+
+                expected = N**2 * np.exp(-gamma_phi * t * N**2)
+                assert np.isclose(fq, expected, rtol=1e-10), (
+                    f"N={N}, γ={gamma_phi}: F_Q={fq} != N²·exp(-γN²)={expected}"
+                )
+
+    def test_phase_diffusion_no_noise_limit(self) -> None:
+        """As γ·t → 0, F_Q approaches the pure-state value N²."""
+        N = 8
+        G = generate_phase_generator(N, "Jz")
+
+        for gamma_phi in [1e-3, 1e-6, 1e-10]:
+            rho = self._phase_diffused_ghz(N, gamma_phi, t=1.0)
+            fq = quantum_fisher_information_dm(rho, G)
+
+            expected = N**2 * np.exp(-gamma_phi * N**2)
+            assert np.isclose(fq, expected, rtol=1e-10), (
+                f"γ={gamma_phi}: F_Q={fq} != expected={expected}"
+            )
+            # Should approach N² from below
+            assert fq <= N**2 + 1e-10, f"QFI {fq} should not exceed N²={N**2}"
+
+
+# =============================================================================
+# Mixed-state QFI: Edge Cases
+# =============================================================================
+
+
+class TestEdgeCasesDM:
+    """Tests for edge cases in mixed-state QFI."""
+
+    def test_dim_one(self) -> None:
+        """Trivial 1D Hilbert space: F_Q = 0 for any generator."""
+        rho = np.ones((1, 1), dtype=complex)
+        G = np.array([[2.0 + 0.0j]])
+
+        fq = quantum_fisher_information_dm(rho, G)
+        assert np.isclose(fq, 0.0, atol=1e-15), f"1D QFI should be 0, got {fq}"
+
+    def test_real_density_matrix(self) -> None:
+        """Real symmetric ρ and real symmetric G should work."""
+        rng = np.random.default_rng(42)
+        dim = 4
+
+        # Construct real symmetric mixed state
+        A = rng.normal(size=(dim, dim))
+        rho = A @ A.T
+        rho = rho / np.trace(rho)
+
+        G = rng.normal(size=(dim, dim))
+        G = G + G.T  # Symmetrize
+
+        fq = quantum_fisher_information_dm(rho, G)
+        assert np.isfinite(fq), "QFI should be finite for real matrices"
+        assert fq >= 0.0, "QFI should be non-negative"
+
+    def test_pure_state_from_dm(self) -> None:
+        """When ρ is pure (rank 1), DM path should match pure-state path."""
+        rng = np.random.default_rng(42)
+        dim = 6
+
+        vec = rng.normal(size=dim) + 1j * rng.normal(size=dim)
+        vec = vec / np.linalg.norm(vec)
+
+        G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        G = G + G.conj().T
+
+        fq_pure = quantum_fisher_information(vec, G)
+        fq_dm = quantum_fisher_information_dm(np.outer(vec, vec.conj()), G)
+
+        assert np.isclose(fq_pure, fq_dm, rtol=1e-12), (
+            f"Pure state mismatch: state={fq_pure} dm={fq_dm}"
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

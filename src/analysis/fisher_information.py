@@ -138,6 +138,15 @@ def quantum_fisher_information(state: np.ndarray, generator: np.ndarray) -> floa
     state = np.asarray(state, dtype=complex)
     generator = np.asarray(generator, dtype=complex)
 
+    if np.any(np.isnan(state)):
+        raise ValueError("State vector contains NaN values")
+    if np.any(np.isinf(state)):
+        raise ValueError("State vector contains infinite values")
+    if np.any(np.isnan(generator)):
+        raise ValueError("Generator contains NaN values")
+    if np.any(np.isinf(generator)):
+        raise ValueError("Generator contains infinite values")
+
     if state.ndim != 1:
         raise ValueError(f"State must be 1D array, got shape {state.shape}")
 
@@ -211,6 +220,20 @@ def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> flo
             f"density matrix dimension {dim}"
         )
 
+    # Input validation — prevent silent NaN/Inf and non-Hermitian errors
+    if np.any(np.isnan(rho)):
+        raise ValueError("Density matrix contains NaN values")
+    if np.any(np.isinf(rho)):
+        raise ValueError("Density matrix contains infinite values")
+    if np.any(np.isnan(generator)):
+        raise ValueError("Generator contains NaN values")
+    if np.any(np.isinf(generator)):
+        raise ValueError("Generator contains infinite values")
+    if not np.allclose(rho, rho.conj().T, atol=1e-10):
+        raise ValueError("Density matrix must be Hermitian")
+    if not np.allclose(generator, generator.conj().T, atol=1e-10):
+        raise ValueError("Generator must be Hermitian")
+
     # Eigen-decomposition of ρ
     eigenvalues, eigenvectors = np.linalg.eigh(rho)
 
@@ -227,40 +250,67 @@ def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> flo
     if trace > 1e-12 and not np.isclose(trace, 1.0):
         eigenvalues = eigenvalues / trace
 
-    # Determine effective numerical rank of ρ
+    # Separate eigenvalues into "positive" (support) and "zero" (nullspace).
+    # The rank_tol threshold only determines which eigenvalues are treated
+    # as genuinely positive and which contribute as λ_j = 0 in the SLD sum.
     rank_tol = max(1e-12, eigenvalues[0] * 1e-10)
-    nonzero_idx = np.where(eigenvalues > rank_tol)[0]
-    n_nonzero = len(nonzero_idx)
+    pos_idx = np.where(eigenvalues > rank_tol)[0]
+    zero_idx = np.where(eigenvalues <= rank_tol)[0]
+    n_pos = len(pos_idx)
+    n_zero = len(zero_idx)
 
     # Compute F_Q
-    if n_nonzero == 1:
+    if n_pos == 0:
+        # ρ ≈ 0 matrix (all eigenvalues below rank_tol)
+        return 0.0
+
+    if n_pos == 1:
         # Effectively pure state: F_Q = 4·Var(G)
-        i = nonzero_idx[0]
+        # This automatically includes nullspace contributions via ⟨G²⟩.
+        i = pos_idx[0]
         state = eigenvectors[:, i]
         g_exp = np.vdot(state, generator @ state).real
         g2_exp = np.vdot(state, generator @ generator @ state).real
         var_g = max(0.0, g2_exp - g_exp**2)
         fq = 4.0 * var_g
     else:
-        # Mixed state: SLD formula over all pairs of non-zero eigenvalues
+        # Mixed state: SLD formula
+        # F_Q = 4 Σ_{i<j} (λ_i - λ_j)² / (λ_i + λ_j) · |⟨i|G|j⟩|²
         fq = 0.0
-        for p in range(n_nonzero):
-            i = nonzero_idx[p]
+
+        # Term 1: positive–positive pairs (standard SLD)
+        for p in range(n_pos):
+            i = pos_idx[p]
             vi = eigenvectors[:, i]
-            for q in range(p + 1, n_nonzero):
-                j = nonzero_idx[q]
+            for q in range(p + 1, n_pos):
+                j = pos_idx[q]
                 vj = eigenvectors[:, j]
 
-                # Matrix element ⟨i|G|j⟩
                 gij = np.vdot(vi, generator @ vj)
                 gij_abs_sq = np.abs(gij) ** 2
 
-                # Weight: 4 (λ_i - λ_j)² / (λ_i + λ_j)
                 lambda_sum = eigenvalues[i] + eigenvalues[j]
                 if lambda_sum > 1e-12:
                     lambda_diff_sq = (eigenvalues[i] - eigenvalues[j]) ** 2
                     weight = 4.0 * lambda_diff_sq / lambda_sum
                     fq += weight * gij_abs_sq
+
+        # Term 2: positive–zero pairs (λ_j ≈ 0, so (λ_i-0)²/(λ_i+0) = λ_i)
+        # These are PHYSICALLY REQUIRED: G can couple the support to the
+        # nullspace of ρ, and the SLD formula includes these contributions.
+        for p in range(n_pos):
+            i = pos_idx[p]
+            vi = eigenvectors[:, i]
+            for q in range(n_zero):
+                j = zero_idx[q]
+                vj = eigenvectors[:, j]
+
+                gij = np.vdot(vi, generator @ vj)
+                gij_abs_sq = np.abs(gij) ** 2
+
+                # λ_j ≈ 0: weight = 4 · (λ_i - 0)² / (λ_i + 0) = 4·λ_i
+                weight = 4.0 * eigenvalues[i]
+                fq += weight * gij_abs_sq
 
     return float(np.real(fq))
 
