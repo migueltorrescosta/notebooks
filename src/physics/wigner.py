@@ -5,18 +5,56 @@ Computes the Wigner function W(x,p) for a single bosonic mode
 in the truncated Fock basis.
 
 Physical Model:
-- Wigner function: W(α) = (1/π) ⟨α| ρ |α⟩ where |α⟩ is a coherent state
-- For density matrix ρ = Σ ρ_mn |m⟩⟨n|:
-  W(x,p) = (2/π) Σ_{m,n} ρ_mn (-1)^n ψ_m(x,p) ψ_n(x,p)
-  where ψ_n are harmonic oscillator eigenfunctions
+The Wigner function for a single-mode density matrix ρ in the Fock basis
+is computed using the displaced-parity formula:
+
+    W(α) = (2/π) Tr[ρ D†(α) (-1)^(a†a) D(α)]
+
+where D(α) = exp(αa† - α*a) is the displacement operator and α = x + ip.
+In the Fock basis, the matrix elements are expressed through associated
+Laguerre polynomials (Gerry & Knight, Intro. Quantum Optics):
+
+For m ≥ n:
+    ⟨m| D(2α) (-1)^(a†a) |n⟩ = (-1)^n √(n!/m!) (2α)^(m-n) exp(-2|α|²)
+                                × L_n^{(m-n)}(4|α|²)
+
+For m < n:
+    ⟨m| D(2α) (-1)^(a†a) |n⟩ = (-1)^n √(m!/n!) (-2α*)^(n-m) exp(-2|α|²)
+                                × L_m^{(n-m)}(4|α|²)
+
+The Wigner function is then:
+    W(x,p) = (2/π) Σ_{m,n} ρ_mn ⟨m| D(2α) (-1)^(a†a) |n⟩
 
 Units:
-- Dimensionless quadrature variables x, p.
+- Dimensionless quadrature variables x, p (convention: α = x + ip,
+  so [x, p] = i/2).
 - Wigner function normalized: ∫∫ W(x,p) dx dp = 1.
 """
 
 import numpy as np
 import scipy.special
+
+
+def _laguerre_value(n: int, alpha: int, x: float) -> float:
+    """Evaluate associated Laguerre polynomial L_n^(alpha)(x).
+
+    Args:
+        n: Degree of the Laguerre polynomial.
+        alpha: Laguerre parameter (upper index).
+        x: Evaluation point.
+
+    Returns:
+        L_n^(alpha)(x) as a float.
+
+    Raises:
+        ValueError: If n < 0 or alpha < 0.
+    """
+    if n < 0 or alpha < 0:
+        raise ValueError(f"n={n} and alpha={alpha} must be non-negative")
+    if n == 0:
+        return 1.0
+    # eval_genlaguerre(n, alpha, x) evaluates L_n^(alpha)(x)
+    return float(scipy.special.eval_genlaguerre(n, alpha, x))
 
 
 def wigner_function_single(
@@ -26,15 +64,15 @@ def wigner_function_single(
 ) -> np.ndarray:
     """Compute Wigner function for single-mode density matrix.
 
-    Uses the correct formula for truncated Fock basis:
-    W(x,p) = (2/π) exp(-x²-p²) Σ_{m,n} ρ_mn (-1)^n ψ_m(x,p) ψ_n(x,p)
-    where ψ_n(x,p) are harmonic oscillator eigenfunctions.
+    Uses the displaced-parity formula with associated Laguerre polynomials.
+    This is the correct formula for arbitrary Fock states, unlike the
+    simplified (and incorrect) formula W ∝ α^m (α*)^n / √(m!n!).
 
-    The eigenfunctions are:
-    ψ_n(x,p) = <x+ip|n> = exp(-(x²+p²)/2) * (x+ip)^n / √n!
+    For quadrature convention α = x + ip:
+      W(x,p) = (2/π) Σ_{m,n} ρ_mn ⟨m| D(2α) (-1)^(a†a) |n⟩
 
-    This gives:
-    W(x,p) = (2/π) exp(-2(x²+p²)) Σ_{m,n} ρ_mn (-1)^n (x-ip)^m (x+ip)^n / √(m!n!)
+    where ⟨m| D(2α) (-1)^(a†a) |n⟩ is given by expressions involving
+    associated Laguerre polynomials L_k^(d)(4|α|²).
 
     Args:
         rho_osc: Density matrix of oscillator (dim N+1, N+1).
@@ -56,33 +94,66 @@ def wigner_function_single(
 
     W = np.zeros((nx, np_), dtype=float)
 
-    # Precompute factorials
-    fact = np.array([scipy.special.factorial(n) for n in range(dim)])
+    # Precompute factorials for sqrt(n!/m!) factors
+    fact = np.array([float(scipy.special.factorial(n)) for n in range(dim)])
+
+    # Precompute sign factors (-1)^n
+    parity_sign = np.array([(-1) ** n for n in range(dim)])
+
+    # Precompute sqrt of factorial ratios: sqrt(n! / m!)
+    sqrt_fact_ratio = np.zeros((dim, dim), dtype=float)
+    for m in range(dim):
+        for n in range(dim):
+            if m >= n:
+                sqrt_fact_ratio[m, n] = np.sqrt(fact[n] / fact[m])
+            else:
+                sqrt_fact_ratio[m, n] = np.sqrt(fact[m] / fact[n])
 
     for ix, x in enumerate(x_range):
         for ip, p in enumerate(p_range):
-            # Complex amplitude α = x + i p
             alpha = x + 1j * p
-            alpha_conj = alpha.conjugate()
             r_sq = x**2 + p**2
+            tworm = 4.0 * r_sq  # 4|α|² = argument to Laguerre poly
 
-            # Precompute (α)^n / √n! and (α*)^m / √m!
-            alpha_pow_n = np.array([(alpha**n) / np.sqrt(fact[n]) for n in range(dim)])
-            alpha_conj_pow_m = np.array(
-                [(alpha_conj**m) / np.sqrt(fact[m]) for m in range(dim)]
-            )
+            if r_sq > 50.0:
+                # Far outside: exponential decay makes W ≈ 0
+                W[ix, ip] = 0.0
+                continue
 
-            # W = (2/π) exp(-2r²) Σ_{m,n} ρ_mn (-1)^n (α*)^m α^n / √(m!n!)
-            coeff = (2.0 / np.pi) * np.exp(-2 * r_sq)
+            two_mag = 2.0 * np.sqrt(r_sq)  # |2α|
+            exp_factor = np.exp(-2.0 * r_sq)
 
-            total = 0.0
+            total = 0.0 + 0.0j
+
             for m in range(dim):
                 for n in range(dim):
-                    total += (
-                        rho_osc[m, n] * (-1) ** n * alpha_conj_pow_m[m] * alpha_pow_n[n]
-                    )
+                    if abs(rho_osc[m, n]) < 1e-15:
+                        continue
 
-            W[ix, ip] = coeff * np.real(total)
+                    sign = parity_sign[n]
+                    ratio = sqrt_fact_ratio[m, n]
+
+                    if m >= n:
+                        k = m - n
+                        # (2α)^k = (2r)^k * exp(i*k*theta)
+                        # Use polar representation for numerical stability
+                        term_mag = two_mag**k
+                        term_phase = np.exp(1j * k * np.angle(alpha))
+                        lag = _laguerre_value(n, k, tworm)
+                    else:
+                        k = n - m
+                        # (-2α*)^k = (-2r)^k * exp(-i*k*theta)
+                        # = (2r)^k * exp(i*pi*k) * exp(-i*k*theta)
+                        # = (2r)^k * (-1)^k * exp(-i*k*theta)
+                        term_mag = two_mag**k
+                        term_phase = ((-1.0) ** k) * np.exp(-1j * k * np.angle(alpha))
+                        lag = _laguerre_value(m, k, tworm)
+
+                    # W_mn contribution
+                    contrib = sign * ratio * term_mag * term_phase * lag * exp_factor
+                    total += rho_osc[m, n] * contrib
+
+            W[ix, ip] = (2.0 / np.pi) * np.real(total)
 
     return W
 

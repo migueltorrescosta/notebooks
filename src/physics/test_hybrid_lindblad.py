@@ -430,7 +430,7 @@ class TestWignerNegativity:
 
     def test_n2_no_negativity(self) -> None:
         """n=2 (Gaussian) should not have Wigner negativity."""
-        N = 10
+        N = 20  # Larger N reduces truncation artifacts near zero
         config = HybridLindbladConfig(N=N, n=2, omega_n=0.5, t_squeeze=1.0)
         psi_sq = apply_squeezing(config)
 
@@ -445,7 +445,7 @@ class TestWignerNegativity:
         W = wigner_function_single(rho_osc, x, p)
 
         min_W = np.min(W)
-        # Gaussian states have W >= 0
+        # Gaussian states have W >= 0 (allow small numerical noise)
         assert min_W >= -1e-3, f"n=2 should not have strong negativity: {min_W}"
 
     def test_n3_negativity(self) -> None:
@@ -475,6 +475,243 @@ class TestWignerNegativity:
         dim_osc = N + 1
         rho_hybrid = np.outer(hybrid_state, hybrid_state.conj())
         # Reshape to (dim_osc, 2, dim_osc, 2) and trace over spin
+        rho_reshaped = rho_hybrid.reshape(dim_osc, 2, dim_osc, 2)
+        rho_osc = np.trace(rho_reshaped, axis1=1, axis2=3)
+        return rho_osc
+
+
+# =============================================================================
+# Diagnostic: n=4 Wigner Negativity Absence
+# =============================================================================
+
+
+class TestN4WignerNegativityDiagnostic:
+    """Diagnostic for n=4 Wigner negativity absence.
+
+    Tests three hypotheses systematically:
+    1. Grid resolution too coarse to resolve narrow negativity features
+    2. Tested squeezing times land at negativity minima (oscillatory dynamics)
+    3. Fock truncation / boundary effects suppress fragile coherences
+
+    This is a comprehensive diagnostic that runs in ~15-30 seconds.
+    Outputs tables of min(W) across (time × resolution × truncation) space.
+    """
+
+    # Shared parameters for all sub-tests
+    OMEGA_N = 1.0
+    X_MAX = 4.0
+
+    def test_n4_baseline(self) -> None:
+        """n=4 states must show Wigner negativity (regression test).
+
+        With the corrected Wigner formula (using associated Laguerre
+        polynomials instead of the simplified α^m(α*)^n/√(m!n!) formula),
+        n=4 states show strong Wigner negativity at default parameters.
+        """
+        from .wigner import wigner_function_single
+
+        N = 10
+        config = HybridLindbladConfig(N=N, n=4, omega_n=0.5, t_squeeze=2.0)
+        psi_sq = apply_squeezing(config)
+        rho_osc = self._extract_oscillator_density(psi_sq, N)
+
+        x = np.linspace(-5, 5, 50)
+        p = np.linspace(-5, 5, 50)
+        W = wigner_function_single(rho_osc, x, p)
+        min_W = np.min(W)
+
+        assert min_W < -1e-3, (
+            f"n=4 should show Wigner negativity at default settings, "
+            f"got min(W)={min_W:.6f}"
+        )
+
+    def test_n4_grid_sweep(self) -> None:
+        """Test n=4 negativity vs grid resolution at a fixed time.
+
+        Here we fix N=20 and t=0.30 (a time with high mean photon)
+        and sweep over grid resolutions.
+        """
+        from .wigner import wigner_function_single
+
+        N = 20
+        t_sqz = 0.30
+        resolutions = [50, 80, 120]
+
+        print("\n  n=4 grid sweep: min(W) vs resolution")
+        print(f"  N={N}, t={t_sqz}, omega_n={self.OMEGA_N}, x_max={self.X_MAX}")
+
+        config = HybridLindbladConfig(N=N, n=4, omega_n=self.OMEGA_N, t_squeeze=t_sqz)
+        psi_sq = apply_squeezing(config)
+        rho_osc = self._extract_oscillator_density(psi_sq, N)
+
+        print(f"  {'res':>6s}  {'min(W)':>8s}")
+        min_values = []
+        for n_pts in resolutions:
+            x = np.linspace(-self.X_MAX, self.X_MAX, n_pts)
+            p = np.linspace(-self.X_MAX, self.X_MAX, n_pts)
+            W = wigner_function_single(rho_osc, x, p)
+            w_min = float(np.min(W))
+            min_values.append(w_min)
+            marker = " ← negative!" if w_min < -1e-5 else ""
+            print(f"  {n_pts:3d}×{n_pts:<3d}  {w_min:8.6f}{marker}")
+
+        best_w = min(min_values)
+        if best_w < -1e-5:
+            print(
+                f"\n  ✓ n=4 negativity detected at resolution"
+                f" {resolutions[min_values.index(best_w)]}×{resolutions[min_values.index(best_w)]}!"
+            )
+        else:
+            print(
+                f"\n  ⚠ n=4 negativity absent at all resolutions"
+                f" up to {max(resolutions)}×{max(resolutions)}."
+            )
+            print("    → Grid alone is not the bottleneck.")
+
+    def test_n4_time_sweep(self) -> None:
+        """Sweep squeezing times at moderate resolution to find negativity.
+
+        Uses N=20, 80×80 grid, sweeping t=0.05→1.0 in steps of 0.05.
+        Reports top-5 most negative times.
+        """
+        from .wigner import wigner_function_single
+
+        N = 20
+        n_pts = 80
+        times = np.arange(0.05, 1.01, 0.05)
+
+        print("\n  n=4 time sweep: min(W) vs squeezing time")
+        print(f"  N={N}, grid={n_pts}×{n_pts}, x_max={self.X_MAX}")
+        print(f"  Sweeping {len(times)} time points...")
+
+        best_mins: list[tuple[float, float]] = []
+
+        for t in times:
+            config = HybridLindbladConfig(
+                N=N, n=4, omega_n=self.OMEGA_N, t_squeeze=float(t)
+            )
+            psi_sq = apply_squeezing(config)
+            rho_osc = self._extract_oscillator_density(psi_sq, N)
+
+            x = np.linspace(-self.X_MAX, self.X_MAX, n_pts)
+            p = np.linspace(-self.X_MAX, self.X_MAX, n_pts)
+            W = wigner_function_single(rho_osc, x, p)
+            w_min = float(np.min(W))
+
+            best_mins.append((float(t), w_min))
+
+        # Report top-5 most-negative times
+        best_mins.sort(key=lambda pair: pair[1])
+        top5 = best_mins[:5]
+
+        print("  Top 5 most negative:")
+        for t_val, w_val in top5:
+            print(f"    t={t_val:.3f}, min(W)={w_val:.6f}")
+
+        t_best, w_best = top5[0]
+        if w_best < -1e-5:
+            print("\n  ✓ n=4 negativity DETECTED!")
+            print(f"    Best: t={t_best:.3f}, min(W)={w_best:.6f}")
+            assert w_best < -1e-4, (
+                f"n=4 should show negativity with time sweep, got min(W)={w_best:.6f}"
+            )
+        else:
+            print(f"\n  ⚠ n=4 negativity absent at all {len(times)} time points.")
+            print(
+                "    → Issue is BEYOND just timing. "
+                "Try larger N or state-preparation check."
+            )
+            pytest.fail(
+                f"n=4 negativity not detected at any of {len(times)} "
+                f"time points with N={N}, grid={n_pts}×{n_pts}"
+            )
+
+    def test_n4_truncation_check(self) -> None:
+        """Check whether larger Fock truncation enables negativity.
+
+        Uses t=0.30 (a promising time from oscillator dynamics),
+        80×80 grid, sweeping N from 10 to 50.
+        """
+        from .wigner import wigner_function_single
+
+        t_sqz = 0.30
+        n_pts = 80
+        N_values = [10, 20, 30, 40, 50]
+
+        print("\n  n=4 truncation check: min(W) vs N")
+        print(f"  t={t_sqz}, omega_n={self.OMEGA_N}, grid={n_pts}×{n_pts}")
+        print(f"  {'N':>4s}  {'min(W)':>8s}")
+
+        best_w = 0.0
+        best_N = 0
+        for N in N_values:
+            config = HybridLindbladConfig(
+                N=N, n=4, omega_n=self.OMEGA_N, t_squeeze=t_sqz
+            )
+            psi_sq = apply_squeezing(config)
+            rho_osc = self._extract_oscillator_density(psi_sq, N)
+
+            x = np.linspace(-self.X_MAX, self.X_MAX, n_pts)
+            p = np.linspace(-self.X_MAX, self.X_MAX, n_pts)
+            W = wigner_function_single(rho_osc, x, p)
+            w_min = float(np.min(W))
+            marker = " ← negative!" if w_min < -1e-5 else ""
+            print(f"  {N:4d}  {w_min:8.6f}{marker}")
+            if w_min < best_w:
+                best_w = w_min
+                best_N = N
+
+        if best_w < -1e-5:
+            print(f"\n  ✓ n=4 negativity appears at N={best_N}, min(W)={best_w:.6f}")
+        else:
+            print(f"\n  ⚠ n=4 negativity absent even at N={max(N_values)}")
+            print("    → Truncation is NOT the primary bottleneck.")
+
+    def test_n4_high_resolution_confirm(self) -> None:
+        """Confirm best result with high resolution.
+
+        Uses the optimal parameters discovered in other tests:
+        N=20, t=0.30, 150×150 grid.
+        """
+        from .wigner import wigner_function_single
+
+        N = 20
+        t_sqz = 0.30
+        n_pts = 150
+
+        print("\n  n=4 high-resolution confirmation:")
+        print(f"  N={N}, t={t_sqz}, grid={n_pts}×{n_pts}")
+
+        config = HybridLindbladConfig(N=N, n=4, omega_n=self.OMEGA_N, t_squeeze=t_sqz)
+        psi_sq = apply_squeezing(config)
+        rho_osc = self._extract_oscillator_density(psi_sq, N)
+
+        x = np.linspace(-self.X_MAX, self.X_MAX, n_pts)
+        p = np.linspace(-self.X_MAX, self.X_MAX, n_pts)
+        W = wigner_function_single(rho_osc, x, p)
+        w_min = float(np.min(W))
+
+        print(f"  min(W) = {w_min:.6f}")
+        if w_min < -1e-5:
+            print("  ✓ n=4 negativity confirmed at high resolution!")
+        else:
+            print("  ⚠ n=4 negativity absent even at high resolution.")
+            print("    → The issue persists. Consider state-preparation debugging.")
+
+    def _extract_oscillator_density(
+        self, hybrid_state: np.ndarray, N: int
+    ) -> np.ndarray:
+        """Extract oscillator density matrix from hybrid state.
+
+        Args:
+            hybrid_state: State vector of shape (2(N+1),).
+            N: Maximum photon number.
+
+        Returns:
+            Oscillator density matrix of shape (N+1, N+1).
+        """
+        dim_osc = N + 1
+        rho_hybrid = np.outer(hybrid_state, hybrid_state.conj())
         rho_reshaped = rho_hybrid.reshape(dim_osc, 2, dim_osc, 2)
         rho_osc = np.trace(rho_reshaped, axis1=1, axis2=3)
         return rho_osc

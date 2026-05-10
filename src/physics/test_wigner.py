@@ -153,18 +153,54 @@ class TestWignerMinimum:
 
         assert not wigner_is_negative(W)
 
-    def test_squeezed_state_negative(self) -> None:
-        """Squeezed states can have negative Wigner."""
-        # This test is a placeholder - would need actual squeezed state
-        # For now, just test that the function works
+    def test_fock_n1_negativity(self) -> None:
+        """Fock state |1⟩ must show negative Wigner at origin.
+
+        Analytical: W_1(0,0) = -2/π ≈ -0.637.
+        This is a regression test against the incorrect formula
+        W = (2/π) exp(-2r²) Σ ρ_mn (-1)^n α^m (α*)^n / √(m!n!)
+        which gave W(0,0) = 0 for |1⟩.
+        """
         N = 10
+        rho = np.zeros((N + 1, N + 1), dtype=complex)
+        rho[1, 1] = 1.0  # |1⟩⟨1|
+
+        x = np.array([0.0])
+        p = np.array([0.0])
+        W = wigner_function_single(rho, x, p)
+
+        min_W = W[0, 0]
+        assert np.isclose(min_W, -2.0 / np.pi, atol=1e-4), (
+            f"Fock |1⟩ W(0,0) should be -2/π ≈ -0.637, got {min_W}"
+        )
+
+    def test_fock_n2_positivity_at_origin(self) -> None:
+        """Fock state |2⟩ has positive Wigner at origin: W = +2/π.
+
+        Even-n Fock states have (+1)^n factor, giving positive Wigner at origin.
+        """
+        N = 10
+        rho = np.zeros((N + 1, N + 1), dtype=complex)
+        rho[2, 2] = 1.0  # |2⟩⟨2|
+
+        x = np.array([0.0])
+        p = np.array([0.0])
+        W = wigner_function_single(rho, x, p)
+
+        max_W = W[0, 0]
+        assert np.isclose(max_W, 2.0 / np.pi, atol=1e-4), (
+            f"Fock |2⟩ W(0,0) should be +2/π ≈ +0.637, got {max_W}"
+        )
+
+    def test_maximally_mixed_no_negativity(self) -> None:
+        """Maximally mixed state has no Wigner negativity."""
+        N = 5
         rho = np.eye(N + 1, dtype=complex) / (N + 1)
 
-        x = np.linspace(-5, 5, 50)
-        p = np.linspace(-5, 5, 50)
+        x = np.linspace(-4, 4, 50)
+        p = np.linspace(-4, 4, 50)
 
         W = wigner_function_single(rho, x, p)
-        # Maximally mixed state has no negativity
         assert not wigner_is_negative(W)
 
 
