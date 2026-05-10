@@ -11,7 +11,7 @@ optimum depends on the bath correlation rate λ (degree of non-Markovianity).
 Specifically:
 
 1. **QFI preservation**: ℛ(T) = F_Q(T) / F_Q(0) > ℛ_no_ancilla(T) for suitable g,
-   where g is the direct-coupling strength n ⊗ σ_z between oscillator and ancilla.
+    where g is the direct-coupling strength n ⊗ σ_x between oscillator and ancilla.
 
 2. **Optimal coupling**: There exists g* > 0 that maximizes ℛ(T) at fixed T, λ, and N.
 
@@ -78,7 +78,7 @@ All energies are measured relative to the oscillator resonance. This frame is ap
 
 **System-ancilla direct coupling** (the controllable entangling interaction):
 ```
-H_sa = g_sa · (a†a) ⊗ σ_z ⊗ I_pm
+H_sa = g_sa · (a†a) ⊗ σ_x ⊗ I_pm
 ```
 This is the ancillary coupling that the user varies to protect QFI. The ancilla
 interacts with the oscillator via a dispersive (phase-coupling) interaction:
@@ -155,7 +155,7 @@ More explicitly:
    the spin state:
 
    ```
-   |Ψ(τ)⟩ = exp(-i τ g_sa · a†a ⊗ σ_z) |α⟩ ⊗ |↓⟩ ⊗ |0⟩
+    |Ψ(τ)⟩ = exp(-i τ g_sa · a†a ⊗ σ_x) |α⟩ ⊗ |↓⟩ ⊗ |0⟩
    ```
 
    This creates a state where different |n⟩ components acquire different spin
@@ -235,8 +235,8 @@ by adding the pseudomode degree of freedom:
    - Extend existing hybrid operators (oscillator a, a†, spin σ_z) to the
      three-part space via Kronecker products: O_total = O_osc ⊗ O_spin ⊗ I_pm
    - Build Hamiltonian terms:
-     - H_sa = g_sa · (a†a) ⊗ σ_z ⊗ I_pm (system-ancilla direct coupling)
-     - H_sp = g_sp · (a + a†) ⊗ I_spin ⊗ (b + b†) (system-pseudomode coupling)
+      - H_sa = g_sa · (a†a) ⊗ σ_x ⊗ I_pm (system-ancilla direct coupling)
+      - H_sp = g_sp · (a + a†) ⊗ I_spin ⊗ (b + b†) (system-pseudomode coupling)
      - H_pm = ω₀ · I_osc ⊗ I_spin ⊗ (b†b) (pseudomode free evolution)
 
 2. **Lindblad simulation**:
