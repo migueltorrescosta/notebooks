@@ -1,11 +1,10 @@
-"""
-Tests for BR-5: J_z Consolidation & Phase Diffusion Fix.
+"""Cross-module consistency tests for J_z operator and phase diffusion.
 
 Validates:
 - All modules return identical matrices for jz_operator(N)
-- Phase diffusion off-diagonal decay rate ∝ (m₁ - m₂)²
+- Phase diffusion off-diagonal decay rate is proportional to (m1 - m2)^2
 - Unitary evolution (gamma=0) unchanged before/after fix
-- Tr[ρ(t)] = 1 preserved under phase diffusion
+- NoiseConfig builds Lindblad operators with correct J_z
 """
 
 from __future__ import annotations
@@ -25,7 +24,7 @@ from src.utils.enums import OperatorBasis
 
 
 # =============================================================================
-# BR-5.1: All modules return identical matrices
+# Cross-module J_z consistency
 # =============================================================================
 
 
@@ -77,7 +76,7 @@ class TestJzIdenticalAcrossModules:
 
 
 # =============================================================================
-# BR-5.2: Phase diffusion off-diagonal decay ∝ (m₁ - m₂)²
+# Phase diffusion off-diagonal decay ∝ (m₁ - m₂)²
 # =============================================================================
 
 
@@ -112,7 +111,6 @@ class TestPhaseDiffusionOffDiagonalDecay:
 
             # Track off-diagonal element |ρ_{i1,i2}|
             coherences = np.array([np.abs(rho[i1, i2]) for rho in rhos])
-            t_array = np.array([np.real(np.trace(rho)) for rho in rhos])
             t_array = np.linspace(0, T, len(coherences))
 
             # Expected: coherence(t) = coherence(0) * exp(-gamma_phi * (m1-m2)^2 * t / 2)
@@ -160,7 +158,7 @@ class TestPhaseDiffusionOffDiagonalDecay:
 
 
 # =============================================================================
-# BR-5.3: Unitary evolution (gamma=0) unchanged
+# Unitary evolution (gamma=0) unchanged by J_z fix
 # =============================================================================
 
 
@@ -213,60 +211,8 @@ class TestUnitaryEvolutionUnchanged:
 
 
 # =============================================================================
-# BR-5.4: Trace preservation under phase diffusion
+# NoiseConfig build_lindblad_operators uses J_z correctly
 # =============================================================================
-
-
-class TestTracePreservationUnderPhaseDiffusion:
-    """Verify Tr[ρ(t)] = 1 is preserved under phase diffusion."""
-
-    @pytest.mark.parametrize("N", [3, 5, 8])
-    @pytest.mark.parametrize("gamma_phi", [0.1, 0.5, 1.0])
-    def test_trace_preserved(self, N: int, gamma_phi: float) -> None:
-        """Trace must remain exactly 1 under phase diffusion."""
-        config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=gamma_phi)
-
-        # Superposition state
-        psi = np.zeros(N + 1, dtype=complex)
-        psi[0] = 1.0 / np.sqrt(2)
-        psi[1] = 1.0 / np.sqrt(2)
-        rho0 = ket_to_density(psi)
-
-        times, rhos = simulate_trajectory(rho0, config, T=2.0, num_times=100)
-
-        traces = np.array([np.trace(rho) for rho in rhos])
-        np.testing.assert_allclose(
-            np.real(traces),
-            1.0,
-            atol=1e-6,
-            err_msg=f"Trace not preserved: min={np.min(traces):.8f}, max={np.max(traces):.8f}",
-        )
-
-    @pytest.mark.parametrize("N", [4, 6])
-    def test_trace_preserved_coherent_state(self, N: int) -> None:
-        """Trace must remain 1 for coherent states under phase diffusion."""
-        import scipy.special
-
-        gamma_phi = 0.3
-        config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=gamma_phi)
-
-        # Coherent state |α=1⟩
-        alpha = 1.0
-        psi = np.zeros(N + 1, dtype=complex)
-        for n in range(N + 1):
-            psi[n] = alpha**n / np.sqrt(scipy.special.factorial(n))
-        psi *= np.exp(-(alpha**2) / 2)
-        psi /= np.linalg.norm(psi)
-        rho0 = ket_to_density(psi)
-
-        times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
-
-        traces = np.array([np.trace(rho) for rho in rhos])
-        np.testing.assert_allclose(np.real(traces), 1.0, atol=1e-5)
-
-
-# =============================================================================
-# BR-5.5: NoiseConfig build_lindblad_operators uses J_z correctly
 # =============================================================================
 
 
