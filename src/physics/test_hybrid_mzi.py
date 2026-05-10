@@ -10,6 +10,7 @@ Physical Validation:
 """
 
 import numpy as np
+import pytest
 
 from .hybrid_mzi import (
     embed_hybrid_in_mzi,
@@ -39,7 +40,7 @@ class TestEmbedding:
     """Test hybrid state embedding into MZI space."""
 
     def test_embed_preserves_norm(self) -> None:
-        """‖embedded‖² = ‖hybrid‖² = 1."""
+        """‖embedded‖² = ‖hybrid‖² = 1 (pure state)."""
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         embedded = embed_hybrid_in_mzi(state, N)
@@ -50,7 +51,7 @@ class TestEmbedding:
         assert np.isclose(norm_embedded, norm_hybrid, atol=1e-10)
 
     def test_embed_dimension(self) -> None:
-        """Embedded state should have correct dimension."""
+        """Embedded state should have correct dimension (pure state)."""
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         embedded = embed_hybrid_in_mzi(state, N)
@@ -68,6 +69,118 @@ class TestEmbedding:
         assert np.isclose(embedded[0], 1.0, atol=1e-10)
         # All other elements should be zero
         assert np.isclose(np.sum(np.abs(embedded[1:]) ** 2), 0.0, atol=1e-10)
+
+    # ------------------------------------------------------------------ #
+    # Density matrix embedding tests
+    # ------------------------------------------------------------------ #
+
+    def test_embed_density_dimension(self) -> None:
+        """Embedded density matrix should have correct 2D shape."""
+        N = 5
+        dim_mzi = 2 * (N + 1) ** 2
+
+        state = hybrid_vacuum_state(N, spin_state="down")
+        rho = np.outer(state, state.conj())
+        embedded = embed_hybrid_in_mzi(rho, N)
+
+        assert embedded.shape == (dim_mzi, dim_mzi)
+
+    def test_embed_density_trace_preserved(self) -> None:
+        """Tr(ρ_embedded) = Tr(ρ_hybrid) = 1."""
+        N = 5
+        state = hybrid_vacuum_state(N, spin_state="down")
+        rho = np.outer(state, state.conj())
+
+        embedded = embed_hybrid_in_mzi(rho, N)
+
+        assert np.isclose(np.trace(embedded), 1.0, atol=1e-10)
+
+    def test_embed_density_hermiticity_preserved(self) -> None:
+        """ρ_embedded should be Hermitian."""
+        N = 5
+        state = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
+        rho = np.outer(state, state.conj())
+
+        embedded = embed_hybrid_in_mzi(rho, N)
+
+        assert np.allclose(embedded, embedded.conj().T, atol=1e-10)
+
+    def test_embed_density_positivity_preserved(self) -> None:
+        """ρ_embedded should be positive semidefinite."""
+        N = 5
+        state = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
+        rho = np.outer(state, state.conj())
+
+        embedded = embed_hybrid_in_mzi(rho, N)
+
+        eigenvalues = np.linalg.eigvalsh(embedded)
+        assert np.all(eigenvalues >= -1e-10)
+
+    def test_embed_density_vacuum_structure(self) -> None:
+        """|0,↓⟩⟨0,↓| should only have nonzero entry at (0,0)."""
+        N = 5
+        dim_hybrid = 2 * (N + 1)
+
+        rho = np.zeros((dim_hybrid, dim_hybrid), dtype=complex)
+        rho[0, 0] = 1.0  # |0,↓⟩⟨0,↓|
+
+        embedded = embed_hybrid_in_mzi(rho, N)
+
+        assert np.isclose(embedded[0, 0], 1.0, atol=1e-10)
+        all_others = np.abs(embedded).sum() - np.abs(embedded[0, 0])
+        assert np.isclose(all_others, 0.0, atol=1e-10)
+
+    def test_embed_density_agrees_with_pure(self) -> None:
+        """Embedding ρ = |ψ⟩⟨ψ| should match |ψ_emb⟩⟨ψ_emb|."""
+        N = 5
+        state = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
+        rho = np.outer(state, state.conj())
+
+        # Embed pure state
+        psi_emb = embed_hybrid_in_mzi(state, N)
+        rho_from_pure = np.outer(psi_emb, psi_emb.conj())
+
+        # Embed density matrix
+        rho_emb = embed_hybrid_in_mzi(rho, N)
+
+        assert np.allclose(rho_emb, rho_from_pure, atol=1e-10)
+
+    def test_embed_density_off_diagonal_mapping(self) -> None:
+        """Off-diagonal ρ[i,j] should map to correct embedded position."""
+        N = 3
+        dim_hybrid = 2 * (N + 1)
+
+        # Coherence between |0,↓⟩ and |1,↓⟩
+        rho = np.zeros((dim_hybrid, dim_hybrid), dtype=complex)
+        rho[0, 2] = 0.5 + 0.5j  # |0,↓⟩⟨1,↓|
+
+        embedded = embed_hybrid_in_mzi(rho, N)
+
+        # |0,↓⟩ → embedded index 0*(N+1)*2 + 0 = 0
+        # |1,↓⟩ → embedded index 1*(N+1)*2 + 0 = 2*(N+1) = 8 for N=3
+        idx_0 = 0 * (N + 1) * 2 + 0
+        idx_1 = 1 * (N + 1) * 2 + 0
+        assert np.isclose(embedded[idx_0, idx_1], 0.5 + 0.5j, atol=1e-10)
+
+    def test_embed_density_rejects_wrong_shape(self) -> None:
+        """Non-square density matrix should raise ValueError."""
+        N = 5
+        bad_rho = np.zeros((4, 6), dtype=complex)
+        with pytest.raises(ValueError, match="must have shape"):
+            embed_hybrid_in_mzi(bad_rho, N)
+
+    def test_embed_density_high_N(self) -> None:
+        """Embedding should work for larger N."""
+        N = 10
+        state = hybrid_vacuum_state(N, spin_state="up")
+        rho = np.outer(state, state.conj())
+
+        embedded = embed_hybrid_in_mzi(rho, N)
+
+        dim_mzi = 2 * (N + 1) ** 2
+        assert embedded.shape == (dim_mzi, dim_mzi)
+        assert np.isclose(np.trace(embedded), 1.0, atol=1e-10)
+        assert np.allclose(embedded, embedded.conj().T, atol=1e-10)
 
 
 # =============================================================================

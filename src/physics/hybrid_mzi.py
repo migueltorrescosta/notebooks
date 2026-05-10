@@ -43,6 +43,10 @@ def embed_hybrid_in_mzi(
     Creates: ρ_2mode = |ψ⟩_hybrid ⊗ |0⟩_vacuum
     where |0⟩_vacuum is the vacuum state in mode 2.
 
+    Accepts both:
+    - Pure state vector (1D) — returns embedded vector of shape (dim_mzi,).
+    - Density matrix (2D) — returns embedded matrix of shape (dim_mzi, dim_mzi).
+
     State ordering:
     - Mode 1: hybrid oscillator (N+1 Fock states)
     - Mode 2: vacuum mode (N+1 Fock states)
@@ -52,32 +56,60 @@ def embed_hybrid_in_mzi(
     Index = (n1*(N+1) + n2) * 2 + s
 
     Args:
-        hybrid_state: State vector of shape (2(N+1),).
+        hybrid_state: State vector of shape (2(N+1),) or density matrix of
+            shape (2(N+1), 2(N+1)).
         N: Maximum photon number (truncation).
 
     Returns:
-        Embedded state vector of shape (2(N+1)²,).
+        Embedded state vector of shape (2(N+1)²,) if input is 1D, or
+        embedded density matrix of shape (2(N+1)², 2(N+1)²) if input is 2D.
     """
     dim_osc = N + 1
     dim_hybrid = 2 * dim_osc
     dim_mzi = 2 * (dim_osc**2)  # hybrid ⊗ mode2
 
-    if hybrid_state.shape != (dim_hybrid,):
-        raise ValueError(
-            f"hybrid_state must have shape ({dim_hybrid},), got {hybrid_state.shape}"
-        )
+    # --- Pure state path ---
+    if hybrid_state.ndim == 1:
+        if hybrid_state.shape != (dim_hybrid,):
+            raise ValueError(
+                f"hybrid_state must have shape ({dim_hybrid},), "
+                f"got {hybrid_state.shape}"
+            )
 
-    embedded = np.zeros(dim_mzi, dtype=complex)
+        embedded = np.zeros(dim_mzi, dtype=complex)
+        # Embed as: |n1⟩_mode1 ⊗ |0⟩_mode2 ⊗ |σ⟩_spin
+        # Index in embedded space: (n1*(N+1) + 0) * 2 + s = n1*(N+1)*2 + s
+        for n1 in range(dim_osc):
+            for s in range(2):  # spin state
+                hybrid_idx = n1 * 2 + s
+                mzi_idx = n1 * dim_osc * 2 + s  # n2=0
+                embedded[mzi_idx] = hybrid_state[hybrid_idx]
+        return embedded
 
-    # Embed as: |n1⟩_mode1 ⊗ |0⟩_mode2 ⊗ |σ⟩_spin
-    # Index in embedded space: (n1*(N+1) + 0) * 2 + s = n1*(N+1)*2 + s
-    for n1 in range(dim_osc):
-        for s in range(2):  # spin state
-            hybrid_idx = n1 * 2 + s
-            mzi_idx = n1 * dim_osc * 2 + s  # n2=0, so (n1*(N+1)+0)*2+s
-            embedded[mzi_idx] = hybrid_state[hybrid_idx]
+    # --- Density matrix path ---
+    if hybrid_state.ndim == 2:
+        if hybrid_state.shape != (dim_hybrid, dim_hybrid):
+            raise ValueError(
+                f"hybrid_state must have shape ({dim_hybrid}, {dim_hybrid}), "
+                f"got {hybrid_state.shape}"
+            )
 
-    return embedded
+        # Build embedding isometry E: maps hybrid index → two-mode index
+        # E[n1*(N+1)*2 + s, n1*2 + s] = 1.0, all else 0.
+        E = np.zeros((dim_mzi, dim_hybrid), dtype=complex)
+        for n1 in range(dim_osc):
+            for s in range(2):
+                hybrid_idx = n1 * 2 + s
+                mzi_idx = n1 * dim_osc * 2 + s
+                E[mzi_idx, hybrid_idx] = 1.0
+
+        # ρ_embedded = E @ ρ_hybrid @ E†
+        return E @ hybrid_state @ E.conj().T
+
+    raise ValueError(
+        f"hybrid_state must be 1D (state vector) or 2D (density matrix), "
+        f"got ndim={hybrid_state.ndim}"
+    )
 
 
 # =============================================================================
