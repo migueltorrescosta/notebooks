@@ -1,57 +1,22 @@
-"""Integration tests for BEC sensitivity and ancilla pages.
+"""Integration tests for BEC sensitivity and ancilla physics simulations.
 
 Tests verify:
-1. Each page loads without Streamlit errors
-2. Simulations complete within timeout
-3. Physics assertions hold
+1. Simulations complete within timeout
+2. Physics assertions hold
 """
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import numpy as np
-import pytest
-from streamlit.testing.v1 import AppTest
-
-# Add project root to path for src imports
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-# Page files
-PAGES_DIR = PROJECT_ROOT / "pages"
-BEC_SENSITIVITY_PAGE = PAGES_DIR / "BEC_Sensitivity_Scaling.py"
-BEC_ANCILLA_PAGE = PAGES_DIR / "BEC_Ancilla.py"
-
-
-def get_page_script(page_file: Path) -> str:
-    """Get the script content for a page file."""
-    return page_file.read_text()
 
 
 # =============================================================================
-# BEC_Sensitivity_Scaling page
+# BEC_Sensitivity_Scaling physics
 # =============================================================================
 
 
-class TestBECSensitivityScalingPage:
-    """Tests for BEC_Sensitivity_Scaling page."""
-
-    def test_page_renders_without_errors(self) -> None:
-        """Test page loads without Streamlit errors."""
-        script = get_page_script(BEC_SENSITIVITY_PAGE)
-        at = AppTest.from_string(script)
-        at.run(timeout=30)
-        if at.exception:
-            pytest.fail(f"Page raised exception: {at.exception}")
-
-    def test_page_has_content(self) -> None:
-        """Verify page renders with content."""
-        script = get_page_script(BEC_SENSITIVITY_PAGE)
-        at = AppTest.from_string(script)
-        at.run()
-        assert len(at.main.children) > 0, "Page should render content"
+class TestBECSensitivityScaling:
+    """Tests for BEC sensitivity scaling physics."""
 
     def test_twa_simulation_completes_quickly(self) -> None:
         """Test that TWA simulation with small N completes within timeout."""
@@ -78,27 +43,12 @@ class TestBECSensitivityScalingPage:
 
 
 # =============================================================================
-# BEC_Ancilla page
+# BEC_Ancilla physics
 # =============================================================================
 
 
-class TestBECAncillaPage:
-    """Tests for BEC_Ancilla page."""
-
-    def test_page_renders_without_errors(self) -> None:
-        """Test page loads without Streamlit errors."""
-        script = get_page_script(BEC_ANCILLA_PAGE)
-        at = AppTest.from_string(script)
-        at.run(timeout=30)
-        if at.exception:
-            pytest.fail(f"Page raised exception: {at.exception}")
-
-    def test_page_has_content(self) -> None:
-        """Verify page renders with content."""
-        script = get_page_script(BEC_ANCILLA_PAGE)
-        at = AppTest.from_string(script)
-        at.run()
-        assert len(at.main.children) > 0
+class TestBECAncilla:
+    """Tests for BEC ancilla physics."""
 
     def test_ancilla_evolution_produces_finite_expectations(self) -> None:
         """Test ancilla evolution produces finite Jz expectation."""

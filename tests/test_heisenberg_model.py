@@ -5,60 +5,44 @@ from __future__ import annotations
 import functools
 
 import numpy as np
-import pytest
+
+
+def _build_hamiltonian(n_sites: int, j: float = 1.0, u: float = 1.0) -> np.ndarray:
+    """Build the Heisenberg Hamiltonian for an n-site spin-1/2 chain.
+
+    H = j * Σ_i σ_z⁽ⁱ⁾ + (u/2) * Σ_{⟨i,j⟩} σ_x⁽ⁱ⁾ σ_x⁽ʲ⁾
+    """
+    sigma_x = np.array([[0, 1], [1, 0]])
+    sigma_z = np.array([[1, 0], [0, -1]])
+    eye_2 = np.array([[1, 0], [0, 1]])
+
+    hamiltonian_coupling = functools.reduce(
+        lambda a, b: a + b,
+        [
+            functools.reduce(
+                np.kron,
+                [
+                    sigma_x if site == i or site == i + 1 else eye_2
+                    for site in range(1, n_sites + 1)
+                ],
+            )
+            for i in range(1, n_sites)
+        ],
+    )
+
+    hamiltonian_local = functools.reduce(
+        np.kron, [sigma_z for _ in range(1, n_sites + 1)]
+    )
+    return j * hamiltonian_local + (0.5 * u) * hamiltonian_coupling
 
 
 class TestHeisenbergModelHamiltonian:
     """Tests for Heisenberg model Hamiltonian construction."""
 
-    @pytest.fixture
-    def pauli_matrices(self) -> dict[str, np.ndarray]:
-        """Provide standard Pauli matrices."""
-        sigma_x = np.array([[0, 1], [1, 0]])
-        sigma_z = np.array([[1, 0], [0, -1]])
-        eye_2 = np.array([[1, 0], [0, 1]])
-        return {"sigma_x": sigma_x, "sigma_z": sigma_z, "eye_2": eye_2}
-
-    def build_hamiltonian(
-        self,
-        n_sites: int,
-        j: float = 1.0,
-        u: float = 1.0,
-        matrices: dict | None = None,
-    ) -> np.ndarray:
-        """Build the Heisenberg Hamiltonian."""
-        if matrices is None:
-            sigma_x = np.array([[0, 1], [1, 0]])
-            sigma_z = np.array([[1, 0], [0, -1]])
-            eye_2 = np.array([[1, 0], [0, 1]])
-        else:
-            sigma_x = matrices["sigma_x"]
-            sigma_z = matrices["sigma_z"]
-            eye_2 = matrices["eye_2"]
-
-        hamiltonian_coupling = functools.reduce(
-            lambda a, b: a + b,
-            [
-                functools.reduce(
-                    np.kron,
-                    [
-                        sigma_x if j == i or j == i + 1 else eye_2
-                        for j in range(1, n_sites + 1)
-                    ],
-                )
-                for i in range(1, n_sites)
-            ],
-        )
-
-        hamiltonian_local = functools.reduce(
-            np.kron, [sigma_z for _ in range(1, n_sites + 1)]
-        )
-        return j * hamiltonian_local + (0.5 * u) * hamiltonian_coupling
-
     def test_hamiltonian_dimension(self) -> None:
         """Test that Hamiltonian has correct dimension 2^n x 2^n."""
         for n_sites in [2, 3, 4, 5]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
             expected_dim = 2**n_sites
             assert H.shape == (
                 expected_dim,
@@ -68,23 +52,23 @@ class TestHeisenbergModelHamiltonian:
     def test_hamiltonian_is_hermitian(self) -> None:
         """Test that Hamiltonian is Hermitian."""
         for n_sites in [2, 3, 4]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
             assert np.allclose(H, H.conj().T, atol=1e-10), (
                 "Hamiltonian should be Hermitian"
             )
 
     def test_hamiltonian_varying_j(self) -> None:
         """Test that different J values give different Hamiltonians."""
-        H_pos = self.build_hamiltonian(n_sites=3, j=1.0)
-        H_neg = self.build_hamiltonian(n_sites=3, j=-1.0)
+        H_pos = _build_hamiltonian(n_sites=3, j=1.0)
+        H_neg = _build_hamiltonian(n_sites=3, j=-1.0)
         assert not np.allclose(H_pos, H_neg, atol=1e-10), (
             "Different J values should give different Hamiltonians"
         )
 
     def test_hamiltonian_varying_u(self) -> None:
         """Test that different U values give different Hamiltonians."""
-        H_low = self.build_hamiltonian(n_sites=3, u=0.1)
-        H_high = self.build_hamiltonian(n_sites=3, u=10.0)
+        H_low = _build_hamiltonian(n_sites=3, u=0.1)
+        H_high = _build_hamiltonian(n_sites=3, u=10.0)
         assert not np.allclose(H_low, H_high, atol=1e-10), (
             "Different U values should give different Hamiltonians"
         )
@@ -92,7 +76,7 @@ class TestHeisenbergModelHamiltonian:
     def test_hamiltonian_has_correct_structure(self) -> None:
         """Test that Hamiltonian has expected non-zero elements."""
         n_sites = 3
-        H = self.build_hamiltonian(n_sites)
+        H = _build_hamiltonian(n_sites)
         # Should have many non-zero elements
         non_zero_count = np.count_nonzero(H)
         total_elements = H.shape[0] ** 2
@@ -105,37 +89,10 @@ class TestHeisenbergModelHamiltonian:
 class TestHeisenbergModelEigendecomposition:
     """Tests for eigendecomposition of Heisenberg Hamiltonian."""
 
-    def build_hamiltonian(
-        self, n_sites: int, j: float = 1.0, u: float = 1.0
-    ) -> np.ndarray:
-        """Build the Heisenberg Hamiltonian."""
-        sigma_x = np.array([[0, 1], [1, 0]])
-        sigma_z = np.array([[1, 0], [0, -1]])
-        eye_2 = np.array([[1, 0], [0, 1]])
-
-        hamiltonian_coupling = functools.reduce(
-            lambda a, b: a + b,
-            [
-                functools.reduce(
-                    np.kron,
-                    [
-                        sigma_x if j == i or j == i + 1 else eye_2
-                        for j in range(1, n_sites + 1)
-                    ],
-                )
-                for i in range(1, n_sites)
-            ],
-        )
-
-        hamiltonian_local = functools.reduce(
-            np.kron, [sigma_z for _ in range(1, n_sites + 1)]
-        )
-        return j * hamiltonian_local + (0.5 * u) * hamiltonian_coupling
-
     def test_eigenvalues_are_real(self) -> None:
         """Test that eigenvalues are real (Hermitian matrix)."""
         for n_sites in [2, 3, 4]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
             # All eigenvalues should be real
             assert np.allclose(eigenvalues.imag, 0, atol=1e-10), (
@@ -145,7 +102,7 @@ class TestHeisenbergModelEigendecomposition:
     def test_eigenvectors_form_orthonormal_basis(self) -> None:
         """Test that eigenvectors form an orthonormal basis."""
         for n_sites in [2, 3, 4]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
             eigenvalues, eigenvectors = np.linalg.eigh(H)
 
             # Check orthonormality: U @ U^\dagger = I
@@ -157,7 +114,7 @@ class TestHeisenbergModelEigendecomposition:
     def test_eigenvalue_ordering(self) -> None:
         """Test that eigenvalues are returned in ascending order."""
         for n_sites in [2, 3, 4]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
             # Check that eigenvalues are sorted
             for i in range(len(eigenvalues) - 1):
@@ -168,7 +125,7 @@ class TestHeisenbergModelEigendecomposition:
     def test_spectral_decomposition_reconstruction(self) -> None:
         """Test that H can be reconstructed from eigenvalues and eigenvectors."""
         for n_sites in [2, 3, 4]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
             eigenvalues, eigenvectors = np.linalg.eigh(H)
 
             # Reconstruct H = U @ diag(λ) @ U^\dagger
@@ -181,37 +138,10 @@ class TestHeisenbergModelEigendecomposition:
 class TestHeisenbergModelExpectationValues:
     """Tests for expectation value calculations."""
 
-    def build_hamiltonian(
-        self, n_sites: int, j: float = 1.0, u: float = 1.0
-    ) -> np.ndarray:
-        """Build the Heisenberg Hamiltonian."""
-        sigma_x = np.array([[0, 1], [1, 0]])
-        sigma_z = np.array([[1, 0], [0, -1]])
-        eye_2 = np.array([[1, 0], [0, 1]])
-
-        hamiltonian_coupling = functools.reduce(
-            lambda a, b: a + b,
-            [
-                functools.reduce(
-                    np.kron,
-                    [
-                        sigma_x if j == i or j == i + 1 else eye_2
-                        for j in range(1, n_sites + 1)
-                    ],
-                )
-                for i in range(1, n_sites)
-            ],
-        )
-
-        hamiltonian_local = functools.reduce(
-            np.kron, [sigma_z for _ in range(1, n_sites + 1)]
-        )
-        return j * hamiltonian_local + (0.5 * u) * hamiltonian_coupling
-
     def test_expectation_values_via_einsum(self) -> None:
         """Test expectation value calculation using einsum."""
         n_sites = 3
-        H = self.build_hamiltonian(n_sites)
+        H = _build_hamiltonian(n_sites)
         eigenvalues, eigenvectors = np.linalg.eigh(H)
 
         alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:n_sites]
@@ -240,7 +170,7 @@ class TestHeisenbergModelExpectationValues:
     def test_sum_rule_for_expectation_values(self) -> None:
         """Test that sum of σ_z expectation values has correct properties."""
         n_sites = 3
-        H = self.build_hamiltonian(n_sites)
+        H = _build_hamiltonian(n_sites)
         eigenvalues, eigenvectors = np.linalg.eigh(H)
 
         alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:n_sites]
@@ -267,37 +197,10 @@ class TestHeisenbergModelExpectationValues:
 class TestHeisenbergModelPhysicalConstraints:
     """Tests for physical constraints of the Heisenberg model."""
 
-    def build_hamiltonian(
-        self, n_sites: int, j: float = 1.0, u: float = 1.0
-    ) -> np.ndarray:
-        """Build the Heisenberg Hamiltonian."""
-        sigma_x = np.array([[0, 1], [1, 0]])
-        sigma_z = np.array([[1, 0], [0, -1]])
-        eye_2 = np.array([[1, 0], [0, 1]])
-
-        hamiltonian_coupling = functools.reduce(
-            lambda a, b: a + b,
-            [
-                functools.reduce(
-                    np.kron,
-                    [
-                        sigma_x if j == i or j == i + 1 else eye_2
-                        for j in range(1, n_sites + 1)
-                    ],
-                )
-                for i in range(1, n_sites)
-            ],
-        )
-
-        hamiltonian_local = functools.reduce(
-            np.kron, [sigma_z for _ in range(1, n_sites + 1)]
-        )
-        return j * hamiltonian_local + (0.5 * u) * hamiltonian_coupling
-
     def test_energy_levels_are_bounded(self) -> None:
         """Test that energy levels are within reasonable bounds."""
         for n_sites in [2, 3, 4, 5]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
 
             # Energy per site should be bounded
@@ -314,7 +217,7 @@ class TestHeisenbergModelPhysicalConstraints:
 
     def test_ground_state_is_unique_for_ferromagnetic_case(self) -> None:
         """Test that ground state is unique for ferromagnetic coupling."""
-        H = self.build_hamiltonian(n_sites=3, j=1.0, u=0.1)
+        H = _build_hamiltonian(n_sites=3, j=1.0, u=0.1)
         eigenvalues = np.linalg.eigvalsh(H)
 
         # Find ground state energy
@@ -331,7 +234,7 @@ class TestHeisenbergModelPhysicalConstraints:
     def test_excited_states_exist(self) -> None:
         """Test that there are excited states above the ground state."""
         for n_sites in [2, 3, 4]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
 
             # There should be more than one eigenvalue
@@ -351,7 +254,7 @@ class TestHeisenbergModelScaling:
         dimensions = []
         # Start from n_sites=2 since n_sites=1 has no coupling terms
         for n_sites in [2, 3, 4, 5, 6]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
             dimensions.append(H.shape[0])
 
         # Check exponential growth
@@ -366,7 +269,7 @@ class TestHeisenbergModelScaling:
 
         times = []
         for n_sites in [2, 3, 4, 5]:
-            H = self.build_hamiltonian(n_sites)
+            H = _build_hamiltonian(n_sites)
 
             start = time.perf_counter()
             eigenvalues, eigenvectors = np.linalg.eigh(H)
@@ -377,30 +280,3 @@ class TestHeisenbergModelScaling:
         # This is a weak test, just checking it's not catastrophically slow
         for n, t in zip([2, 3, 4, 5], times):
             assert t < 10.0, f"Diagonalization for n={n} took too long: {t:.2f}s"
-
-    def build_hamiltonian(
-        self, n_sites: int, j: float = 1.0, u: float = 1.0
-    ) -> np.ndarray:
-        """Build the Heisenberg Hamiltonian."""
-        sigma_x = np.array([[0, 1], [1, 0]])
-        sigma_z = np.array([[1, 0], [0, -1]])
-        eye_2 = np.array([[1, 0], [0, 1]])
-
-        hamiltonian_coupling = functools.reduce(
-            lambda a, b: a + b,
-            [
-                functools.reduce(
-                    np.kron,
-                    [
-                        sigma_x if j == i or j == i + 1 else eye_2
-                        for j in range(1, n_sites + 1)
-                    ],
-                )
-                for i in range(1, n_sites)
-            ],
-        )
-
-        hamiltonian_local = functools.reduce(
-            np.kron, [sigma_z for _ in range(1, n_sites + 1)]
-        )
-        return j * hamiltonian_local + (0.5 * u) * hamiltonian_coupling
