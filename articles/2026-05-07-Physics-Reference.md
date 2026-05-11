@@ -89,7 +89,7 @@ $$
 
 Matrix elements computed via binomial expansion:
 $$
-\langle n_1', n_2'|U_{\text{BS}}|n_1, n_2\rangle = \sum_{m=0}^{n_1} \sum_{k=0}^{n_2} \binom{n_1}{m}\binom{n_2}{k} \cos^{n_1+n_2-m-k}(\theta) \sin^{m+k}(\theta) i^{m+k} e^{ik\phi_{\text{bs}}}
+\langle n_1', n_2'\vert{}U_{\text{BS}}\vert{}n_1, n_2\rangle = \sum_{m=0}^{n_1} \sum_{k=0}^{n_2} \binom{n_1}{m}\binom{n_2}{k} \cos^{n_1+n_2-m-k}(\theta) \sin^{m+k}(\theta) i^{m+k} e^{ik\phi_{\text{bs}}}
 $$
 
 **50/50 beam splitter**: $\theta = \pi/4$
@@ -137,10 +137,10 @@ evolve_mzi(
 
 **Annihilation operators:**
 $$
-a_0|n_1, n_2\rangle = \sqrt{n_1}|n_1-1, n_2\rangle
+a_0\vert{}n_1, n_2\rangle = \sqrt{n_1}\vert{}n_1-1, n_2\rangle
 $$
 $$
-a_1|n_1, n_2\rangle = \sqrt{n_2}|n_1, n_2-1\rangle
+a_1\vert{}n_1, n_2\rangle = \sqrt{n_2}\vert{}n_1, n_2-1\rangle
 $$
 
 **Number operators:**
@@ -157,15 +157,15 @@ $$
 
 **J_z (diagonal):**
 $$
-J_z|J,m\rangle = m|J,m\rangle, \quad m \in \{-J, -J+1, \ldots, J\}
+J_z\vert{}J,m\rangle = m\vert{}J,m\rangle, \quad m \in \{-J, -J+1, \ldots, J\}
 $$
 
 **J_x (off-diagonal):**
 $$
-J_+|J,m\rangle = \sqrt{J(J+1) - m(m+1)}|J,m+1\rangle
+J_+\vert{}J,m\rangle = \sqrt{J(J+1) - m(m+1)}\vert{}J,m+1\rangle
 $$
 $$
-J_-|J,m\rangle = \sqrt{J(J+1) - m(m-1)}|J,m-1\rangle
+J_-\vert{}J,m\rangle = \sqrt{J(J+1) - m(m-1)}\vert{}J,m-1\rangle
 $$
 $$
 J_x = \frac{J_+ + J_-}{2}
@@ -173,7 +173,7 @@ $$
 
 Matrix elements:
 $$
-\langle J,m'|J_x|J,m\rangle = \frac{1}{2}\sqrt{J(J+1) - m(m+1)}\delta_{m',m+1} + \frac{1}{2}\sqrt{J(J+1) - m(m-1)}\delta_{m',m-1}
+\langle J,m'\vert{}J_x\vert{}J,m\rangle = \frac{1}{2}\sqrt{J(J+1) - m(m+1)}\delta_{m',m+1} + \frac{1}{2}\sqrt{J(J+1) - m(m-1)}\delta_{m',m-1}
 $$
 
 ---
@@ -185,7 +185,7 @@ $$
 Based on input-output relation and output variance:
 
 $$
-\Delta\phi_{\text{EP}} = \frac{\sigma_{J_z}}{\left|\frac{\partial \langle J_z\rangle}{\partial \phi}\right|}
+\Delta\phi_{\text{EP}} = \frac{\sigma_{J_z}}{\left\vert{}\frac{\partial \langle J_z\rangle}{\partial \phi}\right\vert{}}
 $$
 
 where:
@@ -196,10 +196,10 @@ where:
 
 ### 5.2 Classical Fisher Information (CFI)
 
-For measurement outcomes $m$ with probabilities $P(m|\phi)$:
+For measurement outcomes $m$ with probabilities $P(m\vert{}\phi)$:
 
 $$
-F_C(\phi) = \sum_m \frac{\left(\frac{\partial P(m|\phi)}{\partial \phi}\right)^2}{P(m|\phi)}
+F_C(\phi) = \sum_m \frac{\left(\frac{\partial P(m\vert{}\phi)}{\partial \phi}\right)^2}{P(m\vert{}\phi)}
 $$
 
 Cramér-Rao bound:
@@ -216,7 +216,7 @@ $$
 
 ### 5.3 Quantum Fisher Information (QFI)
 
-For **pure states** $\|\psi(\phi)\rangle$ with generator $G$:
+For **pure states** $\vert{}\psi(\phi)\rangle$ with generator $G$:
 
 $$
 F_Q = 4 \cdot \text{Var}(G) = 4\left(\langle G^2\rangle - \langle G\rangle^2\right)
@@ -227,10 +227,10 @@ where $G = J_z$ (phase generator for MZI).
 For **mixed states** $\rho(\phi)$:
 
 $$
-F_Q = 2\sum_{i<j} \frac{(\lambda_i - \lambda_j)^2}{\lambda_i + \lambda_j}|\langle i|G|j\rangle|^2 + \sum_i 4\lambda_i |\Delta G_{ii}|^2
+F_Q = 2\sum_{i<j} \frac{(\lambda_i - \lambda_j)^2}{\lambda_i + \lambda_j}\vert{}\langle i\vert{}G\vert{}j\rangle\vert{}^2 + \sum_i 4\lambda_i \vert{}\Delta G_{ii}\vert{}^2
 $$
 
-where $\rho = \sum_i \lambda_i |i\rangle\langle i\rangle$ and $\Delta G_{ii} = \langle i|G|i\rangle - \text{Tr}(\rho G)$.
+where $\rho = \sum_i \lambda_i \vert{}i\rangle\langle i\rangle$ and $\Delta G_{ii} = \langle i\vert{}G\vert{}i\rangle - \text{Tr}(\rho G)$.
 
 **Ultimate bound:**
 $$
@@ -244,7 +244,7 @@ $$
 Posterior distribution via Bayes' rule:
 
 $$
-P(\phi|m_0) = \frac{P(m_0|\phi) \cdot \pi(\phi)}{P(m_0)}
+P(\phi\vert{}m_0) = \frac{P(m_0\vert{}\phi) \cdot \pi(\phi)}{P(m_0)}
 $$
 
 with uniform prior $\pi(\phi) = 1/(2\pi)$ on $[0, 2\pi)$.
@@ -258,10 +258,10 @@ $$
 
 Circular statistics (for phase wrap-around):
 $$
-\Delta\phi_{\text{circ}} = \sqrt{-2\ln|\langle e^{i\phi}\rangle|}
+\Delta\phi_{\text{circ}} = \sqrt{-2\ln\vert{}\langle e^{i\phi}\rangle\vert{}}
 $$
 
-where $\langle e^{i\phi}\rangle = \sum_\phi P(\phi|m_0) e^{i\phi}$.
+where $\langle e^{i\phi}\rangle = \sum_\phi P(\phi\vert{}m_0) e^{i\phi}$.
 
 **Implementation:** `bayesian_estimator()` in `bayesian_phase_estimation.py`
 
@@ -314,11 +314,11 @@ class NoiseConfig:
 For $n$ actual particles, detected count $k$ follows binomial distribution:
 
 $$
-P(k|n, \eta) = \binom{n}{k} \eta^k (1-\eta)^{n-k}
+P(k\vert{}n, \eta) = \binom{n}{k} \eta^k (1-\eta)^{n-k}
 $$
 
 **Special cases:**
-- $\eta = 1$: Perfect detection, $P(k|n) = \delta_{k,n}$
+- $\eta = 1$: Perfect detection, $P(k\vert{}n) = \delta_{k,n}$
 - $\eta = 0$: No detection, uniform over possible outcomes
 
 **Implementation:** `apply_detection_noise()` and `detection_channel_pmf()` in `noise_channels.py`
@@ -339,7 +339,7 @@ where:
 - $J_S$: System tunneling strength
 - $\delta_S$: System energy shift
 - $\alpha_x, \alpha_z$: Coupling coefficients
-- $J_z$ acts on state $|J,m\rangle$ with $m = (N-2k)/2$
+- $J_z$ acts on state $\vert{}J,m\rangle$ with $m = (N-2k)/2$
 
 ### 7.2 Rabi Frequency
 

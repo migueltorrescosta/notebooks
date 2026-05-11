@@ -71,8 +71,8 @@ For the standard linear phase $\phi$ coupled via $n_2$, the Kerr nonlinearity do
 | Measurement | Operator | Method | Implementation Status |
 |---|---|---|---|
 | Quantum Fisher (SLD) | $F_Q = \text{Tr}[\rho L^2]$ (symmetric logarithmic derivative) | SLD eigen-decomposition; pure-state shortcut $4\,\text{Var}(J_z)$ | `fisher_information.py` ✅ |
-| Number-difference | $J_z = (n_1 - n_2)/2$ | Error propagation $\Delta\phi = \sigma_{J_z}/|\partial\langle J_z\rangle/\partial\phi|$ | `sensitivity_metrics.py::error_propagation_sensitivity` ✅ |
-| Classical Fisher (CFI) | $F_C = \sum (\partial P/\partial\phi)^2 / P$ | Central-difference derivative of $P(m|\phi)$ | `fisher_information.py::classical_fisher_information` ✅ |
+| Number-difference | $J_z = (n_1 - n_2)/2$ | Error propagation $\Delta\phi = \sigma_{J_z}/\vert{}\partial\langle J_z\rangle/\partial\phi\vert{}$ | `sensitivity_metrics.py::error_propagation_sensitivity` ✅ |
+| Classical Fisher (CFI) | $F_C = \sum (\partial P/\partial\phi)^2 / P$ | Central-difference derivative of $P(m\vert{}\phi)$ | `fisher_information.py::classical_fisher_information` ✅ |
 | Parity | $\Pi = e^{i\pi n_2}$ | Not implemented as standalone measurement in the survey pipeline; parity-specific studies are deferred | ⏳ Planned |
 
 ### Sensitivity Metrics
