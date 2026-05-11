@@ -1,4 +1,5 @@
 *.pyc
+.testmondata*
 .cache/*
 .ipynb_checkpoints/
 .ipython/*

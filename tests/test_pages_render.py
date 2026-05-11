@@ -38,13 +38,10 @@ def get_page_script(page_file: Path) -> str:
     return page_file.read_text()
 
 
-@pytest.mark.parametrize("page_file", PAGE_FILES, ids=lambda p: p.name)
-def test_page_renders_without_duplicate_id_error(page_file: Path) -> None:
-    """Test that each page renders without StreamlitDuplicateElementId error.
+def _run_and_check(page_file: Path) -> AppTest:
+    """Run a page via AppTest and check for common streamlit errors.
 
-    This test catches the common bug where st.number_input (or other widget)
-    calls use the same label across multiple code paths, causing Streamlit to
-    assign them the same internal ID.
+    Returns the AppTest instance for further assertions.
     """
     script = get_page_script(page_file)
 
@@ -79,17 +76,21 @@ def test_page_renders_without_duplicate_id_error(page_file: Path) -> None:
             )
         pytest.fail(f"Page {page_file.name} raised an exception: {at.exception}")
 
+    return at
+
 
 @pytest.mark.parametrize("page_file", PAGE_FILES, ids=lambda p: p.name)
-def test_page_loads_successfully(page_file: Path) -> None:
-    """Test that each page loads and has rendered UI content."""
-    if page_file.name in SLOW_PAGES:
-        pytest.skip(f"Page {page_file.name} is computationally expensive")
+def test_page_renders_without_errors(page_file: Path) -> None:
+    """Test that each page renders without errors and has UI content.
 
-    script = get_page_script(page_file)
-    at = AppTest.from_string(script)
-    at.run()
+    Checks for:
+    1. No StreamlitDuplicateElementId / StreamlitDuplicateElementKey errors
+    2. Rendered UI content exists (skipped for computationally expensive pages)
+    """
+    at = _run_and_check(page_file)
 
-    assert len(at.main.children) > 0, (
-        f"Page {page_file.name} should render some UI content"
-    )
+    # Check for rendered content (skip for slow pages that use extended timeout)
+    if page_file.name not in SLOW_PAGES:
+        assert len(at.main.children) > 0, (
+            f"Page {page_file.name} should render some UI content"
+        )

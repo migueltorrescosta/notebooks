@@ -43,7 +43,7 @@ Follow these steps **in order** for every task that requires writing code.
 4. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
 
 ## 2. During implementation
-1. Add **tests first** (TDD approach) — all tests in `tests/` directory
+1. Add **tests first** (TDD approach) — unit tests co-located with modules in `src/`, integration/E2E tests in `tests/`
 2. Match existing patterns in the codebase
 3. Choose the simpler approach; avoid large refactors or unrelated changes
 4. **UI (`pages/`) MUST NOT contain physics logic** — keep layers strictly separated
@@ -51,10 +51,10 @@ Follow these steps **in order** for every task that requires writing code.
 
 ## 3. At the end
 1. Ensure added/removed/edited tests are co-located with the code they test.
-2. Run all tests: `uv run pytest . --quiet --tb=short`
-2. Run linter: `uv run ruff check . --fix && uv run ruff format .`
-3. Verify no physics errors via assertions
-4. If a new experiment was run based on an article, add a "Conclusions" section to the paper detailing the results.
+2. Run affected tests: `uv run pytest . --testmon --quiet --tb=short`
+3. Run linter: `uv run ruff check . --fix && uv run ruff format .`
+4. Verify no physics errors via assertions
+5. If a new experiment was run based on an article, add a "Conclusions" section to the paper detailing the results.
 
 # Project Structure
 
@@ -71,6 +71,8 @@ notebooks/                   # Root folder (streamlit app)
 │   ├── Energy_Level_Calculator.py
 │   ├── Fisher_information.py
 │   ├── Heisenberg_model.py
+│   ├── High_Order_Squeezing.py
+│   ├── Interferometry_Scaling_Survey.py
 │   ├── Minimize_heatmap.py
 │   ├── MZI_Ancilla.py
 │   ├── Numerical_Quantum_Time_Evolution.py
@@ -78,37 +80,12 @@ notebooks/                   # Root folder (streamlit app)
 │   ├── Visualize_Partial_Trace.py
 │   └── Wave_interference.py
 ├── src/                     # Core modules organized by domain
-│   ├── algorithms/         # Algorithm implementations
-│   │   ├── algorithms.py
-│   │   ├── optimization.py
-│   │   ├── spin_squeezing.py
-│   │   └── tensor_tree_network.py
-│   ├── analysis/           # Analysis and estimation methods
-│   │   ├── bayesian_phase_estimation.py
-│   │   ├── bayesian_statistics.py
-│   │   ├── delta_estimation.py
-│   │   ├── fisher_information.py
-│   │   ├── sensitivity_analysis.py
-│   │   └── sensitivity_metrics.py
-│   ├── evolution/          # Time evolution solvers
-│   │   ├── lindblad_solver.py
-│   │   ├── quantum_time_evolution.py
-│   │   └── tdvp.py
-│   ├── physics/            # Physics models and operators
-│   │   ├── angular_momentum.py
-│   │   ├── dicke_basis.py
-│   │   ├── heisenberg_model.py
-│   │   ├── mzi_simulation.py
-│   │   ├── mzi_states.py
-│   │   ├── noise_channels.py
-│   │   ├── partial_trace.py
-│   │   └── truncated_wigner.py
-│   ├── utils/              # Utilities and shared code
-│   │   ├── enums.py
-│   │   └── validators.py
-│   └── visualization/      # Plotting and visualization
-│       ├── plotting.py
-│       └── visualization.py
+│   ├── algorithms/         # Algorithm implementations (*.py)
+│   ├── analysis/           # Analysis and estimation methods (*.py)
+│   ├── evolution/          # Time evolution solvers (*.py)
+│   ├── physics/            # Physics models and operators (*.py)
+│   ├── utils/              # Utilities and shared code (*.py)
+│   └── visualization/      # Plotting and visualization (*.py)
 ├── tests/                   # All tests (unit, integration, E2E)
 │   ├── test_*.py           # Test files (pytest discovers from pyproject.toml)
 │   └── ...                 # Additional test files

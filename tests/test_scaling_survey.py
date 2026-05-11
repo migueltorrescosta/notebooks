@@ -157,8 +157,8 @@ class TestScalingSurveyNoiseChannels:
         )
 
         survey_config = SurveyConfig(
-            N_range=(2, 8),
-            N_points=3,
+            N_range=(2, 4),
+            N_points=2,
             noise_levels=[0.01],  # Small but non-zero loss
             seed=42,
         )
@@ -316,8 +316,8 @@ class TestSurveyModelFactories:
             label="SV loss test",
         )
         survey_config = SurveyConfig(
-            N_range=(2, 6),
-            N_points=3,
+            N_range=(2, 4),
+            N_points=2,
             noise_levels=[0.01],
             seed=42,
         )

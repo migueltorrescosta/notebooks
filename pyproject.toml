@@ -60,6 +60,7 @@ dev = [
     "types-seaborn>=0.13.2.20240311,<0.14",
     "types-tqdm>=4.66.0.20240106,<5",
     "jupyter-book>=1.0.0,<2",
+    "pytest-testmon>=2.2.0",
 ]
 test = ["pytest>=8.2.0,<9", "playwright>=1.42.0,<2"]
 

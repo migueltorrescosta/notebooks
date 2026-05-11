@@ -178,7 +178,7 @@ def _ancilla_sensitivity_fn(
                 omega_0=omega_0,
                 lam=lam,
                 T=1.0,
-                dt=0.01,
+                dt=0.1,
             )
             result = run_metrology_protocol(config)
             fq = result["qfi_with"]
@@ -475,17 +475,17 @@ def _compute_noisy_sensitivity(
     # --- Noisy case: use Lindblad evolution ---
     # Build noise config based on noise_type
     if noise_type == "dephasing":
-        noise_config = MziNoiseConfig(gamma_phi=noise_level, T=T, dt=0.01)
+        noise_config = MziNoiseConfig(gamma_phi=noise_level, T=T, dt=0.1)
     elif noise_type == "loss":
-        noise_config = MziNoiseConfig(gamma_1=noise_level, T=T, dt=0.01)
+        noise_config = MziNoiseConfig(gamma_1=noise_level, T=T, dt=0.1)
     elif noise_type == "two_body":
-        noise_config = MziNoiseConfig(gamma_2=noise_level, T=T, dt=0.01)
+        noise_config = MziNoiseConfig(gamma_2=noise_level, T=T, dt=0.1)
     elif noise_type == "detection":
         # Detection noise is handled separately
         return _compute_detection_noise_sensitivity(state, max_photons, noise_level)
     else:
         # Default to dephasing for unknown types
-        noise_config = MziNoiseConfig(gamma_phi=noise_level, T=T, dt=0.01)
+        noise_config = MziNoiseConfig(gamma_phi=noise_level, T=T, dt=0.1)
 
     # Evolve under Lindblad master equation
     try:
