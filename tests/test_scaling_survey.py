@@ -20,6 +20,11 @@ from src.analysis.scaling_survey import (
     fit_all_exponents,
     run_scaling_survey,
 )
+from src.physics.mzi_states import (
+    compute_fisher_information,
+    input_state_factory,
+    twin_fock_state,
+)
 
 # Availability check for hybrid-system modules (used in conditional tests)
 try:
@@ -168,7 +173,9 @@ class TestScalingSurveyNoiseChannels:
         # We should get finite values (not inf)
         # Note: some values might be inf if the simulation fails,
         # but at least some should be finite for small N
-        finite_mask = np.isfinite(df["delta_phi"].values) & (df["delta_phi"].values > 0)
+        finite_mask = np.isfinite(df["delta_phi"].to_numpy()) & (
+            df["delta_phi"].to_numpy() > 0
+        )
 
         # Count finite values
         n_finite = int(np.sum(finite_mask))
@@ -215,7 +222,9 @@ class TestScalingSurveyNoiseChannels:
         assert 1.0 in noise_levels
 
         # At least some finite values
-        finite_mask = np.isfinite(df["delta_phi"].values) & (df["delta_phi"].values > 0)
+        finite_mask = np.isfinite(df["delta_phi"].to_numpy()) & (
+            df["delta_phi"].to_numpy() > 0
+        )
         assert np.sum(finite_mask) > 0
 
     def test_two_body_loss_configuration(self) -> None:
@@ -240,6 +249,149 @@ class TestScalingSurveyNoiseChannels:
         # Should not raise
         df = run_scaling_survey([model], survey_config)
         assert len(df) > 0
+
+
+class TestQfiValidation:
+    """Validate QFI values for known states under the J_z generator convention.
+
+    The survey convention uses J_z = (n₁ - n₂)/2 as the phase generator.
+    Reference values under this convention:
+        NOON:        F_Q = N²,             Δφ = 1/N
+        Twin-Fock:   F_Q ≈ N²/2,           Δφ ≈ √2/N
+        Coherent:    F_Q = N,              Δφ = 1/√N  (SQL)
+        Squeezed vacuum: F_Q = 2⟨N⟩(⟨N⟩+1), Δφ = 1/√(2⟨N⟩(⟨N⟩+1))
+    """
+
+    def test_noon_qfi_scales_as_N_squared(self) -> None:
+        """F_Q = N² for NOON states (Heisenberg limit)."""
+        for N in [2, 4, 8, 16]:
+            state = input_state_factory("noon", N=N)
+            max_photons = N
+            F_Q = compute_fisher_information(state, max_photons)
+            expected = float(N**2)
+            assert np.isclose(F_Q, expected, rtol=1e-10), (
+                f"N={N}: F_Q={F_Q}, expected {expected}"
+            )
+
+    def test_noon_delta_phi_scales_as_one_over_N(self) -> None:
+        """Δφ = 1/N for NOON states."""
+        for N in [2, 4, 8, 16]:
+            state = input_state_factory("noon", N=N)
+            max_photons = N
+            F_Q = compute_fisher_information(state, max_photons)
+            delta = 1.0 / np.sqrt(F_Q)
+            expected = 1.0 / N
+            assert np.isclose(delta, expected, rtol=1e-10), (
+                f"N={N}: Δφ={delta}, expected {expected}"
+            )
+
+    def test_coherent_qfi_scales_as_N(self) -> None:
+        """F_Q = N for coherent states (SQL).
+
+        Uses generous max_photons to capture Poisson tail, and relaxed
+        rtol to allow finite-truncation effects (~1e-3 for N ≤ 16).
+        """
+        for N in [2, 4, 8]:
+            alpha = complex(np.sqrt(N), 0)
+            max_n = max(4 * N, N + 40)  # generous truncation for Poisson tail
+            state = input_state_factory(
+                "coherent",
+                N=0,
+                alpha1=alpha,
+                alpha2=0.0 + 0j,
+                max_photons=max_n,
+            )
+            F_Q = compute_fisher_information(state, max_n)
+            expected = float(N)
+            assert np.isclose(F_Q, expected, rtol=1e-3), (
+                f"N={N}: F_Q={F_Q}, expected {expected}"
+            )
+
+    def test_coherent_delta_phi_sql_scaling(self) -> None:
+        """Δφ = 1/√N for coherent states (SQL)."""
+        for N in [4, 8]:
+            alpha = complex(np.sqrt(N), 0)
+            max_n = max(4 * N, N + 40)
+            state = input_state_factory(
+                "coherent",
+                N=0,
+                alpha1=alpha,
+                alpha2=0.0 + 0j,
+                max_photons=max_n,
+            )
+            F_Q = compute_fisher_information(state, max_n)
+            delta = 1.0 / np.sqrt(F_Q)
+            expected = 1.0 / np.sqrt(N)
+            assert np.isclose(delta, expected, rtol=1e-3), (
+                f"N={N}: Δφ={delta}, expected {expected}"
+            )
+
+    def test_squeezed_vacuum_qfi_formula(self) -> None:
+        """F_Q = 2⟨N⟩(⟨N⟩+1) for squeezed-vacuum states.
+
+        At large ⟨N⟩ ≈ N, this gives F_Q ≈ 2N², so Δφ ≈ 1/(√2 N),
+        exceeding NOON's 1/N by factor 1/√2 in the prefactor.
+
+        Squeezed vacuum has long Poisson-like tails; max_photons must be
+        set large enough (≥ ⟨N⟩ + 6σ) to capture the full distribution
+        for accurate variance computation.
+        """
+        test_cases = [
+            (0.5, 20),  # ⟨N⟩≈0.27, σ≈0.83 → 5+ terms, 0.5% truncation error
+            (1.0, 40),  # ⟨N⟩≈1.38, σ≈2.56 → 20 terms, <0.1% truncation error
+        ]
+        for r, max_n in test_cases:
+            expected_N = float(np.sinh(r) ** 2)  # mean photon number
+            state = input_state_factory(
+                "squeezed_vacuum",
+                N=0,
+                r=r,
+                phi_sv=0.0,
+                max_photons=max_n,
+            )
+            F_Q = compute_fisher_information(state, max_n)
+            expected_F_Q = 2.0 * expected_N * (expected_N + 1.0)
+            # Relaxed tolerance: finite truncation of squeezed vacuum
+            # tail leads to ~1% error in F_Q even with generous max_photons
+            assert np.isclose(F_Q, expected_F_Q, rtol=1e-2), (
+                f"r={r}, ⟨N⟩={expected_N:.6f}: F_Q={F_Q}, expected {expected_F_Q}"
+            )
+
+    def test_twin_fock_qfi_scaling(self) -> None:
+        """F_Q = N(N+2)/3 for the uniform-superposition Twin-Fock state.
+
+        The code implements Twin-Fock as the uniform superposition
+        ∑|n,N-n⟩/√(N+1), not the |N/2,N/2⟩ Fock state.  Under the J_z
+        generator convention, this gives Var(J_z) = N(N+2)/12 and
+        F_Q = N(N+2)/3 ≈ N²/3 (SQL scaling).
+        """
+        for N in [2, 4, 8]:
+            if N % 2 != 0:
+                continue
+            state = twin_fock_state(N)
+            F_Q = compute_fisher_information(state, N)
+            expected = N * (N + 2) / 3.0
+            assert np.isclose(F_Q, expected, rtol=1e-10), (
+                f"N={N}: F_Q={F_Q}, expected {expected}"
+            )
+
+    def test_sss_state_now_scales_with_N(self) -> None:
+        """SSS state (single-photon split) scales with N after factory fix.
+
+        State: (|N-1, 1⟩ + |1, N-1⟩)/√2.
+        J_z eigenvalues: ±(N-2)/2.
+        Var(J_z) = (N-2)²/4,  F_Q = 4·Var(J_z) = (N-2)².
+
+        For N=2: |1,1⟩ → J_z eigenstate → Var(J_z)=0 → F_Q=0.
+        For N=4: (|3,1⟩+|1,3⟩)/√2 → F_Q = (4-2)² = 4.
+        """
+        for N in [2, 4, 8]:
+            state = input_state_factory("sss", N=N)
+            F_Q = compute_fisher_information(state, N)
+            expected = float((N - 2) ** 2)
+            assert np.isclose(F_Q, expected, rtol=1e-10), (
+                f"N={N}: F_Q={F_Q}, expected {expected}"
+            )
 
 
 class TestSurveyModelFactories:
@@ -322,7 +474,9 @@ class TestSurveyModelFactories:
             seed=42,
         )
         df = run_scaling_survey([model], survey_config)
-        finite_mask = np.isfinite(df["delta_phi"].values) & (df["delta_phi"].values > 0)
+        finite_mask = np.isfinite(df["delta_phi"].to_numpy()) & (
+            df["delta_phi"].to_numpy() > 0
+        )
         assert int(np.sum(finite_mask)) > 0
 
 

@@ -326,7 +326,7 @@ def _max_photons_for_state(state_type: str, N: int) -> int:
     # States that need larger Hilbert space for Poisson tails
     coherent_like = {"css", "coherent", "squeezed_vacuum"}
     if state_type in coherent_like:
-        # Use 4×N to capture Poisson tail (covers 3σ for N≥4)
+        # Use max(2*N, N+20) to capture Poisson tail
         return max(2 * N, N + 20)
     return N
 

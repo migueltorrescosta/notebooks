@@ -2,10 +2,12 @@
 Mach-Zehnder Interferometer Input States.
 
 Physical Model:
-- Twin-Fock: |N/2, N/2⟩_Fock = |J, 0⟩_Dicke (balanced two-mode Fock)
 - NOON: (|N, 0⟩ + |0, N⟩)/√2 = (|J, J⟩ + |J, -J⟩)/√2
-- Twin-Fock Fisher information: F_Q = N²(1+1/N)/2 ≈ N²/2
-- NOON achieves Heisenberg limit F_Q = N²
+  NOON achieves Heisenberg limit F_Q = N² under the J_z generator.
+- Twin-Fock (uniform superposition): ∑|n, N-n⟩/√(N+1)
+  Under the J_z generator: F_Q = N(N+2)/3 ≈ N²/3 (SQL scaling).
+  Note: this differs from the standard twin-Fock |N/2, N/2⟩ state
+  which has Var(J_z) = 0 before BS1.
 
 Hilbert Space:
 - Two-mode Fock basis with max N photons (dimension: (N+1)²)
@@ -34,23 +36,21 @@ from src.utils.validators import validate_state_mzi
 
 
 def twin_fock_state(N: int, max_photons: int | None = None) -> np.ndarray:
-    """Twin-Fock state |J, 0⟩_Dicke for even N.
-
-    The Twin-Fock state is implemented as the symmetric Dicke state |J, 0⟩
-    which is the uniform superposition over all N+1 permutations:
+    """Twin-Fock state as the uniform superposition over all |n, N-n⟩.
 
     |ψ⟩ = (1/√(N+1)) × ∑_{n=0}^N |n, N-n⟩
 
-    This is equivalent to |J, 0⟩_Dicke where J = N/2.
+    This is the symmetric state with zero mean population imbalance,
+    sometimes called the "Dicke state" or "balanced superposition"
+    in the Fock basis (distinct from the standard twin-Fock |N/2, N/2⟩).
 
-    This state has:
-    - ⟨J_z⟩ = 0 (symmetric)
-    - Var(J_z) = N(N+2)/4
-    - Fisher information: F_Q = N²(1+1/N)/2 → N²/2 for large N
-    - Achieves Heisenberg scaling with sub-leading 1/N correction
+    Under the J_z generator convention used in this codebase:
+        - ⟨J_z⟩ = 0 (symmetric)
+        - Var(J_z) = N(N+2)/12
+        - F_Q = 4·Var(J_z) = N(N+2)/3 ≈ N²/3 for large N (SQL scaling)
 
     Args:
-        N: Total photon number.
+        N: Total photon number (must be even).
         max_photons: Maximum photon number per mode. If None, uses N.
 
     Returns:
@@ -291,6 +291,9 @@ def input_state_factory(
     - "single_photon_split": (|N-1,1⟩ + |1,N-1⟩)/√2
     - "fock": Simple Fock state |N, 0⟩
     - "squeezed_vacuum": Single-mode squeezed vacuum (use r, phi_kwargs)
+    - "sss": Single-photon split state (|N-1,1⟩ + |1,N-1⟩)/√2 with N total
+            photons. Requires N >= 2. Formerly hard-coded to N=2; now scales
+            with the survey N parameter for meaningful scaling analysis.
 
     Args:
         state_type: Type of state to create.
@@ -345,13 +348,19 @@ def input_state_factory(
             else:
                 return coherent_state_two_mode(alpha, 0.0 + 0j, max_photons)
         case "sss":
-            # Single photon split for any N (treated as N=2 case)
-            if max_photons is None:
-                return single_photon_split_state(2)
-            else:
-                return single_photon_split_state(2, max_photons)
+            # Single-photon split state (|N-1, 1⟩ + |1, N-1⟩)/√2.
+            # Uses N as the total photon number; N must be >= 2.
+            # For N=2 this yields |1,1⟩ (single Fock state).
+            effective_max = max(N, max_photons or N)
+            return single_photon_split_state(N, effective_max)
         case "squeezed_vacuum":
-            r = kwargs.get("r", 0.5)
+            # Default: scale r so mean photon number ⟨N⟩ = sinh²(r) = N
+            # (resource normalization: same ⟨N⟩ across compared states).
+            # Override by passing r explicitly via kwargs.
+            if "r" not in kwargs:
+                r = float(np.arcsinh(np.sqrt(max(N, 1))))
+            else:
+                r = kwargs["r"]
             phi_sv = kwargs.get("phi_sv", 0.0)
             effective_max = max(N, max_photons or N)
             return squeezed_vacuum_state(r, phi_sv, effective_max)
@@ -427,30 +436,39 @@ def compute_jz_variance(state: np.ndarray, max_photons: int) -> float:
 
 
 def compute_fisher_information(state: np.ndarray, max_photons: int) -> float:
-    """Compute QFI for phase estimation in two-mode system.
+    """Compute QFI for phase estimation using the number-difference generator J_z.
 
-    For the two-mode interferometer with phase shift on mode 1,
-    the QFI for estimating phase φ is:
+    The convention in this codebase is to use J_z = (n₁ - n₂)/2 as the
+    phase generator for the QFI computation. For the MZI with phase shift
+    on mode 1 (generator n₂), this convention produces:
 
-    F_Q = 4 * Var(n₁) = 4 * Var(J_z + N/2) = 4 * Var(J_z)
+        F_Q = 4 · Var(J_z) = Var(n₁ - n₂)
 
-    This assumes the optimal measurement (photon number counting in one output port).
+    which matches the error-propagation sensitivity from number-difference
+    measurements. The resulting scaling exponents α are correct across all
+    state types, but absolute prefactors may differ from the n₂-generator
+    convention by constant factors.
 
-    For NOON states: F_Q = N² (Heisenberg limit)
-    For Twin-Fock: F_Q = N²(1+1/N)/2 ≈ N²/2
+    For definite-N states (NOON, Twin-Fock, Fock), Var(J_z) = Var(n₂) so
+    the conventions coincide exactly.
+
+    Reference values under this convention:
+        NOON:        F_Q = N²          (Heisenberg limit)
+        Twin-Fock:   F_Q = N²(1+1/N)/2 ≈ N²/2
+        Coherent:    F_Q = N           (SQL)
+        Squeezed vacuum: F_Q = 2⟨N⟩(⟨N⟩+1)
 
     Args:
         state: Pure state vector.
         max_photons: Maximum photon number per mode.
 
     Returns:
-        Quantum Fisher information for phase estimation.
+        Quantum Fisher information for phase estimation under the J_z
+        generator convention.
     """
-    # F_Q = 4 * Var(n_mode1) = 4 * Var(n1)
-    # Since n1 = J_z + N/2, Var(n1) = Var(J_z)
     jz_var = compute_jz_variance(state, max_photons)
 
-    # For standard MZI with phase in mode 1, F_Q = 4 * Var(n1)
+    # F_Q = 4 · Var(J_z) under the J_z generator convention
     return 4.0 * jz_var
 
 
