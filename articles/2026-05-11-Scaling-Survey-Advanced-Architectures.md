@@ -47,7 +47,7 @@ Lindblad for pseudomode: $L_{\text{PM}} = \sqrt{\lambda}\,(I_{\text{osc}} \otime
 
 **Regimes**: $\lambda \to \infty$ → Markovian (rate $\gamma_{\text{eff}} = g_{\text{sp}}^2/\lambda$); $\lambda \to 0$ → deeply non-Markovian (coherent oscillations in QFI).
 
-**Implementation**: `pseudomode_system.py`. This module computes QFI preservation ratios $\mathcal{R}(T) = F_Q(T)/F_Q(0)$ with and without ancilla. Scaling sweeps (Δφ vs N) are not currently implemented in this module — see note below.
+**Implementation**: `pseudomode_system.py`. This module computes QFI preservation ratios $\mathcal{R}(T) = F_Q(T)/F_Q(0)$ with and without ancilla. Scaling sweeps (Δφ vs N) are not directly implemented in the physics module itself, but the survey pipeline in `scaling_survey.py` bridges this by converting $F_Q \to \Delta\phi = 1/\sqrt{F_Q}$ via `_ancilla_sensitivity_fn`, enabling exponent fitting.
 
 ### Model 2: Thermal Noise (Langevin)
 
@@ -79,7 +79,7 @@ $$\Delta\phi_{\text{th}} = \sqrt{\frac{2k_B T \Gamma}{m\omega_m^2 N}},\quad
 $$\text{Noise}(\gamma, \mathcal{F}) \approx \mathcal{F} \times \text{Noise}(\gamma, 1)$$
 This is valid when $\gamma_i \ll \phi$ per pass (small noise relative to phase per pass).
 
-**Implementation**: `cavity_mzi.py::cavity_enhanced_mzi` (returns state vector; sensitivity $\Delta\phi$ must be computed externally via QFI/CFI on the returned state).
+**Implementation**: `cavity_mzi.py` provides `cavity_enhanced_mzi` for state-vector evolution and `cavity_enhanced_sensitivity(N, $\phi$, config)` for direct sensitivity computation via QFI on the output state.
 
 ### Model 4: Distributed Array Interferometer
 
@@ -115,12 +115,12 @@ This is valid when $\gamma_i \ll \phi$ per pass (small noise relative to phase p
 
 | Model | Solver Type | Expected $\alpha$ | Scaling Sweep Integration | Implementation |
 |---|---|---|---|---|---|
-| Non-Markovian bath (Lorentzian) | Pseudomode ODE | (tentative — not computed; module reports $F_Q$ ratios) | ❌ Not yet integrated into `scaling_survey.py` | `pseudomode_system.py` ✅ |
-| Thermal noise (Langevin) | Normalized analytical | $0$ (thermal floor) or $-0.5$ (SQL regime); cross-over at $N_{\text{co}}$ | ⚠️ Special-case hack in page (not via `run_scaling_survey`) | `thermal_langevin.py` (normalized model — physical susceptibility functions are defined but unused in production) |
-| Cavity-enhanced MZI | Unitary (returns state) | $-0.5$, $C = 1/\sqrt{\mathcal{F}}$ | ❌ `cavity_mzi.py` returns state vector only — no $\Delta\phi(N)$ sweep | `cavity_mzi.py` ✅ |
-| Distributed array | Analytical (multi-MZI) | $-0.5$ (classical, $\sqrt{M}$) or $-1.0$ (entangled, $M$) | ❌ Not integrated; `distributed_mzi_sensitivity` returns $\Delta\phi$ but `scaling_survey.py` does not call it | `distributed_mzi.py` ✅ |
-| Dynamical decoupling | Filter function | $-0.5$, $C \propto (T_2^{\text{(DD)}}/T)^{-1/2}$ | ❌ Not integrated; `dd_sensitivity_scaling` computes $\Delta\phi$ but `scaling_survey.py` does not call it | `dynamical_decoupling.py` ✅ |
-| Tilt-to-length noise | Geometric model | $0$ (noise floor); $C = \theta_{\text{rms}}L/\lambda$ | ❌ Not integrated; `ttl_scaling_sweep` computes $\Delta\phi$ but `scaling_survey.py` does not call it | `tilt_to_length_noise.py` ✅ |
+| Non-Markovian bath (Lorentzian) | Pseudomode ODE | Tentative — module reports $F_Q$ ratios; `scaling_survey.py` converts to $\Delta\phi = 1/\sqrt{F_Q}$ | ✅ Integrated via `_ancilla_sensitivity_fn` in `scaling_survey.py`; included in `create_default_survey` | `pseudomode_system.py` ✅ |
+| Thermal noise (Langevin) | Normalized analytical | $0$ (thermal floor) or $-0.5$ (SQL regime); cross-over at $N_{\text{co}}$ | ✅ Standard `custom_sensitivity_fn` via `run_scaling_survey` | `thermal_langevin.py` (normalized model — physical susceptibility functions are defined but unused in production) |
+| Cavity-enhanced MZI | Unitary (state vector + QFI) | $-0.5$, $C = 1/\sqrt{\mathcal{F}}$ | ✅ `cavity_enhanced_sensitivity(N, ...)` computes $\Delta\phi(N)$ directly; integrated via `custom_sensitivity_fn` | `cavity_mzi.py` ✅ |
+| Distributed array | Analytical (multi-MZI) | $-0.5$ (classical, $\sqrt{M}$) or $-1.0$ (entangled, $M$) | ✅ Integrated via `custom_sensitivity_fn` in page pipeline (both classical and entangled variants) | `distributed_mzi.py` ✅ |
+| Dynamical decoupling | Filter function | $-0.5$, $C \propto (T_2^{\text{(DD)}}/T)^{-1/2}$ | ✅ Integrated via `custom_sensitivity_fn` in page pipeline | `dynamical_decoupling.py` ✅ |
+| Tilt-to-length noise | Geometric model | $0$ (noise floor); $C = 2\pi \cdot \theta_{\text{rms}} x_{\text{offset}} / \lambda$ | ✅ Integrated via `custom_sensitivity_fn` in page pipeline | `tilt_to_length_noise.py` ✅ |
 
 ---
 
@@ -132,12 +132,12 @@ Each model uses a different numerical approach:
 
 | Model | Method | Key Parameters | $N$ Range | Scaling Sweep Available? |
 |---|---|---|---|---|---|
-| Non-Markovian | Pseudomode ODE: $d\rho/dt = -i[H,\rho] + \mathcal{D}[\sqrt{\lambda}b]$ | $g_{\text{sp}}, \lambda, \omega_0$ | $N \leq 30$ (full density matrix) | ❌ Only $F_Q$ ratios per $N$; no $\Delta\phi$ vs $N$ sweep |
-| Thermal noise | Evaluate normalized analytical formula per $N$ | $S$ (strength), $\alpha_{\text{th}}$ (exponent) | $N \in [1, 10^6]$ (no Hilbert space) | ⚠️ Page-level special case; not via `run_scaling_survey` |
-| Cavity-enhanced | Full unitary (state vector); $\Delta\phi$ via external QFI | $\mathcal{F}$ | $N \in [1, 10^4]$ | ❌ No $\Delta\phi(N)$ function in module |
-| Distributed array | Analytical sensitivity formula | $M$ | $N \in [1, 10^4]$ | ❌ `distributed_mzi_sensitivity` returns $\Delta\phi$; not wired into survey |
-| Dynamical decoupling | Filter-function → $T_2^{(\text{DD})}$ → sensitivity | $n_\pi$, pulse sequence | $N \in [1, 10^4]$ | ❌ `dd_sensitivity_scaling` computes $\Delta\phi$; not wired into survey |
-| Tilt-to-length | $\theta_{\text{rms}} \cdot x_{\text{offset}} / \lambda$ floor | $\theta_{\text{rms}}, x_{\text{offset}}, \lambda$ | $N \in [1, 10^4]$ | ❌ `ttl_scaling_sweep` computes $\Delta\phi$; not wired into survey |
+| Non-Markovian | Pseudomode ODE: $d\rho/dt = -i[H,\rho] + \mathcal{D}[\sqrt{\lambda}b]$ | $g_{\text{sp}}, \lambda, \omega_0$ | $N \leq 30$ (full density matrix) | ✅ $\Delta\phi = 1/\sqrt{F_Q}$ via survey pipeline; module reports $F_Q$ ratios |
+| Thermal noise | Evaluate normalized analytical formula per $N$ | $S$ (strength), $\alpha_{\text{th}}$ (exponent) | $N \in [1, 10^6]$ (no Hilbert space) | ✅ Standard `custom_sensitivity_fn` via `run_scaling_survey` |
+| Cavity-enhanced | Full unitary (state vector); $\Delta\phi$ via QFI | $\mathcal{F}$ | $N \in [1, 10^4]$ | ✅ `cavity_enhanced_sensitivity(N, ...)` computes $\Delta\phi$; integrated via `custom_sensitivity_fn` |
+| Distributed array | Analytical sensitivity formula | $M$ | $N \in [1, 10^4]$ | ✅ `distributed_mzi_sensitivity` returns $\Delta\phi$; wired via `custom_sensitivity_fn` |
+| Dynamical decoupling | Filter-function → $T_2^{(\text{DD})}$ → sensitivity | $n_\pi$, pulse sequence | $N \in [1, 10^4]$ | ✅ `dd_sensitivity_scaling` computes $\Delta\phi$; wired via `custom_sensitivity_fn` |
+| Tilt-to-length | $2\pi \cdot \theta_{\text{rms}} x_{\text{offset}} / \lambda$ (constant floor) | $\theta_{\text{rms}}, x_{\text{offset}}, \lambda$ | $N \in [1, 10^4]$ | ✅ `ttl_scaling_sweep` computes $\Delta\phi$; wired via `custom_sensitivity_fn` |
 
 ### Parameter Sweep
 
@@ -155,7 +155,7 @@ assert np.isclose(np.trace(rho), 1.0, atol=1e-10)
 # Thermal: SQL limit consistency (sql_sensitivity in thermal_langevin.py)
 assert np.isclose(sql_sensitivity(N), 1/np.sqrt(N), rtol=1e-10)
 
-# Cavity: finesse scaling (via cavity_enhanced_mzi — must compute Δφ externally)
+# Cavity: finesse scaling (via cavity_enhanced_sensitivity — returns Δφ directly)
 # Δφ = 1/sqrt(F * N) is the analytical expectation
 # assert np.isclose(delta_phi * np.sqrt(F * N), 1.0, rtol=1e-10)
 
