@@ -24,6 +24,7 @@ from .hybrid_system import (
     oscillator_power,
     hybrid_operator,
     hybrid_hamiltonian_n,
+    hybrid_ground_state_n,
     hybrid_vacuum_state,
     hybrid_coherent_state,
     adaptive_truncation,
@@ -379,3 +380,75 @@ class TestUnitaryEvolution:
         T = 0.5
         U = scipy.linalg.expm(-1j * H * T)
         assert U.shape == (2 * (N + 1), 2 * (N + 1))
+
+
+# =============================================================================
+# Test Ground State
+# =============================================================================
+
+
+class TestHybridGroundState:
+    """Tests for hybrid_ground_state_n."""
+
+    def test_ground_state_dimension(self) -> None:
+        """Ground state should have correct dimension."""
+        N = 6
+        for n_order in (2, 3, 4):
+            gs = hybrid_ground_state_n(N, n=n_order, omega_n=0.5, theta_n=0.0)
+            expected_dim = 2 * (N + 1)
+            assert gs.shape == (expected_dim,), (
+                f"n={n_order}: expected dim {expected_dim}, got {gs.shape}"
+            )
+
+    def test_ground_state_normalized(self) -> None:
+        """Ground state should be normalised to 1."""
+        N = 6
+        for n_order in (2, 3, 4):
+            gs = hybrid_ground_state_n(N, n=n_order, omega_n=0.5, theta_n=0.0)
+            assert np.isclose(np.linalg.norm(gs), 1.0, atol=1e-10), (
+                f"n={n_order}: norm not preserved"
+            )
+
+    def test_ground_state_is_lowest_eigenvector(self) -> None:
+        """Ground state should be the lowest eigenvector of H_n."""
+        N = 5
+        n_order = 2
+        omega_n = 1.0
+        theta_n = 0.0
+        H = hybrid_hamiltonian_n(N, n_order, omega_n, theta_n)
+        eigenvalues, eigenvectors = np.linalg.eigh(H)
+        gs = hybrid_ground_state_n(N, n_order, omega_n, theta_n)
+
+        # The ground state should match the eigenvector for the smallest
+        # eigenvalue (up to global phase)
+        expected_gs = eigenvectors[:, 0]
+        overlap = np.abs(np.vdot(expected_gs, gs))
+        assert np.isclose(overlap, 1.0, atol=1e-10), (
+            f"Overlap with lowest eigenvector: {overlap:.2e}"
+        )
+
+    def test_ground_state_energy(self) -> None:
+        """Ground state energy should be the minimum eigenvalue."""
+        N = 5
+        for n_order in (2, 3, 4):
+            H = hybrid_hamiltonian_n(N, n_order, omega_n=0.5, theta_n=0.0)
+            eigenvalues = np.linalg.eigvalsh(H)
+            gs = hybrid_ground_state_n(N, n_order, omega_n=0.5, theta_n=0.0)
+            gs_energy = np.real(np.vdot(gs, H @ gs))
+            assert np.isclose(gs_energy, eigenvalues[0], atol=1e-10), (
+                f"n={n_order}: GS energy {gs_energy:.6e} != min eigenvalue {eigenvalues[0]:.6e}"
+            )
+
+    def test_invalid_order_raises(self) -> None:
+        """Invalid order should raise ValueError."""
+        with pytest.raises(ValueError, match="Unsupported order"):
+            hybrid_ground_state_n(N=5, n=5, omega_n=0.5, theta_n=0.0)
+
+    def test_ground_state_differs_from_vacuum(self) -> None:
+        """For non-trivial omega_n, the ground state should differ from |0,↓⟩."""
+        N = 5
+        gs = hybrid_ground_state_n(N, n=2, omega_n=1.0, theta_n=0.0)
+        vac = hybrid_vacuum_state(N, spin_state="down")
+        overlap = np.abs(np.vdot(vac, gs))
+        # For sufficiently strong coupling, the ground state is not vacuum
+        assert overlap < 1.0, "Ground state should differ from bare vacuum"

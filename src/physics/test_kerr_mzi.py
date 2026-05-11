@@ -229,7 +229,7 @@ class TestKerrPhaseSensitivity:
         for N in [1, 2, 3]:
             F_no_kerr = compute_kerr_phase_sensitivity(N, 0.0, 0.0)
             F_kerr = compute_kerr_phase_sensitivity(N, 0.5, 1.0)
-            assert np.isclose(F_no_kerr, F_kerr), f"QFI should be same with Kerr"
+            assert np.isclose(F_no_kerr, F_kerr), "QFI should be same with Kerr"
 
     def test_qfi_independent_of_chi(self) -> None:
         """QFI should not depend on chi for different values."""
@@ -280,7 +280,10 @@ class TestKerrInterferenceFringe:
             phases, chi=0.0, T=1.0, max_photons=3, N=3
         )
         fringe_explicit = compute_kerr_interference_fringe(
-            phases, chi=0.0, T=1.0, max_photons=3,
+            phases,
+            chi=0.0,
+            T=1.0,
+            max_photons=3,
             initial_state=noon_state(3, max_photons=3),
         )
         assert np.allclose(fringe_default, fringe_explicit)

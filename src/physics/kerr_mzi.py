@@ -106,17 +106,11 @@ def kerr_phase_shift_unitary(
         True
     """
     if max_photons < 0:
-        raise ValueError(
-            f"max_photons must be non-negative, got {max_photons}"
-        )
+        raise ValueError(f"max_photons must be non-negative, got {max_photons}")
     if chi < 0:
-        raise ValueError(
-            f"Kerr nonlinearity chi must be non-negative, got {chi}"
-        )
+        raise ValueError(f"Kerr nonlinearity chi must be non-negative, got {chi}")
     if T < 0:
-        raise ValueError(
-            f"Evolution time T must be non-negative, got {T}"
-        )
+        raise ValueError(f"Evolution time T must be non-negative, got {T}")
 
     dim = (max_photons + 1) ** 2
     U = np.zeros((dim, dim), dtype=complex)
@@ -469,7 +463,13 @@ def compute_kerr_interference_fringe(
     probs = []
     for phi in phase_range:
         state = kerr_mzi(
-            initial_state, phi, chi, T, max_photons, theta, phi_bs,
+            initial_state,
+            phi,
+            chi,
+            T,
+            max_photons,
+            theta,
+            phi_bs,
         )
         p0, _ = compute_kerr_output_probabilities(state, max_photons)
         probs.append(p0)

@@ -25,7 +25,6 @@ References:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -154,9 +153,7 @@ def distributed_mzi_sensitivity(
         True
     """
     if N_per_sensor <= 0:
-        raise ValueError(
-            f"Photon number per sensor must be > 0, got {N_per_sensor}"
-        )
+        raise ValueError(f"Photon number per sensor must be > 0, got {N_per_sensor}")
 
     # Default noise config
     if noise_config is None:
@@ -216,7 +213,7 @@ def distributed_mzi_sensitivity(
 
         # Compute Fisher information components
         f_independent = (M * N_per_sensor) ** 2
-        f_correlated = N_per_sensor ** 2
+        f_correlated = N_per_sensor**2
 
         # Interpolate with correlation parameter
         f_eff = (1 - c) * f_independent + c * f_correlated
@@ -229,12 +226,16 @@ def distributed_mzi_sensitivity(
 
         # Component breakdown
         if M > 1:
-            var_independent = 1.0 / (eta_eff * f_independent) if f_independent > 0 else 0
+            var_independent = (
+                1.0 / (eta_eff * f_independent) if f_independent > 0 else 0
+            )
             var_independent = (1 - c) * var_independent
         else:
             var_independent = (1 - c) * var_quantum if c < 1 else 0
 
-        var_correlated = c / (eta_eff * f_correlated) if (f_correlated > 0 and eta_eff > 0) else 0
+        var_correlated = (
+            c / (eta_eff * f_correlated) if (f_correlated > 0 and eta_eff > 0) else 0
+        )
 
         # Add dephasing
         total_variance = var_quantum + dephasing_variance
@@ -393,8 +394,12 @@ def effective_scaling_at_N(
 
     phi_test = 0.0
 
-    result_plus = distributed_mzi_sensitivity(N_plus_int, phi_test, config, noise_config)
-    result_minus = distributed_mzi_sensitivity(N_minus_int, phi_test, config, noise_config)
+    result_plus = distributed_mzi_sensitivity(
+        N_plus_int, phi_test, config, noise_config
+    )
+    result_minus = distributed_mzi_sensitivity(
+        N_minus_int, phi_test, config, noise_config
+    )
 
     # log-log derivative
     log_N_plus = np.log(N_plus_int)

@@ -18,6 +18,12 @@ Conventions:
 - Spin operators: σ_x, σ_y, σ_z (Pauli matrices)
 - Oscillator operators: a, a† with [a, a†] = 1
 - Phase convention: H = Ω/2 (a^n e^{-iθ} + a^†n e^{iθ})
+
+Functions:
+- ``hybrid_hamiltonian_n`` — construct n-th order squeezing Hamiltonian
+- ``hybrid_ground_state_n`` — lowest-energy eigenstate via exact diagonalisation
+- ``hybrid_vacuum_state``, ``hybrid_coherent_state`` — state preparation
+- ``adaptive_truncation`` — Fock-basis size from mean-photon safety margin
 """
 
 import numpy as np
@@ -201,6 +207,52 @@ def hybrid_hamiltonian_n(
 # =============================================================================
 # State Preparation
 # =============================================================================
+
+
+def hybrid_ground_state_n(
+    N: int,
+    n: int,
+    omega_n: float,
+    theta_n: float,
+    phi: float = 0.0,
+) -> np.ndarray:
+    """Compute the ground state of the n-th order hybrid Hamiltonian.
+
+    Finds the eigenvector with the smallest eigenvalue of H_n via exact
+    diagonalisation. The ground state is the lowest-energy state for the
+    given Hamiltonian parameters.
+
+    For n=2 or n=4, H_n couples oscillator number states of the same parity
+    (Δn = ±n steps). For n=3, the spin operator is σ_{φ+π/2} which couples
+    both spin states.
+
+    Args:
+        N: Maximum photon number (truncation). Hilbert space dimension
+            is 2(N+1).
+        n: Squeezing order (2, 3, or 4).
+        omega_n: Squeezing rate Ω_n.
+        theta_n: Squeezing phase θ_n.
+        phi: Base phase for σ_φ (default 0.0; only used for n=3).
+
+    Returns:
+        Ground state vector of shape (2(N+1),), normalised to 1.
+
+    Raises:
+        ValueError: If n is not 2, 3, or 4.
+        np.linalg.LinAlgError: If the eigendecomposition fails.
+
+    Example:
+        >>> N = 10
+        >>> gs = hybrid_ground_state_n(N, n=2, omega_n=1.0, theta_n=0.0)
+        >>> gs.shape
+        (22,)
+        >>> np.isclose(np.linalg.norm(gs), 1.0)
+        True
+    """
+    H = hybrid_hamiltonian_n(N, n, omega_n, theta_n, phi)
+    eigenvalues, eigenvectors = np.linalg.eigh(H)
+    # Smallest eigenvalue → ground state
+    return eigenvectors[:, 0].copy()
 
 
 def hybrid_vacuum_state(N: int, spin_state: str = "down") -> np.ndarray:
