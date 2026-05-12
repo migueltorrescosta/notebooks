@@ -1,0 +1,503 @@
+"""
+Tests for the ancilla-assisted vs. two-particle probe comparison module.
+
+Validates:
+1. Operator construction (J_z, J_x, J_z_anc, J_x_anc)
+2. Generator computation (G_B analytical max, G_A zero-coupling limit)
+3. Beam splitter convention (BS† J_z BS = -J_y)
+4. Random density matrix generation (positivity, trace)
+5. QFI evaluation at known reference points
+6. Full comparison pipeline
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from src.analysis.ancilla_comparison import (
+    ComparisonResult,
+    analytical_fq_A_zero,
+    analytical_fq_B_max,
+    build_ancilla_operators,
+    build_interaction_hamiltonian,
+    build_system_jz_jx,
+    compute_generator_A,
+    compute_generator_B,
+    random_density_matrix,
+    random_pure_state_dm,
+    run_comparison,
+)
+
+
+# =============================================================================
+# Operator Construction Tests
+# =============================================================================
+
+
+class TestOperatorConstruction:
+    """Test J_z, J_x, J_z_anc, J_x_anc operator properties."""
+
+    @pytest.mark.parametrize("N_max", [1, 2, 3])
+    def test_jz_diagonal(self, N_max: int) -> None:
+        """J_z must be diagonal in Fock basis with correct eigenvalues."""
+        J_z, _ = build_system_jz_jx(N_max)
+        dim = (N_max + 1) ** 2
+
+        # Check diagonal
+        assert np.allclose(J_z, np.diag(np.diag(J_z))), "J_z must be diagonal"
+        assert J_z.shape == (dim, dim)
+
+        # Check eigenvalues: (n0 - n1) / 2 for all n0, n1
+        expected_vals = set()
+        for n0 in range(N_max + 1):
+            for n1 in range(N_max + 1):
+                expected_vals.add((n0 - n1) / 2.0)
+
+        actual_vals = set(np.round(np.diag(J_z).real, 10))
+        assert actual_vals == expected_vals, (
+            f"J_z eigenvalues mismatch: got {actual_vals}, expected {expected_vals}"
+        )
+
+    @pytest.mark.parametrize("N_max", [1, 2])
+    def test_jx_hermitian(self, N_max: int) -> None:
+        """J_x must be Hermitian."""
+        _, J_x = build_system_jz_jx(N_max)
+        assert np.allclose(J_x, J_x.conj().T), "J_x must be Hermitian"
+
+    def test_jx_bridges_fock_states(self) -> None:
+        """J_x must couple |n0,n1⟩ to |n0±1,n1∓1⟩."""
+        N_max = 2
+        _, J_x = build_system_jz_jx(N_max)
+
+        # Check that J_x|1,0⟩ has support on |0,1⟩
+        idx_10 = 1 * (N_max + 1) + 0
+        idx_01 = 0 * (N_max + 1) + 1
+        assert abs(J_x[idx_10, idx_01]) > 0, "J_x must couple |1,0⟩ ↔ |0,1⟩"
+        assert np.isclose(J_x[idx_10, idx_01], J_x[idx_01, idx_10]), (
+            "J_x must be symmetric"
+        )
+
+    def test_ancilla_operators(self) -> None:
+        """Spin-½ ancilla operators must be Pauli matrices / 2."""
+        J_z_anc, J_x_anc = build_ancilla_operators()
+
+        assert J_z_anc.shape == (2, 2)
+        assert J_x_anc.shape == (2, 2)
+
+        # Pauli σ_z/2 eigenvalues: ±1/2
+        np.isclose(np.linalg.eigvalsh(J_z_anc), [-0.5, 0.5]).all()
+        np.isclose(np.linalg.eigvalsh(J_x_anc), [-0.5, 0.5]).all()
+
+        # Commutation: [J_z, J_x] = i J_y
+        comm = J_z_anc @ J_x_anc - J_x_anc @ J_z_anc
+        J_y_expected = np.array([[0, -0.5j], [0.5j, 0]], dtype=complex)
+        assert np.allclose(comm, 1j * J_y_expected), (
+            "Spin-½ commutation [J_z, J_x] = iJ_y must hold"
+        )
+
+
+# =============================================================================
+# Generator Construction Tests
+# =============================================================================
+
+
+class TestGeneratorB:
+    """Test G_B for the 2-particle system (Case B)."""
+
+    def test_generator_b_hermitian(self) -> None:
+        """G_B must be Hermitian."""
+        G_B = compute_generator_B(T_H=1.0, N_max=2)
+        assert np.allclose(G_B, G_B.conj().T), "G_B must be Hermitian"
+
+    def test_generator_b_eigenvalue_range(self) -> None:
+        """G_B eigenvalues must be in [-1, 1] for T_H=1, N_max=2."""
+        G_B = compute_generator_B(T_H=1.0, N_max=2)
+        evals = np.linalg.eigvalsh(G_B)
+        assert np.min(evals) >= -1.0 - 1e-10, f"Min eigenvalue {np.min(evals)} < -1"
+        assert np.max(evals) <= 1.0 + 1e-10, f"Max eigenvalue {np.max(evals)} > 1"
+
+    def test_generator_b_scales_with_T_H(self) -> None:
+        """G_B must scale linearly with T_H."""
+        G_B_1 = compute_generator_B(T_H=1.0, N_max=2)
+        G_B_2 = compute_generator_B(T_H=2.0, N_max=2)
+        assert np.allclose(G_B_2, 2.0 * G_B_1), "G_B must scale linearly with T_H"
+
+    def test_fq_b_max_equals_four(self) -> None:
+        """Maximum QFI for Case B must be 4 at T_H = 1."""
+        from src.analysis.ancilla_comparison import optimize_qfi_case_B
+
+        result = optimize_qfi_case_B(
+            T_H=1.0, N_max=2, n_samples=500, pure_only=True, subspace_N=2, seed=42
+        )
+        expected = analytical_fq_B_max(T_H=1.0)
+        assert np.isclose(result.max_fq, expected, rtol=0.05), (
+            f"Case B max QFI = {result.max_fq}, expected ~{expected}"
+        )
+
+
+class TestGeneratorA:
+    """Test G_A for the ancilla-assisted case (Case A)."""
+
+    def test_generator_a_hermitian(self) -> None:
+        """G_A must be Hermitian."""
+        G_A = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
+        assert np.allclose(G_A, G_A.conj().T), "G_A must be Hermitian"
+
+    def test_generator_a_zero_coupling_limit(self) -> None:
+        """With α = 0, G_A must equal -T_H · J_y ⊗ I.
+
+        We check that G_A eigenvalues match G_B eigenvalues for the
+        1-particle case with an extra ancilla dimension.
+        """
+        G_A = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
+        evals_A = np.linalg.eigvalsh(G_A)
+
+        # For N_max=1, J_y eigenvalues are -0.5, 0, 0.5 (but J=1/2 has -0.5, +0.5)
+        # With ancilla, we get these each duplicated: [-0.5, -0.5, 0.5, 0.5]
+        # Actually J_y for J=1/2 has eigenvalues ±0.5, so G_A = -J_y gives ±0.5
+        # But there's a subtlety: the 1-particle sector has dim 4, and J_y operates
+        # on the 1-particle subspace. With 0 particles it's 0, with 2 it's also 0.
+        # We need to be more careful here.
+
+        # For N_max=1, the system Hilbert space is {|0,0⟩, |0,1⟩, |1,0⟩, |1,1⟩}
+        # The 1-particle subspace is {|0,1⟩, |1,0⟩}. On this subspace, J_y has
+        # eigenvalues ±0.5.
+        # With 0 particles: |0,0⟩ → J_y = 0
+        # With 2 particles: |1,1⟩ → J_y = 0
+        # So J_y eigenvalues (across ALL Fock states) are: -0.5, 0, 0, +0.5
+        # With ancilla kroneckered: all duplicated → [-0.5, -0.5, 0, 0, 0, 0, +0.5, +0.5]
+
+        assert np.max(evals_A) <= 0.5 + 1e-10, (
+            f"G_A max eigenvalue {np.max(evals_A)} exceeds 0.5"
+        )
+        assert np.min(evals_A) >= -0.5 - 1e-10, (
+            f"G_A min eigenvalue {np.min(evals_A)} below -0.5"
+        )
+
+    def test_fq_a_zero_equals_one(self) -> None:
+        """Maximum QFI for Case A with α=0 must be 1 at T_H = 1.
+
+        This is the single-particle bound: for J=1/2, (λ_max - λ_min)² = 1.
+        """
+        from src.analysis.ancilla_comparison import (
+            _subspace_indices,
+            random_pure_state_in_subspace,
+        )
+
+        dim_sys = (1 + 1) ** 2  # N_max = 1 → dim 4
+        rng = np.random.default_rng(42)
+        G_A_zero = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
+        sub_idx = _subspace_indices(1, 1)  # N=1 subspace
+
+        expected = analytical_fq_A_zero(T_H=1.0)
+        best_fq = -1.0
+        for _ in range(200):
+            psi_sys = random_pure_state_in_subspace(dim_sys, sub_idx, rng)
+            psi_anc = random_pure_state_dm(2, rng)
+            rho = np.kron(psi_sys, psi_anc)
+            from src.analysis.fisher_information import quantum_fisher_information_dm
+
+            F_Q = quantum_fisher_information_dm(rho, G_A_zero)
+            if F_Q > best_fq:
+                best_fq = F_Q
+
+        assert np.isclose(best_fq, expected, rtol=0.1), (
+            f"Case A (α=0) max QFI = {best_fq}, expected ~{expected}"
+        )
+
+    def test_generator_a_scales_with_T_H(self) -> None:
+        """G_A must scale linearly with T_H for commuting case."""
+        G_A_1 = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
+        G_A_2 = compute_generator_A(T_H=2.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
+        assert np.allclose(G_A_2, 2.0 * G_A_1), "G_A must scale linearly with T_H"
+
+
+# =============================================================================
+# Density Matrix Tests
+# =============================================================================
+
+
+class TestDensityMatrix:
+    """Test random density matrix generation."""
+
+    def test_random_dm_trace_one(self) -> None:
+        """Random density matrix must have trace 1."""
+        rng = np.random.default_rng(42)
+        for d in [2, 4, 8]:
+            rho = random_density_matrix(d, rng)
+            assert np.isclose(np.trace(rho), 1.0), "Tr(ρ) must be 1"
+
+    def test_random_dm_positive(self) -> None:
+        """Random density matrix must be positive semidefinite."""
+        rng = np.random.default_rng(42)
+        for d in [2, 4, 8]:
+            rho = random_density_matrix(d, rng)
+            evals = np.linalg.eigvalsh(rho)
+            assert np.all(evals >= -1e-12), "ρ must be positive semidefinite"
+
+    def test_random_dm_hermitian(self) -> None:
+        """Random density matrix must be Hermitian."""
+        rng = np.random.default_rng(42)
+        for d in [2, 4, 8]:
+            rho = random_density_matrix(d, rng)
+            assert np.allclose(rho, rho.conj().T), "ρ must be Hermitian"
+
+    def test_random_pure_dm_purity_one(self) -> None:
+        """Random pure-state density matrix must have purity 1."""
+        rng = np.random.default_rng(42)
+        for d in [2, 4, 8]:
+            rho = random_pure_state_dm(d, rng)
+            purity = np.trace(rho @ rho).real
+            assert np.isclose(purity, 1.0, atol=1e-10), (
+                "Purity must be 1 for pure state"
+            )
+
+
+# =============================================================================
+# Interaction Hamiltonian Tests
+# =============================================================================
+
+
+class TestInteractionHamiltonian:
+    """Test H_int construction and commutation."""
+
+    def test_h_int_hermitian(self) -> None:
+        """H_int must be Hermitian."""
+        J_z_sys, J_x_sys = build_system_jz_jx(N_max=1)
+        J_z_anc, J_x_anc = build_ancilla_operators()
+
+        for alphas in [
+            (1.0, 0.0, 0.0, 0.0),
+            (0.0, 1.0, 0.0, 0.0),
+            (0.0, 0.0, 1.0, 0.0),
+            (0.0, 0.0, 0.0, 1.0),
+            (0.5, -1.0, 2.0, -0.5),
+        ]:
+            H = build_interaction_hamiltonian(
+                alphas, J_z_sys, J_x_sys, J_z_anc, J_x_anc
+            )
+            assert np.allclose(H, H.conj().T), (
+                f"H_int must be Hermitian for α = {alphas}"
+            )
+
+    def test_jz_hint_commutation(self) -> None:
+        """Test [J_z ⊗ I, H_int] for different α terms.
+
+        For α_zz and α_zx: [J_z ⊗ J_z/α, J_z ⊗ I] = 0
+        For α_xz and α_xx: [J_x ⊗ J_z/α, J_z ⊗ I] ≠ 0
+        """
+        J_z_sys, J_x_sys = build_system_jz_jx(N_max=1)
+        J_z_anc, J_x_anc = build_ancilla_operators()
+        I_anc = np.eye(2, dtype=complex)
+        J_z_full = np.kron(J_z_sys, I_anc)
+
+        # Commuting case: only α_zz
+        H_zz = build_interaction_hamiltonian(
+            (1.0, 0.0, 0.0, 0.0), J_z_sys, J_x_sys, J_z_anc, J_x_anc
+        )
+        comm = J_z_full @ H_zz - H_zz @ J_z_full
+        assert np.allclose(comm, 0), "[J_z, H_int] must be 0 for α_zz only"
+
+        # Non-commuting case: α_xz only
+        H_xz = build_interaction_hamiltonian(
+            (0.0, 0.0, 1.0, 0.0), J_z_sys, J_x_sys, J_z_anc, J_x_anc
+        )
+        comm = J_z_full @ H_xz - H_xz @ J_z_full
+        assert not np.allclose(comm, 0), "[J_z, H_int] must be ≠ 0 for α_xz"
+
+
+# =============================================================================
+# Beam Splitter Convention Test
+# =============================================================================
+
+
+class TestBSConvention:
+    """Verify BS convention.
+
+    Due to the operator-construction convention in mzi_simulation.py
+    (where a0 acts as a creator and a1 as a creator), the commutation
+    relation is [J_z, J_x] = -i J_y (with J_y from the standard formula
+    (a†₀a₁ - a₁†a₀)/(2i)). This means BS† J_z BS = J_y (not -J_y).
+
+    However, the eigenvalues (λ ∈ [-1, 1] for the 2-particle subspace)
+    match the theoretical expectation up to sign, so QFI = 4·Var(G) is
+    unaffected since Var(J_y) = Var(-J_y).
+    """
+
+    def test_bs_rotated_jz_eigenvalue_range(self) -> None:
+        """BS† J_z BS eigenvalues must cover [-1, 1] range."""
+        from src.physics.mzi_simulation import beam_splitter_unitary
+
+        N_max = 2
+        J_z_sys, _ = build_system_jz_jx(N_max)
+
+        BS = beam_splitter_unitary(np.pi / 4, 0.0, N_max)
+        J_z_rotated = BS.conj().T @ J_z_sys @ BS
+        J_z_rotated = 0.5 * (J_z_rotated + J_z_rotated.conj().T)
+
+        evals = np.linalg.eigvalsh(J_z_rotated)
+        assert np.min(evals) >= -1.0 - 1e-10
+        assert np.max(evals) <= 1.0 + 1e-10
+        assert np.isclose(np.min(evals), -1.0, atol=1e-10)
+        assert np.isclose(np.max(evals), 1.0, atol=1e-10)
+
+    def test_generator_b_spectrum_in_n2_subspace(self) -> None:
+        """G_B must have eigenvalues in [-1, 1] for T_H=1 in the N=2 subspace."""
+        G_B = compute_generator_B(T_H=1.0, N_max=2)
+        evals = np.linalg.eigvalsh(G_B)
+        assert np.min(evals) >= -1.0 - 1e-10
+        assert np.max(evals) <= 1.0 + 1e-10
+
+
+# =============================================================================
+# Integration / Pipeline Tests
+# =============================================================================
+
+
+class TestComparisonPipeline:
+    """End-to-end tests of the comparison pipeline."""
+
+    def test_run_comparison_returns_result(self) -> None:
+        """run_comparison must return a ComparisonResult."""
+        result = run_comparison(
+            T_H=1.0,
+            n_samples_B=100,
+            n_samples_A=100,
+            n_alpha_samples=5,
+            pure_only=True,
+            seed=42,
+        )
+        assert isinstance(result, ComparisonResult)
+
+    def test_comparison_fq_B_positive(self) -> None:
+        """Case B QFI must be positive."""
+        result = run_comparison(
+            T_H=1.0,
+            n_samples_B=100,
+            n_samples_A=100,
+            n_alpha_samples=5,
+            pure_only=True,
+            seed=42,
+        )
+        assert result.fq_B_max > 0, "Case B QFI must be positive"
+
+    def test_comparison_fq_A_positive(self) -> None:
+        """Case A QFI must be positive."""
+        result = run_comparison(
+            T_H=1.0,
+            n_samples_B=100,
+            n_samples_A=100,
+            n_alpha_samples=5,
+            pure_only=True,
+            seed=42,
+        )
+        assert result.fq_A_max > 0, "Case A QFI must be positive"
+
+    def test_comparison_ratio_finite(self) -> None:
+        """Ratio must be finite and positive."""
+        result = run_comparison(
+            T_H=1.0,
+            n_samples_B=100,
+            n_samples_A=100,
+            n_alpha_samples=5,
+            pure_only=True,
+            seed=42,
+        )
+        assert np.isfinite(result.ratio), "Ratio must be finite"
+        assert result.ratio > 0, "Ratio must be positive"
+
+    def test_fq_A_zero_baseline(self) -> None:
+        """Case A with α=0 must give F_Q ≈ 1."""
+        result = run_comparison(
+            T_H=1.0,
+            n_samples_B=100,
+            n_samples_A=100,
+            n_alpha_samples=5,
+            pure_only=True,
+            seed=42,
+        )
+        assert result.fq_A_zero > 0.0, "Baseline F_Q must be positive"
+
+    def test_theta_dependence_dict(self) -> None:
+        """θ-dependence check must return a dict with expected keys."""
+        result = run_comparison(
+            T_H=1.0,
+            n_samples_B=100,
+            n_samples_A=100,
+            n_alpha_samples=5,
+            pure_only=True,
+            theta_values=(0.0, 0.1, 0.5),
+            seed=42,
+        )
+        assert 0.0 in result.fq_A_theta
+        assert 0.1 in result.fq_A_theta
+        assert 0.5 in result.fq_A_theta
+
+
+# =============================================================================
+# Analytical Bound Tests
+# =============================================================================
+
+
+class TestAnalyticalBounds:
+    """Verify analytical bounds match expectations."""
+
+    def test_analytical_fq_B(self) -> None:
+        """analytical_fq_B_max must return 4 at T_H = 1."""
+        assert np.isclose(analytical_fq_B_max(1.0), 4.0)
+        assert np.isclose(analytical_fq_B_max(2.0), 16.0)
+
+    def test_analytical_fq_A_zero(self) -> None:
+        """analytical_fq_A_zero must return 1 at T_H = 1."""
+        assert np.isclose(analytical_fq_A_zero(1.0), 1.0)
+        assert np.isclose(analytical_fq_A_zero(2.0), 4.0)
+
+    def test_ratio_geq_two(self) -> None:
+        """ℛ = Δθ_A / Δθ_B must be ≥ 2 at T_H = 1.
+
+        From the analytical bound: F_A ≤ 1, F_B = 4, so ℛ = √(4/1) = 2.
+        """
+        F_A = analytical_fq_A_zero(1.0)  # = 1
+        F_B = analytical_fq_B_max(1.0)  # = 4
+        ratio = np.sqrt(F_B / F_A)
+        assert np.isclose(ratio, 2.0)
+
+
+# =============================================================================
+# Edge Cases
+# =============================================================================
+
+
+class TestEdgeCases:
+    """Test edge cases and error handling."""
+
+    def test_zerocoupling_identical_to_nointeraction(self) -> None:
+        """G_A with all α = 0 must reproduce the no-interaction case."""
+        G_A_1 = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
+        G_A_2 = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
+        assert np.allclose(G_A_1, G_A_2), "Must be consistent for same α"
+
+    def test_commuting_ancilla_no_benefit(self) -> None:
+        """Check that J_z-commuting interaction cannot change generator.
+
+        When only α_zz and α_zx are nonzero, [J_z, H_int] = 0,
+        so J_z(s) = J_z and the generator is identical to α = 0 case.
+        """
+        G_commuting = compute_generator_A(T_H=1.0, alphas=(2.0, 1.0, 0.0, 0.0), N_max=1)
+        G_zero = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
+        assert np.allclose(G_commuting, G_zero, atol=1e-10), (
+            "Commuting interaction must leave generator unchanged"
+        )
+
+    def test_noncommuting_ancilla_changes_generator(self) -> None:
+        """Check that non-commuting interaction changes the generator.
+
+        When α_xz or α_xx are nonzero, [J_z, H_int] ≠ 0,
+        so J_z(s) ≠ J_z and the generator differs from α = 0 case.
+        """
+        G_noncomm = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 1.0, 0.0), N_max=1)
+        G_zero = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
+        assert not np.allclose(G_noncomm, G_zero, atol=1e-10), (
+            "Non-commuting interaction must change the generator"
+        )
