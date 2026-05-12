@@ -40,10 +40,12 @@ from src.analysis.ancilla_optimization import (
     two_qubit_bs_unitary,
     two_qubit_state,
     validate_bs_unitarity,
+    validate_derivative_stability,
     validate_hold_unitarity,
     validate_operators,
     validate_sensitivity_reasonable,
     validate_two_qubit_bs_unitarity,
+    validate_variance_positive,
 )
 
 # ============================================================================
@@ -415,6 +417,59 @@ class TestSensitivity:
                 f"get_decoupled_sensitivity({T_H}) = {dtheta:.6f}, expected {expected:.6f}"
             )
 
+    def test_decoupled_sensitivity_analytical_exact(self) -> None:
+        """Analytical formula Δθ = 1/T_H holds exactly for the decoupled case.
+
+        For a single-qubit MZI with |ψ_S⟩ = |0⟩ (θ_S = 0), 50/50 beam splitters
+        (T_BS = π/2), measurement of J_z, and no interaction (α = 0):
+
+            Δθ = √(Var(J_z)) / |∂⟨J_z⟩/∂θ| = 1/T_H
+
+        This test validates the exact formula at several (θ, T_H) points,
+        avoiding fringe extrema where sin(θ T_H) = 0.
+        """
+        ops = build_two_qubit_operators()
+        alpha = (0.0, 0.0, 0.0, 0.0)
+        T_BS = np.pi / 2.0
+        psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)  # |0,0⟩
+
+        # θ × T_H values that avoid fringe extrema (sin ≠ 0)
+        test_points = [
+            (theta, T_H)
+            for theta in [0.3, 0.7, 1.0, 1.3, 1.7]
+            for T_H in [0.5, 1.0, 1.5, 2.0]
+            if abs(np.sin(theta * T_H)) > 0.1
+        ]
+
+        for theta_true, T_H in test_points:
+            dtheta = compute_sensitivity(psi0, T_BS, T_BS, T_H, theta_true, alpha, ops)
+            expected = 1.0 / T_H
+            # Tighter tolerance (0.5%) since the formula is exact away from
+            # fringe extrema — any deviation is purely numerical
+            assert np.isclose(dtheta, expected, rtol=5e-3), (
+                f"Δθ = {dtheta:.6f}, expected {expected:.6f} "
+                f"for θ={theta_true}, T_H={T_H}"
+            )
+
+    def test_variance_never_significantly_negative(self) -> None:
+        """Variance of J_z^S must be ≥ -1e-12 for any valid state.
+
+        A slightly negative variance can arise from numerical rounding in
+        the expression Var = ⟨O²⟩ - ⟨O⟩², but it must not exceed 1e-12
+        in absolute value.
+        """
+        ops = build_two_qubit_operators()
+        rng = np.random.default_rng(42)
+
+        for _ in range(20):
+            # Random two-qubit state
+            psi = rng.standard_normal(4) + 1j * rng.standard_normal(4)
+            psi /= np.linalg.norm(psi)
+
+            # Validate should pass (variance may be 0 for product states
+            # but never significantly negative)
+            assert validate_variance_positive(psi, ops["Jz_S"]) is True
+
 
 # ============================================================================
 # Reduced Purity Tests
@@ -714,6 +769,52 @@ class TestValidation:
         ops["Jz_S"] = np.zeros((4, 4))  # Make it invalid
         with pytest.raises(AssertionError):
             validate_operators(ops)
+
+    def test_validate_variance_positive_passes(self) -> None:
+        """validate_variance_positive must pass for the decoupled state."""
+        ops = build_two_qubit_operators()
+        psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
+        # Evolve to a non-trivial state
+        psi = evolve_full(
+            psi0, np.pi / 2, np.pi / 2, 1.0, 1.0, (0.0, 0.0, 0.0, 0.0), ops
+        )
+        assert validate_variance_positive(psi, ops["Jz_S"]) is True
+
+    def test_validate_derivative_stability_passes(self) -> None:
+        """validate_derivative_stability must pass for the decoupled config."""
+        ops = build_two_qubit_operators()
+        psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
+        alpha = (0.0, 0.0, 0.0, 0.0)
+
+        # Use a configuration away from fringe extrema
+        result = validate_derivative_stability(
+            psi0=psi0,
+            T_BS1=np.pi / 2,
+            T_BS2=np.pi / 2,
+            T_H=1.0,
+            theta_true=1.0,
+            alpha=alpha,
+            ops=ops,
+        )
+        assert result is True
+
+    def test_validate_derivative_stability_at_fringe(self) -> None:
+        """validate_derivative_stability must gracefully skip fringe extrema."""
+        ops = build_two_qubit_operators()
+        psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
+        alpha = (0.0, 0.0, 0.0, 0.0)
+
+        # θ * T_H = π → fringe extremum (derivative = 0)
+        result = validate_derivative_stability(
+            psi0=psi0,
+            T_BS1=np.pi / 2,
+            T_BS2=np.pi / 2,
+            T_H=1.0,
+            theta_true=np.pi,
+            alpha=alpha,
+            ops=ops,
+        )
+        assert result is True  # Should gracefully return True
 
 
 class TestConvergenceMetric:

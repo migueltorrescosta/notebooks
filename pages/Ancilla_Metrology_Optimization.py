@@ -67,7 +67,7 @@ with st.sidebar:
         "θ min", value=0.1, min_value=0.01, step=0.1, format="%.2f"
     )
     theta_max = st.number_input(
-        "θ max", value=2.0, min_value=0.1, step=0.1, format="%.2f"
+        "θ max", value=5.0, min_value=0.1, step=0.1, format="%.2f"
     )
     n_theta = st.slider(
         "Number of θ values", min_value=2, max_value=20, value=6, step=1
