@@ -35,15 +35,15 @@ This survey covers models with **different Hilbert spaces and solvers**. Each is
 **Method**: Pseudomode — replace the reservoir with a single damped harmonic oscillator.
 
 $$H = H_{\text{SA}} + H_{\text{SP}} + H_{\text{PM}},\quad
-H_{\text{SA}} = g_{\text{sa}}\,(a^\dagger a) \otimes \sigma_x \otimes I_{\text{PM}},\quad
-H_{\text{SP}} = g_{\text{sp}}\,(a + a^\dagger) \otimes I_{\text{spin}} \otimes (b + b^\dagger),\quad
-H_{\text{PM}} = \omega_0\, I_{\text{osc}} \otimes I_{\text{spin}} \otimes (b^\dagger b)$$
+H_{\text{SA}} = g_{\text{sa}}\,(a^\dagger a) \otimes \sigma_x \otimes \mathbb{1}_{\text{PM}},\quad
+H_{\text{SP}} = g_{\text{sp}}\,(a + a^\dagger) \otimes \mathbb{1}_{\text{spin}} \otimes (b + b^\dagger),\quad
+H_{\text{PM}} = \omega_0\, \mathbb{1}_{\text{osc}} \otimes \mathbb{1}_{\text{spin}} \otimes (b^\dagger b)$$
 
 Here $a$, $\sigma_x$, $b$ act on the oscillator, spin ancilla, and pseudomode respectively.
 The ancilla entanglement step uses $U_{\text{ent}} = e^{-i H_{\text{SA}} \tau}$ (dispersive coupling).
 During the decoherence step $H_{\text{SA}}$ is turned off, leaving $H_{\text{dec}} = H_{\text{SP}} + H_{\text{PM}}$.
 
-Lindblad for pseudomode: $L_{\text{PM}} = \sqrt{\lambda}\,(I_{\text{osc}} \otimes I_{\text{spin}} \otimes b)$ where $\lambda$ is the bath correlation decay rate.
+Lindblad for pseudomode: $L_{\text{PM}} = \sqrt{\lambda}\,(\mathbb{1}_{\text{osc}} \otimes \mathbb{1}_{\text{spin}} \otimes b)$ where $\lambda$ is the bath correlation decay rate.
 
 **Regimes**: $\lambda \to \infty$ → Markovian (rate $\gamma_{\text{eff}} = g_{\text{sp}}^2/\lambda$); $\lambda \to 0$ → deeply non-Markovian (coherent oscillations in QFI).
 

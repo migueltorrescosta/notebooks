@@ -92,7 +92,7 @@ The full circuit is:
 | Step | Description |
 |---|---|
 | **BS1** | 50/50 beam splitter ($\theta_{\text{BS}} = \pi/4$, $\phi_{\text{BS}} = 0$) on system; identity on ancilla |
-| **Holding** | $\exp\!\big(-i T_H [\theta J_z \otimes I_{\text{anc}} + H_{\text{int}}]\big)$ on system $\otimes$ ancilla |
+| **Holding** | $\exp\!\big(-i T_H [\theta J_z \otimes \mathbb{1}_{\text{anc}} + H_{\text{int}}]\big)$ on system $\otimes$ ancilla |
 | **BS2** | Same as BS1 (50/50) on system; identity on ancilla |
 | **Measure** | Joint POVM on $\mathcal{H}_{\text{sys}} \otimes \mathcal{H}_{\text{anc}}$ (Case A) or $J_z$ on $\mathcal{H}_{\text{sys}}$ (Case B) |
 
@@ -123,9 +123,9 @@ system and ancilla. The coefficients $\alpha$ are real and form part of the
 optimisation.
 
 The full Hamiltonian during the holding time is
-$H_{\text{total}} = \theta J_z^{\text{sys}} \otimes I_{\text{anc}} + H_{\text{int}}(\alpha)$,
+$H_{\text{total}} = \theta J_z^{\text{sys}} \otimes \mathbb{1}_{\text{anc}} + H_{\text{int}}(\alpha)$,
 giving the unitary
-$U(\theta, \alpha) = \exp(-i T_H [\theta J_z^{\text{sys}} \otimes I_{\text{anc}} + H_{\text{int}}(\alpha)])$.
+$U(\theta, \alpha) = \exp(-i T_H [\theta J_z^{\text{sys}} \otimes \mathbb{1}_{\text{anc}} + H_{\text{int}}(\alpha)])$.
 
 **Important**: The phase $\theta$ and the interaction $H_{\text{int}}$ act
 simultaneously. When $[J_z, H_{\text{int}}] \neq 0$ (which occurs when
@@ -161,28 +161,28 @@ since $J_y$ on the 2-particle ($J = 1$) system has eigenvalues $-1, 0, +1$.
 #### Case A (with ancilla)
 The full unitary wraps the $\theta$-dependent evolution between beam
 splitters:
-$U_A(\theta) = \text{BS}_2 \cdot \exp(-i T_H [\theta J_z \otimes I + H_{\text{int}}]) \cdot \text{BS}_1$.
+$U_A(\theta) = \text{BS}_2 \cdot \exp(-i T_H [\theta J_z \otimes \mathbb{1} + H_{\text{int}}]) \cdot \text{BS}_1$.
 
 The derivative requires the non-commuting exponential formula.
-Let $A(\theta) = -i T_H (\theta J_z \otimes I + H_{\text{int}})$, with
-$dA/d\theta = -i T_H J_z \otimes I$. The commutator
-$[A(\theta), dA/d\theta] = -T_H^2 [\theta J_z \otimes I + H_{\text{int}}, J_z \otimes I]
-= T_H^2 [J_z \otimes I, H_{\text{int}}]$
+Let $A(\theta) = -i T_H (\theta J_z \otimes \mathbb{1} + H_{\text{int}})$, with
+$dA/d\theta = -i T_H J_z \otimes \mathbb{1}$. The commutator
+$[A(\theta), dA/d\theta] = -T_H^2 [\theta J_z \otimes \mathbb{1} + H_{\text{int}}, J_z \otimes \mathbb{1}]
+= T_H^2 [J_z \otimes \mathbb{1}, H_{\text{int}}]$
 is non-zero when $\alpha_{xz}$ or $\alpha_{xx}$ are non-zero, so $A(\theta)$ and $dA/d\theta$ do not commute.
 
 Using the integral formula for the derivative of the exponential map,
 $d e^{A(\theta)}/d\theta = \int_0^1 e^{s A(\theta)} (dA/d\theta) e^{(1-s)A(\theta)} ds$,
 we obtain the effective generator
 $G_A = i U_A^\dagger dU_A/d\theta
-= T_H \int_0^1 \text{BS}_1^\dagger e^{i s T_H (\theta J_z \otimes I + H_{\text{int}})} (J_z \otimes I) e^{-i s T_H (\theta J_z \otimes I + H_{\text{int}})} \text{BS}_1 ds$.
+= T_H \int_0^1 \text{BS}_1^\dagger e^{i s T_H (\theta J_z \otimes \mathbb{1} + H_{\text{int}})} (J_z \otimes \mathbb{1}) e^{-i s T_H (\theta J_z \otimes \mathbb{1} + H_{\text{int}})} \text{BS}_1 ds$.
 
 This simplifies to $G_A = T_H \text{BS}_1^\dagger [\int_0^1 J_z(s) ds] \text{BS}_1$,
-where $J_z(s) = e^{i s T_H (\theta J_z \otimes I + H_{\text{int}})} (J_z \otimes I) e^{-i s T_H (\theta J_z \otimes I + H_{\text{int}})}$
-is $J_z \otimes I$ evolved under the total Hamiltonian for a fraction $s$ of the total time.
+where $J_z(s) = e^{i s T_H (\theta J_z \otimes \mathbb{1} + H_{\text{int}})} (J_z \otimes \mathbb{1}) e^{-i s T_H (\theta J_z \otimes \mathbb{1} + H_{\text{int}})}$
+is $J_z \otimes \mathbb{1}$ evolved under the total Hamiltonian for a fraction $s$ of the total time.
 
 **When $[J_z, H_{\text{int}}] = 0$** (pure $J_z \otimes J_z$ or
-$J_z \otimes J_x$ coupling): $J_z(s) = J_z \otimes I$ is independent of
-$s$, and $G_A = -T_H \cdot J_y \otimes I$, identical to the ancilla-free
+$J_z \otimes J_x$ coupling): $J_z(s) = J_z \otimes \mathbb{1}$ is independent of
+$s$, and $G_A = -T_H \cdot J_y \otimes \mathbb{1}$, identical to the ancilla-free
 case (up to sign). The ancilla is passive.
 
 **When $[J_z, H_{\text{int}}] \neq 0$** ($J_x \otimes J_z$ or
@@ -218,7 +218,7 @@ two-particle system.
    $J_x$ is constructed as
    $(a_0^\dagger a_1 + a_1^\dagger a_0)/2$ using the ladder operators.
 
-2. **$J_z \otimes I$ and $J_x \otimes I$**: Extended to the ancilla space
+2. **$J_z \otimes \mathbb{1}$ and $J_x \otimes \mathbb{1}$**: Extended to the ancilla space
    via `np.kron(J_z^sys, np.eye(2))` and similarly.
 
 3. **BS1 and BS2**: 50/50 beam splitter unitary from
@@ -234,7 +234,7 @@ two-particle system.
    $[J_z, H_{\text{int}}] \neq 0$, making the QFI
    $\theta$-dependent. The final QFI is reported as the minimum over a
    grid of reference values (see Failure Condition §3). At $\theta = 0$,
-   $J_z(s) = e^{i s T_H H_{\text{int}}} (J_z \otimes I) e^{-i s T_H H_{\text{int}}}$,
+   $J_z(s) = e^{i s T_H H_{\text{int}}} (J_z \otimes \mathbb{1}) e^{-i s T_H H_{\text{int}}}$,
    which depends only on $H_{\text{int}}$.
 
 6. **$G_A$**: The integral $\int_0^1 J_z(s) \, ds$ is approximated by
@@ -348,7 +348,7 @@ Before running numerics, the following bounds are known analytically:
 | Quantity | Case A ($\alpha = 0$) | Case B | Notes |
 |---|---|---|---|
 | $J_z$ eigenvalue range (system) | $[-\frac12, \frac12]$ | $[-1, 1]$ | $J = N/2$ for $N$ particles |
-| $G$ eigenvalue range at $\theta = 0$ | $[-\frac12, \frac12]$ | $[-1, 1]$ | $G = -J_y \otimes I$ (A) or $-J_y$ (B), up to sign |
+| $G$ eigenvalue range at $\theta = 0$ | $[-\frac12, \frac12]$ | $[-1, 1]$ | $G = -J_y \otimes \mathbb{1}$ (A) or $-J_y$ (B), up to sign |
 | **Max $F_Q$ at $T_H = 1$** | **1** | **4** | $(\lambda_{\max} - \lambda_{\min})^2$ for optimal pure state |
 
 The $4\times$ gap means Case A must generate a non-trivial $G_A$ via

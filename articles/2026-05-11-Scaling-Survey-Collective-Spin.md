@@ -49,7 +49,7 @@ The OAT optimal squeezing time scales as $t_{\text{opt}} \propto N^{-1/3}$ (not 
 |---|---|---|---|---|
 | Non-Gaussian (n=3,4) | $\mathcal{H}_J \otimes \mathcal{H}_{\text{osc}}$ (hybrid oscillator-spin) | $H_n = \frac{\Omega_n}{2}\, \sigma_{\text{op}} \otimes (a^n e^{-i\theta_n} + a^{\dagger n} e^{i\theta_n})$ | `hybrid_system.py::hybrid_hamiltonian_n` |
 | Ancilla-assisted (two-mode + ancilla MZI) | $\mathcal{H}_{\text{Fock}} \otimes \mathbb{C}^{d_A}$ (two-mode system + spin-J ancilla) | $H_{\text{int}} = g\, n_{\text{photon}} \otimes J_z$ (phase coupling) or $g\,(a+a^\dagger) \otimes J_x$ (flip-flop) | `mzi_simulation.py::system_ancilla_interaction_unitary` |
-| Ancilla-assisted (non-Markovian) | $\mathcal{H}_{\text{osc}} \otimes \mathbb{C}^2 \otimes \mathcal{H}_{\text{pm}}$ (probe + spin ancilla + pseudomode bath) | $H_{\text{sa}} = g_{\text{sa}}\, a^\dagger a \otimes \sigma_x \otimes I_{\text{pm}}$ | `pseudomode_system.py::build_pseudomode_hamiltonian` |
+| Ancilla-assisted (non-Markovian) | $\mathcal{H}_{\text{osc}} \otimes \mathbb{C}^2 \otimes \mathcal{H}_{\text{pm}}$ (probe + spin ancilla + pseudomode bath) | $H_{\text{sa}} = g_{\text{sa}}\, a^\dagger a \otimes \sigma_x \otimes \mathbb{1}_{\text{pm}}$ | `pseudomode_system.py::build_pseudomode_hamiltonian` |
 
 ### Input States
 

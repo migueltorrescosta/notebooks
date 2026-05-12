@@ -499,7 +499,7 @@ $$
 
 **Lindblad completeness:**
 $$
-\sum_k L_k^\dagger L_k \leq I
+\sum_k L_k^\dagger L_k \leq \mathbb{1}
 $$
 
 ---
