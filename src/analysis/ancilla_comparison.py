@@ -96,11 +96,11 @@ def build_interaction_hamiltonian(
 ) -> np.ndarray:
     """Build ancilla interaction Hamiltonian H_int.
 
-    H_int = α_zz · J_z ⊗ J_z  +  α_zx · J_z ⊗ J_x
-          + α_xz · J_x ⊗ J_z  +  α_xx · J_x ⊗ J_x
+    H_int = α_xx · J_x ⊗ J_x  +  α_xz · J_x ⊗ J_z
+          + α_zx · J_z ⊗ J_x  +  α_zz · J_z ⊗ J_z
 
     Args:
-        alphas: (α_zz, α_zx, α_xz, α_xx) coupling coefficients.
+        alphas: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         J_z_sys: J_z operator on system space.
         J_x_sys: J_x operator on system space.
         J_z_anc: J_z operator on ancilla space.
@@ -109,20 +109,20 @@ def build_interaction_hamiltonian(
     Returns:
         Full H_int matrix of dimension (dim_sys × 2).
     """
-    a_zz, a_zx, a_xz, a_xx = alphas
+    a_xx, a_xz, a_zx, a_zz = alphas
     dim_sys = J_z_sys.shape[0]
     dim_full = dim_sys * 2
 
     H = np.zeros((dim_full, dim_full), dtype=complex)
 
-    if a_zz != 0.0:
-        H += a_zz * np.kron(J_z_sys, J_z_anc)
-    if a_zx != 0.0:
-        H += a_zx * np.kron(J_z_sys, J_x_anc)
-    if a_xz != 0.0:
-        H += a_xz * np.kron(J_x_sys, J_z_anc)
     if a_xx != 0.0:
         H += a_xx * np.kron(J_x_sys, J_x_anc)
+    if a_xz != 0.0:
+        H += a_xz * np.kron(J_x_sys, J_z_anc)
+    if a_zx != 0.0:
+        H += a_zx * np.kron(J_z_sys, J_x_anc)
+    if a_zz != 0.0:
+        H += a_zz * np.kron(J_z_sys, J_z_anc)
 
     return H
 
@@ -172,7 +172,7 @@ def compute_generator_A(
 
     Args:
         T_H: Holding-time strength parameter.
-        alphas: (α_zz, α_zx, α_xz, α_xx) coupling coefficients.
+        alphas: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         N_max: Maximum photon number per mode for the system.
         n_quadrature: Number of quadrature points for the integral (default 50).
 
@@ -237,7 +237,7 @@ def compute_generator_A_at_theta(
     Args:
         T_H: Holding-time strength parameter.
         theta: Reference phase value.
-        alphas: (α_zz, α_zx, α_xz, α_xx) coupling coefficients.
+        alphas: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         N_max: Maximum photon number per mode.
         n_quadrature: Number of quadrature points (default 50).
 
@@ -379,7 +379,7 @@ def random_alphas(
         scale: Max absolute value for coefficients (default 10).
 
     Returns:
-        Tuple (α_zz, α_zx, α_xz, α_xx).
+        Tuple (α_xx, α_xz, α_zx, α_zz) matching the article convention.
     """
     vals = rng.uniform(-scale, scale, size=4)
     return (float(vals[0]), float(vals[1]), float(vals[2]), float(vals[3]))
@@ -460,7 +460,7 @@ def evaluate_qfi_case_A(
     Args:
         rho: Density matrix of dimension (N_max+1)² × 2.
         T_H: Holding-time strength.
-        alphas: (α_zz, α_zx, α_xz, α_xx) coupling coefficients.
+        alphas: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         N_max: Maximum photon number per mode for the system.
         n_quadrature: Quadrature points for integral.
 
@@ -580,6 +580,7 @@ def optimize_qfi_case_A(
 
     Returns:
         RandomSearchResult with best QFI, ρ, and α found.
+        Alpha ordering follows the article convention: (α_xx, α_xz, α_zx, α_zz).
     """
     rng = np.random.default_rng(seed)
     dim_sys = (N_max + 1) ** 2
@@ -763,6 +764,7 @@ def run_comparison(
 
     Returns:
         ComparisonResult with all findings.
+        Alpha ordering follows the article convention: (α_xx, α_xz, α_zx, α_zz).
     """
     # Case B: 2 particles, N_max = 2, restrict to N=2 subspace
     result_B = optimize_qfi_case_B(

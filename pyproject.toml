@@ -80,6 +80,9 @@ python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 addopts = ""
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 filterwarnings = [
     # Ignore multiprocessing fork warning in tests
     "ignore::DeprecationWarning:multiprocessing",

@@ -286,22 +286,24 @@ class TestInteractionHamiltonian:
 
         For α_zz and α_zx: [J_z ⊗ J_z/α, J_z ⊗ I] = 0
         For α_xz and α_xx: [J_x ⊗ J_z/α, J_z ⊗ I] ≠ 0
+
+        Alpha ordering: (α_xx, α_xz, α_zx, α_zz).
         """
         J_z_sys, J_x_sys = build_system_jz_jx(N_max=1)
         J_z_anc, J_x_anc = build_ancilla_operators()
         I_anc = np.eye(2, dtype=complex)
         J_z_full = np.kron(J_z_sys, I_anc)
 
-        # Commuting case: only α_zz
+        # Commuting case: only α_zz (4th position)
         H_zz = build_interaction_hamiltonian(
-            (1.0, 0.0, 0.0, 0.0), J_z_sys, J_x_sys, J_z_anc, J_x_anc
+            (0.0, 0.0, 0.0, 1.0), J_z_sys, J_x_sys, J_z_anc, J_x_anc
         )
         comm = J_z_full @ H_zz - H_zz @ J_z_full
         assert np.allclose(comm, 0), "[J_z, H_int] must be 0 for α_zz only"
 
-        # Non-commuting case: α_xz only
+        # Non-commuting case: α_xz only (2nd position)
         H_xz = build_interaction_hamiltonian(
-            (0.0, 0.0, 1.0, 0.0), J_z_sys, J_x_sys, J_z_anc, J_x_anc
+            (0.0, 1.0, 0.0, 0.0), J_z_sys, J_x_sys, J_z_anc, J_x_anc
         )
         comm = J_z_full @ H_xz - H_xz @ J_z_full
         assert not np.allclose(comm, 0), "[J_z, H_int] must be ≠ 0 for α_xz"
@@ -483,8 +485,11 @@ class TestEdgeCases:
 
         When only α_zz and α_zx are nonzero, [J_z, H_int] = 0,
         so J_z(s) = J_z and the generator is identical to α = 0 case.
+
+        Alpha ordering: (α_xx, α_xz, α_zx, α_zz).
+        Commuting coefficients occupy the last two positions.
         """
-        G_commuting = compute_generator_A(T_H=1.0, alphas=(2.0, 1.0, 0.0, 0.0), N_max=1)
+        G_commuting = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 1.0, 2.0), N_max=1)
         G_zero = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
         assert np.allclose(G_commuting, G_zero, atol=1e-10), (
             "Commuting interaction must leave generator unchanged"
@@ -495,8 +500,11 @@ class TestEdgeCases:
 
         When α_xz or α_xx are nonzero, [J_z, H_int] ≠ 0,
         so J_z(s) ≠ J_z and the generator differs from α = 0 case.
+
+        Alpha ordering: (α_xx, α_xz, α_zx, α_zz).
+        Non-commuting coefficients occupy the first two positions.
         """
-        G_noncomm = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 1.0, 0.0), N_max=1)
+        G_noncomm = compute_generator_A(T_H=1.0, alphas=(0.0, 1.0, 0.0, 0.0), N_max=1)
         G_zero = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
         assert not np.allclose(G_noncomm, G_zero, atol=1e-10), (
             "Non-commuting interaction must change the generator"

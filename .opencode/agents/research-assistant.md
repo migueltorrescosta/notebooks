@@ -31,7 +31,8 @@ Follow these steps **in order** for every task that requires planning a simulati
    2. Literature review: include a table [Relevant assumptions, Article citation (URL and year included)]
    3. Theoretical model: describe what is the system to be simulated.
    4. Numerical simulation: describe implementation considerations. Do NOT include filepaths nor considerations specific to this repo
-3. Highlight likely failure conditions for the simulation, answering the question "What can go wrong?"
+3. Highlight likely failure conditions for the simulation, answering the question "What are the most likely failure modes?"
+4. Avoid breaklines unless necessary. Use paragraphs with inline equations as much as possible.
 
 # 📝 Article Emoji Standard
 
