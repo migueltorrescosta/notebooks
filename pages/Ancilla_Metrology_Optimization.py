@@ -183,7 +183,7 @@ if run_button:
         best_results.append(best_for_theta)
         convergence_metrics[theta] = compute_convergence_metric(theta_results)
 
-    table_data = {
+    table_data: dict[str, list[str]] = {
         "θ": [],
         "Best Δθ": [],
         "Δθ_SQL": [],
