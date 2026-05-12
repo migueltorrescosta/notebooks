@@ -178,7 +178,7 @@ $$
 
 ---
 
-## 5. Sensitivity Metrics
+## 📊 5. Sensitivity Metrics
 
 ### 5.1 Error Propagation
 
@@ -281,7 +281,7 @@ $$
 
 ---
 
-## 6. Noise Channels (Open Quantum Systems)
+## ⚠️ 6. Noise Channels (Open Quantum Systems)
 
 ### 6.1 Lindblad Master Equation
 
@@ -325,7 +325,7 @@ $$
 
 ---
 
-## 7. System-Ancilla Rabi Model
+## ⚛️ 7. System-Ancilla Rabi Model
 
 ### 7.1 Hamiltonian
 
@@ -373,7 +373,7 @@ $$
 
 ---
 
-## 8. Scaling Laws
+## 📊 8. Scaling Laws
 
 ### 8.1 Standard Quantum Limit (SQL)
 
@@ -426,7 +426,7 @@ $$
 
 ---
 
-## 9. Numerical Methods
+## 💻 9. Numerical Methods
 
 ### 9.1 Unitary Evolution
 
@@ -466,7 +466,7 @@ All stochastic processes use `numpy.random.default_rng(seed)` for reproducibilit
 
 ---
 
-## 10. Physical Invariants & Validation
+## 📐 10. Physical Invariants & Validation
 
 ### 10.1 Conservation Laws
 
@@ -504,7 +504,7 @@ $$
 
 ---
 
-## 11. Quick Reference: Key Equations
+## 📝 11. Quick Reference: Key Equations
 
 | Concept | Equation |
 |---------|----------|
@@ -520,7 +520,7 @@ $$
 
 ---
 
-## 12. File Organization
+## 🔧 12. File Organization
 
 | Module | Purpose |
 |--------|---------|

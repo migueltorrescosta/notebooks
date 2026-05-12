@@ -1,6 +1,6 @@
 # Scaling Survey: Two-Mode Fock Basis — Markovian MZI Models
 
-## Hypothesis
+## 🧪 Hypothesis
 
 For MZIs using **two-mode Fock-basis states** under Markovian decoherence:
 
@@ -13,7 +13,7 @@ The survey quantifies these transitions as a function of noise strength $\gamma$
 
 ---
 
-## Literature Review
+## 📖 Literature Review
 
 | Concept & Motivation | Article | Year |
 |---|---|---|
@@ -24,7 +24,7 @@ The survey quantifies these transitions as a function of noise strength $\gamma$
 
 ---
 
-## Theoretical Model
+## ⚛️ Theoretical Model
 
 ### Hilbert Space
 
@@ -108,7 +108,7 @@ $$\Delta\phi_{\text{EP}} = \frac{\Delta J_z}{\vert\partial\langle J_z\rangle/\pa
 
 ---
 
-## Models Survey
+## 📊 Models Survey
 
 | Model | Input State | Noise | Expected $\alpha$ | Implementation Status |
 |---|---|---|---|---|---|
@@ -126,7 +126,7 @@ $$\Delta\phi_{\text{EP}} = \frac{\Delta J_z}{\vert\partial\langle J_z\rangle/\pa
 
 ---
 
-## Numerical Simulation
+## 💻 Numerical Simulation
 
 ### Implementation Strategy
 
@@ -156,13 +156,13 @@ assert R_squared >= 0.9                                  # fit quality (scaling_
 
 ---
 
-### Resolved Issues
+### 🔧 Resolved Issues
 
 5. **SSS state was fixed to scale with N**. The `input_state_factory("sss", N, ...)` previously always created `single_photon_split_state(2)` (|1,1⟩), independent of N. This made any N-scaling analysis for the "sss" model meaningless. The factory now uses the passed N parameter: `single_photon_split_state(N)`, producing (|N-1,1⟩+|1,N-1⟩)/√2, for which $F_Q = (N-2)^2$ (α = -1.0, Heisenberg-like under the J_z convention).
 
 ---
 
-## Likely Failure Conditions
+## ⚠️ Likely Failure Conditions
 
 1. **Hilbert space explosion**: $(N_{\max}+1)^2$ dimension is prohibitive for $N > 64$. Per-state-type truncation (`_max_photons_for_state` in `scaling_survey.py`): definite Fock-like states (NOON, twin-Fock) use $N_{\max}=N$; coherent-like (coherent, squeezed vacuum, CSS) use $N_{\max} = \max(2N, N+20)$ to capture Poisson tails. For $N=64$, the latter gives $N_{\max}=128$ → dimension $16,\!641$. Mitigation: Dicke basis for symmetric states, covariance-matrix methods for Gaussian states.
 

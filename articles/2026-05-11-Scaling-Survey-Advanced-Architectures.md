@@ -1,6 +1,6 @@
 # Scaling Survey: Advanced Architectures — Modified Topologies & Non-Markovian Noise
 
-## Hypothesis
+## 🧪 Hypothesis
 
 For interferometers with **modified topologies or non-Markovian/stochastic noise**:
 
@@ -12,7 +12,7 @@ For interferometers with **modified topologies or non-Markovian/stochastic noise
 
 ---
 
-## Literature Review
+## 📖 Literature Review
 
 | Concept & Motivation | Article | Year |
 |---|---|---|
@@ -25,7 +25,7 @@ For interferometers with **modified topologies or non-Markovian/stochastic noise
 
 ---
 
-## Theoretical Model
+## ⚛️ Theoretical Model
 
 This survey covers models with **different Hilbert spaces and solvers**. Each is described independently.
 
@@ -111,7 +111,7 @@ This is valid when $\gamma_i \ll \phi$ per pass (small noise relative to phase p
 
 ---
 
-## Models Survey
+## 📊 Models Survey
 
 | Model | Solver Type | Expected $\alpha$ | Scaling Sweep Integration | Implementation |
 |---|---|---|---|---|---|
@@ -124,7 +124,7 @@ This is valid when $\gamma_i \ll \phi$ per pass (small noise relative to phase p
 
 ---
 
-## Numerical Simulation
+## 💻 Numerical Simulation
 
 ### Implementation Strategy
 
@@ -170,7 +170,7 @@ assert R_squared >= 0.9
 
 ---
 
-## Likely Failure Conditions
+## ⚠️ Likely Failure Conditions
 
 1. **Pseudomode dimension explosion**: Full density matrix with $d = 2(N+1)(K+1)$ for $K$ pseudomodes becomes intractable beyond $N \approx 20$ with $K=1$. Mitigation: pure-state Monte Carlo wavefunction method; restrict to $N \leq 30$.
 

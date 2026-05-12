@@ -1,6 +1,6 @@
 # Ancilla-Assisted Metrology in Non-Markovian Environments
 
-## Hypothesis
+## 🧪 Hypothesis
 
 Auxiliary qubits (spin ancillae) can systematically protect Quantum Fisher Information
 (QFI) against decoherence from **non-Markovian baths** with a Lorentzian spectral density.
@@ -24,7 +24,7 @@ Specifically:
 
 ---
 
-## Literature Review
+## 📖 Literature Review
 
 | Relevant Concept | Article | Year | Connection |
 |---|---|---|---|
@@ -37,7 +37,7 @@ Specifically:
 
 ---
 
-## Theoretical Model
+## ⚛️ Theoretical Model
 
 ### Hilbert Space
 
@@ -223,7 +223,7 @@ Metrics:
 
 ---
 
-## Numerical Simulation
+## 💻 Numerical Simulation
 
 ### Implementation Approach
 
@@ -332,7 +332,7 @@ assert np.isfinite(F_Q), "QFI must be finite"
 
 ---
 
-## Success Criteria
+## ✅ Success Criteria
 
 1. **Ancilla benefit**: ∃ θ > 0 such that ℛ_with_ancilla(T) > ℛ_without_ancilla(T)
    at fixed T > 0, verified with tolerance-based significance.
@@ -355,7 +355,7 @@ assert np.isfinite(F_Q), "QFI must be finite"
 
 ---
 
-## Likely Failure Conditions
+## ⚠️ Likely Failure Conditions
 
 1. **Pseudomode truncation artifacts**: If g_sp or T is too large, the pseudomode
    population grows beyond K, causing reflection at the Fock-space boundary that
@@ -400,18 +400,18 @@ assert np.isfinite(F_Q), "QFI must be finite"
 
 ---
 
-## Results and Next Steps
+## 🔬 Results and Next Steps
 
 | # | Test | Expectation | Status |
 |---|---|---|---|---|
-| 1 | Pseudomode Lindblad reproduces Markovian limit (λ → ∞) | ℛ(T) matches standard Lindblad at γ = g_sp²/λ | **PENDING** — sweep not yet run |
-| 2 | Ancilla improves QFI at moderate θ | ℛ_with > ℛ_without at fixed T > 0 | **PENDING** — sweep not yet run |
-| 3 | Optimal θ* exists at finite value | ℛ(T) is concave in θ | **PENDING** — sweep not yet run |
-| 4 | Non-Markovian advantage | Δℛ larger for smaller λ | **PENDING** — sweep not yet run |
-| 5 | Numerical validity | Trace, Hermiticity, positivity | **PASS** — 75 unit tests validate correctness |
-| 6 | Over-rotation at strong coupling | ℛ(T) decreases for θ ≫ θ* | **PENDING** — sweep not yet run |
+| 1 | Pseudomode Lindblad reproduces Markovian limit (λ → ∞) | ℛ(T) matches standard Lindblad at γ = g_sp²/λ | ⏳ — sweep not yet run |
+| 2 | Ancilla improves QFI at moderate θ | ℛ_with > ℛ_without at fixed T > 0 | ⏳ — sweep not yet run |
+| 3 | Optimal θ* exists at finite value | ℛ(T) is concave in θ | ⏳ — sweep not yet run |
+| 4 | Non-Markovian advantage | Δℛ larger for smaller λ | ⏳ — sweep not yet run |
+| 5 | Numerical validity | Trace, Hermiticity, positivity | ✅ — 75 unit tests validate correctness |
+| 6 | Over-rotation at strong coupling | ℛ(T) decreases for θ ≫ θ* | ⏳ — sweep not yet run |
 
-### Open Questions
+### 🔍 Open Questions
 
 1. What is the optimal initial state (coherent vs squeezed vs Fock) for the oscillator?
 2. Does multiple ancilla entanglement (using the spin as a multi-level system) provide
@@ -423,7 +423,7 @@ assert np.isfinite(F_Q), "QFI must be finite"
 
 ---
 
-## Implementation Status
+## 🔧 Implementation Status
 
 The full simulation code described in this plan has been implemented and unit-tested:
 

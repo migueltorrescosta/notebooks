@@ -33,6 +33,56 @@ Follow these steps **in order** for every task that requires planning a simulati
    4. Numerical simulation: describe implementation considerations. Do NOT include filepaths nor considerations specific to this repo
 3. Highlight likely failure conditions for the simulation, answering the question "What can go wrong?"
 
+# 📝 Article Emoji Standard
+
+Every article in `articles/` MUST use the following emoji system for clear, scannable documents:
+
+## Section Header Emojis
+
+| Emoji | Section | Purpose |
+|-------|---------|---------|
+| 🧪 | `## 🧪 Hypothesis` | Core claim being tested |
+| 📖 | `## 📖 Literature Review` | Bibliographic references and related work |
+| ⚛️ | `## ⚛️ Theoretical Model` | Hilbert space, Hamiltonian, protocol description |
+| 💻 | `## 💻 Numerical Simulation` | Implementation strategy, parameters, methods |
+| ⚠️ | `## ⚠️ Likely Failure Conditions` | Failure modes and mitigations |
+| ✅ | `## ✅ Success Criteria` | Criteria table verifying success |
+| 🔬 | `## 🔬 Results and Next Steps` / `## 🔬 Conclusions` | Findings and future work |
+| 📊 | `## 📊 Models Survey` | Central model-to-exponent mapping table |
+| 🔍 | `## 🔍 Open Questions` | Unsolved issues and future directions |
+| 🔧 | `## 🔧 Implementation Status` | Code modules, tests, file organization |
+| 📐 | `## 📐 Preliminary Analytical Bounds` / `## 📐 10. Physical Invariants` | Known bounds, invariants, conservation laws |
+| 📝 | `## 📝 11. Quick Reference` | Reference / cheat-sheet sections |
+
+## Inline Emojis
+
+| Emoji | Usage | Example |
+|-------|-------|---------|
+| 💡 | **Key Finding** — start of a significant result paragraph | `💡 **Key Finding**: The core hypothesis is supported...` |
+| 🔍 | **Open items** — start of an open-questions paragraph | `🔍 **Open items**: (a) n=4 Wigner negativity...` |
+| 🔗 | **Cross-reference** — linking to other articles or code | `🔗 See `articles/2026-05-09-...`` |
+| 📐 | **Validation / Invariant** — near assertions and checks | `📐 `assert np.isclose(np.trace(rho), 1.0)`` |
+
+## Status Indicators in Tables
+
+| Old (do NOT use) | Standardised |
+|-----------------|--------------|
+| `**PASS**` | `✅` |
+| `**FAIL**` | `❌` |
+| `**PENDING**` | `⏳` |
+| `**PARTIAL**` | `🔄` |
+| `**READY**` | `✅` |
+| `**SUPPORTED**` | `✅` |
+
+## Rules
+
+1. **Section header emoji** goes after `## ` and before the title text: `## 🧪 Hypothesis` (not `## Hypothesis 🧪`).
+2. **Inline callouts** get the emoji at the **start of the paragraph**, followed by a space.
+3. **Status columns** use emojis only (✅/❌/⏳/🔄) — never literal words like `**PASS**` or `**PENDING**`.
+4. **No emoji inflation** — each emoji has one distinct meaning; don't add decorative emojis to every bullet.
+5. **First occurrence only** — section emojis appear once per document, not on every sub-subsection.
+6. For **reference documents** (e.g., `Physics-Reference.md`), apply emojis to numbered sections where they fit semantically.
+
 # Coding Workflow
 Follow these steps **in order** for every task that requires writing code.
 

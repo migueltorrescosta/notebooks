@@ -1,6 +1,6 @@
 # Ancilla-Assisted vs. Two-Particle Probe: Metrological Comparison at Fixed Total Resources
 
-## Hypothesis
+## 🧪 Hypothesis
 
 Given a fixed resource of **2 particles** in a Mach–Zehnder interferometer,
 the allocation of those particles determines the achievable phase sensitivity:
@@ -27,7 +27,7 @@ system.
 
 ---
 
-## Literature Review
+## 📖 Literature Review
 
 | Relevant Concept | Article | Year | Connection |
 |---|---|---|---|
@@ -41,7 +41,7 @@ system.
 ---
 
 
-## Theoretical Model
+## ⚛️ Theoretical Model
 
 ### Hilbert Spaces
 
@@ -117,10 +117,7 @@ Key parameters:
 ### System–Ancilla Interaction (Case A Only)
 
 During the holding time $T_H$, the system and ancilla evolve under the interaction Hamiltonian
-$H_{\text{int}} = \alpha_{zz} J_z^{\text{sys}} \otimes J_z^{\text{anc}}
-+ \alpha_{zx} J_z^{\text{sys}} \otimes J_x^{\text{anc}}
-+ \alpha_{xz} J_x^{\text{sys}} \otimes J_z^{\text{anc}}
-+ \alpha_{xx} J_x^{\text{sys}} \otimes J_x^{\text{anc}}$,
+$H_{\text{int}} = \alpha_{zz} J_z^{\text{sys}} \otimes J_z^{\text{anc}} + \alpha_{zx} J_z^{\text{sys}} \otimes J_x^{\text{anc}} + \alpha_{xz} J_x^{\text{sys}} \otimes J_z^{\text{anc}} + \alpha_{xx} J_x^{\text{sys}} \otimes J_x^{\text{anc}}$,
 which is the most general bilinear coupling in $J_z$ and $J_x$ between the
 system and ancilla. The coefficients $\alpha$ are real and form part of the
 optimisation.
@@ -283,7 +280,7 @@ that are discarded. To minimise truncation errors:
 
 ---
 
-## Likely Failure Conditions
+## ⚠️ Likely Failure Conditions
 
 1. **Truncation artefacts in $J_x$**: For $N_{\max} = 1$, $J_x$ acting on
    $\vert 1,1\rangle$ is truncated, losing amplitude to $\vert 2,0\rangle$ and
@@ -330,7 +327,7 @@ that are discarded. To minimise truncation errors:
 
 ---
 
-## Success Criteria
+## ✅ Success Criteria
 
 | # | Criterion | Verification |
 |---|---|---|
@@ -344,7 +341,7 @@ that are discarded. To minimise truncation errors:
 
 ---
 
-## Preliminary Analytical Bounds
+## 📐 Preliminary Analytical Bounds
 
 Before running numerics, the following bounds are known analytically:
 
@@ -374,11 +371,11 @@ No additional joint-measurement advantage beyond the QFI is expected.)
 
 ---
 
-## Conclusions
+## 🔬 Conclusions
 
 The numerical simulation confirms the analytical bound.
 
-### Verification of Success Criteria
+### 📊 Verification of Success Criteria
 
 | # | Criterion | Result | Status |
 |---|---|---|---|
@@ -390,7 +387,7 @@ The numerical simulation confirms the analytical bound.
 | 6 | Truncation boundary $< 10^{-6}$ | $\rho_{\lvert N_{\max},N_{\max}\rangle} < 10^{-12}$ | ✅ |
 | 7 | $\theta$-dependence quantified | $F_Q$ varies $< 0.04\%$ across $\theta \in \{0, 0.1, 0.5\}$ | ✅ |
 
-### Key Findings
+### 💡 Key Findings
 
 1. **Bound confirmed**: Maximum QFI for Case A is bounded by $F_Q = 1$ at
    $T_H = 1$, regardless of $\alpha$. Case B achieves $F_Q = 4$.
@@ -420,7 +417,7 @@ In short: **entangling an ancilla with a $J = \frac12$ probe cannot make
 it behave like a $J = 1$ probe.** The particle count determines the
 achievable angular momentum.
 
-### What Was Implemented
+### 🔧 What Was Implemented
 
 - `src/analysis/ancilla_comparison.py`: Core module with operator
   construction, generator computation (integral quadrature for the

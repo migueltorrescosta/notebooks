@@ -1,6 +1,6 @@
 # Scaling Survey: Dicke Basis — Collective Spin & Entanglement-Enhanced Interferometry
 
-## Hypothesis
+## 🧪 Hypothesis
 
 For interferometers using **collective spin states in the symmetric Dicke subspace**:
 
@@ -12,7 +12,7 @@ For interferometers using **collective spin states in the symmetric Dicke subspa
 
 ---
 
-## Literature Review
+## 📖 Literature Review
 
 | Concept & Motivation | Article | Year |
 |---|---|---|
@@ -24,7 +24,7 @@ For interferometers using **collective spin states in the symmetric Dicke subspa
 
 ---
 
-## Theoretical Model
+## ⚛️ Theoretical Model
 
 ### Hilbert Space
 
@@ -73,7 +73,7 @@ The OAT optimal squeezing time scales as $t_{\text{opt}} \propto N^{-1/3}$ (not 
 
 ---
 
-## Models Survey
+## 📊 Models Survey
 
 | Model | Input | Entanglement | Expected $\alpha$ | Implementation |
 |---|---|---|---|---|
@@ -86,7 +86,7 @@ The OAT optimal squeezing time scales as $t_{\text{opt}} \propto N^{-1/3}$ (not 
 
 ---
 
-## Numerical Simulation
+## 💻 Numerical Simulation
 
 ### Implementation Strategy
 
@@ -118,7 +118,7 @@ assert F_Q <= 4 * N**2, "QFI ≤ 4N² for J_z generator"
 
 ---
 
-## Likely Failure Conditions
+## ⚠️ Likely Failure Conditions
 
 1. **Dicke basis limitation for hybrid models**: Adding oscillator or ancilla increases dimension to $(N+1) \times d_{\text{ext}}$. For $N > 100$ and $d_{\text{ext}} > 10$, this becomes expensive. Mitigation: restrict hybrid models to $N \leq 30$.
 

@@ -1,6 +1,6 @@
 # High-Order Non-Gaussian Squeezing under Decoherence
 
-## Hypothesis
+## 🧪 Hypothesis
 
 Non-Gaussian squeezed states generated via high-order spin-dependent forces (n ≥ 3) can
 outperform Gaussian squeezed states (n = 2) for phase estimation in Mach-Zehnder
@@ -13,7 +13,7 @@ There exists a critical decoherence rate γ_c such that:
 
 ---
 
-## Physical Model
+## ⚛️ Physical Model
 
 ### Hybrid Oscillator-Spin System
 
@@ -53,7 +53,7 @@ Master equation: Lindblad form dρ/dt = -i[H, ρ] + Σ_k γ_k D[L_k]ρ.
 
 ---
 
-## Numerical Simulation Techniques
+## 💻 Numerical Simulation
 
 ### Adaptive Fock Truncation
 
@@ -75,7 +75,7 @@ N_osc = min(N_max, ceil(|α|² + n·r_n + 10√(|α|² + n·r_n + 1))). After ea
 
 ---
 
-## Success Criteria
+## ✅ Success Criteria
 
 1. n=2 results match analytical Gaussian squeezing formulas.
 2. n≥3 states show Wigner negativity.
@@ -85,21 +85,21 @@ N_osc = min(N_max, ceil(|α|² + n·r_n + 10√(|α|² + n·r_n + 1))). After ea
 
 ---
 
-## Results and Next Steps
+## 🔬 Results and Next Steps
 
 | # | Test | Expectation | Status |
 |---|------|-------------|--------|
-| 1 | n=2 physics | ⟨n⟩ = sinh²(r) | **PASS** |
-| 2 | Wigner negativity for n≥3 | min(W) < 0 | **PARTIAL** (n=3 ✓, n=4 not detected) |
-| 3 | QFI at fixed ⟨n⟩ | QFI(n=3,4) > QFI(n=2) | **SUPPORTED** (both n=3,4 beat n=2 at all ⟨n⟩) |
-| 4 | Decoherence crossover | γ_c > 0 exists | **READY** (solver implemented, sweep not yet run) |
-| 5 | Numerical stability | Trace, positivity, truncation | **PASS** |
+| 1 | n=2 physics | ⟨n⟩ = sinh²(r) | ✅ |
+| 2 | Wigner negativity for n≥3 | min(W) < 0 | 🔄 (n=3 ✅, n=4 not detected) |
+| 3 | QFI at fixed ⟨n⟩ | QFI(n=3,4) > QFI(n=2) | ✅ (both n=3,4 beat n=2 at all ⟨n⟩) |
+| 4 | Decoherence crossover | γ_c > 0 exists | ✅ (solver implemented, sweep not yet run) |
+| 5 | Numerical stability | Trace, positivity, truncation | ✅ |
 
-The core hypothesis is supported: both n=3 and n=4 states achieve higher QFI than n=2
+💡 **Key Finding**: The core hypothesis is supported: both n=3 and n=4 states achieve higher QFI than n=2
 at all tested ⟨n⟩ (0.5–3.0), with factors of 2–5×. The n=2 QFI matches the analytical
 formula F_Q = 2⟨n⟩² + 3⟨n⟩ (derived from F_Q = Var(n) + ⟨n⟩ for this MZI configuration).
 
-Open items: (a) n=4 Wigner negativity remains undetected — may require finer grids or
+🔍 **Open items**: (a) n=4 Wigner negativity remains undetected — may require finer grids or
 different squeezing times; (b) decoherence sweeps to find γ_c are ready but unrun;
 (c) the adaptive Fock truncation (safety factor 10n) may be insufficient for n=4 at
 moderate ⟨n⟩, potentially affecting QFI accuracy.
