@@ -11,9 +11,9 @@ Tests verify:
 
 import numpy as np
 
+from src.physics.mzi_states import two_mode_jz_operator
 from src.physics.single_particle_mzi_scaling import (
     build_beam_splitter,
-    build_jz_operator,
     build_holding_unitary,
     compute_analytical_derivative,
     compute_delta_theta_from_propagation,
@@ -35,7 +35,7 @@ from src.physics.single_particle_mzi_scaling import (
 
 def test_jz_operator_diagonal() -> None:
     """J_z must be diagonal with eigenvalues ±1/2 for physical states."""
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
     assert jz.shape == (4, 4)
     # |1,0⟩ eigenvalue = +1/2
     state_10 = fock_state(1, 0)
@@ -72,7 +72,7 @@ def test_beam_splitter_acts_on_subspace() -> None:
 
 def test_holding_unitary_unitarity() -> None:
     """U_hold must be unitary."""
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
     u_hold = build_holding_unitary(theta=1.0, t_h=1.0, jz=jz)
     assert np.allclose(u_hold @ u_hold.conj().T, np.eye(4), atol=1e-12)
 
@@ -85,7 +85,7 @@ def test_holding_unitary_unitarity() -> None:
 def test_evolution_preserves_norm() -> None:
     """Full MZI circuit must preserve state norm."""
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
         for t_h in [0.1, 1.0, 10.0]:
             psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
@@ -102,7 +102,7 @@ def test_evolution_preserves_norm() -> None:
 def test_analytical_formula() -> None:
     """Δθ from error propagation must equal exactly 1/T_H."""
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
         for t_h in [0.1, 1.0, 10.0, 50.0]:
             dt_a, jz_mean, jz_var, d_jz, _ = compute_delta_theta_from_propagation(
@@ -119,7 +119,7 @@ def test_analytical_formula() -> None:
 def test_jz_expectation_analytical() -> None:
     """⟨J_z⟩ must match -½ cos(θ T_H)."""
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
         for t_h in [0.1, 1.0, 10.0]:
             psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
@@ -133,7 +133,7 @@ def test_jz_expectation_analytical() -> None:
 def test_jz_variance_analytical() -> None:
     """Var(J_z) must match ¼ sin²(θ T_H)."""
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
         for t_h in [0.1, 1.0, 10.0]:
             psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
@@ -163,7 +163,7 @@ def test_analytical_derivative_formula() -> None:
 def test_numerical_derivative_matches_analytical() -> None:
     """Numerical and analytical derivatives must agree to 1e-6 relative."""
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
         for t_h in [0.1, 1.0, 10.0, 50.0]:
             d_a = compute_analytical_derivative(t_h, theta)
@@ -202,7 +202,7 @@ def test_validation_at_fringe_extremum() -> None:
     """
     t_h = np.pi  # θ=1, T_H=π → sin(π) ≈ 0
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
 
     # Compute delta_theta; it will be inf/NaN at exact fringe extremum
     dt_a, _, _, _, is_fringe = compute_delta_theta_from_propagation(
@@ -326,7 +326,7 @@ def test_fringe_exclusion_improves_fit() -> None:
 def test_zero_holding_time_limit() -> None:
     """At T_H → 0, sensitivity diverges (Δθ → ∞)."""
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
     dt_a, _, _, _, _ = compute_delta_theta_from_propagation(
         1e-10, 1.0, u_bs, jz, use_numerical=False
     )
@@ -336,7 +336,7 @@ def test_zero_holding_time_limit() -> None:
 def test_large_holding_time() -> None:
     """At large T_H, sensitivity should approach zero."""
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
     dt_a, _, _, _, _ = compute_delta_theta_from_propagation(
         100.0, 1.0, u_bs, jz, use_numerical=False
     )

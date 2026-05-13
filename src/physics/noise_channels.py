@@ -44,8 +44,6 @@ from typing import Optional
 
 import numpy as np
 
-from src.physics.dicke_basis import jz_operator
-
 
 # =============================================================================
 # Configuration
@@ -230,6 +228,8 @@ def build_lindblad_operators(N: int, config: NoiseConfig) -> list[np.ndarray]:
     L_ops: list[np.ndarray] = []
 
     # Get base operators
+    from src.physics.dicke_basis import jz_operator
+
     a = annihilation_operator(N)
     J_z = jz_operator(N)
 
@@ -534,6 +534,8 @@ def test_phase_diffusion_off_diagonal() -> dict:
     assert len(L_ops) == 1, "Should have one Lindblad operator"
 
     # Verify operator is J_z
+    from src.physics.dicke_basis import jz_operator
+
     J_z = jz_operator(N)
     expected_L = np.sqrt(config.gamma_phi) * J_z
 

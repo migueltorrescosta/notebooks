@@ -30,32 +30,12 @@ import numpy as np
 import pandas as pd
 import scipy
 
+from src.physics.mzi_states import two_mode_jz_operator
+
 
 # =============================================================================
 # Core Operators
 # =============================================================================
-
-
-def build_jz_operator() -> np.ndarray:
-    """Build J_z for the single-particle (max_photons=1) Fock space.
-
-    J_z = (n₁ - n₂)/2, diagonal in the Fock basis.
-
-    Only the |1,0⟩ and |0,1⟩ states are physical; the |0,0⟩ and |1,1⟩
-    basis states are included for completeness but not populated.
-
-    Returns:
-        4×4 diagonal J_z operator matrix.
-
-    """
-    dim = 4  # (max_photons + 1)^2 = 4
-    jz = np.zeros((dim, dim), dtype=complex)
-    # Basis ordering: |n1, n2⟩ → index = n1 * 2 + n2 (since max_photons + 1 = 2)
-    for n1 in range(2):
-        for n2 in range(2):
-            idx = n1 * 2 + n2
-            jz[idx, idx] = (n1 - n2) / 2.0
-    return jz
 
 
 def build_beam_splitter() -> np.ndarray:
@@ -336,7 +316,7 @@ def compute_sensitivity_sweep(
     """
     # Build operators once
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
 
     t_h_values = np.logspace(np.log10(t_h_min), np.log10(t_h_max), n_points)
 
@@ -450,7 +430,7 @@ def run_validation(theta: float = 1.0, t_h: float = 1.0) -> dict:
 
     """
     u_bs = build_beam_splitter()
-    jz = build_jz_operator()
+    jz = two_mode_jz_operator(1)
 
     # State normalization
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)

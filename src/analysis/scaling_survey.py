@@ -42,7 +42,7 @@ from src.physics.mzi_lindblad import MziNoiseConfig, evolve_mzi_lindblad
 from src.physics.mzi_simulation import phase_shift_unitary
 from src.physics.mzi_states import (
     compute_fisher_information,
-    create_jz_operator,
+    two_mode_jz_operator,
     input_state_factory,
 )
 
@@ -504,7 +504,7 @@ def _compute_noisy_sensitivity(
         return np.inf
 
     # J_z operator in the two-mode Fock basis
-    J_z = create_jz_operator(max_photons)
+    J_z = two_mode_jz_operator(max_photons)
 
     # Compute QFI via SLD formula for mixed states
     try:

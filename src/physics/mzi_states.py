@@ -379,11 +379,15 @@ def input_state_factory(
 # =============================================================================
 
 
-def create_jz_operator(max_photons: int) -> np.ndarray:
+def two_mode_jz_operator(max_photons: int) -> np.ndarray:
     """Create J_z operator for two-mode Fock basis.
 
     J_z = (n₁ - n₂)/2 is the angular momentum projection operator
     in the two-mode Fock basis.
+
+    This is distinct from :func:`dicke_basis.jz_operator` which operates
+    in the collective (N+1)-dimensional Dicke basis. This operator operates
+    in the full (M+1)²-dimensional two-mode Fock space.
 
     Args:
         max_photons: Maximum photon number per mode.
@@ -416,7 +420,7 @@ def compute_jz_expectation(state: np.ndarray, max_photons: int) -> complex:
         Complex expectation value (should be real).
 
     """
-    jz = create_jz_operator(max_photons)
+    jz = two_mode_jz_operator(max_photons)
     # Ensure state is in the right dimension
     exp_val = np.conj(state) @ jz @ state
     return exp_val
@@ -435,7 +439,7 @@ def compute_jz_variance(state: np.ndarray, max_photons: int) -> float:
         Variance of J_z.
 
     """
-    jz = create_jz_operator(max_photons)
+    jz = two_mode_jz_operator(max_photons)
     jz_sq = jz @ jz
 
     mean = np.conj(state) @ jz @ state

@@ -18,7 +18,7 @@ from .mzi_states import (
     twin_fock_state,
     coherent_state_two_mode,
     input_state_factory,
-    create_jz_operator,
+    two_mode_jz_operator,
     compute_jz_expectation,
     compute_jz_variance,
     compute_fisher_information,
@@ -233,12 +233,12 @@ class TestJ_z_Operator:
 
     def test_jz_hermitian(self) -> None:
         """J_z operator should be Hermitian."""
-        jz = create_jz_operator(max_photons=3)
+        jz = two_mode_jz_operator(max_photons=3)
         assert np.allclose(jz, jz.conj().T)
 
     def test_jz_eigenvalues(self) -> None:
         """J_z eigenvalues should be (n1-n2)/2."""
-        jz = create_jz_operator(max_photons=2)
+        jz = two_mode_jz_operator(max_photons=2)
 
         # Check diagonal
         for n1 in range(3):

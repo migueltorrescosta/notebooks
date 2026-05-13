@@ -47,7 +47,7 @@ from src.physics.mzi_simulation import (
     evolve_mzi,
     prepare_input_state,
 )
-from src.physics.mzi_states import create_jz_operator
+from src.physics.mzi_states import two_mode_jz_operator
 from src.physics.noise_channels import NoiseConfig
 
 
@@ -108,7 +108,7 @@ def error_propagation_sensitivity(
         )
 
     # Generate J_z operator in two-mode Fock basis
-    jz = create_jz_operator(max_photons)
+    jz = two_mode_jz_operator(max_photons)
     jz2 = jz @ jz
 
     # Allocate arrays
@@ -257,7 +257,7 @@ def all_sensitivity_metrics(
         )
 
     # Generate J_z generator for the two-mode system
-    generator = create_jz_operator(max_photons)
+    generator = two_mode_jz_operator(max_photons)
 
     # -----------------------------------------------------------------------------
     # 1. Error Propagation Sensitivity

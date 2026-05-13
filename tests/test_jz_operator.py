@@ -1,10 +1,10 @@
 """
-Tests for BR-5: J_z Consolidation & Phase Diffusion Fix.
+Tests for J_z operator correctness and phase diffusion.
 
 Validates:
-- All modules return identical matrices for jz_operator(N)
+- Dicke vs Fock basis conventions for jz_operator
 - Phase diffusion off-diagonal decay rate ∝ (m₁ - m₂)²
-- Unitary evolution (gamma=0) unchanged before/after fix
+- Unitary evolution (gamma=0) unchanged
 - Tr[ρ(t)] = 1 preserved under phase diffusion
 """
 
@@ -13,7 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.physics.dicke_basis import jz_operator as jz_dicke
+from src.physics.dicke_basis import jz_operator
 from src.evolution.lindblad_solver import (
     LindbladConfig,
     evolve_lindblad,
@@ -25,33 +25,18 @@ from src.utils.enums import OperatorBasis
 
 
 # =============================================================================
-# BR-5.1: All modules return identical matrices
+# Basis Conventions
 # =============================================================================
 
 
-class TestJzIdenticalAcrossModules:
-    """Verify jz_operator returns identical matrices from all canonical sources."""
-
-    @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_dicke_basis_matches_noise_channels(self, N: int) -> None:
-        """dicke_basis.jz_operator and noise_channels.jz_operator must match."""
-        from src.physics.dicke_basis import jz_operator as jz_db
-        from src.physics.noise_channels import jz_operator as jz_nc
-
-        mat_db = jz_db(N)
-        mat_nc = jz_nc(N)
-        np.testing.assert_allclose(
-            mat_db,
-            mat_nc,
-            rtol=1e-12,
-            err_msg=f"jz_operator(N={N}) differs between dicke_basis and noise_channels",
-        )
+class TestJzBasisConventions:
+    """Verify jz_operator basis conventions are consistent."""
 
     @pytest.mark.parametrize("N", [2, 4, 10])
     def test_dicke_basis_explicit_vs_default(self, N: int) -> None:
         """Explicit DICKE basis must match default (None) basis."""
-        mat_default = jz_dicke(N)
-        mat_explicit = jz_dicke(N, basis=OperatorBasis.DICKE)
+        mat_default = jz_operator(N)
+        mat_explicit = jz_operator(N, basis=OperatorBasis.DICKE)
         np.testing.assert_allclose(
             mat_default,
             mat_explicit,
@@ -62,8 +47,8 @@ class TestJzIdenticalAcrossModules:
     @pytest.mark.parametrize("N", [2, 4, 10])
     def test_fock_basis_is_reversed_dicke(self, N: int) -> None:
         """FOCK basis J_z should be DICKE J_z with eigenvalues reversed."""
-        mat_dicke = jz_dicke(N, basis=OperatorBasis.DICKE)
-        mat_fock = jz_dicke(N, basis=OperatorBasis.FOCK)
+        mat_dicke = jz_operator(N, basis=OperatorBasis.DICKE)
+        mat_fock = jz_operator(N, basis=OperatorBasis.FOCK)
 
         # Fock eigenvalues = reversed Dicke eigenvalues
         dicke_diag = np.diag(mat_dicke)
@@ -77,7 +62,7 @@ class TestJzIdenticalAcrossModules:
 
 
 # =============================================================================
-# BR-5.2: Phase diffusion off-diagonal decay ∝ (m₁ - m₂)²
+# Phase diffusion off-diagonal decay ∝ (m₁ - m₂)²
 # =============================================================================
 
 
@@ -160,7 +145,7 @@ class TestPhaseDiffusionOffDiagonalDecay:
 
 
 # =============================================================================
-# BR-5.3: Unitary evolution (gamma=0) unchanged
+# Unitary evolution (gamma=0) unchanged
 # =============================================================================
 
 
@@ -213,7 +198,7 @@ class TestUnitaryEvolutionUnchanged:
 
 
 # =============================================================================
-# BR-5.4: Trace preservation under phase diffusion
+# Trace preservation under phase diffusion
 # =============================================================================
 
 
@@ -266,7 +251,7 @@ class TestTracePreservationUnderPhaseDiffusion:
 
 
 # =============================================================================
-# BR-5.5: NoiseConfig build_lindblad_operators uses J_z correctly
+# NoiseConfig build_lindblad_operators uses J_z correctly
 # =============================================================================
 
 
@@ -281,7 +266,7 @@ class TestNoiseConfigJzUsage:
         L_ops = build_lindblad_operators(N, config)
 
         assert len(L_ops) == 1
-        expected = np.sqrt(gamma_phi) * jz_dicke(N)
+        expected = np.sqrt(gamma_phi) * jz_operator(N)
         np.testing.assert_allclose(L_ops[0], expected, rtol=1e-12)
 
     @pytest.mark.parametrize("N", [2, 4, 10])
