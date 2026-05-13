@@ -12,7 +12,7 @@ The central hypothesis is that a **non-zero interaction Hamiltonian** with suita
 
 | Concept, Motivation and Connection | Article | Year |
 |---|---|---|
-| Standard MZI theory and error-propagation sensitivity — Provides the beam-splitter conventions, $J_z$ measurement operator, and error-propagation formalism used throughout the numerical optimization. | *Mach–Zehnder interferometry* (standard textbooks) | — |
+| Standard MZI theory and error-propagation sensitivity — Provides the beam-splitter conventions, $J_z$ measurement operator, and error-propagation formalism used throughout the numerical optimization. | Gerry & Knight, *Introductory Quantum Optics*, Cambridge University Press (Ch. 6: Beam splitters and interferometers) ([DOI](https://doi.org/10.1017/9781009463614)) | 2005 |
 | Ancilla-assisted quantum metrology: using auxiliary systems to surpass SQL — Establishes the theoretical framework for ancilla-assisted metrology that this article directly tests via numerical optimization of the $\alpha_{ij}$ interaction coefficients. | Giovannetti *et al.*, *Advances in quantum metrology*, Nature Photonics **5**, 222 | 2011 |
 | Interaction-based readout in entangled interferometers — Introduces interaction-based readout protocols that motivate the holding-time interaction Hamiltonian $H_{\text{int}}$ optimized here with a Nelder–Mead search. | Davis *et al.*, *Interaction-based readout for spin-squeezed states*, PRA **94**, 063814 | 2016 |
 | Two-axis counter-twisting and spin-squeezing Hamiltonians — Provides the $J_x/J_z$ spin-squeezing algebra used to construct the four interaction terms $\alpha_{ij} J_i^S \otimes J_j^A$ in the holding Hamiltonian. | Kitagawa & Ueda, *Squeezed spin states*, PRA **47**, 5138 | 1993 |
