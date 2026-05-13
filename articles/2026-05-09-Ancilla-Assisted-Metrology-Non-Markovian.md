@@ -26,14 +26,14 @@ Specifically:
 
 ## 📖 Literature Review
 
-| Relevant Concept | Article | Year | Connection |
-|---|---|---|---|
-| Hybrid oscillator-spin interactions in trapped ions | Sutherland & Srinivas, *Phys. Rev. A* 104, 032609 ([arXiv:2105.05768](https://arxiv.org/abs/2105.05768)) | 2021 | Physical platform for generating spin-motion entanglement used in this work; provides the spin-dependent force machinery |
-| Pseudomode method for non-Markovian open quantum systems | Garraway, *Phys. Rev. A* 55, 2290 ([DOI](https://doi.org/10.1103/PhysRevA.55.2290)) | 1997 | Maps Lorentzian-structured reservoir to a single damped harmonic oscillator (pseudomode) + Markovian bath; foundational technique used here |
-| Bath engineering for quantum metrology | Demkowicz-Dobrzański et al., *Phys. Rev. Lett.* 118, 020501 ([DOI](https://doi.org/10.1103/PhysRevLett.118.020501)) | 2017 | Error correction and ancilla-assisted schemes for protecting QFI in dissipative environments |
-| Non-Markovianity and metrology | Chin et al., *Phys. Rev. Lett.* 108, 140403 ([DOI](https://doi.org/10.1103/PhysRevLett.108.140403)) | 2012 | Non-Markovian effects can enhance precision; bath memory can be exploited as a resource |
-| QFI computation for mixed states | Paris, *Int. J. Quantum Inf.* 7, 125 ([DOI](https://doi.org/10.1142/S0219749909004839)) | 2009 | Symmetric logarithmic derivative formulation used for computing QFI post-decoherence |
-| High-order squeezing under Markovian decoherence | (Previous work in this repo; `articles/2026-05-07-High-Order-Squeezing-Plan.md`) | 2026 | Existing hybrid Lindblad framework; decoherence sweeps at fixed ⟨n⟩ for n=2,3,4 |
+| Concept, Motivation and Connection | Article | Year |
+|---|---|---|
+| Hybrid oscillator-spin interactions in trapped ions — provides the physical platform and spin-motion entanglement machinery needed to implement the ancilla-oscillator coupling used here — Physical platform for generating spin-motion entanglement used in this work; provides the spin-dependent force machinery | Sutherland & Srinivas, *Phys. Rev. A* 104, 032609 ([arXiv:2105.05768](https://arxiv.org/abs/2105.05768)) | 2021 |
+| Pseudomode method for non-Markovian open quantum systems — foundational technique mapping a Lorentzian-structured reservoir to a single damped harmonic oscillator (pseudomode) plus a Markovian bath, enabling the non-Markovian simulation approach used here — Maps Lorentzian-structured reservoir to a single damped harmonic oscillator (pseudomode) + Markovian bath; foundational technique used here | Garraway, *Phys. Rev. A* 55, 2290 ([DOI](https://doi.org/10.1103/PhysRevA.55.2290)) | 1997 |
+| Bath engineering for quantum metrology — demonstrates that error correction and ancilla-assisted schemes can protect QFI in dissipative environments, motivating the ancilla-protection hypothesis tested here — Error correction and ancilla-assisted schemes for protecting QFI in dissipative environments | Demkowicz-Dobrzański et al., *Phys. Rev. Lett.* 118, 020501 ([DOI](https://doi.org/10.1103/PhysRevLett.118.020501)) | 2017 |
+| Non-Markovianity and metrology — shows that non-Markovian effects can enhance precision and that bath memory can be exploited as a resource, motivating the search for a non-Markovian advantage in ancilla-assisted protocols — Non-Markovian effects can enhance precision; bath memory can be exploited as a resource | Chin et al., *Phys. Rev. Lett.* 108, 140403 ([DOI](https://doi.org/10.1103/PhysRevLett.108.140403)) | 2012 |
+| QFI computation for mixed states — symmetric logarithmic derivative formulation used here for computing QFI post-decoherence, with thresholding to handle near-zero eigenvalues — Symmetric logarithmic derivative formulation used for computing QFI post-decoherence | Paris, *Int. J. Quantum Inf.* 7, 125 ([DOI](https://doi.org/10.1142/S0219749909004839)) | 2009 |
+| High-order squeezing under Markovian decoherence (previous work in this repo) — existing hybrid Lindblad framework for decoherence sweeps at fixed ⟨n⟩ for n=2,3,4, extended here to non-Markovian ancilla-assisted metrology — Existing hybrid Lindblad framework; decoherence sweeps at fixed ⟨n⟩ for n=2,3,4 | (Previous work in this repo; `articles/2026-05-07-High-Order-Squeezing-Plan.md`) | 2026 |
 
 ---
 
@@ -332,78 +332,35 @@ assert np.isfinite(F_Q), "QFI must be finite"
 
 ---
 
-## ✅ Success Criteria
-
-1. **Ancilla benefit**: ∃ θ > 0 such that ℛ_with_ancilla(T) > ℛ_without_ancilla(T)
-   at fixed T > 0, verified with tolerance-based significance.
-
-2. **Optimal coupling**: ℛ(T) as a function of θ shows a clear maximum at some
-   finite θ* > 0, not at the boundaries (θ* not at 0 or π).
-
-3. **Non-Markovian scaling**: The ancilla improvement Δℛ increases as λ decreases
-   (more non-Markovian), confirming that bath memory is the resource.
-
-4. **Markovian recovery**: As λ → ∞, ℛ_with_ancilla(T) → ℛ_without_ancilla(T),
-   converging to the known Lindblad result.
-
-5. **Numerical validity**: Trace preservation, Hermiticity, and positivity hold
-   at all times; ℛ(T) ≤ 1 for all T ≥ 0; pseudomode truncation does not
-   cause artifacts (⟨b†b⟩ ≤ 0.8·K at all times).
-
-6. **MZI compatibility**: The protocol can be embedded into the existing
-   MZI pipeline (using `hybrid_mzi.py`) for a full interferometric readout.
-
----
-
 ## ⚠️ Likely Failure Conditions
 
-1. **Pseudomode truncation artifacts**: If g_sp or T is too large, the pseudomode
-   population grows beyond K, causing reflection at the Fock-space boundary that
-   feeds spurious population back into the system. ⚠️ **Mitigation**: Fail
-   immediately if ⟨b†b⟩ > 0.8·K at any time step. Use adaptive K with a safety
-   margin of 2–3× above expected occupation.
+| Failure | Description | Mitigation |
+|---------|-------------|------------|
+| Pseudomode truncation artifacts | If g_sp or T is too large, the pseudomode population grows beyond K, causing reflection at the Fock-space boundary that feeds spurious population back into the system. | Fail immediately if ⟨b†b⟩ > 0.8·K at any time step. Use adaptive K with a safety margin of 2–3× above expected occupation. |
+| Hilbert space explosion | The total dimension 2(N+1)(K+1) grows as N·K. For N = 50 and K = 30, the density matrix has (2 × 51 × 31)² ≈ 10⁷ elements (~80 MB), which is manageable but pushes RK4 to ~10–100 ms per step. | Keep N ≤ 30, K ≤ 20 for initial sweeps; use sparse methods or vectorized Liouvillian if scaling to larger systems. |
+| Kronecker-product ordering mismatch | If the index convention idx = (n×2 + s)×(K+1) + k disagrees with the np.kron call order in the operator builder, every Hamiltonian matrix element is silently wrong while dimensions remain correct. | Unit-test the operator builder against a hand-constructed reference for a tiny system (N=2, K=2) where every matrix element is computed independently and verified to machine precision. |
+| Over-rotation at strong coupling | For large θ = g_sa·τ, the ancilla entanglement wraps around (θ > π/2), reducing rather than protecting QFI. | Plot ℛ(T) vs θ; expect a peak at moderate θ*, not monotonic or flat behavior. |
+| Small λ (deeply non-Markovian) regime | When λ is very small, the pseudomode behaves almost coherently, and the combined oscillator-pseudomode system may exhibit coherent oscillations rather than dissipative dynamics. The QFI may oscillate rather than decay monotonically. | Output the full ℛ(t) trajectory, not just the endpoint at T. |
+| Phase generator ambiguity | The phase generator G = a†a ⊗ I_spin acts on the oscillator only. When the ancilla is traced out, phase information stored in spin-oscillator correlations is discarded. | Always compare ℛ_full (ancilla retained) vs ℛ_partial (ancilla traced out). The difference Δℛ is the ancilla benefit. |
+| QFI numerical instability for highly mixed states | The SLD formula divides by (λ_i + λ_j), which becomes singular for near-zero eigenvalues. | Threshold eigenvalues at ϵ = 10⁻¹²; skip terms where λ_i + λ_j < ϵ. Check purity Tr(ρ²) and warn if < 0.05. |
 
-2. **Hilbert space explosion**: The total dimension 2(N+1)(K+1) grows as N·K.
-   For N = 50 and K = 30, the density matrix has (2 × 51 × 31)² ≈ 10⁷ elements
-   (~80 MB), which is manageable but pushes RK4 to ~10–100 ms per step.
-   ⚠️ **Mitigation**: Keep N ≤ 30, K ≤ 20 for initial sweeps; use sparse methods
-   or vectorized Liouvillian if scaling to larger systems.
+## ✅ Success Criteria
 
-3. **Kronecker-product ordering mismatch**: If the index convention
-   idx = (n×2 + s)×(K+1) + k disagrees with the np.kron call order in the
-   operator builder, every Hamiltonian matrix element is silently wrong while
-   dimensions remain correct. ⚠️ **Mitigation**: Unit-test the operator builder
-   against a hand-constructed reference for a tiny system (N=2, K=2) where every
-   matrix element is computed independently and verified to machine precision.
-
-4. **Over-rotation at strong coupling**: For large θ = g_sa·τ, the ancilla
-   entanglement wraps around (θ > π/2), reducing rather than protecting QFI.
-   ⚠️ **Check**: Plot ℛ(T) vs θ; expect a peak at moderate θ*, not monotonic
-   or flat behavior.
-
-5. **Small λ (deeply non-Markovian) regime**: When λ is very small, the pseudomode
-   behaves almost coherently, and the combined oscillator-pseudomode system may
-   exhibit coherent oscillations rather than dissipative dynamics. The QFI may
-   oscillate rather than decay monotonically. ⚠️ **Mitigation**: Output the full
-   ℛ(t) trajectory, not just the endpoint at T.
-
-6. **Phase generator ambiguity**: The phase generator G = a†a ⊗ I_spin acts on
-   the oscillator only. When the ancilla is traced out, phase information stored
-   in spin-oscillator correlations is discarded. ⚠️ **Check**: Always compare
-   ℛ_full (ancilla retained) vs ℛ_partial (ancilla traced out). The difference
-   Δℛ is the ancilla benefit.
-
-7. **QFI numerical instability for highly mixed states**: The SLD formula divides
-   by (λ_i + λ_j), which becomes singular for near-zero eigenvalues.
-   ⚠️ **Mitigation**: Threshold eigenvalues at ϵ = 10⁻¹²; skip terms where
-   λ_i + λ_j < ϵ. Check purity Tr(ρ²) and warn if < 0.05.
+| # | Check | Expectation |
+|---|-------|-------------|
+| 1 | **Ancilla benefit** | $\exists\,\theta > 0$ such that $\mathcal{R}_{\text{with}}(T) > \mathcal{R}_{\text{without}}(T)$ at fixed $T > 0$, verified with tolerance-based significance |
+| 2 | **Optimal coupling** | $\mathcal{R}(T)$ as a function of $\theta$ shows a clear maximum at some finite $\theta^* > 0$, not at the boundaries ($\theta^*$ not at 0 or $\pi$) |
+| 3 | **Non-Markovian scaling** | The ancilla improvement $\Delta\mathcal{R}$ increases as $\lambda$ decreases (more non-Markovian), confirming that bath memory is the resource |
+| 4 | **Markovian recovery** | As $\lambda \to \infty$, $\mathcal{R}_{\text{with}}(T) \to \mathcal{R}_{\text{without}}(T)$, converging to the known Lindblad result |
+| 5 | **Numerical validity** | Trace preservation, Hermiticity, and positivity hold at all times; $\mathcal{R}(T) \le 1$ for all $T \ge 0$; pseudomode truncation does not cause artifacts ($\langle b^\dagger b\rangle \le 0.8\,K$ at all times) |
+| 6 | **MZI compatibility** | The protocol can be embedded into the existing MZI pipeline for a full interferometric readout |
 
 ---
 
 ## 🔬 Results and Next Steps
 
 | # | Test | Expectation | Status |
-|---|---|---|---|---|
+|---|---|---|---|
 | 1 | Pseudomode Lindblad reproduces Markovian limit (λ → ∞) | ℛ(T) matches standard Lindblad at γ = g_sp²/λ | ⏳ — sweep not yet run |
 | 2 | Ancilla improves QFI at moderate θ | ℛ_with > ℛ_without at fixed T > 0 | ⏳ — sweep not yet run |
 | 3 | Optimal θ* exists at finite value | ℛ(T) is concave in θ | ⏳ — sweep not yet run |

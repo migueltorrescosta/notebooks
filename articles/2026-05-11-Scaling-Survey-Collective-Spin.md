@@ -14,13 +14,13 @@ For interferometers using **collective spin states in the symmetric Dicke subspa
 
 ## 📖 Literature Review
 
-| Concept & Motivation | Article | Year |
+| Concept, Motivation and Connection | Article | Year |
 |---|---|---|
-| Quantum limits for interferometry: QCRB, SQL, Heisenberg limit; foundations for all scaling calculations | *Sensitivity of Quantum-Enhanced Interferometers* (review) | — |
-| High-order non-Gaussian squeezing under Markovian decoherence: hybrid Lindblad framework; QFI decoherence sweeps at fixed $\langle n \rangle$ for n=2,3,4 | `articles/2026-05-07-High-Order-Squeezing-Plan.md` (prior repo) | 2026 |
-| Ancilla-assisted metrology in non-Markovian environments: pseudomode-based non-Markovian QFI; $\mathcal{R}(T)$ preservation ratio scaling | `articles/2026-05-09-Ancilla-Assisted-Metrology-Non-Markovian.md` (prior repo) | 2026 |
-| OAT squeezing theory: Kitagawa & Ueda (1993) — optimal squeezing time $t_{\text{opt}} \propto N^{-1/3}$, minimum squeezing parameter $\xi^2_{\min} \propto N^{-2/3}$ | Kitagawa & Ueda, *Phys. Rev. A* 47, 5138 | 1993 |
-| Two-axis countertwisting: $H \propto J_+^2 + J_-^2$ achieves $\xi^2 \propto N^{-1}$ (Heisenberg-limited squeezing) | Kitagawa & Ueda, *Phys. Rev. A* 47, 5138 | 1993 |
+| Quantum limits for interferometry: QCRB, SQL, Heisenberg limit; foundations for all scaling calculations — Defines the SQL and Heisenberg-limit benchmarks against which all collective-spin scaling exponents ($\alpha = -2/3$ for OAT, $\alpha = -1.0$ for Twin-Fock) are compared in this survey. | *Sensitivity of Quantum-Enhanced Interferometers* (review) | — |
+| High-order non-Gaussian squeezing under Markovian decoherence: hybrid Lindblad framework; QFI decoherence sweeps at fixed $\langle n \rangle$ for n=2,3,4 — Provides the hybrid Lindblad framework and QFI decoherence sweeps for n=3,4 non-Gaussian states, directly used in the Models Survey for precise exponent extraction. | `articles/2026-05-07-High-Order-Squeezing-Plan.md` (prior repo) | 2026 |
+| Ancilla-assisted metrology in non-Markovian environments: pseudomode-based non-Markovian QFI; $\mathcal{R}(T)$ preservation ratio scaling — Establishes the $\mathcal{R}(T)$ preservation-ratio formalism used to verify that ancilla assistance improves the prefactor $C$ without changing the scaling exponent $\alpha$. | `articles/2026-05-09-Ancilla-Assisted-Metrology-Non-Markovian.md` (prior repo) | 2026 |
+| OAT squeezing theory: Kitagawa & Ueda (1993) — optimal squeezing time $t_{\text{opt}} \propto N^{-1/3}$, minimum squeezing parameter $\xi^2_{\min} \propto N^{-2/3}$ — Derives the optimal squeezing time $t_{\text{opt}} \propto N^{-1/3}$ and minimum squeezing $\xi^2_{\min} \propto N^{-2/3}$ that are central to the OAT sensitivity exponent $\alpha = -2/3$ in this survey. | Kitagawa & Ueda, *Phys. Rev. A* 47, 5138 | 1993 |
+| Two-axis countertwisting: $H \propto J_+^2 + J_-^2$ achieves $\xi^2 \propto N^{-1}$ (Heisenberg-limited squeezing) — Establishes the two-axis countertwisting Hamiltonian that achieves $\xi^2 \propto N^{-1}$, motivating the TNT Heisenberg-limited scaling result ($\alpha = -1.0$) in this survey. | Kitagawa & Ueda, *Phys. Rev. A* 47, 5138 | 1993 |
 
 ---
 
@@ -120,10 +120,47 @@ assert F_Q <= 4 * N**2, "QFI ≤ 4N² for J_z generator"
 
 ## ⚠️ Likely Failure Conditions
 
-1. **Dicke basis limitation for hybrid models**: Adding oscillator or ancilla increases dimension to $(N+1) \times d_{\text{ext}}$. For $N > 100$ and $d_{\text{ext}} > 10$, this becomes expensive. Mitigation: restrict hybrid models to $N \leq 30$.
+| Failure | Description | Mitigation |
+|---------|-------------|------------|
+| Dicke basis limitation for hybrid models | Adding oscillator or ancilla increases dimension to $(N+1) \times d_{\text{ext}}$. For $N > 100$ and $d_{\text{ext}} > 10$, this becomes expensive. | Restrict hybrid models to $N \leq 30$. |
+| Optimal time degeneracy | The sensitivity $\Delta\phi(t)$ can have multiple local minima at different $t$ for the same $N$. | Sweep $t$ with fine grid and report global minimum. |
+| Non-Gaussian state preparation | The time-evolved state (or true ground state via `hybrid_system.py::hybrid_ground_state_n`) may not be the optimal metrological state at finite $N$. | Report QFI of multiple state preparations (vacuum-evolved, ground state) and select the best. |
+| Ancilla readout overhead | The ancilla-assisted protocol requires projective measurements on the ancilla, which adds statistical overhead not captured by QFI alone. | Report Bayesian sensitivity $n_{\text{shots}} \to \Delta\phi$ alongside QFI bound. |
 
-2. **Optimal time degeneracy**: The sensitivity $\Delta\phi(t)$ can have multiple local minima at different $t$ for the same $N$. Mitigation: sweep $t$ with fine grid and report global minimum.
+---
 
-3. **Non-Gaussian state preparation**: The time-evolved state (or true ground state via `hybrid_system.py::hybrid_ground_state_n`) may not be the optimal metrological state at finite $N$. Mitigation: report QFI of multiple state preparations (vacuum-evolved, ground state) and select the best.
+## ✅ Success Criteria
 
-4. **Ancilla readout overhead**: The ancilla-assisted protocol requires projective measurements on the ancilla, which adds statistical overhead not captured by QFI alone. Mitigation: report Bayesian sensitivity $n_{\text{shots}} \to \Delta\phi$ alongside QFI bound.
+| # | Check | Expectation |
+|---|---|---|
+| 1 | **OAT squeezing scaling** | $\xi^2_{\min} \propto N^{-2/3}$; fit exponent $-0.67 \pm 0.05$; $t_{\text{opt}} \propto N^{-1/3}$ within 10% of $(6/N)^{1/3}/\chi$ |
+| 2 | **OAT sensitivity exponent** | $\alpha = -2/3 \pm 0.03$ from log-log fit of $\Delta\phi(N)$ at $t_{\text{opt}}$; $R^2 \geq 0.95$ |
+| 3 | **Twin-Fock Heisenberg scaling** | $\Delta\phi = 1/\sqrt{F_Q}$ with $F_Q = N(N+2)/3$; measured $\alpha = -1.0 \pm 0.03$ in ideal case; $\alpha \to -0.5$ under one-body loss $\gamma_1 > 0$ |
+| 4 | **Two-axis countertwisting (TNT)** | $\xi^2_{\min} \propto N^{-1}$ (Heisenberg-limited); $\alpha = -1.0 \pm 0.05$ via QFI |
+| 5 | **Non-Gaussian n=3 scaling** | Measured $\alpha = -0.75 \pm 0.05$ at fixed $\langle n \rangle$; $C \approx 1.5$; $R^2 \geq 0.90$ |
+| 6 | **Non-Gaussian n=4 scaling** | Measured $\alpha = -0.85 \pm 0.05$ at fixed $\langle n \rangle$; $C \approx 2.0$; $R^2 \geq 0.90$ |
+| 7 | **Ancilla-assisted: prefactor preservation** | $\alpha_{\text{ancilla}} = \alpha_{\text{probe}} \pm 0.02$ (scaling exponent unchanged); prefactor $C_{\text{ancilla}} = C_{\text{probe}} / \sqrt{\mathcal{R}(T)}$ within 5% |
+| 8 | **Phase-diffusion degradation** | Entanglement-enhanced states (OAT, Twin-Fock) show $\alpha$ degrading monotonically with $\gamma_\phi$; coherent-state $\alpha$ stays at $-0.5 \pm 0.02$ for all $\gamma_\phi$ |
+| 9 | **Quantum state invariants** | $\Tr(\rho) = 1.0 \pm 10^{-10}$; $\rho = \rho^\dagger$ (Hermitian to $10^{-10}$); $\min \text{eigvals}(\rho) \geq -10^{-8}$ throughout evolution |
+| 10 | **QFI upper bound** | $F_Q \leq 4N^2$ for pure symmetric states under $J_z$ generator; verified within floating-point tolerance |
+| 11 | **Log-log fit quality (all models)** | $R^2 \geq 0.9$ for all scaling sweeps with $\geq 5$ $N$-points; outliers flagged when fit residuals exceed $3\sigma$ |
+| 12 | **NOON vs Twin-Fock comparison under loss** | Both states collapse to $\alpha = -0.5$ under $\gamma_1 > 0$; prefactor $C$ differs by at most a constant factor set by the initial $F_Q$ ratio |
+
+---
+
+## 🔬 Results and Next Steps
+
+| # | Check | Status |
+|---|---|---|
+| 1 | **OAT squeezing scaling** | ⏳ |
+| 2 | **OAT sensitivity exponent** | ⏳ |
+| 3 | **Twin-Fock Heisenberg scaling** | ⏳ |
+| 4 | **Two-axis countertwisting (TNT)** | ⏳ |
+| 5 | **Non-Gaussian n=3 scaling** | ⏳ |
+| 6 | **Non-Gaussian n=4 scaling** | ⏳ |
+| 7 | **Ancilla-assisted: prefactor preservation** | ⏳ |
+| 8 | **Phase-diffusion degradation** | ⏳ |
+| 9 | **Quantum state invariants** | ⏳ |
+| 10 | **QFI upper bound** | ⏳ |
+| 11 | **Log-log fit quality (all models)** | ⏳ |
+| 12 | **NOON vs Twin-Fock comparison under loss** | ⏳ |

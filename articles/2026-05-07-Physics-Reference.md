@@ -4,7 +4,7 @@ Comprehensive reference for the physical models, operators, and sensitivity algo
 
 ---
 
-## 1. Hilbert Spaces & Basis Conventions
+## ⚛️ 1. Hilbert Spaces & Basis Conventions
 
 ### 1.1 Two-Mode Fock Space (Interferometer System)
 
@@ -62,7 +62,7 @@ prepare_input_state(
 
 ---
 
-## 3. Mach-Zehnder Interferometer Evolution
+## ⚛️ 3. Mach-Zehnder Interferometer Evolution
 
 ### 3.1 Circuit Pipeline
 
@@ -325,7 +325,7 @@ $$
 
 ---
 
-## ⚛️ 7. System-Ancilla Rabi Model
+## 7. System-Ancilla Rabi Model
 
 ### 7.1 Hamiltonian
 
@@ -373,7 +373,7 @@ $$
 
 ---
 
-## 📊 8. Scaling Laws
+## 8. Scaling Laws
 
 ### 8.1 Standard Quantum Limit (SQL)
 
@@ -520,7 +520,7 @@ $$
 
 ---
 
-## 🔧 12. File Organization
+## 12. File Organization
 
 | Module | Purpose |
 |--------|---------|

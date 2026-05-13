@@ -14,14 +14,14 @@ For interferometers with **modified topologies or non-Markovian/stochastic noise
 
 ## 📖 Literature Review
 
-| Concept & Motivation | Article | Year |
+| Concept, Motivation and Connection | Article | Year |
 |---|---|---|
-| Pseudomode method for non-Markovian open quantum systems: maps Lorentzian-structured reservoir to a single damped pseudomode + Markovian bath | Garraway, *Phys. Rev. A* 55, 2290 | 1997 |
-| Gravitational phase shifts in fiber interferometers: phase noise accumulation over long baselines; path-imbalance sensitivity scaling | *High-Sensitivity Fiber Interferometer for Gravitational Phase Shift Measurement* ([arXiv:2506.09770](https://arxiv.org/abs/2506.09770)) | 2025 |
-| Variance-based dark-matter detection with fluctuations: super-binomial variance metrics as sensitivity signal; relevant for scaling under stochastic noise | *Fluctuations in Atom Interferometers as a New Tool for Dark Matter* ([arXiv:2602.23427](https://arxiv.org/abs/2602.23427)) | 2026 |
-| Multiparameter noise budgeting for space interferometers: high-dimensional sensitivity analysis, parameter-space reduction; tilt-to-length noise methodology | *Multiparameter Hierarchical Sensitivity Analysis of Tilt-to-Length Coupling Noise in Taiji Interferometer* | 2025/2026 |
-| Ancilla-assisted metrology in non-Markovian environments: pseudomode-based QFI; preservation ratio $\mathcal{R}(T)$ scaling | `articles/2026-05-09-Ancilla-Assisted-Metrology-Non-Markovian.md` (prior repo) | 2026 |
-| Quantum limits for interferometry (review): QCRB, SQL, Heisenberg limit | *Sensitivity of Quantum-Enhanced Interferometers* (review) | — |
+| Pseudomode method for non-Markovian open quantum systems: maps Lorentzian-structured reservoir to a single damped pseudomode + Markovian bath — Provides the pseudomode method used to simulate non-Markovian dynamics in Model 1, enabling QFI computation under Lorentzian reservoirs in this survey. | Garraway, *Phys. Rev. A* 55, 2290 | 1997 |
+| Gravitational phase shifts in fiber interferometers: phase noise accumulation over long baselines; path-imbalance sensitivity scaling — Establishes the phase-noise accumulation scaling over long baselines that motivates the thermal and dynamical-decoupling models in this survey. | *High-Sensitivity Fiber Interferometer for Gravitational Phase Shift Measurement* ([arXiv:2506.09770](https://arxiv.org/abs/2506.09770)) | 2025 |
+| Variance-based dark-matter detection with fluctuations: super-binomial variance metrics as sensitivity signal; relevant for scaling under stochastic noise — Introduces super-binomial variance metrics for stochastic signals, directly relevant to the Langevin thermal-noise analysis (Model 2) and its noise-floor scaling. | *Fluctuations in Atom Interferometers as a New Tool for Dark Matter* ([arXiv:2602.23427](https://arxiv.org/abs/2602.23427)) | 2026 |
+| Multiparameter noise budgeting for space interferometers: high-dimensional sensitivity analysis, parameter-space reduction; tilt-to-length noise methodology — Provides the tilt-to-length noise methodology applied in Model 6 for space-interferometer sensitivity floors. | *Multiparameter Hierarchical Sensitivity Analysis of Tilt-to-Length Coupling Noise in Taiji Interferometer* | 2025/2026 |
+| Ancilla-assisted metrology in non-Markovian environments: pseudomode-based QFI; preservation ratio $\mathcal{R}(T)$ scaling — Establishes the ancilla-assisted QFI preservation ratio $\mathcal{R}(T)$ formalism that is extended here to scaling-exponent analysis via the survey pipeline. | `articles/2026-05-09-Ancilla-Assisted-Metrology-Non-Markovian.md` (prior repo) | 2026 |
+| Quantum limits for interferometry (review): QCRB, SQL, Heisenberg limit — Provides the foundational QCRB, SQL, and Heisenberg-limit benchmarks used to define scaling exponents $\alpha$ across all six models in this survey. | *Sensitivity of Quantum-Enhanced Interferometers* (review) | — |
 
 ---
 
@@ -149,22 +149,21 @@ Each model uses a different numerical approach:
 ### Validation
 
 ```python
-# Non-Markovian: trace preservation (validate_pseudomode_density in pseudomode_system.py)
+# Non-Markovian: trace preservation (via the density-matrix validation function in the pseudomode module)
 assert np.isclose(np.trace(rho), 1.0, atol=1e-10)
 
-# Thermal: SQL limit consistency (sql_sensitivity in thermal_langevin.py)
+# Thermal: SQL limit consistency (via the SQL-sensitivity function in the thermal-noise model)
 assert np.isclose(sql_sensitivity(N), 1/np.sqrt(N), rtol=1e-10)
 
 # Cavity: finesse scaling (via cavity_enhanced_sensitivity — returns Δφ directly)
 # Δφ = 1/sqrt(F * N) is the analytical expectation
 # assert np.isclose(delta_phi * np.sqrt(F * N), 1.0, rtol=1e-10)
 
-# Dynamical decoupling: dc suppression at large nπ (cpmg_filter_function)
-from src.physics.dynamical_decoupling import cpmg_filter_function
+# Dynamical decoupling: DC suppression at large nπ (via the filter-function module)
 assert cpmg_filter_function(np.array([0.0]), n_pulses=100, tau=0.5)[0] < \
        cpmg_filter_function(np.array([0.0]), n_pulses=1, tau=0.5)[0] + 1e-15
 
-# Scaling fit quality (from scaling_fit.py -> ScalingFitResult.R_squared)
+# Scaling fit quality (from the log-log regression module; R_squared attribute of the fit result)
 assert R_squared >= 0.9
 ```
 
@@ -172,10 +171,43 @@ assert R_squared >= 0.9
 
 ## ⚠️ Likely Failure Conditions
 
-1. **Pseudomode dimension explosion**: Full density matrix with $d = 2(N+1)(K+1)$ for $K$ pseudomodes becomes intractable beyond $N \approx 20$ with $K=1$. Mitigation: pure-state Monte Carlo wavefunction method; restrict to $N \leq 30$.
+| Failure | Description | Mitigation |
+|---------|-------------|------------|
+| Pseudomode dimension explosion | Full density matrix with $d = 2(N+1)(K+1)$ for $K$ pseudomodes becomes intractable beyond $N \approx 20$ with $K=1$. | Use pure-state Monte Carlo wavefunction method; restrict to $N \leq 30$. |
+| Analytical model oversimplification | The cavity, DD, and tilt-to-length models are analytical approximations. They may miss non-trivial $N$-dependent effects (e.g., cavity nonlinearity at high $N$, pulse imperfections in DD). | Note where full simulation would differ. |
+| Cross-over misidentification | Thermal and tilt-to-length models have noise floors that produce $\alpha=0$ at large $N$, but the finite $N$ range may not reach the floor. | Plot $\Delta\phi(N)$ over 4+ decades to verify the asymptote; report $\alpha_{\text{effective}}$ over the finite range separately. |
+| Distributed array entanglement cost | The entangled $M$-node $\alpha=-1.0$ result assumes perfect entanglement generation and distribution across nodes, which is not scalable. | Report as fundamental bound; note practical overhead separately. |
 
-2. **Analytical model oversimplification**: The cavity, DD, and tilt-to-length models are analytical approximations. They may miss non-trivial $N$-dependent effects (e.g., cavity nonlinearity at high $N$, pulse imperfections in DD). Mitigation: note where full simulation would differ.
+---
 
-3. **Cross-over misidentification**: Thermal and tilt-to-length models have noise floors that produce $\alpha=0$ at large $N$, but the finite $N$ range may not reach the floor. Mitigation: plot $\Delta\phi(N)$ over 4+ decades to verify the asymptote; report $\alpha_{\text{effective}}$ over the finite range separately.
+## ✅ Success Criteria
 
-4. **Distributed array entanglement cost**: The entangled $M$-node $\alpha=-1.0$ result assumes perfect entanglement generation and distribution across nodes, which is not scalable. Mitigation: report as fundamental bound; note practical overhead separately.
+| # | Check | Expectation |
+|---|---|---|
+| 1 | **Non-Markovian: scaling exponent via pseudomode QFI** | $\Delta\phi = 1/\sqrt{F_Q}$ from pseudomode simulation; measured $\alpha \approx -0.5$ in Markovian limit ($\lambda \to \infty$), preserved or improved in non-Markovian regime ($\lambda \to 0$) |
+| 2 | **Thermal noise: cross-over identification** | Log-log fit of $\Delta\phi(N)$ yields $\alpha \approx 0$ (thermal floor) for $N > N_{\text{co}}$, $\alpha \approx -0.5$ (SQL) for $N < N_{\text{co}}$; $N_{\text{co}}$ within 20% of $S^{-2}$ |
+| 3 | **Cavity-enhanced MZI: finesse prefactor** | $\Delta\phi \cdot \sqrt{\mathcal{F} N} = 1.0 \pm 0.05$ in ideal case; measured $\alpha = -0.5 \pm 0.02$ across $\mathcal{F} \in [1, 10^4]$ |
+| 4 | **Distributed array: classical vs entangled scaling** | Classical averaging: $\alpha = -0.5 \pm 0.02$ (ratio $\Delta\phi \propto 1/\sqrt{M}$); entangled across $M$ nodes: $\alpha = -1.0 \pm 0.05$ (ratio $\Delta\phi \propto 1/M$) |
+| 5 | **Dynamical decoupling: coherence enhancement** | CPMG with $n_\pi$ pulses yields $T_2^{(\text{DD})} \propto n_\pi^{2/3}$ (exponent $0.67 \pm 0.05$); sensitivity prefactor $C \propto (T_2^{(\text{DD})}/T)^{-1/2}$ |
+| 6 | **Tilt-to-length: noise-floor exponent** | $\alpha = 0.0 \pm 0.02$ in TTL-dominated regime; quadratic sum $\Delta\phi_{\text{total}}^2 = \Delta\phi_Q^2 + \Delta\phi_{\text{ttl}}^2$ reproduces noise floor to within 1% |
+| 7 | **Log-log fit quality** | $R^2 \geq 0.9$ for all scaling sweeps with $\geq 4$ $N$-points; $R^2 \geq 0.95$ for ideal-case reference fits |
+| 8 | **Trace preservation (pseudomode)** | $\lvert \Tr(\rho) - 1 \rvert < 10^{-10}$ at all integration times (`validate_pseudomode_density` in `pseudomode_system.py`) |
+| 9 | **Cavity: per-pass small-noise validity** | Noise amplification $\text{Noise}(\gamma, \mathcal{F}) \approx \mathcal{F} \times \text{Noise}(\gamma, 1)$ holds within 5% when $\gamma_i \leq 0.1\,\phi$ |
+| 10 | **Non-Markovian: Markovian limit recovery** | For $\lambda/g_{\text{sp}} \to \infty$, pseudomode QFI matches analytical Markovian result to within 1% relative error |
+
+---
+
+## 🔬 Results and Next Steps
+
+| # | Check | Status |
+|---|---|---|
+| 1 | **Non-Markovian: scaling exponent via pseudomode QFI** | ⏳ |
+| 2 | **Thermal noise: cross-over identification** | ⏳ |
+| 3 | **Cavity-enhanced MZI: finesse prefactor** | ⏳ |
+| 4 | **Distributed array: classical vs entangled scaling** | ⏳ |
+| 5 | **Dynamical decoupling: coherence enhancement** | ⏳ |
+| 6 | **Tilt-to-length: noise-floor exponent** | ⏳ |
+| 7 | **Log-log fit quality** | ⏳ |
+| 8 | **Trace preservation (pseudomode)** | ⏳ |
+| 9 | **Cavity: per-pass small-noise validity** | ⏳ |
+| 10 | **Non-Markovian: Markovian limit recovery** | ⏳ |

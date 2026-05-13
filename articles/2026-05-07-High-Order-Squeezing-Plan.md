@@ -13,43 +13,68 @@ There exists a critical decoherence rate γ_c such that:
 
 ---
 
-## ⚛️ Physical Model
+## 📖 Literature Review
 
-### Hybrid Oscillator-Spin System
+| Concept, Motivation and Connection | Article | Year |
+|---|---|---|
+| Spin-dependent force (SDF) generation of squeezed and non-Gaussian states — provides the experimental blueprint for engineering effective Hamiltonians of the form $\sigma_z \otimes (a^n + a^{\dagger n})$ via state-dependent potentials with multiple laser tones — The SDF machinery is the core physical mechanism for generating all three target Hamiltonians (n=2,3,4) in this work; the effective coupling rate $\Omega_n \propto \Omega_{\alpha'} \Omega_\alpha^{n-1} / \Delta^{n-1}$ follows directly from their multi-tone SDF analysis | Sutherland & Srinivas, *Phys. Rev. A* **104**, 032609 ([arXiv:2105.05768](https://arxiv.org/abs/2105.05768)) | 2021 |
+| Squeezing theory — foundational framework for spin and bosonic squeezing, defining higher-order squeezing criteria and establishing the connection between non-linear Hamiltonians and non-classical states — Provides the theoretical basis for characterizing squeezing order; the n=2 (squeezing) limit reproduces standard Gaussian squeezing, while n≥3 (trisqueezing/quadsqueezing) extends Kitagawa–Ueda higher-order squeezing concepts to the bosonic oscillator domain | Kitagawa & Ueda, *Phys. Rev. A* **47**, 5138 ([DOI](https://doi.org/10.1103/PhysRevA.47.5138)) | 1993 |
+| Quantum Fisher information for mixed-state metrology — comprehensive review of the symmetric logarithmic derivative (SLD) formulation for computing $F_Q$ of arbitrary density matrices, including regularization techniques for nearly-singular spectra — The SLD eigen-decomposition formula $F_Q = \sum_{i,j} \frac{2}{\lambda_i + \lambda_j} |\langle i| G |j\rangle|^2 (\lambda_i + \lambda_j > 0)$ is used directly to compute phase-estimation QFI for mixed post-decoherence states; threshold handling for near-zero eigenvalues follows Paris's prescription | Paris, *Int. J. Quantum Inf.* **7**, 125 ([DOI](https://doi.org/10.1142/S0219749909004839)) | 2009 |
+| Prior work in this repo: ancilla-assisted and hybrid MZI simulation infrastructure — establishes the hybrid oscillator-spin Hilbert space encoding, Lindblad decoherence solver, and MZI post-processing pipeline reused in this high-order squeezing study — The hybrid Lindblad framework, adaptive Fock truncation, and QFI post-processing routines are directly inherited from this repo's earlier ancilla-metrology simulations, providing validated numerical infrastructure for the decoherence sweeps | `articles/2026-05-09-Ancilla-Assisted-Metrology-Non-Markovian.md` (this repo) | 2026 |
+| Prior work in this repo: Fock-basis MZI scaling survey — benchmarks QFI scaling exponents for NOON, squeezed-vacuum, and twin-Fock states under Markovian loss, establishing the SQL and Heisenberg-limit baselines used as comparison benchmarks in this work — Provides the $F_Q = 2\langle N\rangle(\langle N\rangle + 1)$ squeezed-vacuum benchmark and the loss-model parametrization against which the high-order squeezing QFI advantages (n=3,4 vs. n=2) are compared | `articles/2026-05-11-Scaling-Survey-Fock-MZI.md` (this repo) | 2026 |
 
-A bosonic oscillator (Fock basis, |n=0…N⟩) couples to a two-level spin (|↓⟩, |↑⟩). The
-combined Hilbert space dimension is 2(N+1). Index ordering: n × 2 + s (s=0 for |↓⟩, s=1
-for |↑⟩).
+---
 
-### Hamiltonian: Two Simultaneous Spin-Dependent Forces
+## ⚛️ Theoretical Model
+
+### Hilbert Space
+
+| Property | Specification |
+|----------|---------------|
+| Bosonic oscillator | Fock basis $\vert n\rangle$, $n = 0, \dots, N$ |
+| Spin | Two-level $\ket{\downarrow}, \ket{\uparrow}$ |
+| Combined dimension | $2(N+1)$ |
+| Index ordering | $n \times 2 + s$ ($s=0$ for $\ket{\downarrow}$, $s=1$ for $\ket{\uparrow}$) |
+
+### Operators
+
+**Hamiltonian: Two Simultaneous Spin-Dependent Forces**
 
 Two spin-dependent forces (SDFs) at different detunings produce an effective time-independent
-Hamiltonian under the rotating wave approximation with m = 1 - n:
+Hamiltonian under the rotating wave approximation with $m = 1 - n$:
 
-- **n=2 (squeezing)**: σ_z ⊗ (a² + a†²)
-- **n=3 (trisqueezing)**: σ_⊥ ⊗ (a³ + a†³)
-- **n=4 (quadsqueezing)**: σ_z ⊗ (a⁴ + a†⁴)
+| $n$ | Name | Hamiltonian term |
+|-----|------|------------------|
+| 2 | Squeezing | $\sigma_z \otimes (a^2 + a^{\dagger 2})$ |
+| 3 | Trisqueezing | $\sigma_\perp \otimes (a^3 + a^{\dagger 3})$ |
+| 4 | Quadsqueezing | $\sigma_z \otimes (a^4 + a^{\dagger 4})$ |
 
-The effective bosonic rate Ω_n ∝ Ω_{α'} Ω_α^{n-1} / Δ^{n-1}.
+The effective bosonic rate $\Omega_n \propto \Omega_{\alpha'} \Omega_\alpha^{n-1} / \Delta^{n-1}$.
 
-### Decoherence Channels
+**Decoherence Channels**
 
 | Channel | Lindblad Operator | Rate |
 |---------|-------------------|------|
-| One-body loss | √γ₁ (a ⊗ I₂) | γ₁ |
-| Phase diffusion | √γ_φ (I_osc ⊗ σ_z/2) | γ_φ |
-| Two-body loss | √γ₂ (a² ⊗ I₂) | γ₂ (optional) |
+| One-body loss | $\sqrt{\gamma_1} (a \otimes I_2)$ | $\gamma_1$ |
+| Phase diffusion | $\sqrt{\gamma_\phi} (I_\text{osc} \otimes \sigma_z/2)$ | $\gamma_\phi$ |
+| Two-body loss | $\sqrt{\gamma_2} (a^2 \otimes I_2)$ | $\gamma_2$ (optional) |
 
-Master equation: Lindblad form dρ/dt = -i[H, ρ] + Σ_k γ_k D[L_k]ρ.
+Master equation: Lindblad form $d\rho/dt = -i[H, \rho] + \sum_k \gamma_k \mathcal{D}[L_k]\rho$.
 
-### Input States and MZI Protocol
+### Circuit / Protocol
 
-1. Start with |0⟩ (or |α⟩) ⊗ |↓⟩.
-2. Apply U_n(t) = exp(-i H_n t) for squeezing time t_sqz, giving parameter r_n = Ω_n · t_sqz.
-3. Embed into two-mode MZI: ρ₂₋ₘₒ𝚍ₑ = ρ_hybrid ⊗ |0⟩⟨0|_vacuum.
-4. Apply 50:50 BS → phase shift φ on mode 1 → 50:50 BS.
-5. QFI is computed on the full post-MZI hybrid state (spin kept as ancilla). Phase generator:
-   G = n₁ ⊗ I_spin.
+1. Start with $\ket{0}$ (or $\ket{\alpha}$) $\otimes \ket{\downarrow}$.
+2. Apply $U_n(t) = \exp(-i H_n t)$ for squeezing time $t_\text{sqz}$, giving parameter $r_n = \Omega_n \cdot t_\text{sqz}$.
+3. Embed into two-mode MZI: $\rho_\text{2-mode} = \rho_\text{hybrid} \otimes \ket{0}\bra{0}_\text{vacuum}$.
+4. Apply 50:50 BS → phase shift $\phi$ on mode 1 → 50:50 BS.
+
+### Measurement
+
+- **Phase generator**: $G = n_1 \otimes I_\text{spin}$ (photon number in mode 1).
+- **Sensitivity**: QFI is computed on the full post-MZI hybrid state (spin kept as ancilla).
+  The phase estimation sensitivity obeys the quantum Cramér–Rao bound:
+  $\Delta\phi \ge 1 / \sqrt{F_Q(\rho, G)}$, where $F_Q$ is the quantum Fisher information.
+  For pure states, $F_Q = 4 (\Delta G)^2$; for mixed states, the SLD eigen-decomposition formula applies.
 
 ---
 
@@ -75,13 +100,26 @@ N_osc = min(N_max, ceil(|α|² + n·r_n + 10√(|α|² + n·r_n + 1))). After ea
 
 ---
 
+## ⚠️ Likely Failure Conditions
+
+| Failure | Description | Mitigation |
+|---------|-------------|------------|
+| Adaptive Fock truncation exceeding safety limits | N_osc based on n·r_n + 10√(⟨n⟩ + 1) may underestimate the needed cutoff for n=4 at moderate ⟨n⟩, causing artificial QFI suppression due to discarded high-Fock components. | Increase safety factor to scale with n² (e.g., 10n²√(⟨n⟩ + 1)); verify ⟨a†a⟩ ≤ 0.5·N_osc post-hoc; dynamically expand truncation if occupancy exceeds threshold. |
+| Wigner negativity undetected for n=4 | Negativity for fourth-order squeezing may be concentrated in a small phase-space region requiring finer grid resolution than needed for n=3, leading to false negatives. | Increase Wigner grid point count (e.g., 512×512); scan multiple squeezing times r₄ and phase-space offsets; cross-check against known analytical Wigner functions for quartic potentials. |
+| QFI numerical instability for highly mixed states | SLD eigen-decomposition becomes ill-conditioned when the density matrix has near-zero eigenvalues, producing QFI overestimates or NaN values. | Regularize by discarding eigenvalues below 1e-12; compute QFI via the SLD formula with thresholded pseudo-inverse; cross-check with purity bounds F_Q ≤ 4(ΔG)²⟨ρ²⟩⁻¹. |
+| Lindblad trace / Hermiticity violations | ODE integrator drift from too-large time steps can break tr(ρ)=1 or ρ=ρ†, yielding unphysical intermediate or final states. | Use trace-preserving integrator (`scipy.integrate.solve_ivp` with `DOP853`); enforce Hermitian projection ρ ← (ρ+ρ†)/2 and trace renormalization at each time step; verify positivity via Cholesky decomposition after integration. |
+
+---
+
 ## ✅ Success Criteria
 
-1. n=2 results match analytical Gaussian squeezing formulas.
-2. n≥3 states show Wigner negativity.
-3. QFI(n=3,4) > QFI(n=2) at zero decoherence, same ⟨n⟩.
-4. QFI curves cross at some γ_c > 0 (decoherence crossover).
-5. Numerical stability: trace, Hermiticity, positivity conserved.
+| # | Check | Expectation |
+|---|-------|-------------|
+| 1 | n=2 physics | Results match analytical Gaussian squeezing formulas |
+| 2 | Wigner negativity for n≥3 | $\min(W) < 0$ detected |
+| 3 | QFI enhancement at fixed ⟨n⟩ | $\text{QFI}(n=3,4) > \text{QFI}(n=2)$ at zero decoherence, same $\langle n \rangle$ |
+| 4 | Decoherence crossover | $\text{QFI}$ curves cross at some $\gamma_c > 0$ |
+| 5 | Numerical stability | Trace preservation, Hermiticity, positivity conserved throughout |
 
 ---
 

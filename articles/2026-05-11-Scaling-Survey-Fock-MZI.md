@@ -15,12 +15,12 @@ The survey quantifies these transitions as a function of noise strength $\gamma$
 
 ## 📖 Literature Review
 
-| Concept & Motivation | Article | Year |
+| Concept, Motivation and Connection | Article | Year |
 |---|---|---|
-| Quantum limits for interferometry: QCRB, SQL, Heisenberg limit; foundational for all scaling calculations | *Sensitivity of Quantum-Enhanced Interferometers* (review) | — |
-| Noise resilience in high-bandwidth atom interferometers: Kalman filtering for separating signal from noise in lossy environments | *Noise Resilience in a High-Bandwidth Atom Interferometer* ([arXiv:2504.07236](https://arxiv.org/abs/2504.07236)) | 2025 |
-| Noise subtraction in compact heterodyne interferometers: laser frequency noise, thermal noise, optical path noise; ~10× sensitivity improvement via subtraction | *Investigation and Mitigation of Noise Contributions in a Compact Heterodyne Interferometer* | 2022 |
-| Squeezed-vacuum injection in MZIs: theory and experimental demonstrations of sub-SQL sensitivity via dark-port squeezing | *Squeezed-light-enhanced MZI* (various) | — |
+| Quantum limits for interferometry: QCRB, SQL, Heisenberg limit; foundational for all scaling calculations — Provides the reference SQL and Heisenberg-limit benchmarks against which all Fock-basis scaling exponents (coherent, NOON, squeezed vacuum, twin-Fock) in this survey are compared. | *Sensitivity of Quantum-Enhanced Interferometers* (review) | — |
+| Noise resilience in high-bandwidth atom interferometers: Kalman filtering for separating signal from noise in lossy environments — Demonstrates noise-separation techniques in lossy atom interferometers, directly relevant to the one-body and two-body loss models whose scaling collapse is surveyed here. | *Noise Resilience in a High-Bandwidth Atom Interferometer* ([arXiv:2504.07236](https://arxiv.org/abs/2504.07236)) | 2025 |
+| Noise subtraction in compact heterodyne interferometers: laser frequency noise, thermal noise, optical path noise; ~10× sensitivity improvement via subtraction — Establishes noise-subtraction methodology for heterodyne interferometers; motivates the detection-noise model ($\eta$ binomial channel) included as a survey variant. | *Investigation and Mitigation of Noise Contributions in a Compact Heterodyne Interferometer* | 2022 |
+| Squeezed-vacuum injection in MZIs: theory and experimental demonstrations of sub-SQL sensitivity via dark-port squeezing — Establishes the squeezed-vacuum injection theory that yields $F_Q = 2\langle N\rangle(\langle N\rangle + 1)$, whose Heisenberg-like scaling is verified and compared against NOON and coherent states in this survey. | *Squeezed-light-enhanced MZI* (various) | — |
 
 ---
 
@@ -118,7 +118,7 @@ $$\Delta\phi_{\text{EP}} = \frac{\Delta J_z}{\vert\partial\langle J_z\rangle/\pa
 | MZI + one-body loss | Any | $L=\sqrt{\gamma_1}\,a_1$ (mode 1) | Coherent: $-0.5$; NOON: $-0.5$ (collapse) | `mzi_lindblad.py::build_mzi_lindblad_operators` ✅ |
 | MZI + phase diffusion | Any | $L=\sqrt{\gamma_\phi}\,J_z$ | Coherent: $-0.5$; NOON: $-0.5$ (collapse); SSS: degrades toward $0$ | `mzi_lindblad.py::build_mzi_lindblad_operators` ✅ |
 | MZI + two-body loss | Any | $L=\sqrt{\gamma_2}\,a_1^2$ (mode 1) | All states: $\alpha \to 0$ at large $N$ (prediction; code ready, analysis pending) | `mzi_lindblad.py::build_mzi_lindblad_operators` ✅ |
-| MZI + detection noise | Any | $\eta$ binomial channel | $\alpha \to -0.5$, $C \to \eta^{-1/2}$ | ⚠️ Approximate (bound $F_Q \to \eta F_Q$ only; full binomial convolution in `noise_channels.py` not yet wired into survey) |
+| MZI + detection noise | Any | $\eta$ binomial channel | $\alpha \to -0.5$, $C \to \eta^{-1/2}$ | 🔄 Approximate (bound $F_Q \to \eta F_Q$ only; full binomial convolution in `noise_channels.py` not yet wired into survey) |
 | Squeezed-vacuum injection | $S(\xi)\vert0\rangle\otimes\vert0\rangle$ (mode 0 squeezed, mode 1 vacuum) | None | $-1.0$ at large $N$, $F_Q = 2\langle N\rangle(\langle N\rangle+1)$; SQL only at $N \ll 1$ | `mzi_states.py::squeezed_vacuum_state` ✅ |
 | Squeezed-vacuum + lossy MZI | Squeezed vacuum + one-body loss | $\gamma_1$ | $\alpha$ degrades from $-1.0$ toward $-0.5$ with increasing loss; numerical survey required for precise $C(\gamma_1, r)$ | `create_survey_model("squeezed_vacuum_loss")` ✅ |
 | Kerr-nonlinear MZI | Coherent or vacuum | Kerr $\chi(n_1^2+n_2^2)$ | $-1.0$ (Heisenberg, linear generator $n_2$); $F_Q$ invariant under Kerr since $[n_2,\chi(n_1^2+n_2^2)]=0$ | `kerr_mzi.py` ✅ |
@@ -148,15 +148,15 @@ input_state(N, type) → add_noise(state, config, T) → phase_imprint(state, φ
 ### Validation
 
 ```python
-assert np.isclose(np.trace(rho), 1.0, atol=1e-8)       # trace preservation (mzi_lindblad.py default)
-assert np.allclose(rho, rho.conj().T, atol=1e-8)       # hermiticity (mzi_lindblad.py default)
+assert np.isclose(np.trace(rho), 1.0, atol=1e-8)       # trace preservation (enforced by the Lindblad MZI solver)
+assert np.allclose(rho, rho.conj().T, atol=1e-8)       # hermiticity (enforced by the Lindblad MZI solver)
 assert np.min(np.linalg.eigvalsh(rho)) >= -1e-8         # positivity
-assert R_squared >= 0.9                                  # fit quality (scaling_fit.py default)
+assert R_squared >= 0.9                                  # fit quality (enforced by the log-log regression module)
 ```
 
 ---
 
-### 🔧 Resolved Issues
+### Resolved Issues
 
 5. **SSS state was fixed to scale with N**. The `input_state_factory("sss", N, ...)` previously always created `single_photon_split_state(2)` (|1,1⟩), independent of N. This made any N-scaling analysis for the "sss" model meaningless. The factory now uses the passed N parameter: `single_photon_split_state(N)`, producing (|N-1,1⟩+|1,N-1⟩)/√2, for which $F_Q = (N-2)^2$ (α = -1.0, Heisenberg-like under the J_z convention).
 
@@ -164,10 +164,47 @@ assert R_squared >= 0.9                                  # fit quality (scaling_
 
 ## ⚠️ Likely Failure Conditions
 
-1. **Hilbert space explosion**: $(N_{\max}+1)^2$ dimension is prohibitive for $N > 64$. Per-state-type truncation (`_max_photons_for_state` in `scaling_survey.py`): definite Fock-like states (NOON, twin-Fock) use $N_{\max}=N$; coherent-like (coherent, squeezed vacuum, CSS) use $N_{\max} = \max(2N, N+20)$ to capture Poisson tails. For $N=64$, the latter gives $N_{\max}=128$ → dimension $16,\!641$. Mitigation: Dicke basis for symmetric states, covariance-matrix methods for Gaussian states.
+| Failure | Description | Mitigation |
+|---------|-------------|------------|
+| Hilbert space explosion | $(N_{\max}+1)^2$ dimension is prohibitive for $N > 64$. Per-state-type truncation (`_max_photons_for_state` in `scaling_survey.py`): definite Fock-like states (NOON, twin-Fock) use $N_{\max}=N$; coherent-like (coherent, squeezed vacuum, CSS) use $N_{\max} = \max(2N, N+20)$ to capture Poisson tails. For $N=64$, the latter gives $N_{\max}=128$ → dimension $16,\!641$. | Use Dicke basis for symmetric states, covariance-matrix methods for Gaussian states. |
+| Degenerate exponents | Different (state, noise) combos can yield identical $\alpha$ (e.g., coherent SQL vs. NOON collapsed to SQL). | Report prefactor $C$, $R^2$, and model evidence to disambiguate. |
+| Finite-size artifacts | $N < 4$ produces quantization artifacts in $\Delta\phi$. | Exclude $N < 4$ from log-log regression; require $N \geq 8$ for final fit. |
+| Phase-bias dependence | $\Delta\phi(\phi)$ is not flat; $\phi=\pi/4$ works for most states but NOON has maximal sensitivity at different $\phi$. | Report sensitivity at each state's optimal operating point. |
 
-2. **Degenerate exponents**: Different (state, noise) combos can yield identical $\alpha$ (e.g., coherent SQL vs. NOON collapsed to SQL). Mitigation: report prefactor $C$, $R^2$, and model evidence to disambiguate.
+---
 
-3. **Finite-size artifacts**: $N < 4$ produces quantization artifacts in $\Delta\phi$. Mitigation: exclude $N < 4$ from log-log regression; require $N \geq 8$ for final fit.
+## ✅ Success Criteria
 
-4. **Phase-bias dependence**: $\Delta\phi(\phi)$ is not flat; $\phi=\pi/4$ works for most states but NOON has maximal sensitivity at different $\phi$. Mitigation: report sensitivity at each state's optimal operating point.
+| # | Check | Expectation |
+|---|---|---|
+| 1 | **Coherent-state SQL scaling (ideal)** | $\alpha = -0.5 \pm 0.02$ for noise-free MZI; $\Delta\phi = 1/\sqrt{N}$ to within 2% for $N \geq 4$ |
+| 2 | **NOON Heisenberg scaling (ideal)** | $\alpha = -1.0 \pm 0.02$; $\Delta\phi = 1/N$ to within 2% for $N \geq 2$ under $J_z$ generator |
+| 3 | **Squeezed-vacuum scaling (ideal)** | $F_Q = 2\langle N\rangle(\langle N\rangle + 1)$ verified to within 1%; $\alpha \to -1.0$ for $\langle N \rangle \gg 1$ |
+| 4 | **NOON collapse under one-body loss** | $\alpha$ transitions from $-1.0$ to $-0.5 \pm 0.05$ for $\gamma_1 T \geq 10^{-2}$; $R^2 \geq 0.9$ for the collapsed fit |
+| 5 | **Two-body loss: scaling collapse** | All input states show $\alpha \to 0 \pm 0.05$ at large $N$ for $\gamma_2 T > 0$; verified over $N \in [4, 64]$ |
+| 6 | **Phase-diffusion: coherent resilience** | Coherent states maintain $\alpha = -0.5 \pm 0.02$ for all $\gamma_\phi \in [0, 1]$ |
+| 7 | **Kerr-nonlinear MZI: invariant exponent** | $F_Q$ changes by $< 10^{-8}$ when Kerr term $\chi(n_1^2 + n_2^2)$ is added (commuting generator); $\alpha$ unchanged to machine precision |
+| 8 | **Weak-value MZI: Fisher invariance** | $F_Q$ unchanged vs conventional MZI (same state, same $\phi$); prefactor $C_{\text{wv}} = 1/\sqrt{1-p_{\text{ps}}}$ verified within 1% |
+| 9 | **Quantum state invariants** | $\Tr(\rho) = 1.0 \pm 10^{-8}$; $\rho = \rho^\dagger$ to $10^{-8}$; $\min \text{eigvals}(\rho) \geq -10^{-8}$ at all evolution times |
+| 10 | **Log-log fit quality** | $R^2 \geq 0.9$ for all scaling fits with $\geq 4$ $N$-points; $R^2 \geq 0.95$ for ideal-case references |
+| 11 | **Minimum $N$ threshold enforced** | $N < 4$ excluded from scaling regressions to avoid finite-size quantization artifacts |
+| 12 | **Phase-bias optimality** | Each state's $\Delta\phi(\phi)$ sampled over $\phi \in [0, \pi/2]$ to confirm operating point; reported $\alpha$ uses the state's optimal $\phi$ |
+
+---
+
+## 🔬 Results and Next Steps
+
+| # | Check | Status |
+|---|---|---|
+| 1 | **Coherent-state SQL scaling (ideal)** | ⏳ |
+| 2 | **NOON Heisenberg scaling (ideal)** | ⏳ |
+| 3 | **Squeezed-vacuum scaling (ideal)** | ⏳ |
+| 4 | **NOON collapse under one-body loss** | ⏳ |
+| 5 | **Two-body loss: scaling collapse** | ⏳ |
+| 6 | **Phase-diffusion: coherent resilience** | ⏳ |
+| 7 | **Kerr-nonlinear MZI: invariant exponent** | ⏳ |
+| 8 | **Weak-value MZI: Fisher invariance** | ⏳ |
+| 9 | **Quantum state invariants** | ⏳ |
+| 10 | **Log-log fit quality** | ⏳ |
+| 11 | **Minimum $N$ threshold enforced** | ⏳ |
+| 12 | **Phase-bias optimality** | ⏳ |

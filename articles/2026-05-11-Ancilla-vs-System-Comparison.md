@@ -15,21 +15,21 @@ Given a fixed resource of **2 particles** in a Mach–Zehnder interferometer, th
 
 ## 📖 Literature Review
 
-| Relevant Concept | Article | Year | Connection |
-|---|---|---|---|
-| Optimal probes for unitary parameter estimation | Giovannetti, Lloyd, Maccone, *Nat. Photonics* 5, 222 | 2011 | QFI maximisation over input states |
-| Ancilla-assisted quantum metrology | Demkowicz-Dobrzański & Maccone, *Phys. Rev. Lett.* 113, 250801 | 2014 | Entanglement with ancilla to surpass standard limits |
-| QFI for mixed states (SLD formula) | Paris, *Int. J. Quantum Inf.* 7, 125 | 2009 | Computing QFI of arbitrary density matrices |
-| Schwinger boson mapping | Yurke, McCall, Klauder, *Phys. Rev. A* 33, 4033 | 1986 | $N$ spin-$\frac12 \to$ two-mode bosonic system, $J_z = (n_1 - n_2)/2$ |
-| Derivative of matrix exponential (non-commuting case) | Wilcox, *J. Math. Phys.* 8, 962 | 1967 | $d/d\theta \exp(A(\theta))$ for $[A, dA/d\theta] \neq 0$ |
-| SU(2) interferometry and beam splitters | Campos, Saleh, Teich, *Phys. Rev. A* 40, 1371 | 1989 | SU(2) symmetry of lossless beam splitters; BS as rotation: $\text{BS}^\dagger J_z \text{BS} = J_x$ (standard); here per code convention $\text{BS}^\dagger J_z \text{BS} = -J_y$ |
+| Concept, Motivation and Connection | Article | Year |
+|---|---|---|
+| Optimal probes for unitary parameter estimation — QFI maximisation over input states | Giovannetti, Lloyd, Maccone, *Nat. Photonics* 5, 222 | 2011 |
+| Ancilla-assisted quantum metrology — Entanglement with ancilla to surpass standard limits | Demkowicz-Dobrzański & Maccone, *Phys. Rev. Lett.* 113, 250801 | 2014 |
+| QFI for mixed states (SLD formula) — Computing QFI of arbitrary density matrices | Paris, *Int. J. Quantum Inf.* 7, 125 | 2009 |
+| Schwinger boson mapping — $N$ spin-$\frac12 \to$ two-mode bosonic system, $J_z = (n_1 - n_2)/2$ | Yurke, McCall, Klauder, *Phys. Rev. A* 33, 4033 | 1986 |
+| Derivative of matrix exponential (non-commuting case) — $d/d\theta \exp(A(\theta))$ for $[A, dA/d\theta] \neq 0$ | Wilcox, *J. Math. Phys.* 8, 962 | 1967 |
+| SU(2) interferometry and beam splitters — SU(2) symmetry of lossless beam splitters; BS as rotation: $\text{BS}^\dagger J_z \text{BS} = J_x$ (standard); here per code convention $\text{BS}^\dagger J_z \text{BS} = -J_y$ | Campos, Saleh, Teich, *Phys. Rev. A* 40, 1371 | 1989 |
 
 ---
 
 
 ## ⚛️ Theoretical Model
 
-### Hilbert Spaces
+### Hilbert Space
 
 Both configurations share a **two-mode bosonic system** (the MZI).
 Mode labels: 0 and 1, basis states $\vert n_0, n_1\rangle$.
@@ -46,14 +46,23 @@ Mode labels: 0 and 1, basis states $\vert n_0, n_1\rangle$.
 **Basis ordering** (two-mode Fock, following `mzi_simulation.py`): $\text{Index} = n_0 \times (N_{\max} + 1) + n_1$, for $n_0, n_1 \in \{0, \dots, N_{\max}\}$.
 
 
-### Collective-Spin Operators (Two-Mode Fock)
+### Operators
+
+**Collective-Spin Operators (Two-Mode Fock)**
 
 The collective spin operators are $J_z = (n_0 - n_1)/2$ and $J_x = (a_0^\dagger a_1 + a_1^\dagger a_0)/2$, satisfying $[J_z, J_x] = i J_y$. $J_z$ is diagonal; $J_x$ couples $\vert n_0, n_1\rangle \leftrightarrow |n_0\pm 1, n_1\mp 1\rangle$.
 
 For the ancilla (spin-$\frac12$): $J_z^{\text{anc}} = \sigma_z/2$, $J_x^{\text{anc}} = \sigma_x/2$.
 
+**System–Ancilla Interaction (Case A Only)**
 
-### MZI Circuit
+During the holding time $T_H$, the system and ancilla evolve under the interaction Hamiltonian $H_{\text{int}} = \alpha_{zz} J_z^{\text{sys}} \otimes J_z^{\text{anc}} + \alpha_{zx} J_z^{\text{sys}} \otimes J_x^{\text{anc}} + \alpha_{xz} J_x^{\text{sys}} \otimes J_z^{\text{anc}} + \alpha_{xx} J_x^{\text{sys}} \otimes J_x^{\text{anc}}$,  which is the most general bilinear coupling in $J_z$ and $J_x$ between the system and ancilla. The coefficients $\alpha$ are real and form part of the optimisation.
+
+The full Hamiltonian during the holding time is $H_{\text{total}} = \theta J_z^{\text{sys}} \otimes \mathbb{1}_{\text{anc}} + H_{\text{int}}(\alpha)$,  giving the unitary $U(\theta, \alpha) = \exp(-i T_H [\theta J_z^{\text{sys}} \otimes \mathbb{1}_{\text{anc}} + H_{\text{int}}(\alpha)])$.
+
+**Important**: The phase $\theta$ and the interaction $H_{\text{int}}$ act  simultaneously. When $[J_z, H_{\text{int}}] \neq 0$ (which occurs when $\alpha_{xz} \neq 0$ or $\alpha_{xx} \neq 0$), the parameter $\theta$ and  the interaction do not factorise. This non-commuting structure can modify the effective phase generator.
+
+### Circuit / Protocol
 
 The full circuit is:
 
@@ -68,7 +77,6 @@ The full circuit is:
 | **BS2** | Same as BS1 (50/50) on system; identity on ancilla |
 | **Measure** | Joint POVM on $\mathcal{H}_{\text{sys}} \otimes \mathcal{H}_{\text{anc}}$ (Case A) or $J_z$ on $\mathcal{H}_{\text{sys}}$ (Case B) |
 
-
 **BS convention**: With $\phi_{\text{BS}} = 0$ and $\theta_{\text{BS}} = \pi/4$, the beam splitter Hamiltonian is $H_{\text{BS}} = a_0^\dagger a_1 + a_1^\dagger a_0 = 2 J_x$, giving $U_{\text{BS}} = \exp(-i \pi/4 \cdot 2 J_x) = \exp(-i \pi/2 \cdot J_x)$. This rotates $J_z$ as $\text{BS}^\dagger J_z \text{BS} = \exp(i \pi/2 J_x) J_z \exp(-i \pi/2 J_x) = -J_y$.
 
 Key parameters:
@@ -77,26 +85,17 @@ Key parameters:
 - $\alpha = \{\alpha_{zz}, \alpha_{zx}, \alpha_{xz}, \alpha_{xx}\}$: Real coupling coefficients of the ancilla interaction (Case A only), to be optimized.
 
 
-### System–Ancilla Interaction (Case A Only)
+### Measurement
 
-During the holding time $T_H$, the system and ancilla evolve under the interaction Hamiltonian $H_{\text{int}} = \alpha_{zz} J_z^{\text{sys}} \otimes J_z^{\text{anc}} + \alpha_{zx} J_z^{\text{sys}} \otimes J_x^{\text{anc}} + \alpha_{xz} J_x^{\text{sys}} \otimes J_z^{\text{anc}} + \alpha_{xx} J_x^{\text{sys}} \otimes J_x^{\text{anc}}$,  which is the most general bilinear coupling in $J_z$ and $J_x$ between the system and ancilla. The coefficients $\alpha$ are real and form part of the optimisation.
-
-The full Hamiltonian during the holding time is $H_{\text{total}} = \theta J_z^{\text{sys}} \otimes \mathbb{1}_{\text{anc}} + H_{\text{int}}(\alpha)$,  giving the unitary $U(\theta, \alpha) = \exp(-i T_H [\theta J_z^{\text{sys}} \otimes \mathbb{1}_{\text{anc}} + H_{\text{int}}(\alpha)])$.
-
-**Important**: The phase $\theta$ and the interaction $H_{\text{int}}$ act  simultaneously. When $[J_z, H_{\text{int}}] \neq 0$ (which occurs when $\alpha_{xz} \neq 0$ or $\alpha_{xx} \neq 0$), the parameter $\theta$ and  the interaction do not factorise. This non-commuting structure can modify the effective phase generator.
-
-
-### Effective Phase Generator and QFI
+**Effective Phase Generator and QFI**
 
 For a unitary $U(\theta)$, the QFI for a probe state $\rho$ is obtained via the symmetric logarithmic derivative (SLD). The key quantity is the derivative $dU/d\theta$.
 
-#### Case B (no ancilla)
-Here $H_{\text{int}} = 0$, so $U_B(\theta) = \text{BS}_2 \cdot \exp(-i T_H \theta J_z) \cdot \text{BS}_1$. The effective generator is independent of $\theta$: $G_B = i U_B^\dagger dU_B/d\theta = T_H \cdot \text{BS}_1^\dagger J_z \text{BS}_1 = -T_H \cdot J_y$, where the last equality follows from the BS convention above ($\text{BS}_1^\dagger J_z \text{BS}_1 = -J_y$). Hence the QFI is $F_Q^{(B)}(\rho) = 4 \text{Var}_\rho(G_B) = 4 T_H^2 \text{Var}_\rho(J_y)$.
+**Case B (no ancilla)**: Here $H_{\text{int}} = 0$, so $U_B(\theta) = \text{BS}_2 \cdot \exp(-i T_H \theta J_z) \cdot \text{BS}_1$. The effective generator is independent of $\theta$: $G_B = i U_B^\dagger dU_B/d\theta = T_H \cdot \text{BS}_1^\dagger J_z \text{BS}_1 = -T_H \cdot J_y$, where the last equality follows from the BS convention above ($\text{BS}_1^\dagger J_z \text{BS}_1 = -J_y$). Hence the QFI is $F_Q^{(B)}(\rho) = 4 \text{Var}_\rho(G_B) = 4 T_H^2 \text{Var}_\rho(J_y)$.
 
 The maximum QFI is achieved by a pure state in the eigenspaces of the extremal eigenvalues of $J_y$: $\max_\rho F_Q^{(B)} = T_H^2 (\lambda_{\max} - \lambda_{\min})^2 = T_H^2 \cdot (1 - (-1))^2 = 4 T_H^2$, since $J_y$ on the 2-particle ($J = 1$) system has eigenvalues $-1, 0, +1$.
 
-#### Case A (with ancilla)
-The full unitary wraps the $\theta$-dependent evolution between beam splitters: $U_A(\theta) = \text{BS}_2 \cdot \exp(-i T_H [\theta J_z \otimes \mathbb{1} + H_{\text{int}}]) \cdot \text{BS}_1$.
+**Case A (with ancilla)**: The full unitary wraps the $\theta$-dependent evolution between beam splitters: $U_A(\theta) = \text{BS}_2 \cdot \exp(-i T_H [\theta J_z \otimes \mathbb{1} + H_{\text{int}}]) \cdot \text{BS}_1$.
 
 The derivative requires the non-commuting exponential formula. Let $A(\theta) = -i T_H (\theta J_z \otimes \mathbb{1} + H_{\text{int}})$, with $dA/d\theta = -i T_H J_z \otimes \mathbb{1}$. The commutator $[A(\theta), dA/d\theta] = -T_H^2 [\theta J_z \otimes \mathbb{1} + H_{\text{int}}, J_z \otimes \mathbb{1}] = T_H^2 [J_z \otimes \mathbb{1}, H_{\text{int}}]$ is non-zero when $\alpha_{xz}$ or $\alpha_{xx}$ are non-zero, so $A(\theta)$ and $dA/d\theta$ do not commute.
 
@@ -110,45 +109,100 @@ This simplifies to $G_A = T_H \text{BS}_1^\dagger [\int_0^1 J_z(s) ds] \text{BS}
 
 The QFI for a general mixed state $\rho$ is computed via the SLD eigen-decomposition formula: $F_Q(\rho, G) = 4 \sum_{i<j} \frac{(\lambda_i - \lambda_j)^2}{\lambda_i + \lambda_j} |\langle i|G|j\rangle|^2 + 4 \sum_{i\in\text{support}, j\in\text{nullspace}} \lambda_i |\langle i|G|j\rangle|^2$.
 
-
-### Optimisation Problem
+**Optimisation Problem**
 
 | Config. | Variables | Domain | Objective |
-|---|---|---|---|
+|---------|-----------|--------|-----------|
 | **A** | $\rho \in \mathcal{D}(\mathbb{C}^4 \otimes \mathbb{C}^2)$, $\alpha \in \mathbb{R}^4$ | $\rho \ge 0$, $\operatorname{Tr} \rho = 1$ | $\max F_Q(\rho, G_A(\alpha))$ |
 | **B** | $\rho \in \mathcal{D}(\mathbb{C}^9)$ | $\rho \ge 0$, $\operatorname{Tr} \rho = 1$ | $\max F_Q(\rho, G_B)$ |
 
 The sensitivity ratio at fixed $T_H$ is $\mathcal{R} = \Delta\theta_A / \Delta\theta_B = \sqrt{\max F_Q^{(B)} / \max F_Q^{(A)}}$.
-$\mathcal{R} < 1$ means the ancilla-assisted configuration outperforms the two-particle system.
+$\mathcal{R} < 1$ means the ancilla-assisted configuration outperforms the two-system-particle configuration.
 
-### Construction of $G_A$ and $G_B$
+---
 
-1. **$J_z$ and $J_x$ on system**: Built in the two-mode Fock basis following the conventions in `mzi_states.py::create_jz_operator` and the definitions in `mzi_simulation.py::create_system_operators`. $J_x$ is constructed as $(a_0^\dagger a_1 + a_1^\dagger a_0)/2$ using the ladder operators.
-2. **$J_z \otimes \mathbb{1}$ and $J_x \otimes \mathbb{1}$**: Extended to the ancilla space via `np.kron(J_z^sys, np.eye(2))` and similarly.
-3. **BS1 and BS2**: 50/50 beam splitter unitary from `mzi_simulation.py::beam_splitter_unitary(π/4, 0, N_max)`, extended via `np.kron(BS, I_anc)` for Case A.
-4. **$H_{\text{int}}$ (Case A)**: Built as the linear combination of the four tensor products $J_p \otimes J_q$ with coefficients $\alpha$.
-5. **$U(\theta = 0)$**: For the QFI computation, we evaluate at $\theta = 0$ as a reference point (this simplifies the integral). **Caveat**: when $\alpha_{xz} \neq 0$ or $\alpha_{xx} \neq 0$, $[J_z, H_{\text{int}}] \neq 0$, making the QFI $\theta$-dependent. The final QFI is reported as the minimum over a grid of reference values (see Failure Condition §3). At $\theta = 0$, $J_z(s) = e^{i s T_H H_{\text{int}}} (J_z \otimes \mathbb{1}) e^{-i s T_H H_{\text{int}}}$, which depends only on $H_{\text{int}}$.
-6. **$G_A$**: The integral $\int_0^1 J_z(s) \, ds$ is approximated by numerical quadrature (e.g., Simpson's rule with 20–50 points), then rotated by BS1.
-7. **$G_B$ (reference)**: Compute directly as $T_H \cdot \text{BS}_1^\dagger \cdot J_z \cdot \text{BS}_1$, verified to equal $-T_H \cdot J_y$ in the $\phi_{\text{BS}} = 0$ convention (see BS convention above).
+## 📐 Preliminary Analytical Bounds
 
-### QFI Evaluation
+Before running numerics, the following bounds are known analytically:
 
-The function `quantum_fisher_information_dm` from `src/analysis/fisher_information.py` implements the SLD formula with eigenvalue thresholding. The result is the QFI for the parameter $\theta$ at the given $T_H$.
+| Quantity | Case A ($\alpha = 0$) | Case B | Notes |
+|---|---|---|---|
+| $J_z$ eigenvalue range (system) | $[-\frac12, \frac12]$ | $[-1, 1]$ | $J = N/2$ for $N$ particles |
+| $G$ eigenvalue range at $\theta = 0$ | $[-\frac12, \frac12]$ | $[-1, 1]$ | $G = -J_y \otimes \mathbb{1}$ (A) or $-J_y$ (B), up to sign |
+| **Max $F_Q$ at $T_H = 1$** | **1** | **4** | $(\lambda_{\max} - \lambda_{\min})^2$ for optimal pure state |
 
-### Optimisation Strategy
+The $4\times$ gap means Case A must generate a non-trivial $G_A$ via non-commuting interaction to compete. The integral over $J_z(s)$ can mix $J_y$ and potentially $J_x$ components, via the expansion $J_z(s) \approx J_z + i s T_H [H_{\text{int}}, J_z] + \mathcal{O}(s^2 T_H^2)$, where $[H_{\text{int}}, J_z] \propto J_y \otimes (\alpha_{xz} J_z + \alpha_{xx} J_x)$. The resulting $G_A$ has contributions from $J_y$ on the system, which for $J = \frac12$ has the same spectral radius as $J_z$ ($\pm \frac12$). Hence $G_A$'s eigenvalue range is at most $1$, and the maximum QFI for Case A is bounded by $1$ at $T_H = 1$ regardless of $\alpha$.
 
-Given $63 + 4 = 67$ parameters (Case A) or $80$ parameters (Case B):
+**If this bound holds**, the ancilla-assisted configuration cannot outperform the two-system-particle configuration in QFI. The ratio $\mathcal{R} = \Delta\theta_A / \Delta\theta_B \ge 2$. The article must verify this bound numerically. (Note: QFI already accounts for the optimal measurement on the full Hilbert space, including the ancilla. No additional joint-measurement advantage beyond the QFI is expected.)
 
-1. **Warm-start by random sampling**: Use $10^3$–$10^4$ random density matrices (drawn from the Hilbert–Schmidt distribution) and random $\alpha$ vectors.
-2. **Local refinement**: `scipy.optimize.minimize` with BFGS or Nelder–Mead from the best 10–20 warm-start points.
-3. **Pure-state ansatz**: As a cross-check, restrict $\rho$ to pure states $\vert \psi\rangle$ ($2d-2$ parameters), which often saturate the QFI bound  for unitary parameter estimation.
+---
 
-### Truncation Boundary Effects
+## 💻 Numerical Simulation
 
-$J_x$ couples $\vert n_0, n_1\rangle$ to $\vert n_0\pm 1, n_1\mp 1\rangle$, which for $N_{\max} = 1$ (Case A system) can fall outside the truncation. For example, $J_x |1,1\rangle$ has components $\vert 2,0\rangle$ and $\vert 0,2\rangle$ that are discarded. To minimise truncation errors:
+### Implementation Strategy
 
-- Monitor the population of the uppermost Fock states in the optimal $\rho$.
-- If the population of $\vert N_{\max}, N_{\max}\rangle$ exceeds $10^{-6}$, increase $N_{\max}$ and re-optimise.
+The simulation pipeline follows a composable structure with five stages:
+
+1. **Operator construction** — Build $J_z$ and $J_x$ on the two-mode Fock system via ladder operators (`create_jz_operator`, `create_jx_operator`), using the basis ordering $\text{Index} = n_0 \times (N_{\max}+1) + n_1$. For Case A, extend to the ancilla space via Kronecker products: $J_z \otimes \mathbb{1}$, $J_x \otimes \mathbb{1}$, $\mathbb{1} \otimes J_z^{\text{anc}}$, $\mathbb{1} \otimes J_x^{\text{anc}}$. Construct $H_{\text{int}}$ as the linear combination $\alpha_{zz} J_z \otimes J_z + \alpha_{zx} J_z \otimes J_x + \alpha_{xz} J_x \otimes J_z + \alpha_{xx} J_x \otimes J_x$.
+
+2. **Generator computation** — For Case B: $G_B = T_H \cdot \text{BS}_1^\dagger \cdot J_z \cdot \text{BS}_1$, verified to equal $-T_H \cdot J_y$ under the $\phi_{\text{BS}} = 0$ convention. For Case A: evaluate at $\theta = 0$ to simplify; compute the effective generator as $G_A = T_H \cdot \text{BS}_1^\dagger \left[\int_0^1 J_z(s)\, ds\right] \text{BS}_1$, where $J_z(s) = e^{i s T_H H_{\text{int}}} (J_z \otimes \mathbb{1}) e^{-i s T_H H_{\text{int}}}$. The integral is approximated via Simpson's rule with $n_{\text{quad}} = 50$ points (adaptive; increased to 100 when $T_H \lVert H_{\text{int}} \rVert > 10$).
+
+3. **QFI evaluation** — Use the SLD eigen-decomposition QFI function (`quantum_fisher_information_dm`), which implements the SLD eigen-decomposition formula with an eigenvalue threshold of $10^{-12}$ to avoid division-by-zero for highly mixed states. When $\operatorname{Tr}(\rho^2) > 0.999$, switch to the pure-state formula $F_Q = 4 (\Delta G)^2$.
+
+4. **Optimisation** — With $63 + 4 = 67$ parameters (Case A) or $80$ parameters (Case B), the landscape is non-convex. Strategy: (a) warm-start with $10^3$–$10^4$ random density matrices (Hilbert–Schmidt distribution) and random $\alpha$ vectors; (b) local refinement with `scipy.optimize.minimize` (BFGS or Nelder–Mead) from the best 10–20 warm-start points; (c) pure-state ansatz ($2d-2$ parameters) as a cross-check, since the QFI bound is often saturated by pure states for unitary estimation.
+
+5. **Truncation boundary monitoring** — For $N_{\max} = 1$ (Case A system), $J_x$ acting on $\vert 1,1\rangle$ has components $\vert 2,0\rangle$ and $\vert 0,2\rangle$ that fall outside the truncation. Monitor $\rho[N_{\max}, N_{\max}]$; if the population exceeds $10^{-6}$, increase $N_{\max}$ and re-optimise.
+
+#### Key Function Signatures
+
+| Function | Purpose | Signature |
+|---|---|---|
+| `create_jz_operator(N_max)` | Build $J_z$ in two-mode Fock basis | `(N_max: int) -> np.ndarray` |
+| `create_jx_operator(N_max)` | Build $J_x$ via ladder operators | `(N_max: int) -> np.ndarray` |
+| `beam_splitter_unitary(theta, phi, N_max)` | 50/50 BS unitary | `(theta: float, phi: float, N_max: int) -> np.ndarray` |
+| `build_interaction_hamiltonian(alpha, J_sys, J_anc)` | $H_{\text{int}} = \sum \alpha_{pq} J_p \otimes J_q$ | `(alpha: np.ndarray, J_sys: dict, J_anc: dict) -> np.ndarray` |
+| `compute_effective_generator_A(T_H, alpha, N_max, n_quad)` | $G_A$ via integral quadrature | `(T_H: float, alpha: np.ndarray, N_max: int, n_quad: int) -> np.ndarray` |
+| `compute_effective_generator_B(T_H, N_max)` | $G_B = -T_H \cdot J_y$ | `(T_H: float, N_max: int) -> np.ndarray` |
+| `quantum_fisher_information_dm(rho, G)` | SLD-based QFI computation | `(rho: np.ndarray, G: np.ndarray) -> float` |
+
+#### Dimension Management
+
+| Quantity | Case A | Case B |
+|---|---|---|
+| System dim | $(N_{\max}+1)^2 = 4$ | $(N_{\max}+1)^2 = 9$ |
+| Ancilla dim | 2 | — |
+| Total dim | $4 \times 2 = 8$ | $9$ |
+| Density matrix shape | $(8, 8)$ | $(9, 9)$ |
+| Optimisation variables | $63 + 4 = 67$ | $80$ |
+
+### Parameter Sweep
+
+| Parameter | Symbol | Values / Range | Step / Grid | Purpose |
+|---|---|---|---|---|
+| Holding strength | $T_H$ | $\{0.1, 0.5, 1.0, 2.0, 5.0\}$ | 5 points | Verify QFI scaling $\propto T_H^2$ |
+| Reference phase | $\theta$ | $\{0, 0.1, \pi/4, \pi/2\}$ | 4 points | Quantify $\theta$-dependence of $G_A$ |
+| Quadrature points | $n_{\text{quad}}$ | $\{10, 20, 50, 100\}$ | 4 points | Convergence check for $\int_0^1 J_z(s) ds$ |
+| Random restarts | $n_{\text{restarts}}$ | $10^3$ (warm-start) + $20$ (local) | — | Ensure global optimum |
+| Coupling coefficients | $\alpha_{pq}$ | $[-5, 5]$ | Continuous (optimised) | $H_{\text{int}}$ coefficients |
+
+The primary comparison is at $T_H = 1$ and $\theta = 0$. Higher $T_H$ values verify the $T_H^2$ scaling of the QFI.
+
+### Validation
+
+The following invariants are verified throughout the simulation (tolerances given parenthetically):
+
+| # | Invariant | Equation | Tolerance |
+|---|---|---|---|
+| 1 | Beam-splitter unitarity | $U_{\text{BS}}^\dagger U_{\text{BS}} = \mathbb{1}$ | $\lVert \cdot - \mathbb{1} \rVert_\infty < 10^{-12}$ |
+| 2 | Case B generator form | $G_B = -T_H \, J_y$ | $\lVert \cdot \rVert_\infty < 10^{-10}$ |
+| 3 | Generator Hermiticity | $G_A^\dagger = G_A,\quad G_B^\dagger = G_B$ | $\lVert \cdot \rVert_\infty < 10^{-12}$ |
+| 4 | Density-matrix positivity | $\rho \succeq 0$ | $\min \lambda_i \ge -10^{-12}$ |
+| 5 | Unit trace | $\operatorname{Tr}(\rho) = 1$ | $< 10^{-12}$ |
+| 6 | Particle-number constraint (Case A) | $\operatorname{Tr}(\rho \hat N) = 1$ | $< 10^{-6}$ |
+| 7 | Vacuum and double-occupancy vanish | $\rho_{\lvert 0,0\rangle,\lvert 0,0\rangle} = \rho_{\lvert N_{\max},N_{\max}\rangle,\lvert N_{\max},N_{\max}\rangle} = 0$ | $< 10^{-12}$ |
+| 8 | QFI positivity | $F_Q \ge 0$ | $F_Q \ge -10^{-12}$ |
+| 9 | Case B analytical maximum ($T_H = 1$) | $\max F_Q^{(B)} = 4$ | $< 0.05$ |
+| 10 | Ratio bound | $\mathcal{R} = \sqrt{\max F_Q^{(B)} / \max F_Q^{(A)}} \ge 1$ | exact |
 
 ---
 
@@ -178,29 +232,11 @@ $J_x$ couples $\vert n_0, n_1\rangle$ to $\vert n_0\pm 1, n_1\mp 1\rangle$, whic
 | 6 | Truncation boundary population $< 10^{-6}$ | Check $\rho[N_{\max}, N_{\max}]$ element |
 | 7 | $\theta$-dependence of QFI is quantified | Report $F_Q$ at $\theta \in \{0, 0.1, \pi/4, \pi/2\}$ |
 
----
-
-## 📐 Preliminary Analytical Bounds
-
-Before running numerics, the following bounds are known analytically:
-
-| Quantity | Case A ($\alpha = 0$) | Case B | Notes |
-|---|---|---|---|
-| $J_z$ eigenvalue range (system) | $[-\frac12, \frac12]$ | $[-1, 1]$ | $J = N/2$ for $N$ particles |
-| $G$ eigenvalue range at $\theta = 0$ | $[-\frac12, \frac12]$ | $[-1, 1]$ | $G = -J_y \otimes \mathbb{1}$ (A) or $-J_y$ (B), up to sign |
-| **Max $F_Q$ at $T_H = 1$** | **1** | **4** | $(\lambda_{\max} - \lambda_{\min})^2$ for optimal pure state |
-
-The $4\times$ gap means Case A must generate a non-trivial $G_A$ via non-commuting interaction to compete. The integral over $J_z(s)$ can mix $J_y$ and potentially $J_x$ components, via the expansion $J_z(s) \approx J_z + i s T_H [H_{\text{int}}, J_z] + \mathcal{O}(s^2 T_H^2)$, where $[H_{\text{int}}, J_z] \propto J_y \otimes (\alpha_{xz} J_z + \alpha_{xx} J_x)$. The resulting $G_A$ has contributions from $J_y$ on the system, which for $J = \frac12$ has the same spectral radius as $J_z$ ($\pm \frac12$). Hence $G_A$'s eigenvalue range is at most $1$, and the maximum QFI for Case A is bounded by $1$ at $T_H = 1$ regardless of $\alpha$.
-
-**If this bound holds**, the ancilla-assisted configuration cannot outperform the two-system-particle configuration in QFI. The ratio $\mathcal{R} = \Delta\theta_A / \Delta\theta_B \ge 2$. The article must verify this bound numerically. (Note: QFI already accounts for the optimal measurement on the full Hilbert space, including the ancilla. No additional joint-measurement advantage beyond the QFI is expected.)
-
----
-
 ## 🔬 Conclusions
 
 The numerical simulation confirms the analytical bound.
 
-### 📊 Verification of Success Criteria
+### Verification of Success Criteria
 
 | # | Criterion | Result | Status |
 |---|---|---|---|
@@ -212,7 +248,7 @@ The numerical simulation confirms the analytical bound.
 | 6 | Truncation boundary $< 10^{-6}$ | $\rho_{\lvert N_{\max},N_{\max}\rangle} < 10^{-12}$ | ✅ |
 | 7 | $\theta$-dependence quantified | $F_Q$ varies $< 0.04\%$ across $\theta \in \{0, 0.1, 0.5\}$ | ✅ |
 
-### 💡 Key Findings
+💡 **Key Findings**:
 
 1. **Bound confirmed**: Maximum QFI for Case A is bounded by $F_Q = 1$ at $T_H = 1$, regardless of $\alpha$. Case B achieves $F_Q = 4$.
 2. **Non-commuting interactions do not help**: Even with $\alpha_{xz}$ and $\alpha_{xx}$ terms that break $[J_z, H_{\text{int}}] \neq 0$, the effective generator $G_A$ has spectral radius bounded by $0.5$ (the $J = \frac12$ limit). The integral $\int_0^1 J_z(s)\, ds$ cannot produce a generator with larger eigenvalue range than bare $J_z$.

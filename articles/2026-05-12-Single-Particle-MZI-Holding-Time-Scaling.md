@@ -8,12 +8,12 @@ For a single-particle Mach–Zehnder interferometer (MZI) with Hamiltonian $H = 
 
 ## 📖 Literature Review
 
-| Concept & Motivation | Article | Year |
+| Concept, Motivation and Connection | Article | Year |
 |---|---|---|
-| Standard MZI theory: beam splitter conventions, phase accumulation, and readout in the two-mode Fock basis | *Mach–Zehnder interferometry* (standard quantum optics textbooks) | — |
-| Error-propagation sensitivity formula: $\Delta\phi = \sigma_{J_z} / |\partial\langle J_z\rangle/\partial\phi|$ | *Quantum metrology* (standard review) | — |
-| Ramsey interferometry with a single qubit: $\Delta\omega = 1/(T\sqrt{N})$ for $N$ independent measurements of a single probe with interrogation time $T$ | *Quantum metrology with a single spin* (various) | — |
-| SQL for a single probe: $\Delta\omega \propto 1/T$ when measuring a frequency $\omega$ via phase accumulation $\phi = \omega T$ | *Quantum sensing: beyond the standard quantum limit* (review) | — |
+| Standard MZI theory: beam splitter conventions, phase accumulation, and readout in the two-mode Fock basis — Establishes the beam-splitter conventions, $J_z$ operator definition, and two-mode Fock basis used in the single-particle MZI simulation. | *Mach–Zehnder interferometry* (standard quantum optics textbooks) | — |
+| Error-propagation sensitivity formula: $\Delta\phi = \sigma_{J_z} / |\partial\langle J_z\rangle/\partial\phi|$ — Provides the $\Delta\theta = \sigma_{J_z} / |\partial\langle J_z\rangle/\partial\theta|$ error-propagation formula that is the core sensitivity metric verified analytically and numerically in this simulation. | *Quantum metrology* (standard review) | — |
+| Ramsey interferometry with a single qubit: $\Delta\omega = 1/(T\sqrt{N})$ for $N$ independent measurements of a single probe with interrogation time $T$ — Establishes the $\Delta\omega = 1/(T\sqrt{N})$ scaling for $N$ independent measurements, providing the context that $\Delta\theta = 1/T_H$ ($N=1$) is the single-probe SQL verified here. | *Quantum metrology with a single spin* (various) | — |
+| SQL for a single probe: $\Delta\omega \propto 1/T$ when measuring a frequency $\omega$ via phase accumulation $\phi = \omega T$ — Establishes the $\Delta\omega \propto 1/T$ SQL for frequency estimation with a single probe, directly predicting the $\alpha = -1$ exponent confirmed numerically in this article. | *Quantum sensing: beyond the standard quantum limit* (review) | — |
 
 **Key assumptions**: Single particle ($N=1$, spin-$1/2$ equivalent), pure states, no decoherence, instantaneous beam splitters, ideal $J_z$ measurement with infinite statistics (error propagation gives the asymptotic sensitivity).
 
@@ -101,15 +101,13 @@ assert np.allclose(dJz_dtheta_analytical,
 
 ## ⚠️ Likely Failure Conditions
 
-1. **Numerical derivative at fringe extrema**: When $\sin(\theta T_H) \approx 0$ (i.e., $\theta T_H \approx n\pi$), both the numerator $\sqrt{\text{Var}(J_z)}$ and denominator $|\partial\langle J_z\rangle/\partial\theta|$ vanish, producing an ill-defined $0/0$. **Mitigation**: Exclude $T_H$ values where $|\sin(\theta T_H)| < 10^{-6}$ from the scaling fit; the analytical expression $\Delta\theta = 1/T_H$ handles the limit correctly via continuity but the numerical evaluation at exactly a fringe extremum will be unstable.
-
-2. **Finite-difference step-size error**: If $\delta$ is too large, truncation error dominates; if too small, subtractive cancellation dominates. **Mitigation**: Use $\delta = 10^{-6}$ (double-precision optimal for functions evaluating to $\mathcal{O}(1)$); optionally verify with $\delta = 10^{-5}$ and $10^{-7}$.
-
-3. **Small-$T_H$ artifacts**: At $T_H < 0.1$ and $\theta_0 = 1$, the accumulated phase $\phi = \theta T_H < 0.1 \ll 1$, making the signal $\langle J_z\rangle$ barely changed from its initial value. The finite-difference derivative may suffer from near-cancellation. **Mitigation**: Include $T_H \geq 0.1$ in the sweep; monitor the condition number of the derivative.
-
-4. **Log-log fit quality at large $T_H$**: At $T_H \gg 1$, $\Delta\theta \ll 1$ and may approach machine precision limits for the sensitivity. **Mitigation**: Cap $T_H$ at 100 (well within double precision); the fit only needs $R^2 > 0.99$.
-
-5. **Trivial result**: The $\Delta\theta = 1/T_H$ prediction is analytically exact, so the simulation is primarily a verification/visualization exercise. No new physics is expected. **Mitigation**: Frame the article as a pedagogical demonstration and sanity check of the error-propagation formalism, not as a discovery.
+| Failure | Description | Mitigation |
+|---------|-------------|------------|
+| Numerical derivative at fringe extrema | When $\sin(\theta T_H) \approx 0$ (i.e., $\theta T_H \approx n\pi$), both the numerator $\sqrt{\text{Var}(J_z)}$ and denominator $|\partial\langle J_z\rangle/\partial\theta|$ vanish, producing an ill-defined $0/0$. | Exclude $T_H$ values where $|\sin(\theta T_H)| < 10^{-6}$ from the scaling fit; the analytical expression $\Delta\theta = 1/T_H$ handles the limit correctly via continuity but the numerical evaluation at exactly a fringe extremum will be unstable. |
+| Finite-difference step-size error | If $\delta$ is too large, truncation error dominates; if too small, subtractive cancellation dominates. | Use $\delta = 10^{-6}$ (double-precision optimal for functions evaluating to $\mathcal{O}(1)$); optionally verify with $\delta = 10^{-5}$ and $10^{-7}$. |
+| Small-$T_H$ artifacts | At $T_H < 0.1$ and $\theta_0 = 1$, the accumulated phase $\phi = \theta T_H < 0.1 \ll 1$, making the signal $\langle J_z\rangle$ barely changed from its initial value. The finite-difference derivative may suffer from near-cancellation. | Include $T_H \geq 0.1$ in the sweep; monitor the condition number of the derivative. |
+| Log-log fit quality at large $T_H$ | At $T_H \gg 1$, $\Delta\theta \ll 1$ and may approach machine precision limits for the sensitivity. | Cap $T_H$ at 100 (well within double precision); the fit only needs $R^2 > 0.99$. |
+| Trivial result | The $\Delta\theta = 1/T_H$ prediction is analytically exact, so the simulation is primarily a verification/visualization exercise. No new physics is expected. | Frame the article as a pedagogical demonstration and sanity check of the error-propagation formalism, not as a discovery. |
 
 ---
 
@@ -160,4 +158,18 @@ The analytical and numerical derivatives agree to within $10^{-8}$ relative diff
 - `src/physics/single_particle_mzi_scaling.py` — core simulation module
 - `src/physics/test_single_particle_mzi_scaling.py` — tests (21/21 passing)
 - `pages/Single_Particle_MZI_Scaling.py` — interactive Streamlit page
+
+---
+
+## 🔧 Implementation Status
+
+| Component | Module | Description |
+|-----------|--------|-------------|
+| **Operator construction** | `src/physics/single_particle_mzi_scaling.py` | Two-mode bosonic Fock space (`max_photons = 1`), $J_z = (n_1 - n_2)/2$ diagonal operator, creation/annihilation operators for beam-splitter Hamiltonian |
+| **Beam-splitter unitary** | `src/physics/single_particle_mzi_scaling.py` | $U_{\text{BS}} = \exp(-i(\pi/4)(a_0^\dagger a_1 + a_1^\dagger a_0))$ via `scipy.linalg.expm`; validated via unitarity check `UU^\dagger = I` |
+| **Holding Hamiltonian** | `src/physics/single_particle_mzi_scaling.py` | $U_{\text{hold}}(T_H) = \exp(-i\theta T_H J_z)$; diagonal in the Fock basis, computed analytically (no matrix exponential needed) |
+| **Sensitivity computation** | `src/physics/single_particle_mzi_scaling.py` | Error-propagation formula $\Delta\theta = \sqrt{\text{Var}(J_z)} / \lvert\partial\langle J_z\rangle/\partial\theta\rvert$; supports both analytical and numerical derivative pipelines |
+| **Finite-difference derivative** | `src/physics/single_particle_mzi_scaling.py` | Central finite differences $\partial\langle J_z\rangle/\partial\theta \approx [f(\theta+\delta) - f(\theta-\delta)]/(2\delta)$ with $\delta = 10^{-6}$; validated against analytical expression |
+| **Streamlit page** | `pages/Single_Particle_MZI_Scaling.py` | Interactive UI for $T_H$ sweep, $\theta_0$ selection, log-log plots, and scaling exponent display |
+| **Test suite** | `src/physics/test_single_particle_mzi_scaling.py` | **21 tests** covering operator correctness, unitarity, analytical vs. numerical derivative agreement, fringe-exclusion logic, scaling exponent extraction, and sweep consistency across multiple $\theta_0$ values |
 
