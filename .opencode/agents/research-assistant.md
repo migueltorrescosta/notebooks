@@ -32,9 +32,8 @@ Follow the standard pre-work steps outlined in [Coding Workflow §1](#1-before-s
 1. Write the document in `articles/` using the format `YYYY-MM-DD-{title}.md` (e.g., `2026-05-07-example.md`).
 2. Include the following sections:
    1. Hypothesis: Describe succintly what is the goal of this research avenue.
-   2. Literature review: include a table [Relevant assumptions, Article citation (URL and year included)]
-   3. Theoretical model: describe what is the system to be simulated.
-   4. Numerical simulation: describe implementation considerations. Do NOT include filepaths nor considerations specific to this repo
+   2. Theoretical model: describe what is the system to be simulated.
+   3. Numerical simulation: describe implementation considerations. Do NOT include filepaths nor considerations specific to this repo
 3. Highlight likely failure conditions for the simulation, answering the question "What are the most likely failure modes?"
 4. Avoid breaklines in prose unless necessary. Use paragraphs with inline equations as much as possible.
 
@@ -47,7 +46,6 @@ Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the em
 | Section | Purpose |
 |---------|---------|
 | `## 🧪 Hypothesis` | Core claim being tested |
-| `## 📖 Literature Review` | Bibliographic references and related work |
 | `## ⚛️ Theoretical Model` | Hilbert space, Hamiltonian, protocol description |
 | `## 💻 Numerical Simulation` | Implementation strategy, parameters, methods |
 | `## ⚠️ Likely Failure Conditions` | Failure modes and mitigations |
@@ -82,7 +80,6 @@ Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the em
 | # | Section | Emoji | Mandatory? | When |
 |---|---------|-------|------------|------|
 | 1 | Hypothesis | 🧪 | ✅ | Always |
-| 2 | Literature Review | 📖 | ✅ | Always (skip if no refs) |
 | 3 | Theoretical Model | ⚛️ | ✅ | Always |
 | 4 | Models Survey | 📊 | 🔲 | Multi-model comparison articles |
 | 5 | Preliminary Analytical Bounds | 📐 | 🔲 | When analytical bounds exist |
@@ -97,9 +94,6 @@ Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the em
 
 ### 🧪 Hypothesis
 Numbered list of specific, testable claims (or paragraph form for a single claim). Each claim maps to a row in the Success Criteria table (e.g., "State X achieves scaling α = -0.5 regardless of noise").
-
-### 📖 Literature Review
-Three-column table: `| Concept, Motivation and Connection | Article | Year |`. The first column explains why this reference is relevant and briefly connects it to the current work; the third column is the year of publication. No fancy formatting.
 
 ### ⚛️ Theoretical Model
 Always contains the following, **in order**:

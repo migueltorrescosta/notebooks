@@ -22,20 +22,7 @@ Specifically:
 4. **Crossover regime**: In the Markovian limit (λ → ∞), ancilla assistance provides
    diminishing returns, converging to the standard Lindblad treatment.
 
----
 
-## 📖 Literature Review
-
-| Concept, Motivation and Connection | Article | Year |
-|---|---|---|
-| Hybrid oscillator-spin interactions in trapped ions — provides the physical platform and spin-motion entanglement machinery needed to implement the ancilla-oscillator coupling used here — Physical platform for generating spin-motion entanglement used in this work; provides the spin-dependent force machinery | Sutherland & Srinivas, *Phys. Rev. A* 104, 032609 ([arXiv:2105.05768](https://arxiv.org/abs/2105.05768)) | 2021 |
-| Pseudomode method for non-Markovian open quantum systems — foundational technique mapping a Lorentzian-structured reservoir to a single damped harmonic oscillator (pseudomode) plus a Markovian bath, enabling the non-Markovian simulation approach used here — Maps Lorentzian-structured reservoir to a single damped harmonic oscillator (pseudomode) + Markovian bath; foundational technique used here | Garraway, *Phys. Rev. A* 55, 2290 ([DOI](https://doi.org/10.1103/PhysRevA.55.2290)) | 1997 |
-| Bath engineering for quantum metrology — demonstrates that error correction and ancilla-assisted schemes can protect QFI in dissipative environments, motivating the ancilla-protection hypothesis tested here — Error correction and ancilla-assisted schemes for protecting QFI in dissipative environments | Demkowicz-Dobrzański et al., *Phys. Rev. Lett.* 118, 020501 ([DOI](https://doi.org/10.1103/PhysRevLett.118.020501)) | 2017 |
-| Non-Markovianity and metrology — shows that non-Markovian effects can enhance precision and that bath memory can be exploited as a resource, motivating the search for a non-Markovian advantage in ancilla-assisted protocols — Non-Markovian effects can enhance precision; bath memory can be exploited as a resource | Chin et al., *Phys. Rev. Lett.* 108, 140403 ([DOI](https://doi.org/10.1103/PhysRevLett.108.140403)) | 2012 |
-| QFI computation for mixed states — symmetric logarithmic derivative formulation used here for computing QFI post-decoherence, with thresholding to handle near-zero eigenvalues — Symmetric logarithmic derivative formulation used for computing QFI post-decoherence | Paris, *Int. J. Quantum Inf.* 7, 125 ([DOI](https://doi.org/10.1142/S0219749909004839)) | 2009 |
-| High-order squeezing under Markovian decoherence (previous work in this repo) — existing hybrid Lindblad framework for decoherence sweeps at fixed ⟨n⟩ for n=2,3,4, extended here to non-Markovian ancilla-assisted metrology — Existing hybrid Lindblad framework; decoherence sweeps at fixed ⟨n⟩ for n=2,3,4 | (Previous work in this repo; `articles/2026-05-07-High-Order-Squeezing-Plan.md`) | 2026 |
-
----
 
 ## ⚛️ Theoretical Model
 

@@ -11,20 +11,9 @@ Given a fixed resource of **2 particles** in a Mach–Zehnder interferometer, th
 
 **Expectation**: Naively, the 2-particle probe has a larger effective spin ($J = 1$ vs. $J = \frac12$ for the ancilla-free 1-particle system), giving a wider $J_z$ spectrum and higher QFI when the ancilla is not coupled. However, a non-commuting ancilla interaction (involving $J_x \otimes J_z$ or $J_x \otimes J_x$) during the holding time can modify the effective phase generator, potentially enhancing the QFI beyond what the bare 1-particle system provides. The comparison reveals whether interaction-engineered ancilla coupling can compensate for a smaller system.
 
----
 
-## 📖 Literature Review
 
-| Concept, Motivation and Connection | Article | Year |
-|---|---|---|
-| Optimal probes for unitary parameter estimation — QFI maximisation over input states | Giovannetti, Lloyd, Maccone, *Nat. Photonics* 5, 222 | 2011 |
-| Ancilla-assisted quantum metrology — Entanglement with ancilla to surpass standard limits | Demkowicz-Dobrzański & Maccone, *Phys. Rev. Lett.* 113, 250801 | 2014 |
-| QFI for mixed states (SLD formula) — Computing QFI of arbitrary density matrices | Paris, *Int. J. Quantum Inf.* 7, 125 | 2009 |
-| Schwinger boson mapping — $N$ spin-$\frac12 \to$ two-mode bosonic system, $J_z = (n_1 - n_2)/2$ | Yurke, McCall, Klauder, *Phys. Rev. A* 33, 4033 | 1986 |
-| Derivative of matrix exponential (non-commuting case) — $d/d\theta \exp(A(\theta))$ for $[A, dA/d\theta] \neq 0$ | Wilcox, *J. Math. Phys.* 8, 962 | 1967 |
-| SU(2) interferometry and beam splitters — SU(2) symmetry of lossless beam splitters; BS as rotation: $\text{BS}^\dagger J_z \text{BS} = J_x$ (standard); here per code convention $\text{BS}^\dagger J_z \text{BS} = -J_y$ | Campos, Saleh, Teich, *Phys. Rev. A* 40, 1371 | 1989 |
 
----
 
 
 ## ⚛️ Theoretical Model

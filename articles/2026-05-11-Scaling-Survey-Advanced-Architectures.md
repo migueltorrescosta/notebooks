@@ -10,20 +10,7 @@ For interferometers with **modified topologies or non-Markovian/stochastic noise
 4. Dynamical decoupling (CPMG, XY-8) improves the prefactor $C$ via increased effective coherence time $T_2^{(\text{DD})} \propto n_\pi^{2/3}$ without changing $\alpha$
 5. Weak-value amplification leaves $F_Q$ unchanged — the $C$ prefactor degrades as $p_{\text{ps}}^{-1/2}$ due to post-selection overhead
 
----
 
-## 📖 Literature Review
-
-| Concept, Motivation and Connection | Article | Year |
-|---|---|---|
-| Pseudomode method for non-Markovian open quantum systems: maps Lorentzian-structured reservoir to a single damped pseudomode + Markovian bath — Provides the pseudomode method used to simulate non-Markovian dynamics in Model 1, enabling QFI computation under Lorentzian reservoirs in this survey. | Garraway, *Phys. Rev. A* 55, 2290 | 1997 |
-| Gravitational phase shifts in fiber interferometers: phase noise accumulation over long baselines; path-imbalance sensitivity scaling — Establishes the phase-noise accumulation scaling over long baselines that motivates the thermal and dynamical-decoupling models in this survey. | *High-Sensitivity Fiber Interferometer for Gravitational Phase Shift Measurement* ([arXiv:2506.09770](https://arxiv.org/abs/2506.09770)) | 2025 |
-| Variance-based dark-matter detection with fluctuations: super-binomial variance metrics as sensitivity signal; relevant for scaling under stochastic noise — Introduces super-binomial variance metrics for stochastic signals, directly relevant to the Langevin thermal-noise analysis (Model 2) and its noise-floor scaling. | *Fluctuations in Atom Interferometers as a New Tool for Dark Matter* ([arXiv:2602.23427](https://arxiv.org/abs/2602.23427)) | 2026 |
-| Multiparameter noise budgeting for space interferometers: high-dimensional sensitivity analysis, parameter-space reduction; tilt-to-length noise methodology — Provides the tilt-to-length noise methodology applied in Model 6 for space-interferometer sensitivity floors. | *Multiparameter Hierarchical Sensitivity Analysis of Tilt-to-Length Coupling Noise in Taiji Interferometer* | 2025/2026 |
-| Ancilla-assisted metrology in non-Markovian environments: pseudomode-based QFI; preservation ratio $\mathcal{R}(T)$ scaling — Establishes the ancilla-assisted QFI preservation ratio $\mathcal{R}(T)$ formalism that is extended here to scaling-exponent analysis via the survey pipeline. | `articles/2026-05-09-Ancilla-Assisted-Metrology-Non-Markovian.md` (prior repo) | 2026 |
-| Quantum limits for interferometry (review): QCRB, SQL, Heisenberg limit — Provides the foundational QCRB, SQL, and Heisenberg-limit benchmarks used to define scaling exponents $\alpha$ across all six models in this survey. | Giovannetti, Lloyd, Maccone, *Advances in quantum metrology*, Nature Photonics **5**, 222 ([DOI](https://doi.org/10.1038/nphoton.2011.35)) | 2011 |
-
----
 
 ## ⚛️ Theoretical Model
 

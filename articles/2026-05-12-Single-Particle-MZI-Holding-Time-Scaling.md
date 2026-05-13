@@ -4,20 +4,7 @@
 
 For a single-particle Mach–Zehnder interferometer (MZI) with Hamiltonian $H = \theta J_z$ applied during a holding time $T_H$, the sensitivity $\Delta\theta$ (error-propagation uncertainty in estimating the rate parameter $\theta$) scales as $\Delta\theta \propto T_H^{-1}$ in the ideal decoherence-free case. This corresponds to a scaling exponent $\alpha = -1$ on a log-log plot of $\Delta\theta$ vs $T_H$, which is the standard quantum limit (SQL) for a single probe with increasing interrogation time. The result is expected to hold independent of the true value of $\theta$ (provided $\sin(\theta T_H) \neq 0$, i.e., away from fringe extrema). The numerical simulation will confirm this exponent using both analytical derivatives and finite-difference derivatives, and the two methods must agree to within numerical precision.
 
----
 
-## 📖 Literature Review
-
-| Concept, Motivation and Connection | Article | Year |
-|---|---|---|
-| Standard MZI theory: beam splitter conventions, phase accumulation, and readout in the two-mode Fock basis — Establishes the beam-splitter conventions, $J_z$ operator definition, and two-mode Fock basis used in the single-particle MZI simulation. | Gerry & Knight, *Introductory Quantum Optics*, Cambridge University Press (Ch. 6: Beam splitters and interferometers) ([DOI](https://doi.org/10.1017/9781009463614)) | 2005 |
-| Error-propagation sensitivity formula: $\Delta\phi = \sigma_{J_z} / \vert\partial\langle J_z\rangle/\partial\phi\vert$ — Provides the $\Delta\theta = \sigma_{J_z} / \vert\partial\langle J_z\rangle/\partial\theta\vert$ error-propagation formula that is the core sensitivity metric verified analytically and numerically in this simulation. | Giovannetti, Lloyd, Maccone, *Advances in quantum metrology*, Nature Photonics **5**, 222 ([DOI](https://doi.org/10.1038/nphoton.2011.35)) | 2011 |
-| Ramsey interferometry with a single qubit: $\Delta\omega = 1/(T\sqrt{N})$ for $N$ independent measurements of a single probe with interrogation time $T$ — Establishes the $\Delta\omega = 1/(T\sqrt{N})$ scaling for $N$ independent measurements, providing the context that $\Delta\theta = 1/T_H$ ($N=1$) is the single-probe SQL verified here. | Skotiniotis *et al.*, *Quantum metrology with a single spin*, Phys. Rev. A **92**, 032106 ([DOI](https://doi.org/10.1103/PhysRevA.92.032106)) | 2015 |
-| SQL for a single probe: $\Delta\omega \propto 1/T$ when measuring a frequency $\omega$ via phase accumulation $\phi = \omega T$ — Establishes the $\Delta\omega \propto 1/T$ SQL for frequency estimation with a single probe, directly predicting the $\alpha = -1$ exponent confirmed numerically in this article. | Degen, Reinhard, Cappellaro, *Quantum sensing*, Rev. Mod. Phys. **89**, 035002 ([DOI](https://doi.org/10.1103/RevModPhys.89.035002)) | 2017 |
-
-**Key assumptions**: Single particle ($N=1$, spin-$1/2$ equivalent), pure states, no decoherence, instantaneous beam splitters, ideal $J_z$ measurement with infinite statistics (error propagation gives the asymptotic sensitivity).
-
----
 
 ## ⚛️ Theoretical Model
 

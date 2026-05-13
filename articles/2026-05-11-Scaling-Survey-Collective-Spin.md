@@ -10,19 +10,7 @@ For interferometers using **collective spin states in the symmetric Dicke subspa
 4. Ancilla-assisted metrology preserves the state's scaling exponent $\alpha$ but improves the prefactor $C$ by $\mathcal{R}(T)^{-1/2}$ under non-Markovian noise
 5. All entanglement-enhanced models are more fragile than coherent states under phase diffusion ($\gamma_\phi$): the advantage degrades monotonically with $\gamma_\phi$
 
----
 
-## 📖 Literature Review
-
-| Concept, Motivation and Connection | Article | Year |
-|---|---|---|
-| Quantum limits for interferometry: QCRB, SQL, Heisenberg limit; foundations for all scaling calculations — Defines the SQL and Heisenberg-limit benchmarks against which all collective-spin scaling exponents ($\alpha = -2/3$ for OAT, $\alpha = -1.0$ for Twin-Fock) are compared in this survey. | Giovannetti, Lloyd, Maccone, *Advances in quantum metrology*, Nature Photonics **5**, 222 ([DOI](https://doi.org/10.1038/nphoton.2011.35)) | 2011 |
-| High-order non-Gaussian squeezing under Markovian decoherence: hybrid Lindblad framework; QFI decoherence sweeps at fixed $\langle n \rangle$ for n=2,3,4 — Provides the hybrid Lindblad framework and QFI decoherence sweeps for n=3,4 non-Gaussian states, directly used in the Models Survey for precise exponent extraction. | `articles/2026-05-07-High-Order-Squeezing-Plan.md` (prior repo) | 2026 |
-| Ancilla-assisted metrology in non-Markovian environments: pseudomode-based non-Markovian QFI; $\mathcal{R}(T)$ preservation ratio scaling — Establishes the $\mathcal{R}(T)$ preservation-ratio formalism used to verify that ancilla assistance improves the prefactor $C$ without changing the scaling exponent $\alpha$. | `articles/2026-05-09-Ancilla-Assisted-Metrology-Non-Markovian.md` (prior repo) | 2026 |
-| OAT squeezing theory: Kitagawa & Ueda (1993) — optimal squeezing time $t_{\text{opt}} \propto N^{-1/3}$, minimum squeezing parameter $\xi^2_{\min} \propto N^{-2/3}$ — Derives the optimal squeezing time $t_{\text{opt}} \propto N^{-1/3}$ and minimum squeezing $\xi^2_{\min} \propto N^{-2/3}$ that are central to the OAT sensitivity exponent $\alpha = -2/3$ in this survey. | Kitagawa & Ueda, *Phys. Rev. A* 47, 5138 | 1993 |
-| Two-axis countertwisting: $H \propto J_+^2 + J_-^2$ achieves $\xi^2 \propto N^{-1}$ (Heisenberg-limited squeezing) — Establishes the two-axis countertwisting Hamiltonian that achieves $\xi^2 \propto N^{-1}$, motivating the TNT Heisenberg-limited scaling result ($\alpha = -1.0$) in this survey. | Kitagawa & Ueda, *Phys. Rev. A* 47, 5138 | 1993 |
-
----
 
 ## ⚛️ Theoretical Model
 

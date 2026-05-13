@@ -6,22 +6,7 @@ For a system–ancilla pair of single-particle two-mode bosonic systems, the sen
 
 The central hypothesis is that a **non-zero interaction Hamiltonian** with suitably chosen coefficients $\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz}$ will yield a sensitivity $[\Delta\theta]_{\text{opt}}$ strictly better than the best achievable with decoupled S and A ($\alpha_{ij} = 0$), and that the optimal configuration is a **non-trivial function of the true $\theta$**.
 
----
 
-## 📖 Literature Review
-
-| Concept, Motivation and Connection | Article | Year |
-|---|---|---|
-| Standard MZI theory and error-propagation sensitivity — Provides the beam-splitter conventions, $J_z$ measurement operator, and error-propagation formalism used throughout the numerical optimization. | Gerry & Knight, *Introductory Quantum Optics*, Cambridge University Press (Ch. 6: Beam splitters and interferometers) ([DOI](https://doi.org/10.1017/9781009463614)) | 2005 |
-| Ancilla-assisted quantum metrology: using auxiliary systems to surpass SQL — Establishes the theoretical framework for ancilla-assisted metrology that this article directly tests via numerical optimization of the $\alpha_{ij}$ interaction coefficients. | Giovannetti *et al.*, *Advances in quantum metrology*, Nature Photonics **5**, 222 | 2011 |
-| Interaction-based readout in entangled interferometers — Introduces interaction-based readout protocols that motivate the holding-time interaction Hamiltonian $H_{\text{int}}$ optimized here with a Nelder–Mead search. | Davis *et al.*, *Interaction-based readout for spin-squeezed states*, PRA **94**, 063814 | 2016 |
-| Two-axis counter-twisting and spin-squeezing Hamiltonians — Provides the $J_x/J_z$ spin-squeezing algebra used to construct the four interaction terms $\alpha_{ij} J_i^S \otimes J_j^A$ in the holding Hamiltonian. | Kitagawa & Ueda, *Squeezed spin states*, PRA **47**, 5138 | 1993 |
-| Parameter estimation with product states and entangling interactions — Establishes the single-spin SQL ($\Delta\theta = 1/T_H$) that serves as the baseline for evaluating ancilla-assisted improvement in the optimization. | Skotiniotis *et al.*, *Quantum metrology with a single spin*, PRA **92**, 032106 | 2015 |
-| Direct optimisation of metrological protocols via numerical search — Demonstrates numerical optimization of metrological protocols, providing the methodology adopted here for Nelder–Mead optimization over the 11-dimensional parameter space. | Hentschel & Sanders, *Machine learning for quantum metrology*, PRA **88**, 062329 | 2013 |
-
-**Key assumptions**: Single particle per system ($N=1$, each system is spin-$1/2$ equivalent), pure initial states, no decoherence, ideal $J_z^S$ measurement with infinite statistics (error propagation gives the asymptotic sensitivity).
-
----
 
 ## ⚛️ Theoretical Model
 
