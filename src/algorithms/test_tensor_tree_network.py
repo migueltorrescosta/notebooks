@@ -13,9 +13,9 @@ class TestTTNNode:
         """TTNNode should be created with tensor."""
         tensor = np.array([[1, 0], [0, 1]], dtype=complex)
         node = TTNNode(tensor=tensor)
-        assert node.tensor is not None
-        assert node.shape == (2, 2)
-        assert node.ndim == 2
+        assert node.tensor is not None, "Expected node.tensor to not be None"
+        assert node.shape == (2, 2), "Expected node.shape == (2, 2)"
+        assert node.ndim == 2, "Expected node.ndim == 2"
 
     def test_ttn_node_with_children(self) -> None:
         """TTNNode should support tree structure."""
@@ -30,9 +30,9 @@ class TestTTNNode:
             bond_dims={("left",): 2, ("right",): 2},
         )
 
-        assert node.left is left
-        assert node.right is right
-        assert node.bond_dims[("left",)] == 2
+        assert node.left is left, "Condition failed: node.left is left"
+        assert node.right is right, "Condition failed: node.right is right"
+        assert node.bond_dims[("left",)] == 2, 'Expected node.bond_dims[("left",)] == 2'
 
 
 class TestTensorTreeNetwork:
@@ -41,9 +41,9 @@ class TestTensorTreeNetwork:
     def test_init(self) -> None:
         """TTN should initialize with correct parameters."""
         ttn = TensorTreeNetwork(n_sites=2, local_dim=2)
-        assert ttn.n_sites == 2
-        assert ttn.local_dim == 2
-        assert ttn.root is None
+        assert ttn.n_sites == 2, "Expected ttn.n_sites == 2"
+        assert ttn.local_dim == 2, "Expected ttn.local_dim == 2"
+        assert ttn.root is None, "Expected ttn.root to be None"
         assert ttn.max_bond_dimension() == 2  # local_dim
 
     def test_from_state_vector_single_qubit(self) -> None:
@@ -54,7 +54,9 @@ class TestTensorTreeNetwork:
 
         # Reconstruction should be exact
         reconstructed = ttn._to_state_vector()
-        assert np.allclose(state, reconstructed)
+        assert state == pytest.approx(reconstructed), (
+            "Expected state == pytest.approx(reconstructed)"
+        )
 
     def test_from_state_vector_single_qubit_superposition(self) -> None:
         """TTN from single qubit pair superposition."""
@@ -63,7 +65,9 @@ class TestTensorTreeNetwork:
         ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
 
         reconstructed = ttn._to_state_vector()
-        assert np.allclose(state, reconstructed)
+        assert state == pytest.approx(reconstructed), (
+            "Expected state == pytest.approx(reconstructed)"
+        )
 
     def test_from_state_vector_two_qubitproduct(self) -> None:
         """TTN from product state |00⟩."""
@@ -72,7 +76,9 @@ class TestTensorTreeNetwork:
         ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
 
         reconstructed = ttn._to_state_vector()
-        assert np.allclose(state, reconstructed)
+        assert state == pytest.approx(reconstructed), (
+            "Expected state == pytest.approx(reconstructed)"
+        )
 
     def test_from_state_vector_two_qubit_entangled(self) -> None:
         """TTN from entangled Bell state."""
@@ -81,7 +87,9 @@ class TestTensorTreeNetwork:
         ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
 
         reconstructed = ttn._to_state_vector()
-        assert np.allclose(state, reconstructed)
+        assert state == pytest.approx(reconstructed), (
+            "Expected state == pytest.approx(reconstructed)"
+        )
 
     def test_reconstruction_fidelity_n2(self) -> None:
         """Test reconstruction fidelity for N=2 sites."""
@@ -91,12 +99,15 @@ class TestTensorTreeNetwork:
         state = state / np.linalg.norm(state)
 
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=2, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=2,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
 
         reconstructed = ttn._to_state_vector()
         fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
-        assert fidelity > 1 - 1e-6
+        assert fidelity > 1 - 1e-6, "Expected fidelity > 1 - 1e-6"
 
     def test_reconstruction_fidelity_n3(self) -> None:
         """Test reconstruction fidelity for N=3 sites."""
@@ -107,12 +118,15 @@ class TestTensorTreeNetwork:
         state = state / np.linalg.norm(state)
 
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=3, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=3,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
 
         reconstructed = ttn._to_state_vector()
         fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
-        assert fidelity > 1 - 1e-6
+        assert fidelity > 1 - 1e-6, "Expected fidelity > 1 - 1e-6"
 
     def test_reconstruction_fidelity_n4(self) -> None:
         """Test reconstruction fidelity for N=4 sites."""
@@ -123,13 +137,16 @@ class TestTensorTreeNetwork:
         state = state / np.linalg.norm(state)
 
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=4, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=4,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
 
         reconstructed = ttn._to_state_vector()
         fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
         # With low epsilon, should still be very accurate
-        assert fidelity > 1 - 1e-4
+        assert fidelity > 1 - 1e-4, "Expected fidelity > 1 - 1e-4"
 
     def test_reconstruction_fidelity_n5(self) -> None:
         """Test reconstruction fidelity for N=5 sites."""
@@ -140,13 +157,16 @@ class TestTensorTreeNetwork:
         state = state / np.linalg.norm(state)
 
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=5, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=5,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
 
         reconstructed = ttn._to_state_vector()
         fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
         # With low epsilon, accuracy should be reasonable
-        assert fidelity > 1 - 0.01
+        assert fidelity > 1 - 0.01, "Expected fidelity > 1 - 0.01"
 
     def test_reconstruction_fidelity_n6(self) -> None:
         """Test reconstruction fidelity for N=6 sites (exact comparison)."""
@@ -158,32 +178,41 @@ class TestTensorTreeNetwork:
         state = state / np.linalg.norm(state)
 
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=6, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=6,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
 
         reconstructed = ttn._to_state_vector()
         fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
         # Should still have reasonable fidelity
-        assert fidelity > 0.9
+        assert fidelity > 0.9, "Expected fidelity > 0.9"
 
     def test_bond_dimension_grows_with_entanglement(self) -> None:
         """Bond dimension should grow with entanglement."""
         # Product state
         product_state = np.array([1, 0, 0, 0], dtype=complex)
         ttn_product = TensorTreeNetwork.from_state_vector(
-            product_state, n_sites=1, local_dim=2
+            product_state,
+            n_sites=1,
+            local_dim=2,
         )
         max_bond_product = ttn_product.max_bond_dimension()
 
         # Entangled state
         entangled_state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
         ttn_entangled = TensorTreeNetwork.from_state_vector(
-            entangled_state, n_sites=1, local_dim=2
+            entangled_state,
+            n_sites=1,
+            local_dim=2,
         )
         max_bond_entangled = ttn_entangled.max_bond_dimension()
 
         # Entangled should have at least as large bond dimension
-        assert max_bond_entangled >= max_bond_product
+        assert max_bond_entangled >= max_bond_product, (
+            "Expected max_bond_entangled >= max_bond_product"
+        )
 
     def test_bond_dimension_tractable_n20(self) -> None:
         """Bond dimension should remain tractable for N=10."""
@@ -195,13 +224,16 @@ class TestTensorTreeNetwork:
         state = state / np.linalg.norm(state)
 
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=5, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=5,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
 
         max_bond = ttn.max_bond_dimension()
         # For random state, bond dimension can be full rank (1024)
         # But should be <= full dimension
-        assert max_bond <= dim
+        assert max_bond <= dim, "Expected max_bond <= dim"
 
     def test_truncation_preserves_normalization(self) -> None:
         """Truncation should preserve normalization."""
@@ -211,7 +243,10 @@ class TestTensorTreeNetwork:
         state = state / np.linalg.norm(state)
 
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=2, local_dim=2, svd_epsilon=1e-10
+            state,
+            n_sites=2,
+            local_dim=2,
+            svd_epsilon=1e-10,
         )
 
         # Apply truncation
@@ -220,7 +255,7 @@ class TestTensorTreeNetwork:
         # Check normalization
         reconstructed = ttn._to_state_vector()
         norm = np.linalg.norm(reconstructed)
-        assert np.isclose(norm, 1.0)
+        assert norm == pytest.approx(1.0), "Expected norm == pytest.approx(1.0)"
 
     def test_contract_expectation_value_product_state(self) -> None:
         """Test contraction with identity operator."""
@@ -233,7 +268,9 @@ class TestTensorTreeNetwork:
         result = ttn.contract([(0, identity)])
 
         # For |00⟩ with I on first qubit: should be 1
-        assert np.isclose(result.real, 1.0, atol=1e-6)
+        assert result.real == pytest.approx(1.0, abs=1e-6), (
+            "Expected result.real == pytest.approx(1.0, abs=1e-6)"
+        )
 
     def test_contract_expectation_value_z_operator(self) -> None:
         """Test contraction with Z operator."""
@@ -245,7 +282,9 @@ class TestTensorTreeNetwork:
         z = np.array([[1, 0], [0, -1]], dtype=complex)
         result = ttn.contract([(0, z)])
 
-        assert np.isclose(result.real, 1.0, atol=1e-6)
+        assert result.real == pytest.approx(1.0, abs=1e-6), (
+            "Expected result.real == pytest.approx(1.0, abs=1e-6)"
+        )
 
     def test_contract_expectation_value_z_on_one(self) -> None:
         """Test contraction with Z operator on ancilla."""
@@ -257,7 +296,9 @@ class TestTensorTreeNetwork:
         z = np.array([[1, 0], [0, -1]], dtype=complex)
         result = ttn.contract([(1, z)])
 
-        assert np.isclose(result.real, -1.0, atol=1e-6)
+        assert result.real == pytest.approx(-1.0, abs=1e-6), (
+            "Expected result.real == pytest.approx(-1.0, abs=1e-6)"
+        )
 
     def test_exact_vs_ttn_comparison_n4(self) -> None:
         """Compare TTN results with exact for N=4."""
@@ -273,14 +314,19 @@ class TestTensorTreeNetwork:
 
         # Build TTN
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=2, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=2,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
 
         # Compare expectation values
         exact_norm = np.vdot(exact_state, exact_state).real
         ttn_norm_before = np.vdot(ttn._to_state_vector(), ttn._to_state_vector()).real
 
-        assert np.isclose(exact_norm, ttn_norm_before, rtol=1e-4)
+        assert exact_norm == pytest.approx(ttn_norm_before, rel=1e-4), (
+            "Expected exact_norm == pytest.approx(ttn_norm_before, rel=1e-4)"
+        )
 
     def test_tree_structure(self) -> None:
         """Test getting tree structure."""
@@ -288,9 +334,9 @@ class TestTensorTreeNetwork:
         ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
 
         structure = ttn.get_tree_structure()
-        assert "depth" in structure
-        assert "n_nodes" in structure
-        assert "max_bond_dim" in structure
+        assert "depth" in structure, 'Expected "depth" in structure'
+        assert "n_nodes" in structure, 'Expected "n_nodes" in structure'
+        assert "max_bond_dim" in structure, 'Expected "max_bond_dim" in structure'
 
     def test_fidelity_identical_states(self) -> None:
         """Fidelity of identical states should be 1."""
@@ -298,7 +344,9 @@ class TestTensorTreeNetwork:
         ttn1 = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
         ttn2 = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
 
-        assert np.isclose(ttn1.fidelity(ttn2), 1.0)
+        assert ttn1.fidelity(ttn2) == pytest.approx(1.0), (
+            "Expected ttn1.fidelity(ttn2) == pytest.approx(1.0)"
+        )
 
     def test_fidelity_orthogonal_states(self) -> None:
         """Fidelity of orthogonal states should be 0."""
@@ -309,7 +357,9 @@ class TestTensorTreeNetwork:
         ttn1 = TensorTreeNetwork.from_state_vector(state1, n_sites=1, local_dim=2)
         ttn2 = TensorTreeNetwork.from_state_vector(state2, n_sites=1, local_dim=2)
 
-        assert np.isclose(ttn1.fidelity(ttn2), 0.0)
+        assert ttn1.fidelity(ttn2) == pytest.approx(0.0), (
+            "Expected ttn1.fidelity(ttn2) == pytest.approx(0.0)"
+        )
 
     def test_invalid_state_dimension(self) -> None:
         """Should raise error for invalid state dimension."""
@@ -351,7 +401,10 @@ class TestTensorTreeNetworkValidation:
 
         # Build TTN
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=n_sites, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=n_sites,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
 
         # Compare state vectors
@@ -369,14 +422,17 @@ class TestTensorTreeNetworkValidation:
         state = state / np.linalg.norm(state)
 
         ttn = TensorTreeNetwork.from_state_vector(
-            state, n_sites=n_sites, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=n_sites,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
 
         max_bond = ttn.max_bond_dimension()
         # For N=5, maximum possible bond is 32, should be much smaller
-        assert max_bond <= 32
+        assert max_bond <= 32, "Expected max_bond <= 32"
         # And significantly smaller than full dimension
-        assert max_bond < dim // 4
+        assert max_bond < dim // 4, "Expected max_bond < dim // 4"
 
     def test_truncation_error_vs_epsilon(self) -> None:
         """Truncation error should decrease with epsilon."""
@@ -391,7 +447,10 @@ class TestTensorTreeNetworkValidation:
 
         for eps in epsilons:
             ttn = TensorTreeNetwork.from_state_vector(
-                state, n_sites=n_sites, local_dim=2, svd_epsilon=eps
+                state,
+                n_sites=n_sites,
+                local_dim=2,
+                svd_epsilon=eps,
             )
             reconstructed = ttn._to_state_vector()
             fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
@@ -399,7 +458,9 @@ class TestTensorTreeNetworkValidation:
 
         # Fidelity should increase (error decrease) as epsilon decreases
         for i in range(len(fidelities) - 1):
-            assert fidelities[i] <= fidelities[i + 1] + 1e-6
+            assert fidelities[i] <= fidelities[i + 1] + 1e-6, (
+                "Expected fidelities[i] <= fidelities[i + 1] + 1e-6"
+            )
 
 
 class TestTensorTreeNetworkPerformance:
@@ -417,7 +478,10 @@ class TestTensorTreeNetworkPerformance:
 
         start = time.perf_counter()
         TensorTreeNetwork.from_state_vector(
-            state, n_sites=n_sites, local_dim=2, svd_epsilon=1e-8
+            state,
+            n_sites=n_sites,
+            local_dim=2,
+            svd_epsilon=1e-8,
         )
         elapsed = time.perf_counter() - start
 

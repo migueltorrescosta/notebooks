@@ -4,9 +4,9 @@ import pandas as pd
 import streamlit as st
 
 from src.physics.heisenberg_model import (
-    heisenberg_hamiltonian,
-    diagonalize_hamiltonian,
     compute_expectation_values,
+    diagonalize_hamiltonian,
+    heisenberg_hamiltonian,
 )
 from src.visualization.plotting import plot_array
 
@@ -17,21 +17,21 @@ st.header("Spin | Heisenberg Model", divider="blue")
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""
     **Transverse Field Heisenberg Model** describes a 1D spin chain with nearest-neighbor interactions.
-    
+
     **The Hamiltonian:**
     $$H = H_J + H_U = J \sum_{i=0}^{N} \sigma_i^x\sigma_{i+1}^x + \frac{U}{2} \sum_{i=1}^{N} \sigma_i^z$$
-    
+
     Where:
     - $J$: Coupling strength between neighboring spins (ferromagnetic if $J > 0$)
     - $U$: Transverse field strength along the z-direction
     - $\sigma_i^x, \sigma_i^z$: Pauli matrices acting on site $i$
-    
+
     **Methodology:**
     1. **Hilbert Space**: For $N$ spin-1/2 particles, the Hilbert space dimension is $2^N$
     2. **Operator Construction**: Build $H$ as a $2^N \times 2^N$ matrix using Kronecker products
     3. **Diagonalization**: Compute all eigenvalues and eigenvectors using `np.linalg.eig`
     4. **Expectation Values**: Calculate $\langle n|\sigma_i^z|n\rangle$ for each eigenstate $n$
-    
+
     **Physical Context:** This model exhibits quantum phase transitions between ferromagnetic and paramagnetic phases.
     """)
 
@@ -51,7 +51,7 @@ with st.sidebar:
 st.subheader("Setup")
 st.markdown("Transverse Heisenberg Model")
 st.latex(
-    f"H = H_J + H_U = {j} \\sum_{{i=0}}^{{ {n_sites + 1} }} \\sigma^x_i\\sigma^x_{{i+1}} + \\frac{{{u}}}{{2}} \\sum_{{i=1}}^{{{n_sites}}} \\sigma^z_i"
+    f"H = H_J + H_U = {j} \\sum_{{i=0}}^{{ {n_sites + 1} }} \\sigma^x_i\\sigma^x_{{i+1}} + \\frac{{{u}}}{{2}} \\sum_{{i=1}}^{{{n_sites}}} \\sigma^z_i",
 )
 
 # Build Hamiltonian using physics module

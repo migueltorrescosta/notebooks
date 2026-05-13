@@ -34,7 +34,7 @@ st.markdown(
     r"""
     **Fixed resource: 2 total particles.** Which configuration yields better
     phase sensitivity?
-    """
+    """,
 )
 
 # ── Sidebar controls ─────────────────────────────────────────────────────────
@@ -121,7 +121,7 @@ st.info(
     generator eigenvalues ±½, giving F_Q = 1 — even with non-commuting
     ancilla interactions. Thus ℛ = √(4/1) = 2, and the ancilla-assisted
     configuration **cannot outperform** the two-particle probe.
-    """
+    """,
 )
 
 # ── Results table ────────────────────────────────────────────────────────────
@@ -188,7 +188,7 @@ if run_button:
                 rf"\alpha_{{zz}}={ac[0]:.4f},\; "
                 rf"\alpha_{{zx}}={ac[1]:.4f},\; "
                 rf"\alpha_{{xz}}={ac[2]:.4f},\; "
-                rf"\alpha_{{xx}}={ac[3]:.4f}"
+                rf"\alpha_{{xx}}={ac[3]:.4f}",
             )
 
         if result.fq_A_theta:
@@ -210,7 +210,7 @@ if run_button:
             opacity=0.7,
             nbinsx=50,
             marker_color="royalblue",
-        )
+        ),
     )
     fig.add_trace(
         go.Histogram(
@@ -219,7 +219,7 @@ if run_button:
             opacity=0.7,
             nbinsx=50,
             marker_color="firebrick",
-        )
+        ),
     )
 
     fig.update_layout(
@@ -228,7 +228,7 @@ if run_button:
         yaxis_title="Count",
         barmode="overlay",
         height=400,
-        legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.95),
+        legend={"yanchor": "top", "y": 0.95, "xanchor": "right", "x": 0.95},
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -244,12 +244,12 @@ if run_button:
             ±1) achieves up to **F_Q = {analytical_fq_B_max(T_H):.0f}**, while
             the ancilla-assisted probe (J = ½, generator eigenvalue range ±½)
             is bounded by **F_Q = {analytical_fq_A_zero(T_H):.0f}**.
-            """
+            """,
         )
     else:
         st.warning(
             f"ℛ = {result.ratio:.3f} < 2 — The ancilla-assisted configuration "
-            "may offer an advantage in this regime."
+            "may offer an advantage in this regime.",
         )
 
 else:

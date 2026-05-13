@@ -28,9 +28,11 @@ class TestDistributedMziConfig:
     def test_default_values(self) -> None:
         """Default config should be reasonable."""
         config = DistributedMziConfig()
-        assert config.M == 2
-        assert config.entangled is False
-        assert config.correlation_noise == 0.0
+        assert config.M == 2, "Expected config.M == 2"
+        assert config.entangled is False, "Expected config.entangled to be False"
+        assert config.correlation_noise == 0.0, (
+            "Expected config.correlation_noise == 0.0"
+        )
 
     def test_negative_M_raises(self) -> None:
         """Negative M should raise ValueError."""
@@ -53,7 +55,7 @@ class TestDistributedMziSensitivity:
         config = DistributedMziConfig(M=4, entangled=False, correlation_noise=0.0)
         result = distributed_mzi_sensitivity(100, 0.0, config)
         expected = 1.0 / np.sqrt(4 * 100)
-        assert np.isclose(result["delta_phi"], expected, rtol=1e-6), (
+        assert result["delta_phi"] == pytest.approx(expected, rel=1e-6), (
             f"Expected {expected}, got {result['delta_phi']}"
         )
 
@@ -70,7 +72,7 @@ class TestDistributedMziSensitivity:
         config = DistributedMziConfig(M=4, entangled=True, correlation_noise=0.0)
         result = distributed_mzi_sensitivity(100, 0.0, config)
         expected = 1.0 / (4 * 100)
-        assert np.isclose(result["delta_phi"], expected, rtol=1e-6), (
+        assert result["delta_phi"] == pytest.approx(expected, rel=1e-6), (
             f"Expected {expected}, got {result['delta_phi']}"
         )
 
@@ -87,7 +89,7 @@ class TestDistributedMziSensitivity:
         config = DistributedMziConfig(M=4, entangled=False, correlation_noise=1.0)
         result = distributed_mzi_sensitivity(100, 0.0, config)
         expected = 1.0 / np.sqrt(100)  # Single-sensor SQL
-        assert np.isclose(result["delta_phi"], expected, rtol=1e-6), (
+        assert result["delta_phi"] == pytest.approx(expected, rel=1e-6), (
             f"Expected {expected}, got {result['delta_phi']}"
         )
 
@@ -106,11 +108,11 @@ class TestDistributedMziSensitivity:
         result_e = distributed_mzi_sensitivity(100, 0.0, config_entangled)
 
         # Classical: SQL = 1/√N
-        assert np.isclose(result_c["delta_phi"], 0.1, rtol=1e-6), (
+        assert result_c["delta_phi"] == pytest.approx(0.1, rel=1e-6), (
             f"Classical M=1 should give SQL, got {result_c['delta_phi']}"
         )
         # Entangled: HL = 1/N (NOON state with N particles)
-        assert np.isclose(result_e["delta_phi"], 0.01, rtol=1e-6), (
+        assert result_e["delta_phi"] == pytest.approx(0.01, rel=1e-6), (
             f"Entangled M=1 should give HL, got {result_e['delta_phi']}"
         )
         # Entangled beats classical for M=1 (NOON beats coherent)
@@ -126,12 +128,16 @@ class TestDistributedScalingExponent:
     def test_classical_exponent(self) -> None:
         """Classical should give α = -0.5."""
         config = DistributedMziConfig(entangled=False)
-        assert distributed_scaling_exponent(config) == -0.5
+        assert distributed_scaling_exponent(config) == -0.5, (
+            "Expected distributed_scaling_exponent(config) == -0.5"
+        )
 
     def test_entangled_exponent(self) -> None:
         """Entangled should give α = -1.0."""
         config = DistributedMziConfig(entangled=True)
-        assert distributed_scaling_exponent(config) == -1.0
+        assert distributed_scaling_exponent(config) == -1.0, (
+            "Expected distributed_scaling_exponent(config) == -1.0"
+        )
 
     def test_effective_scaling_finite(self) -> None:
         """Effective scaling should be finite and reasonable."""

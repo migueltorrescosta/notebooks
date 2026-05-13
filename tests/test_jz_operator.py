@@ -13,16 +13,15 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.physics.dicke_basis import jz_operator
 from src.evolution.lindblad_solver import (
     LindbladConfig,
     evolve_lindblad,
     ket_to_density,
     simulate_trajectory,
 )
+from src.physics.dicke_basis import jz_operator
 from src.physics.noise_channels import NoiseConfig, build_lindblad_operators
 from src.utils.enums import OperatorBasis
-
 
 # =============================================================================
 # Basis Conventions
@@ -93,7 +92,7 @@ class TestPhaseDiffusionOffDiagonalDecay:
             rho0 = ket_to_density(psi)
 
             T = 1.0
-            times, rhos = simulate_trajectory(rho0, config, T=T, num_times=100)
+            _times, rhos = simulate_trajectory(rho0, config, T=T, num_times=100)
 
             # Track off-diagonal element |ρ_{i1,i2}|
             coherences = np.array([np.abs(rho[i1, i2]) for rho in rhos])
@@ -137,7 +136,7 @@ class TestPhaseDiffusionOffDiagonalDecay:
         psi[idx] = 1.0
         rho0 = ket_to_density(psi)
 
-        times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
+        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
         # Diagonal element should stay at 1.0
         pops = np.array([np.real(rho[idx, idx]) for rho in rhos])
@@ -161,7 +160,7 @@ class TestUnitaryEvolutionUnchanged:
         psi[1] = 1.0
         rho0 = ket_to_density(psi)
 
-        times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
+        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
         # Populations should be exactly preserved
         for rho in rhos:
@@ -217,7 +216,7 @@ class TestTracePreservationUnderPhaseDiffusion:
         psi[1] = 1.0 / np.sqrt(2)
         rho0 = ket_to_density(psi)
 
-        times, rhos = simulate_trajectory(rho0, config, T=2.0, num_times=100)
+        _times, rhos = simulate_trajectory(rho0, config, T=2.0, num_times=100)
 
         traces = np.array([np.trace(rho) for rho in rhos])
         np.testing.assert_allclose(
@@ -244,7 +243,7 @@ class TestTracePreservationUnderPhaseDiffusion:
         psi /= np.linalg.norm(psi)
         rho0 = ket_to_density(psi)
 
-        times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
+        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
         traces = np.array([np.trace(rho) for rho in rhos])
         np.testing.assert_allclose(np.real(traces), 1.0, atol=1e-5)
@@ -265,7 +264,7 @@ class TestNoiseConfigJzUsage:
         config = NoiseConfig(gamma_phi=gamma_phi)
         L_ops = build_lindblad_operators(N, config)
 
-        assert len(L_ops) == 1
+        assert len(L_ops) == 1, "Expected len(L_ops) == 1"
         expected = np.sqrt(gamma_phi) * jz_operator(N)
         np.testing.assert_allclose(L_ops[0], expected, rtol=1e-12)
 
@@ -275,7 +274,7 @@ class TestNoiseConfigJzUsage:
         config = NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02)
         L_ops = build_lindblad_operators(N, config)
 
-        assert len(L_ops) == 3
+        assert len(L_ops) == 3, "Expected len(L_ops) == 3"
         # Each operator should be non-zero
         for L in L_ops:
-            assert np.max(np.abs(L)) > 0
+            assert np.max(np.abs(L)) > 0, "Expected np.max(np.abs(L)) > 0"

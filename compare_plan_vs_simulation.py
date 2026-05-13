@@ -10,22 +10,24 @@ This script tests:
 5. Numerical stability: Trace, Hermiticity, positivity conserved
 """
 
+from typing import Any
+
 import numpy as np
 import scipy
-from typing import Any, Tuple
+
+from src.physics.hybrid_mzi import (
+    compute_wigner_for_state,
+    qfi_hybrid_mzi,
+)
 
 # Import physics modules
 from src.physics.hybrid_system import (
     hybrid_hamiltonian_n,
-    hybrid_vacuum_state,
     hybrid_mean_photon,
+    hybrid_vacuum_state,
     validate_hybrid_state,
 )
-from src.physics.hybrid_mzi import (
-    qfi_hybrid_mzi,
-    compute_wigner_for_state,
-)
-from src.physics.wigner import wigner_minimum, wigner_is_negative
+from src.physics.wigner import wigner_is_negative, wigner_minimum
 
 
 def evolve_hybrid_unitary(
@@ -50,7 +52,7 @@ def find_squeezing_time_for_target_photon(
     theta_n: float = 0.0,
     t_max: float = 20.0,
     dt: float = 0.02,
-) -> Tuple[float, float, np.ndarray]:
+) -> tuple[float, float, np.ndarray]:
     """
     Find FIRST squeezing time that achieves target mean photon number.
 
@@ -192,13 +194,13 @@ def test_1_physics_validation_n2() -> list[dict[str, Any]]:
                 "qfi": qfi,
                 "w_min": w_min,
                 "w_negative": is_neg,
-            }
+            },
         )
 
         print(
             f"  r={r_target:.1f}: ⟨n⟩={mean_n:.3f} (expected {expected_n:.3f}, "
             f"error={n_error:.2%}), QFI={qfi:.3f}, W_min={w_min:.4f}, "
-            f"Negative Wigner: {is_neg}"
+            f"Negative Wigner: {is_neg}",
         )
 
     # Check: n=2 should NOT have Wigner negativity (Gaussian state)
@@ -269,12 +271,12 @@ def test_2_non_gaussian_signature() -> dict[int, list[dict[str, Any]]]:
                     "mean_n": mean_n,
                     "w_min": w_min,
                     "w_negative": is_neg,
-                }
+                },
             )
 
             print(
                 f"    r={r_target:.1f}: ⟨n⟩={mean_n:.3f}, W_min={w_min:.4f}, "
-                f"Negative: {is_neg}"
+                f"Negative: {is_neg}",
             )
 
     # Check: n=3,4 should show Wigner negativity for sufficient r
@@ -283,7 +285,7 @@ def test_2_non_gaussian_signature() -> dict[int, list[dict[str, Any]]]:
         neg_detected = any(r["w_negative"] for r in results[n])
         if not neg_detected:
             print(
-                f"\n  ⚠ WARNING: n={n} did not show Wigner negativity at tested r values"
+                f"\n  ⚠ WARNING: n={n} did not show Wigner negativity at tested r values",
             )
         else:
             print(f"\n  ✓ n={n} shows Wigner negativity (non-Gaussian signature)")
@@ -343,7 +345,7 @@ def test_3_hypothesis_qfi_comparison() -> dict[int, list[dict[str, Any]]]:
                     "achieved_n": mean_n,
                     "t_sqz": t_final,
                     "qfi": qfi,
-                }
+                },
             )
 
             print(f"    n={n}: ⟨n⟩={mean_n:.3f}, QFI={qfi:.3f}, t={t_final:.3f}")
@@ -359,7 +361,7 @@ def test_3_hypothesis_qfi_comparison() -> dict[int, list[dict[str, Any]]]:
 
         print(
             f"    ⟨n⟩≈{target_n:.1f}: QFI(2)={qfi_2:.3f}, "
-            f"QFI(3)={qfi_3:.3f}, QFI(4)={qfi_4:.3f}"
+            f"QFI(3)={qfi_3:.3f}, QFI(4)={qfi_4:.3f}",
         )
 
         # Check if higher order gives higher QFI
@@ -375,7 +377,7 @@ def test_3_hypothesis_qfi_comparison() -> dict[int, list[dict[str, Any]]]:
 
     if hypothesis_holds:
         print(
-            "\n  ✓ Hypothesis SUPPORTED: Higher-order squeezing provides QFI advantage"
+            "\n  ✓ Hypothesis SUPPORTED: Higher-order squeezing provides QFI advantage",
         )
     else:
         print("\n  ⚠ Hypothesis PARTIALLY SUPPORTED or NOT SUPPORTED")
@@ -417,8 +419,6 @@ def test_4_decoherence_crossover() -> None:
 
     print("\n  CURRENT STATUS: Decoherence testing is INCOMPLETE.")
     print("  The hybrid system Lindblad evolution needs to be implemented.")
-
-    return None
 
 
 def test_5_numerical_stability() -> bool:
@@ -474,7 +474,7 @@ def test_5_numerical_stability() -> bool:
 
             print(
                 f"    r={r:.1f}: ⟨n⟩={mean_n:.3f}, Norm={norm:.6f}, "
-                f"Valid={is_valid}, Truncation OK={truncation_ok} {status}"
+                f"Valid={is_valid}, Truncation OK={truncation_ok} {status}",
             )
 
     print("\n  ✓ Unitary evolution preserves norm (by construction)")

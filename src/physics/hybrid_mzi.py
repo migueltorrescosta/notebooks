@@ -31,7 +31,6 @@ Conventions:
   (see src.analysis.fisher_information)
 """
 
-from typing import Tuple
 import numpy as np
 import scipy
 
@@ -88,7 +87,7 @@ def embed_hybrid_in_mzi(
         if hybrid_state.shape != (dim_hybrid,):
             raise ValueError(
                 f"hybrid_state must have shape ({dim_hybrid},), "
-                f"got {hybrid_state.shape}"
+                f"got {hybrid_state.shape}",
             )
 
         embedded = np.zeros(dim_mzi, dtype=complex)
@@ -106,7 +105,7 @@ def embed_hybrid_in_mzi(
         if hybrid_state.shape != (dim_hybrid, dim_hybrid):
             raise ValueError(
                 f"hybrid_state must have shape ({dim_hybrid}, {dim_hybrid}), "
-                f"got {hybrid_state.shape}"
+                f"got {hybrid_state.shape}",
             )
 
         # Build embedding isometry E: maps hybrid index → two-mode index
@@ -123,7 +122,7 @@ def embed_hybrid_in_mzi(
 
     raise ValueError(
         f"hybrid_state must be 1D (state vector) or 2D (density matrix), "
-        f"got ndim={hybrid_state.ndim}"
+        f"got ndim={hybrid_state.ndim}",
     )
 
 
@@ -177,9 +176,7 @@ def mzi_beam_splitter(N: int, theta: float = np.pi / 4) -> np.ndarray:
     bs_modes = scipy.linalg.expm(-1j * theta * G)
 
     # Embed with spin identity
-    bs_full = np.kron(bs_modes, np.eye(2, dtype=complex))
-
-    return bs_full
+    return np.kron(bs_modes, np.eye(2, dtype=complex))
 
 
 def mzi_phase_shift(N: int, phi: float) -> np.ndarray:
@@ -272,9 +269,7 @@ def evolve_hybrid_mzi(
     state = ps @ state
 
     # BS2
-    state = bs @ state
-
-    return state
+    return bs @ state
 
 
 # =============================================================================
@@ -297,14 +292,13 @@ def mzi_output_probabilities(
         Sum should be 1.
 
     """
-    probs = np.abs(final_state) ** 2
-    return probs
+    return np.abs(final_state) ** 2
 
 
 def mzi_marginal_photon_probs(
     final_state: np.ndarray,
     N: int,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Compute marginal photon number probabilities P(n1), P(n2).
 
     Args:
@@ -404,9 +398,7 @@ def extract_oscillator_density(hybrid_state: np.ndarray, N: int) -> np.ndarray:
 
     # Reshape to (dim_osc, 2, dim_osc, 2) and trace over spin
     rho_reshaped = rho_hybrid.reshape(dim_osc, 2, dim_osc, 2)
-    rho_osc = np.trace(rho_reshaped, axis1=1, axis2=3)
-
-    return rho_osc
+    return np.trace(rho_reshaped, axis1=1, axis2=3)
 
 
 def compute_wigner_for_state(
@@ -414,7 +406,7 @@ def compute_wigner_for_state(
     N: int,
     x_max: float = 5.0,
     n_points: int = 100,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute Wigner function for oscillator part of hybrid state.
 
     Args:

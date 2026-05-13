@@ -41,8 +41,8 @@ from src.physics.distributed_mzi import (
 )
 from src.physics.dynamical_decoupling import dd_phase_sensitivity
 from src.physics.thermal_langevin import (
-    create_thermal_config,
     combined_sensitivity,
+    create_thermal_config,
 )
 from src.physics.tilt_to_length_noise import TTLNoiseConfig, ttl_limited_sensitivity
 
@@ -79,7 +79,8 @@ def model_selector() -> list[ModelConfig]:
         noise_type="custom",
         label="Thermal + SQL crossover",
         custom_sensitivity_fn=lambda N, nl: combined_sensitivity(
-            N, create_thermal_config(thermal_strength=nl)
+            N,
+            create_thermal_config(thermal_strength=nl),
         ),
     )
     model_options[_thermal_model.label] = _thermal_model
@@ -92,7 +93,9 @@ def model_selector() -> list[ModelConfig]:
         noise_type="custom",
         label="Cavity-enhanced MZI (F=10)",
         custom_sensitivity_fn=lambda N, _nl: cavity_enhanced_sensitivity(
-            N, np.pi / 4, _cavity_config
+            N,
+            np.pi / 4,
+            _cavity_config,
         ),
     )
     model_options[_cavity_model.label] = _cavity_model
@@ -104,7 +107,10 @@ def model_selector() -> list[ModelConfig]:
         noise_type="custom",
         label="Dynamical decoupling (CPMG, n=8)",
         custom_sensitivity_fn=lambda N, _nl: dd_phase_sensitivity(
-            N, 0.0, T=1.0, n_pulses=8
+            N,
+            0.0,
+            T=1.0,
+            n_pulses=8,
         ),
     )
     model_options[_dd_model.label] = _dd_model
@@ -117,7 +123,9 @@ def model_selector() -> list[ModelConfig]:
         noise_type="custom",
         label="Distributed array (M=4, classical)",
         custom_sensitivity_fn=lambda N, _nl: distributed_mzi_sensitivity(
-            N, 0.0, _dist_config
+            N,
+            0.0,
+            _dist_config,
         )["delta_phi"],
     )
     model_options[_dist_model.label] = _dist_model
@@ -130,7 +138,9 @@ def model_selector() -> list[ModelConfig]:
         noise_type="custom",
         label="Distributed array (M=4, entangled)",
         custom_sensitivity_fn=lambda N, _nl: distributed_mzi_sensitivity(
-            N, 0.0, _dist_ent_config
+            N,
+            0.0,
+            _dist_ent_config,
         )["delta_phi"],
     )
     model_options[_dist_ent_model.label] = _dist_ent_model
@@ -143,7 +153,9 @@ def model_selector() -> list[ModelConfig]:
         noise_type="custom",
         label="Tilt-to-length noise",
         custom_sensitivity_fn=lambda N, _nl: ttl_limited_sensitivity(
-            N, 1.0 / np.sqrt(N), _ttl_config
+            N,
+            1.0 / np.sqrt(N),
+            _ttl_config,
         ),
     )
     model_options[_ttl_model.label] = _ttl_model
@@ -202,15 +214,27 @@ def noise_selector() -> tuple[str, list[float]]:
         col1, col2, col3 = st.columns(3)
         with col1:
             eta1 = st.number_input(
-                "η₁", min_value=0.0, max_value=1.0, value=1.0, step=0.1
+                "η₁",
+                min_value=0.0,
+                max_value=1.0,
+                value=1.0,
+                step=0.1,
             )
         with col2:
             eta2 = st.number_input(
-                "η₂", min_value=0.0, max_value=1.0, value=0.9, step=0.1
+                "η₂",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.9,
+                step=0.1,
             )
         with col3:
             eta3 = st.number_input(
-                "η₃", min_value=0.0, max_value=1.0, value=0.5, step=0.1
+                "η₃",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.5,
+                step=0.1,
             )
         noise_levels = [eta for eta in [eta1, eta2, eta3] if eta > 0]
         noise_levels = sorted(set(noise_levels))  # Unique and sorted
@@ -220,19 +244,35 @@ def noise_selector() -> tuple[str, list[float]]:
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             nl1 = st.number_input(
-                "γ₁", min_value=0.0, value=0.0, step=0.001, format="%.4f"
+                "γ₁",
+                min_value=0.0,
+                value=0.0,
+                step=0.001,
+                format="%.4f",
             )
         with col2:
             nl2 = st.number_input(
-                "γ₂", min_value=0.0, value=0.01, step=0.01, format="%.4f"
+                "γ₂",
+                min_value=0.0,
+                value=0.01,
+                step=0.01,
+                format="%.4f",
             )
         with col3:
             nl3 = st.number_input(
-                "γ₃", min_value=0.0, value=0.1, step=0.1, format="%.4f"
+                "γ₃",
+                min_value=0.0,
+                value=0.1,
+                step=0.1,
+                format="%.4f",
             )
         with col4:
             nl4 = st.number_input(
-                "γ₄", min_value=0.0, value=0.5, step=0.1, format="%.4f"
+                "γ₄",
+                min_value=0.0,
+                value=0.5,
+                step=0.1,
+                format="%.4f",
             )
         noise_levels = [nl for nl in [nl1, nl2, nl3, nl4] if nl >= 0]
         noise_levels = sorted(set(noise_levels))  # Unique and sorted
@@ -332,7 +372,7 @@ def run_full_survey(
                     noise_type=noise_type,
                     entangler=m.entangler,
                     label=m.label,
-                )
+                ),
             )
 
     if not survey_models:
@@ -408,8 +448,8 @@ def plot_scaling_curves(
             y=delta_sql,
             mode="lines",
             name="SQL (1/√N, α=-0.5)",
-            line=dict(dash="dash", color="gray"),
-        )
+            line={"dash": "dash", "color": "gray"},
+        ),
     )
     fig.add_trace(
         go.Scatter(
@@ -417,8 +457,8 @@ def plot_scaling_curves(
             y=delta_hl,
             mode="lines",
             name="HL (1/N, α=-1.0)",
-            line=dict(dash="dot", color="gray"),
-        )
+            line={"dash": "dot", "color": "gray"},
+        ),
     )
 
     # Color map for models
@@ -433,7 +473,7 @@ def plot_scaling_curves(
         "#e377c2",
         "#7f7f7f",
     ]
-    color_map = dict(zip(unique_models, colors))
+    color_map = dict(zip(unique_models, colors, strict=False))
 
     # Plot data
     for (label, noise_level), group in raw_df.groupby(["label", "noise_level"]):
@@ -453,9 +493,9 @@ def plot_scaling_curves(
                 y=group_sorted["delta_phi"],
                 mode="lines+markers",
                 name=f"{label} (γ={noise_level:.3g}, α={alpha})",
-                line=dict(color=color_map.get(label, "blue")),
-                marker=dict(size=6),
-            )
+                line={"color": color_map.get(label, "blue")},
+                marker={"size": 6},
+            ),
         )
 
     fig.update_layout(
@@ -465,7 +505,7 @@ def plot_scaling_curves(
         yaxis_title="Δφ (phase uncertainty)",
         template="plotly_white",
         height=400,
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
+        legend={"yanchor": "top", "y": 0.99, "xanchor": "left", "x": 0.01},
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -504,9 +544,9 @@ def plot_alpha_heatmap(fit_df: pd.DataFrame) -> None:
             y=pivot.index,
             colorscale="RdYlBu_r",  # Red = good (negative), Blue = poor (close to 0)
             zmid=-0.75,  # Midpoint between -0.5 and -1.0
-            colorbar=dict(title="α exponent"),
+            colorbar={"title": "α exponent"},
             hoverongaps=False,
-        )
+        ),
     )
 
     fig.update_layout(
@@ -517,8 +557,8 @@ def plot_alpha_heatmap(fit_df: pd.DataFrame) -> None:
     )
 
     # Add annotations with α values
-    for i, row_idx in enumerate(pivot.index):
-        for j, col_idx in enumerate(pivot.columns):
+    for _i, row_idx in enumerate(pivot.index):
+        for _j, col_idx in enumerate(pivot.columns):
             val = pivot.loc[row_idx, col_idx]
             if not pd.isna(val):
                 fig.add_annotation(
@@ -526,7 +566,7 @@ def plot_alpha_heatmap(fit_df: pd.DataFrame) -> None:
                     y=row_idx,
                     text=f"{val:.2f}",
                     showarrow=False,
-                    font=dict(color="white" if abs(val) > 0.5 else "black"),
+                    font={"color": "white" if abs(val) > 0.5 else "black"},
                 )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -572,7 +612,7 @@ def display_fit_table(fit_df: pd.DataFrame) -> None:
         "valid": "Valid",
     }
     display_df = display_df.rename(
-        columns={k: v for k, v in rename_map.items() if k in display_df.columns}
+        columns={k: v for k, v in rename_map.items() if k in display_df.columns},
     )
 
     # Format numeric columns
@@ -740,7 +780,7 @@ def main() -> None:
         st.header("Results", divider="green")
 
         tab1, tab2, tab3, tab4 = st.tabs(
-            ["📈 Scaling Curves", "🔥 Phase Diagram", "📋 Fit Table", "💾 Export"]
+            ["📈 Scaling Curves", "🔥 Phase Diagram", "📋 Fit Table", "💾 Export"],
         )
 
         with tab1:

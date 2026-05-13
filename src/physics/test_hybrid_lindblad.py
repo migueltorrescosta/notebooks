@@ -26,10 +26,9 @@ from .hybrid_lindblad import (
     validate_hybrid_density_matrix,
 )
 from .hybrid_system import (
-    hybrid_vacuum_state,
     hybrid_mean_photon,
+    hybrid_vacuum_state,
 )
-
 
 # =============================================================================
 # Test Configuration
@@ -42,15 +41,15 @@ class TestHybridLindbladConfig:
     def test_default_values(self) -> None:
         """Default values should be reasonable."""
         config = HybridLindbladConfig(N=5)
-        assert config.N == 5
-        assert config.n == 2
-        assert config.omega_n == 1.0
-        assert config.theta_n == 0.0
-        assert config.phi == 0.0
-        assert config.gamma_1 == 0.0
-        assert config.gamma_2 == 0.0
-        assert config.gamma_phi == 0.0
-        assert config.t_squeeze == 1.0
+        assert config.N == 5, "Expected config.N == 5"
+        assert config.n == 2, "Expected config.n == 2"
+        assert config.omega_n == 1.0, "Expected config.omega_n == 1.0"
+        assert config.theta_n == 0.0, "Expected config.theta_n == 0.0"
+        assert config.phi == 0.0, "Expected config.phi == 0.0"
+        assert config.gamma_1 == 0.0, "Expected config.gamma_1 == 0.0"
+        assert config.gamma_2 == 0.0, "Expected config.gamma_2 == 0.0"
+        assert config.gamma_phi == 0.0, "Expected config.gamma_phi == 0.0"
+        assert config.t_squeeze == 1.0, "Expected config.t_squeeze == 1.0"
 
     def test_custom_values(self) -> None:
         """Custom values should be preserved."""
@@ -64,11 +63,11 @@ class TestHybridLindbladConfig:
             gamma_phi=0.02,
             t_squeeze=2.0,
         )
-        assert config.N == 10
-        assert config.n == 3
-        assert config.omega_n == 0.5
-        assert config.phi == 0.1
-        assert config.gamma_1 == 0.01
+        assert config.N == 10, "Expected config.N == 10"
+        assert config.n == 3, "Expected config.n == 3"
+        assert config.omega_n == 0.5, "Expected config.omega_n == 0.5"
+        assert config.phi == 0.1, "Expected config.phi == 0.1"
+        assert config.gamma_1 == 0.01, "Expected config.gamma_1 == 0.01"
 
 
 # =============================================================================
@@ -92,13 +91,13 @@ class TestBuildHybridHamiltonian:
         for n in [2, 3, 4]:
             config = HybridLindbladConfig(N=5, n=n, omega_n=1.0)
             H = build_hybrid_hamiltonian(config)
-            assert np.allclose(H, H.conj().T), f"n={n}: H is not Hermitian"
+            assert pytest.approx(H.conj().T) == H, f"n={n}: H is not Hermitian"
 
     def test_hamiltonian_zero_omega(self) -> None:
         """Zero squeezing rate should give zero Hamiltonian."""
         config = HybridLindbladConfig(N=5, n=2, omega_n=0.0)
         H = build_hybrid_hamiltonian(config)
-        assert np.allclose(H, 0), "Zero omega_n should give zero Hamiltonian"
+        assert pytest.approx(0) == H, "Zero omega_n should give zero Hamiltonian"
 
     def test_hamiltonian_n2_vs_n3(self) -> None:
         """n=2 and n=3 should give different Hamiltonians."""
@@ -106,7 +105,7 @@ class TestBuildHybridHamiltonian:
         config3 = HybridLindbladConfig(N=5, n=3, omega_n=1.0)
         H2 = build_hybrid_hamiltonian(config2)
         H3 = build_hybrid_hamiltonian(config3)
-        assert not np.allclose(H2, H3), "n=2 and n=3 should differ"
+        assert pytest.approx(H3) != H2, "n=2 and n=3 should differ"
 
 
 # =============================================================================
@@ -121,32 +120,32 @@ class TestBuildHybridLindbladOperators:
         """No dissipation should give empty lists."""
         config = HybridLindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         L_ops, gammas = build_hybrid_lindblad_operators(config)
-        assert len(L_ops) == 0
-        assert len(gammas) == 0
+        assert len(L_ops) == 0, "Expected len(L_ops) == 0"
+        assert len(gammas) == 0, "Expected len(gammas) == 0"
 
     def test_one_body_loss(self) -> None:
         """One-body loss should add one operator."""
         config = HybridLindbladConfig(N=5, gamma_1=0.1)
         L_ops, gammas = build_hybrid_lindblad_operators(config)
-        assert len(L_ops) == 1
-        assert len(gammas) == 1
+        assert len(L_ops) == 1, "Expected len(L_ops) == 1"
+        assert len(gammas) == 1, "Expected len(gammas) == 1"
         # Check shape: should be 2(N+1) x 2(N+1)
         dim = 2 * (5 + 1)
-        assert L_ops[0].shape == (dim, dim)
+        assert L_ops[0].shape == (dim, dim), "Expected L_ops[0].shape == (dim, dim)"
 
     def test_phase_diffusion(self) -> None:
         """Phase diffusion should add one operator."""
         config = HybridLindbladConfig(N=5, gamma_phi=0.1)
         L_ops, gammas = build_hybrid_lindblad_operators(config)
-        assert len(L_ops) == 1
-        assert len(gammas) == 1
+        assert len(L_ops) == 1, "Expected len(L_ops) == 1"
+        assert len(gammas) == 1, "Expected len(gammas) == 1"
 
     def test_multiple_channels(self) -> None:
         """Multiple channels should add multiple operators."""
         config = HybridLindbladConfig(N=5, gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02)
         L_ops, gammas = build_hybrid_lindblad_operators(config)
-        assert len(L_ops) == 3
-        assert len(gammas) == 3
+        assert len(L_ops) == 3, "Expected len(L_ops) == 3"
+        assert len(gammas) == 3, "Expected len(gammas) == 3"
 
     def test_operator_structure_one_body(self) -> None:
         """One-body loss: L = √γ₁ (a ⊗ I₂)."""
@@ -170,8 +169,8 @@ class TestBuildHybridLindbladOperators:
         for n in range(1, dim_osc):
             a[n - 1, n] = np.sqrt(n)
 
-        assert np.allclose(L_down, np.sqrt(0.1) * a), "Spin down part incorrect"
-        assert np.allclose(L_up, np.sqrt(0.1) * a), "Spin up part incorrect"
+        assert L_down == pytest.approx(np.sqrt(0.1) * a), "Spin down part incorrect"
+        assert L_up == pytest.approx(np.sqrt(0.1) * a), "Spin up part incorrect"
 
 
 # =============================================================================
@@ -197,7 +196,7 @@ class TestLindbladRHS:
 
         # Should be -i[H, rho]
         expected = -1.0j * (H @ rho - rho @ H)
-        assert np.allclose(drho, expected), "RHS incorrect for unitary case"
+        assert drho == pytest.approx(expected), "RHS incorrect for unitary case"
 
     def test_with_dissipation(self) -> None:
         """With dissipation, should have non-zero drift."""
@@ -235,7 +234,7 @@ class TestEvolveHybridLindblad:
 
         # Convert to density matrix for comparison
         rho0 = np.outer(psi0, psi0.conj())
-        assert np.allclose(rho_final, rho0), "Zero time should return initial state"
+        assert rho_final == pytest.approx(rho0), "Zero time should return initial state"
 
     def test_unitary_evolution(self) -> None:
         """With no dissipation, should match unitary evolution."""
@@ -254,7 +253,7 @@ class TestEvolveHybridLindblad:
         # Numerical
         rho_final = evolve_hybrid_lindblad(psi0, config, T=1.0, dt=0.001, method="rk4")
 
-        assert np.allclose(rho_final, rho_expected, atol=1e-4), (
+        assert rho_final == pytest.approx(rho_expected, abs=1e-4), (
             "Unitary evolution mismatch"
         )
 
@@ -267,7 +266,7 @@ class TestEvolveHybridLindblad:
         rho_final = evolve_hybrid_lindblad(psi0, config, T=1.0, dt=0.01)
 
         trace = np.trace(rho_final)
-        assert np.isclose(trace, 1.0, atol=1e-6), f"Trace should be 1, got {trace}"
+        assert trace == pytest.approx(1.0, abs=1e-6), f"Trace should be 1, got {trace}"
 
     def test_trace_lessthan_equal_with_loss(self) -> None:
         """Trace should be ≤ 1 with particle loss."""
@@ -284,13 +283,17 @@ class TestEvolveHybridLindblad:
         """Density matrix should remain Hermitian."""
         N = 5
         config = HybridLindbladConfig(
-            N=N, n=2, omega_n=0.3, gamma_1=0.1, gamma_phi=0.05
+            N=N,
+            n=2,
+            omega_n=0.3,
+            gamma_1=0.1,
+            gamma_phi=0.05,
         )
         psi0 = hybrid_vacuum_state(N, spin_state="down")
 
         rho_final = evolve_hybrid_lindblad(psi0, config, T=0.5, dt=0.01)
 
-        assert np.allclose(rho_final, rho_final.conj().T, atol=1e-6), (
+        assert rho_final == pytest.approx(rho_final.conj().T, abs=1e-6), (
             "Final state not Hermitian"
         )
 
@@ -341,7 +344,7 @@ class TestApplySqueezing:
         psi_sq = apply_squeezing(config, psi0)
         norm = np.sum(np.abs(psi_sq) ** 2)
 
-        assert np.isclose(norm, 1.0, atol=1e-6), f"Norm not preserved: {norm}"
+        assert norm == pytest.approx(1.0, abs=1e-6), f"Norm not preserved: {norm}"
 
 
 # =============================================================================
@@ -360,9 +363,9 @@ class TestValidateHybridDensityMatrix:
 
         result = validate_hybrid_density_matrix(rho)
 
-        assert result["is_hermitian"]
-        assert result["is_normalized"]
-        assert result["is_positive"]
+        assert result["is_hermitian"], 'Condition failed: result["is_hermitian"]'
+        assert result["is_normalized"], 'Condition failed: result["is_normalized"]'
+        assert result["is_positive"], 'Condition failed: result["is_positive"]'
 
     def test_pure_state(self) -> None:
         """Pure state should be valid."""
@@ -372,9 +375,9 @@ class TestValidateHybridDensityMatrix:
 
         result = validate_hybrid_density_matrix(rho)
 
-        assert result["is_hermitian"]
-        assert result["is_normalized"]
-        assert result["is_positive"]
+        assert result["is_hermitian"], 'Condition failed: result["is_hermitian"]'
+        assert result["is_normalized"], 'Condition failed: result["is_normalized"]'
+        assert result["is_positive"], 'Condition failed: result["is_positive"]'
 
     def test_non_hermitian_fails(self) -> None:
         """Non-Hermitian matrix should fail."""
@@ -385,7 +388,7 @@ class TestValidateHybridDensityMatrix:
 
         result = validate_hybrid_density_matrix(rho)
 
-        assert not result["is_hermitian"]
+        assert not result["is_hermitian"], 'result["is_hermitian"] should be falsy'
 
 
 # =============================================================================
@@ -399,12 +402,16 @@ class TestRunHybridSimulation:
     def test_simulation_completes(self) -> None:
         """Simulation should complete without errors."""
         config = HybridLindbladConfig(
-            N=5, n=2, omega_n=0.5, t_squeeze=0.5, gamma_1=0.01
+            N=5,
+            n=2,
+            omega_n=0.5,
+            t_squeeze=0.5,
+            gamma_1=0.01,
         )
         result = run_hybrid_simulation(config)
 
-        assert "final_state" in result
-        assert "validation" in result
+        assert "final_state" in result, 'Expected "final_state" in result'
+        assert "validation" in result, 'Expected "validation" in result'
 
         validation = result["validation"]
         assert validation["is_hermitian"], "Final state not Hermitian"
@@ -415,9 +422,13 @@ class TestRunHybridSimulation:
         config = HybridLindbladConfig(N=8, n=3, omega_n=0.3, t_squeeze=1.0, gamma_1=0.0)
         result = run_hybrid_simulation(config)
 
-        assert result["final_state"] is not None
+        assert result["final_state"] is not None, (
+            'Expected result["final_state"] to not be None'
+        )
         validation = result["validation"]
-        assert validation["is_hermitian"]
+        assert validation["is_hermitian"], (
+            'Condition failed: validation["is_hermitian"]'
+        )
 
 
 # =============================================================================
@@ -428,6 +439,7 @@ class TestRunHybridSimulation:
 class TestWignerNegativity:
     """Test that n≥3 states show Wigner negativity."""
 
+    @pytest.mark.slow
     def test_n2_no_negativity(self) -> None:
         """n=2 (Gaussian) should not have Wigner negativity."""
         N = 20  # Larger N reduces truncation artifacts near zero
@@ -469,15 +481,16 @@ class TestWignerNegativity:
         assert min_W < -1e-3, f"n=3 should have Wigner negativity: min(W)={min_W}"
 
     def _extract_oscillator_density(
-        self, hybrid_state: np.ndarray, N: int
+        self,
+        hybrid_state: np.ndarray,
+        N: int,
     ) -> np.ndarray:
         """Extract oscillator density matrix from hybrid state."""
         dim_osc = N + 1
         rho_hybrid = np.outer(hybrid_state, hybrid_state.conj())
         # Reshape to (dim_osc, 2, dim_osc, 2) and trace over spin
         rho_reshaped = rho_hybrid.reshape(dim_osc, 2, dim_osc, 2)
-        rho_osc = np.trace(rho_reshaped, axis1=1, axis2=3)
-        return rho_osc
+        return np.trace(rho_reshaped, axis1=1, axis2=3)
 
 
 # =============================================================================
@@ -525,6 +538,7 @@ class TestN4WignerNegativityDiagnostic:
             f"got min(W)={min_W:.6f}"
         )
 
+    @pytest.mark.slow
     def test_n4_grid_sweep(self) -> None:
         """Test n=4 negativity vs grid resolution at a fixed time.
 
@@ -561,15 +575,16 @@ class TestN4WignerNegativityDiagnostic:
         if best_w < -1e-5:
             print(
                 f"\n  ✓ n=4 negativity detected at resolution"
-                f" {resolutions[min_values.index(best_w)]}×{resolutions[min_values.index(best_w)]}!"
+                f" {resolutions[min_values.index(best_w)]}×{resolutions[min_values.index(best_w)]}!",
             )
         else:
             print(
                 f"\n  ⚠ n=4 negativity absent at all resolutions"
-                f" up to {max(resolutions)}×{max(resolutions)}."
+                f" up to {max(resolutions)}×{max(resolutions)}.",
             )
             print("    → Grid alone is not the bottleneck.")
 
+    @pytest.mark.slow
     def test_n4_time_sweep(self) -> None:
         """Sweep squeezing times at moderate resolution to find negativity.
 
@@ -593,7 +608,10 @@ class TestN4WignerNegativityDiagnostic:
 
         for t in times:
             config = HybridLindbladConfig(
-                N=N, n=4, omega_n=self.OMEGA_N, t_squeeze=float(t)
+                N=N,
+                n=4,
+                omega_n=self.OMEGA_N,
+                t_squeeze=float(t),
             )
             psi_sq = apply_squeezing(config)
             rho_osc = self._extract_oscillator_density(psi_sq, N)
@@ -623,13 +641,14 @@ class TestN4WignerNegativityDiagnostic:
             print(f"\n  ⚠ n=4 negativity absent at all {len(times)} time points.")
             print(
                 "    → Issue is BEYOND just timing. "
-                "Try larger N or state-preparation check."
+                "Try larger N or state-preparation check.",
             )
             pytest.fail(
                 f"n=4 negativity not detected at any of {len(times)} "
-                f"time points with N={N}, grid={n_pts}×{n_pts}"
+                f"time points with N={N}, grid={n_pts}×{n_pts}",
             )
 
+    @pytest.mark.slow
     def test_n4_truncation_check(self) -> None:
         """Check whether larger Fock truncation enables negativity.
 
@@ -652,7 +671,10 @@ class TestN4WignerNegativityDiagnostic:
         best_N = 0
         for N in N_values:
             config = HybridLindbladConfig(
-                N=N, n=4, omega_n=self.OMEGA_N, t_squeeze=t_sqz
+                N=N,
+                n=4,
+                omega_n=self.OMEGA_N,
+                t_squeeze=t_sqz,
             )
             psi_sq = apply_squeezing(config)
             rho_osc = self._extract_oscillator_density(psi_sq, N)
@@ -673,6 +695,7 @@ class TestN4WignerNegativityDiagnostic:
             print(f"\n  ⚠ n=4 negativity absent even at N={max(N_values)}")
             print("    → Truncation is NOT the primary bottleneck.")
 
+    @pytest.mark.slow
     def test_n4_high_resolution_confirm(self) -> None:
         """Confirm best result with high resolution.
 
@@ -707,7 +730,9 @@ class TestN4WignerNegativityDiagnostic:
             print("    → The issue persists. Consider state-preparation debugging.")
 
     def _extract_oscillator_density(
-        self, hybrid_state: np.ndarray, N: int
+        self,
+        hybrid_state: np.ndarray,
+        N: int,
     ) -> np.ndarray:
         """Extract oscillator density matrix from hybrid state.
 
@@ -722,8 +747,7 @@ class TestN4WignerNegativityDiagnostic:
         dim_osc = N + 1
         rho_hybrid = np.outer(hybrid_state, hybrid_state.conj())
         rho_reshaped = rho_hybrid.reshape(dim_osc, 2, dim_osc, 2)
-        rho_osc = np.trace(rho_reshaped, axis1=1, axis2=3)
-        return rho_osc
+        return np.trace(rho_reshaped, axis1=1, axis2=3)
 
 
 # =============================================================================
@@ -774,7 +798,7 @@ class TestEdgeCases:
 
         # Trace should be preserved (Lindblad eq preserves trace)
         trace = np.trace(rho)
-        assert np.isclose(trace, 1.0, atol=1e-6), f"Trace should be 1, got {trace}"
+        assert trace == pytest.approx(1.0, abs=1e-6), f"Trace should be 1, got {trace}"
 
 
 if __name__ == "__main__":

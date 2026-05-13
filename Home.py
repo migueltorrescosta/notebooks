@@ -4,8 +4,9 @@ Provides navigation to all simulation pages including interferometry,
 phase estimation, metrology, and quantum dynamics simulations.
 """
 
-import streamlit as st
 from dataclasses import dataclass
+
+import streamlit as st
 
 st.set_page_config(page_title="Miguel's dashboard", page_icon="⚛️", layout="wide")
 

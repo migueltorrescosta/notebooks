@@ -47,7 +47,6 @@ import numpy as np
 
 from src.physics.noise_channels import NoiseConfig
 
-
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -83,7 +82,7 @@ class DistributedMziConfig:
             raise ValueError(f"Number of sensors M must be >= 1, got {self.M}")
         if self.correlation_noise < 0.0 or self.correlation_noise > 1.0:
             raise ValueError(
-                f"correlation_noise must be in [0, 1], got {self.correlation_noise}"
+                f"correlation_noise must be in [0, 1], got {self.correlation_noise}",
             )
 
 
@@ -377,8 +376,7 @@ def distributed_scaling_exponent(
     """
     if config.entangled:
         return -1.0
-    else:
-        return -0.5
+    return -0.5
 
 
 def effective_scaling_at_N(
@@ -406,8 +404,8 @@ def effective_scaling_at_N(
     """
     # Use central difference with small perturbation
     rel_perturb = 0.01
-    N_plus_int = max(int(round(N_per_sensor * (1 + rel_perturb))), 1)
-    N_minus_int = max(int(round(N_per_sensor * (1 - rel_perturb))), 1)
+    N_plus_int = max(round(N_per_sensor * (1 + rel_perturb)), 1)
+    N_minus_int = max(round(N_per_sensor * (1 - rel_perturb)), 1)
 
     # Handle edge case where N is 1
     if N_minus_int == N_plus_int:
@@ -416,10 +414,16 @@ def effective_scaling_at_N(
     phi_test = 0.0
 
     result_plus = distributed_mzi_sensitivity(
-        N_plus_int, phi_test, config, noise_config
+        N_plus_int,
+        phi_test,
+        config,
+        noise_config,
     )
     result_minus = distributed_mzi_sensitivity(
-        N_minus_int, phi_test, config, noise_config
+        N_minus_int,
+        phi_test,
+        config,
+        noise_config,
     )
 
     # log-log derivative

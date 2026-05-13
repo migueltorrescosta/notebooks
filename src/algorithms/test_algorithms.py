@@ -18,17 +18,27 @@ class TestGaussianMetropolisHastings:
 
     def test_initial_configuration(self, sampler: GaussianMetropolisHastings) -> None:
         """Test that initial configuration is set correctly."""
-        assert sampler.current_configuration == 0.0
-        assert len(sampler.configuration_history) == 1
+        assert sampler.current_configuration == 0.0, (
+            "Expected sampler.current_configuration == 0.0"
+        )
+        assert len(sampler.configuration_history) == 1, (
+            "Expected len(sampler.configuration_history) == 1"
+        )
 
     def test_state_likelihood_is_normalized(self) -> None:
         """Test that state_likelihood returns valid probabilities."""
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         # Likelihood should be highest at x=0
-        assert sampler.state_likelihood(0.0) == 1.0
+        assert sampler.state_likelihood(0.0) == 1.0, (
+            "Expected sampler.state_likelihood(0.0) == 1.0"
+        )
         # Likelihood should be positive
-        assert sampler.state_likelihood(1.0) > 0
-        assert sampler.state_likelihood(-1.0) > 0
+        assert sampler.state_likelihood(1.0) > 0, (
+            "Expected sampler.state_likelihood(1.0) > 0"
+        )
+        assert sampler.state_likelihood(-1.0) > 0, (
+            "Expected sampler.state_likelihood(-1.0) > 0"
+        )
 
     def test_generator_produces_gaussian_distribution(self) -> None:
         """Test that generator produces approximately Gaussian samples."""
@@ -42,8 +52,8 @@ class TestGaussianMetropolisHastings:
         # Mean should be close to 0 (current configuration)
         mean = np.mean(samples)
         std = np.std(samples)
-        assert np.isclose(mean, 0.0, atol=0.2), f"Mean should be ~0, got {mean}"
-        assert np.isclose(std, 1.0, atol=0.3), (
+        assert mean == pytest.approx(0.0, abs=0.2), f"Mean should be ~0, got {mean}"
+        assert std == pytest.approx(1.0, abs=0.3), (
             f"Std should be ~1, got {std}"
         )  # Less strict
 
@@ -57,7 +67,8 @@ class TestGaussianMetropolisHastings:
             1
             for _ in range(100)
             if GaussianMetropolisHastings(initial_configuration=0.0).approval_function(
-                -0.1, current_likelihood
+                -0.1,
+                current_likelihood,
             )
         )
         # Should accept more than 50% of the time
@@ -74,7 +85,8 @@ class TestGaussianMetropolisHastings:
             1
             for _ in range(100)
             if GaussianMetropolisHastings(initial_configuration=0.0).approval_function(
-                5.0, current_likelihood
+                5.0,
+                current_likelihood,
             )
         )
         # Should accept much less than 50% of the time
@@ -91,7 +103,9 @@ class TestGaussianMetropolisHastings:
         for _ in range(100):
             sampler.run_single_iteration()
 
-        assert len(sampler.configuration_history) > 1
+        assert len(sampler.configuration_history) > 1, (
+            "Expected len(sampler.configuration_history) > 1"
+        )
 
     def test_accept_reject_counting(self) -> None:
         """Test that acceptance/rejection counting works."""
@@ -130,8 +144,10 @@ class TestGaussianMetropolisHastings:
         lik1 = sampler.state_likelihood(config)
         lik2 = sampler.state_likelihood(config)
 
-        assert np.isclose(lik1, lik2)
-        assert np.isclose(lik1, np.exp(-1 * config**2))
+        assert lik1 == pytest.approx(lik2), "Expected lik1 == pytest.approx(lik2)"
+        assert lik1 == pytest.approx(np.exp(-1 * config**2)), (
+            "Expected lik1 == pytest.approx(np.exp(-1 * config**2))"
+        )
 
     def test_run_iterations_with_progress(self) -> None:
         """Test that run_iterations completes without errors."""
@@ -227,8 +243,8 @@ class TestReproducibility:
         sampler2 = GaussianMetropolisHastings(initial_configuration=0.0)
         sampler2.run_iterations(100)
 
-        assert np.allclose(
-            sampler1.configuration_history, sampler2.configuration_history
+        assert sampler1.configuration_history == pytest.approx(
+            sampler2.configuration_history,
         ), "Same seed should give same results"
 
     def test_different_seed_different_results(self) -> None:
@@ -242,6 +258,6 @@ class TestReproducibility:
         sampler2.run_iterations(100)
 
         # Should be different (with high probability)
-        assert not np.allclose(
-            sampler1.configuration_history, sampler2.configuration_history
+        assert sampler1.configuration_history != pytest.approx(
+            sampler2.configuration_history,
         ), "Different seeds should give different results"

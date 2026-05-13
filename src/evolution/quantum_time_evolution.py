@@ -17,14 +17,15 @@ Units:
 - Energy in same units as position⁻²
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, List, Tuple, Any
-from src.utils.enums import BoundaryCondition
+from typing import Any
 
 import numpy as np
 import scipy.sparse
 import scipy.sparse.linalg
 
+from src.utils.enums import BoundaryCondition
 from src.utils.validators import (
     validate_orthonormality,
     validate_probability_conservation,
@@ -55,7 +56,11 @@ def potential_quartic(x: float, a: float, c: float) -> float:
 
 
 def potential_trigonometric(
-    x: float, amplitude: float, phase: float, k: float, width: float
+    x: float,
+    amplitude: float,
+    phase: float,
+    k: float,
+    width: float,
 ) -> float:
     """Trigonometric potential V(x) = a*cos(phase + 2πkx/w)."""
     return amplitude * np.cos(phase + k * 2 * np.pi * x / width)
@@ -162,7 +167,7 @@ def build_1d_hamiltonian(
     # Convert to CSC format for efficient arithmetic
     # Use explicit constructor to help mypy understand the type
     hamiltonian: scipy.sparse.csc_matrix = scipy.sparse.csc_matrix(
-        hamiltonian_lil.tocsc() / (2 * mass * dx**2)
+        hamiltonian_lil.tocsc() / (2 * mass * dx**2),
     )
 
     # Add potential term V(x) - diagonal modification is efficient in CSC
@@ -191,7 +196,7 @@ def compute_energy_levels(
     hamiltonian: scipy.sparse.csc_matrix,
     initial_state: np.ndarray,
     num_levels: int,
-) -> List[EnergyLevel]:
+) -> list[EnergyLevel]:
     """Compute lowest energy eigenstates.
 
     Finds the num_levels lowest eigenvalues and eigenvectors,
@@ -207,12 +212,17 @@ def compute_energy_levels(
 
     """
     eigenvalues, eigenvectors = scipy.sparse.linalg.eigs(
-        hamiltonian, k=num_levels, which="SM"
+        hamiltonian,
+        k=num_levels,
+        which="SM",
     )
 
     levels = []
     for level, energy, wf in zip(
-        range(num_levels), np.real(eigenvalues), eigenvectors.T
+        range(num_levels),
+        np.real(eigenvalues),
+        eigenvectors.T,
+        strict=False,
     ):
         # Store complex overlap - normalize_energy_levels will make it real
         component = np.vdot(initial_state, wf)
@@ -222,15 +232,15 @@ def compute_energy_levels(
                 energy=energy,
                 wave_function=wf,
                 component=component,
-            )
+            ),
         )
 
     return levels
 
 
 def normalize_energy_levels(
-    levels: List[EnergyLevel],
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    levels: list[EnergyLevel],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Normalize energy levels so components are real.
 
     Transforms each wavefunction so that its component

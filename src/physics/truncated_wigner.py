@@ -32,7 +32,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -64,7 +63,10 @@ class TWAConfig:
 
 
 def sample_wigner_sphere(
-    N: int, state_type: str, rng: np.random.Generator, phi: float = 0.0
+    N: int,
+    state_type: str,
+    rng: np.random.Generator,
+    phi: float = 0.0,
 ) -> np.ndarray:
     """Sample initial Bloch vector from Wigner function.
 
@@ -110,7 +112,7 @@ def sample_wigner_sphere(
 
         return np.array([x, y, z])
 
-    elif state_type == "SSS":
+    if state_type == "SSS":
         # Squeezed Spin State (SSS) - Gaussian narrowed in one direction
         # Wigner distribution: Gaussian with different widths
         # Standard deviation varies with direction
@@ -139,7 +141,7 @@ def sample_wigner_sphere(
 
         return np.array([x, y, z])
 
-    elif state_type == "NOON":
+    if state_type == "NOON":
         # NOON state - bimodal distribution (anti-diagonal in Dicke basis)
         # Wigner distribution: two peaks separated on sphere
         # WARNING: TWA is not reliable for NOON states
@@ -167,10 +169,9 @@ def sample_wigner_sphere(
 
         return np.array([x, y, z])
 
-    else:
-        raise ValueError(
-            f"Unknown state type: {state_type}. Supported: 'CSS', 'SSS', 'NOON'"
-        )
+    raise ValueError(
+        f"Unknown state type: {state_type}. Supported: 'CSS', 'SSS', 'NOON'",
+    )
 
 
 # =============================================================================
@@ -370,6 +371,7 @@ def compute_twa_expectations(
             "NOON state simulation via TWA is not reliable. "
             "Consider using full quantum simulation instead.",
             UserWarning,
+            stacklevel=2,
         )
 
     # Initialize random generator
@@ -385,7 +387,7 @@ def compute_twa_expectations(
     if store_trajectories:
         all_trajectories = []
 
-    for traj_idx in range(N_traj):
+    for _traj_idx in range(N_traj):
         # Sample initial Bloch vector
         J_init = sample_wigner_sphere(N, state_type, rng)
 
@@ -480,10 +482,7 @@ def compute_phase_sensitivity(
     # Simplified: use variance directly
 
     # If Jz variance is small, phase sensitivity is high
-    if Jz_variance > 0:
-        delta_phi = np.sqrt(Jz_variance) / J
-    else:
-        delta_phi = np.inf
+    delta_phi = np.sqrt(Jz_variance) / J if Jz_variance > 0 else np.inf
 
     # SQL and HL for comparison
     delta_phi_sql = 1.0 / np.sqrt(N)
@@ -637,7 +636,6 @@ def compare_with_lindblad(
 
     """
     try:
-        from src.physics.dicke_basis import jz_operator
         from src.evolution.lindblad_solver import (
             LindbladConfig,
             compute_expectation,
@@ -645,11 +643,11 @@ def compare_with_lindblad(
             evolve_lindblad,
             ket_to_density,
         )
+        from src.physics.dicke_basis import jz_operator
 
         # Limit N for computational feasibility
         max_N = 20
-        if N > max_N:
-            N = max_N
+        N = min(N, max_N)
     except ImportError:
         return {
             "error": "Lindblad module not available",
@@ -707,7 +705,7 @@ def compare_with_lindblad(
 
     if np.abs(lindblad_Jz_mean) > 1e-6:
         relative_error = np.abs(twa_Jz_mean - lindblad_Jz_mean) / np.abs(
-            lindblad_Jz_mean
+            lindblad_Jz_mean,
         )
     else:
         # Use absolute error if Lindblad is near zero

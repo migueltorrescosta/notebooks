@@ -14,19 +14,20 @@ import numpy as np
 import pytest
 
 from src.physics.mzi_simulation import noon_state
+from src.utils.validators import validate_state_mzi
+
 from .mzi_states import (
-    twin_fock_state,
     coherent_state_two_mode,
-    input_state_factory,
-    two_mode_jz_operator,
+    compute_fisher_information,
     compute_jz_expectation,
     compute_jz_variance,
-    compute_fisher_information,
+    input_state_factory,
     single_photon_split_state,
-    validate_twin_fock,
+    twin_fock_state,
+    two_mode_jz_operator,
     validate_noon,
+    validate_twin_fock,
 )
-from src.utils.validators import validate_state_mzi
 
 
 class TestTwinFockState:
@@ -37,7 +38,7 @@ class TestTwinFockState:
         for N in [2, 4, 6, 8, 10]:
             state = twin_fock_state(N)
             norm = np.sum(np.abs(state) ** 2)
-            assert np.isclose(norm, 1.0), f"Twin-Fock N={N} not normalized"
+            assert norm == pytest.approx(1.0), f"Twin-Fock N={N} not normalized"
 
     def test_twin_fock_requires_even_n(self) -> None:
         """Twin-Fock requires even N."""
@@ -49,7 +50,9 @@ class TestTwinFockState:
         for N in [2, 4, 6, 8]:
             state = twin_fock_state(N)
             jz_mean = np.real(compute_jz_expectation(state, N))
-            assert np.isclose(jz_mean, 0.0, atol=1e-10), f"Twin-Fock N={N}: ⟨J_z⟩ ≠ 0"
+            assert jz_mean == pytest.approx(0.0, abs=1e-10), (
+                f"Twin-Fock N={N}: ⟨J_z⟩ ≠ 0"
+            )
 
     def test_twin_fock_variance(self) -> None:
         """Twin-Fock variance Var(J_z) = N(N+2)/12."""
@@ -58,7 +61,7 @@ class TestTwinFockState:
             jz_var = compute_jz_variance(state, N)
             # Var(J_z) = N(N+2)/12
             expected_var = N * (N + 2) / 12
-            assert np.isclose(jz_var, expected_var, rtol=1e-6), (
+            assert jz_var == pytest.approx(expected_var, rel=1e-6), (
                 f"Twin-Fock N={N}: Var(J_z) mismatch"
             )
 
@@ -69,7 +72,7 @@ class TestTwinFockState:
             f_q = compute_fisher_information(state, N)
             # F_Q = 4 * Var = N(N+2)/3
             expected_fq = N * (N + 2) / 3
-            assert np.isclose(f_q, expected_fq, rtol=1e-6), (
+            assert f_q == pytest.approx(expected_fq, rel=1e-6), (
                 f"Twin-Fock F_Q mismatch for N={N}"
             )
 
@@ -80,7 +83,7 @@ class TestTwinFockState:
 
         # Check that there are N+1 non-zero amplitudes (each with norm² = 1/(N+1))
         nonzero_amplitudes = np.sum(np.abs(state) > 1e-10)
-        assert nonzero_amplitudes == N + 1
+        assert nonzero_amplitudes == N + 1, "Expected nonzero_amplitudes == N + 1"
 
 
 class TestNOONState:
@@ -91,7 +94,7 @@ class TestNOONState:
         for N in [1, 2, 3, 4, 5]:
             state = noon_state(N, max_photons=N)
             norm = np.sum(np.abs(state) ** 2)
-            assert np.isclose(norm, 1.0), f"NOON N={N} not normalized"
+            assert norm == pytest.approx(1.0), f"NOON N={N} not normalized"
 
     def test_noon_equal_overlap(self) -> None:
         """NOON has equal overlap with |N,0⟩ and |0,N⟩."""
@@ -110,10 +113,10 @@ class TestNOONState:
             overlap_n0 = np.abs(np.conj(state) @ fock_n0) ** 2
             overlap_0n = np.abs(np.conj(state) @ fock_0n) ** 2
 
-            assert np.isclose(overlap_n0, 0.5, atol=1e-10), (
+            assert overlap_n0 == pytest.approx(0.5, abs=1e-10), (
                 f"NOON N={N}: overlap with |N,0⟩ ≠ 0.5"
             )
-            assert np.isclose(overlap_0n, 0.5, atol=1e-10), (
+            assert overlap_0n == pytest.approx(0.5, abs=1e-10), (
                 f"NOON N={N}: overlap with |0,N⟩ ≠ 0.5"
             )
 
@@ -122,7 +125,7 @@ class TestNOONState:
         for N in [1, 2, 3, 4, 5]:
             state = noon_state(N, max_photons=N)
             jz_mean = np.real(compute_jz_expectation(state, N))
-            assert np.isclose(jz_mean, 0.0, atol=1e-10), f"NOON N={N}: ⟨J_z⟩ ≠ 0"
+            assert jz_mean == pytest.approx(0.0, abs=1e-10), f"NOON N={N}: ⟨J_z⟩ ≠ 0"
 
     def test_noon_variance(self) -> None:
         """Var(J_z) = N²/4 for NOON."""
@@ -130,7 +133,7 @@ class TestNOONState:
             state = noon_state(N, max_photons=N)
             jz_var = compute_jz_variance(state, N)
             expected_var = N**2 / 4
-            assert np.isclose(jz_var, expected_var, rtol=1e-6), (
+            assert jz_var == pytest.approx(expected_var, rel=1e-6), (
                 f"NOON N={N}: Var(J_z) mismatch"
             )
 
@@ -140,7 +143,7 @@ class TestNOONState:
             state = noon_state(N, max_photons=N)
             f_q = compute_fisher_information(state, N)
             expected_fq = N**2
-            assert np.isclose(f_q, expected_fq, rtol=1e-6), (
+            assert f_q == pytest.approx(expected_fq, rel=1e-6), (
                 f"NOON N={N}: F_Q = {f_q} ≠ N² = {expected_fq}"
             )
 
@@ -158,7 +161,9 @@ class TestStateOrthogonality:
         middle_fock[(N - 1) * (N + 1) + 1] = 1.0
 
         overlap = np.abs(np.conj(state) @ middle_fock) ** 2
-        assert np.isclose(overlap, 0.0, atol=1e-10)
+        assert overlap == pytest.approx(0.0, abs=1e-10), (
+            "Expected overlap == pytest.approx(0.0, abs=1e-10)"
+        )
 
     def test_coherent_state_normalized(self) -> None:
         """Two-mode coherent state should be normalized when max_photons is adequate."""
@@ -167,7 +172,7 @@ class TestStateOrthogonality:
                 # Use sufficiently large max_photons to avoid truncation
                 state = coherent_state_two_mode(alpha1, alpha2, max_photons=15)
                 norm = np.sum(np.abs(state) ** 2)
-                assert np.isclose(norm, 1.0, rtol=1e-6), (
+                assert norm == pytest.approx(1.0, rel=1e-6), (
                     f"Coherent ({alpha1}, {alpha2}): norm = {norm}"
                 )
 
@@ -178,33 +183,33 @@ class TestInputStateFactory:
     def test_factory_twin_fock(self) -> None:
         """Factory creates Twin-Fock correctly."""
         state = input_state_factory("twin_fock", N=4)
-        assert validate_state_mzi(state)
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_factory_noon(self) -> None:
         """Factory creates NOON correctly."""
         state = input_state_factory("noon", N=3)
-        assert validate_state_mzi(state)
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_factory_coherent(self) -> None:
         """Factory creates coherent state correctly."""
         state = input_state_factory("coherent", N=0, alpha1=1.0, alpha2=0.0)
-        assert validate_state_mzi(state)
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_factory_fock(self) -> None:
         """Factory creates Fock state correctly."""
         state = input_state_factory("fock", N=3)
-        assert validate_state_mzi(state)
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_factory_single_photon_split(self) -> None:
         """Factory creates single-photon split state correctly."""
         state = input_state_factory("single_photon_split", N=2)
-        assert validate_state_mzi(state)
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_factory_css(self) -> None:
         """Factory creates CSS (coherent state split) correctly."""
         # CSS is like coherent state with one mode
         state = input_state_factory("css", N=1)
-        assert validate_state_mzi(state)
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_factory_unknown_raises(self) -> None:
         """Factory raises for unknown state type."""
@@ -219,13 +224,17 @@ class TestValidation:
         """Twin-Fock validation passes."""
         N = 4
         state = twin_fock_state(N)
-        assert validate_twin_fock(N, state, N)
+        assert validate_twin_fock(N, state, N), (
+            "Condition failed: validate_twin_fock(N, state, N)"
+        )
 
     def test_validate_noon(self) -> None:
         """NOON validation passes."""
         N = 3
         state = noon_state(N, max_photons=N)
-        assert validate_noon(N, state, N)
+        assert validate_noon(N, state, N), (
+            "Condition failed: validate_noon(N, state, N)"
+        )
 
 
 class TestJ_z_Operator:
@@ -234,7 +243,9 @@ class TestJ_z_Operator:
     def test_jz_hermitian(self) -> None:
         """J_z operator should be Hermitian."""
         jz = two_mode_jz_operator(max_photons=3)
-        assert np.allclose(jz, jz.conj().T)
+        assert jz == pytest.approx(jz.conj().T), (
+            "Expected jz == pytest.approx(jz.conj().T)"
+        )
 
     def test_jz_eigenvalues(self) -> None:
         """J_z eigenvalues should be (n1-n2)/2."""
@@ -245,7 +256,9 @@ class TestJ_z_Operator:
             for n2 in range(3):
                 idx = n1 * 3 + n2
                 expected = (n1 - n2) / 2
-                assert np.isclose(jz[idx, idx], expected)
+                assert jz[idx, idx] == pytest.approx(expected), (
+                    "Expected jz[idx, idx] == pytest.approx(expected)"
+                )
 
 
 class TestSinglePhotonSplit:
@@ -255,7 +268,7 @@ class TestSinglePhotonSplit:
         """Single-photon split must be normalized."""
         state = single_photon_split_state(N=3)
         norm = np.sum(np.abs(state) ** 2)
-        assert np.isclose(norm, 1.0)
+        assert norm == pytest.approx(1.0), "Expected norm == pytest.approx(1.0)"
 
     def test_sps_requires_n_ge_2(self) -> None:
         """Single-photon split requires N >= 2."""
@@ -266,4 +279,6 @@ class TestSinglePhotonSplit:
         """Single-photon split should be symmetric."""
         state = single_photon_split_state(N=4)
         jz_mean = np.real(compute_jz_expectation(state, 4))
-        assert np.isclose(jz_mean, 0.0, atol=1e-10)
+        assert jz_mean == pytest.approx(0.0, abs=1e-10), (
+            "Expected jz_mean == pytest.approx(0.0, abs=1e-10)"
+        )

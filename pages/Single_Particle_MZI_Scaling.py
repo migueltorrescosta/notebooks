@@ -163,10 +163,12 @@ if run_btn:
 
         # Fit scaling exponent
         alpha_analytical, r_sq_analytical, df_fit = fit_scaling_exponent(
-            df, column="delta_theta_analytical"
+            df,
+            column="delta_theta_analytical",
         )
         alpha_numerical, r_sq_numerical, _ = fit_scaling_exponent(
-            df, column="delta_theta_numerical"
+            df,
+            column="delta_theta_numerical",
         )
 
     # -------------------------------------------------------------------------
@@ -210,7 +212,7 @@ if run_btn:
 
     st.caption(
         "Expected exponent α = −1.000 (standard quantum limit for a single "
-        "probe with increasing interrogation time)."
+        "probe with increasing interrogation time).",
     )
 
     # -------------------------------------------------------------------------
@@ -230,8 +232,8 @@ if run_btn:
             y=dt_ref,
             mode="lines",
             name=r"$1/T_H$ (theory, α=-1)",
-            line=dict(dash="dash", color="gray", width=2),
-        )
+            line={"dash": "dash", "color": "gray", "width": 2},
+        ),
     )
 
     # Analytical data (non-fringe points)
@@ -245,8 +247,8 @@ if run_btn:
             y=clean_points["delta_theta_analytical"],
             mode="markers",
             name=r"Δθ (analytical ∂⟨J_z⟩/∂θ)",
-            marker=dict(color="#1f77b4", size=6, symbol="circle"),
-        )
+            marker={"color": "#1f77b4", "size": 6, "symbol": "circle"},
+        ),
     )
 
     fig1.add_trace(
@@ -255,8 +257,8 @@ if run_btn:
             y=clean_points["delta_theta_numerical"],
             mode="markers",
             name=r"Δθ (numerical ∂⟨J_z⟩/∂θ)",
-            marker=dict(color="#ff7f0e", size=6, symbol="x"),
-        )
+            marker={"color": "#ff7f0e", "size": 6, "symbol": "x"},
+        ),
     )
 
     if not fringe_points.empty:
@@ -266,13 +268,13 @@ if run_btn:
                 y=fringe_points["delta_theta_analytical"],
                 mode="markers",
                 name="Fringe extremum (excluded)",
-                marker=dict(
-                    color="red",
-                    size=8,
-                    symbol="star",
-                    opacity=0.6,
-                ),
-            )
+                marker={
+                    "color": "red",
+                    "size": 8,
+                    "symbol": "star",
+                    "opacity": 0.6,
+                },
+            ),
         )
 
     fig1.update_layout(
@@ -282,7 +284,7 @@ if run_btn:
         yaxis_title="Δθ (sensitivity)",
         template="plotly_white",
         height=400,
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
+        legend={"yanchor": "top", "y": 0.99, "xanchor": "left", "x": 0.01},
         hovermode="x unified",
     )
 
@@ -302,9 +304,9 @@ if run_btn:
             y=df["jz_mean"],
             mode="lines+markers",
             name=r"⟨J_z⟩",
-            line=dict(color="#2ca02c", width=2),
-            marker=dict(size=5),
-        )
+            line={"color": "#2ca02c", "width": 2},
+            marker={"size": 5},
+        ),
     )
 
     # Analytical envelope
@@ -315,8 +317,8 @@ if run_btn:
             y=-0.5 * np.cos(theta_true * t_dense),
             mode="lines",
             name=r"$-\frac{1}{2}\cos(\theta T_H)$",
-            line=dict(dash="dot", color="gray", width=1),
-        )
+            line={"dash": "dot", "color": "gray", "width": 1},
+        ),
     )
 
     fig2.update_layout(
@@ -325,7 +327,7 @@ if run_btn:
         yaxis_title=r"⟨J_z⟩",
         template="plotly_white",
         height=300,
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
+        legend={"yanchor": "top", "y": 0.99, "xanchor": "left", "x": 0.01},
     )
 
     st.plotly_chart(fig2, use_container_width=True)
@@ -344,9 +346,9 @@ if run_btn:
             y=df["d_jz_analytical"],
             mode="lines+markers",
             name=r"Analytical: $\frac{T_H}{2}\sin(\theta T_H)$",
-            line=dict(color="#1f77b4", width=2),
-            marker=dict(size=5),
-        )
+            line={"color": "#1f77b4", "width": 2},
+            marker={"size": 5},
+        ),
     )
 
     fig3.add_trace(
@@ -355,14 +357,14 @@ if run_btn:
             y=df["d_jz_numerical"],
             mode="markers",
             name=f"Numerical (δ = {fd_delta:.0e})",
-            marker=dict(color="#ff7f0e", size=4, symbol="x"),
-        )
+            marker={"color": "#ff7f0e", "size": 4, "symbol": "x"},
+        ),
     )
 
     # Relative difference
     rel_diff = np.abs(
         (df["d_jz_analytical"] - df["d_jz_numerical"])
-        / np.maximum(np.abs(df["d_jz_analytical"]), 1e-15)
+        / np.maximum(np.abs(df["d_jz_analytical"]), 1e-15),
     )
     fig3.add_trace(
         go.Scatter(
@@ -371,9 +373,9 @@ if run_btn:
             mode="lines+markers",
             name="Relative difference",
             yaxis="y2",
-            line=dict(color="red", width=1, dash="dot"),
-            marker=dict(size=4, symbol="diamond"),
-        )
+            line={"color": "red", "width": 1, "dash": "dot"},
+            marker={"size": 4, "symbol": "diamond"},
+        ),
     )
 
     fig3.update_layout(
@@ -383,13 +385,13 @@ if run_btn:
         yaxis_title="∂⟨J_z⟩/∂θ",
         template="plotly_white",
         height=350,
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
-        yaxis2=dict(
-            title="Relative difference",
-            overlaying="y",
-            side="right",
-            showgrid=False,
-        ),
+        legend={"yanchor": "top", "y": 0.99, "xanchor": "left", "x": 0.01},
+        yaxis2={
+            "title": "Relative difference",
+            "overlaying": "y",
+            "side": "right",
+            "showgrid": False,
+        },
     )
 
     st.plotly_chart(fig3, use_container_width=True)
@@ -404,17 +406,17 @@ if run_btn:
         display_df["jz_mean"] = display_df["jz_mean"].map("{:.6f}".format)
         display_df["jz_var"] = display_df["jz_var"].map("{:.6e}".format)
         display_df["d_jz_analytical"] = display_df["d_jz_analytical"].map(
-            "{:.6e}".format
+            "{:.6e}".format,
         )
         display_df["d_jz_numerical"] = display_df["d_jz_numerical"].map("{:.6e}".format)
         display_df["delta_theta_analytical"] = display_df["delta_theta_analytical"].map(
-            "{:.6e}".format
+            "{:.6e}".format,
         )
         display_df["delta_theta_numerical"] = display_df["delta_theta_numerical"].map(
-            "{:.6e}".format
+            "{:.6e}".format,
         )
         display_df["delta_theta_theory"] = display_df["delta_theta_theory"].map(
-            "{:.6e}".format
+            "{:.6e}".format,
         )
         display_df["abs_sin"] = display_df["abs_sin"].map("{:.2e}".format)
 

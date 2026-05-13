@@ -16,13 +16,12 @@ Units:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 import numpy as np
 import scipy.linalg
 
 from src.algorithms.tensor_tree_network import TensorTreeNetwork
-
 
 # =============================================================================
 # TDVP Configuration
@@ -82,16 +81,16 @@ class TDVPResult:
     final_ttn: TensorTreeNetwork
     """Final TTN state."""
 
-    checkpoints: List[TDVPCheckpoint] = field(default_factory=list)
+    checkpoints: list[TDVPCheckpoint] = field(default_factory=list)
     """Saved checkpoints."""
 
-    energies: List[complex] = field(default_factory=list)
+    energies: list[complex] = field(default_factory=list)
     """Energy at each step."""
 
-    times: List[float] = field(default_factory=list)
+    times: list[float] = field(default_factory=list)
     """Time points."""
 
-    fidelity_history: List[float] = field(default_factory=list)
+    fidelity_history: list[float] = field(default_factory=list)
     """Fidelity relative to exact evolution (if provided)."""
 
     final_time: float = 0.0
@@ -199,7 +198,7 @@ def apply_single_site_update(
     site_dim = local_dim
     if h_eff.shape[0] != site_dim:
         raise ValueError(
-            f"H_eff dimension {h_eff.shape[0]} doesn't match site {site_dim}"
+            f"H_eff dimension {h_eff.shape[0]} doesn't match site {site_dim}",
         )
 
     # Compute unitary for the local evolution
@@ -239,13 +238,15 @@ def apply_single_site_update(
             if site_idx == 0:
                 # Apply to first qubit in main subsystem
                 u_full = np.kron(
-                    u_site, np.eye(subsystem_dim // qubit_dim, dtype=complex)
+                    u_site,
+                    np.eye(subsystem_dim // qubit_dim, dtype=complex),
                 )
             else:
                 # Apply to non-first qubit (more complex)
                 # For simplicity, use the first qubit approximation
                 u_full = np.kron(
-                    u_site, np.eye(subsystem_dim // qubit_dim, dtype=complex)
+                    u_site,
+                    np.eye(subsystem_dim // qubit_dim, dtype=complex),
                 )
         else:
             # Apply to ancilla subsystem (right index)
@@ -260,14 +261,12 @@ def apply_single_site_update(
             updated_vec = updated_vec / norm
 
         # Rebuild TTN with updated state
-        new_ttn = TensorTreeNetwork.from_state_vector(
+        return TensorTreeNetwork.from_state_vector(
             updated_vec,
             n_sites=n_sites,
             local_dim=local_dim,
             svd_epsilon=ttn._svd_epsilon,
         )
-
-        return new_ttn
 
     # For n_sites=1, reshape back to state vector
     updated_vec = updated_matrix.flatten()
@@ -278,14 +277,12 @@ def apply_single_site_update(
         updated_vec = updated_vec / norm
 
     # Rebuild TTN with updated state
-    new_ttn = TensorTreeNetwork.from_state_vector(
+    return TensorTreeNetwork.from_state_vector(
         updated_vec,
         n_sites=n_sites,
         local_dim=local_dim,
         svd_epsilon=ttn._svd_epsilon,
     )
-
-    return new_ttn
 
 
 def tdvp_single_site(
@@ -352,16 +349,15 @@ def compute_local_expectation(
     if site_idx < ttn.n_sites:
         # Main qubit site
         return ttn.contract([(site_idx, operator)])
-    else:
-        # Ancilla qubit site
-        return ttn.contract([(site_idx, operator)])
+    # Ancilla qubit site
+    return ttn.contract([(site_idx, operator)])
 
 
 def construct_effective_hamiltonian(
     ttn: TensorTreeNetwork,
     site_idx: int,
-    H_terms: List[np.ndarray],
-    site_operators: List[np.ndarray],
+    H_terms: list[np.ndarray],
+    site_operators: list[np.ndarray],
 ) -> np.ndarray:
     """Construct effective Hamiltonian for a site.
 
@@ -381,7 +377,7 @@ def construct_effective_hamiltonian(
     H_eff = np.zeros((local_dim, local_dim), dtype=complex)
 
     # Compute contributions from each term
-    for H_term, site_op in zip(H_terms, site_operators):
+    for H_term, site_op in zip(H_terms, site_operators, strict=False):
         # Get expectation value
         exp_val = compute_local_expectation(ttn, site_idx, site_op)
         # Add contribution
@@ -397,7 +393,7 @@ def construct_effective_hamiltonian(
 
 def apply_trotter_step(
     ttn: TensorTreeNetwork,
-    H_terms: List[np.ndarray],
+    H_terms: list[np.ndarray],
     dt: float,
     order: int = 2,
 ) -> TensorTreeNetwork:
@@ -519,9 +515,9 @@ def tdvp_evolution(
     T: float,
     dt: float,
     n_sites: int,
-    config: Optional[TDVPConfig] = None,
-    exact_state: Optional[np.ndarray] = None,
-    seed: Optional[int] = None,
+    config: TDVPConfig | None = None,
+    exact_state: np.ndarray | None = None,
+    seed: int | None = None,
 ) -> TDVPResult:
     """Full TDVP evolution with checkpoints.
 
@@ -568,12 +564,12 @@ def tdvp_evolution(
     initial_state = ttn._state_vector.copy()
 
     # Checkpoints
-    checkpoints: List[TDVPCheckpoint] = []
+    checkpoints: list[TDVPCheckpoint] = []
 
     # History
-    energies: List[complex] = []
-    times: List[float] = []
-    fidelity_history: List[float] = []
+    energies: list[complex] = []
+    times: list[float] = []
+    fidelity_history: list[float] = []
 
     # Current state
     current_ttn = ttn
@@ -648,7 +644,7 @@ def decompose_hamiltonian_local(
     H: np.ndarray,
     n_sites: int,
     local_dim: int,
-) -> List[np.ndarray]:
+) -> list[np.ndarray]:
     """Decompose Hamiltonian into single-site terms.
 
     Extracts local terms from the Hamiltonian for Trotter decomposition.
@@ -833,7 +829,7 @@ def validate_tdvp_step(
     ttn_after: TensorTreeNetwork,
     H: np.ndarray,
     dt: float,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Validate a TDVP time step.
 
     Checks norm preservation, energy conservation, and unitarity.

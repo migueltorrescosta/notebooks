@@ -244,7 +244,7 @@ def squeezed_vacuum_state(
         raise ValueError(f"Squeezing magnitude r must be non-negative, got {r}")
     if max_photons < 0:
         raise ValueError(
-            f"Maximum photon number must be non-negative, got {max_photons}"
+            f"Maximum photon number must be non-negative, got {max_photons}",
         )
 
     dim = (max_photons + 1) ** 2
@@ -333,8 +333,7 @@ def input_state_factory(
             # For coherent states, derive max_photons from amplitudes if not provided
             if max_photons is None:
                 return coherent_state_two_mode(alpha1, alpha2)
-            else:
-                return coherent_state_two_mode(alpha1, alpha2, max_photons)
+            return coherent_state_two_mode(alpha1, alpha2, max_photons)
         case "single_photon_split":
             effective_max = max(N - 1, max_photons or N)
             return single_photon_split_state(N, effective_max)
@@ -351,8 +350,7 @@ def input_state_factory(
             alpha = kwargs.get("alpha", np.sqrt(N) + 0j)
             if max_photons is None:
                 return coherent_state_two_mode(alpha, 0.0 + 0j)
-            else:
-                return coherent_state_two_mode(alpha, 0.0 + 0j, max_photons)
+            return coherent_state_two_mode(alpha, 0.0 + 0j, max_photons)
         case "sss":
             # Single-photon split state (|N-1, 1⟩ + |1, N-1⟩)/√2.
             # Uses N as the total photon number; N must be >= 2.
@@ -422,8 +420,7 @@ def compute_jz_expectation(state: np.ndarray, max_photons: int) -> complex:
     """
     jz = two_mode_jz_operator(max_photons)
     # Ensure state is in the right dimension
-    exp_val = np.conj(state) @ jz @ state
-    return exp_val
+    return np.conj(state) @ jz @ state
 
 
 def compute_jz_variance(state: np.ndarray, max_photons: int) -> float:
@@ -514,10 +511,7 @@ def validate_twin_fock(N: int, state: np.ndarray, max_photons: int) -> bool:
 
     # Check J_z expectation = 0 (symmetric property)
     jz_mean = np.real(compute_jz_expectation(state, max_photons))
-    if not np.isclose(jz_mean, 0.0, atol=1e-10):
-        return False
-
-    return True
+    return np.isclose(jz_mean, 0.0, atol=1e-10)
 
 
 def validate_noon(N: int, state: np.ndarray, max_photons: int) -> bool:

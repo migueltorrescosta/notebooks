@@ -33,16 +33,15 @@ import numpy as np
 import scipy.integrate
 import scipy.linalg
 
+from src.evolution.lindblad_solver import (
+    density_to_vector,
+    vector_to_density,
+)
 from src.physics.mzi_simulation import (
     beam_splitter_unitary,
     create_system_operators,
     phase_shift_unitary,
 )
-from src.evolution.lindblad_solver import (
-    density_to_vector,
-    vector_to_density,
-)
-
 
 # =============================================================================
 # Configuration
@@ -110,15 +109,15 @@ def build_mzi_lindblad_operators(
     """
     if config.gamma_1 < 0:
         raise ValueError(
-            f"One-body loss rate must be non-negative, got {config.gamma_1}"
+            f"One-body loss rate must be non-negative, got {config.gamma_1}",
         )
     if config.gamma_2 < 0:
         raise ValueError(
-            f"Two-body loss rate must be non-negative, got {config.gamma_2}"
+            f"Two-body loss rate must be non-negative, got {config.gamma_2}",
         )
     if config.gamma_phi < 0:
         raise ValueError(
-            f"Phase diffusion rate must be non-negative, got {config.gamma_phi}"
+            f"Phase diffusion rate must be non-negative, got {config.gamma_phi}",
         )
 
     # Get creation/annihilation operators for both modes
@@ -342,13 +341,12 @@ def evolve_mzi_lindblad(
             U = scipy.linalg.expm(-1.0j * H * config.T)
             rho = U @ rho @ U.conj().T
         # If no H and no L_ops, rho is unchanged
+    elif config.method == "rk4":
+        rho = _evolve_rk4_mzi(rho, H, L_ops, config.T, config.dt)
+    elif config.method == "scipy":
+        rho = _evolve_scipy_mzi(rho, H, L_ops, config.T)
     else:
-        if config.method == "rk4":
-            rho = _evolve_rk4_mzi(rho, H, L_ops, config.T, config.dt)
-        elif config.method == "scipy":
-            rho = _evolve_scipy_mzi(rho, H, L_ops, config.T)
-        else:
-            raise ValueError(f"Unknown method '{config.method}'. Use 'rk4' or 'scipy'.")
+        raise ValueError(f"Unknown method '{config.method}'. Use 'rk4' or 'scipy'.")
 
     # Physics assertions
     trace = np.trace(rho)
@@ -447,9 +445,7 @@ def run_noisy_mzi(
         rho = evolve_mzi_lindblad(rho, noise_config, max_photons)
 
     # Apply BS2: ρ → U_BS ρ U_BS†
-    rho = bs @ rho @ bs.conj().T
-
-    return rho
+    return bs @ rho @ bs.conj().T
 
 
 # =============================================================================

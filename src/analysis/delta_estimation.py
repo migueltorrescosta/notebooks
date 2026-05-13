@@ -17,10 +17,8 @@ Units:
 - Time is dimensionless when multiplied by coupling strength.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Tuple
-
 import functools
+from dataclasses import dataclass
 
 import numpy as np
 import scipy.linalg
@@ -80,12 +78,12 @@ class DeltaEstimationConfig:
 
 
 # Precomputed operators (computed once for efficiency)
-_paired_operators: Dict[int, Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = {}
+_paired_operators: dict[int, tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]] = {}
 
 
 def _get_paired_operators(
     dim: int,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Get or compute paired spin matrices for system and ancilla.
 
     Args:
@@ -127,7 +125,7 @@ def generate_initial_state(ancillary_dimension: int, initial_state: int) -> np.n
     """
     if initial_state >= ancillary_dimension:
         raise ValueError(
-            f"initial_state={initial_state} must be < ancillary_dimension={ancillary_dimension}"
+            f"initial_state={initial_state} must be < ancillary_dimension={ancillary_dimension}",
         )
     rho0 = np.array([[1, 0], [0, 0]], dtype=complex)  # |0���⟨0|
     rho_aux_0 = np.zeros(ancillary_dimension, dtype=complex)
@@ -143,7 +141,7 @@ def generate_initial_state(ancillary_dimension: int, initial_state: int) -> np.n
 
 def _hamiltonian_params(
     config: DeltaEstimationConfig,
-) -> Tuple[int, float, float, float, float, float, float, float, float, float]:
+) -> tuple[int, float, float, float, float, float, float, float, float, float]:
     """Extract cacheable parameters from config."""
     return (
         config.ancillary_dimension,
@@ -226,7 +224,9 @@ def generate_hamiltonian(config: DeltaEstimationConfig) -> np.ndarray:
 
 
 def evolve_density_matrix(
-    hamiltonian: np.ndarray, initial_state: np.ndarray, time: float
+    hamiltonian: np.ndarray,
+    initial_state: np.ndarray,
+    time: float,
 ) -> np.ndarray:
     """Evolve the initial state under the Hamiltonian.
 
@@ -270,7 +270,10 @@ def partial_trace_b(full_system: np.ndarray) -> np.ndarray:
     derived_ancillary_dimension: int = full_system.shape[0] // 2
     return np.trace(
         np.array(full_system).reshape(
-            2, derived_ancillary_dimension, 2, derived_ancillary_dimension
+            2,
+            derived_ancillary_dimension,
+            2,
+            derived_ancillary_dimension,
         ),
         axis1=1,
         axis2=3,
@@ -284,7 +287,7 @@ def partial_trace_b(full_system: np.ndarray) -> np.ndarray:
 
 def compute_observables(
     rho_system: np.ndarray,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """Compute system observables from reduced density matrix.
 
     Computes:
@@ -318,7 +321,7 @@ def compute_observables(
 # =============================================================================
 
 
-def full_calculation(config: DeltaEstimationConfig) -> Dict[str, float]:
+def full_calculation(config: DeltaEstimationConfig) -> dict[str, float]:
     """Run the full delta estimation calculation.
 
     Performs:

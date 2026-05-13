@@ -10,7 +10,6 @@ All functions use Matplotlib for rendering and include appropriate
 assertions to validate physical constraints (Hermiticity, normalization).
 """
 
-from typing import List, Optional
 from collections.abc import Callable
 
 import matplotlib.pyplot as plt
@@ -65,7 +64,7 @@ def finite_dimensional_populations_over_time(
     hamiltonian: np.ndarray,
     rho0: np.ndarray,
     time_window_upper_bound: int = 10,
-    labels: Optional[List[str]] = None,
+    labels: list[str] | None = None,
 ) -> None:
     """Compute and plot quantum state populations over time.
 
@@ -122,7 +121,7 @@ def finite_dimensional_populations_over_time(
     n_time = len(time_axis)
 
     # Eigendecomposition: H = V @ diag(E) @ V^dagger
-    eigvals, eigvecs = np.linalg.eigh(hamiltonian)
+    _eigvals, eigvecs = np.linalg.eigh(hamiltonian)
     # Project rho0 into eigenbasis: rho0_eigen = V^dagger @ rho0 @ V
     rho0_eigen = eigvecs.conj().T @ rho0 @ eigvecs
 
@@ -141,7 +140,9 @@ def finite_dimensional_populations_over_time(
 
 
 def quantum_state_heatmap(
-    hamiltonian: np.ndarray, rho0: np.ndarray, t: float = 0
+    hamiltonian: np.ndarray,
+    rho0: np.ndarray,
+    t: float = 0,
 ) -> None:
     """Plot the real and imaginary parts of a time-evolved density matrix.
 
@@ -172,7 +173,7 @@ def quantum_state_heatmap(
 
     """
     rho_t = expm(-1j * hamiltonian * t) @ rho0 @ expm(1j * hamiltonian * t)
-    fig, (ax1, ax2) = plt.subplots(1, 2)
+    _fig, (ax1, ax2) = plt.subplots(1, 2)
 
     for ax in (ax1, ax2):
         ax.set_xticks(range(rho_t.shape[0]), range(rho_t.shape[0]))

@@ -45,7 +45,6 @@ dependencies = [
     "torchvision>=0.21.0,<0.22",
     "torchviz>=0.0.3,<0.0.4",
     "tqdm>=4.66.2,<5",
-    "ncon>=2.0.0,<3",
     "pandas-stubs~=2.3.2",
     "scipy-stubs~=1.16.1",
 ]
@@ -97,7 +96,60 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
+select = ["ALL"]
+ignore = [
+    # ── Type annotations (mypy handles more precisely) ──
+    "ANN",
+    # ── Docstring style — existing conventions sufficient ──
+    "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
+    "D200", "D201", "D202", "D203", "D204", "D205", "D206", "D207", "D208",
+    "D209", "D210", "D211", "D212", "D213", "D214", "D215",
+    "D300", "D301",
+    "D400", "D401", "D402", "D403", "D404", "D405", "D406", "D407", "D408",
+    "D409", "D410", "D411", "D412", "D413", "D414", "D415", "D416", "D417",
+    # ── Line-length / commas — ruff format handles ──
+    "COM812", "E501",
+    # ── Physics-domain naming conventions ──
+    # N = particle number, T = temperature/time, J = angular momentum,
+    # rho/psi/phi = density/state/phase, etc. are standard notation.
+    "N802", "N803", "N806",   # Capital-letter variable/argument/function names
+    "N815", "N816",           # Mixed-case in class/global scope
+    # ── Unicode in physics code ──
+    # Greek letters (θ, φ, ψ, ρ, χ, etc.) are standard notation.
+    "RUF001", "RUF002", "RUF003",
+    # ── Lazy imports in tests (deliberate pattern) ──
+    "PLC0415",
+    # ── Magic-value comparisons (common in physics assertions) ──
+    "PLR2004",
+    # ── Too opinionated / not applicable ──
+    "EM",        # Exception message formatting
+    "ERA",       # Commented-out code (development WIP)
+    "FBT",       # Boolean trap
+    "FIX",       # FIXME/TODO markers — essential in research code
+    "SIM105",    # Suppressible exception (explicit try/except preferred)
+    "SIM108",    # If-else → ternary (explicit branches preferred)
+    "SIM117",    # Multiple with statements (nested readability)
+    "S",         # Security — not applicable for simulation code
+    "SLF",       # Self/private access
+    "T20",       # print — extensively used in research test output
+    "TD",        # TODO formatting — too opinionated for research code
+    "TRY",       # try/except style
+    # ── Patterns handled by intentional code design ──
+    "ARG001", "ARG002", "ARG005",  # Unused args (API compatibility)
+    "BLE001",                      # Blind except (intentional in test setup/scripts)
+    "C901",                        # Complex code (needs refactor, not bug)
+    "DTZ005",                      # Datetime tz — not applicable for simulations
+    "N801",                        # Non-CapWords class name (legacy test classes)
+    "N999",                        # Non-PEP8 module names (Streamlit page naming convention)
+    "PLC2401",                     # Non-ASCII names (physics conventions)
+    "PLR0911", "PLR0912", "PLR0913", "PLR0915",  # Complexity metrics
+    "PLW0127",                     # Self-assignment (backward-compat aliases)
+    "PLW2901",                     # Redefined loop variable (deliberate pattern)
+    "PT011",                       # Pytest raises too broad (needs per-case review)
+    "PT018",                       # Composite assertion (deliberate single-message pattern)
+    # ── In-progress migrations ──
+    "NPY002",    # NumPy legacy random — migrating gradually
+]
 
 [tool.mypy]
 disallow_untyped_calls = true

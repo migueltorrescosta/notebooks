@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import numpy as np
 
-
 # =============================================================================
 # BEC_Sensitivity_Scaling physics
 # =============================================================================
@@ -20,8 +19,9 @@ class TestBECSensitivityScaling:
 
     def test_twa_simulation_completes_quickly(self) -> None:
         """Test that TWA simulation with small N completes within timeout."""
-        from src.physics.truncated_wigner import run_twa_simulation
         import time
+
+        from src.physics.truncated_wigner import run_twa_simulation
 
         start = time.perf_counter()
 
@@ -37,9 +37,9 @@ class TestBECSensitivityScaling:
         elapsed = time.perf_counter() - start
 
         assert elapsed < 2.0, f"Simulation took {elapsed:.2f}s, expected < 2s"
-        assert "delta_phi" in result
-        assert "delta_phi_sql" in result
-        assert "delta_phi_hl" in result
+        assert "delta_phi" in result, 'Expected "delta_phi" in result'
+        assert "delta_phi_sql" in result, 'Expected "delta_phi_sql" in result'
+        assert "delta_phi_hl" in result, 'Expected "delta_phi_hl" in result'
 
 
 # =============================================================================
@@ -54,10 +54,10 @@ class TestBECAncilla:
         """Test ancilla evolution produces finite Jz expectation."""
         from src.algorithms.spin_squeezing import coherent_spin_state
         from src.evolution.lindblad_solver import (
+            LindbladConfig,
             compute_expectation,
             evolve_lindblad,
             ket_to_density,
-            LindbladConfig,
         )
         from src.physics.dicke_basis import jz_operator
 

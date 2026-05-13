@@ -1,11 +1,12 @@
 """Minimize Heatmap UI page - imports physics from src.optimization."""
 
 import itertools
+
 import numpy as np
 import pandas as pd
 import streamlit as st
 
-from src.algorithms.optimization import TEST_FUNCTIONS, MINIMIZERS
+from src.algorithms.optimization import MINIMIZERS, TEST_FUNCTIONS
 
 st.set_page_config(page_title="Math | Minimize Heatmap", page_icon="📐️", layout="wide")
 
@@ -14,14 +15,14 @@ st.header("Math | Minimize Heatmap", divider="blue")
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""
     **Optimization Benchmarking** compares different numerical optimization algorithms on standard test functions.
-    
+
     **Test Functions:** Standard benchmark functions include:
     - **Sphere**: $f(x,y) = x^2 + y^2$ (simple convex quadratic)
     - **Rastrigin**: Non-convex with many local minima
     - **Ackley**: Global minimum surrounded by local minima
     - **Rosenbrock**: Banana-shaped valley
     - **Himmelblau**: Four global minima
-    
+
     **Methodology:**
     1. **Function Evaluation**: Compute $f(x,y)$ over a grid
     2. **Algorithm Selection**: Choose from gradient-based and derivative-free methods
@@ -58,7 +59,7 @@ def gen_surface_df(f: str) -> pd.DataFrame:
         [
             {"x": round(x, 3), "y": round(y, 3), "f": TEST_FUNCTIONS[f](x, y)}
             for x, y in itertools.product(np.linspace(-3, 3, 101), repeat=2)
-        ]
+        ],
     )
 
 
@@ -79,7 +80,7 @@ def gen_performance_df() -> pd.DataFrame:
                 "minimizer": minimizer,
                 "test_function": function,
                 "argmin": result["x"],
-            }
+            },
         )
 
     df = pd.DataFrame(results)
@@ -91,7 +92,7 @@ def gen_performance_df() -> pd.DataFrame:
 
     df["min"] = df.apply(calc_min, axis=1)
     df["normalized_min"] = df.groupby("test_function")["min"].transform(
-        lambda x: (x - x.min()) / (x.max() - x.min() + 1e-10)
+        lambda x: (x - x.min()) / (x.max() - x.min() + 1e-10),
     )
     return df
 
@@ -106,8 +107,10 @@ with c1:
     argmin_df = gen_performance_df()
     fig, ax = plt.subplots(figsize=(4, 3))
     sns.heatmap(
-        argmin_df.pivot(
-            index="test_function", columns="minimizer", values="normalized_min"
+        argmin_df.pivot_table(
+            index="test_function",
+            columns="minimizer",
+            values="normalized_min",
         ),
         ax=ax,
         cmap="viridis",
@@ -119,6 +122,8 @@ with c2:
     surface_df = gen_surface_df(f=selected_function)
     fig, ax = plt.subplots(figsize=(4, 3))
     sns.heatmap(
-        surface_df.pivot(index="x", columns="y", values="f"), cmap="viridis", ax=ax
+        surface_df.pivot_table(index="x", columns="y", values="f"),
+        cmap="viridis",
+        ax=ax,
     )
     st.pyplot(fig, use_container_width=True)

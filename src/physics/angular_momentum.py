@@ -68,7 +68,7 @@ def generate_spin_matrices(dim: int) -> tuple[np.ndarray, np.ndarray]:
 
     # Vectorized construction of Jx (off-diagonal matrix)
     off_diags = 0.5 * np.sqrt(
-        (spin - magnetic_numbers[:-1] + 1) * (spin + magnetic_numbers[:-1])
+        (spin - magnetic_numbers[:-1] + 1) * (spin + magnetic_numbers[:-1]),
     )
     jx = np.zeros((dim, dim))
     jx[np.arange(dim - 1), np.arange(1, dim)] = off_diags

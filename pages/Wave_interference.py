@@ -4,15 +4,16 @@ Visualizes classical and quantum interference patterns, fringe visibility,
 and the effect of phase shifts on output intensity distributions.
 """
 
+import itertools
 from functools import partial
 
-from matplotlib import pyplot as plt
-from src.visualization.plotting import plot_array
-from tqdm import tqdm
-import itertools
 import numpy as np
 import pandas as pd
 import streamlit as st
+from matplotlib import pyplot as plt
+from tqdm import tqdm
+
+from src.visualization.plotting import plot_array
 
 st.set_page_config(page_title="MZI | Wave Interference", page_icon="〰", layout="wide")
 
@@ -21,17 +22,17 @@ st.header("MZI | Wave Interference", divider="blue")
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""
     **Wave Interference** visualizes the superposition of two coherent waves and the resulting interference patterns.
-    
+
     **Physical Model:**
     Two plane waves propagating in the 2D plane:
     $$\\psi_a(x,y) = a \\cdot e^{2i\\pi\\lambda_a^{-1}(\\sin\\theta_a \\cdot x + \\cos\\theta_a \\cdot y)}$$
     $$\\psi_b(x,y) = b \\cdot e^{2i\\pi\\lambda_b^{-1}(\\sin\\theta_b \\cdot x + \\cos\\theta_b \\cdot y)}$$
-    
+
     Where:
     - $\\lambda_a, \\lambda_b$: Wavelengths of each wave
     - $\\theta_a, \\theta_b$: Propagation angles
     - $a, b$: Amplitudes (normalized to 1)
-    
+
     **Methodology:**
     1. **Grid Generation**: Create a uniform grid of $(x,y)$ points
     2. **Wave Evaluation**: Compute complex values of both waves at each grid point
@@ -41,12 +42,12 @@ with st.expander("📖 Methodology", expanded=False):
        - Imaginary part: Phase-shifted view
        - Amplitude $|\\psi|^2$: Shows interference fringes (constructive/destructive)
     5. **Vector Field**: Phase portrait showing direction of local wave vector
-    
+
     **Key Phenomena:**
     - **Constructive interference**: When waves are in phase ($\\Delta\\phi = 2\\pi n$)
     - **Destructive interference**: When waves are out of phase ($\\Delta\\phi = (2n+1)\\pi$)
     - **Moiré patterns**: Arise when two periodic patterns with slightly different angles or wavelengths overlap
-    
+
     **Applications:** Understanding optical interferometry, quantum measurement theory, and wave physics.
     """)
 
@@ -90,7 +91,7 @@ st.caption("""
     """)
 
 grid = list(
-    itertools.product(np.linspace(0, 1, resolution), np.linspace(0, 1, resolution))
+    itertools.product(np.linspace(0, 1, resolution), np.linspace(0, 1, resolution)),
 )
 df = pd.DataFrame(
     [
@@ -102,7 +103,7 @@ df = pd.DataFrame(
             "f": wave_a(x, y) + wave_b(x, y),
         }
         for x, y in tqdm(grid, total=resolution**2)
-    ]
+    ],
 )
 
 st.markdown(grid)
@@ -113,38 +114,42 @@ st.subheader("Real part")
 c1, c2, c3 = st.columns(3)
 with c1:
     plot_array(
-        np.real(df.pivot(columns="x", index="y", values="wave_a").values),
+        np.real(df.pivot_table(columns="x", index="y", values="wave_a").values),
         text_auto=False,
     )
 with c2:
     plot_array(
-        np.real(df.pivot(columns="x", index="y", values="wave_b").values),
+        np.real(df.pivot_table(columns="x", index="y", values="wave_b").values),
         text_auto=False,
     )
 with c3:
     plot_array(
-        np.real(df.pivot(columns="x", index="y", values="f").values), text_auto=False
+        np.real(df.pivot_table(columns="x", index="y", values="f").values),
+        text_auto=False,
     )
 
 st.subheader("Imaginary part")
 c1, c2, c3 = st.columns(3)
 with c1:
     plot_array(
-        np.imag(df.pivot(columns="x", index="y", values="wave_a").values),
+        np.imag(df.pivot_table(columns="x", index="y", values="wave_a").values),
         text_auto=False,
     )
 with c2:
     plot_array(
-        np.imag(df.pivot(columns="x", index="y", values="wave_b").values),
+        np.imag(df.pivot_table(columns="x", index="y", values="wave_b").values),
         text_auto=False,
     )
 with c3:
     plot_array(
-        np.imag(df.pivot(columns="x", index="y", values="f").values), text_auto=False
+        np.imag(df.pivot_table(columns="x", index="y", values="f").values),
+        text_auto=False,
     )
 
 st.subheader(r"$\| \cdot \|_2$ Norm")
-plot_array(np.abs(df.pivot(columns="x", index="y", values="f").values), text_auto=False)
+plot_array(
+    np.abs(df.pivot_table(columns="x", index="y", values="f").values), text_auto=False
+)
 # st.header("Raw data", divider="green")
 # st.dataframe(df.pivot(columns="y", index="x", values="f"))
 
@@ -152,10 +157,11 @@ plot_array(np.abs(df.pivot(columns="x", index="y", values="f").values), text_aut
 with st.expander("Show vector field"):
     width = 6
     Y, X = np.mgrid[
-        -width : width : np.divide(width, 10), -width : width : np.divide(width, 10)
+        -width : width : np.divide(width, 10),
+        -width : width : np.divide(width, 10),
     ]
-    wave_a_grid = np.array([wave_a(x, y) for (x, y) in zip(X, Y)])
-    wave_b_grid = np.array([wave_b(x, y) for (x, y) in zip(X, Y)])
+    wave_a_grid = np.array([wave_a(x, y) for (x, y) in zip(X, Y, strict=False)])
+    wave_b_grid = np.array([wave_b(x, y) for (x, y) in zip(X, Y, strict=False)])
 
     fig, ax = plt.subplots(figsize=(5, 5))
     ax.quiver(X, Y, np.real(wave_a_grid), np.imag(wave_a_grid), color="orange")

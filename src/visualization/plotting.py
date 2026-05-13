@@ -6,8 +6,6 @@ static visualizations using Plotly and Streamlit. Designed for quick
 exploratory visualization of arrays and matrices.
 """
 
-from typing import Optional
-
 import numpy as np
 import plotly.express as px
 import streamlit as st
@@ -17,9 +15,9 @@ import streamlit as st
 # https://matplotlib.org/stable/users/explain/colors/colormaps.html#diverging
 def plot_array(
     my_array: np.ndarray,
-    midpoint: Optional[float] = 0,
+    midpoint: float | None = 0,
     text_auto: bool = True,
-    key: Optional[str] = None,
+    key: str | None = None,
 ) -> None:
     """Display a 2D array as an interactive heatmap in Streamlit.
 

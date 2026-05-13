@@ -470,7 +470,6 @@ dependencies = [
     { name = "matplotlib", marker = "platform_machine == 'aarch64' or platform_system != 'Darwin' or sys_platform != 'linux'" },
     { name = "mypy", marker = "platform_machine == 'aarch64' or platform_system != 'Darwin' or sys_platform != 'linux'" },
     { name = "nbqa", marker = "platform_machine == 'aarch64' or platform_system != 'Darwin' or sys_platform != 'linux'" },
-    { name = "ncon", marker = "platform_machine == 'aarch64' or platform_system != 'Darwin' or sys_platform != 'linux'" },
     { name = "networkx", marker = "platform_machine == 'aarch64' or platform_system != 'Darwin' or sys_platform != 'linux'" },
     { name = "nltk", marker = "platform_machine == 'aarch64' or platform_system != 'Darwin' or sys_platform != 'linux'" },
     { name = "numba", marker = "platform_machine == 'aarch64' or platform_system != 'Darwin' or sys_platform != 'linux'" },
@@ -533,7 +532,6 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.8.3,<4" },
     { name = "mypy", specifier = ">=1.9.0,<2" },
     { name = "nbqa", specifier = ">=1.8.5,<2" },
-    { name = "ncon", specifier = ">=2.0.0,<3" },
     { name = "networkx", specifier = "~=3.3" },
     { name = "nltk", specifier = ">=3.9.1,<4" },
     { name = "numba", specifier = ">=0.60.0,<0.61" },
@@ -2240,18 +2238,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/aa/76/62d2609924cf34445148cd6b5de694cf64c179cc416cac93182579620e57/nbqa-1.9.1.tar.gz", hash = "sha256:a1f4bcf587c597302fed295951001fc4e1be4ce0e77e1ab1b25ac2fbe3db0cdd", size = 38348 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/28/88/4789719fbbe166d12d345b3ac66b96105f10001b16e00a9765ba29261a21/nbqa-1.9.1-py3-none-any.whl", hash = "sha256:95552d2f6c2c038136252a805aa78d85018aef922586270c3a074332737282e5", size = 35259 },
-]
-
-[[package]]
-name = "ncon"
-version = "2.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "numpy", marker = "platform_machine == 'aarch64' or platform_system != 'Darwin' or sys_platform != 'linux'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/55/f5/20e6a201e45dd1b77bc6cb7a1bb46d3bbeb790d63f38d41534d5e686708a/ncon-2.0.0.tar.gz", hash = "sha256:b307e6d8c1d14ddac2510256c2955e5b9d3b6f4916ec8932be1cd11490bfb28a", size = 11199 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/46/b7/d507c8624babf43dbff7ec9f39042299bcf1173d789127dc495d0e86bd18/ncon-2.0.0-py3-none-any.whl", hash = "sha256:561c39da0bf0fc6c993b22f27593bd592ce2c4f689fb66508cd84d3e46054c95", size = 8642 },
 ]
 
 [[package]]

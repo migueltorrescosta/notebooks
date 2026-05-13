@@ -29,7 +29,6 @@ Functions:
 import numpy as np
 import scipy
 
-
 # =============================================================================
 # Spin Operators (Pauli matrices)
 # =============================================================================
@@ -191,7 +190,7 @@ def hybrid_hamiltonian_n(
     a_dag_n = oscillator_power(a_dag, n)
 
     # Choose spin operator based on n
-    if n == 2 or n == 4:
+    if n in {2, 4}:
         # Use σ_z
         spin_op = spin_operator_z()
     elif n == 3:
@@ -206,8 +205,7 @@ def hybrid_hamiltonian_n(
     H = (omega_n / 2.0) * hybrid_operator(osc_term, spin_op, N)
 
     # Ensure Hermitian
-    H = 0.5 * (H + H.conj().T)
-    return H
+    return 0.5 * (H + H.conj().T)
 
 
 # =============================================================================
@@ -257,7 +255,7 @@ def hybrid_ground_state_n(
 
     """
     H = hybrid_hamiltonian_n(N, n, omega_n, theta_n, phi)
-    eigenvalues, eigenvectors = np.linalg.eigh(H)
+    _eigenvalues, eigenvectors = np.linalg.eigh(H)
     # Smallest eigenvalue → ground state
     return eigenvectors[:, 0].copy()
 
@@ -287,7 +285,9 @@ def hybrid_vacuum_state(N: int, spin_state: str = "down") -> np.ndarray:
 
 
 def hybrid_coherent_state(
-    N: int, alpha: complex, spin_state: str = "down"
+    N: int,
+    alpha: complex,
+    spin_state: str = "down",
 ) -> np.ndarray:
     """Create hybrid coherent state |α⟩ ⊗ |spin⟩.
 

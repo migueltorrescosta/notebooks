@@ -28,10 +28,8 @@ Conventions:
 - Full density matrix indexing: ρ_{ij,kl} where i,j index A and k,l index B
 """
 
-from dataclasses import dataclass
-from typing import Tuple
-
 import functools
+from dataclasses import dataclass
 
 import numpy as np
 import scipy.linalg
@@ -127,7 +125,7 @@ def build_bipartite_hamiltonian(
     )
 
     # Full Hamiltonian
-    full = functools.reduce(
+    return functools.reduce(
         lambda x, y: x + y,
         [
             np.kron(h_a, np.eye(n_b) / n_b),  # Tr_B[1/N] = 1/N
@@ -136,12 +134,10 @@ def build_bipartite_hamiltonian(
         ],
     )
 
-    return full
-
 
 def build_bipartite_hamiltonian_components(
     config: BipartiteConfig,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Build all Hamiltonian components separately.
 
     Args:
@@ -294,7 +290,7 @@ def compute_reduced_densities(
     time: float,
     init_state_a: int = 0,
     init_state_b: int = 0,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Compute all reduced density matrices after evolution.
 
     Args:

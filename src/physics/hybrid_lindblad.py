@@ -30,7 +30,7 @@ Conventions:
 """
 
 from dataclasses import dataclass
-from typing import List, Tuple, Optional
+
 import numpy as np
 import scipy.linalg
 
@@ -56,8 +56,8 @@ def build_hybrid_hamiltonian(config: HybridLindbladConfig) -> np.ndarray:
         oscillator_annihilation,
         oscillator_creation,
         oscillator_power,
-        spin_operator_z,
         spin_operator_phi,
+        spin_operator_z,
     )
 
     N = config.N
@@ -71,7 +71,7 @@ def build_hybrid_hamiltonian(config: HybridLindbladConfig) -> np.ndarray:
     a_n = oscillator_power(a, n)
     a_dag_n = oscillator_power(a_dag, n)
 
-    if n == 2 or n == 4:
+    if n in {2, 4}:
         spin_op = spin_operator_z()
     elif n == 3:
         phi_shifted = phi + np.pi / 2
@@ -82,13 +82,12 @@ def build_hybrid_hamiltonian(config: HybridLindbladConfig) -> np.ndarray:
     osc_term = a_n * np.exp(-1j * theta_n) + a_dag_n * np.exp(1j * theta_n)
     H = np.kron(osc_term, spin_op)
     H = (omega_n / 2.0) * H
-    H = 0.5 * (H + H.conj().T)
-    return H
+    return 0.5 * (H + H.conj().T)
 
 
 def build_hybrid_lindblad_operators(
     config: HybridLindbladConfig,
-) -> Tuple[List[np.ndarray], List[float]]:
+) -> tuple[list[np.ndarray], list[float]]:
     """Build Lindblad operators for hybrid oscillator-spin system."""
     N = config.N
     dim_osc = N + 1
@@ -126,13 +125,13 @@ def build_hybrid_lindblad_operators(
 def lindblad_rhs(
     rho: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
 ) -> np.ndarray:
     """Compute dρ/dt from Lindblad master equation."""
     drho = -1.0j * (H @ rho - rho @ H)
 
-    for L, gamma in zip(L_ops, gammas):
+    for L, gamma in zip(L_ops, gammas, strict=False):
         if gamma == 0:
             continue
         L_dag = L.conj().T
@@ -166,17 +165,16 @@ def evolve_hybrid_lindblad(
 
     if method == "rk4":
         return _evolve_rk4_hybrid(rho0, H, L_ops, gammas, T, dt)
-    elif method == "scipy":
+    if method == "scipy":
         return _evolve_scipy_hybrid(rho0, H, L_ops, gammas, T)
-    else:
-        raise ValueError(f"Unknown method: {method}")
+    raise ValueError(f"Unknown method: {method}")
 
 
 def _evolve_rk4_hybrid(
     rho0: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
     T: float,
     dt: float,
 ) -> np.ndarray:
@@ -206,8 +204,8 @@ def _evolve_rk4_hybrid(
 def _evolve_scipy_hybrid(
     rho0: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
     T: float,
 ) -> np.ndarray:
     """Evolve using scipy ODE solver."""
@@ -239,7 +237,7 @@ def _evolve_scipy_hybrid(
 
 def apply_squeezing(
     config: HybridLindbladConfig,
-    initial_state: Optional[np.ndarray] = None,
+    initial_state: np.ndarray | None = None,
 ) -> np.ndarray:
     """Apply n-th order squeezing to initial state."""
     from .hybrid_system import hybrid_vacuum_state
@@ -274,7 +272,7 @@ def validate_hybrid_density_matrix(
 
 def run_hybrid_simulation(
     config: HybridLindbladConfig,
-    initial_state: Optional[np.ndarray] = None,
+    initial_state: np.ndarray | None = None,
 ) -> dict:
     """Run complete hybrid squeezing + decoherence simulation."""
     from .hybrid_system import hybrid_vacuum_state
@@ -285,7 +283,11 @@ def run_hybrid_simulation(
     squeezed_state = apply_squeezing(config, initial_state)
 
     final_rho = evolve_hybrid_lindblad(
-        squeezed_state, config, T=config.t_squeeze, dt=0.01, method="rk4"
+        squeezed_state,
+        config,
+        T=config.t_squeeze,
+        dt=0.01,
+        method="rk4",
     )
 
     validation = validate_hybrid_density_matrix(final_rho)
@@ -338,7 +340,10 @@ def run_decoherence_sweep(
         )
 
         rho_final = evolve_hybrid_lindblad(
-            psi_squeezed, config_g, T=config_base.t_squeeze, dt=0.01
+            psi_squeezed,
+            config_g,
+            T=config_base.t_squeeze,
+            dt=0.01,
         )
 
         rho_embedded = embed_hybrid_in_mzi(rho_final, config_base.N)
@@ -367,7 +372,7 @@ def _qfi_mixed_state(rho: np.ndarray, G: np.ndarray) -> float:
         Quantum Fisher Information value F_Q.
 
     """
-    from ..analysis.fisher_information import quantum_fisher_information_dm
+    from src.analysis.fisher_information import quantum_fisher_information_dm
 
     return quantum_fisher_information_dm(rho, G)
 

@@ -35,7 +35,6 @@ import numpy as np
 from scipy.linalg import expm
 from scipy.optimize import minimize
 
-
 # ============================================================================
 # Physical Constants & Pauli Matrices
 # ============================================================================
@@ -136,12 +135,16 @@ def single_qubit_state(theta: float, phi: float) -> np.ndarray:
 
     """
     return np.array(
-        [np.cos(theta / 2.0), np.exp(1j * phi) * np.sin(theta / 2.0)], dtype=complex
+        [np.cos(theta / 2.0), np.exp(1j * phi) * np.sin(theta / 2.0)],
+        dtype=complex,
     )
 
 
 def two_qubit_state(
-    theta_S: float, phi_S: float, theta_A: float, phi_A: float
+    theta_S: float,
+    phi_S: float,
+    theta_A: float,
+    phi_A: float,
 ) -> np.ndarray:
     """Create a product state |ψ_S⟩ ⊗ |ψ_A⟩.
 
@@ -226,8 +229,7 @@ def build_hold_hamiltonian(
     H_int = build_interaction_hamiltonian(alpha)
     H = theta * ops["Jz_S"] + H_int
     # Ensure Hermiticity
-    H = 0.5 * (H + H.conj().T)
-    return H
+    return 0.5 * (H + H.conj().T)
 
 
 def hold_unitary(
@@ -316,7 +318,8 @@ def evolve_full(
 
 
 def compute_expectation_and_variance(
-    psi: np.ndarray, operator: np.ndarray
+    psi: np.ndarray,
+    operator: np.ndarray,
 ) -> tuple[float, float]:
     """Compute ⟨ψ|O|ψ⟩ and Var(O) = ⟨O²⟩ - ⟨O⟩² for a pure state.
 
@@ -443,7 +446,14 @@ def compute_sensitivity(
 def _params_to_components(
     params: np.ndarray,
 ) -> tuple[
-    float, float, float, float, float, float, float, tuple[float, float, float, float]
+    float,
+    float,
+    float,
+    float,
+    float,
+    float,
+    float,
+    tuple[float, float, float, float],
 ]:
     """Unpack the 11-element parameter vector into named components.
 
@@ -506,7 +516,7 @@ def sensitivity_objective(
         bounds = get_default_bounds()
 
     theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_H, alpha = _params_to_components(
-        params
+        params,
     )
 
     # --- Bound enforcement (penalty method) ---
@@ -539,10 +549,7 @@ def sensitivity_objective(
     psi0 = two_qubit_state(theta_S, phi_S, theta_A, phi_A)
 
     # Compute sensitivity
-    dtheta = compute_sensitivity(
-        psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops, fd_step
-    )
-    return dtheta
+    return compute_sensitivity(psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops, fd_step)
 
 
 # ============================================================================
@@ -618,7 +625,8 @@ def get_default_bounds() -> dict[str, tuple[float, float]]:
 
 
 def random_initial_params(
-    rng: np.random.Generator, bounds: dict[str, tuple[float, float]] | None = None
+    rng: np.random.Generator,
+    bounds: dict[str, tuple[float, float]] | None = None,
 ) -> np.ndarray:
     """Generate random initial parameters within the search bounds.
 
@@ -647,7 +655,8 @@ def random_initial_params(
     T_H = rng.uniform(th_lo, th_hi)
     alpha = rng.uniform(alpha_lo, alpha_hi, size=4)
     return np.array(
-        [theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_H, *alpha], dtype=float
+        [theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_H, *alpha],
+        dtype=float,
     )
 
 
@@ -769,7 +778,13 @@ def _run_nelder_mead(
     ) = _params_to_components(opt_params)
     opt_psi0 = two_qubit_state(opt_theta_S, opt_phi_S, opt_theta_A, opt_phi_A)
     opt_psi = evolve_full(
-        opt_psi0, opt_T_BS1, opt_T_BS2, opt_T_H, theta_true, opt_alpha, ops
+        opt_psi0,
+        opt_T_BS1,
+        opt_T_BS2,
+        opt_T_H,
+        theta_true,
+        opt_alpha,
+        ops,
     )
     exp_val, var_val = compute_expectation_and_variance(opt_psi, ops["Jz_S"])
     purity = compute_reduced_purity(opt_psi)
@@ -1059,7 +1074,14 @@ def validate_derivative_stability(
     sensitivities: list[float] = []
     for step in fd_steps:
         dtheta = compute_sensitivity(
-            psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops, fd_step=step
+            psi0,
+            T_BS1,
+            T_BS2,
+            T_H,
+            theta_true,
+            alpha,
+            ops,
+            fd_step=step,
         )
         if not np.isfinite(dtheta):
             # Skip fringe-extremum configurations
@@ -1232,7 +1254,7 @@ def scan_alpha_single_parameter(
     alpha_idx_map = {"xx": 0, "xz": 1, "zx": 2, "zz": 3}
     if alpha_name not in alpha_idx_map:
         raise ValueError(
-            f"alpha_name must be one of {list(alpha_idx_map.keys())}, got {alpha_name}"
+            f"alpha_name must be one of {list(alpha_idx_map.keys())}, got {alpha_name}",
         )
     scan_idx = alpha_idx_map[alpha_name]
 

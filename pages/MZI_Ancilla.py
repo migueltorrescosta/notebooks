@@ -17,15 +17,14 @@ import streamlit as st
 from plotly import graph_objects as go
 
 from src.physics.mzi_simulation import (
-    prepare_input_state,
+    compute_all_stage_states,
+    compute_interference_fringe,
+    compute_output_probabilities,
     evolve_mzi,
     get_reduced_density_matrix,
-    compute_output_probabilities,
-    compute_interference_fringe,
-    compute_all_stage_states,
+    prepare_input_state,
 )
 from src.visualization.plotting import plot_array
-
 
 # Page configuration
 st.set_page_config(page_title="MZI | MZI with Ancilla", page_icon="🔬", layout="wide")
@@ -40,26 +39,26 @@ st.header("MZI | Mach-Zehnder Interferometer with Ancilla", divider="blue")
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""
     **Physical Model:**
-    
+
     A Mach-Zehnder interferometer (MZI) splits an input beam into two arms via a beam splitter,
     applies a phase shift to one arm, then recombines the beams at a second beam splitter.
-    
+
     **With Ancilla:**
-    
+
     An additional quantum system (ancilla) is coupled to the interferometer to create entanglement,
     which can enhance phase sensitivity beyond the standard quantum limit.
-    
+
     **Circuit:**
     ```
     Input -> BS1 -> Phase(φ) -> [Interaction with Ancilla] -> BS2 -> Output
     ```
-    
+
     **Key Parameters:**
     - $\theta$: Beam splitter angle (θ = π/4 for 50/50)
     - $\phi$: Phase shift in one arm
     - $g$: System-ancilla coupling strength
     - $t_{int}$: Interaction time
-    
+
     **Input States Available:**
     - |0,0⟩: Vacuum (both modes empty)
     - |1,0⟩ or |0,1⟩: Single photon in one mode
@@ -100,7 +99,10 @@ with st.sidebar:
         mode = st.radio("Photon mode", [0, 1], format_func=lambda x: f"Mode {x}")
     elif state_type == "fock":
         n_particles = st.number_input(
-            "n (photon number)", min_value=1, value=1, max_value=max_photons
+            "n (photon number)",
+            min_value=1,
+            value=1,
+            max_value=max_photons,
         )
     elif state_type == "coherent":
         alpha_real = st.number_input("Re(α)", value=0.5)
@@ -108,7 +110,10 @@ with st.sidebar:
         alpha = complex(alpha_real, alpha_imag)
     elif state_type == "noon":
         n_particles = st.number_input(
-            "N (NOON state order)", min_value=1, value=2, max_value=max_photons
+            "N (NOON state order)",
+            min_value=1,
+            value=2,
+            max_value=max_photons,
         )
 
     st.divider()
@@ -178,7 +183,7 @@ st.latex(
         "coherent": f"|\\alpha={alpha:.2f}\\rangle",
         "fock": f"|{n_particles},0\\rangle",
         "noon": f"\\frac{{|{n_particles},0\\rangle + |0,{n_particles}\\rangle}}{{\\sqrt{{2}}}}",
-    }[state_type]
+    }[state_type],
 )
 
 
@@ -231,8 +236,8 @@ if show_fringe:
             y=fringe,
             mode="lines",
             name="P(out0)",
-            line=dict(color="blue", width=2),
-        )
+            line={"color": "blue", "width": 2},
+        ),
     )
     fig_fringe.add_trace(
         go.Scatter(
@@ -240,8 +245,8 @@ if show_fringe:
             y=[0, 1],
             mode="lines",
             name="Current φ",
-            line=dict(color="red", width=2, dash="dash"),
-        )
+            line={"color": "red", "width": 2, "dash": "dash"},
+        ),
     )
     fig_fringe.update_layout(
         xaxis_title="Phase φ (rad)",
@@ -311,7 +316,7 @@ if show_evolution:
                 x=[s[1] for s in stage_names],
                 y=[p["P(out1)"] for p in stage_probs],
             ),
-        ]
+        ],
     )
     fig_ev.update_layout(barmode="stack", template="plotly_white", height=250)
     st.plotly_chart(fig_ev, use_container_width=True)
@@ -325,7 +330,10 @@ if show_density:
 
     # Get reduced system density matrix
     rho_sys = get_reduced_density_matrix(
-        evolved_state, effective_max, ancilla_dim, trace_out_ancilla=True
+        evolved_state,
+        effective_max,
+        ancilla_dim,
+        trace_out_ancilla=True,
     )
 
     # Plot using columns
@@ -362,5 +370,5 @@ st.caption(rf"""
 
 st.caption(
     "MZI with Ancilla | System dimension: "
-    + f"{((effective_max + 1) ** 2) * ancilla_dim} (system ⊗ ancilla)"
+    f"{((effective_max + 1) ** 2) * ancilla_dim} (system ⊗ ancilla)",
 )

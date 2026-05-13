@@ -61,7 +61,6 @@ from dataclasses import dataclass
 
 import numpy as np
 
-
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -94,7 +93,7 @@ class DDConfig:
         """Validate configuration parameters."""
         if self.n_pulses < 0:
             raise ValueError(
-                f"Number of pulses must be non-negative, got {self.n_pulses}"
+                f"Number of pulses must be non-negative, got {self.n_pulses}",
             )
         if self.sequence not in ("CPMG", "XY8"):
             raise ValueError(f"Sequence must be 'CPMG' or 'XY8', got '{self.sequence}'")
@@ -186,14 +185,12 @@ def cpmg_filter_function(
     denom = (omega * T) ** 2
     zero_mask = np.abs(omega) < 1e-15
 
-    F = np.divide(
+    return np.divide(
         np.abs(S) ** 2,
         denom,
         where=~zero_mask,
         out=np.zeros_like(denom),
     )
-
-    return F
 
 
 # =============================================================================
@@ -338,9 +335,7 @@ def dd_phase_sensitivity(
 
     # SQL sensitivity with DD-enhanced coherence
     # Δφ = 1 / √(N · T₂^(DD) / T)
-    delta_phi = 1.0 / np.sqrt(N * T_2_dd / T)
-
-    return delta_phi
+    return 1.0 / np.sqrt(N * T_2_dd / T)
 
 
 # =============================================================================
@@ -409,7 +404,7 @@ def dd_sensitivity_scaling(
 
     # Compute sensitivity at each N
     delta_phi = np.array(
-        [dd_phase_sensitivity(int(N), 0.0, T, n_pulses, T_2_0) for N in N_values]
+        [dd_phase_sensitivity(int(N), 0.0, T, n_pulses, T_2_0) for N in N_values],
     )
 
     # Fit power law: log(Δφ) = log(C) + α · log(N)
@@ -627,28 +622,28 @@ def test_dd_config_validation() -> dict:
     # Invalid: negative pulses
     try:
         DDConfig(n_pulses=-1)
-        assert False, "Should have raised ValueError for negative pulses"
+        raise AssertionError("Should have raised ValueError for negative pulses")
     except ValueError:
         pass
 
     # Invalid: unknown sequence
     try:
         DDConfig(sequence="UNKNOWN")
-        assert False, "Should have raised ValueError for unknown sequence"
+        raise AssertionError("Should have raised ValueError for unknown sequence")
     except ValueError:
         pass
 
     # Invalid: non-positive tau
     try:
         DDConfig(tau=0.0)
-        assert False, "Should have raised ValueError for zero tau"
+        raise AssertionError("Should have raised ValueError for zero tau")
     except ValueError:
         pass
 
     # Invalid: unknown pulse axis
     try:
         DDConfig(pulse_axis="z")
-        assert False, "Should have raised ValueError for invalid axis"
+        raise AssertionError("Should have raised ValueError for invalid axis")
     except ValueError:
         pass
 

@@ -26,7 +26,6 @@ Units:
 """
 
 from dataclasses import dataclass
-from typing import List, Tuple
 
 import numpy as np
 import scipy
@@ -34,14 +33,14 @@ import scipy.integrate
 import scipy.linalg
 import scipy.special
 
+from src.analysis.fisher_information import quantum_fisher_information_dm
+
 from .hybrid_system import (
     oscillator_annihilation,
     oscillator_creation,
     oscillator_number,
     spin_operator_x,
 )
-from ..analysis.fisher_information import quantum_fisher_information_dm
-
 
 # =============================================================================
 # Configuration
@@ -96,7 +95,7 @@ class PseudomodeConfig:
 # =============================================================================
 
 
-def create_pseudomode_operators(K: int) -> Tuple[np.ndarray, np.ndarray]:
+def create_pseudomode_operators(K: int) -> tuple[np.ndarray, np.ndarray]:
     """Create pseudomode annihilation b and creation b^dagger operators.
 
     Constructs the ladder operators in the truncated Fock basis of dimension
@@ -239,9 +238,7 @@ def build_pseudomode_hamiltonian(
         H = H + H_sa
 
     # Ensure Hermiticity
-    H = 0.5 * (H + H.conj().T)
-
-    return H
+    return 0.5 * (H + H.conj().T)
 
 
 # =============================================================================
@@ -251,7 +248,7 @@ def build_pseudomode_hamiltonian(
 
 def build_pseudomode_lindblad_operators(
     config: PseudomodeConfig,
-) -> Tuple[List[np.ndarray], List[float]]:
+) -> tuple[list[np.ndarray], list[float]]:
     """Build Lindblad operators for pseudomode damping.
 
     Single dissipator:
@@ -387,8 +384,8 @@ def apply_ancilla_entanglement(
 def _lindblad_rhs(
     rho: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
 ) -> np.ndarray:
     """Compute drho/dt from the Lindblad master equation.
 
@@ -408,7 +405,7 @@ def _lindblad_rhs(
     """
     drho = -1.0j * (H @ rho - rho @ H)
 
-    for L, gamma in zip(L_ops, gammas):
+    for L, gamma in zip(L_ops, gammas, strict=False):
         if gamma == 0:
             continue
         L_dag = L.conj().T
@@ -423,8 +420,8 @@ def _lindblad_rhs(
 def _evolve_rk4_pseudomode(
     rho0: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
     T: float,
     dt: float,
 ) -> np.ndarray:
@@ -470,8 +467,8 @@ def _evolve_rk4_pseudomode(
 def _evolve_scipy_pseudomode(
     rho0: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
     T: float,
 ) -> np.ndarray:
     """Evolve Lindblad master equation using scipy.integrate.solve_ivp.
@@ -572,10 +569,9 @@ def evolve_pseudomode(
     # Dissipative evolution
     if method == "rk4":
         return _evolve_rk4_pseudomode(rho0, H, L_ops, gammas, config.T, config.dt)
-    elif method == "scipy":
+    if method == "scipy":
         return _evolve_scipy_pseudomode(rho0, H, L_ops, gammas, config.T)
-    else:
-        raise ValueError(f"Unknown method '{method}'. Use 'rk4' or 'scipy'.")
+    raise ValueError(f"Unknown method '{method}'. Use 'rk4' or 'scipy'.")
 
 
 # =============================================================================
@@ -703,14 +699,13 @@ def trace_out_spin_and_pseudomode(
         axis1=1,
         axis2=4,
     )
-    rho_reduced = np.trace(
+    return np.trace(
         rho_reduced.reshape(dim_osc, dim_pm, dim_osc, dim_pm),
         axis1=1,
         axis2=3,
     )
 
     # Result is (N+1, N+1)
-    return rho_reduced
 
 
 # =============================================================================
@@ -900,7 +895,7 @@ def check_pseudomode_occupancy(
     rho: np.ndarray,
     N: int,
     K: int,
-) -> Tuple[float, bool]:
+) -> tuple[float, bool]:
     """Check pseudomode occupancy to verify truncation validity.
 
     Computes <b^dagger b> = Tr(rho_full * I_osc x I_spin x b^dagger b).

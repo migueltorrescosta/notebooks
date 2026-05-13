@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from .delta_estimation import (
     DeltaEstimationConfig,
-    full_calculation,
-    generate_initial_state,
-    generate_hamiltonian,
     evolve_density_matrix,
+    full_calculation,
+    generate_hamiltonian,
+    generate_initial_state,
     partial_trace_b,
 )
 
@@ -26,7 +27,7 @@ class TestInitialStateGeneration:
             for k in range(dim_a):
                 rho0 = generate_initial_state(dim_a, k)
                 trace = np.trace(rho0)
-                assert np.isclose(trace.real, 1.0, atol=1e-10), (
+                assert trace.real == pytest.approx(1.0, abs=1e-10), (
                     f"Initial state should be pure (trace=1), got {trace}"
                 )
 
@@ -34,7 +35,7 @@ class TestInitialStateGeneration:
         """Test that the initial state is Hermitian."""
         for dim_a in [2, 5, 10]:
             rho0 = generate_initial_state(dim_a, 0)
-            assert np.allclose(rho0, rho0.conj().T, atol=1e-10), (
+            assert rho0 == pytest.approx(rho0.conj().T, abs=1e-10), (
                 "Initial state should be Hermitian"
             )
 
@@ -64,7 +65,9 @@ class TestHamiltonianGeneration:
         """Test that the Hamiltonian is Hermitian."""
         run_options = RunOptions()
         H = generate_hamiltonian(run_options)
-        assert np.allclose(H, H.conj().T, atol=1e-10), "Hamiltonian should be Hermitian"
+        assert pytest.approx(H.conj().T, abs=1e-10) == H, (
+            "Hamiltonian should be Hermitian"
+        )
 
     def test_hamiltonian_dimension(self) -> None:
         """Test that Hamiltonian has correct dimension."""
@@ -81,7 +84,7 @@ class TestHamiltonianGeneration:
         run_options = RunOptions()
         H = generate_hamiltonian(run_options)
         # Hamiltonian should not be all zeros
-        assert not np.allclose(H, 0, atol=1e-10), (
+        assert pytest.approx(0, abs=1e-10) != H, (
             "Hamiltonian should not be the zero matrix"
         )
 
@@ -90,7 +93,7 @@ class TestHamiltonianGeneration:
         H1 = generate_hamiltonian(RunOptions(j_s=-5.0))
         H2 = generate_hamiltonian(RunOptions(j_s=5.0))
         # Different j_s should give different Hamiltonians
-        assert not np.allclose(H1, H2, atol=1e-10), (
+        assert pytest.approx(H2, abs=1e-10) != H1, (
             "Different parameters should give different Hamiltonians"
         )
 
@@ -108,7 +111,7 @@ class TestStateEvolution:
             for t in [0.0, 0.5, 1.0, 2.0]:
                 rho_t = evolve_density_matrix(H, initial_state, t)
                 trace = np.trace(rho_t)
-                assert np.isclose(trace.real, 1.0, atol=1e-10), (
+                assert trace.real == pytest.approx(1.0, abs=1e-10), (
                     f"Trace should be 1 at t={t}, got {trace}"
                 )
 
@@ -120,7 +123,7 @@ class TestStateEvolution:
 
         for t in [0.0, 0.5, 1.0]:
             rho_t = evolve_density_matrix(H, initial_state, t)
-            assert np.allclose(rho_t, rho_t.conj().T, atol=1e-10), (
+            assert rho_t == pytest.approx(rho_t.conj().T, abs=1e-10), (
                 f"Density matrix should be Hermitian at t={t}"
             )
 
@@ -131,7 +134,7 @@ class TestStateEvolution:
         H = generate_hamiltonian(run_options)
 
         rho_t = evolve_density_matrix(H, initial_state, 0.0)
-        assert np.allclose(rho_t, initial_state, atol=1e-10), (
+        assert rho_t == pytest.approx(initial_state, abs=1e-10), (
             "At t=0, should return initial state"
         )
 
@@ -144,12 +147,16 @@ class TestStateEvolution:
         rho_t = evolve_density_matrix(H, initial_state, 1.0)
 
         # Check trace = 1
-        assert np.isclose(np.trace(rho_t).real, 1.0, atol=1e-10)
+        assert np.trace(rho_t).real == pytest.approx(1.0, abs=1e-10), (
+            "Expected np.trace(rho_t).real == pytest.approx(1.0, abs=1e-10)"
+        )
         # Check Hermiticity
-        assert np.allclose(rho_t, rho_t.conj().T, atol=1e-10)
+        assert rho_t == pytest.approx(rho_t.conj().T, abs=1e-10), (
+            "Expected rho_t == pytest.approx(rho_t.conj().T, abs=1e-10)"
+        )
         # Check positive semidefinite (all eigenvalues >= 0)
         eigenvalues = np.linalg.eigvalsh(rho_t)
-        assert np.all(eigenvalues >= -1e-10)
+        assert np.all(eigenvalues >= -1e-10), "Expected np.all(eigenvalues >= -1e-10)"
 
 
 class TestPartialTrace:
@@ -159,7 +166,8 @@ class TestPartialTrace:
         """Test that partial trace produces correct dimension."""
         for dim_a in [2, 5, 10]:
             full_system = np.random.randn(2 * dim_a, 2 * dim_a) + 1j * np.random.randn(
-                2 * dim_a, 2 * dim_a
+                2 * dim_a,
+                2 * dim_a,
             )
             # Make it a valid density matrix
             full_system = full_system @ full_system.conj().T
@@ -174,7 +182,8 @@ class TestPartialTrace:
         """Test that partial trace preserves trace."""
         for dim_a in [2, 5]:
             full_system = np.random.randn(2 * dim_a, 2 * dim_a) + 1j * np.random.randn(
-                2 * dim_a, 2 * dim_a
+                2 * dim_a,
+                2 * dim_a,
             )
             full_system = full_system @ full_system.conj().T
             full_system = full_system / np.trace(full_system)
@@ -183,7 +192,7 @@ class TestPartialTrace:
             rho_system = partial_trace_b(full_system)
             reduced_trace = np.trace(rho_system).real
 
-            assert np.isclose(original_trace, reduced_trace, atol=1e-10), (
+            assert original_trace == pytest.approx(reduced_trace, abs=1e-10), (
                 f"Trace should be preserved: {original_trace} vs {reduced_trace}"
             )
 
@@ -196,7 +205,7 @@ class TestPartialTrace:
 
         # For |0><0| ⊗ |k><k|, the reduced system should be |0><0|
         expected = np.array([[1, 0], [0, 0]])
-        assert np.allclose(rho_system, expected, atol=1e-10), (
+        assert rho_system == pytest.approx(expected, abs=1e-10), (
             f"Partial trace of product state should give |0><0|, got {rho_system}"
         )
 
@@ -217,7 +226,9 @@ class TestFullCalculation:
             "variance_sigma_z",
             "delta_s",
         }
-        assert set(result.keys()) == expected_fields
+        assert set(result.keys()) == expected_fields, (
+            "Expected set(result.keys()) == expected_fields"
+        )
 
     def test_probabilities_sum_to_one(self) -> None:
         """Test that |<0|rho|0> + <1|rho|1> = 1."""
@@ -227,7 +238,7 @@ class TestFullCalculation:
                 result = full_calculation(run_options)
                 prob_0 = result["<0|rho_system_t|0>"]
                 prob_1 = result["<1|rho_system_t|1>"]
-                assert np.isclose(prob_0 + prob_1, 1.0, atol=1e-10), (
+                assert prob_0 + prob_1 == pytest.approx(1.0, abs=1e-10), (
                     f"Probabilities should sum to 1: {prob_0} + {prob_1}"
                 )
 
@@ -262,7 +273,7 @@ class TestFullCalculation:
         expected_variance = 1 - expected_sigma_z**2
         actual_variance = result["variance_sigma_z"]
 
-        assert np.isclose(expected_variance, actual_variance, atol=1e-10), (
+        assert expected_variance == pytest.approx(actual_variance, abs=1e-10), (
             f"Variance should be 1 - <σ_z>^2: {expected_variance} vs {actual_variance}"
         )
 

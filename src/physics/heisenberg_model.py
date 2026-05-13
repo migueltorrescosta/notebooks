@@ -28,10 +28,8 @@ Conventions:
 - Hamiltonian is real symmetric (H = H^T = H^†)
 """
 
-from dataclasses import dataclass
-from typing import Tuple
-
 import functools
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -111,9 +109,7 @@ def heisenberg_hamiltonian(
     hamiltonian_field = functools.reduce(np.kron, [SIGMA_Z for _ in range(n_sites)])
 
     # Total Hamiltonian
-    hamiltonian = j * hamiltonian_field + (0.5 * u) * hamiltonian_coupling
-
-    return hamiltonian
+    return j * hamiltonian_field + (0.5 * u) * hamiltonian_coupling
 
 
 def heisenberg_coupling_term(n_sites: int) -> np.ndarray:
@@ -169,7 +165,7 @@ def diagonalize_hamiltonian(
     n_sites: int,
     j: float = 1.0,
     u: float = 1.0,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Diagonalize the Heisenberg Hamiltonian.
 
     Args:

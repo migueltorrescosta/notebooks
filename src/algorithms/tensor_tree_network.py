@@ -12,7 +12,7 @@ Units:
 """
 
 from dataclasses import dataclass, field
-from typing import Optional, List, Tuple, Dict
+from typing import Optional
 
 import numpy as np
 
@@ -24,7 +24,7 @@ class TTNNode:
     tensor: np.ndarray
     left: Optional["TTNNode"] = None
     right: Optional["TTNNode"] = None
-    bond_dims: Dict[tuple, int] = field(default_factory=dict)
+    bond_dims: dict[tuple, int] = field(default_factory=dict)
 
     @property
     def shape(self) -> tuple[int, ...]:
@@ -48,12 +48,12 @@ class TensorTreeNetwork:
         """Initialize empty TTN."""
         self.n_sites = n_sites
         self.local_dim = local_dim
-        self.root: Optional[TTNNode] = None
+        self.root: TTNNode | None = None
         self._max_bond_dim: int = local_dim
-        self._state_vector: Optional[np.ndarray] = None
+        self._state_vector: np.ndarray | None = None
         self._svd_epsilon: float = 1e-8
         # Store tree for reconstruction
-        self._tree_layers: List[Tuple[np.ndarray, np.ndarray, np.ndarray]] = []
+        self._tree_layers: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
         self._tree_depth: int = 1
 
     @staticmethod
@@ -79,7 +79,7 @@ class TensorTreeNetwork:
         if state.shape[0] != expected_dim:
             raise ValueError(
                 f"State dimension {state.shape[0]} doesn't match "
-                f"expected {expected_dim}"
+                f"expected {expected_dim}",
             )
 
         # Normalize
@@ -160,11 +160,9 @@ class TensorTreeNetwork:
         s = node.tensor.diagonal()  # (chi,)
 
         # Reconstruct: left @ diag(s) @ right
-        matrix = left @ np.diag(s) @ right
+        return left @ np.diag(s) @ right
 
-        return matrix
-
-    def contract(self, ops: List[Tuple[int, np.ndarray]]) -> complex:
+    def contract(self, ops: list[tuple[int, np.ndarray]]) -> complex:
         """Contract TTN with local operators.
 
         Computes expectation value ⟨ψ|O|ψ⟩.

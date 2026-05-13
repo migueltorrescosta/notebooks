@@ -20,25 +20,24 @@ import scipy
 
 from src.physics.pseudomode_system import (
     PseudomodeConfig,
-    create_pseudomode_operators,
-    pseudomode_number_operator,
-    tripartite_operator,
+    apply_ancilla_entanglement,
     build_pseudomode_hamiltonian,
     build_pseudomode_lindblad_operators,
-    pseudomode_initial_state,
-    apply_ancilla_entanglement,
+    check_pseudomode_occupancy,
+    compute_qfi_with_ancilla,
+    compute_qfi_without_ancilla,
+    create_pseudomode_operators,
     evolve_pseudomode,
+    pseudomode_initial_state,
+    pseudomode_number_operator,
+    qfi_preservation_ratio,
+    run_metrology_protocol,
     trace_out_pseudomode,
     trace_out_spin,
     trace_out_spin_and_pseudomode,
-    compute_qfi_with_ancilla,
-    compute_qfi_without_ancilla,
-    run_metrology_protocol,
+    tripartite_operator,
     validate_pseudomode_density,
-    check_pseudomode_occupancy,
-    qfi_preservation_ratio,
 )
-
 
 # =============================================================================
 # Test Configuration
@@ -51,16 +50,16 @@ class TestPseudomodeConfig:
     def test_default_values(self) -> None:
         """Default values should be reasonable."""
         config = PseudomodeConfig(N=5, K=3)
-        assert config.N == 5
-        assert config.K == 3
-        assert config.alpha == 1.0
-        assert config.g_sa == 1.0
-        assert config.tau == 0.1
-        assert config.g_sp == 0.5
-        assert config.omega_0 == 0.0
-        assert config.lam == 1.0
-        assert config.T == 2.0
-        assert config.dt == 0.01
+        assert config.N == 5, "Expected config.N == 5"
+        assert config.K == 3, "Expected config.K == 3"
+        assert config.alpha == 1.0, "Expected config.alpha == 1.0"
+        assert config.g_sa == 1.0, "Expected config.g_sa == 1.0"
+        assert config.tau == 0.1, "Expected config.tau == 0.1"
+        assert config.g_sp == 0.5, "Expected config.g_sp == 0.5"
+        assert config.omega_0 == 0.0, "Expected config.omega_0 == 0.0"
+        assert config.lam == 1.0, "Expected config.lam == 1.0"
+        assert config.T == 2.0, "Expected config.T == 2.0"
+        assert config.dt == 0.01, "Expected config.dt == 0.01"
 
     def test_custom_values(self) -> None:
         """Custom values should be preserved."""
@@ -76,16 +75,16 @@ class TestPseudomodeConfig:
             T=5.0,
             dt=0.005,
         )
-        assert config.N == 10
-        assert config.K == 5
-        assert config.alpha == 2.0
-        assert config.g_sa == 0.5
-        assert config.tau == 0.2
-        assert config.g_sp == 1.0
-        assert config.omega_0 == 0.5
-        assert config.lam == 0.1
-        assert config.T == 5.0
-        assert config.dt == 0.005
+        assert config.N == 10, "Expected config.N == 10"
+        assert config.K == 5, "Expected config.K == 5"
+        assert config.alpha == 2.0, "Expected config.alpha == 2.0"
+        assert config.g_sa == 0.5, "Expected config.g_sa == 0.5"
+        assert config.tau == 0.2, "Expected config.tau == 0.2"
+        assert config.g_sp == 1.0, "Expected config.g_sp == 1.0"
+        assert config.omega_0 == 0.5, "Expected config.omega_0 == 0.5"
+        assert config.lam == 0.1, "Expected config.lam == 0.1"
+        assert config.T == 5.0, "Expected config.T == 5.0"
+        assert config.dt == 0.005, "Expected config.dt == 0.005"
 
     def test_negative_N_raises(self) -> None:
         """Negative N should raise ValueError."""
@@ -143,7 +142,9 @@ class TestCreatePseudomodeOperators:
         # because b† maps |K⟩ → 0 (beyond truncation).
         # All other elements should equal identity.
         expected[K, K] = -K  # Truncation artifact
-        assert np.allclose(commutator, expected, atol=1e-10), "[b, b†] != truncated I"
+        assert commutator == pytest.approx(expected, abs=1e-10), (
+            "[b, b†] != truncated I"
+        )
 
     def test_annihilation_action(self) -> None:
         """b|k⟩ = √k |k-1⟩."""
@@ -154,9 +155,11 @@ class TestCreatePseudomodeOperators:
             ket[k] = 1.0
             result = b @ ket
             if k > 0:
-                assert np.isclose(result[k - 1], np.sqrt(k)), f"b|{k}>: wrong amplitude"
+                assert result[k - 1] == pytest.approx(np.sqrt(k)), (
+                    f"b|{k}>: wrong amplitude"
+                )
             else:
-                assert np.allclose(result, 0), "b|0>: should be 0"
+                assert result == pytest.approx(0), "b|0>: should be 0"
 
     def test_negative_K_raises(self) -> None:
         """Negative K should raise ValueError."""
@@ -171,14 +174,14 @@ class TestPseudomodeNumberOperator:
         """Should have correct shape."""
         for K in [0, 1, 5]:
             n = pseudomode_number_operator(K)
-            assert n.shape == (K + 1, K + 1)
+            assert n.shape == (K + 1, K + 1), "Expected n.shape == (K + 1, K + 1)"
 
     def test_diagonal_values(self) -> None:
         """b†b|k⟩ = k|k⟩."""
         K = 5
         n = pseudomode_number_operator(K)
         for k in range(K + 1):
-            assert np.isclose(n[k, k], k), f"n[{k},{k}] should be {k}"
+            assert n[k, k] == pytest.approx(k), f"n[{k},{k}] should be {k}"
 
     def test_consistency_with_operators(self) -> None:
         """b†b should equal b† @ b."""
@@ -186,7 +189,7 @@ class TestPseudomodeNumberOperator:
         b, b_dag = create_pseudomode_operators(K)
         n_from_ops = b_dag @ b
         n_diag = pseudomode_number_operator(K)
-        assert np.allclose(n_from_ops, n_diag), "b†b != number_operator"
+        assert n_from_ops == pytest.approx(n_diag), "b†b != number_operator"
 
 
 # =============================================================================
@@ -211,7 +214,7 @@ class TestTripartiteOperator:
         N, K = 5, 3
         dim_total = 2 * (N + 1) * (K + 1)
         op = tripartite_operator(np.eye(N + 1), np.eye(2), np.eye(K + 1), N, K)
-        assert np.allclose(op, np.eye(dim_total)), (
+        assert op == pytest.approx(np.eye(dim_total)), (
             "Kronecker product of identities should be identity"
         )
 
@@ -219,9 +222,13 @@ class TestTripartiteOperator:
         """Zero input should give zero output."""
         N, K = 5, 3
         op = tripartite_operator(
-            np.zeros((N + 1, N + 1)), np.eye(2), np.eye(K + 1), N, K
+            np.zeros((N + 1, N + 1)),
+            np.eye(2),
+            np.eye(K + 1),
+            N,
+            K,
         )
-        assert np.allclose(op, 0), "Zero osc_op should give zero operator"
+        assert op == pytest.approx(0), "Zero osc_op should give zero operator"
 
     def test_dimension_mismatch_raises(self) -> None:
         """Dimension mismatch should raise AssertionError."""
@@ -238,7 +245,7 @@ class TestTripartiteOperator:
         C = pseudomode_number_operator(K)
 
         op = tripartite_operator(A, B, C, N, K)
-        assert np.allclose(op, op.conj().T, atol=1e-10), (
+        assert op == pytest.approx(op.conj().T, abs=1e-10), (
             "Hermitian inputs should produce Hermitian output"
         )
 
@@ -264,19 +271,19 @@ class TestBuildPseudomodeHamiltonian:
         """Hamiltonian should be Hermitian."""
         config = PseudomodeConfig(N=5, K=3)
         H = build_pseudomode_hamiltonian(config)
-        assert np.allclose(H, H.conj().T, atol=1e-10), "H is not Hermitian"
+        assert pytest.approx(H.conj().T, abs=1e-10) == H, "H is not Hermitian"
 
     def test_hermiticity_no_sa(self) -> None:
         """Decoherence Hamiltonian (no H_sa) should be Hermitian."""
         config = PseudomodeConfig(N=5, K=3)
         H = build_pseudomode_hamiltonian(config, include_sa=False)
-        assert np.allclose(H, H.conj().T, atol=1e-10), "H_dec is not Hermitian"
+        assert pytest.approx(H.conj().T, abs=1e-10) == H, "H_dec is not Hermitian"
 
     def test_zero_coupling(self) -> None:
         """Zero couplings should give zero (or identity-free) Hamiltonian."""
         config = PseudomodeConfig(N=5, K=3, g_sa=0.0, g_sp=0.0, omega_0=0.0)
         H = build_pseudomode_hamiltonian(config)
-        assert np.allclose(H, 0, atol=1e-10), (
+        assert pytest.approx(0, abs=1e-10) == H, (
             "Zero couplings should give zero Hamiltonian"
         )
 
@@ -285,7 +292,7 @@ class TestBuildPseudomodeHamiltonian:
         config = PseudomodeConfig(N=5, K=3, g_sa=1.0)
         H_with = build_pseudomode_hamiltonian(config, include_sa=True)
         H_without = build_pseudomode_hamiltonian(config, include_sa=False)
-        assert not np.allclose(H_with, H_without), (
+        assert H_with != pytest.approx(H_without), (
             "H_sa inclusion should change the Hamiltonian"
         )
 
@@ -302,29 +309,31 @@ class TestBuildPseudomodeLindbladOperators:
         """Zero lambda should give empty lists."""
         config = PseudomodeConfig(N=5, K=3, lam=0.0)
         L_ops, gammas = build_pseudomode_lindblad_operators(config)
-        assert len(L_ops) == 0
-        assert len(gammas) == 0
+        assert len(L_ops) == 0, "Expected len(L_ops) == 0"
+        assert len(gammas) == 0, "Expected len(gammas) == 0"
 
     def test_no_dissipation_negative_lam(self) -> None:
         """Negative lambda should give empty lists."""
         config = PseudomodeConfig(N=5, K=3, lam=-0.1)
-        L_ops, gammas = build_pseudomode_lindblad_operators(config)
-        assert len(L_ops) == 0
+        L_ops, _gammas = build_pseudomode_lindblad_operators(config)
+        assert len(L_ops) == 0, "Expected len(L_ops) == 0"
 
     def test_dissipation_with_positive_lam(self) -> None:
         """Positive lambda should add one operator."""
         config = PseudomodeConfig(N=5, K=3, lam=1.0)
         L_ops, gammas = build_pseudomode_lindblad_operators(config)
-        assert len(L_ops) == 1
-        assert len(gammas) == 1
-        assert gammas[0] == 1.0
+        assert len(L_ops) == 1, "Expected len(L_ops) == 1"
+        assert len(gammas) == 1, "Expected len(gammas) == 1"
+        assert gammas[0] == 1.0, "Expected gammas[0] == 1.0"
 
     def correct_shape(self) -> None:
         """Lindblad operator should have correct shape."""
         config = PseudomodeConfig(N=5, K=3, lam=1.0)
         dim_total = 2 * (5 + 1) * (3 + 1)
         L_ops, _ = build_pseudomode_lindblad_operators(config)
-        assert L_ops[0].shape == (dim_total, dim_total)
+        assert L_ops[0].shape == (dim_total, dim_total), (
+            "Expected L_ops[0].shape == (dim_total, dim_total)"
+        )
 
     def test_operator_structure(self) -> None:
         """L = √λ · I_osc ⊗ I_spin ⊗ b."""
@@ -338,7 +347,7 @@ class TestBuildPseudomodeLindbladOperators:
         expected = np.sqrt(lam) * np.kron(np.kron(I_osc, I_spin), b)
 
         L_ops, _ = build_pseudomode_lindblad_operators(config)
-        assert np.allclose(L_ops[0], expected, atol=1e-10), (
+        assert L_ops[0] == pytest.approx(expected, abs=1e-10), (
             "Lindblad operator structure incorrect"
         )
 
@@ -369,7 +378,7 @@ class TestPseudomodeInitialState:
             state = pseudomode_initial_state(config)
             norm = np.sum(np.abs(state) ** 2)
             # Allow ~1e-3 tolerance for truncation effects
-            assert np.isclose(norm, 1.0, atol=1e-3), (
+            assert norm == pytest.approx(1.0, abs=1e-3), (
                 f"alpha={alpha}, N={N}: norm = {norm}"
             )
 
@@ -416,7 +425,7 @@ class TestPseudomodeInitialState:
                 * np.exp(-(np.abs(alpha) ** 2) / 2)
             )
             idx = n * 2 * dim_pm  # s=0, k=0
-            assert np.isclose(state[idx], expected, atol=1e-10), (
+            assert state[idx] == pytest.approx(expected, abs=1e-10), (
                 f"n={n}: amplitude mismatch"
             )
 
@@ -437,7 +446,7 @@ class TestApplyAncillaEntanglement:
 
         norm_before = np.sum(np.abs(state) ** 2)
         norm_after = np.sum(np.abs(entangled) ** 2)
-        assert np.isclose(norm_before, norm_after, atol=1e-10), (
+        assert norm_before == pytest.approx(norm_after, abs=1e-10), (
             "Norm not preserved by entanglement unitary"
         )
 
@@ -447,7 +456,7 @@ class TestApplyAncillaEntanglement:
         state = pseudomode_initial_state(config)
         entangled = apply_ancilla_entanglement(state, config)
 
-        assert np.allclose(entangled, state, atol=1e-10), (
+        assert entangled == pytest.approx(state, abs=1e-10), (
             "Zero tau should give identity evolution"
         )
 
@@ -457,7 +466,7 @@ class TestApplyAncillaEntanglement:
         state = pseudomode_initial_state(config)
         entangled = apply_ancilla_entanglement(state, config)
 
-        assert np.allclose(entangled, state, atol=1e-10), (
+        assert entangled == pytest.approx(state, abs=1e-10), (
             "Zero g_sa should give identity evolution"
         )
 
@@ -549,7 +558,7 @@ class TestPartialTrace:
         # Method 2: combined trace
         rho_osc_b = trace_out_spin_and_pseudomode(rho, N, K)
 
-        assert np.allclose(rho_osc_a, rho_osc_b, atol=1e-10), (
+        assert rho_osc_a == pytest.approx(rho_osc_b, abs=1e-10), (
             "Combined trace should match sequential traces"
         )
 
@@ -560,7 +569,7 @@ class TestPartialTrace:
         original_trace = np.trace(rho)
 
         rho_os = trace_out_pseudomode(rho, N, K)
-        assert np.isclose(np.trace(rho_os), original_trace, atol=1e-10), (
+        assert np.trace(rho_os) == pytest.approx(original_trace, abs=1e-10), (
             "Trace not conserved after tracing out pseudomode"
         )
 
@@ -569,7 +578,7 @@ class TestPartialTrace:
         N, K = 5, 3
         rho = self._make_test_density(N, K)
         rho_os = trace_out_pseudomode(rho, N, K)
-        assert np.allclose(rho_os, rho_os.conj().T, atol=1e-10), (
+        assert rho_os == pytest.approx(rho_os.conj().T, abs=1e-10), (
             "Reduced density not Hermitian"
         )
 
@@ -588,7 +597,7 @@ class TestEvolvePseudomode:
         psi = pseudomode_initial_state(config)
         rho = evolve_pseudomode(psi, config, method="rk4")
         rho_expected = np.outer(psi, psi.conj())
-        assert np.allclose(rho, rho_expected, atol=1e-6), (
+        assert rho == pytest.approx(rho_expected, abs=1e-6), (
             "Zero time should return initial state"
         )
 
@@ -604,7 +613,7 @@ class TestEvolvePseudomode:
 
         rho_final = evolve_pseudomode(psi, config, method="rk4")
 
-        assert np.allclose(rho_final, rho_expected, atol=1e-4), (
+        assert rho_final == pytest.approx(rho_expected, abs=1e-4), (
             "Unitary evolution mismatch"
         )
 
@@ -614,14 +623,14 @@ class TestEvolvePseudomode:
         psi = pseudomode_initial_state(config)
         rho_final = evolve_pseudomode(psi, config, method="rk4")
         trace = np.trace(rho_final)
-        assert np.isclose(trace, 1.0, atol=1e-6), f"Trace should be 1, got {trace}"
+        assert trace == pytest.approx(1.0, abs=1e-6), f"Trace should be 1, got {trace}"
 
     def test_hermiticity(self) -> None:
         """Density matrix should remain Hermitian."""
         config = PseudomodeConfig(N=5, K=3, lam=0.5, g_sp=0.3, T=0.5)
         psi = pseudomode_initial_state(config)
         rho_final = evolve_pseudomode(psi, config, method="rk4")
-        assert np.allclose(rho_final, rho_final.conj().T, atol=1e-6), (
+        assert rho_final == pytest.approx(rho_final.conj().T, abs=1e-6), (
             "Final state not Hermitian"
         )
 
@@ -642,7 +651,7 @@ class TestEvolvePseudomode:
         rho_rk4 = evolve_pseudomode(psi, config, method="rk4")
         rho_scipy = evolve_pseudomode(psi, config, method="scipy")
 
-        assert np.allclose(rho_rk4, rho_scipy, atol=1e-4), (
+        assert rho_rk4 == pytest.approx(rho_scipy, abs=1e-4), (
             "RK4 and scipy solvers disagree"
         )
 
@@ -683,7 +692,9 @@ class TestQFIComputation:
 
         qfi = compute_qfi_with_ancilla(rho, config.N, config.K)
         expected = 4.0 * config.alpha**2
-        assert np.isclose(qfi, expected, rtol=1e-3), f"QFI {qfi} != 4|α|² = {expected}"
+        assert qfi == pytest.approx(expected, rel=1e-3), (
+            f"QFI {qfi} != 4|α|² = {expected}"
+        )
 
     def test_qfi_zero_alpha(self) -> None:
         """For |0>|↓>, QFI should be 0 (vacuum has no phase info)."""
@@ -692,7 +703,7 @@ class TestQFIComputation:
         rho = np.outer(psi, psi.conj())
 
         qfi = compute_qfi_with_ancilla(rho, config.N, config.K)
-        assert np.isclose(qfi, 0.0, atol=1e-10), (
+        assert qfi == pytest.approx(0.0, abs=1e-10), (
             f"QFI for vacuum should be 0, got {qfi}"
         )
 
@@ -708,7 +719,7 @@ class TestQFIComputation:
         qfi_with = compute_qfi_with_ancilla(rho, config.N, config.K)
         qfi_without = compute_qfi_without_ancilla(rho, config.N, config.K)
 
-        assert np.isclose(qfi_with, qfi_without, atol=1e-10), (
+        assert qfi_with == pytest.approx(qfi_without, abs=1e-10), (
             "With g_sa=0, ancilla should not change QFI"
         )
 
@@ -719,7 +730,14 @@ class TestQFIComputation:
         so tracing it out should reduce QFI (or leave it unchanged).
         """
         config = PseudomodeConfig(
-            N=10, K=3, alpha=1.0, g_sa=2.0, tau=0.3, g_sp=0.0, lam=0.0, T=0.0
+            N=10,
+            K=3,
+            alpha=1.0,
+            g_sa=2.0,
+            tau=0.3,
+            g_sp=0.0,
+            lam=0.0,
+            T=0.0,
         )
         # Just initial state (no evolution) — but we entangle
         psi = pseudomode_initial_state(config)
@@ -746,23 +764,37 @@ class TestRunMetrologyProtocol:
     def test_protocol_completes(self) -> None:
         """Protocol should run without errors."""
         config = PseudomodeConfig(
-            N=5, K=3, alpha=1.0, g_sa=1.0, tau=0.2, g_sp=0.3, lam=0.5, T=0.5
+            N=5,
+            K=3,
+            alpha=1.0,
+            g_sa=1.0,
+            tau=0.2,
+            g_sp=0.3,
+            lam=0.5,
+            T=0.5,
         )
         result = run_metrology_protocol(config)
 
-        assert "rho_final" in result
-        assert "qfi_with" in result
-        assert "qfi_without" in result
-        assert "qfi_initial" in result
-        assert "ratio_with" in result
-        assert "ratio_without" in result
-        assert "pm_occupancy" in result
-        assert "validation" in result
+        assert "rho_final" in result, 'Expected "rho_final" in result'
+        assert "qfi_with" in result, 'Expected "qfi_with" in result'
+        assert "qfi_without" in result, 'Expected "qfi_without" in result'
+        assert "qfi_initial" in result, 'Expected "qfi_initial" in result'
+        assert "ratio_with" in result, 'Expected "ratio_with" in result'
+        assert "ratio_without" in result, 'Expected "ratio_without" in result'
+        assert "pm_occupancy" in result, 'Expected "pm_occupancy" in result'
+        assert "validation" in result, 'Expected "validation" in result'
 
     def test_ratio_at_least_zero(self) -> None:
         """Preservation ratios should be between 0 and 1."""
         config = PseudomodeConfig(
-            N=5, K=3, alpha=1.0, g_sa=0.5, tau=0.2, g_sp=0.3, lam=0.5, T=0.5
+            N=5,
+            K=3,
+            alpha=1.0,
+            g_sa=0.5,
+            tau=0.2,
+            g_sp=0.3,
+            lam=0.5,
+            T=0.5,
         )
         result = run_metrology_protocol(config)
 
@@ -776,7 +808,14 @@ class TestRunMetrologyProtocol:
     def test_qfi_decreases_with_time(self) -> None:
         """QFI should decrease (or stay same) with decoherence."""
         config = PseudomodeConfig(
-            N=5, K=3, alpha=1.0, g_sa=0.5, tau=0.2, g_sp=0.3, lam=0.5, T=0.5
+            N=5,
+            K=3,
+            alpha=1.0,
+            g_sa=0.5,
+            tau=0.2,
+            g_sp=0.3,
+            lam=0.5,
+            T=0.5,
         )
         result = run_metrology_protocol(config)
 
@@ -787,7 +826,14 @@ class TestRunMetrologyProtocol:
     def test_validation_passes(self) -> None:
         """Final density matrix should pass all checks."""
         config = PseudomodeConfig(
-            N=5, K=3, alpha=1.0, g_sa=0.5, tau=0.2, g_sp=0.3, lam=0.5, T=0.5
+            N=5,
+            K=3,
+            alpha=1.0,
+            g_sa=0.5,
+            tau=0.2,
+            g_sp=0.3,
+            lam=0.5,
+            T=0.5,
         )
         result = run_metrology_protocol(config)
 
@@ -799,7 +845,14 @@ class TestRunMetrologyProtocol:
     def test_ratio_with_geq_without(self) -> None:
         """With ancilla should preserve at least as much QFI as without."""
         config = PseudomodeConfig(
-            N=5, K=3, alpha=1.0, g_sa=2.0, tau=0.3, g_sp=0.3, lam=0.5, T=0.5
+            N=5,
+            K=3,
+            alpha=1.0,
+            g_sa=2.0,
+            tau=0.3,
+            g_sp=0.3,
+            lam=0.5,
+            T=0.5,
         )
         result = run_metrology_protocol(config)
 
@@ -823,9 +876,9 @@ class TestValidatePseudomodeDensity:
         rho = np.eye(dim, dtype=complex) / dim  # Maximally mixed
 
         result = validate_pseudomode_density(rho)
-        assert result["is_hermitian"]
-        assert result["is_normalized"]
-        assert result["is_positive"]
+        assert result["is_hermitian"], 'Condition failed: result["is_hermitian"]'
+        assert result["is_normalized"], 'Condition failed: result["is_normalized"]'
+        assert result["is_positive"], 'Condition failed: result["is_positive"]'
 
     def test_pure_state(self) -> None:
         """Pure state should be valid (allow truncation tolerance)."""
@@ -835,9 +888,9 @@ class TestValidatePseudomodeDensity:
         rho = np.outer(psi, psi.conj())
 
         result = validate_pseudomode_density(rho, tolerance=1e-4)
-        assert result["is_hermitian"]
-        assert result["is_normalized"]
-        assert result["is_positive"]
+        assert result["is_hermitian"], 'Condition failed: result["is_hermitian"]'
+        assert result["is_normalized"], 'Condition failed: result["is_normalized"]'
+        assert result["is_positive"], 'Condition failed: result["is_positive"]'
 
     def test_non_hermitian_fails(self) -> None:
         """Non-Hermitian matrix should fail."""
@@ -846,7 +899,7 @@ class TestValidatePseudomodeDensity:
         rho[0, 1] = 1.0  # Not Hermitian
 
         result = validate_pseudomode_density(rho)
-        assert not result["is_hermitian"]
+        assert not result["is_hermitian"], 'result["is_hermitian"] should be falsy'
 
     def test_not_normalized_fails(self) -> None:
         """Non-normalized matrix should fail."""
@@ -854,7 +907,7 @@ class TestValidatePseudomodeDensity:
         rho = np.eye(dim, dtype=complex) / dim + 0.1 * np.eye(dim, dtype=complex)
 
         result = validate_pseudomode_density(rho)
-        assert not result["is_normalized"]
+        assert not result["is_normalized"], 'result["is_normalized"] should be falsy'
 
 
 # =============================================================================
@@ -872,7 +925,7 @@ class TestCheckPseudomodeOccupancy:
         rho = np.outer(psi, psi.conj())
 
         occ, is_safe = check_pseudomode_occupancy(rho, config.N, config.K)
-        assert np.isclose(occ, 0.0, atol=1e-10), (
+        assert occ == pytest.approx(0.0, abs=1e-10), (
             f"Occupancy should be 0 for vacuum, got {occ}"
         )
         assert is_safe, "Vacuum should be safe"
@@ -899,7 +952,14 @@ class TestQFIPreservationRatio:
     def test_ratio_at_T0(self) -> None:
         """At T=0, preservation ratio should be 1."""
         config = PseudomodeConfig(
-            N=5, K=3, alpha=1.0, g_sa=0.5, tau=0.2, g_sp=0.0, lam=0.0, T=0.0
+            N=5,
+            K=3,
+            alpha=1.0,
+            g_sa=0.5,
+            tau=0.2,
+            g_sp=0.0,
+            lam=0.0,
+            T=0.0,
         )
         psi = pseudomode_initial_state(config)
         psi_ent = apply_ancilla_entanglement(psi, config)
@@ -908,7 +968,7 @@ class TestQFIPreservationRatio:
         fq_initial = compute_qfi_with_ancilla(rho, config.N, config.K)
         ratio = qfi_preservation_ratio(rho, fq_initial, config.N, config.K)
 
-        assert np.isclose(ratio, 1.0, atol=1e-6), (
+        assert ratio == pytest.approx(1.0, abs=1e-6), (
             f"At T=0, ratio should be 1, got {ratio}"
         )
 
@@ -924,7 +984,14 @@ class TestQFIPreservationRatio:
     def test_with_and_without_ratio(self) -> None:
         """Test both with_ancilla=True and with_ancilla=False."""
         config = PseudomodeConfig(
-            N=5, K=3, alpha=1.0, g_sa=0.5, tau=0.2, g_sp=0.0, lam=0.0, T=0.0
+            N=5,
+            K=3,
+            alpha=1.0,
+            g_sa=0.5,
+            tau=0.2,
+            g_sp=0.0,
+            lam=0.0,
+            T=0.0,
         )
         psi = pseudomode_initial_state(config)
         psi_ent = apply_ancilla_entanglement(psi, config)
@@ -933,14 +1000,24 @@ class TestQFIPreservationRatio:
         fq_initial = compute_qfi_with_ancilla(rho, config.N, config.K)
 
         ratio_with = qfi_preservation_ratio(
-            rho, fq_initial, config.N, config.K, with_ancilla=True
+            rho,
+            fq_initial,
+            config.N,
+            config.K,
+            with_ancilla=True,
         )
         ratio_without = qfi_preservation_ratio(
-            rho, fq_initial, config.N, config.K, with_ancilla=False
+            rho,
+            fq_initial,
+            config.N,
+            config.K,
+            with_ancilla=False,
         )
 
-        assert np.isclose(ratio_with, 1.0, atol=1e-6)
-        assert ratio_without >= 0
+        assert ratio_with == pytest.approx(1.0, abs=1e-6), (
+            "Expected ratio_with == pytest.approx(1.0, abs=1e-6)"
+        )
+        assert ratio_without >= 0, "Expected ratio_without >= 0"
 
 
 # =============================================================================
@@ -954,7 +1031,13 @@ class TestEdgeCases:
     def test_small_N_and_K(self) -> None:
         """Should work with N=1, K=1."""
         config = PseudomodeConfig(
-            N=1, K=1, alpha=0.5, g_sa=0.5, g_sp=0.1, lam=0.1, T=0.1
+            N=1,
+            K=1,
+            alpha=0.5,
+            g_sa=0.5,
+            g_sp=0.1,
+            lam=0.1,
+            T=0.1,
         )
         result = run_metrology_protocol(config)
         validation = result["validation"]
@@ -963,11 +1046,18 @@ class TestEdgeCases:
     def test_zero_g_sp(self) -> None:
         """Zero system-pseudomode coupling should give no decoherence."""
         config = PseudomodeConfig(
-            N=5, K=3, alpha=1.0, g_sa=0.5, tau=0.2, g_sp=0.0, lam=1.0, T=0.5
+            N=5,
+            K=3,
+            alpha=1.0,
+            g_sa=0.5,
+            tau=0.2,
+            g_sp=0.0,
+            lam=1.0,
+            T=0.5,
         )
         result = run_metrology_protocol(config)
         # Without system-pm coupling, pseudomode is isolated so no decoherence
-        assert np.isclose(result["ratio_with"], 1.0, atol=1e-4), (
+        assert result["ratio_with"] == pytest.approx(1.0, abs=1e-4), (
             "Zero g_sp should give no decoherence"
         )
 
@@ -980,7 +1070,14 @@ class TestEdgeCases:
         that λ=0 preserves more QFI than a finite λ at a given time T.
         """
         config = PseudomodeConfig(
-            N=15, K=3, alpha=1.0, g_sa=0.5, tau=0.2, g_sp=0.3, lam=0.0, T=0.5
+            N=15,
+            K=3,
+            alpha=1.0,
+            g_sa=0.5,
+            tau=0.2,
+            g_sp=0.3,
+            lam=0.0,
+            T=0.5,
         )
         result = run_metrology_protocol(config)
 
@@ -1001,7 +1098,7 @@ class TestEdgeCases:
         config = PseudomodeConfig(N=40, K=5, alpha=3.0, g_sa=0.0, g_sp=0.0, lam=0.0)
         psi = pseudomode_initial_state(config)
         norm = np.sum(np.abs(psi) ** 2)
-        assert np.isclose(norm, 1.0, atol=1e-6), f"Large alpha state norm = {norm}"
+        assert norm == pytest.approx(1.0, abs=1e-6), f"Large alpha state norm = {norm}"
 
 
 if __name__ == "__main__":

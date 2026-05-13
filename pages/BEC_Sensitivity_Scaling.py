@@ -32,23 +32,22 @@ import pandas as pd
 import streamlit as st
 from plotly import graph_objects as go
 
-from src.physics.noise_channels import NoiseConfig
 from src.algorithms.spin_squeezing import (
     coherent_spin_state,
     generate_squeezed_state,
     optimal_squeezing_time,
 )
-from src.physics.truncated_wigner import (
-    run_twa_simulation,
-)
-from src.physics.dicke_basis import jz_operator
 from src.evolution.lindblad_solver import (
     LindbladConfig,
     compute_expectation,
     evolve_lindblad,
     ket_to_density,
 )
-
+from src.physics.dicke_basis import jz_operator
+from src.physics.noise_channels import NoiseConfig
+from src.physics.truncated_wigner import (
+    run_twa_simulation,
+)
 
 # Page configuration
 st.set_page_config(
@@ -161,12 +160,7 @@ def compute_phase_uncertainty_lindblad(
 
     # Phase sensitivity: Δφ = √(Var(J_z)) / |d⟨J_z⟩/dφ|
     # For linear phase accumulation: d⟨J_z⟩/dφ ≈ N/2
-    if Jz_var > 0:
-        delta_phi = np.sqrt(Jz_var) / (N / 2)
-    else:
-        delta_phi = 1.0 / np.sqrt(N)  # SQL fallback
-
-    return delta_phi
+    return np.sqrt(Jz_var) / (N / 2) if Jz_var > 0 else 1.0 / np.sqrt(N)  # SQL fallback
 
 
 # =============================================================================
@@ -222,16 +216,17 @@ def compute_sensitivity_vs_n(
 
                 T = 1.0  # Evolution time
                 delta_phi = compute_phase_uncertainty_lindblad(
-                    N, state, chi, T, noise_config
+                    N,
+                    state,
+                    chi,
+                    T,
+                    noise_config,
                 )
 
             else:
                 # Use TWA for larger N
                 # Compute optimal time for SSS
-                if state_type == "SSS":
-                    t_opt = optimal_squeezing_time(N, chi)
-                else:
-                    t_opt = 1.0
+                t_opt = optimal_squeezing_time(N, chi) if state_type == "SSS" else 1.0
 
                 result = run_twa_simulation(
                     N=N,
@@ -273,8 +268,7 @@ def compute_scaling_exponent(N: np.ndarray, delta_phi: np.ndarray) -> float:
     log_dphi = np.log(delta_phi)
 
     # Linear regression: log_dphi = α * log_N + c
-    α = np.polyfit(log_N, log_dphi, 1)[0]
-    return α
+    return np.polyfit(log_N, log_dphi, 1)[0]
 
 
 # =============================================================================
@@ -421,7 +415,8 @@ for idx, state_type in enumerate(states_to_analyze):
     if len(df) > 1:
         # Compute scaling exponent
         α = compute_scaling_exponent(
-            np.array(df["N"].values), np.array(df["delta_phi"].values)
+            np.array(df["N"].values),
+            np.array(df["delta_phi"].values),
         )
         scaling_exponents[state_type] = α
         all_results[state_type] = df
@@ -449,8 +444,8 @@ if all_results:
             y=delta_sql,
             mode="lines",
             name="SQL (1/√N)",
-            line=dict(dash="dash", color="gray"),
-        )
+            line={"dash": "dash", "color": "gray"},
+        ),
     )
     fig.add_trace(
         go.Scatter(
@@ -458,8 +453,8 @@ if all_results:
             y=delta_hl,
             mode="lines",
             name="HL (1/N)",
-            line=dict(dash="dot", color="gray"),
-        )
+            line={"dash": "dot", "color": "gray"},
+        ),
     )
 
     # Add data traces
@@ -470,9 +465,9 @@ if all_results:
                 y=df["delta_phi"],
                 mode="lines+markers",
                 name=state_type,
-                line=dict(color=state_colors.get(state_type, "blue")),
-                marker=dict(size=6),
-            )
+                line={"color": state_colors.get(state_type, "blue")},
+                marker={"size": 6},
+            ),
         )
 
     fig.update_layout(
@@ -482,7 +477,7 @@ if all_results:
         yaxis_title="Δφ (phase uncertainty)",
         template="plotly_white",
         height=350,
-        legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
+        legend={"yanchor": "top", "y": 0.99, "xanchor": "left", "x": 0.01},
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -515,7 +510,7 @@ if scaling_exponents:
                 x=states,
                 y=exponents,
                 marker_color=colors,
-            )
+            ),
         )
 
         # Add reference lines
@@ -547,7 +542,7 @@ if scaling_exponents:
                     "Ref": f"{ref_exponents.get(state_type, 'N/A'):.3f}",
                 }
                 for state_type, α in scaling_exponents.items()
-            ]
+            ],
         )
 
         st.table(results_df)
@@ -604,5 +599,5 @@ with col4:
 
 st.caption(
     f"BEC Scaling | {len(states_to_analyze)} states | "
-    f"N ∈ [{N_min}, {N_max}] | Method: {method}"
+    f"N ∈ [{N_min}, {N_max}] | Method: {method}",
 )

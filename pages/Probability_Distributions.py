@@ -5,15 +5,17 @@ distributions for states used in quantum interferometry (Fock, coherent,
 squeezed, NOON states).
 """
 
-from scipy.special import comb
-from src.utils.enums import ProbabilityDistribution
-from src.visualization.plotting import plot_array
-from tqdm import tqdm
-from typing import Any, Dict, Tuple
 import itertools
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import streamlit as st
+from scipy.special import comb
+from tqdm import tqdm
+
+from src.utils.enums import ProbabilityDistribution
+from src.visualization.plotting import plot_array
 
 st.set_page_config(
     page_title="Bayes | Probability Distributions",
@@ -27,27 +29,27 @@ with st.expander("📖 Methodology", expanded=False):
     st.markdown("""
     **Particle Decay Model** calculates the probability distribution for the number of particles remaining
     after time $t$ in a system with exponential decay.
-    
+
     **Physical Model:**
     - $N$: Initial number of particles
     - $\\lambda$: Decay rate (probability per unit time that a particle decays)
     - $t$: Observation time
-    
+
     **The Decay Process:**
     - Each particle decays independently with probability $p_{decay}(t) = 1 - e^{-\\lambda t}$
     - The number of particles that have decayed by time $t$ follows a binomial distribution
-    
+
     **Methodology:**
     1. **Decay Probability**: Compute $p = 1 - e^{-\\lambda t}$ for each time step
     2. **Binomial Distribution**: For $k$ particles remaining:
        $$P(K = k) = \\binom{N}{k} p^k (1-p)^{N-k}$$
     3. **Heatmap Visualization**: Display $P(K = k, t)$ over all $k \\in [0, N]$ and $t \\in [0, t_{max}]$
-    
+
     **Key Properties:**
     - **Halflife**: $t_{1/2} = \\frac{\\ln 2}{\\lambda}$ — time for half the particles to decay
     - **Expected value**: $\\mathbb{E}[K] = N e^{-\\lambda t}$
     - **Variance**: $\\mathrm{Var}(K) = N e^{-\\lambda t}(1 - e^{-\\lambda t})$
-    
+
     **Physical Context:** This model describes first-order chemical reactions, radioactive decay,
     and other Poisson processes in the binomial approximation.
     """)
@@ -56,10 +58,11 @@ with st.expander("📖 Methodology", expanded=False):
 with st.sidebar:
     st.header("Setup", divider="gray")
     initial_wave_packet_str = st.selectbox(
-        "$X$", [prob_dist.value for prob_dist in ProbabilityDistribution]
+        "$X$",
+        [prob_dist.value for prob_dist in ProbabilityDistribution],
     )
     initial_wave_packet: ProbabilityDistribution = ProbabilityDistribution(
-        initial_wave_packet_str
+        initial_wave_packet_str,
     )
 
     match initial_wave_packet:
@@ -67,18 +70,23 @@ with st.sidebar:
             c1, c2, c3 = st.columns(3)
             with c1:
                 n_particles: int = st.number_input(
-                    "$N$ particles", min_value=1, value=50, max_value=5000
+                    "$N$ particles",
+                    min_value=1,
+                    value=50,
+                    max_value=5000,
                 )
             with c2:
                 decay_lambda = st.number_input(
-                    r"$\lambda$ ( decay )", min_value=0.001, value=1.0
+                    r"$\lambda$ ( decay )",
+                    min_value=0.001,
+                    value=1.0,
                 )
             with c3:
                 t_max = st.number_input("$t_{max}$", min_value=1, value=2)
 
             st.markdown(f"""
                 The corresponding halflife is
-                
+
                 $\\frac{{\\log(2)}}{{\\lambda}} \\approx \\frac{{{np.log(2):.5f}}}{{{decay_lambda:.5f}}} \\approx {np.divide(np.log(2), decay_lambda):.5f}$.
             """)
 
@@ -87,7 +95,7 @@ st.subheader("Setup")
 match initial_wave_packet:
     case ProbabilityDistribution.ParticleDecay.value:
 
-        def f(args: Tuple[float, float]) -> Dict[str, Any]:
+        def f(args: tuple[float, float]) -> dict[str, Any]:
             k, t = args
             return {
                 "k": k,
@@ -111,12 +119,14 @@ match initial_wave_packet:
             [
                 f(args)
                 for args in tqdm(iterator, total=(n_particles + 1) * (granularity + 1))
-            ]
+            ],
         )
         plot_array(
-            np.array(df.pivot(columns="t", index="k", values="prob")),
+            np.array(df.pivot_table(columns="t", index="k", values="prob")),
             midpoint=None,
             text_auto=False,
         )
         with st.expander("Show raw data"):
-            st.dataframe(df.pivot(columns="k", index="t", values="prob"), height=150)
+            st.dataframe(
+                df.pivot_table(columns="k", index="t", values="prob"), height=150
+            )

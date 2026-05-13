@@ -50,7 +50,6 @@ from src.physics.mzi_simulation import (
 from src.physics.mzi_states import two_mode_jz_operator
 from src.physics.noise_channels import NoiseConfig
 
-
 # =============================================================================
 # Type Definitions
 # =============================================================================
@@ -104,7 +103,7 @@ def error_propagation_sensitivity(
     expected_dim = (max_photons + 1) ** 2
     if state.shape[0] != expected_dim:
         raise ValueError(
-            f"State dimension {state.shape[0]} must be (max_photons+1)² = {expected_dim}"
+            f"State dimension {state.shape[0]} must be (max_photons+1)² = {expected_dim}",
         )
 
     # Generate J_z operator in two-mode Fock basis
@@ -173,7 +172,9 @@ def error_propagation_sensitivity(
     # Minimum threshold: avoid numerical noise dominating
     min_deriv_threshold = 1e-8 * np.max(np.abs(expectation_values))
     abs_derivative = np.where(
-        abs_derivative < min_deriv_threshold, min_deriv_threshold, abs_derivative
+        abs_derivative < min_deriv_threshold,
+        min_deriv_threshold,
+        abs_derivative,
     )
 
     # Compute error propagation sensitivity: Δφ = σ / |d⟨J_z⟩/dφ|
@@ -253,7 +254,7 @@ def all_sensitivity_metrics(
     expected_dim = (max_photons + 1) ** 2
     if dim != expected_dim:
         raise ValueError(
-            f"State dimension {dim} must be (max_photons+1)² = {expected_dim}"
+            f"State dimension {dim} must be (max_photons+1)² = {expected_dim}",
         )
 
     # Generate J_z generator for the two-mode system
@@ -338,7 +339,11 @@ def all_sensitivity_metrics(
     # Simulate measurement outcome(s) and compute posterior
     # Sample measurement outcome
     outcomes = sample_measurement_outcomes(
-        state, phi_true, n_mc, rng, max_photons=max_photons
+        state,
+        phi_true,
+        n_mc,
+        rng,
+        max_photons=max_photons,
     )
 
     # Use bayesian_estimator for full pipeline
@@ -428,7 +433,11 @@ def sensitivity_scaling(
         try:
             # Compute all sensitivity metrics
             metrics = all_sensitivity_metrics(
-                state, max_photons, phi_true, n_mc=n_mc, rng_seed=rng_seed
+                state,
+                max_photons,
+                phi_true,
+                n_mc=n_mc,
+                rng_seed=rng_seed,
             )
 
             results.append(
@@ -441,7 +450,7 @@ def sensitivity_scaling(
                     "delta_phi_bayes": metrics["delta_phi_bayes"],
                     "fisher_quantum": metrics["fisher_quantum"],
                     "state_type": state_type.lower(),
-                }
+                },
             )
         except Exception as e:
             # Skip N values that fail
@@ -527,7 +536,8 @@ def compare_sensitivity_methods(
 
     # Validate error propagation <= Cramér-Rao
     ep_valid = validate_sensitivity_order(
-        metrics["delta_phi_ep"], metrics["delta_phi_fq"]
+        metrics["delta_phi_ep"],
+        metrics["delta_phi_fq"],
     )
 
     # Check if methods agree (within factor of 2)

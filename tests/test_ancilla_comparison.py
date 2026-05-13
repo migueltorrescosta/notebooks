@@ -29,7 +29,6 @@ from src.analysis.ancilla_comparison import (
     run_comparison,
 )
 
-
 # =============================================================================
 # Operator Construction Tests
 # =============================================================================
@@ -45,8 +44,8 @@ class TestOperatorConstruction:
         dim = (N_max + 1) ** 2
 
         # Check diagonal
-        assert np.allclose(J_z, np.diag(np.diag(J_z))), "J_z must be diagonal"
-        assert J_z.shape == (dim, dim)
+        assert J_z == pytest.approx(np.diag(np.diag(J_z))), "J_z must be diagonal"
+        assert J_z.shape == (dim, dim), "Expected J_z.shape == (dim, dim)"
 
         # Check eigenvalues: (n0 - n1) / 2 for all n0, n1
         expected_vals = set()
@@ -63,7 +62,7 @@ class TestOperatorConstruction:
     def test_jx_hermitian(self, N_max: int) -> None:
         """J_x must be Hermitian."""
         _, J_x = build_system_jz_jx(N_max)
-        assert np.allclose(J_x, J_x.conj().T), "J_x must be Hermitian"
+        assert J_x == pytest.approx(J_x.conj().T), "J_x must be Hermitian"
 
     def test_jx_bridges_fock_states(self) -> None:
         """J_x must couple |n0,n1⟩ to |n0±1,n1∓1⟩."""
@@ -74,7 +73,7 @@ class TestOperatorConstruction:
         idx_10 = 1 * (N_max + 1) + 0
         idx_01 = 0 * (N_max + 1) + 1
         assert abs(J_x[idx_10, idx_01]) > 0, "J_x must couple |1,0⟩ ↔ |0,1⟩"
-        assert np.isclose(J_x[idx_10, idx_01], J_x[idx_01, idx_10]), (
+        assert J_x[idx_10, idx_01] == pytest.approx(J_x[idx_01, idx_10]), (
             "J_x must be symmetric"
         )
 
@@ -82,8 +81,8 @@ class TestOperatorConstruction:
         """Spin-½ ancilla operators must be Pauli matrices / 2."""
         J_z_anc, J_x_anc = build_ancilla_operators()
 
-        assert J_z_anc.shape == (2, 2)
-        assert J_x_anc.shape == (2, 2)
+        assert J_z_anc.shape == (2, 2), "Expected J_z_anc.shape == (2, 2)"
+        assert J_x_anc.shape == (2, 2), "Expected J_x_anc.shape == (2, 2)"
 
         # Pauli σ_z/2 eigenvalues: ±1/2
         np.isclose(np.linalg.eigvalsh(J_z_anc), [-0.5, 0.5]).all()
@@ -92,7 +91,7 @@ class TestOperatorConstruction:
         # Commutation: [J_z, J_x] = i J_y
         comm = J_z_anc @ J_x_anc - J_x_anc @ J_z_anc
         J_y_expected = np.array([[0, -0.5j], [0.5j, 0]], dtype=complex)
-        assert np.allclose(comm, 1j * J_y_expected), (
+        assert comm == pytest.approx(1j * J_y_expected), (
             "Spin-½ commutation [J_z, J_x] = iJ_y must hold"
         )
 
@@ -108,7 +107,7 @@ class TestGeneratorB:
     def test_generator_b_hermitian(self) -> None:
         """G_B must be Hermitian."""
         G_B = compute_generator_B(T_H=1.0, N_max=2)
-        assert np.allclose(G_B, G_B.conj().T), "G_B must be Hermitian"
+        assert pytest.approx(G_B.conj().T) == G_B, "G_B must be Hermitian"
 
     def test_generator_b_eigenvalue_range(self) -> None:
         """G_B eigenvalues must be in [-1, 1] for T_H=1, N_max=2."""
@@ -121,17 +120,22 @@ class TestGeneratorB:
         """G_B must scale linearly with T_H."""
         G_B_1 = compute_generator_B(T_H=1.0, N_max=2)
         G_B_2 = compute_generator_B(T_H=2.0, N_max=2)
-        assert np.allclose(G_B_2, 2.0 * G_B_1), "G_B must scale linearly with T_H"
+        assert pytest.approx(2.0 * G_B_1) == G_B_2, "G_B must scale linearly with T_H"
 
     def test_fq_b_max_equals_four(self) -> None:
         """Maximum QFI for Case B must be 4 at T_H = 1."""
         from src.analysis.ancilla_comparison import optimize_qfi_case_B
 
         result = optimize_qfi_case_B(
-            T_H=1.0, N_max=2, n_samples=500, pure_only=True, subspace_N=2, seed=42
+            T_H=1.0,
+            N_max=2,
+            n_samples=500,
+            pure_only=True,
+            subspace_N=2,
+            seed=42,
         )
         expected = analytical_fq_B_max(T_H=1.0)
-        assert np.isclose(result.max_fq, expected, rtol=0.05), (
+        assert result.max_fq == pytest.approx(expected, rel=0.05), (
             f"Case B max QFI = {result.max_fq}, expected ~{expected}"
         )
 
@@ -142,7 +146,7 @@ class TestGeneratorA:
     def test_generator_a_hermitian(self) -> None:
         """G_A must be Hermitian."""
         G_A = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
-        assert np.allclose(G_A, G_A.conj().T), "G_A must be Hermitian"
+        assert pytest.approx(G_A.conj().T) == G_A, "G_A must be Hermitian"
 
     def test_generator_a_zero_coupling_limit(self) -> None:
         """With α = 0, G_A must equal -T_H · J_y ⊗ I.
@@ -199,10 +203,9 @@ class TestGeneratorA:
             from src.analysis.fisher_information import quantum_fisher_information_dm
 
             F_Q = quantum_fisher_information_dm(rho, G_A_zero)
-            if F_Q > best_fq:
-                best_fq = F_Q
+            best_fq = max(best_fq, F_Q)
 
-        assert np.isclose(best_fq, expected, rtol=0.1), (
+        assert best_fq == pytest.approx(expected, rel=0.1), (
             f"Case A (α=0) max QFI = {best_fq}, expected ~{expected}"
         )
 
@@ -210,7 +213,7 @@ class TestGeneratorA:
         """G_A must scale linearly with T_H for commuting case."""
         G_A_1 = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
         G_A_2 = compute_generator_A(T_H=2.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
-        assert np.allclose(G_A_2, 2.0 * G_A_1), "G_A must scale linearly with T_H"
+        assert pytest.approx(2.0 * G_A_1) == G_A_2, "G_A must scale linearly with T_H"
 
 
 # =============================================================================
@@ -226,7 +229,7 @@ class TestDensityMatrix:
         rng = np.random.default_rng(42)
         for d in [2, 4, 8]:
             rho = random_density_matrix(d, rng)
-            assert np.isclose(np.trace(rho), 1.0), "Tr(ρ) must be 1"
+            assert np.trace(rho) == pytest.approx(1.0), "Tr(ρ) must be 1"
 
     def test_random_dm_positive(self) -> None:
         """Random density matrix must be positive semidefinite."""
@@ -241,7 +244,7 @@ class TestDensityMatrix:
         rng = np.random.default_rng(42)
         for d in [2, 4, 8]:
             rho = random_density_matrix(d, rng)
-            assert np.allclose(rho, rho.conj().T), "ρ must be Hermitian"
+            assert rho == pytest.approx(rho.conj().T), "ρ must be Hermitian"
 
     def test_random_pure_dm_purity_one(self) -> None:
         """Random pure-state density matrix must have purity 1."""
@@ -249,7 +252,7 @@ class TestDensityMatrix:
         for d in [2, 4, 8]:
             rho = random_pure_state_dm(d, rng)
             purity = np.trace(rho @ rho).real
-            assert np.isclose(purity, 1.0, atol=1e-10), (
+            assert purity == pytest.approx(1.0, abs=1e-10), (
                 "Purity must be 1 for pure state"
             )
 
@@ -275,9 +278,13 @@ class TestInteractionHamiltonian:
             (0.5, -1.0, 2.0, -0.5),
         ]:
             H = build_interaction_hamiltonian(
-                alphas, J_z_sys, J_x_sys, J_z_anc, J_x_anc
+                alphas,
+                J_z_sys,
+                J_x_sys,
+                J_z_anc,
+                J_x_anc,
             )
-            assert np.allclose(H, H.conj().T), (
+            assert pytest.approx(H.conj().T) == H, (
                 f"H_int must be Hermitian for α = {alphas}"
             )
 
@@ -296,17 +303,25 @@ class TestInteractionHamiltonian:
 
         # Commuting case: only α_zz (4th position)
         H_zz = build_interaction_hamiltonian(
-            (0.0, 0.0, 0.0, 1.0), J_z_sys, J_x_sys, J_z_anc, J_x_anc
+            (0.0, 0.0, 0.0, 1.0),
+            J_z_sys,
+            J_x_sys,
+            J_z_anc,
+            J_x_anc,
         )
         comm = J_z_full @ H_zz - H_zz @ J_z_full
-        assert np.allclose(comm, 0), "[J_z, H_int] must be 0 for α_zz only"
+        assert comm == pytest.approx(0), "[J_z, H_int] must be 0 for α_zz only"
 
         # Non-commuting case: α_xz only (2nd position)
         H_xz = build_interaction_hamiltonian(
-            (0.0, 1.0, 0.0, 0.0), J_z_sys, J_x_sys, J_z_anc, J_x_anc
+            (0.0, 1.0, 0.0, 0.0),
+            J_z_sys,
+            J_x_sys,
+            J_z_anc,
+            J_x_anc,
         )
         comm = J_z_full @ H_xz - H_xz @ J_z_full
-        assert not np.allclose(comm, 0), "[J_z, H_int] must be ≠ 0 for α_xz"
+        assert comm != pytest.approx(0), "[J_z, H_int] must be ≠ 0 for α_xz"
 
 
 # =============================================================================
@@ -339,17 +354,21 @@ class TestBSConvention:
         J_z_rotated = 0.5 * (J_z_rotated + J_z_rotated.conj().T)
 
         evals = np.linalg.eigvalsh(J_z_rotated)
-        assert np.min(evals) >= -1.0 - 1e-10
-        assert np.max(evals) <= 1.0 + 1e-10
-        assert np.isclose(np.min(evals), -1.0, atol=1e-10)
-        assert np.isclose(np.max(evals), 1.0, atol=1e-10)
+        assert np.min(evals) >= -1.0 - 1e-10, "Expected np.min(evals) >= -1.0 - 1e-10"
+        assert np.max(evals) <= 1.0 + 1e-10, "Expected np.max(evals) <= 1.0 + 1e-10"
+        assert np.min(evals) == pytest.approx(-1.0, abs=1e-10), (
+            "Expected np.min(evals) == pytest.approx(-1.0, abs=1e-10)"
+        )
+        assert np.max(evals) == pytest.approx(1.0, abs=1e-10), (
+            "Expected np.max(evals) == pytest.approx(1.0, abs=1e-10)"
+        )
 
     def test_generator_b_spectrum_in_n2_subspace(self) -> None:
         """G_B must have eigenvalues in [-1, 1] for T_H=1 in the N=2 subspace."""
         G_B = compute_generator_B(T_H=1.0, N_max=2)
         evals = np.linalg.eigvalsh(G_B)
-        assert np.min(evals) >= -1.0 - 1e-10
-        assert np.max(evals) <= 1.0 + 1e-10
+        assert np.min(evals) >= -1.0 - 1e-10, "Expected np.min(evals) >= -1.0 - 1e-10"
+        assert np.max(evals) <= 1.0 + 1e-10, "Expected np.max(evals) <= 1.0 + 1e-10"
 
 
 # =============================================================================
@@ -370,7 +389,9 @@ class TestComparisonPipeline:
             pure_only=True,
             seed=42,
         )
-        assert isinstance(result, ComparisonResult)
+        assert isinstance(result, ComparisonResult), (
+            "Expected result to be instance of ComparisonResult"
+        )
 
     def test_comparison_fq_B_positive(self) -> None:
         """Case B QFI must be positive."""
@@ -432,9 +453,9 @@ class TestComparisonPipeline:
             theta_values=(0.0, 0.1, 0.5),
             seed=42,
         )
-        assert 0.0 in result.fq_A_theta
-        assert 0.1 in result.fq_A_theta
-        assert 0.5 in result.fq_A_theta
+        assert 0.0 in result.fq_A_theta, "Expected 0.0 in result.fq_A_theta"
+        assert 0.1 in result.fq_A_theta, "Expected 0.1 in result.fq_A_theta"
+        assert 0.5 in result.fq_A_theta, "Expected 0.5 in result.fq_A_theta"
 
 
 # =============================================================================
@@ -447,13 +468,21 @@ class TestAnalyticalBounds:
 
     def test_analytical_fq_B(self) -> None:
         """analytical_fq_B_max must return 4 at T_H = 1."""
-        assert np.isclose(analytical_fq_B_max(1.0), 4.0)
-        assert np.isclose(analytical_fq_B_max(2.0), 16.0)
+        assert analytical_fq_B_max(1.0) == pytest.approx(4.0), (
+            "Expected analytical_fq_B_max(1.0) == pytest.approx(4.0)"
+        )
+        assert analytical_fq_B_max(2.0) == pytest.approx(16.0), (
+            "Expected analytical_fq_B_max(2.0) == pytest.approx(16.0)"
+        )
 
     def test_analytical_fq_A_zero(self) -> None:
         """analytical_fq_A_zero must return 1 at T_H = 1."""
-        assert np.isclose(analytical_fq_A_zero(1.0), 1.0)
-        assert np.isclose(analytical_fq_A_zero(2.0), 4.0)
+        assert analytical_fq_A_zero(1.0) == pytest.approx(1.0), (
+            "Expected analytical_fq_A_zero(1.0) == pytest.approx(1.0)"
+        )
+        assert analytical_fq_A_zero(2.0) == pytest.approx(4.0), (
+            "Expected analytical_fq_A_zero(2.0) == pytest.approx(4.0)"
+        )
 
     def test_ratio_geq_two(self) -> None:
         """ℛ = Δθ_A / Δθ_B must be ≥ 2 at T_H = 1.
@@ -463,7 +492,7 @@ class TestAnalyticalBounds:
         F_A = analytical_fq_A_zero(1.0)  # = 1
         F_B = analytical_fq_B_max(1.0)  # = 4
         ratio = np.sqrt(F_B / F_A)
-        assert np.isclose(ratio, 2.0)
+        assert ratio == pytest.approx(2.0), "Expected ratio == pytest.approx(2.0)"
 
 
 # =============================================================================
@@ -478,7 +507,7 @@ class TestEdgeCases:
         """G_A with all α = 0 must reproduce the no-interaction case."""
         G_A_1 = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
         G_A_2 = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
-        assert np.allclose(G_A_1, G_A_2), "Must be consistent for same α"
+        assert pytest.approx(G_A_2) == G_A_1, "Must be consistent for same α"
 
     def test_commuting_ancilla_no_benefit(self) -> None:
         """Check that J_z-commuting interaction cannot change generator.
@@ -491,7 +520,7 @@ class TestEdgeCases:
         """
         G_commuting = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 1.0, 2.0), N_max=1)
         G_zero = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
-        assert np.allclose(G_commuting, G_zero, atol=1e-10), (
+        assert G_commuting == pytest.approx(G_zero, abs=1e-10), (
             "Commuting interaction must leave generator unchanged"
         )
 
@@ -506,6 +535,6 @@ class TestEdgeCases:
         """
         G_noncomm = compute_generator_A(T_H=1.0, alphas=(0.0, 1.0, 0.0, 0.0), N_max=1)
         G_zero = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
-        assert not np.allclose(G_noncomm, G_zero, atol=1e-10), (
+        assert G_noncomm != pytest.approx(G_zero, abs=1e-10), (
             "Non-commuting interaction must change the generator"
         )

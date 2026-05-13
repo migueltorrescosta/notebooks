@@ -8,7 +8,7 @@ probability distributions in quantum state estimation problems.
 
 import datetime
 from abc import ABC, abstractmethod
-from typing import Generic, List, TypeVar
+from typing import TypeVar
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -17,7 +17,7 @@ from tqdm import trange
 T = TypeVar("T")
 
 
-class AbstractMetropolisHastings(ABC, Generic[T]):
+class AbstractMetropolisHastings[T](ABC):
     """Abstract base class for Metropolis-Hastings MCMC sampling.
 
     Implements the core Metropolis-Hastings algorithm for generating
@@ -44,7 +44,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
                 Must have non-zero probability under the target distribution.
 
         """
-        self.configuration_history: List[T] = [initial_configuration]
+        self.configuration_history: list[T] = [initial_configuration]
         self.accepted_configuration_count: int = 0
         self.rejected_configuration_count: int = 0
 
@@ -77,7 +77,9 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
         """
 
     def approval_function(
-        self, new_configuration: T, current_likelihood: float
+        self,
+        new_configuration: T,
+        current_likelihood: float,
     ) -> bool:
         """Determine whether to accept a proposed configuration.
 

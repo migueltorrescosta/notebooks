@@ -29,7 +29,6 @@ Conventions:
 """
 
 from dataclasses import dataclass
-from typing import List, Tuple, Optional
 
 import numpy as np
 import scipy
@@ -39,7 +38,6 @@ import scipy.sparse.linalg
 
 from src.physics.dicke_basis import jz_operator as _jz_operator
 from src.utils.enums import OperatorBasis
-
 
 # =============================================================================
 # Configuration
@@ -71,7 +69,7 @@ class LindbladConfig:
 # =============================================================================
 
 
-def create_bosonic_operators(N: int) -> Tuple[np.ndarray, np.ndarray]:
+def create_bosonic_operators(N: int) -> tuple[np.ndarray, np.ndarray]:
     """Create annihilation and creation operators in Fock basis.
 
     Constructs the bosonic operators a and a† acting on a truncated
@@ -114,7 +112,7 @@ def number_operator(N: int) -> np.ndarray:
 
 def create_two_mode_operators(
     N: int,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Create operators for two-mode bosonic system.
 
     Args:
@@ -257,8 +255,8 @@ def create_coherent_state(alpha: complex, N: int, truncation: int = 10) -> np.nd
 def lindblad_liouvillian(
     rho: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
 ) -> np.ndarray:
     """Compute dρ/dt from Lindblad master equation.
 
@@ -279,7 +277,7 @@ def lindblad_liouvillian(
     drho_dt = -1.0j * (H @ rho - rho @ H)
 
     # Lindblad dissipation terms
-    for L, gamma in zip(L_ops, gammas):
+    for L, gamma in zip(L_ops, gammas, strict=False):
         if gamma == 0:
             continue
         L_dag = L.conj().T
@@ -299,8 +297,8 @@ def lindblad_liouvillian(
 def vectorized_liouvillian(
     rho_vec: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
 ) -> np.ndarray:
     """Compute Liouvillian action on vectorized density matrix.
 
@@ -324,8 +322,8 @@ def vectorized_liouvillian(
 
 def build_liouvillian_matrix(
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
 ) -> np.ndarray:
     """Build the full Liouvillian superoperator matrix.
 
@@ -355,7 +353,7 @@ def build_liouvillian_matrix(
     L_total = L_unitary.copy()
 
     # Dissipative terms
-    for L, gamma in zip(L_ops, gammas):
+    for L, gamma in zip(L_ops, gammas, strict=False):
         if gamma == 0:
             continue
 
@@ -385,7 +383,7 @@ def evolve_lindblad(
     T: float,
     dt: float,
     method: str = "rk4",
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> np.ndarray:
     """Time-evolve density matrix under Lindblad equation.
 
@@ -456,17 +454,16 @@ def evolve_lindblad(
     # Choose integration method
     if method == "rk4":
         return _evolve_rk4(initial_rho, H, L_ops, gammas, T, dt)
-    elif method == "scipy":
+    if method == "scipy":
         return _evolve_scipy(initial_rho, H, L_ops, gammas, T)
-    else:
-        raise ValueError(f"Unknown method: {method}")
+    raise ValueError(f"Unknown method: {method}")
 
 
 def _evolve_rk4(
     initial_rho: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
     T: float,
     dt: float,
 ) -> np.ndarray:
@@ -512,8 +509,8 @@ def _evolve_rk4(
 def _evolve_scipy(
     initial_rho: np.ndarray,
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
     T: float,
 ) -> np.ndarray:
     """Evolve using scipy ODE solver.
@@ -558,8 +555,8 @@ def _evolve_scipy(
 
 def steady_state(
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
     max_iter: int = 1000,
     tol: float = 1e-10,
 ) -> np.ndarray:
@@ -605,8 +602,8 @@ def steady_state(
 
 def steady_state_dense(
     H: np.ndarray,
-    L_ops: List[np.ndarray],
-    gammas: List[float],
+    L_ops: list[np.ndarray],
+    gammas: list[float],
 ) -> np.ndarray:
     """Compute steady state via Liouvillian null space.
 
@@ -638,9 +635,7 @@ def steady_state_dense(
 
     # Ensure physical properties
     rho = 0.5 * (rho + rho.conj().T)
-    rho = rho / np.trace(rho)
-
-    return rho
+    return rho / np.trace(rho)
 
 
 # =============================================================================
@@ -720,8 +715,8 @@ def simulate_trajectory(
     T: float,
     num_times: int,
     method: str = "rk4",
-    seed: Optional[int] = None,
-) -> Tuple[np.ndarray, np.ndarray]:
+    seed: int | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """Simulate complete trajectory of density matrix.
 
     Args:
@@ -813,7 +808,7 @@ def run_simulation(
     T: float = 1.0,
     dt: float = 0.01,
     method: str = "rk4",
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> dict:
     """Run complete Lindblad simulation.
 

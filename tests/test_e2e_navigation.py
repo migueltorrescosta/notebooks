@@ -10,12 +10,14 @@ from __future__ import annotations
 import os
 import subprocess
 import time
-from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # Project root
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -70,7 +72,7 @@ def streamlit_server() -> Generator[tuple[subprocess.Popen, int], None, None]:
 
 def test_streamlit_app_launches(streamlit_server: tuple[subprocess.Popen, int]) -> None:
     """Verify Streamlit process started without immediate errors."""
-    process, port = streamlit_server
+    process, _port = streamlit_server
     time.sleep(5)
     assert process.poll() is None, "Streamlit process should be running"
 

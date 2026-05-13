@@ -14,24 +14,23 @@ Features:
 """
 
 import numpy as np
+import scipy
 import streamlit as st
 from plotly import graph_objects as go
-import scipy
 
+from src.physics.hybrid_mzi import (
+    compute_wigner_for_state,
+    qfi_hybrid_mzi,
+)
 from src.physics.hybrid_system import (
-    hybrid_hamiltonian_n,
-    hybrid_vacuum_state,
-    hybrid_coherent_state,
     adaptive_truncation,
+    hybrid_coherent_state,
+    hybrid_hamiltonian_n,
     hybrid_mean_photon,
+    hybrid_vacuum_state,
     validate_hybrid_state,
 )
-from src.physics.hybrid_mzi import (
-    qfi_hybrid_mzi,
-    compute_wigner_for_state,
-)
-from src.physics.wigner import wigner_minimum, wigner_is_negative
-
+from src.physics.wigner import wigner_is_negative, wigner_minimum
 
 # Page configuration
 st.set_page_config(
@@ -79,7 +78,7 @@ with st.expander("📖 Methodology", expanded=False):
 
         **Readout:**
         MZI with QFI computation: $F_Q = 4 \text{Var}(n_1 \otimes I_2 \otimes I_{spin})$
-        """
+        """,
     )
 
 
@@ -234,8 +233,8 @@ if show_wigner:
             y=p,
             colorscale="RdBu",
             zmid=0,
-            colorbar=dict(title="W(x,p)"),
-        )
+            colorbar={"title": "W(x,p)"},
+        ),
     )
     fig.update_layout(
         xaxis_title="x",

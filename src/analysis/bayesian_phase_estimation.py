@@ -112,12 +112,15 @@ def bayesian_posterior(
     """
     if measurement_outcome not in (0, 1):
         raise ValueError(
-            f"measurement_outcome must be 0 or 1, got {measurement_outcome}"
+            f"measurement_outcome must be 0 or 1, got {measurement_outcome}",
         )
 
     # Compute likelihood P(m=0|φ) for all φ
     likelihood = bayesian_likelihood(
-        prior_range, initial_state, max_photons, ancilla_dim
+        prior_range,
+        initial_state,
+        max_photons,
+        ancilla_dim,
     )
 
     if measurement_outcome == 0:
@@ -162,7 +165,7 @@ def bayesian_sensitivity(posterior: np.ndarray, phi_grid: np.ndarray) -> float:
     if len(posterior) != len(phi_grid):
         raise ValueError(
             f"Posterior length {len(posterior)} must match phi_grid length "
-            f"{len(phi_grid)}"
+            f"{len(phi_grid)}",
         )
 
     # Check normalization (allow small tolerance)
@@ -270,9 +273,7 @@ def sample_measurement_outcomes(
     p0, _ = compute_output_probabilities(final_state, max_photons, ancilla_dim)
 
     # Sample outcomes: m=0 with probability p0, m=1 with probability 1-p0
-    outcomes = rng.choice(2, size=n_samples, p=[p0, 1.0 - p0])
-
-    return outcomes
+    return rng.choice(2, size=n_samples, p=[p0, 1.0 - p0])
 
 
 def bayesian_estimator(
@@ -318,7 +319,10 @@ def bayesian_estimator(
 
     # Compute likelihood P(m=0|φ)
     likelihood = bayesian_likelihood(
-        phi_grid, initial_state, max_photons, ancilla_dim=1
+        phi_grid,
+        initial_state,
+        max_photons,
+        ancilla_dim=1,
     )
 
     # Start with uniform prior

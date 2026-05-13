@@ -40,10 +40,8 @@ References:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
-
 
 # =============================================================================
 # Configuration
@@ -214,15 +212,15 @@ def build_lindblad_operators(N: int, config: NoiseConfig) -> list[np.ndarray]:
         raise ValueError(f"Detection efficiency must be in [0, 1], got {config.eta}")
     if config.gamma_1 < 0:
         raise ValueError(
-            f"One-body loss rate must be non-negative, got {config.gamma_1}"
+            f"One-body loss rate must be non-negative, got {config.gamma_1}",
         )
     if config.gamma_2 < 0:
         raise ValueError(
-            f"Two-body loss rate must be non-negative, got {config.gamma_2}"
+            f"Two-body loss rate must be non-negative, got {config.gamma_2}",
         )
     if config.gamma_phi < 0:
         raise ValueError(
-            f"Phase diffusion rate must be non-negative, got {config.gamma_phi}"
+            f"Phase diffusion rate must be non-negative, got {config.gamma_phi}",
         )
 
     L_ops: list[np.ndarray] = []
@@ -311,7 +309,7 @@ def apply_detection_noise(
     probabilities: np.ndarray,
     eta: float,
     n_trials: int,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> np.ndarray:
     """Convolve probabilities with binomial for detection inefficiency.
 
@@ -389,7 +387,7 @@ def apply_detection_noise(
 def detection_channel_pmf(
     n: int,
     eta: float,
-    max_k: Optional[int] = None,
+    max_k: int | None = None,
 ) -> np.ndarray:
     """Compute exact detection probability mass function.
 

@@ -14,7 +14,7 @@ Units:
 - Dimensionless throughout.
 """
 
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
 
@@ -75,7 +75,7 @@ def sensitivity(
     alpha_x: float,
     alpha_z: float,
     t: float,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Compute sensitivity to J_S and δ_S.
 
     Calculates the sensitivity (derivative) of the observable
@@ -164,7 +164,7 @@ def compute_sensitivity_grid(
     alpha_x_range: np.ndarray,
     alpha_z_range: np.ndarray,
     t: float,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """Compute sensitivity over a grid of α_x, α_z values.
 
     Args:

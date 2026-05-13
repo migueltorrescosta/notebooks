@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from .spin_squeezing import (
     coherent_spin_state,
-    one_axis_twist,
-    squeezing_parameter,
-    optimal_squeezing_time,
     generate_squeezed_state,
+    one_axis_twist,
+    optimal_squeezing_time,
+    squeezing_parameter,
 )
 
 
@@ -25,7 +26,7 @@ class TestCoherentSpinState:
             rho = np.outer(css, css.conj())
             J_x = jx_operator(N)
             jx = np.real(np.trace(rho @ J_x))
-            assert np.isclose(jx, -N / 2), (
+            assert jx == pytest.approx(-N / 2), (
                 f"N={N}: <J_x> = {jx}, expected -N/2 = {-N / 2}"
             )
 
@@ -45,7 +46,7 @@ class TestCoherentSpinState:
             jz = np.real(np.trace(rho @ J_z))
 
             j_mag = np.sqrt(jx**2 + jy**2 + jz**2)
-            assert np.isclose(j_mag, N / 2, atol=1e-6), (
+            assert j_mag == pytest.approx(N / 2, abs=1e-6), (
                 f"N={N}: |J| = {j_mag}, expected {N / 2}"
             )
 
@@ -60,7 +61,7 @@ class TestOneAxisTwist:
             for t in [0.1, 0.5, 1.0]:
                 evolved = one_axis_twist(css, N, chi=1.0, t=t)
                 # Check normalization is preserved
-                assert np.isclose(np.linalg.norm(evolved), 1.0, atol=1e-6), (
+                assert np.linalg.norm(evolved) == pytest.approx(1.0, abs=1e-6), (
                     f"N={N}, t={t}: norm changed"
                 )
 
@@ -86,7 +87,7 @@ class TestSqueezingParameter:
             css = coherent_spin_state(N)
             xi = squeezing_parameter(css, N)
             # Numerical tolerance: should be exactly 1.0 for CSS
-            assert np.isclose(xi, 1.0, atol=1e-6), f"N={N}: ξ = {xi}, expected 1.0"
+            assert xi == pytest.approx(1.0, abs=1e-6), f"N={N}: ξ = {xi}, expected 1.0"
 
     def test_squeezing_parameter_bounded(self) -> None:
         """Test squeezing parameter is non-negative."""
@@ -105,7 +106,7 @@ class TestOptimalSqueezingTime:
         for N in [2, 4, 8, 16]:
             t_opt = optimal_squeezing_time(N, chi=1.0)
             expected = (6 / N) ** (1 / 3)
-            assert np.isclose(t_opt, expected, rtol=1e-10), (
+            assert t_opt == pytest.approx(expected, rel=1e-10), (
                 f"N={N}: t_opt = {t_opt}, expected {expected}"
             )
 
@@ -119,7 +120,7 @@ class TestOptimalSqueezingTime:
         ratio_actual = t1 / t2
         ratio_expected = (N1 / N2) ** (-1 / 3)
 
-        assert np.isclose(ratio_actual, ratio_expected, rtol=1e-6), (
+        assert ratio_actual == pytest.approx(ratio_expected, rel=1e-6), (
             f"t_opt scaling: {ratio_actual:.4f} vs {(N1 / N2) ** (-1 / 3):.4f}"
         )
 
@@ -133,7 +134,7 @@ class TestOptimalSqueezingTime:
             # With chi = 1, t_opt = (6/N)^(1/3)
             # With chi, scaled by 1/chi
             expected = (6 / N) ** (1 / 3) / chi
-            assert np.isclose(t_opt, expected, rtol=1e-10), (
+            assert t_opt == pytest.approx(expected, rel=1e-10), (
                 f"N={N}, chi={chi}: t_opt = {t_opt}, expected {expected}"
             )
 
@@ -147,7 +148,7 @@ class TestGenerateSqueezedState:
             state = generate_squeezed_state(N, chi=1.0, t=0.0)
             css = coherent_spin_state(N)
             # Should be identical (up to global phase)
-            assert np.allclose(state, css, atol=1e-6), f"N={N}: state != CSS at t=0"
+            assert state == pytest.approx(css, abs=1e-6), f"N={N}: state != CSS at t=0"
 
     def test_normalization_preserved(self) -> None:
         """Test generated state is normalized."""
@@ -155,7 +156,9 @@ class TestGenerateSqueezedState:
             for t in [0.1, 0.5, 1.0]:
                 state = generate_squeezed_state(N, chi=1.0, t=t)
                 norm = np.linalg.norm(state)
-                assert np.isclose(norm, 1.0, atol=1e-6), f"N={N}, t={t}: norm = {norm}"
+                assert norm == pytest.approx(1.0, abs=1e-6), (
+                    f"N={N}, t={t}: norm = {norm}"
+                )
 
     def test_state_dimension(self) -> None:
         """Test state has correct dimension N+1."""
@@ -175,7 +178,7 @@ class TestPhysicalInvariants:
             for t in [0.1, 0.5, 1.0]:
                 state = generate_squeezed_state(N, chi=1.0, t=t)
                 probs = np.abs(state) ** 2
-                assert np.isclose(np.sum(probs), 1.0, atol=1e-6), (
+                assert np.sum(probs) == pytest.approx(1.0, abs=1e-6), (
                     f"N={N}, t={t}: sum probs = {np.sum(probs)}"
                 )
 
@@ -189,8 +192,9 @@ class TestPhysicalInvariants:
 
             for t in [0.1, 0.5]:
                 evolved = one_axis_twist(psi, N, chi=1.0, t=t)
-                assert np.isclose(
-                    np.linalg.norm(evolved), np.linalg.norm(psi), atol=1e-6
+                assert np.linalg.norm(evolved) == pytest.approx(
+                    np.linalg.norm(psi),
+                    abs=1e-6,
                 ), (
                     f"N={N}: norm changed from {np.linalg.norm(psi)} to {np.linalg.norm(evolved)}"
                 )

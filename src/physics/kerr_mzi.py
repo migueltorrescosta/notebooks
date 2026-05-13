@@ -28,13 +28,10 @@ Conventions:
 - Consistent with src.physics.mzi_simulation conventions
 """
 
-from typing import Tuple
-
 import numpy as np
 
 from src.physics.mzi_simulation import beam_splitter_unitary
 from src.utils.validators import validate_state_mzi
-
 
 # =============================================================================
 # Unitary Construction
@@ -213,14 +210,14 @@ def kerr_mzi(
     if not validate_state_mzi(initial_state):
         raise ValueError(
             "Initial state is not normalized. "
-            "Provide a valid quantum state with ||psi|| = 1."
+            "Provide a valid quantum state with ||psi|| = 1.",
         )
 
     expected_dim = (max_photons + 1) ** 2
     if len(initial_state) != expected_dim:
         raise ValueError(
             f"Initial state has dimension {len(initial_state)}, "
-            f"expected {expected_dim} for max_photons={max_photons}"
+            f"expected {expected_dim} for max_photons={max_photons}",
         )
 
     # BS1: First beam splitter
@@ -232,9 +229,7 @@ def kerr_mzi(
     state = U_kerr @ state
 
     # BS2: Second beam splitter (identical to BS1)
-    state = bs @ state
-
-    return state
+    return bs @ state
 
 
 # =============================================================================
@@ -245,7 +240,7 @@ def kerr_mzi(
 def compute_kerr_output_probabilities(
     state: np.ndarray,
     max_photons: int,
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     r"""Compute detection probabilities at the two output ports.
 
     Calculates the normalized probability of detecting photons at
@@ -293,8 +288,7 @@ def compute_kerr_output_probabilities(
     total = P0 + P1
     if total > 1e-15:
         return P0 / total, P1 / total
-    else:
-        return 0.5, 0.5
+    return 0.5, 0.5
 
 
 # =============================================================================

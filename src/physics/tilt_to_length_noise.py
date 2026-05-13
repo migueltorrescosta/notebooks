@@ -36,11 +36,14 @@ References:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
+import pytest
 from scipy.optimize import curve_fit
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 # =============================================================================
 # Configuration
@@ -184,7 +187,7 @@ def ttl_limited_sensitivity(
         raise ValueError(f"Particle number N must be non-negative, got {N}")
     if quantum_sensitivity < 0:
         raise ValueError(
-            f"Quantum sensitivity must be non-negative, got {quantum_sensitivity}"
+            f"Quantum sensitivity must be non-negative, got {quantum_sensitivity}",
         )
 
     phi_ttl = ttl_phase_noise(config)
@@ -233,7 +236,9 @@ def _quantum_sensitivity_hl(N: float) -> float:
 
 
 def _power_law(
-    log_N: NDArray[np.float64], log_a: float, alpha: float
+    log_N: NDArray[np.float64],
+    log_a: float,
+    alpha: float,
 ) -> NDArray[np.float64]:
     """Power-law model for fitting sensitivity scaling.
 
@@ -301,12 +306,12 @@ def ttl_scaling_sweep(
 
     if np.any(N_arr <= 0):
         raise ValueError(
-            f"All N values must be positive, got range [{N_arr.min()}, {N_arr.max()}]"
+            f"All N values must be positive, got range [{N_arr.min()}, {N_arr.max()}]",
         )
 
     if quantum_scaling not in ("sql", "hl"):
         raise ValueError(
-            f"Quantum scaling must be 'sql' or 'hl', got '{quantum_scaling}'"
+            f"Quantum scaling must be 'sql' or 'hl', got '{quantum_scaling}'",
         )
 
     # Select quantum scaling function
@@ -368,7 +373,7 @@ def _validate_config(config: TTLNoiseConfig) -> None:
     """
     if config.theta_rms <= 0:
         raise ValueError(
-            f"RMS angular jitter theta_rms must be positive, got {config.theta_rms}"
+            f"RMS angular jitter theta_rms must be positive, got {config.theta_rms}",
         )
     if config.L <= 0:
         raise ValueError(f"Arm length L must be positive, got {config.L}")
@@ -538,10 +543,8 @@ def test_config_validation_raises_on_zero_theta() -> dict:
         Dictionary with test results.
 
     """
-    import pytest as _pytest
-
     config = TTLNoiseConfig(theta_rms=0.0)
-    with _pytest.raises(ValueError, match="positive"):
+    with pytest.raises(ValueError, match="positive"):
         ttl_phase_noise(config)
     return {"status": "passed"}
 
@@ -553,10 +556,8 @@ def test_config_validation_raises_on_negative_wavelength() -> dict:
         Dictionary with test results.
 
     """
-    import pytest as _pytest
-
     config = TTLNoiseConfig(wavelength=-1e-6)
-    with _pytest.raises(ValueError, match="positive"):
+    with pytest.raises(ValueError, match="positive"):
         ttl_phase_noise(config)
     return {"status": "passed"}
 

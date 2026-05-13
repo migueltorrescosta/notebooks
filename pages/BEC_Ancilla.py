@@ -29,20 +29,19 @@ import numpy as np
 import streamlit as st
 from plotly import graph_objects as go
 
-from src.physics.dicke_basis import jz_operator
 from src.algorithms.spin_squeezing import (
     coherent_spin_state,
     generate_squeezed_state,
     optimal_squeezing_time,
 )
 from src.evolution.lindblad_solver import (
+    LindbladConfig,
     compute_expectation,
     evolve_lindblad,
     ket_to_density,
-    LindbladConfig,
 )
+from src.physics.dicke_basis import jz_operator
 from src.physics.noise_channels import NoiseConfig
-
 
 # Page configuration
 st.set_page_config(
@@ -77,22 +76,21 @@ def generate_system_state(
     """
     if state_type == "coherent":
         return coherent_spin_state(N)
-    elif state_type == "noon":
+    if state_type == "noon":
         # Generate NOON-like state
         dim = N + 1
         state = np.zeros(dim, dtype=complex)
         state[0] = 1.0 / np.sqrt(2)
         state[N] = 1.0 / np.sqrt(2)
         return state
-    elif state_type == "hybrid":
+    if state_type == "hybrid":
         # Mix of squeezed and coherent
         t_opt = optimal_squeezing_time(N, chi)
         squeezed = generate_squeezed_state(N, chi, t_opt)
         coherent = coherent_spin_state(N)
         # 50-50 superposition
         return (squeezed + coherent) / np.sqrt(2)
-    else:
-        raise ValueError(f"Unknown state type: {state_type}")
+    raise ValueError(f"Unknown state type: {state_type}")
 
 
 # =============================================================================
@@ -145,10 +143,7 @@ def compute_phase_sensitivity(
     Jz_var = Jz2_mean - Jz_mean**2
 
     # Phase sensitivity
-    if Jz_var > 0:
-        delta_phi = np.sqrt(Jz_var) / (N / 2)
-    else:
-        delta_phi = 1.0 / np.sqrt(N)
+    delta_phi = np.sqrt(Jz_var) / (N / 2) if Jz_var > 0 else 1.0 / np.sqrt(N)
 
     # Enhanced sensitivity if ancilla present
     if has_ancilla and lambda_coupling > 0:
@@ -424,8 +419,8 @@ fig.add_trace(
         y=1.0 / np.sqrt(N_range),
         mode="lines",
         name="SQL (1/√N)",
-        line=dict(dash="dash", color="gray"),
-    )
+        line={"dash": "dash", "color": "gray"},
+    ),
 )
 fig.add_trace(
     go.Scatter(
@@ -433,8 +428,8 @@ fig.add_trace(
         y=1.0 / N_range,
         mode="lines",
         name="HL (1/N)",
-        line=dict(dash="dot", color="gray"),
-    )
+        line={"dash": "dot", "color": "gray"},
+    ),
 )
 
 # Add computed data
@@ -444,9 +439,9 @@ fig.add_trace(
         y=delta_no_ancilla,
         mode="lines+markers",
         name="Without ancilla",
-        line=dict(color="blue"),
-        marker=dict(size=8),
-    )
+        line={"color": "blue"},
+        marker={"size": 8},
+    ),
 )
 fig.add_trace(
     go.Scatter(
@@ -454,9 +449,9 @@ fig.add_trace(
         y=delta_with_ancilla,
         mode="lines+markers",
         name="With ancilla",
-        line=dict(color="red"),
-        marker=dict(size=8),
-    )
+        line={"color": "red"},
+        marker={"size": 8},
+    ),
 )
 
 fig.update_layout(
@@ -465,7 +460,7 @@ fig.update_layout(
     yaxis_type="log",
     template="plotly_white",
     height=400,
-    legend=dict(xanchor="right", y=0.99, x=0.99),
+    legend={"xanchor": "right", "y": 0.99, "x": 0.99},
 )
 
 st.plotly_chart(fig, use_container_width=True)
@@ -494,7 +489,7 @@ if show_ttn:
                 x=[f"ε = {e:.0e}" for e in ttn_data["epsilons"]],
                 y=ttn_data["bond_dims"],
                 marker_color="green",
-            )
+            ),
         )
         fig_ttn.update_layout(
             xaxis_title="SVD Threshold ε",
@@ -523,13 +518,13 @@ with col4:
     st.metric("TTN Bond Dim", str(ttn_data.get("max_bond_dim", "N/A")))
 
 st.caption(rf"""
-Δφ (no ancilla) = {results_no_ancilla["delta_phi"]:.4f} | 
-Δφ (with ancilla) = {results_with_ancilla["delta_phi_enhanced"]:.4f} | 
-Enhancement = {results_with_ancilla["enhancement"]:.2f}x | 
+Δφ (no ancilla) = {results_no_ancilla["delta_phi"]:.4f} |
+Δφ (with ancilla) = {results_with_ancilla["delta_phi_enhanced"]:.4f} |
+Enhancement = {results_with_ancilla["enhancement"]:.2f}x |
 ξ² = {improvement:.2f}
 """)
 
 st.caption(
     f"BEC Ancilla | N={N} | λ={lambda_coupling:.2f} | "
-    f"TTN: {ttn_data.get('max_bond_dim', 'N/A')}"
+    f"TTN: {ttn_data.get('max_bond_dim', 'N/A')}",
 )

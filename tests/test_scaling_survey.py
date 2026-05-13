@@ -7,7 +7,7 @@ Tests verify:
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -26,10 +26,13 @@ from src.physics.mzi_states import (
     twin_fock_state,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 # Availability check for hybrid-system modules (used in conditional tests)
 try:
+    import src.physics.hybrid_mzi
     import src.physics.hybrid_system  # noqa: F401
-    import src.physics.hybrid_mzi  # noqa: F401
 
     HAS_HYBRID = True
 except ImportError:
@@ -65,7 +68,9 @@ class TestScalingSurveyMiniIntegration:
         df = run_scaling_survey(models, survey_config)
 
         # Verify it's a DataFrame
-        assert isinstance(df, pd.DataFrame)
+        assert isinstance(df, pd.DataFrame), (
+            "Expected df to be instance of pd.DataFrame"
+        )
 
         # Check expected columns exist
         expected_cols = {
@@ -84,12 +89,18 @@ class TestScalingSurveyMiniIntegration:
         # Check row count
         row_count = len(df)
         expected_min = len(models) * len(survey_config.noise_levels) * 2
-        assert row_count >= expected_min
+        assert row_count >= expected_min, "Expected row_count >= expected_min"
 
         # Check numeric types
-        assert pd.api.types.is_numeric_dtype(df["N"])
-        assert pd.api.types.is_numeric_dtype(df["noise_level"])
-        assert pd.api.types.is_numeric_dtype(df["delta_phi"])
+        assert pd.api.types.is_numeric_dtype(df["N"]), (
+            'Condition failed: pd.api.types.is_numeric_dtype(df["N"])'
+        )
+        assert pd.api.types.is_numeric_dtype(df["noise_level"]), (
+            'Condition failed: pd.api.types.is_numeric_dtype(df["noise_level"])'
+        )
+        assert pd.api.types.is_numeric_dtype(df["delta_phi"]), (
+            'Condition failed: pd.api.types.is_numeric_dtype(df["delta_phi"])'
+        )
 
     def test_fit_all_exponents_produces_valid_output(self) -> None:
         """Test that fit_all_exponents produces fitted exponents."""
@@ -105,21 +116,24 @@ class TestScalingSurveyMiniIntegration:
         fit_df = fit_all_exponents(df, min_N=2)
 
         # Should have fit output
-        assert isinstance(fit_df, pd.DataFrame)
-        assert len(fit_df) > 0
+        assert isinstance(fit_df, pd.DataFrame), (
+            "Expected fit_df to be instance of pd.DataFrame"
+        )
+        assert len(fit_df) > 0, "Expected len(fit_df) > 0"
 
         # Check for exponent columns
-        assert "alpha" in fit_df.columns
-        assert "alpha_err" in fit_df.columns
-        assert "C" in fit_df.columns
-        assert "R_squared" in fit_df.columns
-        assert "valid" in fit_df.columns
+        assert "alpha" in fit_df.columns, 'Expected "alpha" in fit_df.columns'
+        assert "alpha_err" in fit_df.columns, 'Expected "alpha_err" in fit_df.columns'
+        assert "C" in fit_df.columns, 'Expected "C" in fit_df.columns'
+        assert "R_squared" in fit_df.columns, 'Expected "R_squared" in fit_df.columns'
+        assert "valid" in fit_df.columns, 'Expected "valid" in fit_df.columns'
 
         # Ideal coherent state should give SQL scaling (α ≈ -0.5)
         alpha_coherent = fit_df.loc[
-            fit_df["model_id"] == "ideal_coherent", "alpha"
+            fit_df["model_id"] == "ideal_coherent",
+            "alpha",
         ].iloc[0]
-        assert -0.7 < alpha_coherent < -0.3
+        assert -0.7 < alpha_coherent < -0.3, "Expected -0.7 < alpha_coherent < -0.3"
 
 
 class TestScalingSurveyNoiseChannels:
@@ -149,8 +163,9 @@ class TestScalingSurveyNoiseChannels:
                 state_type="coherent",
                 noise_type=nt,
             )
-            assert model.noise_type == nt
+            assert model.noise_type == nt, "Expected model.noise_type == nt"
 
+    @pytest.mark.slow
     def test_loss_noise_produces_finite_delta_phi(self) -> None:
         """Test that one-body loss channel produces finite sensitivity values."""
         # Create model with loss noise
@@ -196,7 +211,9 @@ class TestScalingSurveyNoiseChannels:
         df = run_scaling_survey([model], survey_config)
 
         # Check we have results for all noise levels
-        assert len(df["noise_level"].unique()) == 3
+        assert len(df["noise_level"].unique()) == 3, (
+            'Expected len(df["noise_level"].unique()) == 3'
+        )
 
     def test_survey_with_detection_noise(self) -> None:
         """Test detection noise (efficiency) channel."""
@@ -219,13 +236,13 @@ class TestScalingSurveyNoiseChannels:
 
         # Efficiency 1.0 should give same noise-free (or better) values than 0.5
         noise_levels = df["noise_level"].unique()
-        assert 1.0 in noise_levels
+        assert 1.0 in noise_levels, "Expected 1.0 in noise_levels"
 
         # At least some finite values
         finite_mask = np.isfinite(df["delta_phi"].to_numpy()) & (
             df["delta_phi"].to_numpy() > 0
         )
-        assert np.sum(finite_mask) > 0
+        assert np.sum(finite_mask) > 0, "Expected np.sum(finite_mask) > 0"
 
     def test_two_body_loss_configuration(self) -> None:
         """Test that two-body loss can be configured."""
@@ -236,7 +253,7 @@ class TestScalingSurveyNoiseChannels:
             label="Two-body loss test",
         )
 
-        assert model.noise_type == "two_body"
+        assert model.noise_type == "two_body", 'Expected model.noise_type == "two_body"'
 
         # Just verify the model runs without crashing
         survey_config = SurveyConfig(
@@ -248,7 +265,7 @@ class TestScalingSurveyNoiseChannels:
 
         # Should not raise
         df = run_scaling_survey([model], survey_config)
-        assert len(df) > 0
+        assert len(df) > 0, "Expected len(df) > 0"
 
 
 class TestQfiValidation:
@@ -269,7 +286,7 @@ class TestQfiValidation:
             max_photons = N
             F_Q = compute_fisher_information(state, max_photons)
             expected = float(N**2)
-            assert np.isclose(F_Q, expected, rtol=1e-10), (
+            assert pytest.approx(expected, rel=1e-10) == F_Q, (
                 f"N={N}: F_Q={F_Q}, expected {expected}"
             )
 
@@ -281,10 +298,11 @@ class TestQfiValidation:
             F_Q = compute_fisher_information(state, max_photons)
             delta = 1.0 / np.sqrt(F_Q)
             expected = 1.0 / N
-            assert np.isclose(delta, expected, rtol=1e-10), (
+            assert delta == pytest.approx(expected, rel=1e-10), (
                 f"N={N}: Δφ={delta}, expected {expected}"
             )
 
+    @pytest.mark.slow
     def test_coherent_qfi_scales_as_N(self) -> None:
         """F_Q = N for coherent states (SQL).
 
@@ -303,10 +321,11 @@ class TestQfiValidation:
             )
             F_Q = compute_fisher_information(state, max_n)
             expected = float(N)
-            assert np.isclose(F_Q, expected, rtol=1e-3), (
+            assert pytest.approx(expected, rel=1e-3) == F_Q, (
                 f"N={N}: F_Q={F_Q}, expected {expected}"
             )
 
+    @pytest.mark.slow
     def test_coherent_delta_phi_sql_scaling(self) -> None:
         """Δφ = 1/√N for coherent states (SQL)."""
         for N in [4, 8]:
@@ -322,7 +341,7 @@ class TestQfiValidation:
             F_Q = compute_fisher_information(state, max_n)
             delta = 1.0 / np.sqrt(F_Q)
             expected = 1.0 / np.sqrt(N)
-            assert np.isclose(delta, expected, rtol=1e-3), (
+            assert delta == pytest.approx(expected, rel=1e-3), (
                 f"N={N}: Δφ={delta}, expected {expected}"
             )
 
@@ -353,7 +372,7 @@ class TestQfiValidation:
             expected_F_Q = 2.0 * expected_N * (expected_N + 1.0)
             # Relaxed tolerance: finite truncation of squeezed vacuum
             # tail leads to ~1% error in F_Q even with generous max_photons
-            assert np.isclose(F_Q, expected_F_Q, rtol=1e-2), (
+            assert pytest.approx(expected_F_Q, rel=1e-2) == F_Q, (
                 f"r={r}, ⟨N⟩={expected_N:.6f}: F_Q={F_Q}, expected {expected_F_Q}"
             )
 
@@ -371,7 +390,7 @@ class TestQfiValidation:
             state = twin_fock_state(N)
             F_Q = compute_fisher_information(state, N)
             expected = N * (N + 2) / 3.0
-            assert np.isclose(F_Q, expected, rtol=1e-10), (
+            assert pytest.approx(expected, rel=1e-10) == F_Q, (
                 f"N={N}: F_Q={F_Q}, expected {expected}"
             )
 
@@ -389,7 +408,7 @@ class TestQfiValidation:
             state = input_state_factory("sss", N=N)
             F_Q = compute_fisher_information(state, N)
             expected = float((N - 2) ** 2)
-            assert np.isclose(F_Q, expected, rtol=1e-10), (
+            assert pytest.approx(expected, rel=1e-10) == F_Q, (
                 f"N={N}: F_Q={F_Q}, expected {expected}"
             )
 
@@ -401,12 +420,12 @@ class TestSurveyModelFactories:
         """Test that create_survey_model sets appropriate defaults."""
         # noon_loss should have noise_type="loss"
         model = create_survey_model("noon_loss")
-        assert model.noise_type == "loss"
-        assert model.state_type == "noon"
+        assert model.noise_type == "loss", 'Expected model.noise_type == "loss"'
+        assert model.state_type == "noon", 'Expected model.state_type == "noon"'
 
         # ideal_* should have noise_type="none"
         model = create_survey_model("ideal_coherent")
-        assert model.noise_type == "none"
+        assert model.noise_type == "none", 'Expected model.noise_type == "none"'
 
     def test_create_survey_model_kwargs_override(self) -> None:
         """Test that kwargs override factory defaults."""
@@ -417,7 +436,7 @@ class TestSurveyModelFactories:
         )
 
         assert model.noise_type == "dephasing"  # Overridden
-        assert model.label == "Custom label"
+        assert model.label == "Custom label", 'Expected model.label == "Custom label"'
 
     def test_create_default_survey_returns_list(self) -> None:
         """Test that create_default_survey returns a list of models."""
@@ -425,11 +444,13 @@ class TestSurveyModelFactories:
 
         models = create_default_survey()
 
-        assert isinstance(models, list)
-        assert len(models) > 0
+        assert isinstance(models, list), "Expected models to be instance of list"
+        assert len(models) > 0, "Expected len(models) > 0"
 
         for model in models:
-            assert isinstance(model, ModelConfig)
+            assert isinstance(model, ModelConfig), (
+                "Expected model to be instance of ModelConfig"
+            )
 
     def test_create_default_survey_now_has_ten_models(self) -> None:
         """Default survey should include non-Gaussian, ancilla, and squeezed-vacuum-loss models."""
@@ -438,21 +459,30 @@ class TestSurveyModelFactories:
         models = create_default_survey()
         model_ids = {m.model_id for m in models}
 
-        assert "non_gaussian_n3" in model_ids
-        assert "non_gaussian_n4" in model_ids
-        assert "ancilla_assisted" in model_ids
-        assert "squeezed_vacuum_loss" in model_ids
-        assert len(models) == 10
+        assert "non_gaussian_n3" in model_ids, 'Expected "non_gaussian_n3" in model_ids'
+        assert "non_gaussian_n4" in model_ids, 'Expected "non_gaussian_n4" in model_ids'
+        assert "ancilla_assisted" in model_ids, (
+            'Expected "ancilla_assisted" in model_ids'
+        )
+        assert "squeezed_vacuum_loss" in model_ids, (
+            'Expected "squeezed_vacuum_loss" in model_ids'
+        )
+        assert len(models) == 10, "Expected len(models) == 10"
 
     def test_squeezed_vacuum_loss_model_properties(self) -> None:
         """Squeezed-vacuum-loss model should have correct noise_type."""
         from src.analysis.scaling_survey import create_survey_model
 
         model = create_survey_model("squeezed_vacuum_loss")
-        assert model.state_type == "squeezed_vacuum"
-        assert model.noise_type == "loss"
-        assert model.label == "Squeezed vacuum with loss"
+        assert model.state_type == "squeezed_vacuum", (
+            'Expected model.state_type == "squeezed_vacuum"'
+        )
+        assert model.noise_type == "loss", 'Expected model.noise_type == "loss"'
+        assert model.label == "Squeezed vacuum with loss", (
+            'Expected model.label == "Squeezed vacuum with loss"'
+        )
 
+    @pytest.mark.slow
     def test_squeezed_vacuum_loss_runs_survey(self) -> None:
         """Squeezed vacuum with loss should produce finite Δφ values in a survey."""
         from src.analysis.scaling_survey import (
@@ -477,7 +507,7 @@ class TestSurveyModelFactories:
         finite_mask = np.isfinite(df["delta_phi"].to_numpy()) & (
             df["delta_phi"].to_numpy() > 0
         )
-        assert int(np.sum(finite_mask)) > 0
+        assert int(np.sum(finite_mask)) > 0, "Expected int(np.sum(finite_mask)) > 0"
 
 
 class TestNewCustomModels:
@@ -489,7 +519,10 @@ class TestNewCustomModels:
     """
 
     def _call_sensitivity(
-        self, fn: Callable[[int, float], float] | None, N: int, noise: float
+        self,
+        fn: Callable[[int, float], float] | None,
+        N: int,
+        noise: float,
     ) -> float:
         """Safely call a custom sensitivity function."""
         assert fn is not None, "custom_sensitivity_fn must not be None"
@@ -520,7 +553,7 @@ class TestNewCustomModels:
         """Higher noise_level should degrade (increase) sensitivity for ancilla model."""
         model = create_survey_model("ancilla_assisted")
         fn = model.custom_sensitivity_fn
-        assert fn is not None
+        assert fn is not None, "Expected fn to not be None"
         delta_clean = fn(4, 0.0)
         delta_noisy = fn(4, 1.0)
         # Noisy should be >= clean (larger Δφ = worse)

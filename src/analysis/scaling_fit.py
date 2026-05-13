@@ -22,7 +22,6 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 
-
 # =============================================================================
 # Result Container
 # =============================================================================
@@ -115,7 +114,7 @@ def fit_scaling_exponent(
     if len(N_arr) != len(delta_arr):
         raise ValueError(
             f"N and delta_phi must have same length, "
-            f"got {len(N_arr)} and {len(delta_arr)}"
+            f"got {len(N_arr)} and {len(delta_arr)}",
         )
     if len(N_arr) == 0:
         raise ValueError("Input arrays must not be empty")
@@ -165,7 +164,7 @@ def fit_scaling_exponent(
             delta_phi_values=delta_arr,
             valid=False,
             warnings=[
-                "Too few valid points after filtering (need >= 3 for covariance)"
+                "Too few valid points after filtering (need >= 3 for covariance)",
             ],
         )
 
@@ -220,7 +219,7 @@ def fit_scaling_exponent(
     if alpha_err / max(abs(alpha), 1e-10) > 1.0:
         warnings.append(
             f"Relative error in α is large "
-            f"(α_err/|α| = {alpha_err / max(abs(alpha), 1e-10):.2f})"
+            f"(α_err/|α| = {alpha_err / max(abs(alpha), 1e-10):.2f})",
         )
 
     return ScalingFitResult(
@@ -269,10 +268,7 @@ def validate_fit_quality(result: ScalingFitResult) -> bool:
         return False
 
     # Too many warnings indicate reliability concerns
-    if len(result.warnings) > 2:
-        return False
-
-    return True
+    return not len(result.warnings) > 2
 
 
 def compare_exponents(
@@ -319,7 +315,7 @@ def compare_exponents(
                 "n_warnings": len(result.warnings),
                 "n_points": len(result.N_values),
                 "warnings": "; ".join(result.warnings) if result.warnings else "",
-            }
+            },
         )
 
     df = pd.DataFrame(rows)

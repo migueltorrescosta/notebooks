@@ -13,6 +13,8 @@ import numpy as np
 import pytest
 import scipy
 
+from src.physics.dicke_basis import jz_operator
+
 from .lindblad_solver import (
     LindbladConfig,
     build_liouvillian_matrix,
@@ -29,8 +31,6 @@ from .lindblad_solver import (
     validate_density_matrix,
     vector_to_density,
 )
-from src.physics.dicke_basis import jz_operator
-
 
 # =============================================================================
 # Fixtures
@@ -69,12 +69,12 @@ class TestTracePreservation:
         psi = create_fock_state(1, 5)
         rho0 = ket_to_density(psi)
 
-        times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
+        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
 
         traces = np.array([np.trace(rho) for rho in rhos])
 
         # All traces should be 1
-        assert np.allclose(traces, 1.0, atol=1e-6), f"Traces: {traces}"
+        assert traces == pytest.approx(1.0, abs=1e-6), f"Traces: {traces}"
 
     def test_trace_preservation_one_body_loss(self) -> None:
         """Trace should be ≤ 1 with one-body loss."""
@@ -82,7 +82,7 @@ class TestTracePreservation:
         psi = create_fock_state(2, 5)
         rho0 = ket_to_density(psi)
 
-        times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
+        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
 
         traces = np.array([np.trace(rho) for rho in rhos])
 
@@ -96,12 +96,12 @@ class TestTracePreservation:
         psi = create_fock_state(1, 5)
         rho0 = ket_to_density(psi)
 
-        times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
+        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
 
         traces = np.array([np.trace(rho) for rho in rhos])
 
         # All traces should be 1
-        assert np.allclose(traces, 1.0, atol=1e-6), f"Traces: {traces}"
+        assert traces == pytest.approx(1.0, abs=1e-6), f"Traces: {traces}"
 
 
 # =============================================================================
@@ -121,7 +121,7 @@ class TestHermiticity:
         times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
         for i, rho in enumerate(rhos):
-            assert np.allclose(rho, rho.conj().T, atol=1e-6), (
+            assert rho == pytest.approx(rho.conj().T, abs=1e-6), (
                 f"Non-Hermitian at t={times[i]}"
             )
 
@@ -134,7 +134,7 @@ class TestHermiticity:
         times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
         for i, rho in enumerate(rhos):
-            assert np.allclose(rho, rho.conj().T, atol=1e-6), (
+            assert rho == pytest.approx(rho.conj().T, abs=1e-6), (
                 f"Non-Hermitian at t={times[i]}"
             )
 
@@ -217,7 +217,7 @@ class TestParticleConservation:
 
         for i, rho in enumerate(rhos):
             mean_n = np.real(np.trace(rho @ number_operator(N)))
-            assert np.isclose(mean_n, initial_n, atol=1e-6), (
+            assert mean_n == pytest.approx(initial_n, abs=1e-6), (
                 f"Particle number changed at t={times[i]}: {mean_n} vs {initial_n}"
             )
 
@@ -236,7 +236,7 @@ class TestParticleConservation:
 
         for i, rho in enumerate(rhos):
             mean_n = np.real(np.trace(rho @ number_operator(N)))
-            assert np.isclose(mean_n, initial_n, atol=1e-4), (
+            assert mean_n == pytest.approx(initial_n, abs=1e-4), (
                 f"Particle number changed at t={times[i]}"
             )
 
@@ -262,7 +262,7 @@ class TestPhaseDiffusion:
         # Build config with phase diffusion only
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=gamma_phi)
 
-        times, rhos = simulate_trajectory(rho0, config=config, T=2.0, num_times=50)
+        _times, rhos = simulate_trajectory(rho0, config=config, T=2.0, num_times=50)
 
         # Compute off-diagonal coherence |ρ_{01}|
         coherences: list[float] = []
@@ -299,7 +299,7 @@ class TestPhaseDiffusion:
             pop_0 = np.real(rho[0, 0])
             pop_1 = np.real(rho[1, 1])
             total = pop_0 + pop_1
-            assert np.isclose(total, 1.0, atol=1e-4), (
+            assert total == pytest.approx(1.0, abs=1e-4), (
                 f"Populations not preserved at t={times[i]}"
             )
 
@@ -327,12 +327,12 @@ class TestUnitaryEvolution:
         final_rho = evolve_lindblad(rho0, config, T, dt=0.001)
 
         # Analytical unitary evolution
-        a, a_dag = create_bosonic_operators(N)
+        _a, _a_dag = create_bosonic_operators(N)
         H = number_operator(N)  # H = n
         U = scipy.linalg.expm(-1.0j * H * T)
         expected_rho = U @ rho0 @ U.conj().T
 
-        assert np.allclose(final_rho, expected_rho, atol=1e-4), (
+        assert final_rho == pytest.approx(expected_rho, abs=1e-4), (
             "Unitary evolution mismatch"
         )
 
@@ -348,7 +348,7 @@ class TestSteadyState:
     def test_steady_state_iterative(self) -> None:
         """Iterative steady state should converge (basic check)."""
         N = 3
-        a, a_dag = create_bosonic_operators(N)
+        a, _a_dag = create_bosonic_operators(N)
         H = np.zeros((N + 1, N + 1), dtype=complex)
 
         # One-body loss: L = a
@@ -367,7 +367,7 @@ class TestSteadyState:
         N = 5
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=1.0)
 
-        a, a_dag = create_bosonic_operators(N)
+        _a, _a_dag = create_bosonic_operators(N)
         H = number_operator(N)
         jz = jz_operator(N)
 
@@ -402,9 +402,13 @@ class TestValidation:
 
         validation = validate_density_matrix(rho)
 
-        assert validation["is_hermitian"]
-        assert validation["is_normalized"]
-        assert validation["is_positive"]
+        assert validation["is_hermitian"], (
+            'Condition failed: validation["is_hermitian"]'
+        )
+        assert validation["is_normalized"], (
+            'Condition failed: validation["is_normalized"]'
+        )
+        assert validation["is_positive"], 'Condition failed: validation["is_positive"]'
 
     def test_unnormalized_fails(self) -> None:
         """Unnormalized state should fail trace check."""
@@ -412,7 +416,9 @@ class TestValidation:
 
         validation = validate_density_matrix(rho)
 
-        assert not validation["is_normalized"]
+        assert not validation["is_normalized"], (
+            'validation["is_normalized"] should be falsy'
+        )
 
     def test_non_hermitian_fails(self) -> None:
         """Non-Hermitian should fail hermiticity check."""
@@ -420,7 +426,9 @@ class TestValidation:
 
         validation = validate_density_matrix(rho)
 
-        assert not validation["is_hermitian"]
+        assert not validation["is_hermitian"], (
+            'validation["is_hermitian"] should be falsy'
+        )
 
 
 # =============================================================================
@@ -434,7 +442,7 @@ class TestLiouvillian:
     def test_liouvillian_unitary_part(self) -> None:
         """Liouvillian unitary part should give correct dynamics."""
         N = 3
-        a, a_dag = create_bosonic_operators(N)
+        _a, _a_dag = create_bosonic_operators(N)
         H = number_operator(N)
 
         # Build Liouvillian with no dissipation
@@ -454,12 +462,14 @@ class TestLiouvillian:
         # Expected: -i[H, rho]
         expected = -1.0j * (H @ rho - rho @ H)
 
-        assert np.allclose(drho_dt, expected, atol=1e-6)
+        assert drho_dt == pytest.approx(expected, abs=1e-6), (
+            "Expected drho_dt == pytest.approx(expected, abs=1e-6)"
+        )
 
     def test_liouvillian_dissipative_part(self) -> None:
         """Liouvillian should give correct decay for one-body loss."""
         N = 3
-        a, a_dag = create_bosonic_operators(N)
+        a, _a_dag = create_bosonic_operators(N)
 
         H = number_operator(N)
         L_ops = [a]
@@ -478,7 +488,7 @@ class TestLiouvillian:
         # dρ/dt = L ρ L† - ½{L†L, ρ} for one-body loss from |1⟩
         # Should have transitions to |0⟩
         # At least one element should change
-        assert np.max(np.abs(drho_dt)) > 0
+        assert np.max(np.abs(drho_dt)) > 0, "Expected np.max(np.abs(drho_dt)) > 0"
 
 
 # =============================================================================
@@ -511,7 +521,9 @@ class TestFullSimulation:
         rho_rk4 = evolve_lindblad(rho0, config, T=0.5, dt=0.01, method="rk4")
 
         validation = validate_density_matrix(rho_rk4)
-        assert validation["is_hermitian"]
+        assert validation["is_hermitian"], (
+            'Condition failed: validation["is_hermitian"]'
+        )
 
 
 # =============================================================================
@@ -530,7 +542,9 @@ class TestEdgeCases:
 
         final_rho = evolve_lindblad(rho0, config, T=0.0, dt=0.01)
 
-        assert np.allclose(final_rho, rho0, atol=1e-6)
+        assert final_rho == pytest.approx(rho0, abs=1e-6), (
+            "Expected final_rho == pytest.approx(rho0, abs=1e-6)"
+        )
 
     def test_small_dt(self) -> None:
         """Small dt should give stable evolution."""
@@ -542,5 +556,9 @@ class TestEdgeCases:
 
         validation = validate_density_matrix(final_rho)
 
-        assert validation["is_hermitian"]
-        assert validation["is_normalized"]
+        assert validation["is_hermitian"], (
+            'Condition failed: validation["is_hermitian"]'
+        )
+        assert validation["is_normalized"], (
+            'Condition failed: validation["is_normalized"]'
+        )

@@ -76,6 +76,7 @@ def coherent_spin_state(N: int) -> np.ndarray:
 
     """
     from scipy.linalg import expm
+
     from src.physics.dicke_basis import jy_operator
 
     if N < 0:
@@ -144,7 +145,7 @@ def one_axis_twist(
         raise ValueError(f"Evolution time t must be non-negative, got {t}")
     if initial_state.shape[0] != N + 1:
         raise ValueError(
-            f"State dimension {initial_state.shape[0]} does not match N+1 = {N + 1}"
+            f"State dimension {initial_state.shape[0]} does not match N+1 = {N + 1}",
         )
 
     # J_z eigenvalues: m = N/2, N/2-1, ..., -N/2
@@ -208,7 +209,7 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
     if state.shape[0] != N + 1:
         raise ValueError(
-            f"State dimension {state.shape[0]} does not match N+1 = {N + 1}"
+            f"State dimension {state.shape[0]} does not match N+1 = {N + 1}",
         )
 
     # Normalize state
@@ -262,8 +263,7 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
         perp_mean = np.real(np.trace(rho @ J_perp_op))
         perp_var = np.real(np.trace(rho @ J_perp_op @ J_perp_op)) - perp_mean**2
 
-        if perp_var < min_perp_var:
-            min_perp_var = perp_var
+        min_perp_var = min(min_perp_var, perp_var)
 
     # SQL variance
     sql_var = N / 4.0
@@ -312,9 +312,7 @@ def optimal_squeezing_time(N: int, chi: float) -> float:
         raise ValueError(f"Coupling strength chi must be positive, got {chi}")
 
     # t_opt = (6/N)^(1/3) / chi
-    t_opt = (6.0 / N) ** (1.0 / 3.0) / chi
-
-    return t_opt
+    return (6.0 / N) ** (1.0 / 3.0) / chi
 
 
 def generate_squeezed_state(N: int, chi: float, t: float) -> np.ndarray:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 
 import numpy as np
+import pytest
 
 
 def _build_hamiltonian(n_sites: int, j: float = 1.0, u: float = 1.0) -> np.ndarray:
@@ -31,7 +32,8 @@ def _build_hamiltonian(n_sites: int, j: float = 1.0, u: float = 1.0) -> np.ndarr
     )
 
     hamiltonian_local = functools.reduce(
-        np.kron, [sigma_z for _ in range(1, n_sites + 1)]
+        np.kron,
+        [sigma_z for _ in range(1, n_sites + 1)],
     )
     return j * hamiltonian_local + (0.5 * u) * hamiltonian_coupling
 
@@ -53,7 +55,7 @@ class TestHeisenbergModelHamiltonian:
         """Test that Hamiltonian is Hermitian."""
         for n_sites in [2, 3, 4]:
             H = _build_hamiltonian(n_sites)
-            assert np.allclose(H, H.conj().T, atol=1e-10), (
+            assert pytest.approx(H.conj().T, abs=1e-10) == H, (
                 "Hamiltonian should be Hermitian"
             )
 
@@ -61,7 +63,7 @@ class TestHeisenbergModelHamiltonian:
         """Test that different J values give different Hamiltonians."""
         H_pos = _build_hamiltonian(n_sites=3, j=1.0)
         H_neg = _build_hamiltonian(n_sites=3, j=-1.0)
-        assert not np.allclose(H_pos, H_neg, atol=1e-10), (
+        assert H_pos != pytest.approx(H_neg, abs=1e-10), (
             "Different J values should give different Hamiltonians"
         )
 
@@ -69,7 +71,7 @@ class TestHeisenbergModelHamiltonian:
         """Test that different U values give different Hamiltonians."""
         H_low = _build_hamiltonian(n_sites=3, u=0.1)
         H_high = _build_hamiltonian(n_sites=3, u=10.0)
-        assert not np.allclose(H_low, H_high, atol=1e-10), (
+        assert H_low != pytest.approx(H_high, abs=1e-10), (
             "Different U values should give different Hamiltonians"
         )
 
@@ -95,7 +97,7 @@ class TestHeisenbergModelEigendecomposition:
             H = _build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
             # All eigenvalues should be real
-            assert np.allclose(eigenvalues.imag, 0, atol=1e-10), (
+            assert eigenvalues.imag == pytest.approx(0, abs=1e-10), (
                 "Eigenvalues should be real"
             )
 
@@ -107,9 +109,10 @@ class TestHeisenbergModelEigendecomposition:
 
             # Check orthonormality: U @ U^\dagger = I
             identity_check = eigenvectors @ eigenvectors.conj().T
-            assert np.allclose(identity_check, np.eye(len(eigenvalues)), atol=1e-10), (
-                "Eigenvectors should form orthonormal basis"
-            )
+            assert identity_check == pytest.approx(
+                np.eye(len(eigenvalues)),
+                abs=1e-10,
+            ), "Eigenvectors should form orthonormal basis"
 
     def test_eigenvalue_ordering(self) -> None:
         """Test that eigenvalues are returned in ascending order."""
@@ -130,7 +133,7 @@ class TestHeisenbergModelEigendecomposition:
 
             # Reconstruct H = U @ diag(λ) @ U^\dagger
             reconstructed = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.conj().T
-            assert np.allclose(H, reconstructed, atol=1e-10), (
+            assert pytest.approx(reconstructed, abs=1e-10) == H, (
                 "Should be able to reconstruct H from eigendecomposition"
             )
 
@@ -142,7 +145,7 @@ class TestHeisenbergModelExpectationValues:
         """Test expectation value calculation using einsum."""
         n_sites = 3
         H = _build_hamiltonian(n_sites)
-        eigenvalues, eigenvectors = np.linalg.eigh(H)
+        _eigenvalues, eigenvectors = np.linalg.eigh(H)
 
         alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:n_sites]
 
@@ -150,11 +153,12 @@ class TestHeisenbergModelExpectationValues:
         level_expectations = np.array(
             [
                 np.einsum(
-                    alphabet + f" -> {alphabet[j]}", np.reshape(vector, [2] * n_sites)
+                    alphabet + f" -> {alphabet[j]}",
+                    np.reshape(vector, [2] * n_sites),
                 )
                 for j in range(n_sites)
                 for vector in eigenvectors
-            ]
+            ],
         )
         level_expectations = level_expectations.reshape(n_sites, len(eigenvectors), 2)
 
@@ -171,18 +175,19 @@ class TestHeisenbergModelExpectationValues:
         """Test that sum of σ_z expectation values has correct properties."""
         n_sites = 3
         H = _build_hamiltonian(n_sites)
-        eigenvalues, eigenvectors = np.linalg.eigh(H)
+        _eigenvalues, eigenvectors = np.linalg.eigh(H)
 
         alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:n_sites]
 
         level_expectations = np.array(
             [
                 np.einsum(
-                    alphabet + f" -> {alphabet[j]}", np.reshape(vector, [2] * n_sites)
+                    alphabet + f" -> {alphabet[j]}",
+                    np.reshape(vector, [2] * n_sites),
                 )
                 for j in range(n_sites)
                 for vector in eigenvectors
-            ]
+            ],
         )
         level_expectations = level_expectations.reshape(n_sites, len(eigenvectors), 2)
 
@@ -191,7 +196,9 @@ class TestHeisenbergModelExpectationValues:
         for state in range(len(eigenvectors)):
             sum_sz = sum(level_expectations[site, state, 0] for site in range(n_sites))
             # Allow wider bounds due to numerical precision
-            assert -2 * n_sites <= sum_sz <= 2 * n_sites
+            assert -2 * n_sites <= sum_sz <= 2 * n_sites, (
+                "Expected -2 * n_sites <= sum_sz <= 2 * n_sites"
+            )
 
 
 class TestHeisenbergModelPhysicalConstraints:
@@ -272,11 +279,11 @@ class TestHeisenbergModelScaling:
             H = _build_hamiltonian(n_sites)
 
             start = time.perf_counter()
-            eigenvalues, eigenvectors = np.linalg.eigh(H)
+            _eigenvalues, _eigenvectors = np.linalg.eigh(H)
             elapsed = time.perf_counter() - start
             times.append(elapsed)
 
         # Time should not grow faster than O(2^(3n)) for direct diagonalization
         # This is a weak test, just checking it's not catastrophically slow
-        for n, t in zip([2, 3, 4, 5], times):
+        for n, t in zip([2, 3, 4, 5], times, strict=False):
             assert t < 10.0, f"Diagonalization for n={n} took too long: {t:.2f}s"

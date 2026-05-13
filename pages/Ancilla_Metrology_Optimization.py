@@ -46,7 +46,7 @@ st.markdown(
     4 for the initial product state $|\psi_S\rangle \otimes |\psi_A\rangle$,
     2 beam-splitter durations, holding time $T_H$, and 4 interaction coefficients
     $\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz}$.
-    """
+    """,
 )
 
 # ── Validate core infrastructure ─────────────────────────────────────────────
@@ -85,13 +85,25 @@ with st.sidebar:
     st.header("Optimisation Parameters")
 
     theta_min = st.number_input(
-        "θ min", value=0.1, min_value=0.01, step=0.1, format="%.2f"
+        "θ min",
+        value=0.1,
+        min_value=0.01,
+        step=0.1,
+        format="%.2f",
     )
     theta_max = st.number_input(
-        "θ max", value=5.0, min_value=0.1, step=0.1, format="%.2f"
+        "θ max",
+        value=5.0,
+        min_value=0.1,
+        step=0.1,
+        format="%.2f",
     )
     n_theta = st.slider(
-        "Number of θ values", min_value=2, max_value=20, value=6, step=1
+        "Number of θ values",
+        min_value=2,
+        max_value=20,
+        value=6,
+        step=1,
     )
 
     n_restarts = st.slider(
@@ -105,7 +117,7 @@ with st.sidebar:
 
     with st.expander("📐 Advanced: Bounds", expanded=False):
         st.markdown(
-            "Adjust parameter search bounds. Use `T_H max = 20.0` to replicate the expanded-range investigation in the article."
+            "Adjust parameter search bounds. Use `T_H max = 20.0` to replicate the expanded-range investigation in the article.",
         )
         t_h_min = st.number_input(
             "T_H min",
@@ -161,7 +173,7 @@ st.markdown(
     $$
     The Nelder–Mead optimiser explores the full 11-parameter space seeking
     $\Delta\theta < \Delta\theta_{\text{SQL}}$ through ancilla interaction.
-    """
+    """,
 )
 
 # θ values to scan
@@ -177,7 +189,7 @@ if run_button:
     with st.spinner(
         f"Running Nelder–Mead optimisation over {n_theta} θ values "
         f"× {n_restarts} restarts = {n_theta * n_restarts} runs... "
-        f"(T_H ∈ [{bounds['T_H'][0]:.1f}, {bounds['T_H'][1]:.1f}])"
+        f"(T_H ∈ [{bounds['T_H'][0]:.1f}, {bounds['T_H'][1]:.1f}])",
     ):
         start = time.time()
         scan_result = run_theta_scan(
@@ -191,7 +203,7 @@ if run_button:
 
     st.success(
         f"Scan completed in {elapsed:.1f}s "
-        f"({elapsed / (n_theta * n_restarts):.2f}s per run)"
+        f"({elapsed / (n_theta * n_restarts):.2f}s per run)",
     )
 
     # ── Summary metrics ──────────────────────────────────────────────────
@@ -261,7 +273,7 @@ if run_button:
         table_data["θ"].append(f"{r.theta_true:.2f}")
         table_data["Best Δθ"].append(f"{r.delta_theta_opt:.4f}")
         table_data["Δθ_SQL"].append(
-            f"{sql_dtheta:.4f}" if np.isfinite(sql_dtheta) else "—"
+            f"{sql_dtheta:.4f}" if np.isfinite(sql_dtheta) else "—",
         )
         table_data["vs SQL"].append(imp_str)
         table_data["Spread"].append(spread_str)
@@ -287,9 +299,9 @@ if run_button:
             y=scan_result.best_per_theta,
             mode="lines+markers",
             name="Best Δθ (Nelder–Mead)",
-            line=dict(color="firebrick", width=2),
-            marker=dict(size=8),
-        )
+            line={"color": "firebrick", "width": 2},
+            marker={"size": 8},
+        ),
     )
 
     # SQL reference: dynamic per-θ based on optimal T_H*
@@ -305,8 +317,8 @@ if run_button:
             y=sql_y,
             mode="lines",
             name="SQL (1/T_H*)",
-            line=dict(color="gray", width=2, dash="dash"),
-        )
+            line={"color": "gray", "width": 2, "dash": "dash"},
+        ),
     )
 
     # All individual results
@@ -323,9 +335,9 @@ if run_button:
             y=all_deltas,
             mode="markers",
             name="Individual runs",
-            marker=dict(color="rgba(100, 100, 100, 0.3)", size=4),
+            marker={"color": "rgba(100, 100, 100, 0.3)", "size": 4},
             showlegend=True,
-        )
+        ),
     )
 
     fig.update_layout(
@@ -334,7 +346,7 @@ if run_button:
         yaxis_title="Δθ",
         yaxis_type="log",
         height=450,
-        legend=dict(yanchor="top", y=0.95, xanchor="left", x=0.05),
+        legend={"yanchor": "top", "y": 0.95, "xanchor": "left", "x": 0.05},
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -367,7 +379,7 @@ if run_button:
                     y=param_matrix[:, i],
                     mode="lines+markers",
                     name=name,
-                )
+                ),
             )
 
         fig_params.update_layout(
@@ -375,7 +387,7 @@ if run_button:
             xaxis_title="True θ",
             yaxis_title="Parameter value",
             height=400,
-            legend=dict(yanchor="top", y=0.95, xanchor="right", x=0.95),
+            legend={"yanchor": "top", "y": 0.95, "xanchor": "right", "x": 0.95},
         )
 
         st.plotly_chart(fig_params, use_container_width=True)
@@ -393,7 +405,7 @@ if run_button:
                 zmax=1,
                 text=np.round(corr, 2),
                 texttemplate="%{text}",
-            )
+            ),
         )
         fig_corr.update_layout(
             title="Parameter Correlation (across θ values)",
@@ -406,7 +418,7 @@ if run_button:
         st.markdown(
             """
             Manually set the 11 parameters to probe the sensitivity landscape.
-            """
+            """,
         )
 
         col1, col2, col3 = st.columns(3)
@@ -439,7 +451,7 @@ if run_button:
                 a_xz_test,
                 a_zx_test,
                 a_zz_test,
-            ]
+            ],
         )
 
         if st.button("Compute Sensitivity", key="test_btn"):
@@ -478,7 +490,7 @@ if run_button:
             The optimal parameters deviate significantly from the decoupled
             case, suggesting that ancilla interaction can enhance sensitivity
             when the full parameter space is explored.
-            """
+            """,
         )
     elif improvement_best > 0.0:
         st.info(
@@ -486,14 +498,14 @@ if run_button:
             Modest improvement ({improvement_best:.1f}%) over SQL observed.
             The optimal configurations are near the decoupled limit,
             suggesting limited ancilla benefit for this parameter regime.
-            """
+            """,
         )
     else:
         st.warning(
             """
             No improvement over SQL observed in this scan. The Nelder–Mead
             optimisation may benefit from more restarts or wider search bounds.
-            """
+            """,
         )
 
 else:
@@ -507,5 +519,5 @@ st.caption(
     **Method**: Nelder–Mead (11 parameters) |
     **Objective**: $\Delta\theta = \sqrt{\text{Var}(J_z^S)} / |\partial\langle J_z^S\rangle/\partial\theta|$ |
     🔗 See `articles/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md` for the full plan.
-    """
+    """,
 )

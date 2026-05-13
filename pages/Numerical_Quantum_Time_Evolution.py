@@ -1,32 +1,35 @@
 """Numerical Quantum Time Evolution UI page - imports physics from src.quantum_time_evolution."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
-from plotly import express as px
-from typing import Any, Callable, List
+from typing import Any
+
 import numpy as np
 import pandas as pd
 import streamlit as st
+from plotly import express as px
 
-from src.utils.enums import WavePacket, PotentialFunction, BoundaryCondition
 from src.evolution.quantum_time_evolution import (
+    TimeEvolver,
+    build_1d_hamiltonian,
+    compute_energy_levels,
     gaussian_wave_packet,
-    step_wave_packet,
+    normalize_energy_levels,
+    potential_double_well,
     potential_quadratic,
     potential_quartic,
     potential_trigonometric,
     potential_uniform,
-    potential_double_well,
-    build_1d_hamiltonian,
-    compute_energy_levels,
-    normalize_energy_levels,
-    TimeEvolver,
+    step_wave_packet,
 )
+from src.utils.enums import BoundaryCondition, PotentialFunction, WavePacket
 from src.visualization.plotting import plot_array
 
-
 st.set_page_config(
-    page_title="QM | Numerical Quantum Time Evolution", page_icon="🦖️", layout="wide"
+    page_title="QM | Numerical Quantum Time Evolution",
+    page_icon="🦖️",
+    layout="wide",
 )
 
 st.cache_data.clear()
@@ -37,10 +40,10 @@ st.header("QM | Numerical Quantum Time Evolution", divider="blue")
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""
     **Quantum Time Evolution** evolves an initial quantum state under a time-independent Hamiltonian using spectral decomposition.
-    
+
     **The Problem:** Solve the time-dependent Schrödinger equation:
     $$i\hbar \frac{d}{dt}|\psi(t)\rangle = H|\psi(t)\rangle$$
-    
+
     **Methodology:**
     1. **Hamiltonian Construction**: Build the discretized Hamiltonian matrix $H = \frac{\hat{p}^2}{2m} + V(x)$
        using finite differences on a spatial grid of $N_x$ points
@@ -50,13 +53,13 @@ with st.expander("📖 Methodology", expanded=False):
     4. **Time Evolution**: Apply the unitary evolution operator:
        $$\ket{\psi(t)} = \sum_i \lambda_i e^{-iE_it/\hbar}\ket{E_i}$$
     5. **Visualization**: Generate a heatmap of $|\psi(x,t)|^2$ over time
-    
+
     **Initial State Options:**
     - **Gaussian wave packet**: $\psi(x) = e^{-d(x-x_0)^2 + ipx}$ with position/momentum
     - **Step function**: $\psi(x) = e^{ipx} \cdot \mathbb{1}_{[r,s]}(x)$ for localized states
-    
+
     **Validation:** Verify orthonormality of eigenstates and conservation of total probability.
-    
+
     **Note:** The algorithm uses $\hbar = 1$ units and $\Delta t = 0.1$ in the phase evolution.
     """)
 
@@ -86,7 +89,8 @@ with st.sidebar:
     with c1:
         st.header(r"Initial state $\ket{\psi_0}$", divider="orange")
         initial_wave_packet = st.selectbox(
-            r"$\psi_0(x)$", [psi.value for psi in WavePacket]
+            r"$\psi_0(x)$",
+            [psi.value for psi in WavePacket],
         )
         match initial_wave_packet:
             case WavePacket.Gaussian.value:
@@ -95,7 +99,10 @@ with st.sidebar:
                 initial_momentum = st.number_input("$p$", value=2.0)
                 initial_center_of_mass = st.number_input("$x_0$", value=-1.0)
                 phi_zero = gaussian_wave_packet(
-                    valid_x, d=d, x0=initial_center_of_mass, p=initial_momentum
+                    valid_x,
+                    d=d,
+                    x0=initial_center_of_mass,
+                    p=initial_momentum,
                 )
             case WavePacket.Step.value:
                 st.latex(r"\mathbb{1}_{{[r,s]}}e^{{ipx}}")
@@ -110,7 +117,8 @@ with st.sidebar:
     with c2:
         st.header(r"Potential $V(x)$", divider="green")
         potential_function = st.selectbox(
-            r"$V(x)$", [f.value for f in PotentialFunction]
+            r"$V(x)$",
+            [f.value for f in PotentialFunction],
         )
         match potential_function:
             case PotentialFunction.Quadratic.value:
@@ -118,14 +126,18 @@ with st.sidebar:
                 potential_increase = st.number_input("$a$", value=0.2)
                 potential_center = st.number_input("$c$", value=0.0)
                 potential_x = partial(
-                    potential_quadratic, a=potential_increase, c=potential_center
+                    potential_quadratic,
+                    a=potential_increase,
+                    c=potential_center,
                 )
             case PotentialFunction.Quartic.value:
                 st.latex(r"a(x-c)^4")
                 potential_increase = st.number_input("$a$", value=0.05)
                 potential_center = st.number_input("$c$", value=0.0)
                 potential_x = partial(
-                    potential_quartic, a=potential_increase, c=potential_center
+                    potential_quartic,
+                    a=potential_increase,
+                    c=potential_center,
                 )
             case PotentialFunction.Trigonometric.value:
                 width = x_max - x_min
@@ -153,7 +165,8 @@ with st.sidebar:
                 potential_x = partial(potential_double_well, a=a, b=b, c=c)
 
         boundary_condition = st.selectbox(
-            "Boundary Condition", [f.value for f in BoundaryCondition]
+            "Boundary Condition",
+            [f.value for f in BoundaryCondition],
         )
 
 st.subheader("Setup")
@@ -179,7 +192,7 @@ with c1:
                 "Im": np.imag(phi_zero),
                 "Norm": np.sqrt(np.real(phi_zero) ** 2 + np.imag(phi_zero) ** 2),
                 "x": valid_x,
-            }
+            },
         ),
         x="x",
         height=200,
@@ -193,10 +206,12 @@ def build_hamiltonian_wrapper(
     inner_potential_function: Callable,
     inner_boundary_condition: BoundaryCondition,
 ) -> Any:
-    result = build_1d_hamiltonian(
-        inner_n, inner_dx, inner_potential_function, inner_boundary_condition
+    return build_1d_hamiltonian(
+        inner_n,
+        inner_dx,
+        inner_potential_function,
+        inner_boundary_condition,
     )
-    return result
 
 
 hamiltonian = build_hamiltonian_wrapper(
@@ -219,7 +234,7 @@ with c3:
             {
                 "Potential": map(potential_x, valid_x),
                 "x": valid_x,
-            }
+            },
         ),
         x="x",
         height=200,
@@ -242,7 +257,10 @@ energy_levels = [
         component=np.vdot(phi_zero, wf),
     )
     for level, energy, wf in zip(
-        range(number_of_energy_levels), np.real(energies), wf_matrix
+        range(number_of_energy_levels),
+        np.real(energies),
+        wf_matrix,
+        strict=False,
     )
 ]
 
@@ -254,7 +272,7 @@ for el in energy_levels:
 
 with c3:
     st.subheader(r"Lowest energy levels $\ket{E_i}$")
-    visible_energy_levels: List[int] = st.multiselect(
+    visible_energy_levels: list[int] = st.multiselect(
         "Visible energy levels",
         options=[el.level for el in energy_levels],
         default=range(min(4, number_of_energy_levels)),
@@ -268,14 +286,14 @@ with c3:
                     for el in energy_levels
                     if el.level in visible_energy_levels
                 },
-            }
+            },
         ),
         x="x",
     )
 
 # Orthonormality check
 ortho_error = np.sum(
-    np.abs(np.real(wf_matrix @ wf_matrix.conj().T) - np.eye(number_of_energy_levels))
+    np.abs(np.real(wf_matrix @ wf_matrix.conj().T) - np.eye(number_of_energy_levels)),
 )
 with c3:
     st.caption(f"Orthonormality error = {ortho_error:g}")
@@ -291,7 +309,7 @@ with c1:
                 "probability": [np.abs(el.component) ** 2 for el in energy_levels],
                 "level": [el.level for el in energy_levels],
                 "energy": [el.energy for el in energy_levels],
-            }
+            },
         ),
         x="level",
         y="energy",
@@ -299,7 +317,7 @@ with c1:
         height=200,
     )
     st.caption(
-        rf"Coverage: {100 * np.sum([np.abs(el.component) ** 2 for el in energy_levels]):.2f}%"
+        rf"Coverage: {100 * np.sum([np.abs(el.component) ** 2 for el in energy_levels]):.2f}%",
     )
 
 with c2:
@@ -309,9 +327,9 @@ with c2:
             [
                 f"{100 * el.component:+.0f}\\ket{{ {el.level} }}"
                 for el in energy_levels[:5]
-            ]
+            ],
         )
-        + "\\end{array}"
+        + "\\end{array}",
     )
 
 # Create evolver and compute time evolution
@@ -332,7 +350,7 @@ time_evolution_data = pd.DataFrame(
         [
             np.abs(evolve(temp_t)) ** 2
             for temp_t in np.linspace(0, time, trotterization_steps + 1)
-        ]
+        ],
     ).T,
     columns=np.linspace(0, time, trotterization_steps + 1),
     index=valid_x,
@@ -348,7 +366,7 @@ phi_time_df = pd.DataFrame(
         "Im": np.imag(phi_time),
         "Norm": np.abs(phi_time),
         "x": valid_x,
-    }
+    },
 )
 
 c1, c2 = st.columns([1, 1])

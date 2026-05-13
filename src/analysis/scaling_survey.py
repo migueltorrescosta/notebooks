@@ -24,7 +24,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -42,10 +43,12 @@ from src.physics.mzi_lindblad import MziNoiseConfig, evolve_mzi_lindblad
 from src.physics.mzi_simulation import phase_shift_unitary
 from src.physics.mzi_states import (
     compute_fisher_information,
-    two_mode_jz_operator,
     input_state_factory,
+    two_mode_jz_operator,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # =============================================================================
 # Custom Sensitivity Function Generators
@@ -87,7 +90,7 @@ def _non_gaussian_sensitivity_fn(
         ValueError: If n_order is not 2, 3, or 4.
 
     """
-    import scipy.linalg  # noqa: PLC0415 — lazy import avoids startup cost
+    import scipy.linalg
 
     if n_order not in (2, 3, 4):
         raise ValueError(f"n_order must be 2, 3, or 4, got {n_order}")
@@ -163,7 +166,10 @@ def _ancilla_sensitivity_fn(
         is multiplied by ``(1 + noise_level)``.
 
     """
-    from src.physics.pseudomode_system import PseudomodeConfig, run_metrology_protocol  # noqa: PLC0415
+    from src.physics.pseudomode_system import (
+        PseudomodeConfig,
+        run_metrology_protocol,
+    )
 
     def _sensitivity(N: int, noise_level: float) -> float:
         try:
@@ -240,7 +246,7 @@ class SurveyConfig:
             raise ValueError(f"N_range minimum must be positive, got {self.N_range[0]}")
         if self.N_range[1] < self.N_range[0]:
             raise ValueError(
-                f"N_range max ({self.N_range[1]}) must be >= min ({self.N_range[0]})"
+                f"N_range max ({self.N_range[1]}) must be >= min ({self.N_range[0]})",
             )
         if self.N_points < 2:
             raise ValueError(f"N_points must be >= 2, got {self.N_points}")
@@ -249,7 +255,7 @@ class SurveyConfig:
         valid_methods = {"qfi", "cf", "ep", "bayesian"}
         if self.method not in valid_methods:
             raise ValueError(
-                f"method must be one of {valid_methods}, got {self.method}"
+                f"method must be one of {valid_methods}, got {self.method}",
             )
         for nl in self.noise_levels:
             if nl < 0:
@@ -302,7 +308,7 @@ class ModelConfig:
         if self.noise_type not in valid_noise_types:
             raise ValueError(
                 f"Unknown noise_type: {self.noise_type}. "
-                f"Must be one of: {valid_noise_types}"
+                f"Must be one of: {valid_noise_types}",
             )
 
 
@@ -498,7 +504,10 @@ def _compute_noisy_sensitivity(
     # Evolve under Lindblad master equation
     try:
         rho_noisy = evolve_mzi_lindblad(
-            state, noise_config, max_photons=max_photons, H=None
+            state,
+            noise_config,
+            max_photons=max_photons,
+            H=None,
         )
     except (ValueError, np.linalg.LinAlgError, AssertionError):
         return np.inf
@@ -681,7 +690,7 @@ def run_scaling_survey(
                             "method": survey_config.method,
                             "entangler": model.entangler,
                             "label": model.label,
-                        }
+                        },
                     )
                     count += 1
                     if progress_callback:
@@ -711,7 +720,7 @@ def run_scaling_survey(
                             "method": survey_config.method,
                             "entangler": model.entangler,
                             "label": model.label,
-                        }
+                        },
                     )
                     count += 1
                     if progress_callback:
@@ -734,7 +743,10 @@ def run_scaling_survey(
 
                 # --- Steps 4 & 5: Apply noise and compute sensitivity ---
                 delta_phi = _compute_noisy_sensitivity(
-                    state, max_photons, noise_level, model.noise_type
+                    state,
+                    max_photons,
+                    noise_level,
+                    model.noise_type,
                 )
 
                 results.append(
@@ -748,7 +760,7 @@ def run_scaling_survey(
                         "method": survey_config.method,
                         "entangler": model.entangler,
                         "label": model.label,
-                    }
+                    },
                 )
 
                 count += 1
@@ -804,7 +816,7 @@ def fit_all_exponents(
     if missing:
         raise ValueError(
             f"survey_df missing required columns: {missing}. "
-            f"Has columns: {list(survey_df.columns)}"
+            f"Has columns: {list(survey_df.columns)}",
         )
 
     if survey_df.empty:
@@ -820,8 +832,16 @@ def fit_all_exponents(
 
     if finite_df.empty:
         return pd.DataFrame(
-            columns=group_cols
-            + ["alpha", "alpha_err", "C", "C_err", "R_squared", "valid", "n_points"]
+            columns=[
+                *group_cols,
+                "alpha",
+                "alpha_err",
+                "C",
+                "C_err",
+                "R_squared",
+                "valid",
+                "n_points",
+            ],
         )
 
     fit_rows: list[dict] = []
@@ -831,8 +851,16 @@ def fit_all_exponents(
         grouped = finite_df.groupby(available_groups, dropna=True)
     except Exception:
         return pd.DataFrame(
-            columns=available_groups
-            + ["alpha", "alpha_err", "C", "C_err", "R_squared", "valid", "n_points"]
+            columns=[
+                *available_groups,
+                "alpha",
+                "alpha_err",
+                "C",
+                "C_err",
+                "R_squared",
+                "valid",
+                "n_points",
+            ],
         )
 
     for group_keys, group_df in grouped:
@@ -840,8 +868,8 @@ def fit_all_exponents(
         if not isinstance(group_keys, tuple):
             group_keys = (group_keys,)
 
-        N_arr = group_df["N"].values.astype(float)
-        delta_arr = group_df["delta_phi"].values.astype(float)
+        N_arr = group_df["N"].to_numpy().astype(float)
+        delta_arr = group_df["delta_phi"].to_numpy().astype(float)
 
         result = fit_scaling_exponent(
             N_arr,
@@ -850,7 +878,7 @@ def fit_all_exponents(
             R_squared_threshold=R_squared_threshold,
         )
 
-        row: dict = dict(zip(available_groups, group_keys))
+        row: dict = dict(zip(available_groups, group_keys, strict=False))
         row["alpha"] = result.alpha
         row["alpha_err"] = result.alpha_err
         row["C"] = result.C
@@ -931,8 +959,7 @@ def survey_to_json(survey_df: pd.DataFrame, path: str) -> None:
                 return bool(obj)
             return super().default(obj)
 
-    with open(path, "w") as f:
-        json.dump(output, f, indent=2, cls=NumpyEncoder)
+    Path(path).write_text(json.dumps(output, indent=2, cls=NumpyEncoder))
 
 
 # =============================================================================

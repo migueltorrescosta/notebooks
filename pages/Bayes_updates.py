@@ -4,7 +4,7 @@ Displays how prior distributions update to posteriors as measurement
 outcomes are incorporated, for various phase estimation protocols.
 """
 
-from enum import Enum
+from enum import StrEnum
 from functools import partial
 
 import numpy as np
@@ -18,10 +18,10 @@ st.header("Bayes | Bayesian Updates", divider="blue")
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""
     **Bayesian Updates** is a method for updating probability estimates based on new evidence.
-    
+
     **Core Concept:** We start with a **prior** belief about a parameter, incorporate new data through a **likelihood** function,
     and obtain an updated **posterior** distribution.
-    
+
     **Methodology:**
     1. **Prior Distribution**: Define an initial probability distribution over the parameter space
        - Polynomial prior: $a(x-b)^c$ for geometric/linear cases
@@ -31,13 +31,13 @@ with st.expander("📖 Methodology", expanded=False):
     3. **Posterior Calculation**: Apply Bayes' theorem: $P(\theta|data) \propto P(data|\theta) \cdot P(\theta)$
        - Normalize the product of prior and likelihood
     4. **Visualization**: Compare prior, likelihood, and posterior side-by-side
-    
+
     **Physical Context:** In quantum metrology, this approach is used to update estimates of unknown phase shifts
     based on measurement outcomes, combining prior knowledge with experimental data.
     """)
 
 
-class Distributions(str, Enum):
+class Distributions(StrEnum):
     Geometric = "Geometric"
     Linear = "Linear"
     Gaussian = "Gaussian"
@@ -69,7 +69,8 @@ with st.sidebar:
     c1, c2 = st.columns(2)
     with c1:
         prior_distribution = st.selectbox(
-            "Prior", [dist.value for dist in Distributions]
+            "Prior",
+            [dist.value for dist in Distributions],
         )
         match prior_distribution:
             case Distributions.Geometric.value:
@@ -97,7 +98,8 @@ with st.sidebar:
 
     with c2:
         likelihood_distribution = st.selectbox(
-            "Likelihood", [dist.value for dist in Distributions]
+            "Likelihood",
+            [dist.value for dist in Distributions],
         )
         match likelihood_distribution:
             case Distributions.Geometric.value:
@@ -140,7 +142,7 @@ with st.expander("Show raw data"):
                 "prior": prior_vector,
                 "likelihood": likelihood_vector,
                 "posterior": posterior_vector,
-            }
+            },
         ).T,
         height=150,
     )

@@ -9,9 +9,9 @@ from .dicke_basis import (
     basis_transformation_matrix,
     dicke_states,
     from_dicke_basis,
+    j_lowering_operator,
     j_raising_operator,
     j_squared_operator,
-    j_lowering_operator,
     jx_operator,
     jy_operator,
     jz_eigenvalues,
@@ -29,13 +29,15 @@ class TestDickeStates:
             J = N / 2.0
             basis = dicke_states(N)
             expected_m_values = set(np.arange(J, -J - 1, -1))
-            assert set(basis.keys()) == expected_m_values
+            assert set(basis.keys()) == expected_m_values, (
+                "Expected set(basis.keys()) == expected_m_values"
+            )
 
     def test_output_length(self) -> None:
         """Test that output has N+1 entries."""
         for N in [0, 1, 2, 5, 10, 50]:
             basis = dicke_states(N)
-            assert len(basis) == N + 1
+            assert len(basis) == N + 1, "Expected len(basis) == N + 1"
 
     def test_index_mapping(self) -> None:
         """Test that indices increase correctly."""
@@ -69,7 +71,9 @@ class TestBasisConversions:
         dicke = to_dicke_basis(fock, N)
         fock_back = from_dicke_basis(dicke, N)
 
-        assert np.allclose(fock, fock_back)
+        assert fock == pytest.approx(fock_back), (
+            "Expected fock == pytest.approx(fock_back)"
+        )
 
     def test_roundtrip_single_photon(self) -> None:
         """Test conversion roundtrip for Dicke states."""
@@ -81,14 +85,18 @@ class TestBasisConversions:
 
             dicke = to_dicke_basis(fock, N)
             fock_back = from_dicke_basis(dicke, N)
-            assert np.allclose(fock, fock_back)
+            assert fock == pytest.approx(fock_back), (
+                "Expected fock == pytest.approx(fock_back)"
+            )
 
             # |0,N⟩ → m = -N/2 (min m)
             fock = np.zeros((N + 1) ** 2, dtype=complex)
             fock[N] = 1.0  # |0,N⟩ at index N
             dicke = to_dicke_basis(fock, N)
             fock_back = from_dicke_basis(dicke, N)
-            assert np.allclose(fock, fock_back)
+            assert fock == pytest.approx(fock_back), (
+                "Expected fock == pytest.approx(fock_back)"
+            )
 
             # |N/2,N/2⟩ → m = 0 (middle state, if N is even)
             if N % 2 == 0:
@@ -98,7 +106,9 @@ class TestBasisConversions:
                 fock[idx] = 1.0
                 dicke = to_dicke_basis(fock, N)
                 fock_back = from_dicke_basis(dicke, N)
-                assert np.allclose(fock, fock_back)
+                assert fock == pytest.approx(fock_back), (
+                    "Expected fock == pytest.approx(fock_back)"
+                )
 
     def test_roundtrip_arbitrary_state(self) -> None:
         """Test conversion roundtrip for arbitrary Dicke state."""
@@ -116,7 +126,9 @@ class TestBasisConversions:
         dicke = to_dicke_basis(fock, N)
         fock_back = from_dicke_basis(dicke, N)
 
-        assert np.allclose(fock, fock_back)
+        assert fock == pytest.approx(fock_back), (
+            "Expected fock == pytest.approx(fock_back)"
+        )
 
     def test_basis_dimension_N_plus_one(self) -> None:
         """Test that Dicke basis dimension is N+1."""
@@ -125,16 +137,20 @@ class TestBasisConversions:
             fock = np.zeros((N + 1) ** 2, dtype=complex)
             fock[N * (N + 1)] = 1.0  # |N,0⟩
             dicke = to_dicke_basis(fock, N)
-            assert len(dicke) == N + 1
+            assert len(dicke) == N + 1, "Expected len(dicke) == N + 1"
 
     def test_unitarity_of_transformation(self) -> None:
         """Test that basis transformation is unitary."""
         for N in [1, 2, 3, 4, 5]:
             T = basis_transformation_matrix(N)
-            assert T.shape == ((N + 1) ** 2, N + 1)
+            assert T.shape == ((N + 1) ** 2, N + 1), (
+                "Expected T.shape == ((N + 1) ** 2, N + 1)"
+            )
             # T^\dagger T should be identity in the symmetric subspace
             T_dag_T = T.conj().T @ T
-            assert np.allclose(T_dag_T, np.eye(N + 1), atol=1e-10)
+            assert T_dag_T == pytest.approx(np.eye(N + 1), abs=1e-10), (
+                "Expected T_dag_T == pytest.approx(np.eye(N + 1), abs=1e-10)"
+            )
 
     def test_wrong_dimension_raises(self) -> None:
         """Test that wrong dimensions raise ValueError."""
@@ -181,19 +197,21 @@ class TestJzEigenvalues:
         for N in [1, 2, 5, 10]:
             eigenvalues = jz_eigenvalues(N)
             diffs = np.diff(eigenvalues)
-            assert np.allclose(diffs, -1.0)  # Decreasing by 1
+            assert diffs == pytest.approx(-1.0)  # Decreasing by 1
 
     def test_correct_count(self) -> None:
         """Test that there are N+1 eigenvalues."""
         for N in [0, 1, 5, 10]:
             eigenvalues = jz_eigenvalues(N)
-            assert len(eigenvalues) == N + 1
+            assert len(eigenvalues) == N + 1, "Expected len(eigenvalues) == N + 1"
 
     def test_sum_is_zero_for_even_N(self) -> None:
         """Test sum is zero for half-integer J."""
         for N in [2, 4, 6, 10]:
             eigenvalues = jz_eigenvalues(N)
-            assert np.isclose(np.sum(eigenvalues), 0.0)
+            assert np.sum(eigenvalues) == pytest.approx(0.0), (
+                "Expected np.sum(eigenvalues) == pytest.approx(0.0)"
+            )
 
 
 class TestJzOperator:
@@ -204,26 +222,32 @@ class TestJzOperator:
         for N in [1, 2, 3, 5, 10]:
             J_z = jz_operator(N)
             off_diagonal = J_z - np.diag(np.diag(J_z))
-            assert np.allclose(off_diagonal, 0)
+            assert off_diagonal == pytest.approx(0), (
+                "Expected off_diagonal == pytest.approx(0)"
+            )
 
     def test_eigenvalues_match(self) -> None:
         """Test that diagonal matches jz_eigenvalues."""
         for N in [1, 2, 5, 10]:
             J_z = jz_operator(N)
             eigenvalues = jz_eigenvalues(N)
-            assert np.allclose(J_z.diagonal(), eigenvalues)
+            assert J_z.diagonal() == pytest.approx(eigenvalues), (
+                "Expected J_z.diagonal() == pytest.approx(eigenvalues)"
+            )
 
     def test_hermitian(self) -> None:
         """Test that J_z is Hermitian."""
         for N in [1, 2, 5]:
             J_z = jz_operator(N)
-            assert np.allclose(J_z, J_z.T.conj())
+            assert J_z == pytest.approx(J_z.T.conj()), (
+                "Expected J_z == pytest.approx(J_z.T.conj())"
+            )
 
     def test_dimension(self) -> None:
         """Test that dimension is N+1."""
         for N in [1, 2, 5, 10]:
             J_z = jz_operator(N)
-            assert J_z.shape == (N + 1, N + 1)
+            assert J_z.shape == (N + 1, N + 1), "Expected J_z.shape == (N + 1, N + 1)"
 
 
 class TestJxOperator:
@@ -233,7 +257,7 @@ class TestJxOperator:
         """Test that J_x is symmetric (real)."""
         for N in [1, 2, 3, 5, 10]:
             J_x = jx_operator(N)
-            assert np.allclose(J_x, J_x.T)
+            assert J_x == pytest.approx(J_x.T), "Expected J_x == pytest.approx(J_x.T)"
 
     def test_off_diagonal_only_adjacent(self) -> None:
         """Test J_x has non-zero only on super/sub-diagonals."""
@@ -242,7 +266,9 @@ class TestJxOperator:
         for i in range(N + 1):
             for j in range(N + 1):
                 if abs(i - j) > 1:
-                    assert np.isclose(J_x[i, j], 0)
+                    assert J_x[i, j] == pytest.approx(0), (
+                        "Expected J_x[i, j] == pytest.approx(0)"
+                    )
 
     def test_correct_matrix_elements(self) -> None:
         """Test J_x matrix elements match analytical formula."""
@@ -253,20 +279,26 @@ class TestJxOperator:
         for i in range(N):
             m = J - i
             expected = 0.5 * np.sqrt((J + m) * (J - m + 1))
-            assert np.isclose(J_x[i + 1, i], expected)
-            assert np.isclose(J_x[i, i + 1], expected)
+            assert J_x[i + 1, i] == pytest.approx(expected), (
+                "Expected J_x[i + 1, i] == pytest.approx(expected)"
+            )
+            assert J_x[i, i + 1] == pytest.approx(expected), (
+                "Expected J_x[i, i + 1] == pytest.approx(expected)"
+            )
 
     def test_hermitian(self) -> None:
         """Test that J_x is Hermitian."""
         for N in [1, 2, 5]:
             J_x = jx_operator(N)
-            assert np.allclose(J_x, J_x.conj().T)
+            assert J_x == pytest.approx(J_x.conj().T), (
+                "Expected J_x == pytest.approx(J_x.conj().T)"
+            )
 
     def test_dimension(self) -> None:
         """Test that dimension is N+1."""
         for N in [1, 2, 5, 10]:
             J_x = jx_operator(N)
-            assert J_x.shape == (N + 1, N + 1)
+            assert J_x.shape == (N + 1, N + 1), "Expected J_x.shape == (N + 1, N + 1)"
 
 
 class TestCommutationRelations:
@@ -281,7 +313,9 @@ class TestCommutationRelations:
 
             commutator = J_x @ J_y - J_y @ J_x
             expected = 1j * J_z
-            assert np.allclose(commutator, expected, atol=1e-10)
+            assert commutator == pytest.approx(expected, abs=1e-10), (
+                "Expected commutator == pytest.approx(expected, abs=1e-10)"
+            )
 
     def test_yz_commutator(self) -> None:
         """Test [J_y, J_z] = i J_x."""
@@ -292,7 +326,9 @@ class TestCommutationRelations:
 
             commutator = J_y @ J_z - J_z @ J_y
             expected = 1j * J_x
-            assert np.allclose(commutator, expected, atol=1e-10)
+            assert commutator == pytest.approx(expected, abs=1e-10), (
+                "Expected commutator == pytest.approx(expected, abs=1e-10)"
+            )
 
     def test_zx_commutator(self) -> None:
         """Test [J_z, J_x] = i J_y."""
@@ -303,7 +339,9 @@ class TestCommutationRelations:
 
             commutator = J_z @ J_x - J_x @ J_z
             expected = 1j * J_y
-            assert np.allclose(commutator, expected, atol=1e-10)
+            assert commutator == pytest.approx(expected, abs=1e-10), (
+                "Expected commutator == pytest.approx(expected, abs=1e-10)"
+            )
 
 
 class TestJ2Operator:
@@ -316,7 +354,9 @@ class TestJ2Operator:
             J = N / 2.0
             expected_eigenvalue = J * (J + 1)
 
-            assert np.allclose(J2, expected_eigenvalue * np.eye(N + 1))
+            assert pytest.approx(expected_eigenvalue * np.eye(N + 1)) == J2, (
+                "Expected J2 == pytest.approx(expected_eigenvalue * np.eye(N + 1))"
+            )
 
     def test_equality_to_sum_of_squares(self) -> None:
         """Test J² = J_x² + J_y² + J_z²."""
@@ -327,7 +367,9 @@ class TestJ2Operator:
             J2_constructed = J_x @ J_x + J_y @ J_y + J_z @ J_z
             J2_direct = j_squared_operator(N)
 
-            assert np.allclose(J2_constructed, J2_direct, atol=1e-10)
+            assert J2_constructed == pytest.approx(J2_direct, abs=1e-10), (
+                "Expected J2_constructed == pytest.approx(J2_direct, abs=1e-10)"
+            )
 
 
 class TestLadderOperators:
@@ -339,14 +381,18 @@ class TestLadderOperators:
         J_plus = j_raising_operator(N)
         # J_+ should be above diagonal (connecting to higher m)
         for i in range(N):
-            assert not np.isclose(J_plus[i, i + 1], 0)
+            assert J_plus[i, i + 1] != pytest.approx(0), (
+                "Expected J_plus[i, i + 1] != pytest.approx(0)"
+            )
 
     def test_lowering_is_hermitian_conjugate(self) -> None:
         r"""Test J_- = (J_+)^\dagger."""
         for N in [1, 2, 3, 5]:
             J_plus = j_raising_operator(N)
             J_minus = j_lowering_operator(N)
-            assert np.allclose(J_minus, J_plus.T.conj())
+            assert J_minus == pytest.approx(J_plus.T.conj()), (
+                "Expected J_minus == pytest.approx(J_plus.T.conj())"
+            )
 
     def test_anticommutation_sum(self) -> None:
         """Test J_x = (J_+ + J_-) / 2."""
@@ -355,7 +401,9 @@ class TestLadderOperators:
             J_minus = j_lowering_operator(N)
             J_x_direct = jx_operator(N)
             J_x_from_ladders = (J_plus + J_minus) / 2
-            assert np.allclose(J_x_direct, J_x_from_ladders, atol=1e-10)
+            assert J_x_direct == pytest.approx(J_x_from_ladders, abs=1e-10), (
+                "Expected J_x_direct == pytest.approx(J_x_from_ladders, abs=1e-10)"
+            )
 
     def test_ladder_consistency(self) -> None:
         """Test that J_+ and J_- have correct matrix elements."""
@@ -369,10 +417,14 @@ class TestLadderOperators:
             m = J - i  # m for state i
             expected_plus = np.sqrt((J - m) * (J + m + 1))
             # J_+[i-1, i] connects |m⟩ to |m+1⟩
-            assert np.isclose(J_plus[i - 1, i], expected_plus)
+            assert J_plus[i - 1, i] == pytest.approx(expected_plus), (
+                "Expected J_plus[i - 1, i] == pytest.approx(expected_plus)"
+            )
 
         # Check that J_- is below diagonal (Hermitian conjugate)
-        assert np.allclose(J_minus, J_plus.T.conj())
+        assert J_minus == pytest.approx(J_plus.T.conj()), (
+            "Expected J_minus == pytest.approx(J_plus.T.conj())"
+        )
 
 
 class TestPhysicalInvariants:
@@ -383,20 +435,24 @@ class TestPhysicalInvariants:
         for N in [1, 2, 3, 4, 5]:
             J_z = jz_operator(N)
             trace = np.trace(J_z)
-            assert np.isclose(trace, 0, atol=1e-10)
+            assert trace == pytest.approx(0, abs=1e-10), (
+                "Expected trace == pytest.approx(0, abs=1e-10)"
+            )
 
     def test_jx_is_real(self) -> None:
         """Test J_x has no imaginary part."""
         for N in [1, 2, 5]:
             J_x = jx_operator(N)
-            assert np.isrealobj(J_x)
+            assert np.isrealobj(J_x), "Condition failed: np.isrealobj(J_x)"
 
     def test_jy_is_hermitian(self) -> None:
         r"""Test J_y is Hermitian: J_y = J_y^\dagger."""
         for N in [1, 2, 3, 5]:
             J_y = jy_operator(N)
             # Check Hermitian: J_y = J_y^\dagger
-            assert np.allclose(J_y, J_y.T.conj())
+            assert J_y == pytest.approx(J_y.T.conj()), (
+                "Expected J_y == pytest.approx(J_y.T.conj())"
+            )
 
 
 class TestEdgeCases:
@@ -405,8 +461,10 @@ class TestEdgeCases:
     def test_N_equals_zero(self) -> None:
         """Test N=0 (single atom)."""
         J_z = jz_operator(0)
-        assert J_z.shape == (1, 1)
-        assert np.isclose(J_z[0, 0], 0.0)
+        assert J_z.shape == (1, 1), "Expected J_z.shape == (1, 1)"
+        assert J_z[0, 0] == pytest.approx(0.0), (
+            "Expected J_z[0, 0] == pytest.approx(0.0)"
+        )
 
     def test_N_equals_one(self) -> None:
         """Test N=1 (spin-1/2)."""
@@ -414,9 +472,11 @@ class TestEdgeCases:
         J_x = jx_operator(1)
 
         # J_z = diag(0.5, -0.5)
-        assert np.allclose(J_z, [[0.5, 0], [0, -0.5]])
+        assert np.allclose(J_z, [[0.5, 0], [0, -0.5]]), "J_z should be diag(0.5, -0.5)"
         # J_x = [[0, 0.5], [0.5, 0]]
-        assert np.allclose(J_x, [[0, 0.5], [0.5, 0]])
+        assert np.allclose(J_x, [[0, 0.5], [0.5, 0]]), (
+            "J_x should be [[0, 0.5], [0.5, 0]]"
+        )
 
     def test_N_equals_two(self) -> None:
         """Test N=2 (spin-1)."""
@@ -424,11 +484,13 @@ class TestEdgeCases:
         J_x = jx_operator(2)
 
         # J_z = diag(1, 0, -1)
-        assert np.allclose(J_z, [[1, 0, 0], [0, 0, 0], [0, 0, -1]])
+        assert np.allclose(J_z, [[1, 0, 0], [0, 0, 0], [0, 0, -1]]), (
+            "J_z should be diag(1, 0, -1)"
+        )
         # J_x[1,0] = J_x[0,1] = J_x[2,1] = J_x[1,2] = 1/sqrt(2)
         sqrt2 = np.sqrt(2)
         expected_jx = [[0, sqrt2 / 2, 0], [sqrt2 / 2, 0, sqrt2 / 2], [0, sqrt2 / 2, 0]]
-        assert np.allclose(J_x, expected_jx)
+        assert np.allclose(J_x, expected_jx), "J_x should match expected_jx"
 
 
 class TestNumericalStability:
@@ -442,10 +504,10 @@ class TestNumericalStability:
         J_y = jy_operator(N)
         J2 = j_squared_operator(N)
 
-        assert J_z.shape == (N + 1, N + 1)
-        assert J_x.shape == (N + 1, N + 1)
-        assert J_y.shape == (N + 1, N + 1)
-        assert J2.shape == (N + 1, N + 1)
+        assert J_z.shape == (N + 1, N + 1), "Expected J_z.shape == (N + 1, N + 1)"
+        assert J_x.shape == (N + 1, N + 1), "Expected J_x.shape == (N + 1, N + 1)"
+        assert J_y.shape == (N + 1, N + 1), "Expected J_y.shape == (N + 1, N + 1)"
+        assert J2.shape == (N + 1, N + 1), "Expected J2.shape == (N + 1, N + 1)"
 
     def test_j2_from_sum_stability(self) -> None:
         """Test J² = Jx² + Jy² + Jz² for larger N."""
@@ -456,4 +518,6 @@ class TestNumericalStability:
         J2 = j_squared_operator(N)
         J2_constructed = J_x @ J_x + J_y @ J_y + J_z @ J_z
 
-        assert np.allclose(J2, J2_constructed, atol=1e-8)
+        assert pytest.approx(J2_constructed, abs=1e-8) == J2, (
+            "Expected J2 == pytest.approx(J2_constructed, abs=1e-8)"
+        )

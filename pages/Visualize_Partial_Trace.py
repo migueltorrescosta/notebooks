@@ -13,7 +13,9 @@ from src.physics.partial_trace import (
 from src.visualization.plotting import plot_array
 
 st.set_page_config(
-    page_title="Info | Partial Trace Visualization", page_icon="📐️", layout="wide"
+    page_title="Info | Partial Trace Visualization",
+    page_icon="📐️",
+    layout="wide",
 )
 
 st.header("Info | Partial Trace Visualization", divider="blue")
@@ -21,12 +23,12 @@ st.header("Info | Partial Trace Visualization", divider="blue")
 with st.expander("📖 Methodology", expanded=False):
     st.markdown(r"""
     **Partial Trace** is an operation that traces out a subsystem of a composite quantum system.
-    
+
     **Physical System:** Two quantum systems A and B:
     - System A: Hamiltonian $H_A = -J_A J_x + U_A J_z^2 + \delta_A J_z$
     - System B: Hamiltonian $H_B = -J_B J_x + U_B J_z^2 + \delta_B J_z$
     - Interaction: $H_{int}$
-    
+
     **Methodology:**
     1. **Full Hamiltonian**: Construct $H = H_A \otimes 1_B + 1_A \otimes H_B + H_{int}$
     2. **State Evolution**: $\ket{\psi_t} = e^{-itH}\ket{\psi_0}$
@@ -101,10 +103,14 @@ evolved_state = phi_zero @ scipy.linalg.expm(-1j * time * full_hamiltonian)
 
 # Reduced densities
 traced_evolved_state_a = partial_trace_a(
-    np.outer(evolved_state, evolved_state).reshape(n_a, n_b, n_a, n_b), n_a, n_b
+    np.outer(evolved_state, evolved_state).reshape(n_a, n_b, n_a, n_b),
+    n_a,
+    n_b,
 )
 traced_evolved_state_b = partial_trace_b(
-    np.outer(evolved_state, evolved_state).reshape(n_a, n_b, n_a, n_b), n_a, n_b
+    np.outer(evolved_state, evolved_state).reshape(n_a, n_b, n_a, n_b),
+    n_a,
+    n_b,
 )
 
 st.latex(f"""
@@ -115,7 +121,7 @@ H_A &+& H_{{int}} &+& H_B \\\\
 \\alpha_{{xx}} J_x J_x + \\alpha_{{xz}} J_x J_z + \\alpha_{{zx}} J_z J_x + \\alpha_{{zz}} J_z J_z &+&
 \\mathbb{{1}}_A (-J_B J_x + U_BJ_z ^ 2 + \\delta_BJ_z) \\\\
 ( {-1 * j_a:.2f} J_x {u_a:+.2f} J_z^2 {delta_a:+.2f} J_z ) \\mathbb{{1}}_B&+&
-{alpha_xx:.2f} J_x J_x  {alpha_xz:+.2f} J_x J_z  {alpha_zx:+.2f} J_z J_x {alpha_zz:+.2f} J_z J_z &+& 
+{alpha_xx:.2f} J_x J_x  {alpha_xz:+.2f} J_x J_z  {alpha_zx:+.2f} J_z J_x {alpha_zz:+.2f} J_z J_z &+&
 \\mathbb{{1}}_A ( {-1 * j_b:.2f} J_x {u_b:+.2f}J_z ^ 2 {delta_b:+.2f}J_z )
 \\end{{array}}
 """)
@@ -138,7 +144,9 @@ with c2:
     plot_array(full_hamiltonian, key="H")
     st.latex(r"\ket{\psi_t} := e^{-itH} \ket{0}_A \ket{0}_B")
     plot_array(
-        np.abs(np.outer(evolved_state, evolved_state)) ** 2, midpoint=None, key="phi_t"
+        np.abs(np.outer(evolved_state, evolved_state)) ** 2,
+        midpoint=None,
+        key="phi_t",
     )
 
 with c3:

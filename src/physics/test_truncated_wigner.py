@@ -22,7 +22,6 @@ from .truncated_wigner import (
     wigner_sde_trajectory,
 )
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -125,7 +124,8 @@ class TestSDETrajectory:
             assert validation["is_normalized"], "Trajectory not normalized"
 
     def test_unitary_evolution_conserves_total_spin(
-        self, rng: np.random.Generator
+        self,
+        rng: np.random.Generator,
     ) -> None:
         """Unitary evolution should conserve total spin."""
         params = {
@@ -143,7 +143,7 @@ class TestSDETrajectory:
         # Total spin should be approximately J
         J = 10 / 2.0
         norm = np.linalg.norm(J_final)
-        assert np.isclose(norm * J, J, atol=0.1), "Total spin not conserved"
+        assert norm * J == pytest.approx(J, abs=0.1), "Total spin not conserved"
 
     def test_phase_diffusion_adds_noise(self, rng: np.random.Generator) -> None:
         """Phase diffusion should add noise."""
@@ -184,13 +184,28 @@ class TestTWAExpectations:
 
         # Different numbers of trajectories
         results_100 = compute_twa_expectations(
-            N=10, state_type="CSS", params=params, T=0.1, N_traj=100, rng_seed=42
+            N=10,
+            state_type="CSS",
+            params=params,
+            T=0.1,
+            N_traj=100,
+            rng_seed=42,
         )
         results_1000 = compute_twa_expectations(
-            N=10, state_type="CSS", params=params, T=0.1, N_traj=1000, rng_seed=42
+            N=10,
+            state_type="CSS",
+            params=params,
+            T=0.1,
+            N_traj=1000,
+            rng_seed=42,
         )
         results_5000 = compute_twa_expectations(
-            N=10, state_type="CSS", params=params, T=0.1, N_traj=5000, rng_seed=42
+            N=10,
+            state_type="CSS",
+            params=params,
+            T=0.1,
+            N_traj=5000,
+            rng_seed=42,
         )
 
         # Standard deviation should converge (decrease with more samples)
@@ -210,7 +225,12 @@ class TestTWAExpectations:
 
         for N in [10, 20, 50]:
             result = compute_twa_expectations(
-                N=N, state_type="CSS", params=params, T=0.0, N_traj=1000, rng_seed=42
+                N=N,
+                state_type="CSS",
+                params=params,
+                T=0.0,
+                N_traj=1000,
+                rng_seed=42,
             )
             J_mean = result["Jz_mean"]
             J = N / 2.0
@@ -224,7 +244,12 @@ class TestTWAExpectations:
 
         with pytest.warns(UserWarning, match="NOON"):
             compute_twa_expectations(
-                N=10, state_type="NOON", params=params, T=0.1, N_traj=10, rng_seed=42
+                N=10,
+                state_type="NOON",
+                params=params,
+                T=0.1,
+                N_traj=10,
+                rng_seed=42,
             )
 
 
@@ -242,10 +267,20 @@ class TestPhaseSensitivity:
 
         # For CSS without squeezing, should be near SQL
         result_10 = compute_phase_sensitivity(
-            N=10, state_type="CSS", params=params, T=0.1, N_traj=1000, rng_seed=42
+            N=10,
+            state_type="CSS",
+            params=params,
+            T=0.1,
+            N_traj=1000,
+            rng_seed=42,
         )
         result_20 = compute_phase_sensitivity(
-            N=20, state_type="CSS", params=params, T=0.1, N_traj=1000, rng_seed=42
+            N=20,
+            state_type="CSS",
+            params=params,
+            T=0.1,
+            N_traj=1000,
+            rng_seed=42,
         )
 
         # Compare to SQL
@@ -258,7 +293,12 @@ class TestPhaseSensitivity:
         params = {"chi": 1.0, "gamma_1": 0.0, "gamma_2": 0.0, "gamma_phi": 0.0}
 
         result = compute_phase_sensitivity(
-            N=20, state_type="SSS", params=params, T=0.1, N_traj=1000, rng_seed=42
+            N=20,
+            state_type="SSS",
+            params=params,
+            T=0.1,
+            N_traj=1000,
+            rng_seed=42,
         )
 
         # SSS should be closer to HL than SQL (for this short time)
@@ -278,19 +318,25 @@ class TestValidation:
         """Normalized vector should pass."""
         J = np.array([1.0, 0.0, 0.0])
         validation = validate_bloch_vector(J)
-        assert validation["is_normalized"]
+        assert validation["is_normalized"], (
+            'Condition failed: validation["is_normalized"]'
+        )
 
     def test_validate_not_normalized(self) -> None:
         """Non-normalized vector should fail."""
         J = np.array([0.5, 0.5, 0.5])
         validation = validate_bloch_vector(J, tol=1e-2)
-        assert not validation["is_normalized"]
+        assert not validation["is_normalized"], (
+            'validation["is_normalized"] should be falsy'
+        )
 
     def test_validate_near_normalized(self) -> None:
         """Near-normalized vectors should pass."""
         J = np.array([1.0 / np.sqrt(2), 1.0 / np.sqrt(2), 0.0])  # Norm ≈ 1
         validation = validate_bloch_vector(J, tol=1e-6)
-        assert validation["is_normalized"]
+        assert validation["is_normalized"], (
+            'Condition failed: validation["is_normalized"]'
+        )
 
 
 # =============================================================================
@@ -315,9 +361,9 @@ class TestIntegration:
             rng_seed=42,
         )
 
-        assert "Jz_mean" in result
-        assert "Jz_variance" in result
-        assert "delta_phi" in result
+        assert "Jz_mean" in result, 'Expected "Jz_mean" in result'
+        assert "Jz_variance" in result, 'Expected "Jz_variance" in result'
+        assert "delta_phi" in result, 'Expected "delta_phi" in result'
 
     def test_full_simulation_with_loss(self) -> None:
         """Simulation with loss should complete."""
@@ -333,8 +379,10 @@ class TestIntegration:
             rng_seed=42,
         )
 
-        assert result["Jz_mean"] is not None
-        assert result["Jz_variance"] >= 0
+        assert result["Jz_mean"] is not None, (
+            'Expected result["Jz_mean"] to not be None'
+        )
+        assert result["Jz_variance"] >= 0, 'Expected result["Jz_variance"] >= 0'
 
     def test_full_simulation_squeezing(self) -> None:
         """Simulation with squeezing should complete."""
@@ -350,7 +398,7 @@ class TestIntegration:
             rng_seed=42,
         )
 
-        assert result["delta_phi"] > 0
+        assert result["delta_phi"] > 0, 'Expected result["delta_phi"] > 0'
 
 
 # =============================================================================
@@ -367,7 +415,12 @@ class TestPhysicalValidation:
 
         # For time T=0, mean Jz should be approximately zero
         result = compute_twa_expectations(
-            N=10, state_type="CSS", params=params, T=0.0, N_traj=1000, rng_seed=42
+            N=10,
+            state_type="CSS",
+            params=params,
+            T=0.0,
+            N_traj=1000,
+            rng_seed=42,
         )
 
         J_mean = np.abs(result["Jz_mean"])
@@ -467,16 +520,26 @@ class TestEdgeCases:
 
         for N in [2, 4]:
             result = compute_twa_expectations(
-                N=N, state_type="CSS", params=params, T=0.1, N_traj=100, rng_seed=42
+                N=N,
+                state_type="CSS",
+                params=params,
+                T=0.1,
+                N_traj=100,
+                rng_seed=42,
             )
-            assert "Jz_mean" in result
+            assert "Jz_mean" in result, 'Expected "Jz_mean" in result'
 
     def test_zero_time(self) -> None:
         """Zero time should return initial state statistics."""
         params = {"chi": 0.0, "gamma_1": 0.0, "gamma_2": 0.0, "gamma_phi": 0.0}
 
         result = compute_twa_expectations(
-            N=10, state_type="CSS", params=params, T=0.0, N_traj=100, rng_seed=42
+            N=10,
+            state_type="CSS",
+            params=params,
+            T=0.0,
+            N_traj=100,
+            rng_seed=42,
         )
 
         # Initial CSS has Jz mean ≈ 0
@@ -489,11 +552,16 @@ class TestEdgeCases:
 
         # This should complete in reasonable time
         result = compute_twa_expectations(
-            N=10, state_type="CSS", params=params, T=0.1, N_traj=10000, rng_seed=42
+            N=10,
+            state_type="CSS",
+            params=params,
+            T=0.1,
+            N_traj=10000,
+            rng_seed=42,
         )
 
-        assert "Jz_mean" in result
-        assert "Jz_variance" in result
+        assert "Jz_mean" in result, 'Expected "Jz_mean" in result'
+        assert "Jz_variance" in result, 'Expected "Jz_variance" in result'
 
 
 # =============================================================================
@@ -512,13 +580,18 @@ class TestPerformance:
 
         start = time.time()
         result = compute_twa_expectations(
-            N=100, state_type="CSS", params=params, T=0.1, N_traj=1000, rng_seed=42
+            N=100,
+            state_type="CSS",
+            params=params,
+            T=0.1,
+            N_traj=1000,
+            rng_seed=42,
         )
         elapsed = time.time() - start
 
         # Should complete in < 1 second
         assert elapsed < 1.0, f"Took {elapsed}s - too slow"
-        assert "Jz_mean" in result
+        assert "Jz_mean" in result, 'Expected "Jz_mean" in result'
 
     def test_performance_N_1000(self) -> None:
         """N=1000 should complete in reasonable time."""
@@ -528,10 +601,15 @@ class TestPerformance:
 
         start = time.time()
         result = compute_twa_expectations(
-            N=1000, state_type="CSS", params=params, T=0.1, N_traj=1000, rng_seed=42
+            N=1000,
+            state_type="CSS",
+            params=params,
+            T=0.1,
+            N_traj=1000,
+            rng_seed=42,
         )
         elapsed = time.time() - start
 
         # Should complete in < 1 second
         assert elapsed < 1.0, f"Took {elapsed}s - too slow"
-        assert "Jz_mean" in result
+        assert "Jz_mean" in result, 'Expected "Jz_mean" in result'

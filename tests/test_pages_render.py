@@ -15,14 +15,13 @@ import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
-
 # Add project root to path for src imports
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Get all page files in the pages directory
 PAGES_DIR = PROJECT_ROOT / "pages"
-PAGE_FILES = sorted(PAGES_DIR.glob("*.py"))
+PAGE_FILES = sorted(p for p in PAGES_DIR.glob("*.py") if p.name != "__init__.py")
 
 
 # Pages that are computationally expensive and may timeout
@@ -55,24 +54,24 @@ def _run_and_check(page_file: Path) -> AppTest:
     except st.errors.StreamlitDuplicateElementId as e:
         pytest.fail(
             f"Page {page_file.name} has duplicate element IDs: {e}. "
-            "Add unique 'key' arguments to widgets with the same label."
+            "Add unique 'key' arguments to widgets with the same label.",
         )
     except st.errors.StreamlitDuplicateElementKey as e:
         pytest.fail(
             f"Page {page_file.name} has duplicate element keys: {e}. "
-            "Make sure each widget has a unique key."
+            "Make sure each widget has a unique key.",
         )
     except RuntimeError as e:
         if "timed out" in str(e).lower() and page_file.name in SLOW_PAGES:
             pytest.skip(
-                f"Page {page_file.name} is computationally expensive and timed out"
+                f"Page {page_file.name} is computationally expensive and timed out",
             )
         raise
 
     if at.exception:
         if "timed out" in str(at.exception).lower() and page_file.name in SLOW_PAGES:
             pytest.skip(
-                f"Page {page_file.name} is computationally expensive and timed out"
+                f"Page {page_file.name} is computationally expensive and timed out",
             )
         pytest.fail(f"Page {page_file.name} raised an exception: {at.exception}")
 

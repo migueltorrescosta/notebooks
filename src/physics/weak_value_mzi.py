@@ -63,7 +63,6 @@ from src.physics.mzi_simulation import (
     phase_shift_unitary,
 )
 
-
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -289,12 +288,12 @@ def weak_value_mzi(
     # ------------------------------------------------------------------
     if not 0 < config.post_select_angle < np.pi:
         raise ValueError(
-            f"post_select_angle must be in (0, π), got {config.post_select_angle}"
+            f"post_select_angle must be in (0, π), got {config.post_select_angle}",
         )
     if config.measurement_basis not in ("parity", "Jz"):
         raise ValueError(
             f"Unknown measurement_basis: '{config.measurement_basis}'. "
-            f"Supported: 'parity', 'Jz'."
+            f"Supported: 'parity', 'Jz'.",
         )
 
     # ------------------------------------------------------------------
@@ -328,7 +327,9 @@ def weak_value_mzi(
     # dense matrix exponential.
     # ------------------------------------------------------------------
     post_selected_state: np.ndarray = _apply_jz_rotation(
-        pre_selected_state, config.post_select_angle, max_photons
+        pre_selected_state,
+        config.post_select_angle,
+        max_photons,
     )
     post_selected_state /= np.linalg.norm(post_selected_state)
 
@@ -534,7 +535,7 @@ def weak_value_mzi_sensitivity(
         raise ValueError(f"Mean photon number N must be positive, got {N}")
     if not 0 < config.post_select_angle < np.pi:
         raise ValueError(
-            f"post_select_angle must be in (0, π), got {config.post_select_angle}"
+            f"post_select_angle must be in (0, π), got {config.post_select_angle}",
         )
 
     # ------------------------------------------------------------------

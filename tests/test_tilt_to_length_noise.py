@@ -91,7 +91,9 @@ class TestTTLScalingSweep:
         config = TTLNoiseConfig(theta_rms=1e-12, beam_offset=1e-6, wavelength=1e-6)
         N = np.logspace(0, 3, 20)
         result = ttl_scaling_sweep(N, config, quantum_scaling="sql")
-        assert result["alpha_fitted"] is not None
+        assert result["alpha_fitted"] is not None, (
+            'Expected result["alpha_fitted"] to not be None'
+        )
         assert abs(result["alpha_fitted"] - (-0.5)) < 0.05, (
             f"Expected α ≈ -0.5, got {result['alpha_fitted']}"
         )
@@ -101,7 +103,9 @@ class TestTTLScalingSweep:
         config = TTLNoiseConfig(theta_rms=1e-12, beam_offset=1e-6, wavelength=1e-6)
         N = np.logspace(0, 3, 20)
         result = ttl_scaling_sweep(N, config, quantum_scaling="hl")
-        assert result["alpha_fitted"] is not None
+        assert result["alpha_fitted"] is not None, (
+            'Expected result["alpha_fitted"] to not be None'
+        )
         assert abs(result["alpha_fitted"] - (-1.0)) < 0.05, (
             f"Expected α ≈ -1.0, got {result['alpha_fitted']}"
         )
@@ -118,7 +122,9 @@ class TestTTLScalingSweep:
             "delta_phi_ttl",
             "alpha_fitted",
         }
-        assert set(result.keys()) == expected_keys
+        assert set(result.keys()) == expected_keys, (
+            "Expected set(result.keys()) == expected_keys"
+        )
 
 
 class TestTTLConfigValidation:

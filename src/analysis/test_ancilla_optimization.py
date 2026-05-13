@@ -33,8 +33,8 @@ from src.analysis.ancilla_optimization import (
     compute_reduced_purity,
     compute_sensitivity,
     evolve_full,
-    get_default_bounds,
     get_decoupled_sensitivity,
+    get_default_bounds,
     hold_unitary,
     random_initial_params,
     random_search_alpha,
@@ -71,21 +71,23 @@ class TestOperatorConstruction:
         """All operators must be Hermitian."""
         ops = build_two_qubit_operators()
         for name, op in ops.items():
-            assert np.allclose(op, op.conj().T, atol=1e-12), f"{name} must be Hermitian"
+            assert op == pytest.approx(op.conj().T, abs=1e-12), (
+                f"{name} must be Hermitian"
+            )
 
     def test_jz_diagonal(self) -> None:
         """J_z^S and J_z^A must be diagonal in the computational basis."""
         ops = build_two_qubit_operators()
         for name in ["Jz_S", "Jz_A"]:
             op = ops[name]
-            assert np.allclose(op, np.diag(np.diag(op))), f"{name} must be diagonal"
+            assert op == pytest.approx(np.diag(np.diag(op))), f"{name} must be diagonal"
 
     def test_jz_eigenvalues(self) -> None:
         """J_z eigenvalues must be ±1/2."""
         ops = build_two_qubit_operators()
         for name in ["Jz_S", "Jz_A"]:
             evals = np.linalg.eigvalsh(ops[name])
-            assert np.allclose(sorted(evals), [-0.5, -0.5, 0.5, 0.5]), (
+            assert sorted(evals) == pytest.approx([-0.5, -0.5, 0.5, 0.5]), (
                 f"{name} eigenvalues not ±1/2"
             )
 
@@ -94,24 +96,26 @@ class TestOperatorConstruction:
         ops = build_two_qubit_operators()
 
         comm_S = ops["Jz_S"] @ ops["Jx_S"] - ops["Jx_S"] @ ops["Jz_S"]
-        assert np.allclose(comm_S, 1j * ops["Jy_S"], atol=1e-12), (
+        assert comm_S == pytest.approx(1j * ops["Jy_S"], abs=1e-12), (
             "[Jz_S, Jx_S] = i Jy_S failed"
         )
 
         comm_A = ops["Jz_A"] @ ops["Jx_A"] - ops["Jx_A"] @ ops["Jz_A"]
-        assert np.allclose(comm_A, 1j * ops["Jy_A"], atol=1e-12), (
+        assert comm_A == pytest.approx(1j * ops["Jy_A"], abs=1e-12), (
             "[Jz_A, Jx_A] = i Jy_A failed"
         )
 
     def test_validate_operators_passes(self) -> None:
         """validate_operators must return True for valid operators."""
         ops = build_two_qubit_operators()
-        assert validate_operators(ops) is True
+        assert validate_operators(ops) is True, (
+            "Expected validate_operators(ops) to be True"
+        )
 
     def test_interaction_hamiltonian_zero(self) -> None:
         """Zero coefficients must give zero matrix."""
         H = build_interaction_hamiltonian((0.0, 0.0, 0.0, 0.0))
-        assert np.allclose(H, 0.0), "Zero α must give zero H_int"
+        assert pytest.approx(0.0) == H, "Zero α must give zero H_int"
 
     def test_interaction_hamiltonian_hermitian(self) -> None:
         """H_int must be Hermitian for any real α."""
@@ -119,7 +123,7 @@ class TestOperatorConstruction:
         for _ in range(10):
             alpha = tuple(rng.uniform(-2, 2, size=4))
             H = build_interaction_hamiltonian(alpha)  # type: ignore[arg-type]
-            assert np.allclose(H, H.conj().T, atol=1e-12), (
+            assert pytest.approx(H.conj().T, abs=1e-12) == H, (
                 f"H_int must be Hermitian for α={alpha}"
             )
 
@@ -133,12 +137,13 @@ class TestStatePreparation:
     """Validate single- and two-qubit state parameterisation."""
 
     @pytest.mark.parametrize(
-        "theta, phi", [(0.0, 0.0), (np.pi, 0.0), (np.pi / 2, np.pi)]
+        ("theta", "phi"),
+        [(0.0, 0.0), (np.pi, 0.0), (np.pi / 2, np.pi)],
     )
     def test_single_qubit_normalised(self, theta: float, phi: float) -> None:
         """Single-qubit states must be normalised."""
         psi = single_qubit_state(theta, phi)
-        assert np.isclose(np.linalg.norm(psi), 1.0), (
+        assert np.linalg.norm(psi) == pytest.approx(1.0), (
             f"State (θ={theta}, φ={phi}) not normalised"
         )
 
@@ -146,13 +151,13 @@ class TestStatePreparation:
         """θ=0, φ=0 must give |0⟩ = |1,0⟩."""
         psi = single_qubit_state(0.0, 0.0)
         expected = np.array([1.0, 0.0], dtype=complex)
-        assert np.allclose(psi, expected), "θ=0, φ=0 must give |0⟩"
+        assert psi == pytest.approx(expected), "θ=0, φ=0 must give |0⟩"
 
     def test_single_qubit_pi_theta(self) -> None:
         """θ=π, φ=0 must give |1⟩ = |0,1⟩."""
         psi = single_qubit_state(np.pi, 0.0)
         expected = np.array([0.0, 1.0], dtype=complex)
-        assert np.allclose(psi, expected), "θ=π, φ=0 must give |1⟩"
+        assert psi == pytest.approx(expected), "θ=π, φ=0 must give |1⟩"
 
     def test_two_qubit_product_structure(self) -> None:
         """The two-qubit state must be a product state."""
@@ -164,8 +169,8 @@ class TestStatePreparation:
         psi_A = single_qubit_state(theta_A, phi_A)
         expected = np.kron(psi_S, psi_A)
 
-        assert np.allclose(psi, expected), "Two-qubit state must be product"
-        assert np.isclose(np.linalg.norm(psi), 1.0), "Must be normalised"
+        assert psi == pytest.approx(expected), "Two-qubit state must be product"
+        assert np.linalg.norm(psi) == pytest.approx(1.0), "Must be normalised"
 
 
 # ============================================================================
@@ -180,13 +185,15 @@ class TestBeamSplitter:
     def test_bs_unitary(self, T: float) -> None:
         """U_BS(T) must be unitary."""
         U = bs_unitary(T)
-        assert np.allclose(U @ U.conj().T, I_2, atol=1e-12), f"BS(T={T}) not unitary"
-        assert np.allclose(U.conj().T @ U, I_2, atol=1e-12)
+        assert pytest.approx(I_2, abs=1e-12) == U @ U.conj().T, f"BS(T={T}) not unitary"
+        assert pytest.approx(I_2, abs=1e-12) == U.conj().T @ U, (
+            "Expected U.conj().T @ U == pytest.approx(I_2, abs=1e-12)"
+        )
 
     def test_bs_zero_time(self) -> None:
         """T=0 gives identity."""
         U = bs_unitary(0.0)
-        assert np.allclose(U, I_2), "BS(T=0) must be identity"
+        assert pytest.approx(I_2) == U, "BS(T=0) must be identity"
 
     def test_bs_half_pi(self) -> None:
         """T=π/2 gives the 50/50 beam-splitter matrix.
@@ -195,14 +202,18 @@ class TestBeamSplitter:
         """
         U = bs_unitary(np.pi / 2.0)
         expected = np.array([[1, -1j], [-1j, 1]], dtype=complex) / np.sqrt(2)
-        assert np.allclose(U, expected, atol=1e-12), "BS(π/2) should be 50/50"
+        assert pytest.approx(expected, abs=1e-12) == U, "BS(π/2) should be 50/50"
 
     def test_two_qubit_bs_unitary(self) -> None:
         """Two-qubit BS must be unitary and tensor-product structured."""
         U = two_qubit_bs_unitary(np.pi / 4)
         I_4 = np.eye(4, dtype=complex)
-        assert np.allclose(U @ U.conj().T, I_4, atol=1e-12)
-        assert np.allclose(U.conj().T @ U, I_4, atol=1e-12)
+        assert pytest.approx(I_4, abs=1e-12) == U @ U.conj().T, (
+            "Expected U @ U.conj().T == pytest.approx(I_4, abs=1e-12)"
+        )
+        assert pytest.approx(I_4, abs=1e-12) == U.conj().T @ U, (
+            "Expected U.conj().T @ U == pytest.approx(I_4, abs=1e-12)"
+        )
 
     def test_two_qubit_bs_tensor_structure(self) -> None:
         """U_BS^{(2)}(T) = U_BS(T) ⊗ U_BS(T)."""
@@ -210,14 +221,18 @@ class TestBeamSplitter:
         U_single = bs_unitary(T)
         U_double = two_qubit_bs_unitary(T)
         expected = np.kron(U_single, U_single)
-        assert np.allclose(U_double, expected), (
+        assert U_double == pytest.approx(expected), (
             "Two-qubit BS must be tensor product of single-qubit BS"
         )
 
     def test_validate_bs_unitarity(self) -> None:
         """Validation helper must pass."""
-        assert validate_bs_unitarity() is True
-        assert validate_two_qubit_bs_unitarity() is True
+        assert validate_bs_unitarity() is True, (
+            "Expected validate_bs_unitarity() to be True"
+        )
+        assert validate_two_qubit_bs_unitarity() is True, (
+            "Expected validate_two_qubit_bs_unitarity() to be True"
+        )
 
     @pytest.mark.parametrize("T", [0.0, 0.3, np.pi / 4, np.pi / 2, np.pi])
     def test_bs_runtime_assertion_does_not_raise(self, T: float) -> None:
@@ -240,14 +255,14 @@ class TestHold:
         """H_hold must be Hermitian."""
         ops = build_two_qubit_operators()
         H = build_hold_hamiltonian(1.0, (0.1, 0.2, 0.3, 0.4), ops)
-        assert np.allclose(H, H.conj().T, atol=1e-12), "H_hold must be Hermitian"
+        assert pytest.approx(H.conj().T, abs=1e-12) == H, "H_hold must be Hermitian"
 
     def test_hold_unitary(self) -> None:
         """U_hold must be unitary."""
         ops = build_two_qubit_operators()
         U = hold_unitary(1.0, 1.0, (0.1, 0.0, 0.0, 0.0), ops)
         I_4 = np.eye(4, dtype=complex)
-        assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), "U_hold not unitary"
+        assert pytest.approx(I_4, abs=1e-12) == U @ U.conj().T, "U_hold not unitary"
 
     @pytest.mark.parametrize("T_H", [0.0, 0.5, 2.0])
     def test_hold_unitary_correctness(self, T_H: float) -> None:
@@ -258,24 +273,30 @@ class TestHold:
         H = build_hold_hamiltonian(theta, alpha, ops)
         U_expected = expm(-1j * T_H * H)
         U = hold_unitary(T_H, theta, alpha, ops)
-        assert np.allclose(U, U_expected, atol=1e-12), f"U_hold mismatch at T_H={T_H}"
+        assert pytest.approx(U_expected, abs=1e-12) == U, (
+            f"U_hold mismatch at T_H={T_H}"
+        )
 
     def test_zero_hold_identity(self) -> None:
         """T_H = 0 gives identity."""
         ops = build_two_qubit_operators()
         U = hold_unitary(0.0, 1.0, (0.1, 0.0, 0.0, 0.0), ops)
-        assert np.allclose(U, np.eye(4, dtype=complex), atol=1e-12)
+        assert pytest.approx(np.eye(4, dtype=complex), abs=1e-12) == U, (
+            "Expected U == pytest.approx(np.eye(4, dtype=complex), abs=1e-12)"
+        )
 
     def test_validate_hold_unitarity(self) -> None:
         """Validation helper must pass."""
-        assert validate_hold_unitarity() is True
+        assert validate_hold_unitarity() is True, (
+            "Expected validate_hold_unitarity() to be True"
+        )
 
     @pytest.mark.parametrize("T_H", [0.0, 0.5, 1.0, 2.0])
     def test_hold_runtime_assertion_does_not_raise(self, T_H: float) -> None:
         """Runtime unitarity assertion in hold_unitary must not raise for valid params."""
         ops = build_two_qubit_operators()
         U = hold_unitary(T_H, 1.0, (0.1, 0.0, -0.2, 0.3), ops)
-        assert U.shape == (4, 4)
+        assert U.shape == (4, 4), "Expected U.shape == (4, 4)"
 
 
 # ============================================================================
@@ -292,9 +313,15 @@ class TestCircuitEvolution:
         ops = build_two_qubit_operators()
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)  # |0,0⟩
         psi = evolve_full(
-            psi0, np.pi / 4, np.pi / 4, T_H, 1.0, (0.0, 0.0, 0.0, 0.0), ops
+            psi0,
+            np.pi / 4,
+            np.pi / 4,
+            T_H,
+            1.0,
+            (0.0, 0.0, 0.0, 0.0),
+            ops,
         )
-        assert np.isclose(np.linalg.norm(psi), 1.0, atol=1e-12), (
+        assert np.linalg.norm(psi) == pytest.approx(1.0, abs=1e-12), (
             f"Norm not preserved at T_H={T_H}"
         )
 
@@ -303,7 +330,7 @@ class TestCircuitEvolution:
         ops = build_two_qubit_operators()
         psi0 = two_qubit_state(0.5, 0.3, 1.2, 0.8)
         psi = evolve_full(psi0, 0.0, 0.0, 0.0, 0.0, (0.0, 0.0, 0.0, 0.0), ops)
-        assert np.allclose(psi, psi0, atol=1e-12), "Circuit should be identity"
+        assert psi == pytest.approx(psi0, abs=1e-12), "Circuit should be identity"
 
     @pytest.mark.parametrize("random_state", [True, False])
     def test_unitarity_of_evolution(self, random_state: bool) -> None:
@@ -337,7 +364,7 @@ class TestCircuitEvolution:
         psi2 = evolve_full(psi0_2, 0.8, 0.6, 1.5, 2.0, alpha, ops)
         inner_after = np.vdot(psi1, psi2)
 
-        assert np.isclose(inner_before, inner_after, atol=1e-12), (
+        assert inner_before == pytest.approx(inner_after, abs=1e-12), (
             "Inner product not preserved (non-unitary evolution)"
         )
 
@@ -362,8 +389,8 @@ class TestSensitivity:
             np.real(psi.conj() @ (ops["Jz_S"] @ ops["Jz_S"]) @ psi) - exp_direct**2
         )
 
-        assert np.isclose(exp_val, exp_direct), "Expectation mismatch"
-        assert np.isclose(var_val, max(0.0, var_direct)), "Variance mismatch"
+        assert exp_val == pytest.approx(exp_direct), "Expectation mismatch"
+        assert var_val == pytest.approx(max(0.0, var_direct)), "Variance mismatch"
 
     def test_decoupled_sensitivity_sql(self) -> None:
         """Decoupled system must achieve Δθ ≈ 1/T_H (SQL)."""
@@ -377,7 +404,7 @@ class TestSensitivity:
         for T_H in T_H_vals:
             dtheta = compute_sensitivity(psi0, T_BS, T_BS, T_H, theta_true, alpha, ops)
             expected = 1.0 / T_H
-            assert np.isclose(dtheta, expected, rtol=0.05), (
+            assert dtheta == pytest.approx(expected, rel=0.05), (
                 f"Δθ = {dtheta:.6f}, expected {expected:.6f} for T_H={T_H}"
             )
 
@@ -406,7 +433,13 @@ class TestSensitivity:
         for T_H in [0.5, 1.0, 2.0]:
             for theta_true in [0.5, 1.0, 1.5]:
                 dtheta = compute_sensitivity(
-                    psi0, T_BS, T_BS, T_H, theta_true, alpha, ops
+                    psi0,
+                    T_BS,
+                    T_BS,
+                    T_H,
+                    theta_true,
+                    alpha,
+                    ops,
                 )
                 assert np.isfinite(dtheta) and dtheta > 0, (
                     f"Δθ must be finite positive, got {dtheta} "
@@ -418,7 +451,7 @@ class TestSensitivity:
         for T_H in [0.5, 1.0, 2.0]:
             dtheta = get_decoupled_sensitivity(T_H, theta_true=1.0)
             expected = 1.0 / T_H
-            assert np.isclose(dtheta, expected, rtol=0.05), (
+            assert dtheta == pytest.approx(expected, rel=0.05), (
                 f"get_decoupled_sensitivity({T_H}) = {dtheta:.6f}, expected {expected:.6f}"
             )
 
@@ -451,7 +484,7 @@ class TestSensitivity:
             expected = 1.0 / T_H
             # Tighter tolerance (0.5%) since the formula is exact away from
             # fringe extrema — any deviation is purely numerical
-            assert np.isclose(dtheta, expected, rtol=5e-3), (
+            assert dtheta == pytest.approx(expected, rel=5e-3), (
                 f"Δθ = {dtheta:.6f}, expected {expected:.6f} "
                 f"for θ={theta_true}, T_H={T_H}"
             )
@@ -473,7 +506,9 @@ class TestSensitivity:
 
             # Validate should pass (variance may be 0 for product states
             # but never significantly negative)
-            assert validate_variance_positive(psi, ops["Jz_S"]) is True
+            assert validate_variance_positive(psi, ops["Jz_S"]) is True, (
+                'Expected validate_variance_positive(psi, ops["Jz_S"]) to be True'
+            )
 
 
 # ============================================================================
@@ -488,7 +523,7 @@ class TestReducedPurity:
         """Product state |0⟩_S ⊗ |0⟩_A must have purity = 1."""
         psi = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)  # |00⟩
         purity = compute_reduced_purity(psi)
-        assert np.isclose(purity, 1.0, atol=1e-12), (
+        assert purity == pytest.approx(1.0, abs=1e-12), (
             f"Product state purity should be 1.0, got {purity}"
         )
 
@@ -496,7 +531,7 @@ class TestReducedPurity:
         """Product state |0⟩_S ⊗ |1⟩_A must have purity = 1."""
         psi = np.array([0.0, 1.0, 0.0, 0.0], dtype=complex)  # |01⟩
         purity = compute_reduced_purity(psi)
-        assert np.isclose(purity, 1.0, atol=1e-12), (
+        assert purity == pytest.approx(1.0, abs=1e-12), (
             f"Product state purity should be 1.0, got {purity}"
         )
 
@@ -504,7 +539,7 @@ class TestReducedPurity:
         """Generic product state via Bloch-sphere params must have purity = 1."""
         psi = two_qubit_state(0.7, 1.2, 0.3, 2.8)
         purity = compute_reduced_purity(psi)
-        assert np.isclose(purity, 1.0, atol=1e-12), (
+        assert purity == pytest.approx(1.0, abs=1e-12), (
             f"Product state purity should be 1.0, got {purity}"
         )
 
@@ -512,7 +547,7 @@ class TestReducedPurity:
         """Bell state |Φ⁺⟩ = (|00⟩ + |11⟩)/√2 must have purity = 0.5."""
         psi = np.array([1.0, 0.0, 0.0, 1.0], dtype=complex) / np.sqrt(2)
         purity = compute_reduced_purity(psi)
-        assert np.isclose(purity, 0.5, atol=1e-12), (
+        assert purity == pytest.approx(0.5, abs=1e-12), (
             f"Bell state purity should be 0.5, got {purity}"
         )
 
@@ -520,7 +555,7 @@ class TestReducedPurity:
         """Bell state |Ψ⁺⟩ = (|01⟩ + |10⟩)/√2 must have purity = 0.5."""
         psi = np.array([0.0, 1.0, 1.0, 0.0], dtype=complex) / np.sqrt(2)
         purity = compute_reduced_purity(psi)
-        assert np.isclose(purity, 0.5, atol=1e-12), (
+        assert purity == pytest.approx(0.5, abs=1e-12), (
             f"Bell state purity should be 0.5, got {purity}"
         )
 
@@ -529,11 +564,17 @@ class TestReducedPurity:
         ops = build_two_qubit_operators()
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)  # |0⟩_S ⊗ |0⟩_A
         psi = evolve_full(
-            psi0, np.pi / 2, np.pi / 2, 1.0, 1.0, (0.0, 0.0, 0.0, 0.0), ops
+            psi0,
+            np.pi / 2,
+            np.pi / 2,
+            1.0,
+            1.0,
+            (0.0, 0.0, 0.0, 0.0),
+            ops,
         )
         purity = compute_reduced_purity(psi)
         # Decoupled evolution is product → purity ≈ 1
-        assert np.isclose(purity, 1.0, atol=1e-10), (
+        assert purity == pytest.approx(1.0, abs=1e-10), (
             f"Decoupled circuit purity should be ≈ 1.0, got {purity}"
         )
 
@@ -559,7 +600,7 @@ class TestObjective:
         """A valid parameter vector must give a finite objective."""
         ops = build_two_qubit_operators()
         params = np.array(
-            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0],
         )
         val = sensitivity_objective(params, theta_true=1.0, ops=ops)
         assert np.isfinite(val) and val > 0, (
@@ -570,17 +611,19 @@ class TestObjective:
         """Optimal decoupled params give objective ≈ 1/T_H."""
         ops = build_two_qubit_operators()
         params = np.array(
-            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0],
         )
         val = sensitivity_objective(params, theta_true=1.0, ops=ops)
-        assert np.isclose(val, 1.0, rtol=0.05), f"Objective should be ≈ 1.0, got {val}"
+        assert val == pytest.approx(1.0, rel=0.05), (
+            f"Objective should be ≈ 1.0, got {val}"
+        )
 
     def test_objective_penalty_out_of_bounds_theta(self) -> None:
         """A θ out of [0, π] must produce a huge penalty."""
         ops = build_two_qubit_operators()
         # theta_S = 4.0 (exceeds π ≈ 3.14)
         params = np.array(
-            [4.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0]
+            [4.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0],
         )
         val = sensitivity_objective(params, theta_true=1.0, ops=ops)
         assert val > 1e9, f"Out-of-bounds must be penalised, got {val}"
@@ -589,7 +632,7 @@ class TestObjective:
         """An α out of [-2, 2] must produce a huge penalty."""
         ops = build_two_qubit_operators()
         params = np.array(
-            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 5.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 5.0, 0.0, 0.0, 0.0],
         )
         val = sensitivity_objective(params, theta_true=1.0, ops=ops)
         assert val > 1e9, f"Out-of-bounds must be penalised, got {val}"
@@ -598,7 +641,7 @@ class TestObjective:
         """Small parameter changes should produce small objective changes."""
         ops = build_two_qubit_operators()
         base = np.array(
-            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0],
         )
         val_base = sensitivity_objective(base, theta_true=1.0, ops=ops)
 
@@ -657,7 +700,7 @@ class TestOptimisation:
         ops = build_two_qubit_operators()
         # Use fixed optimal parameters as starting point
         x0 = np.array(
-            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0],
         )
         result = run_optimisation(
             theta_true=1.0,
@@ -665,10 +708,18 @@ class TestOptimisation:
             x0=x0,
             maxiter=10,  # Few iterations for test speed
         )
-        assert isinstance(result, OptimisationResult)
-        assert result.theta_true == 1.0
-        assert result.params_opt.shape == (11,)
-        assert np.isfinite(result.delta_theta_opt) or np.isinf(result.delta_theta_opt)
+        assert isinstance(result, OptimisationResult), (
+            "Expected result to be instance of OptimisationResult"
+        )
+        assert result.theta_true == 1.0, "Expected result.theta_true == 1.0"
+        assert result.params_opt.shape == (11,), (
+            "Expected result.params_opt.shape == (11,)"
+        )
+        assert np.isfinite(result.delta_theta_opt) or np.isinf(
+            result.delta_theta_opt,
+        ), (
+            "Expected result.delta_theta_opt) or np.isinf(result.delta_theta_opt to be finite"
+        )
         # New fields must be populated (discrepancies #2, #3)
         assert isinstance(result.expectation_Jz, float), (
             f"expectation_Jz must be float, got {type(result.expectation_Jz)}"
@@ -695,13 +746,13 @@ class TestOptimisation:
             nfev=100,
             message="OK",
         )
-        assert result.delta_theta_opt == 0.5
-        assert result.success is True
-        assert result.nfev == 100
+        assert result.delta_theta_opt == 0.5, "Expected result.delta_theta_opt == 0.5"
+        assert result.success is True, "Expected result.success to be True"
+        assert result.nfev == 100, "Expected result.nfev == 100"
         # New fields must have sensible defaults and be settable
-        assert result.expectation_Jz == 0.0
-        assert result.variance_Jz == 0.0
-        assert result.purity_S == 0.0
+        assert result.expectation_Jz == 0.0, "Expected result.expectation_Jz == 0.0"
+        assert result.variance_Jz == 0.0, "Expected result.variance_Jz == 0.0"
+        assert result.purity_S == 0.0, "Expected result.purity_S == 0.0"
 
         # Test explicit setting
         result2 = OptimisationResult(
@@ -715,9 +766,15 @@ class TestOptimisation:
             variance_Jz=0.01,
             purity_S=0.75,
         )
-        assert np.isclose(result2.expectation_Jz, 0.25)
-        assert np.isclose(result2.variance_Jz, 0.01)
-        assert np.isclose(result2.purity_S, 0.75)
+        assert result2.expectation_Jz == pytest.approx(0.25), (
+            "Expected result2.expectation_Jz == pytest.approx(0.25)"
+        )
+        assert result2.variance_Jz == pytest.approx(0.01), (
+            "Expected result2.variance_Jz == pytest.approx(0.01)"
+        )
+        assert result2.purity_S == pytest.approx(0.75), (
+            "Expected result2.purity_S == pytest.approx(0.75)"
+        )
 
     def test_theta_scan_result_dataclass(self) -> None:
         """ThetaScanResult must store correct attributes."""
@@ -727,8 +784,10 @@ class TestOptimisation:
             best_per_theta=np.array([0.6, 0.3]),
             all_results={},
         )
-        assert len(result.theta_values) == 2
-        assert np.isclose(result.best_per_theta[0], 0.6)
+        assert len(result.theta_values) == 2, "Expected len(result.theta_values) == 2"
+        assert result.best_per_theta[0] == pytest.approx(0.6), (
+            "Expected result.best_per_theta[0] == pytest.approx(0.6)"
+        )
 
     @pytest.mark.slow
     def test_optimisation_explores_t_h(self) -> None:
@@ -740,7 +799,7 @@ class TestOptimisation:
         """
         ops = build_two_qubit_operators()
         x0 = np.array(
-            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0],
         )
         result = run_optimisation(
             theta_true=1.0,
@@ -753,7 +812,7 @@ class TestOptimisation:
         assert T_H_opt > 1.5, f"Expected T_H to increase, got T_H = {T_H_opt:.4f}"
         # Sensitivity should roughly match Δθ ≈ 1/T_H_opt (SQL scaling)
         expected = 1.0 / T_H_opt
-        assert np.isclose(result.delta_theta_opt, expected, rtol=0.15), (
+        assert result.delta_theta_opt == pytest.approx(expected, rel=0.15), (
             f"Δθ = {result.delta_theta_opt:.4f}, expected 1/T_H ≈ {expected:.4f}"
         )
 
@@ -768,7 +827,9 @@ class TestValidation:
 
     def test_validate_sensitivity_reasonable(self) -> None:
         """validate_sensitivity_reasonable must pass for default params."""
-        assert validate_sensitivity_reasonable() is True
+        assert validate_sensitivity_reasonable() is True, (
+            "Expected validate_sensitivity_reasonable() to be True"
+        )
 
     def test_validate_operators_raises_on_bad(self) -> None:
         """validate_operators must raise on invalid operators."""
@@ -783,9 +844,17 @@ class TestValidation:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         # Evolve to a non-trivial state
         psi = evolve_full(
-            psi0, np.pi / 2, np.pi / 2, 1.0, 1.0, (0.0, 0.0, 0.0, 0.0), ops
+            psi0,
+            np.pi / 2,
+            np.pi / 2,
+            1.0,
+            1.0,
+            (0.0, 0.0, 0.0, 0.0),
+            ops,
         )
-        assert validate_variance_positive(psi, ops["Jz_S"]) is True
+        assert validate_variance_positive(psi, ops["Jz_S"]) is True, (
+            'Expected validate_variance_positive(psi, ops["Jz_S"]) to be True'
+        )
 
     def test_validate_derivative_stability_passes(self) -> None:
         """validate_derivative_stability must pass for the decoupled config."""
@@ -803,7 +872,7 @@ class TestValidation:
             alpha=alpha,
             ops=ops,
         )
-        assert result is True
+        assert result is True, "Expected result to be True"
 
     def test_validate_derivative_stability_at_fringe(self) -> None:
         """validate_derivative_stability must gracefully skip fringe extrema."""
@@ -830,7 +899,9 @@ class TestConvergenceMetric:
     def test_fewer_than_two_returns_zero(self) -> None:
         """Fewer than 2 results must return 0.0."""
         r = OptimisationResult(0.5, np.zeros(11), 1.0, True, 10, "ok")
-        assert compute_convergence_metric([r]) == 0.0
+        assert compute_convergence_metric([r]) == 0.0, (
+            "Expected compute_convergence_metric([r]) == 0.0"
+        )
 
     def test_all_inf_returns_zero(self) -> None:
         """All-infinite results must return 0.0."""
@@ -838,7 +909,9 @@ class TestConvergenceMetric:
             OptimisationResult(float("inf"), np.zeros(11), 1.0, True, 10, "ok"),
             OptimisationResult(float("inf"), np.zeros(11), 1.0, True, 10, "ok"),
         ]
-        assert compute_convergence_metric(results) == 0.0
+        assert compute_convergence_metric(results) == 0.0, (
+            "Expected compute_convergence_metric(results) == 0.0"
+        )
 
     def test_converged_returns_small(self) -> None:
         """Clustered Δθ values must give a small spread (< 0.10)."""
@@ -866,20 +939,26 @@ class TestBounds:
     def test_default_bounds_structure(self) -> None:
         """get_default_bounds must return dict with correct keys."""
         bounds = get_default_bounds()
-        assert isinstance(bounds, dict)
+        assert isinstance(bounds, dict), "Expected bounds to be instance of dict"
         for key in ["theta", "phi", "T_BS", "T_H", "alpha"]:
             assert key in bounds, f"Missing bounds key: {key}"
-            assert isinstance(bounds[key], tuple)
-            assert len(bounds[key]) == 2
+            assert isinstance(bounds[key], tuple), (
+                "Expected bounds[key] to be instance of tuple"
+            )
+            assert len(bounds[key]) == 2, "Expected len(bounds[key]) == 2"
 
     def test_default_bounds_values(self) -> None:
         """Default bounds must match article specification."""
         bounds = get_default_bounds()
-        assert bounds["theta"] == (0.0, np.pi)
-        assert bounds["phi"] == (0.0, 2.0 * np.pi)
-        assert bounds["T_BS"] == (0.0, np.pi)
+        assert bounds["theta"] == (0.0, np.pi), (
+            'Expected bounds["theta"] == (0.0, np.pi)'
+        )
+        assert bounds["phi"] == (0.0, 2.0 * np.pi), (
+            'Expected bounds["phi"] == (0.0, 2.0 * np.pi)'
+        )
+        assert bounds["T_BS"] == (0.0, np.pi), 'Expected bounds["T_BS"] == (0.0, np.pi)'
         assert bounds["T_H"] == (0.0, 5.0)  # Article default
-        assert bounds["alpha"] == (-2.0, 2.0)
+        assert bounds["alpha"] == (-2.0, 2.0), 'Expected bounds["alpha"] == (-2.0, 2.0)'
 
     def test_random_initial_params_respects_custom_bounds(self) -> None:
         """random_initial_params must generate within custom bounds."""
@@ -889,7 +968,7 @@ class TestBounds:
 
         for _ in range(50):
             params = random_initial_params(rng, custom_bounds)
-            assert params.shape == (11,)
+            assert params.shape == (11,), "Expected params.shape == (11,)"
             # T_H must be in [0, 20]
             assert 0.0 <= params[6] <= 20.0, (
                 f"T_H = {params[6]} outside custom bounds [0, 20]"
@@ -905,8 +984,10 @@ class TestBounds:
             nfev=100,
             message="OK",
         )
-        assert hasattr(result, "history")
-        assert isinstance(result.history, list)
+        assert hasattr(result, "history"), 'Expected result to have attribute "history"'
+        assert isinstance(result.history, list), (
+            "Expected result.history to be instance of list"
+        )
         assert len(result.history) == 0  # Default empty
 
     def test_optimisation_result_history_settable(self) -> None:
@@ -920,13 +1001,15 @@ class TestBounds:
             message="OK",
             history=[1.0, 0.8, 0.6, 0.5],
         )
-        assert result.history == [1.0, 0.8, 0.6, 0.5]
+        assert result.history == [1.0, 0.8, 0.6, 0.5], (
+            "Expected result.history == [1.0, 0.8, 0.6, 0.5]"
+        )
 
     def test_track_history_in_optimisation(self) -> None:
         """track_history=True must populate result.history via callback."""
         ops = build_two_qubit_operators()
         x0 = np.array(
-            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0]
+            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0],
         )
 
         # With track_history=False (default)
@@ -937,7 +1020,9 @@ class TestBounds:
             maxiter=20,
             track_history=False,
         )
-        assert len(result_no_track.history) == 0
+        assert len(result_no_track.history) == 0, (
+            "Expected len(result_no_track.history) == 0"
+        )
 
         # With track_history=True
         result_with_track = run_optimisation(
@@ -948,11 +1033,17 @@ class TestBounds:
             track_history=True,
         )
         # Callback is called once per iteration
-        assert len(result_with_track.history) > 0
+        assert len(result_with_track.history) > 0, (
+            "Expected len(result_with_track.history) > 0"
+        )
         # All history values should be finite floats
-        assert all(np.isfinite(v) for v in result_with_track.history)
+        assert all(np.isfinite(v) for v in result_with_track.history), (
+            "Expected all(np.isfinite(v) for v in result_with_track.history)"
+        )
         # History values should be positive (sensitivity Δθ)
-        assert all(v > 0 for v in result_with_track.history)
+        assert all(v > 0 for v in result_with_track.history), (
+            "Expected all(v > 0 for v in result_with_track.history)"
+        )
 
 
 # ============================================================================
@@ -966,21 +1057,33 @@ class TestAlphaScans:
     def test_scan_alpha_single_parameter_xx(self) -> None:
         """Scanning α_xx must return valid structure and values."""
         result = scan_alpha_single_parameter(
-            "xx", alpha_min=-0.5, alpha_max=0.5, n_points=5
+            "xx",
+            alpha_min=-0.5,
+            alpha_max=0.5,
+            n_points=5,
         )
-        assert isinstance(result, AlphaSingleScanResult)
-        assert result.alpha_name == "xx"
-        assert len(result.alpha_values) == 5
-        assert len(result.delta_theta_values) == 5
-        assert np.all(np.isfinite(result.delta_theta_values))
+        assert isinstance(result, AlphaSingleScanResult), (
+            "Expected result to be instance of AlphaSingleScanResult"
+        )
+        assert result.alpha_name == "xx", 'Expected result.alpha_name == "xx"'
+        assert len(result.alpha_values) == 5, "Expected len(result.alpha_values) == 5"
+        assert len(result.delta_theta_values) == 5, (
+            "Expected len(result.delta_theta_values) == 5"
+        )
+        assert np.all(np.isfinite(result.delta_theta_values)), (
+            "All values should satisfy np.isfinite(result.delta_theta_values)"
+        )
 
     def test_scan_alpha_single_parameter_all_names(self) -> None:
         """All four α coefficient names must work."""
         for name in ["xx", "xz", "zx", "zz"]:
             result = scan_alpha_single_parameter(
-                name, alpha_min=-0.1, alpha_max=0.1, n_points=3
+                name,
+                alpha_min=-0.1,
+                alpha_max=0.1,
+                n_points=3,
             )
-            assert result.alpha_name == name
+            assert result.alpha_name == name, "Expected result.alpha_name == name"
 
     def test_scan_alpha_single_parameter_invalid_name_raises(self) -> None:
         """Invalid α name must raise ValueError."""
@@ -991,40 +1094,66 @@ class TestAlphaScans:
         """At α=0, sensitivity should be ≈ 1.0 (1/T_H with T_H=1)."""
         # Scan through 0; use fewer points for speed
         result = scan_alpha_single_parameter(
-            "xx", alpha_min=-0.2, alpha_max=0.2, n_points=5, T_H=1.0, theta_true=1.0
+            "xx",
+            alpha_min=-0.2,
+            alpha_max=0.2,
+            n_points=5,
+            T_H=1.0,
+            theta_true=1.0,
         )
         # Middle value is at α=0
         idx_mid = 2
-        assert result.alpha_values[idx_mid] == 0.0
+        assert result.alpha_values[idx_mid] == 0.0, (
+            "Expected result.alpha_values[idx_mid] == 0.0"
+        )
         # Δθ at α=0 should be close to 1.0 = 1/T_H
-        assert np.isclose(result.delta_theta_values[idx_mid], 1.0, rtol=0.1), (
+        assert result.delta_theta_values[idx_mid] == pytest.approx(1.0, rel=0.1), (
             f"At α=0, expected Δθ ≈ 1.0, got {result.delta_theta_values[idx_mid]}"
         )
 
     def test_random_search_alpha_basic(self) -> None:
         """Random search must return valid result structure."""
         result = random_search_alpha(n_samples=10, seed=42)
-        assert isinstance(result, AlphaRandomSearchResult)
-        assert result.alpha_samples.shape == (10, 4)
-        assert len(result.delta_theta_values) == 10
-        assert len(result.best_alpha) == 4
-        assert np.isfinite(result.best_delta_theta)
+        assert isinstance(result, AlphaRandomSearchResult), (
+            "Expected result to be instance of AlphaRandomSearchResult"
+        )
+        assert result.alpha_samples.shape == (10, 4), (
+            "Expected result.alpha_samples.shape == (10, 4)"
+        )
+        assert len(result.delta_theta_values) == 10, (
+            "Expected len(result.delta_theta_values) == 10"
+        )
+        assert len(result.best_alpha) == 4, "Expected len(result.best_alpha) == 4"
+        assert np.isfinite(result.best_delta_theta), (
+            "Expected result.best_delta_theta to be finite"
+        )
 
     def test_random_search_alpha_bounds(self) -> None:
         """All sampled α must be within [alpha_min, alpha_max]."""
         result = random_search_alpha(
-            n_samples=50, alpha_min=-1.0, alpha_max=1.0, seed=42
+            n_samples=50,
+            alpha_min=-1.0,
+            alpha_max=1.0,
+            seed=42,
         )
         for i in range(50):
             for j in range(4):
-                assert -1.0 <= result.alpha_samples[i, j] <= 1.0
+                assert -1.0 <= result.alpha_samples[i, j] <= 1.0, (
+                    "Expected -1.0 <= result.alpha_samples[i, j] <= 1.0"
+                )
 
     def test_random_search_alpha_reproducible_with_seed(self) -> None:
         """Same seed must give same samples."""
         result1 = random_search_alpha(n_samples=20, seed=123)
         result2 = random_search_alpha(n_samples=20, seed=123)
-        assert np.allclose(result1.alpha_samples, result2.alpha_samples)
-        assert np.allclose(result1.delta_theta_values, result2.delta_theta_values)
+        assert result1.alpha_samples == pytest.approx(result2.alpha_samples), (
+            "Expected result1.alpha_samples == pytest.approx(result2.alpha_samples)"
+        )
+        assert result1.delta_theta_values == pytest.approx(
+            result2.delta_theta_values,
+        ), (
+            "Expected result1.delta_theta_values == pytest.approx(result2.delta_theta_values)"
+        )
 
     @pytest.mark.slow
     def test_alpha_never_beats_sql(self) -> None:
@@ -1039,7 +1168,11 @@ class TestAlphaScans:
         # Check single-parameter scans
         for name in ["xx", "xz", "zx", "zz"]:
             result = scan_alpha_single_parameter(
-                name, alpha_min=-1.5, alpha_max=1.5, n_points=11, T_H=T_H
+                name,
+                alpha_min=-1.5,
+                alpha_max=1.5,
+                n_points=11,
+                T_H=T_H,
             )
             # Skip any inf values (fringe extrema)
             finite = np.isfinite(result.delta_theta_values)
@@ -1051,7 +1184,9 @@ class TestAlphaScans:
 
         # Check random search
         result_rand: AlphaRandomSearchResult = random_search_alpha(
-            n_samples=100, T_H=T_H, seed=42
+            n_samples=100,
+            T_H=T_H,
+            seed=42,
         )
         finite = np.isfinite(result_rand.delta_theta_values)
         min_dtheta = float(np.min(result_rand.delta_theta_values[finite]))

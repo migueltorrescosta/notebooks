@@ -18,20 +18,18 @@ Functions:
 - validate_unitary: Check if matrix is unitary
 """
 
-from typing import Tuple
-
 import numpy as np
 
 __all__ = [
-    "validate_hamiltonian_hermitian",
-    "validate_eigenvectors_orthonormal",
     "validate_eigendecomposition",
+    "validate_eigenvectors_orthonormal",
+    "validate_hamiltonian_delta_estimation",
+    "validate_hamiltonian_hermitian",
     "validate_orthonormality",
-    "validate_probability_conservation",
     "validate_partial_trace",
+    "validate_probability_conservation",
     "validate_sensitivity",
     "validate_state_delta_estimation",
-    "validate_hamiltonian_delta_estimation",
     "validate_state_mzi",
     "validate_unitary",
 ]
@@ -122,8 +120,7 @@ def validate_orthonormality(
     """
     n = eigenvectors.shape[1]
     overlap = np.real(np.conjugate(eigenvectors.T) @ eigenvectors)
-    deviation = np.sum(np.abs(overlap - np.eye(n)))
-    return deviation
+    return np.sum(np.abs(overlap - np.eye(n)))
 
 
 def validate_probability_conservation(
@@ -186,10 +183,7 @@ def validate_partial_trace(
 
     # Check positive semidefinite (full)
     eigenvals = np.linalg.eigvalsh(rho_full)
-    if not np.all(eigenvals >= -tolerance):
-        return False
-
-    return True
+    return np.all(eigenvals >= -tolerance)
 
 
 # =============================================================================
@@ -256,10 +250,7 @@ def validate_sensitivity(
     # Compare
     if abs(num_deriv_j - result["sensitivity_to_j"]) > tolerance:
         return False
-    if abs(num_deriv_delta - result["sensitivity_to_delta"]) > tolerance:
-        return False
-
-    return True
+    return not abs(num_deriv_delta - result["sensitivity_to_delta"]) > tolerance
 
 
 # =============================================================================
@@ -269,7 +260,7 @@ def validate_sensitivity(
 
 def validate_state_delta_estimation(
     state: np.ndarray,
-    expected_dims: Tuple[int, int],
+    expected_dims: tuple[int, int],
 ) -> bool:
     """Validate that a state matrix has expected dimensions and is valid density matrix.
 
@@ -291,9 +282,7 @@ def validate_state_delta_estimation(
         return False
     # Check positive semidefinite (eigenvalues >= 0)
     eigenvals = np.linalg.eigvalsh(state)
-    if not np.all(eigenvals >= -1e-10):
-        return False
-    return True
+    return np.all(eigenvals >= -1e-10)
 
 
 def validate_hamiltonian_delta_estimation(hamiltonian: np.ndarray) -> bool:
@@ -307,9 +296,7 @@ def validate_hamiltonian_delta_estimation(hamiltonian: np.ndarray) -> bool:
 
     """
     # Check Hermitian: H = H^\dagger
-    if not np.allclose(hamiltonian, hamiltonian.conj().T):
-        return False
-    return True
+    return np.allclose(hamiltonian, hamiltonian.conj().T)
 
 
 # =============================================================================

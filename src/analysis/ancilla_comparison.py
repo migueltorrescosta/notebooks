@@ -40,7 +40,6 @@ from scipy.linalg import expm
 from src.analysis.fisher_information import quantum_fisher_information_dm
 from src.physics.mzi_simulation import beam_splitter_unitary, create_system_operators
 
-
 # =============================================================================
 # Operator Construction
 # =============================================================================
@@ -154,8 +153,7 @@ def compute_generator_B(T_H: float, N_max: int) -> np.ndarray:
     J_z_sys, _ = build_system_jz_jx(N_max)
     BS = beam_splitter_unitary(np.pi / 4, 0.0, N_max)
 
-    G_B = T_H * BS.conj().T @ J_z_sys @ BS
-    return G_B
+    return T_H * BS.conj().T @ J_z_sys @ BS
 
 
 def compute_generator_A(
@@ -223,9 +221,7 @@ def compute_generator_A(
     G_A = T_H * BS_full.conj().T @ J_z_integral @ BS_full
 
     # Ensure Hermiticity
-    G_A = 0.5 * (G_A + G_A.conj().T)
-
-    return G_A
+    return 0.5 * (G_A + G_A.conj().T)
 
 
 def compute_generator_A_at_theta(
@@ -281,8 +277,7 @@ def compute_generator_A_at_theta(
     J_z_integral *= h / 3.0
 
     G_A = T_H * BS_full.conj().T @ J_z_integral @ BS_full
-    G_A = 0.5 * (G_A + G_A.conj().T)
-    return G_A
+    return 0.5 * (G_A + G_A.conj().T)
 
 
 # =============================================================================
@@ -381,7 +376,8 @@ def random_pure_state_in_subspace(
 
 
 def random_alphas(
-    rng: np.random.Generator, scale: float = 10.0
+    rng: np.random.Generator,
+    scale: float = 10.0,
 ) -> tuple[float, float, float, float]:
     """Generate random interaction coefficients α.
 
@@ -550,7 +546,7 @@ def optimize_qfi_case_B(
         F_Q = quantum_fisher_information_dm(rho, G_B)
         all_fq[i] = F_Q
 
-        if F_Q > best_fq:
+        if best_fq < F_Q:
             best_fq = F_Q
             best_rho = rho.copy()
 
@@ -624,7 +620,11 @@ def optimize_qfi_case_A(
 
         # Build H_int
         H_int = build_interaction_hamiltonian(
-            alphas, J_z_sys, J_x_sys, J_z_anc, J_x_anc
+            alphas,
+            J_z_sys,
+            J_x_sys,
+            J_z_anc,
+            J_x_anc,
         )
 
         # Build full Hamiltonian at θ = 0
@@ -665,7 +665,8 @@ def optimize_qfi_case_A(
 
             # Apply particle-number penalty
             mean_N_sys, _, _ = check_particle_number(
-                _partial_trace_system(rho, N_max), N_max
+                _partial_trace_system(rho, N_max),
+                N_max,
             )
             penalty = particle_penalty * (mean_N_sys - 1.0) ** 2
             F_Q_penalized = F_Q - penalty
@@ -683,7 +684,8 @@ def optimize_qfi_case_A(
     # Re-evaluate the best without penalty to report true QFI
     # Need to check particle number of the best state
     mean_N, pop_00, pop_NN = check_particle_number(
-        _partial_trace_system(best_rho, N_max), N_max
+        _partial_trace_system(best_rho, N_max),
+        N_max,
     )
 
     return RandomSearchResult(
@@ -714,8 +716,7 @@ def _partial_trace_system(rho_full: np.ndarray, N_max: int) -> np.ndarray:
     dim_anc = 2
 
     rho_reshaped = rho_full.reshape(dim_sys, dim_anc, dim_sys, dim_anc)
-    rho_sys = np.trace(rho_reshaped, axis1=1, axis2=3)
-    return rho_sys
+    return np.trace(rho_reshaped, axis1=1, axis2=3)
 
 
 # =============================================================================
@@ -820,8 +821,7 @@ def run_comparison(
         psi_anc = random_pure_state_dm(2, rng)
         rho = np.kron(psi_sys, psi_anc)
         F_Q = quantum_fisher_information_dm(rho, G_A_zero)
-        if F_Q > best_fq_A_zero:
-            best_fq_A_zero = F_Q
+        best_fq_A_zero = max(best_fq_A_zero, F_Q)
 
     # θ-dependence check
     fq_A_theta: dict[float, float] = {}
@@ -830,11 +830,18 @@ def run_comparison(
         for theta_val in theta_values:
             if theta_val == 0.0:
                 G_A_theta = compute_generator_A(
-                    T_H, result_A.best_alphas, 1, n_quadrature
+                    T_H,
+                    result_A.best_alphas,
+                    1,
+                    n_quadrature,
                 )
             else:
                 G_A_theta = compute_generator_A_at_theta(
-                    T_H, theta_val, result_A.best_alphas, 1, n_quadrature
+                    T_H,
+                    theta_val,
+                    result_A.best_alphas,
+                    1,
+                    n_quadrature,
                 )
             F_Q = quantum_fisher_information_dm(best_rho_A, G_A_theta)
             fq_A_theta[theta_val] = float(F_Q)

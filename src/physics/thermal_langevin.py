@@ -38,13 +38,15 @@ Scaling Regimes:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 
 from src.analysis.scaling_fit import ScalingFitResult, fit_scaling_exponent
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # =============================================================================
 # Configuration
@@ -182,7 +184,7 @@ def sweep_thermal_scaling(
     base_config: ThermalLangevinConfig,
     m_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
     k_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
-) -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """Sweep thermal+quantum sensitivity over a range of N values.
 
     Args:
@@ -301,11 +303,11 @@ def crossover_N(
 
 
 def mechanical_susceptibility(
-    omega: float | npt.NDArray[np.float_],
+    omega: float | npt.NDArray[np.float64],
     m: float,
     omega_m: float,
     gamma: float,
-) -> complex | npt.NDArray[np.complex_]:
+) -> complex | npt.NDArray[np.complex128]:
     """Compute the mechanical susceptibility χ(ω).
 
     χ(ω) = 1 / [m(ω_m² - ω² + iΓω)]
@@ -323,7 +325,7 @@ def mechanical_susceptibility(
     scalar_input = np.ndim(omega) == 0
     omega_arr = np.atleast_1d(np.asarray(omega, dtype=float))
     denominator = m * (omega_m**2 - omega_arr**2 + 1j * gamma / m * omega_arr)
-    result: npt.NDArray[np.complex_] = 1.0 / denominator
+    result: npt.NDArray[np.complex128] = 1.0 / denominator
     if scalar_input:
         return complex(result[0])
     return result

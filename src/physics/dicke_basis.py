@@ -127,7 +127,7 @@ def to_dicke_basis(fock_state: np.ndarray, N: int) -> np.ndarray:
     expected_dim = (N + 1) ** 2
     if fock_state.shape[0] != expected_dim:
         raise ValueError(
-            f"Expected Fock state dimension {expected_dim}, got {fock_state.shape[0]}"
+            f"Expected Fock state dimension {expected_dim}, got {fock_state.shape[0]}",
         )
 
     dicke_dim = N + 1
@@ -183,7 +183,7 @@ def from_dicke_basis(dicke_state: np.ndarray, N: int) -> np.ndarray:
 
     if dicke_state.shape[0] != N + 1:
         raise ValueError(
-            f"Expected Dicke state dimension {N + 1}, got {dicke_state.shape[0]}"
+            f"Expected Dicke state dimension {N + 1}, got {dicke_state.shape[0]}",
         )
 
     fock_dim = (N + 1) ** 2
@@ -233,7 +233,7 @@ def jz_eigenvalues(N: int) -> np.ndarray:
     return np.arange(J, -J - 1, -1)
 
 
-def jz_operator(N: int, basis: "OperatorBasis | None" = None) -> np.ndarray:
+def jz_operator(N: int, basis: OperatorBasis | None = None) -> np.ndarray:
     """Construct the dense J_z operator.
 
     This is the single authoritative implementation of J_z for the project.
@@ -295,7 +295,7 @@ def jz_operator(N: int, basis: "OperatorBasis | None" = None) -> np.ndarray:
     return np.diag(eigenvalues)
 
 
-def _default_basis() -> "OperatorBasis":
+def _default_basis() -> OperatorBasis:
     """Return the project's default operator basis (DICKE)."""
     from src.utils.enums import OperatorBasis
 

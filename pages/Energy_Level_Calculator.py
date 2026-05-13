@@ -5,18 +5,22 @@ for Hamiltonians of interest in quantum metrology (Heisenberg model,
 spin systems, etc.).
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, cast
+from typing import cast
+
 import numpy as np
 import pandas as pd
 import scipy
 import streamlit as st
 
-from src.utils.enums import PotentialFunction, BoundaryCondition
+from src.utils.enums import BoundaryCondition, PotentialFunction
 from src.visualization.plotting import plot_array
 
 st.set_page_config(
-    page_title="QM | Energy Level Calculator", page_icon="🛢", layout="wide"
+    page_title="QM | Energy Level Calculator",
+    page_icon="🛢",
+    layout="wide",
 )
 
 st.cache_data.clear()
@@ -27,10 +31,10 @@ st.header("QM | Energy Level Calculator", divider="blue")
 with st.expander("📖 Methodology", expanded=False):
     st.markdown("""
     **Energy Level Calculator** solves the 1D time-independent Schrödinger equation to find eigenenergies and eigenstates.
-    
+
     **The Problem:** Find solutions to $H\\ket{\\psi_n} = E_n \\ket{\\psi_n}$ where
     $$H = \\frac{\\hat{p}^2}{2m} + V(x)$$
-    
+
     **Methodology:**
     1. **Spatial Discretization**: Discretize the domain $[x_{min}, x_{max}]$ into $N_x$ grid points
     2. **Kinetic Operator**: Approximate $\\hat{p}^2$ using the finite difference matrix:
@@ -39,10 +43,10 @@ with st.expander("📖 Methodology", expanded=False):
     3. **Hamiltonian Assembly**: Construct the $N_x \\times N_x$ sparse matrix $H = T + V$
     4. **Eigensolver**: Use `scipy.sparse.linalg.eigs` to find the $N$ lowest eigenvalues/eigenvectors
     5. **Normalization**: Verify orthonormality of eigenstates via inner product matrix
-    
+
     **Physical Context:** The potential $V(x)$ can be quadratic (harmonic oscillator), quartic, trigonometric (multi-well),
     uniform (linear potential), or double-well (tunneling systems).
-    
+
     **Validation:** Orthonormality error should be $< 10^{-8}$ for reliable results.
     """)
 
@@ -61,18 +65,20 @@ with st.sidebar:
         resolution: int = int(st.number_input("$N_x$", value=200))
     with c2:
         number_of_energy_levels = int(
-            st.number_input("$E_{levels}$", min_value=2, value=20)
+            st.number_input("$E_{levels}$", min_value=2, value=20),
         )
 
     boundary_condition_str = st.selectbox(
-        "Boundary Condition", [f.value for f in BoundaryCondition]
+        "Boundary Condition",
+        [f.value for f in BoundaryCondition],
     )
     boundary_condition: BoundaryCondition = BoundaryCondition(boundary_condition_str)
     valid_x = np.linspace(x_min, x_max, resolution)
 
     st.header("Potential $V(x)$", divider="green")
     potential_function_str = st.selectbox(
-        "$V(x)$", [f.value for f in PotentialFunction]
+        "$V(x)$",
+        [f.value for f in PotentialFunction],
     )
     potential_function: PotentialFunction = PotentialFunction(potential_function_str)
 
@@ -141,11 +147,11 @@ def build_1d_hamiltonian(
         inner_hamiltonian[0, inner_n - 1] = -1
         inner_hamiltonian[inner_n - 1, 0] = -1
 
-    inner_hamiltonian = cast(scipy.sparse.lil_matrix, inner_hamiltonian / inner_dx**2)
+    inner_hamiltonian = cast("scipy.sparse.lil_matrix", inner_hamiltonian / inner_dx**2)
     # V(X) term
     for i in range(inner_n):
         inner_hamiltonian[i, i] = inner_hamiltonian[i, i] + inner_potential_function(
-            valid_x[i]
+            valid_x[i],
         )
 
     return inner_hamiltonian.tocsc()
@@ -158,7 +164,7 @@ st.line_chart(
         {
             "Potential": map(potential_x, valid_x),
             "x": valid_x,
-        }
+        },
     ),
     x="x",
     height=200,
@@ -166,13 +172,15 @@ st.line_chart(
 
 hamiltonian = build_1d_hamiltonian(
     inner_n=resolution,
-    inner_dx=valid_x[1] - valid_x[0],  # noqa
+    inner_dx=valid_x[1] - valid_x[0],
     inner_potential_function=potential_x,
     inner_boundary_condition=BoundaryCondition[boundary_condition],
 )
 # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.eigs.html
 eigenvalues, eigenvectors = scipy.sparse.linalg.eigs(
-    hamiltonian, k=number_of_energy_levels, which="SM"
+    hamiltonian,
+    k=number_of_energy_levels,
+    which="SM",
 )
 
 
@@ -186,26 +194,29 @@ class EnergyLevel:
 energy_levels = [
     EnergyLevel(level=level, energy=energy, wave_function=wf)
     for level, energy, wf in zip(
-        range(number_of_energy_levels), np.real(eigenvalues), eigenvectors.T
+        range(number_of_energy_levels),
+        np.real(eigenvalues),
+        eigenvectors.T,
+        strict=False,
     )
 ]
 
 with st.sidebar:
     st.header("Orthonormality check", divider="orange")
     error_matrix = np.abs(eigenvectors.T @ eigenvectors) - np.eye(
-        number_of_energy_levels
+        number_of_energy_levels,
     )
     st.caption(f"Biggest error: {np.max(error_matrix):.2g}")
     plot_array(error_matrix)
 
 st.subheader("Energy levels $\\ket{n}$")
 st.caption(
-    f"Showing first {min(5, number_of_energy_levels)} of {number_of_energy_levels} levels"
+    f"Showing first {min(5, number_of_energy_levels)} of {number_of_energy_levels} levels",
 )
 
 # Use tabs for first few levels
 tabs = st.tabs([str(e) for e in range(min(5, number_of_energy_levels))])
-for tab, energy_level in zip(tabs, energy_levels[:5]):
+for tab, energy_level in zip(tabs, energy_levels[:5], strict=False):
     with tab:
         c1, c2 = st.columns([2, 1])
         with c1:
@@ -215,7 +226,7 @@ for tab, energy_level in zip(tabs, energy_levels[:5]):
                         "Re": np.real(energy_level.wave_function),
                         "Im": np.imag(energy_level.wave_function),
                         "x": valid_x,
-                    }
+                    },
                 ),
                 x="x",
                 height=200,

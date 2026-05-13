@@ -6,10 +6,10 @@ simulation framework to ensure consistent naming of physical models,
 potential functions, boundary conditions, and probability distributions.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class WavePacket(str, Enum):
+class WavePacket(StrEnum):
     """Wave packet shape for initial state preparation.
 
     Attributes:
@@ -25,7 +25,7 @@ class WavePacket(str, Enum):
     # Solitary = "Solitary"
 
 
-class PotentialFunction(str, Enum):
+class PotentialFunction(StrEnum):
     """Potential energy function types for quantum systems.
 
     Attributes:
@@ -44,7 +44,7 @@ class PotentialFunction(str, Enum):
     Uniform = "Uniform"
 
 
-class BoundaryCondition(str, Enum):
+class BoundaryCondition(StrEnum):
     """Boundary conditions for spatial wavefunctions.
 
     Attributes:
@@ -57,7 +57,7 @@ class BoundaryCondition(str, Enum):
     Dirichlet = "Dirichlet"
 
 
-class ProbabilityDistribution(str, Enum):
+class ProbabilityDistribution(StrEnum):
     """Named probability distribution types for stochastic processes.
 
     Attributes:
@@ -68,7 +68,7 @@ class ProbabilityDistribution(str, Enum):
     ParticleDecay = "ParticleDecay"
 
 
-class OperatorBasis(str, Enum):
+class OperatorBasis(StrEnum):
     """Basis convention for angular momentum operators.
 
     Attributes:

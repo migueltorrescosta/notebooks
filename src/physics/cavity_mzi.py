@@ -64,16 +64,15 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from src.physics.mzi_simulation import (
-    beam_splitter_unitary,
-    phase_shift_unitary,
-)
 from src.physics.mzi_lindblad import (
     MziNoiseConfig,
     run_noisy_mzi,
 )
+from src.physics.mzi_simulation import (
+    beam_splitter_unitary,
+    phase_shift_unitary,
+)
 from src.physics.mzi_states import compute_fisher_information, input_state_factory
-
 
 # =============================================================================
 # Configuration
@@ -178,9 +177,7 @@ def cavity_enhanced_mzi(
     # Circuit: BS₂ · Phase(ℱ·φ) · BS₁
     state = bs @ initial_state
     state = phase @ state
-    state = bs @ state
-
-    return state
+    return bs @ state
 
 
 # =============================================================================
@@ -298,7 +295,7 @@ def cavity_enhanced_mzi_with_noise(
 
     # Run the full noisy MZI with scaled rates and total phase.
     # Circuit: BS₁ → Phase(ℱ·φ) → Noise(ℱ·γ, T) → BS₂
-    final_rho = run_noisy_mzi(
+    return run_noisy_mzi(
         initial_state=initial_state,
         max_photons=max_photons,
         theta=config.theta,
@@ -306,8 +303,6 @@ def cavity_enhanced_mzi_with_noise(
         phi_phase=total_phi,
         noise_config=noise_config,
     )
-
-    return final_rho
 
 
 # =============================================================================

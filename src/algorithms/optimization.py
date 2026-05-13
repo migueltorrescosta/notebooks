@@ -10,10 +10,9 @@ Units:
 """
 
 from collections.abc import Callable
-from typing import Any, Dict
+from typing import Any
 
 import numpy as np
-
 
 # =============================================================================
 # Test Functions
@@ -65,7 +64,7 @@ def beale(x: float, y: float) -> float:
     return np.log(
         (1.5 - x + x * y) ** 2
         + (2.25 - x + x * y**2) ** 2
-        + (2.625 - x + x * y**3) ** 2
+        + (2.625 - x + x * y**3) ** 2,
     )
 
 
@@ -142,7 +141,7 @@ def eggholder(x: float, y: float) -> float:
     Highly irregular with many local optima.
     """
     return (-1000 * y + 47) * np.sin(
-        np.sqrt(np.abs(500 * x + 1000 * y + 47))
+        np.sqrt(np.abs(500 * x + 1000 * y + 47)),
     ) - 1000 * x * np.sin(np.sqrt(np.abs(1000 * (x - y) + 47)))
 
 
@@ -152,7 +151,7 @@ def holder_table(x: float, y: float) -> float:
     Global minima at (±8.055, ±9.664) with f ≈ -19.2085.
     """
     return -1 * np.abs(
-        np.sin(x) * np.cos(y) * np.exp(np.abs(1 - np.sqrt(x**2 + y**2) / np.pi))
+        np.sin(x) * np.cos(y) * np.exp(np.abs(1 - np.sqrt(x**2 + y**2) / np.pi)),
     )
 
 
@@ -178,12 +177,12 @@ def shekel(x: float, y: float) -> float:
         [
             1 / (c + (x - a) ** 2 + (y - b) ** 2)
             for c, b, a in [(4, 1, 1), (5, 0, 1), (6, 0, 1)]
-        ]
+        ],
     )
 
 
 # Dictionary of all test functions
-TEST_FUNCTIONS: Dict[str, Callable[[float, float], float]] = {
+TEST_FUNCTIONS: dict[str, Callable[[float, float], float]] = {
     "Rastrigin": rastrigin,
     "Ackley": ackley,
     "Sphere": sphere,
@@ -210,7 +209,7 @@ TEST_FUNCTIONS: Dict[str, Callable[[float, float], float]] = {
 
 def create_minimizer(
     method: str,
-) -> Callable[[Callable[..., float], np.ndarray], Dict[str, Any]]:
+) -> Callable[[Callable[..., float], np.ndarray], dict[str, Any]]:
     """Create a minimizer function for a given method.
 
     Args:
@@ -222,20 +221,20 @@ def create_minimizer(
     """
     from scipy.optimize import minimize
 
-    def minimizer(func: Callable[..., float], x0: np.ndarray) -> Dict[str, Any]:
+    def minimizer(func: Callable[..., float], x0: np.ndarray) -> dict[str, Any]:
         """Wrapper to scipy.optimize.minimize."""
 
         def wrap(x: np.ndarray) -> float:
             return func(x[0], x[1])
 
-        result: Dict[str, Any] = minimize(wrap, x0=x0, method=method)  # type: ignore[call-overload]
+        result: dict[str, Any] = minimize(wrap, x0=x0, method=method)  # type: ignore[call-overload]
         return result
 
     return minimizer
 
 
 # Pre-built minimizers
-MINIMIZERS: Dict[str, Callable[[Callable[..., float], np.ndarray], Dict[str, Any]]] = {
+MINIMIZERS: dict[str, Callable[[Callable[..., float], np.ndarray], dict[str, Any]]] = {
     "Nelder-Mead": create_minimizer("Nelder-Mead"),
     "Powell": create_minimizer("Powell"),
     "CG": create_minimizer("CG"),
@@ -289,8 +288,8 @@ def generate_surface(
 def benchmark_optimizers(
     function_names: list[str],
     minimizer_names: list[str],
-    x0: np.ndarray = np.array([0.0, 0.0]),
-) -> Dict[str, list[Dict[str, Any]]]:
+    x0: np.ndarray | None = None,
+) -> dict[str, list[dict[str, Any]]]:
     """Run performance benchmark across functions and optimizers.
 
     Args:
@@ -302,6 +301,8 @@ def benchmark_optimizers(
         Results dictionary with argmin and minimum values.
 
     """
+    if x0 is None:
+        x0 = np.array([0.0, 0.0])
     results = []
 
     for func_name in function_names:
@@ -316,7 +317,7 @@ def benchmark_optimizers(
                     "argmin": result["x"],
                     "minimum": result["fun"],
                     "success": result["success"],
-                }
+                },
             )
 
     return {"results": results}
@@ -338,8 +339,8 @@ def normalize_benchmark_results(
         Normalized values array.
 
     """
-    functions = list(set(r["function"] for r in results))
-    minimizers = list(set(r["minimizer"] for r in results))
+    functions = list({r["function"] for r in results})
+    minimizers = list({r["minimizer"] for r in results})
 
     values = np.zeros((len(functions), len(minimizers)))
 

@@ -24,14 +24,11 @@ Units: Dimensionless throughout.
 Conventions: J_z = (n₁ - n₂)/2, beam-splitter generator = a₀†a₁ + a₁†a₀.
 """
 
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 import scipy
 
 from src.physics.mzi_states import two_mode_jz_operator
-
 
 # =============================================================================
 # Core Operators
@@ -70,8 +67,7 @@ def build_beam_splitter() -> np.ndarray:
                 idx_target = (n1 - 1) * 2 + (n2 + 1)
                 h_bs[idx_target, idx] = np.sqrt(n1) * np.sqrt(n2 + 1)
 
-    u_bs = scipy.linalg.expm(-1j * (np.pi / 4.0) * h_bs)
-    return u_bs
+    return scipy.linalg.expm(-1j * (np.pi / 4.0) * h_bs)
 
 
 def build_holding_unitary(theta: float, t_h: float, jz: np.ndarray) -> np.ndarray:
@@ -149,8 +145,7 @@ def evolve_single_particle_mzi(
     u_hold = build_holding_unitary(theta, t_h, jz)
     psi = u_bs @ input_state
     psi = u_hold @ psi
-    psi = u_bs @ psi
-    return psi
+    return u_bs @ psi
 
 
 # =============================================================================
@@ -245,7 +240,7 @@ def compute_delta_theta_from_propagation(
     jz: np.ndarray,
     use_numerical: bool = False,
     delta: float = 1e-6,
-) -> Tuple[float, float, float, float, float]:
+) -> tuple[float, float, float, float, float]:
     """Compute sensitivity Δθ via error propagation for a single T_H.
 
     Δθ = √Var(J_z) / |∂⟨J_z⟩/∂θ|
@@ -276,10 +271,7 @@ def compute_delta_theta_from_propagation(
     is_fringe = abs_sin < 1e-6
 
     denom = abs(d_jz)
-    if denom < 1e-15:
-        delta_theta = np.inf
-    else:
-        delta_theta = np.sqrt(jz_var) / denom
+    delta_theta = np.inf if denom < 1e-15 else np.sqrt(jz_var) / denom
 
     return delta_theta, float(jz_mean), float(jz_var), float(d_jz), bool(is_fringe)
 
@@ -324,12 +316,21 @@ def compute_sensitivity_sweep(
     for t_h in t_h_values:
         # Analytical derivative
         dt_a, jz_mean, jz_var, d_jz_a, is_fringe = compute_delta_theta_from_propagation(
-            t_h, theta, u_bs, jz, use_numerical=False
+            t_h,
+            theta,
+            u_bs,
+            jz,
+            use_numerical=False,
         )
 
         # Numerical derivative
         dt_n, _, _, d_jz_n, _ = compute_delta_theta_from_propagation(
-            t_h, theta, u_bs, jz, use_numerical=True, delta=delta_fd
+            t_h,
+            theta,
+            u_bs,
+            jz,
+            use_numerical=True,
+            delta=delta_fd,
         )
 
         abs_sin_val = abs(np.sin(theta * t_h))
@@ -347,11 +348,10 @@ def compute_sensitivity_sweep(
                 "delta_theta_theory": 1.0 / t_h,
                 "is_fringe_extremum": is_fringe,
                 "abs_sin": abs_sin_val,
-            }
+            },
         )
 
-    df = pd.DataFrame(rows)
-    return df
+    return pd.DataFrame(rows)
 
 
 # =============================================================================
@@ -363,7 +363,7 @@ def fit_scaling_exponent(
     df: pd.DataFrame,
     column: str = "delta_theta_analytical",
     exclude_fringe: bool = True,
-) -> Tuple[float, float, pd.DataFrame]:
+) -> tuple[float, float, pd.DataFrame]:
     """Fit scaling exponent α from log-log linear regression.
 
     Fits log(Δθ) = α · log(T_H) + const via least squares.
@@ -442,7 +442,11 @@ def run_validation(theta: float = 1.0, t_h: float = 1.0) -> dict:
 
     # Analytical Δθ
     dt_a, _, _, _, _ = compute_delta_theta_from_propagation(
-        t_h, theta, u_bs, jz, use_numerical=False
+        t_h,
+        theta,
+        u_bs,
+        jz,
+        use_numerical=False,
     )
     theory = 1.0 / t_h
     delta_theta_matches = bool(np.isclose(dt_a, theory))

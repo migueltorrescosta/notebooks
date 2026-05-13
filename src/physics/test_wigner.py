@@ -11,17 +11,16 @@ Physical Validation:
 import numpy as np
 import pytest
 
-from .wigner import (
-    wigner_function_single,
-    wigner_from_hybrid_state,
-    wigner_minimum,
-    wigner_is_negative,
-)
 from .hybrid_system import (
-    hybrid_vacuum_state,
     hybrid_coherent_state,
+    hybrid_vacuum_state,
 )
-
+from .wigner import (
+    wigner_from_hybrid_state,
+    wigner_function_single,
+    wigner_is_negative,
+    wigner_minimum,
+)
 
 # =============================================================================
 # Test Wigner Function for Simple States
@@ -48,7 +47,9 @@ class TestWignerFunctionSingle:
         integral = np.sum(W) * dx * dp
 
         # Relaxed tolerance due to numerical integration
-        assert np.isclose(integral, 1.0, rtol=1e-1, atol=0.1)
+        assert integral == pytest.approx(1.0, rel=1e-1, abs=0.1), (
+            "Expected integral == pytest.approx(1.0, rel=1e-1, abs=0.1)"
+        )
 
     def test_vacuum_maximum(self) -> None:
         """Vacuum Wigner max should be 2/π ≈ 0.637 at origin."""
@@ -62,7 +63,9 @@ class TestWignerFunctionSingle:
         W = wigner_function_single(rho, x, p)
 
         max_w = np.max(W)
-        assert np.isclose(max_w, 2.0 / np.pi, atol=0.1)
+        assert max_w == pytest.approx(2.0 / np.pi, abs=0.1), (
+            "Expected max_w == pytest.approx(2.0 / np.pi, abs=0.1)"
+        )
 
     def test_vacuum_no_negative(self) -> None:
         """Vacuum Wigner should be non-negative everywhere."""
@@ -75,7 +78,7 @@ class TestWignerFunctionSingle:
 
         W = wigner_function_single(rho, x, p)
 
-        assert np.min(W) >= -1e-10
+        assert np.min(W) >= -1e-10, "Expected np.min(W) >= -1e-10"
 
     def test_wigner_shape(self) -> None:
         """Wigner output should have correct shape."""
@@ -87,7 +90,7 @@ class TestWignerFunctionSingle:
 
         W = wigner_function_single(rho, x, p)
 
-        assert W.shape == (50, 60)
+        assert W.shape == (50, 60), "Expected W.shape == (50, 60)"
 
 
 class TestWignerFromHybridState:
@@ -103,10 +106,11 @@ class TestWignerFromHybridState:
 
         W = wigner_from_hybrid_state(state, N, x, p, spin_component="down")
 
-        assert W.shape == (50, 50)
+        assert W.shape == (50, 50), "Expected W.shape == (50, 50)"
         # Vacuum should have max near 2/π ≈ 0.637
-        assert np.max(W) > 0.3
+        assert np.max(W) > 0.3, "Expected np.max(W) > 0.3"
 
+    @pytest.mark.slow
     def test_hybrid_coherent(self) -> None:
         """Wigner for coherent state should be Gaussian."""
         N = 20
@@ -120,7 +124,7 @@ class TestWignerFromHybridState:
 
         # Coherent states are Gaussian - allow small negative due to
         # numerical integration artifacts in the discrete Wigner computation
-        assert np.min(W) > -2e-2
+        assert np.min(W) > -2e-2, "Expected np.min(W) > -2e-2"
 
 
 class TestWignerMinimum:
@@ -138,7 +142,7 @@ class TestWignerMinimum:
         W = wigner_function_single(rho, x, p)
         min_w = wigner_minimum(W)
 
-        assert min_w >= -1e-10
+        assert min_w >= -1e-10, "Expected min_w >= -1e-10"
 
     def test_is_negative_vacuum(self) -> None:
         """Vacuum is not Wigner-negative."""
@@ -151,7 +155,7 @@ class TestWignerMinimum:
 
         W = wigner_function_single(rho, x, p)
 
-        assert not wigner_is_negative(W)
+        assert not wigner_is_negative(W), "wigner_is_negative(W) should be falsy"
 
     def test_fock_n1_negativity(self) -> None:
         """Fock state |1⟩ must show negative Wigner at origin.
@@ -170,7 +174,7 @@ class TestWignerMinimum:
         W = wigner_function_single(rho, x, p)
 
         min_W = W[0, 0]
-        assert np.isclose(min_W, -2.0 / np.pi, atol=1e-4), (
+        assert min_W == pytest.approx(-2.0 / np.pi, abs=1e-4), (
             f"Fock |1⟩ W(0,0) should be -2/π ≈ -0.637, got {min_W}"
         )
 
@@ -188,7 +192,7 @@ class TestWignerMinimum:
         W = wigner_function_single(rho, x, p)
 
         max_W = W[0, 0]
-        assert np.isclose(max_W, 2.0 / np.pi, atol=1e-4), (
+        assert max_W == pytest.approx(2.0 / np.pi, abs=1e-4), (
             f"Fock |2⟩ W(0,0) should be +2/π ≈ +0.637, got {max_W}"
         )
 
@@ -201,7 +205,7 @@ class TestWignerMinimum:
         p = np.linspace(-4, 4, 50)
 
         W = wigner_function_single(rho, x, p)
-        assert not wigner_is_negative(W)
+        assert not wigner_is_negative(W), "wigner_is_negative(W) should be falsy"
 
 
 # =============================================================================
@@ -225,7 +229,7 @@ class TestWignerIntegration:
         W = wigner_function_single(rho, x, p)
 
         # W(0,0) should be maximum for vacuum
-        assert W[40, 40] == np.max(W)
+        assert W[40, 40] == np.max(W), "Expected W[40, 40] == np.max(W)"
 
     def test_invalid_rho_shape(self) -> None:
         """Non-square rho should raise ValueError."""

@@ -44,20 +44,20 @@ Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the em
 
 ## Section Header Emojis
 
-| Emoji | Section | Purpose |
-|-------|---------|---------|
-| 🧪 | `## 🧪 Hypothesis` | Core claim being tested |
-| 📖 | `## 📖 Literature Review` | Bibliographic references and related work |
-| ⚛️ | `## ⚛️ Theoretical Model` | Hilbert space, Hamiltonian, protocol description |
-| 💻 | `## 💻 Numerical Simulation` | Implementation strategy, parameters, methods |
-| ⚠️ | `## ⚠️ Likely Failure Conditions` | Failure modes and mitigations |
-| ✅ | `## ✅ Success Criteria` | Criteria table verifying success |
-| 🔬 | `## 🔬 Results and Next Steps` | Findings and future work |
-| 📊 | `## 📊 Models Survey` | Central model-to-exponent mapping table |
-| 🔍 | `## 🔍 Open Questions` | Unsolved issues and future directions |
-| 🔧 | `## 🔧 Implementation Status` | Code modules, tests, file organization |
-| 📐 | `## 📐 Physical Invariants` | Known bounds, invariants, conservation laws |
-| 📝 | `## 📝 Quick Reference` | Reference / cheat-sheet sections |
+| Section | Purpose |
+|---------|---------|
+| `## 🧪 Hypothesis` | Core claim being tested |
+| `## 📖 Literature Review` | Bibliographic references and related work |
+| `## ⚛️ Theoretical Model` | Hilbert space, Hamiltonian, protocol description |
+| `## 💻 Numerical Simulation` | Implementation strategy, parameters, methods |
+| `## ⚠️ Likely Failure Conditions` | Failure modes and mitigations |
+| `## ✅ Success Criteria` | Criteria table verifying success |
+| `## 🔬 Results and Next Steps` | Findings and future work |
+| `## 📊 Models Survey` | Central model-to-exponent mapping table |
+| `## 🔍 Open Questions` | Unsolved issues and future directions |
+| `## 🔧 Implementation Status` | Code modules, tests, file organization |
+| `## 📐 Physical Invariants` | Known bounds, invariants, conservation laws |
+| `## 📝 Quick Reference` | Reference / cheat-sheet sections |
 
 ## Inline Emojis
 
@@ -147,6 +147,7 @@ Table mapping components to descriptions (e.g., operator construction, state pre
 8. **Don't** use breaklines in prose when inline equations suffice.
 9. **Don't** use decorative emojis beyond the defined set.
 10. **Don't** write `**PASS**`/`**FAIL**` in tables — use emoji only.
+11. **Don't** use the `|` character inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert`.
 
 # Coding Workflow
 Follow these steps **in order** for every task that requires writing code.

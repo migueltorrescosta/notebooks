@@ -29,9 +29,9 @@ class TestDDConfig:
     def test_default_values(self) -> None:
         """Default config should be reasonable."""
         config = DDConfig()
-        assert config.n_pulses == 0
-        assert config.sequence == "CPMG"
-        assert config.tau == 0.1
+        assert config.n_pulses == 0, "Expected config.n_pulses == 0"
+        assert config.sequence == "CPMG", 'Expected config.sequence == "CPMG"'
+        assert config.tau == 0.1, "Expected config.tau == 0.1"
 
     def test_negative_pulses_raises(self) -> None:
         """Negative pulses should raise ValueError."""
@@ -61,7 +61,7 @@ class TestCpmgFilterFunction:
         """Zero pulses: filter ≡ 1."""
         omega = np.linspace(-10, 10, 100)
         F = cpmg_filter_function(omega, n_pulses=0, tau=1.0)
-        assert np.allclose(F, 1.0, atol=1e-10), "Zero-pulse filter should be 1"
+        assert pytest.approx(1.0, abs=1e-10) == F, "Zero-pulse filter should be 1"
 
     def test_non_negative(self) -> None:
         """Filter function should be non-negative."""
@@ -76,7 +76,7 @@ class TestCpmgFilterFunction:
         """DC (ω = 0) should be fully suppressed for n_pulses > 0."""
         for n_pulses in [1, 2, 4, 8]:
             F = cpmg_filter_function(np.array([0.0]), n_pulses=n_pulses, tau=0.5)
-            assert np.isclose(F[0], 0.0, atol=1e-15), (
+            assert F[0] == pytest.approx(0.0, abs=1e-15), (
                 f"DC not suppressed for n_pulses={n_pulses}"
             )
 
@@ -85,7 +85,9 @@ class TestCpmgFilterFunction:
         F = cpmg_filter_function(np.array([0.0]), n_pulses=4, tau=0.5)
         assert isinstance(F, np.ndarray), f"Expected ndarray, got {type(F)}"
         assert F.shape == (1,), f"Expected shape (1,), got {F.shape}"
-        assert np.isclose(F[0], 0.0, atol=1e-15)
+        assert F[0] == pytest.approx(0.0, abs=1e-15), (
+            "Expected F[0] == pytest.approx(0.0, abs=1e-15)"
+        )
 
 
 class TestDDEffectiveCoherenceTime:
@@ -94,7 +96,7 @@ class TestDDEffectiveCoherenceTime:
     def test_zero_pulses_gives_bare(self) -> None:
         """Zero pulses should return bare coherence time."""
         T_0 = dd_effective_coherence_time(T_2_0=1.0, n_pulses=0)
-        assert np.isclose(T_0, 1.0)
+        assert pytest.approx(1.0) == T_0, "Expected T_0 == pytest.approx(1.0)"
 
     def test_improves_with_pulses(self) -> None:
         """DD should always improve or maintain coherence time (monotonic in n)."""
@@ -102,7 +104,9 @@ class TestDDEffectiveCoherenceTime:
 
         # Zero pulses: no improvement
         T_0 = dd_effective_coherence_time(T_2_0, 0, "CPMG")
-        assert np.isclose(T_0, T_2_0), "Zero pulses should give bare coherence time"
+        assert pytest.approx(T_2_0) == T_0, (
+            "Zero pulses should give bare coherence time"
+        )
 
         for sequence in ["CPMG", "XY8"]:
             previous_T = T_2_0  # Reset per sequence
@@ -156,7 +160,7 @@ class TestDDSensitivityScaling:
         for n_pulses in [0, 4, 8]:
             result = dd_sensitivity_scaling(N_values, n_pulses, T=1.0, T_2_0=1.0)
             alpha = result["fitted_alpha"]
-            assert np.isclose(alpha, -0.5, atol=0.02), (
+            assert alpha == pytest.approx(-0.5, abs=0.02), (
                 f"n={n_pulses}: α should be -0.5, got {alpha:.4f}"
             )
 

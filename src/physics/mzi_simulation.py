@@ -22,8 +22,6 @@ Conventions:
 - State ordering: |n₁, n₂⟩ with n₁ as first mode, n₂ as second mode
 """
 
-from typing import Tuple
-
 import numpy as np
 import scipy
 
@@ -116,10 +114,9 @@ def single_photon_state(mode: int, max_photons: int) -> np.ndarray:
     """
     if mode == 0:
         return fock_state(1, 0, max_photons)
-    elif mode == 1:
+    if mode == 1:
         return fock_state(0, 1, max_photons)
-    else:
-        raise ValueError("Mode must be 0 or 1")
+    raise ValueError("Mode must be 0 or 1")
 
 
 def noon_state(N: int, max_photons: int) -> np.ndarray:
@@ -205,7 +202,7 @@ def fock_state_n(n: int, max_photons: int) -> np.ndarray:
 
 def create_system_operators(
     max_photons: int,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Create annihilation and creation operators for the two-mode system.
 
     Constructs the bosonic annihilation (a) and creation (a†) operators
@@ -253,7 +250,7 @@ def create_system_operators(
     return a0, a1, a0_dag, a1_dag
 
 
-def create_ancilla_operators(ancilla_dim: int) -> Tuple[np.ndarray, np.ndarray]:
+def create_ancilla_operators(ancilla_dim: int) -> tuple[np.ndarray, np.ndarray]:
     """Create spin operators for the ancilla system.
 
     Constructs the J_x and J_z angular momentum operators for a
@@ -396,7 +393,7 @@ def system_ancilla_interaction_unitary(
         Unitary matrix of dimension (sys_dim × ancilla_dim)².
 
     """
-    a0, a1, a0_dag, a1_dag = create_system_operators(max_photons)
+    a0, _a1, a0_dag, _a1_dag = create_system_operators(max_photons)
     jx, jz = create_ancilla_operators(ancilla_dim)
 
     n_photon = a0_dag @ a0  # Number operator in mode 0
@@ -491,14 +488,16 @@ def evolve_mzi(
 
     # System-ancilla interaction
     U_int = system_ancilla_interaction_unitary(
-        g, interaction_time, coupling_type, max_photons, ancilla_dim_val
+        g,
+        interaction_time,
+        coupling_type,
+        max_photons,
+        ancilla_dim_val,
     )
     state = U_int @ state
 
     # BS2
-    state = bs_full @ state
-
-    return state
+    return bs_full @ state
 
 
 def get_reduced_density_matrix(
@@ -541,15 +540,15 @@ def get_reduced_density_matrix(
     if trace_out_ancilla:
         # Reshape and trace
         rho_reshaped = rho.reshape(sys_dim, ancilla_dim, sys_dim, ancilla_dim)
-        rho_sys = np.trace(rho_reshaped, axis1=1, axis2=3)
-        return rho_sys
-    else:
-        return rho
+        return np.trace(rho_reshaped, axis1=1, axis2=3)
+    return rho
 
 
 def compute_output_probabilities(
-    full_state: np.ndarray, max_photons: int, ancilla_dim: int
-) -> Tuple[float, float]:
+    full_state: np.ndarray,
+    max_photons: int,
+    ancilla_dim: int,
+) -> tuple[float, float]:
     """Compute detection probabilities at the two output ports.
 
     Calculates the probability of finding photons in output mode 0
@@ -574,7 +573,10 @@ def compute_output_probabilities(
 
     """
     rho_sys = get_reduced_density_matrix(
-        full_state, max_photons, ancilla_dim, trace_out_ancilla=True
+        full_state,
+        max_photons,
+        ancilla_dim,
+        trace_out_ancilla=True,
     )
 
     # Probability = sum over diagonal elements * photon number in that mode
@@ -591,8 +593,7 @@ def compute_output_probabilities(
     total = P0 + P1
     if total > 0:
         return P0 / total, P1 / total
-    else:
-        return 0.5, 0.5
+    return 0.5, 0.5
 
 
 def compute_interference_fringe(
@@ -709,7 +710,11 @@ def compute_all_stage_states(
 
     # After interaction
     U_int = system_ancilla_interaction_unitary(
-        g, interaction_time, coupling_type, max_photons, anc
+        g,
+        interaction_time,
+        coupling_type,
+        max_photons,
+        anc,
     )
     state_int = U_int @ state_phase
 

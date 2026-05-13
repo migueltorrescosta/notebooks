@@ -8,17 +8,20 @@ input states and interferometer configurations.
 from enum import Enum
 from functools import partial
 
-from matplotlib import pyplot as plt
-from src.visualization.plotting import plot_array
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import scipy
+import seaborn as sns
 import streamlit as st
+from matplotlib import pyplot as plt
+
+from src.visualization.plotting import plot_array
 
 # LAYOUT
 st.set_page_config(
-    page_title="Metro | Fisher Information", page_icon="🛗️", layout="wide"
+    page_title="Metro | Fisher Information",
+    page_icon="🛗️",
+    layout="wide",
 )
 
 
@@ -29,7 +32,7 @@ class Distributions(Enum):
 # INPUTS
 def binomial_pdf(x: int, p: float, n: int) -> float:
     return float(
-        scipy.stats.binom.cdf(x, n=n, p=p) - scipy.stats.binom.cdf(x - 1, n=n, p=p)
+        scipy.stats.binom.cdf(x, n=n, p=p) - scipy.stats.binom.cdf(x - 1, n=n, p=p),
     )
 
 
@@ -44,11 +47,13 @@ with st.sidebar:
                 n = st.number_input("$N$ Trials", min_value=1, value=3)
             with c2:
                 theta_sample_size = st.number_input(
-                    "$\\theta$'s granularity", min_value=5, value=100
+                    "$\\theta$'s granularity",
+                    min_value=5,
+                    value=100,
                 )
     if n * theta_sample_size > 1000:
         st.error(
-            f"There are {n * theta_sample_size} $(x,\\theta)$ tuples to calculate. This will be slow ⚠️"
+            f"There are {n * theta_sample_size} $(x,\\theta)$ tuples to calculate. This will be slow ⚠️",
         )
     valid_x = range(n + 1)
     valid_theta = np.linspace(0, 1, theta_sample_size + 1)
@@ -56,7 +61,9 @@ with st.sidebar:
 
 st.subheader("Fisher Information")
 fisher_clip = st.number_input(
-    "Max absolute fisher information ( plot )", min_value=0.001, value=0.1
+    "Max absolute fisher information ( plot )",
+    min_value=0.001,
+    value=0.1,
 )
 
 with st.expander("📖 Methodology", expanded=False):
@@ -65,21 +72,21 @@ with st.expander("📖 Methodology", expanded=False):
     The Fisher Information for a parameter $\\theta$ is defined as
     $\\mathcal{I}(\\theta) = \\mathbb{E}\\left[\\left(\\frac{\\partial}{\\partial \\theta}\\log f_\\theta(X)\\right)^2\\,\\bigg|\\,\\theta\\right]$,
     where $f_\\theta(x)$ is the probability density (or mass) function of $X$ parameterized by $\\theta$.
-    
+
     **Methodology:**
     1. **PDF computation**: For each combination of outcome $x$ and parameter value $\\theta$, compute the probability $f_\\theta(x)$
     2. **Log-likelihood gradient**: Approximate $\\frac{\\partial}{\\partial \\theta}\\log f_\\theta(x)$ using finite differences along the $\\theta$ axis
     3. **Expectation**: Weight the squared gradient by the PDF values and average over all outcomes $x$
-    
-    **Cramer-Rao Bound:** The variance of any unbiased estimator $\\hat{\\theta}$ of $\\theta$ satisfies 
-    $\\mathrm{var}[\\hat{\\theta}] \\geq \\frac{1}{\\mathcal{I}(\\theta)}$.    
+
+    **Cramer-Rao Bound:** The variance of any unbiased estimator $\\hat{\\theta}$ of $\\theta$ satisfies
+    $\\mathrm{var}[\\hat{\\theta}] \\geq \\frac{1}{\\mathcal{I}(\\theta)}$.
     This bound provides a fundamental limit on the precision of parameter estimation.
     """)
 
 match distribution:
     case Distributions.Binomial.value:
         st.latex(f"""
-            f_\\theta(x) = \\mathbb{{P}}[X=x] = {{{n} \\choose x}} x^{{\\theta}}({n}-x)^{{1 - \\theta}}, x \\in \\{{ 0 , 1 , \\dots , {n} \\}} 
+            f_\\theta(x) = \\mathbb{{P}}[X=x] = {{{n} \\choose x}} x^{{\\theta}}({n}-x)^{{1 - \\theta}}, x \\in \\{{ 0 , 1 , \\dots , {n} \\}}
         """)
 
 # Vectorized PDF computation using broadcasting
@@ -114,7 +121,9 @@ grad_sq = grad_log**2  # (n+1, m)
 # I(theta_j) = sum_x pdf(x|theta_j) * (d/dtheta log pdf(x|theta_j))^2
 # fisher_information has shape (m,) - one value per theta
 fisher_information = np.average(
-    grad_sq, axis=0, weights=pdf_values
+    grad_sq,
+    axis=0,
+    weights=pdf_values,
 )  # Average over x (axis=0)
 
 # Create DataFrames for visualization
@@ -144,17 +153,19 @@ with st.expander("Show PDF visualizations"):
         quick_and_dirty(grad_log.T, height=150)  # (m, n+1)
     with c4:
         st.latex(
-            r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2"
+            r"\left ( \frac{\partial}{\partial \theta} \log f_\theta(x) \right )^2",
         )
         quick_and_dirty(grad_sq.T, height=150)  # (m, n+1)
 fisher_information_df = pd.DataFrame(
     {
         "fisher_information": np.clip(
-            fisher_information, -1 * fisher_clip, fisher_clip
+            fisher_information,
+            -1 * fisher_clip,
+            fisher_clip,
         ),
         "cramer_rao_bound": np.divide(1, fisher_information),
         "theta": valid_theta,
-    }
+    },
 )
 st.subheader("Cramer-Rao Bound")
 with st.expander("Show raw data"):
@@ -169,11 +180,17 @@ with c1:
             \right )^2 | \theta \right ]
     """)
     st.line_chart(
-        data=fisher_information_df, x="theta", y="fisher_information", height=200
+        data=fisher_information_df,
+        x="theta",
+        y="fisher_information",
+        height=200,
     )
 
 with c2:
     st.latex(r"\mathrm{var}[\hat \theta] \geq \frac{1}{\mathcal{I}(\theta)}")
     st.line_chart(
-        data=fisher_information_df, x="theta", y="cramer_rao_bound", height=200
+        data=fisher_information_df,
+        x="theta",
+        y="cramer_rao_bound",
+        height=200,
     )

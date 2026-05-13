@@ -42,7 +42,7 @@ class TestQuantumFisherInformationPure:
 
             # For NOON: F_Q = N² (Heisenberg scaling)
             expected = N**2
-            assert np.isclose(fq, expected, rtol=0.1), (
+            assert fq == pytest.approx(expected, rel=0.1), (
                 f"N={N}: F_Q={fq} should be ~{expected}"
             )
 
@@ -60,7 +60,7 @@ class TestQuantumFisherInformationPure:
 
             # For GHZ with J_z: F_Q = N² (since variance is N²/4)
             expected = N**2
-            assert np.isclose(fq, expected, rtol=0.1), (
+            assert fq == pytest.approx(expected, rel=0.1), (
                 f"N={N}: F_Q={fq} should be ~{expected}"
             )
 
@@ -101,7 +101,7 @@ class TestQuantumFisherInformationPure:
 
         # An eigenstate has zero variance, so QFI = 0
         fq = quantum_fisher_information(state, generator)
-        assert np.isclose(fq, 0.0, atol=1e-10), (
+        assert fq == pytest.approx(0.0, abs=1e-10), (
             f"QFI for eigenstate should be ~0, got {fq}"
         )
 
@@ -127,7 +127,7 @@ class TestQuantumFisherInformationPure:
 
         # Verify F_Q = 4 Var(G)
         expected_fq = 4.0 * var_g
-        assert np.isclose(fq, expected_fq, rtol=1e-5), (
+        assert fq == pytest.approx(expected_fq, rel=1e-5), (
             f"F_Q={fq} should equal 4*Var={expected_fq}"
         )
 
@@ -151,7 +151,7 @@ class TestQuantumFisherInformationMixed:
         fq_pure = quantum_fisher_information(state_vec, generator)
         fq_dm = quantum_fisher_information_dm(rho_pure, generator)
 
-        assert np.isclose(fq_pure, fq_dm, rtol=1e-5), (
+        assert fq_pure == pytest.approx(fq_dm, rel=1e-5), (
             f"Pure state QFI={fq_pure}, DM QFI={fq_dm}"
         )
 
@@ -187,7 +187,7 @@ class TestQuantumFisherInformationMixed:
         G = G + G.conj().T
 
         fq = quantum_fisher_information_dm(rho, G)
-        assert np.isclose(fq, 0.0, atol=1e-12), (
+        assert fq == pytest.approx(0.0, abs=1e-12), (
             f"Maximally mixed QFI should be 0, got {fq}"
         )
 
@@ -200,7 +200,7 @@ class TestQuantumFisherInformationMixed:
         G = np.diag(np.arange(dim, dtype=float))
 
         fq = quantum_fisher_information_dm(rho, G)
-        assert np.isclose(fq, 0.0, atol=1e-12), (
+        assert fq == pytest.approx(0.0, abs=1e-12), (
             f"Commuting ρ and G should give F_Q=0, got {fq}"
         )
 
@@ -231,7 +231,7 @@ class TestQuantumFisherInformationMixed:
                         expected += 2.0 * (w[i] - w[j]) ** 2 / denom * np.abs(g_ij) ** 2
 
             fq = quantum_fisher_information_dm(rho, G)
-            assert np.isclose(fq, expected, rtol=1e-10), (
+            assert fq == pytest.approx(expected, rel=1e-10), (
                 f"2D mixed F_Q={fq} != first-principles={expected}"
             )
             assert fq >= 0.0, f"QFI should be non-negative, got {fq}"
@@ -264,7 +264,7 @@ class TestQuantumFisherInformationMixed:
                         expected += 2.0 * (w[i] - w[j]) ** 2 / denom * np.abs(g_ij) ** 2
 
             fq = quantum_fisher_information_dm(rho, G)
-            assert np.isclose(fq, expected, rtol=1e-10), (
+            assert fq == pytest.approx(expected, rel=1e-10), (
                 f"dim={dim}: F_Q={fq} != first-principles={expected}"
             )
             assert fq >= 0.0, f"QFI should be non-negative, got {fq}"
@@ -294,7 +294,7 @@ class TestQuantumFisherInformationMixed:
                     g_ij = np.vdot(v[:, i], G @ v[:, j])
                     expected += 2.0 * (w[i] - w[j]) ** 2 / denom * np.abs(g_ij) ** 2
 
-        assert np.isclose(fq, expected, rtol=1e-10), (
+        assert fq == pytest.approx(expected, rel=1e-10), (
             f"Degenerate F_Q={fq} != expected={expected}"
         )
 
@@ -317,7 +317,9 @@ class TestQuantumFisherInformationMixed:
             # Should approach pure-state value from below
             assert fq <= fq_pure + 1e-10, f"eps={eps}: F_Q={fq} > pure={fq_pure}"
             assert fq >= fq_pure * (1.0 - 10 * eps) or np.isclose(
-                fq, fq_pure, rtol=1e-3
+                fq,
+                fq_pure,
+                rtol=1e-3,
             ), f"eps={eps}: F_Q={fq} too far from pure={fq_pure}"
 
 
@@ -460,7 +462,7 @@ class TestEdgeCases:
             [
                 [1e-10, 1 - 1e-10],
                 [0.5, 0.5],
-            ]
+            ],
         )
 
         fc = classical_fisher_information(probs, dphi=1e-3)
@@ -507,7 +509,7 @@ def test_qfi_variance_relationship() -> None:
 
     # Verify F_Q = 4 Var(G)
     expected = 4.0 * var_g
-    assert np.isclose(fq, expected, rtol=1e-5), (
+    assert fq == pytest.approx(expected, rel=1e-5), (
         f"F_Q={fq} should equal 4*Var={expected}"
     )
 
@@ -578,7 +580,7 @@ class TestPhysicsInvariants:
 
             # Verify Δφ = 1/√F (definition)
             expected_delta = 1.0 / np.sqrt(fq)
-            assert np.isclose(delta_phi, expected_delta, rtol=0.01), (
+            assert delta_phi == pytest.approx(expected_delta, rel=0.01), (
                 f"N={N}: Δφ={delta_phi:.6f} should be 1/√F={expected_delta:.6f}"
             )
 
@@ -680,7 +682,7 @@ class TestInputValidationDM:
         rho = np.eye(3, dtype=complex) / 3
         G = np.eye(5, dtype=complex)  # Wrong dimension
 
-        with pytest.raises(ValueError, match="dimension|match"):
+        with pytest.raises(ValueError, match=r"dimension|match"):
             quantum_fisher_information_dm(rho, G)
 
     def test_non_square_rho_raises(self) -> None:
@@ -808,7 +810,7 @@ class TestPhysicalInvariantsDM:
 
         # Additivity: product QFI = sum of individual QFIs
         expected = fq1 + fq2
-        assert np.isclose(fq_product, expected, rtol=1e-10), (
+        assert fq_product == pytest.approx(expected, rel=1e-10), (
             f"Additivity violated: F_Q(product)={fq_product:.10f} != "
             f"F_Q₁+F_Q₂={expected:.10f} (diff={fq_product - expected:.2e})"
         )
@@ -832,7 +834,7 @@ class TestPhysicalInvariantsDM:
             G_shifted = G + c * np.eye(dim)
             fq_shifted = quantum_fisher_information_dm(rho, G_shifted)
 
-            assert np.isclose(fq_base, fq_shifted, rtol=1e-12), (
+            assert fq_base == pytest.approx(fq_shifted, rel=1e-12), (
                 f"Shift invariance violated at c={c}: F_Q={fq_shifted} != {fq_base}"
             )
 
@@ -861,7 +863,7 @@ class TestPhysicalInvariantsDM:
         G_transformed = U @ G @ U.conj().T
         fq_transformed = quantum_fisher_information_dm(rho_transformed, G_transformed)
 
-        assert np.isclose(fq_original, fq_transformed, rtol=1e-10), (
+        assert fq_original == pytest.approx(fq_transformed, rel=1e-10), (
             f"Unitary covariance violated: F_Q(ρ,G)={fq_original:.10f} != "
             f"F_Q(UρU†,UGU†)={fq_transformed:.10f}"
         )
@@ -884,7 +886,7 @@ class TestPhysicalInvariantsDM:
             var_g = max(0.0, g2_exp - g_exp**2)
 
             fq_pure = quantum_fisher_information_dm(rho_pure, G)
-            assert np.isclose(fq_pure, 4.0 * var_g, rtol=1e-10), (
+            assert fq_pure == pytest.approx(4.0 * var_g, rel=1e-10), (
                 f"Pure state: F_Q={fq_pure} != 4·Var={4 * var_g}"
             )
 
@@ -895,7 +897,7 @@ class TestPhysicalInvariantsDM:
 
             fq_mixed = quantum_fisher_information_dm(rho_mixed, G)
             var_g_mixed = np.real(
-                np.trace(rho_mixed @ G @ G) - (np.trace(rho_mixed @ G)) ** 2
+                np.trace(rho_mixed @ G @ G) - (np.trace(rho_mixed @ G)) ** 2,
             )
             assert fq_mixed <= 4.0 * var_g_mixed + 1e-10, (
                 f"Mixed state: F_Q={fq_mixed:.10f} > 4·Var={4 * var_g_mixed:.10f}. "
@@ -913,7 +915,7 @@ class TestPhysicalInvariantsDM:
 
         G_zero = np.zeros((dim, dim), dtype=complex)
         fq = quantum_fisher_information_dm(rho, G_zero)
-        assert np.isclose(fq, 0.0, atol=1e-15), (
+        assert fq == pytest.approx(0.0, abs=1e-15), (
             f"F_Q with zero generator should be 0, got {fq}"
         )
 
@@ -957,7 +959,7 @@ class TestNumericalStabilityDM:
         #   G₂₃ = 0.5, |G₂₃|² = 0.25, contribution: 4 * 0.2 * 0.25 = 0.2
         # All other pairs with zero eigenvalues: G = 0, contribution = 0
         expected = 0.2 + 0.2  # = 0.4
-        assert np.isclose(fq, expected, rtol=1e-10), (
+        assert fq == pytest.approx(expected, rel=1e-10), (
             f"Rank-deficient: F_Q={fq} != expected={expected}"
         )
 
@@ -983,7 +985,7 @@ class TestNumericalStabilityDM:
         #   |G₁₂|² = 1, contribution: 4 * 0.4 * 1 = 1.6
         # Total: 9.6 + 1.6 = 11.2
         expected = 9.6 + 1.6
-        assert np.isclose(fq, expected, rtol=1e-10), (
+        assert fq == pytest.approx(expected, rel=1e-10), (
             f"Rank-deficient null-space: F_Q={fq} != expected={expected}"
         )
 
@@ -1047,7 +1049,7 @@ class TestNumericalStabilityDM:
         G = np.array(G, dtype=complex)
 
         fq = quantum_fisher_information_dm(rho, G)
-        assert np.isclose(fq, 0.0, atol=1e-15), (
+        assert fq == pytest.approx(0.0, abs=1e-15), (
             f"Diagonal G in ρ eigenbasis should give F_Q=0, got {fq}"
         )
 
@@ -1063,7 +1065,7 @@ class TestNumericalStabilityDM:
         G = 3.0 * np.eye(dim, dtype=complex)
 
         fq = quantum_fisher_information_dm(rho, G)
-        assert np.isclose(fq, 0.0, atol=1e-15), (
+        assert fq == pytest.approx(0.0, abs=1e-15), (
             f"G=cI should give F_Q=0 for any ρ, got {fq}"
         )
 
@@ -1121,7 +1123,7 @@ class TestNoiseIntegrationDM:
         rho_pure = self._phase_diffused_ghz(N, gamma_phi=0.0, t=1.0)
         fq_pure = quantum_fisher_information_dm(rho_pure, G)
 
-        assert np.isclose(fq_pure, N**2, rtol=1e-10), (
+        assert fq_pure == pytest.approx(N**2, rel=1e-10), (
             f"Pure GHZ F_Q={fq_pure} should equal N²={N**2}"
         )
 
@@ -1141,7 +1143,7 @@ class TestNoiseIntegrationDM:
         # Strong noise → QFI → 0
         rho_dead = self._phase_diffused_ghz(N, gamma_phi=100.0, t=1.0)
         fq_dead = quantum_fisher_information_dm(rho_dead, G)
-        assert np.isclose(fq_dead, 0.0, atol=1e-10), (
+        assert fq_dead == pytest.approx(0.0, abs=1e-10), (
             f"Strong dephasing should give F_Q≈0, got {fq_dead}"
         )
 
@@ -1156,7 +1158,7 @@ class TestNoiseIntegrationDM:
                 fq = quantum_fisher_information_dm(rho, G)
 
                 expected = N**2 * np.exp(-gamma_phi * t * N**2)
-                assert np.isclose(fq, expected, rtol=1e-10), (
+                assert fq == pytest.approx(expected, rel=1e-10), (
                     f"N={N}, γ={gamma_phi}: F_Q={fq} != N²·exp(-γN²)={expected}"
                 )
 
@@ -1170,7 +1172,7 @@ class TestNoiseIntegrationDM:
             fq = quantum_fisher_information_dm(rho, G)
 
             expected = N**2 * np.exp(-gamma_phi * N**2)
-            assert np.isclose(fq, expected, rtol=1e-10), (
+            assert fq == pytest.approx(expected, rel=1e-10), (
                 f"γ={gamma_phi}: F_Q={fq} != expected={expected}"
             )
             # Should approach N² from below
@@ -1191,7 +1193,7 @@ class TestEdgeCasesDM:
         G = np.array([[2.0 + 0.0j]])
 
         fq = quantum_fisher_information_dm(rho, G)
-        assert np.isclose(fq, 0.0, atol=1e-15), f"1D QFI should be 0, got {fq}"
+        assert fq == pytest.approx(0.0, abs=1e-15), f"1D QFI should be 0, got {fq}"
 
     def test_real_density_matrix(self) -> None:
         """Real symmetric ρ and real symmetric G should work."""
@@ -1224,7 +1226,7 @@ class TestEdgeCasesDM:
         fq_pure = quantum_fisher_information(vec, G)
         fq_dm = quantum_fisher_information_dm(np.outer(vec, vec.conj()), G)
 
-        assert np.isclose(fq_pure, fq_dm, rtol=1e-12), (
+        assert fq_pure == pytest.approx(fq_dm, rel=1e-12), (
             f"Pure state mismatch: state={fq_pure} dm={fq_dm}"
         )
 

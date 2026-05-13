@@ -16,8 +16,8 @@ import pytest
 from src.physics.cavity_mzi import (
     CavityMziConfig,
     cavity_enhanced_mzi,
-    cavity_enhanced_sensitivity,
     cavity_enhanced_mzi_with_noise,
+    cavity_enhanced_sensitivity,
 )
 from src.physics.mzi_simulation import fock_state
 
@@ -28,8 +28,10 @@ class TestCavityMziConfig:
     def test_default_values(self) -> None:
         """Default config should be reasonable."""
         config = CavityMziConfig()
-        assert config.F == 10.0
-        assert np.isclose(config.theta, np.pi / 4)
+        assert config.F == 10.0, "Expected config.F == 10.0"
+        assert config.theta == pytest.approx(np.pi / 4), (
+            "Expected config.theta == pytest.approx(np.pi / 4)"
+        )
 
 
 class TestCavityEnhancedMzi:
@@ -41,7 +43,7 @@ class TestCavityEnhancedMzi:
         state = fock_state(1, 0, max_photons=5)
         out = cavity_enhanced_mzi(state, np.pi / 4, config, max_photons=5)
         norm = np.sum(np.abs(out) ** 2)
-        assert np.isclose(norm, 1.0, atol=1e-10), f"Norm = {norm}"
+        assert norm == pytest.approx(1.0, abs=1e-10), f"Norm = {norm}"
 
     def test_finesse_one_matches_standard(self) -> None:
         """Finesse = 1 should give same as single-pass MZI."""
@@ -63,7 +65,7 @@ class TestCavityEnhancedMzi:
         phase = phase_shift_unitary(phi, max_photons)
         mzi_out = bs @ phase @ bs @ state
 
-        assert np.allclose(cavity_out, mzi_out, atol=1e-10), (
+        assert cavity_out == pytest.approx(mzi_out, abs=1e-10), (
             "F=1 cavity should match standard MZI"
         )
 
@@ -105,10 +107,16 @@ class TestCavityEnhancedSensitivity:
         """NOON input should give lower Δφ than coherent (at fixed N)."""
         config = CavityMziConfig(F=5.0)
         delta_coherent = cavity_enhanced_sensitivity(
-            4, np.pi / 4, config, state_type="coherent"
+            4,
+            np.pi / 4,
+            config,
+            state_type="coherent",
         )
         delta_noon = cavity_enhanced_sensitivity(
-            4, np.pi / 4, config, state_type="noon"
+            4,
+            np.pi / 4,
+            config,
+            state_type="noon",
         )
         assert delta_noon < delta_coherent, (
             f"NOON should beat coherent: NOON Δφ={delta_noon:.6e}, "
@@ -144,7 +152,7 @@ class TestCavityEnhancedMziWithNoise:
             config=config,
             max_photons=5,
         )
-        assert np.isclose(np.trace(rho), 1.0, atol=1e-6), (
+        assert np.trace(rho) == pytest.approx(1.0, abs=1e-6), (
             f"Trace should be 1, got {np.trace(rho)}"
         )
 
@@ -165,6 +173,6 @@ class TestCavityEnhancedMziWithNoise:
         state_unitary = cavity_enhanced_mzi(state, np.pi / 4, config, max_photons=5)
         rho_unitary = np.outer(state_unitary, state_unitary.conj())
 
-        assert np.allclose(rho_noisy, rho_unitary, atol=1e-6), (
+        assert rho_noisy == pytest.approx(rho_unitary, abs=1e-6), (
             "Zero noise should match unitary evolution"
         )

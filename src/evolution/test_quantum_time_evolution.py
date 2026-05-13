@@ -4,35 +4,43 @@ import numpy as np
 import pytest
 
 from .quantum_time_evolution import (
-    potential_quadratic,
-    potential_quartic,
-    potential_double_well,
-    gaussian_wave_packet,
-    step_wave_packet,
-    build_1d_hamiltonian,
     BoundaryCondition,
     TimeEvolver,
+    build_1d_hamiltonian,
+    gaussian_wave_packet,
+    potential_double_well,
+    potential_quadratic,
+    potential_quartic,
+    run_simulation,
+    step_wave_packet,
     validate_orthonormality,
     validate_probability_conservation,
-    run_simulation,
 )
 
 
 class TestPotentialFunctions:
     def test_quadratic_minimum(self) -> None:
         """Quadratic should have minimum at c."""
-        assert potential_quadratic(0.0, 1.0, 0.0) == pytest.approx(0.0)
-        assert potential_quadratic(1.0, 1.0, 1.0) == pytest.approx(0.0)
+        assert potential_quadratic(0.0, 1.0, 0.0) == pytest.approx(0.0), (
+            "Expected potential_quadratic(0.0, 1.0, 0.0) == pytest.approx(0.0)"
+        )
+        assert potential_quadratic(1.0, 1.0, 1.0) == pytest.approx(0.0), (
+            "Expected potential_quadratic(1.0, 1.0, 1.0) == pytest.approx(0.0)"
+        )
 
     def test_quartic_minimum(self) -> None:
         """Quartic should have minimum at c."""
-        assert potential_quartic(0.0, 1.0, 0.0) == pytest.approx(0.0)
+        assert potential_quartic(0.0, 1.0, 0.0) == pytest.approx(0.0), (
+            "Expected potential_quartic(0.0, 1.0, 0.0) == pytest.approx(0.0)"
+        )
 
     def test_double_well(self) -> None:
         """Double well should be symmetric."""
         v_plus = potential_double_well(1.0, 1.0, 30.0, 3.0)
         v_minus = potential_double_well(-1.0, 1.0, 30.0, 3.0)
-        assert v_plus == pytest.approx(v_minus)
+        assert v_plus == pytest.approx(v_minus), (
+            "Expected v_plus == pytest.approx(v_minus)"
+        )
 
 
 class TestInitialStates:
@@ -59,7 +67,9 @@ class TestHamiltonian:
             return 0.1 * x**2
 
         H = build_1d_hamiltonian(20, 0.1, pot, BoundaryCondition.Dirichlet)
-        assert np.allclose(H.toarray(), H.conj().T.toarray())
+        assert H.toarray() == pytest.approx(H.conj().T.toarray()), (
+            "Expected H.toarray() == pytest.approx(H.conj().T.toarray())"
+        )
 
 
 class TestEigendecomposition:
@@ -75,7 +85,7 @@ class TestEigendecomposition:
         result = run_simulation(-3, 3, 100, pot, psi0, num_levels=5)
         # All energies should be positive for bound potential
         for el in result["energy_levels"]:
-            assert el.energy > 0
+            assert el.energy > 0, "Expected el.energy > 0"
 
     def test_normalize_energy_levels(self) -> None:
         """Normalized components should be real."""
@@ -90,8 +100,8 @@ class TestEigendecomposition:
 
         # Check probability sum
         total_prob = np.sum(result["components"] ** 2)
-        assert total_prob <= 1.0
-        assert total_prob > 0
+        assert total_prob <= 1.0, "Expected total_prob <= 1.0"
+        assert total_prob > 0, "Expected total_prob > 0"
 
 
 class TestTimeEvolution:
@@ -115,7 +125,9 @@ class TestTimeEvolution:
         # Check at multiple times
         for t in [0.0, 0.5, 1.0, 2.0]:
             wf = evolver.evolve(t)
-            assert validate_probability_conservation(wf)
+            assert validate_probability_conservation(wf), (
+                "Condition failed: validate_probability_conservation(wf)"
+            )
 
 
 class TestValidation:
@@ -124,10 +136,10 @@ class TestValidation:
         # Create identity
         vectors = np.eye(5)
         deviation = validate_orthonormality(vectors)
-        assert deviation < 1e-8
+        assert deviation < 1e-8, "Expected deviation < 1e-8"
 
     def test_orthonormality_check_non_orthogonal(self) -> None:
         """Should detect non-orthogonal vectors."""
         vectors = np.ones((5, 5))
         deviation = validate_orthonormality(vectors)
-        assert deviation > 0.1
+        assert deviation > 0.1, "Expected deviation > 0.1"

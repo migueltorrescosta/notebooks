@@ -18,7 +18,8 @@ import numpy as np
 
 
 def classical_fisher_information(
-    probabilities: np.ndarray, dphi: float = 1e-6
+    probabilities: np.ndarray,
+    dphi: float = 1e-6,
 ) -> np.ndarray:
     """Compute classical Fisher Information via finite difference.
 
@@ -54,7 +55,7 @@ def classical_fisher_information(
     if np.any(np.isnan(probabilities)):
         raise ValueError("Probabilities contain NaN values")
 
-    n_phi, n_outcomes = probabilities.shape
+    n_phi, _n_outcomes = probabilities.shape
     fc = np.zeros(n_phi)
 
     # Central difference: (f(x+d) - f(x-d)) / (2d)
@@ -88,7 +89,9 @@ def classical_fisher_information(
 
 
 def classical_fisher_information_single(
-    p_plus: np.ndarray, p_minus: np.ndarray, dphi: float
+    p_plus: np.ndarray,
+    p_minus: np.ndarray,
+    dphi: float,
 ) -> float:
     """Compute F_C for a single phase value given neighboring probabilities.
 
@@ -175,7 +178,7 @@ def quantum_fisher_information(state: np.ndarray, generator: np.ndarray) -> floa
     if state.shape[0] != generator.shape[0]:
         raise ValueError(
             f"State dimension {state.shape[0]} must match "
-            f"generator dimension {generator.shape[0]}"
+            f"generator dimension {generator.shape[0]}",
         )
 
     if generator.shape[0] != generator.shape[1]:
@@ -254,7 +257,7 @@ def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> flo
     if generator.shape != (dim, dim):
         raise ValueError(
             f"Generator dimensions {generator.shape} must match "
-            f"density matrix dimension {dim}"
+            f"density matrix dimension {dim}",
         )
 
     # Input validation — prevent silent NaN/Inf and non-Hermitian errors
@@ -462,7 +465,7 @@ def generate_phase_generator(N: int, generator_type: str = "Jz") -> np.ndarray:
         eigenvalues = np.arange(dim) - j
         jz = np.diag(eigenvalues)
         return np.array(jz, dtype=complex)
-    elif generator_type == "Jx":
+    if generator_type == "Jx":
         # J_x for spin-J system where J = N/2
         # Using angular momentum ladder relations
         dim = N + 1
@@ -474,13 +477,12 @@ def generate_phase_generator(N: int, generator_type: str = "Jz") -> np.ndarray:
         jx[np.arange(dim - 1), np.arange(1, dim)] = off_diags
         jx[np.arange(1, dim), np.arange(dim - 1)] = off_diags
         return np.array(jx, dtype=complex)
-    elif generator_type == "N":
+    if generator_type == "N":
         # Total photon number operator in Fock basis
         dim = N + 1
         n_op = np.diag(np.arange(dim))
         return np.array(n_op, dtype=complex)
-    else:
-        raise ValueError(f"Unknown generator type: {generator_type}")
+    raise ValueError(f"Unknown generator type: {generator_type}")
 
 
 def validate_fisher_inputs(

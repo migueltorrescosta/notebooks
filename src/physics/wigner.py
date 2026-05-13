@@ -198,7 +198,7 @@ def wigner_from_hybrid_state(
 
     if hybrid_state.shape != (dim_hybrid,):
         raise ValueError(
-            f"hybrid_state must have shape ({dim_hybrid},), got {hybrid_state.shape}"
+            f"hybrid_state must have shape ({dim_hybrid},), got {hybrid_state.shape}",
         )
 
     # Extract oscillator state for given spin component
