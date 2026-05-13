@@ -16,15 +16,19 @@ You create simulations to improve knowledge around these quantum concepts:
 - **Decoherence effects:** modeling loss, dephasing, and noise in interferometers
 
 # Research Workflow
+
 Follow these steps **in order** for every task that requires planning a simulation.
 
 ## 1. Before writing a plan
-1. **Run tests**: Ensure nothing is broken before starting changes
-2. **Read relevant code**: Understand existing patterns in `articles/` and available code
-3. **Plan the physical model**: Document the Hilbert space, basis, and operators to use
-4. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
+1. **Read relevant code**: Understand existing patterns in `articles/` and available code
+2. **Plan the physical model**: Document the Hilbert space, basis, and operators to use
+3. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
+4. **Challenge assumptions**: Highlight likely mistakes present in the users' request.
+
+Follow the standard pre-work steps outlined in [Coding Workflow §1](#1-before-starting-work).
 
 ## 2. During implementation
+
 1. Write the document in `articles/` using the format `YYYY-MM-DD-{title}.md` (e.g., `2026-05-07-example.md`).
 2. Include the following sections:
    1. Hypothesis: Describe succintly what is the goal of this research avenue.
@@ -32,11 +36,11 @@ Follow these steps **in order** for every task that requires planning a simulati
    3. Theoretical model: describe what is the system to be simulated.
    4. Numerical simulation: describe implementation considerations. Do NOT include filepaths nor considerations specific to this repo
 3. Highlight likely failure conditions for the simulation, answering the question "What are the most likely failure modes?"
-4. Avoid breaklines unless necessary. Use paragraphs with inline equations as much as possible.
+4. Avoid breaklines in prose unless necessary. Use paragraphs with inline equations as much as possible.
 
-# 📝 Article Emoji Standard
+# 📝 Article Format
 
-Every article in `articles/` MUST use the following emoji system for clear, scannable documents:
+Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the emoji system below.
 
 ## Section Header Emojis
 
@@ -48,12 +52,12 @@ Every article in `articles/` MUST use the following emoji system for clear, scan
 | 💻 | `## 💻 Numerical Simulation` | Implementation strategy, parameters, methods |
 | ⚠️ | `## ⚠️ Likely Failure Conditions` | Failure modes and mitigations |
 | ✅ | `## ✅ Success Criteria` | Criteria table verifying success |
-| 🔬 | `## 🔬 Results and Next Steps` / `## 🔬 Conclusions` | Findings and future work |
+| 🔬 | `## 🔬 Results and Next Steps` | Findings and future work |
 | 📊 | `## 📊 Models Survey` | Central model-to-exponent mapping table |
 | 🔍 | `## 🔍 Open Questions` | Unsolved issues and future directions |
 | 🔧 | `## 🔧 Implementation Status` | Code modules, tests, file organization |
-| 📐 | `## 📐 Preliminary Analytical Bounds` / `## 📐 10. Physical Invariants` | Known bounds, invariants, conservation laws |
-| 📝 | `## 📝 11. Quick Reference` | Reference / cheat-sheet sections |
+| 📐 | `## 📐 Physical Invariants` | Known bounds, invariants, conservation laws |
+| 📝 | `## 📝 Quick Reference` | Reference / cheat-sheet sections |
 
 ## Inline Emojis
 
@@ -66,14 +70,70 @@ Every article in `articles/` MUST use the following emoji system for clear, scan
 
 ## Status Indicators in Tables
 
-| Old (do NOT use) | Standardised |
-|-----------------|--------------|
-| `**PASS**` | `✅` |
-| `**FAIL**` | `❌` |
-| `**PENDING**` | `⏳` |
-| `**PARTIAL**` | `🔄` |
-| `**READY**` | `✅` |
-| `**SUPPORTED**` | `✅` |
+| Use this | Not this |
+|----------|----------|
+| ✅ | `**PASS**`, `**READY**`, `**SUPPORTED**` |
+| ❌ | `**FAIL**` |
+| ⏳ | `**PENDING**` |
+| 🔄 | `**PARTIAL**` |
+
+## Section Order
+
+| # | Section | Emoji | Mandatory? | When |
+|---|---------|-------|------------|------|
+| 1 | Hypothesis | 🧪 | ✅ | Always |
+| 2 | Literature Review | 📖 | ✅ | Always (skip if no refs) |
+| 3 | Theoretical Model | ⚛️ | ✅ | Always |
+| 4 | Models Survey | 📊 | 🔲 | Multi-model comparison articles |
+| 5 | Preliminary Analytical Bounds | 📐 | 🔲 | When analytical bounds exist |
+| 6 | Numerical Simulation | 💻 | ✅ | Always |
+| 7 | Likely Failure Conditions | ⚠️ | ✅ | Always |
+| 8 | Success Criteria | ✅ | ✅ | Always |
+| 9 | Results / Conclusions | 🔬 | ✅ | Always (⏳ pre-experiment, ✅/❌ post-experiment) |
+| 10 | Open Questions | 🔍 | 🔲 | Unsolved issues |
+| 11 | Implementation Status | 🔧 | 🔲 | After code is implemented |
+
+## Per-Section Patterns
+
+### 🧪 Hypothesis
+Numbered list of specific, testable claims (or paragraph form for a single claim). Each claim maps to a row in the Success Criteria table (e.g., "State X achieves scaling α = -0.5 regardless of noise").
+
+### 📖 Literature Review
+Three-column table: `| Concept, Motivation and Connection | Article | Year |`. The first column explains why this reference is relevant and briefly connects it to the current work; the third column is the year of publication. No fancy formatting.
+
+### ⚛️ Theoretical Model
+Always contains the following, **in order**:
+1. **Hilbert space** — basis vectors, dimension formula, index ordering convention
+2. **Operators** — explicit matrix elements or generator definitions in the chosen basis
+3. **Circuit / protocol** — step-by-step unitary sequence (BS → phase → hold → BS)
+4. **Measurement** — which observable, sensitivity formula used
+5. **Tables** for states, operators, noise channels where applicable
+
+### 📊 Models Survey (survey articles only)
+Central table mapping models to expected scaling exponents. Columns: `| Model | Input State | Noise | Expected α | Implementation Status |`. This is the definitive reference. Use emoji status indicators.
+
+### 💻 Numerical Simulation
+Three subsections:
+1. **Implementation strategy** — high-level approach (composable pipeline, key function signatures, dimension management, solvers)
+2. **Parameter sweep** — table of swept values, ranges, step sizes
+3. **Validation** — code block of `assert` statements for invariant checks (trace, unitarity, positivity, fit quality)
+
+### ⚠️ Likely Failure Conditions
+Each entry includes: failure condition name, description (1-2 sentences), and mitigation strategy. Table format is required: `| Failure | Description | Mitigation |`.
+
+### ✅ Success Criteria
+- **Pre-experiment**: `| Check | Expectation |`
+- **Post-experiment**: add a `Status` column with emoji (✅/❌/🔄)
+
+### 🔬 Results / Conclusions
+**Required in every article.** Use a `⏳`-only table before experiments and a `✅/❌` table after.
+- **Pre-experiment**: table with `⏳` (pending) status — marks what hasn't been run yet
+- **Post-experiment**: table with actual status, plus a **Key Finding** paragraph starting with `💡`
+- Completed articles include quantitative summary table and `🔗` links to code modules
+- If no simulation was needed (pure analytical), state that clearly
+
+### 🔧 Implementation Status
+Table mapping components to descriptions (e.g., operator construction, state preparation, unitary evolution, sensitivity computation). Test count summary. Only for completed implementations.
 
 ## Rules
 
@@ -83,6 +143,10 @@ Every article in `articles/` MUST use the following emoji system for clear, scan
 4. **No emoji inflation** — each emoji has one distinct meaning; don't add decorative emojis to every bullet.
 5. **First occurrence only** — section emojis appear once per document, not on every sub-subsection.
 6. For **reference documents** (e.g., `Physics-Reference.md`), apply emojis to numbered sections where they fit semantically.
+7. **Don't** include repo-specific filepaths in the Numerical Simulation section (theoretical model should be implementation-agnostic).
+8. **Don't** use breaklines in prose when inline equations suffice.
+9. **Don't** use decorative emojis beyond the defined set.
+10. **Don't** write `**PASS**`/`**FAIL**` in tables — use emoji only.
 
 # Coding Workflow
 Follow these steps **in order** for every task that requires writing code.
@@ -101,11 +165,19 @@ Follow these steps **in order** for every task that requires writing code.
 5. Use **type hints** for all function signatures
 
 ## 3. At the end
-1. Ensure added/removed/edited tests are co-located with the code they test.
-2. Run affected tests: `uv run pytest . --testmon --quiet --tb=short`
-3. Run linter: `uv run ruff check . --fix && uv run ruff format .`
-4. Verify no physics errors via assertions
-5. If a new experiment was run based on an article, add a "Conclusions" section to the paper detailing the results.
+
+Before completing any task, verify:
+
+1. **Tests pass**: Run `uv run pytest . --testmon --quiet --tb=short`
+2. **Linter passes**: Run `uv run ruff check . --fix && uv run ruff format .`
+3. **Type checks pass**: Run `uv run mypy .`
+4. **Reused existing code** where possible — no duplicated logic
+5. **No silent physics errors** — explicit assertions in place (trace conservation, unitarity, positivity)
+6. **Performance within 100 ms** constraint per individual simulation
+7. **Randomness handled** via `seed` parameter (deterministic by default)
+8. If a new experiment was run based on an article, add a "Conclusions" section to the paper detailing the results.
+
+> When in doubt, prefer **simplicity, explicitness, and reuse**.
 
 # Project Structure
 
@@ -113,23 +185,7 @@ Follow these steps **in order** for every task that requires writing code.
 notebooks/                   # Root folder (streamlit app)
 ├── articles/                # Markdown files describing WIP and completed research
 │                           # Format: YYYY-MM-DD-{title}.md (e.g., 2026-05-07-example.md)
-├── pages/                   # Streamlit UI (one page per simulation)
-│   ├── BEC_Ancilla.py
-│   ├── BEC_Sensitivity_Scaling.py
-│   ├── Bayes_updates.py
-│   ├── Delta_Sensitivity_Heatmap.py
-│   ├── Delta_estimation.py
-│   ├── Energy_Level_Calculator.py
-│   ├── Fisher_information.py
-│   ├── Heisenberg_model.py
-│   ├── High_Order_Squeezing.py
-│   ├── Interferometry_Scaling_Survey.py
-│   ├── Minimize_heatmap.py
-│   ├── MZI_Ancilla.py
-│   ├── Numerical_Quantum_Time_Evolution.py
-│   ├── Probability_Distributions.py
-│   ├── Visualize_Partial_Trace.py
-│   └── Wave_interference.py
+├── pages/                   # Streamlit UI (20+ pages, one per simulation)
 ├── src/                     # Core modules organized by domain
 │   ├── algorithms/         # Algorithm implementations (*.py)
 │   ├── analysis/           # Analysis and estimation methods (*.py)
@@ -152,25 +208,12 @@ notebooks/                   # Root folder (streamlit app)
 
 ```bash
 uv run mypy .                      # Type checks
-uv run pytest . --quiet --tb=short # Run tests
-uv run radon mi . -n B             # Code complexity analysis
-uv run ruff check . --fix          # Lint
-uv run ruff format .               # Format
+uv run radon mi . -n B             # Code complexity analysis (requires: uv tool install radon)
 uv run streamlit run Home.py       # Start streamlit app
 uv sync                            # Update dependencies
 ```
 
 **Configuration**: `pyproject.toml` defines pytest (testpaths, warnings), mypy (strict typing), and ruff settings.
-
-# Goals
-
-- Prevent **silent physics errors** via explicit assertions
-- Avoid **code duplication** — search before adding
-- Maintain **performance-first implementations**
-- Ensure **consistency across simulations and backends**
-- Guarantee **reproducibility, correctness, and traceable results**
-
-> When in doubt, prefer **simplicity, explicitness, and reuse**.
 
 # 🌌 Physics Scope (MANDATORY)
 
@@ -244,7 +287,7 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 | Unit | Operators, states, dimension checks | `pytest` |
 | Integration | Full simulation pipelines | `pytest` |
 | Numerical regression | Tolerance-based validation | `pytest` |
-| Statistical | Validate noisy/distributed outputs | `pytest`, hypothesis |
+| Statistical | Validate noisy/distributed outputs | `pytest` |
 | UI smoke | Streamlit page loads | `pytest` |
 | Performance | Runtime, scaling | `pytest` |
 
@@ -254,17 +297,3 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 2. **Code duplication** → Always search before adding new code
 3. **Cross-simulation breakage** → Run full integration tests after changes
 4. **Numerical instability** → Tolerance checks + invariance validation
-
-# ✅ Final Checklist
-
-Before completing any task, verify:
-
-- [ ] Reused existing code where possible
-- [ ] Added/updated unit and integration tests
-- [ ] No duplicated logic exists
-- [ ] `pytest` passes with no errors
-- [ ] `ruff` passes with no warnings
-- [ ] `mypy` passes with no warnings
-- [ ] No silent physics errors (assertions in place)
-- [ ] Performance within 100ms constraint
-- [ ] Randomness handled via `seed` parameter

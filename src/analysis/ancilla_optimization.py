@@ -28,7 +28,6 @@ References:
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -470,13 +469,7 @@ def sensitivity_objective(
     """
     # Default bounds from the article
     if bounds is None:
-        bounds = {
-            "theta": (0.0, np.pi),
-            "phi": (0.0, 2.0 * np.pi),
-            "T_BS": (0.0, np.pi),  # π/2 = 50/50 splitter, full range [0, π]
-            "T_H": (0.0, 5.0),
-            "alpha": (-2.0, 2.0),
-        }
+        bounds = get_default_bounds()
 
     theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_H, alpha = _params_to_components(
         params
@@ -538,6 +531,8 @@ class OptimisationResult:
         variance_Jz: Var(J_z^S) at the optimal operating point.
         purity_S: Tr(ρ_S²) purity of the reduced system state (1 = pure,
             0.5 = maximally entangled with ancilla).
+        history: Objective function values at each iteration (for
+            convergence analysis). Empty list if callback not enabled.
     """
 
     delta_theta_opt: float
@@ -549,6 +544,7 @@ class OptimisationResult:
     expectation_Jz: float = 0.0
     variance_Jz: float = 0.0
     purity_S: float = 0.0
+    history: list[float] = field(default_factory=list)
 
 
 @dataclass
@@ -568,19 +564,50 @@ class ThetaScanResult:
     all_results: dict[float, list[OptimisationResult]] = field(default_factory=dict)
 
 
-def random_initial_params(rng: np.random.Generator) -> np.ndarray:
+def get_default_bounds() -> dict[str, tuple[float, float]]:
+    """Get the default parameter bounds.
+
+    Returns:
+        Dict with keys 'theta', 'phi', 'T_BS', 'T_H', 'alpha' mapping to
+        (min, max) tuples.
+    """
+    return {
+        "theta": (0.0, np.pi),
+        "phi": (0.0, 2.0 * np.pi),
+        "T_BS": (0.0, np.pi),
+        "T_H": (0.0, 5.0),
+        "alpha": (-2.0, 2.0),
+    }
+
+
+def random_initial_params(
+    rng: np.random.Generator, bounds: dict[str, tuple[float, float]] | None = None
+) -> np.ndarray:
     """Generate random initial parameters within the search bounds.
 
     All 11 parameters are drawn independently from their respective bounds.
 
+    Args:
+        rng: Random number generator.
+        bounds: Optional custom bounds (uses defaults if None).
+
     Returns:
         11-element array of initial parameters.
     """
-    theta_S, theta_A = rng.uniform(0.0, np.pi, size=2)
-    phi_S, phi_A = rng.uniform(0.0, 2.0 * np.pi, size=2)
-    T_BS1, T_BS2 = rng.uniform(0.0, np.pi, size=2)
-    T_H = rng.uniform(0.0, 5.0)
-    alpha = rng.uniform(-2.0, 2.0, size=4)
+    if bounds is None:
+        bounds = get_default_bounds()
+
+    theta_lo, theta_hi = bounds["theta"]
+    phi_lo, phi_hi = bounds["phi"]
+    tbs_lo, tbs_hi = bounds["T_BS"]
+    th_lo, th_hi = bounds["T_H"]
+    alpha_lo, alpha_hi = bounds["alpha"]
+
+    theta_S, theta_A = rng.uniform(theta_lo, theta_hi, size=2)
+    phi_S, phi_A = rng.uniform(phi_lo, phi_hi, size=2)
+    T_BS1, T_BS2 = rng.uniform(tbs_lo, tbs_hi, size=2)
+    T_H = rng.uniform(th_lo, th_hi)
+    alpha = rng.uniform(alpha_lo, alpha_hi, size=4)
     return np.array(
         [theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_H, *alpha], dtype=float
     )
@@ -595,6 +622,8 @@ def run_optimisation(
     xatol: float = 1e-8,
     fatol: float = 1e-8,
     adaptive: bool = True,
+    bounds: dict[str, tuple[float, float]] | None = None,
+    track_history: bool = False,
 ) -> OptimisationResult:
     """Run a single Nelder–Mead optimisation for ancilla-assisted metrology.
 
@@ -607,6 +636,9 @@ def run_optimisation(
         xatol: Absolute parameter tolerance.
         fatol: Absolute function tolerance.
         adaptive: Use adaptive Nelder–Mead parameters.
+        bounds: Custom parameter bounds dictionary. Uses defaults if None.
+        track_history: If True, record objective function values at each
+            iteration in the result's `history` field.
 
     Returns:
         OptimisationResult with the best parameters found.
@@ -620,6 +652,8 @@ def run_optimisation(
         xatol=xatol,
         fatol=fatol,
         adaptive=adaptive,
+        bounds=bounds,
+        track_history=track_history,
     )
 
 
@@ -632,23 +666,47 @@ def _run_nelder_mead(
     xatol: float = 1e-8,
     fatol: float = 1e-8,
     adaptive: bool = True,
+    bounds: dict[str, tuple[float, float]] | None = None,
+    track_history: bool = False,
 ) -> OptimisationResult:
-    """Internal Nelder–Mead runner. Shared by run_optimisation and run_theta_scan."""
+    """Internal Nelder–Mead runner. Shared by run_optimisation and run_theta_scan.
+
+    Args:
+        theta_true: True phase rate parameter.
+        ops: Two-qubit operators.
+        x0: Initial parameter vector (11 elements). Random if None.
+        seed: Random seed (used if x0 is None).
+        maxiter: Maximum Nelder–Mead iterations.
+        xatol: Absolute parameter tolerance.
+        fatol: Absolute function tolerance.
+        adaptive: Use adaptive Nelder–Mead parameters.
+        bounds: Custom parameter bounds dictionary. Uses defaults if None.
+        track_history: If True, record objective function values per iteration.
+    """
     if x0 is None:
         rng = np.random.default_rng(seed)
-        x0 = random_initial_params(rng)
+        x0 = random_initial_params(rng, bounds)
     else:
         x0 = np.asarray(x0, dtype=float)
         assert x0.shape == (11,), "x0 must have 11 elements"
 
-    # Objective function (closure over theta_true, ops)
+    # Objective function (closure over theta_true, ops, bounds)
     def objective(p: np.ndarray) -> float:
-        return sensitivity_objective(p, theta_true, ops)
+        return sensitivity_objective(p, theta_true, ops, bounds=bounds)
+
+    # History tracking via callback
+    history: list[float] = []
+
+    def callback(_x: np.ndarray) -> None:
+        if track_history:
+            val = objective(_x)
+            history.append(val)
 
     result = minimize(
         objective,
         x0=x0,
         method="Nelder-Mead",
+        callback=callback if track_history else None,
         options={  # type: ignore[call-overload]
             "maxiter": maxiter,
             "xatol": xatol,
@@ -686,6 +744,7 @@ def _run_nelder_mead(
         expectation_Jz=exp_val,
         variance_Jz=var_val,
         purity_S=purity,
+        history=history.copy(),
     )
 
 
@@ -697,6 +756,8 @@ def run_theta_scan(
     xatol: float = 1e-8,
     fatol: float = 1e-8,
     adaptive: bool = True,
+    bounds: dict[str, tuple[float, float]] | None = None,
+    track_history: bool = False,
 ) -> ThetaScanResult:
     """Scan over θ values with multiple Nelder–Mead restarts each.
 
@@ -708,6 +769,10 @@ def run_theta_scan(
         xatol: Absolute parameter tolerance.
         fatol: Absolute function tolerance.
         adaptive: Use adaptive Nelder–Mead parameters.
+        bounds: Custom parameter bounds (e.g., to expand T_H range).
+            Default: T_H ∈ [0, 5]. Use bounds={"T_H": (0, 20), ...} for
+            expanded-range experiments.
+        track_history: If True, record convergence history per run.
 
     Returns:
         ThetaScanResult with all recorded information.
@@ -724,7 +789,7 @@ def run_theta_scan(
         theta_results: list[OptimisationResult] = []
         for restart in range(n_restarts):
             rng = np.random.default_rng(base_seed + int(theta * 1000) + restart)
-            x0 = random_initial_params(rng)
+            x0 = random_initial_params(rng, bounds)
             opt_result = _run_nelder_mead(
                 theta_true=theta,
                 ops=ops,
@@ -733,6 +798,8 @@ def run_theta_scan(
                 xatol=xatol,
                 fatol=fatol,
                 adaptive=adaptive,
+                bounds=bounds,
+                track_history=track_history,
             )
             theta_results.append(opt_result)
             all_results_flat.append(opt_result)
@@ -1019,3 +1086,221 @@ def get_decoupled_sensitivity(T_H: float, theta_true: float = 1.0) -> float:
     T_BS = np.pi / 2.0
     alpha = (0.0, 0.0, 0.0, 0.0)
     return compute_sensitivity(psi0, T_BS, T_BS, T_H, theta_true, alpha, ops)
+
+
+# ============================================================================
+# α-Coefficient Scans (Grid and Random Search)
+# ============================================================================
+
+
+@dataclass
+class AlphaSingleScanResult:
+    """Result from scanning a single α coefficient while holding others fixed.
+
+    Attributes:
+        alpha_name: Which coefficient was scanned ('xx', 'xz', 'zx', 'zz').
+        alpha_values: Array of α values scanned.
+        delta_theta_values: Corresponding Δθ sensitivity values.
+        fixed_params: Dict of the other fixed parameters used.
+    """
+
+    alpha_name: str
+    alpha_values: np.ndarray
+    delta_theta_values: np.ndarray
+    fixed_params: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
+class AlphaRandomSearchResult:
+    """Result from random search over the 4D α coefficient space.
+
+    Attributes:
+        alpha_samples: Array of shape (N, 4) with sampled α values.
+        delta_theta_values: Array of shape (N,) with Δθ for each sample.
+        best_alpha: The α = (α_xx, α_xz, α_zx, α_zz) that gave minimal Δθ.
+        best_delta_theta: The minimal Δθ found.
+        fixed_params: Dict of the other fixed parameters used.
+    """
+
+    alpha_samples: np.ndarray
+    delta_theta_values: np.ndarray
+    best_alpha: tuple[float, float, float, float]
+    best_delta_theta: float
+    fixed_params: dict[str, float] = field(default_factory=dict)
+
+
+def scan_alpha_single_parameter(
+    alpha_name: str,
+    alpha_min: float = -2.0,
+    alpha_max: float = 2.0,
+    n_points: int = 21,
+    *,
+    theta_S: float = np.pi / 2,
+    phi_S: float = 0.0,
+    theta_A: float = 0.0,
+    phi_A: float = 0.0,
+    T_BS1: float = np.pi / 2,
+    T_BS2: float = np.pi / 2,
+    T_H: float = 1.0,
+    theta_true: float = 1.0,
+) -> AlphaSingleScanResult:
+    """Scan a single α coefficient while holding others fixed.
+
+    This replicates the grid scan described in the article: "each α_ij is
+    scanned independently in [-2, 2] with 21 points, while the other three
+    are held at zero."
+
+    Physical configuration defaults (SQL-optimal for α=0):
+        - System: |ψ_S⟩ = (|0⟩ + |1⟩)/√2 (θ_S = π/2)
+        - Ancilla: |ψ_A⟩ = |0⟩ (θ_A = 0)
+        - Beam splitters: 50/50 (T_BS1 = T_BS2 = π/2)
+        - T_H = 1.0, θ_true = 1.0
+
+    Args:
+        alpha_name: Which coefficient to scan: 'xx', 'xz', 'zx', or 'zz'.
+        alpha_min: Minimum value for the scan (default -2.0).
+        alpha_max: Maximum value for the scan (default 2.0).
+        n_points: Number of points in the scan (default 21).
+        theta_S: System polar angle (default π/2).
+        phi_S: System azimuthal angle (default 0.0).
+        theta_A: Ancilla polar angle (default 0.0).
+        phi_A: Ancilla azimuthal angle (default 0.0).
+        T_BS1: First beam-splitter duration (default π/2).
+        T_BS2: Second beam-splitter duration (default π/2).
+        T_H: Holding time (default 1.0).
+        theta_true: True phase rate (default 1.0).
+
+    Returns:
+        AlphaSingleScanResult with scanned values and sensitivities.
+
+    Raises:
+        ValueError: If alpha_name is not one of 'xx', 'xz', 'zx', 'zz'.
+    """
+    alpha_idx_map = {"xx": 0, "xz": 1, "zx": 2, "zz": 3}
+    if alpha_name not in alpha_idx_map:
+        raise ValueError(
+            f"alpha_name must be one of {list(alpha_idx_map.keys())}, got {alpha_name}"
+        )
+    scan_idx = alpha_idx_map[alpha_name]
+
+    ops = build_two_qubit_operators()
+    psi0 = two_qubit_state(theta_S, phi_S, theta_A, phi_A)
+
+    alpha_values = np.linspace(alpha_min, alpha_max, n_points)
+    delta_theta_values = np.zeros(n_points, dtype=float)
+
+    for i, a_val in enumerate(alpha_values):
+        alpha_list = [0.0, 0.0, 0.0, 0.0]
+        alpha_list[scan_idx] = a_val
+        alpha: tuple[float, float, float, float] = (
+            alpha_list[0],
+            alpha_list[1],
+            alpha_list[2],
+            alpha_list[3],
+        )
+        dtheta = compute_sensitivity(psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops)
+        delta_theta_values[i] = dtheta
+
+    fixed_params = {
+        "theta_S": theta_S,
+        "phi_S": phi_S,
+        "theta_A": theta_A,
+        "phi_A": phi_A,
+        "T_BS1": T_BS1,
+        "T_BS2": T_BS2,
+        "T_H": T_H,
+        "theta_true": theta_true,
+    }
+
+    return AlphaSingleScanResult(
+        alpha_name=alpha_name,
+        alpha_values=alpha_values,
+        delta_theta_values=delta_theta_values,
+        fixed_params=fixed_params,
+    )
+
+
+def random_search_alpha(
+    n_samples: int = 200,
+    alpha_min: float = -2.0,
+    alpha_max: float = 2.0,
+    *,
+    theta_S: float = np.pi / 2,
+    phi_S: float = 0.0,
+    theta_A: float = 0.0,
+    phi_A: float = 0.0,
+    T_BS1: float = np.pi / 2,
+    T_BS2: float = np.pi / 2,
+    T_H: float = 1.0,
+    theta_true: float = 1.0,
+    seed: int | None = 42,
+) -> AlphaRandomSearchResult:
+    """Random search over the 4D α = (α_xx, α_xz, α_zx, α_zz) space.
+
+    This replicates the random search described in the article: "200 samples
+    over the full 4D α space" to verify that no combination achieves
+    Δθ < 1/T_H (SQL).
+
+    Args:
+        n_samples: Number of random α samples to evaluate (default 200).
+        alpha_min: Lower bound for all α coefficients (default -2.0).
+        alpha_max: Upper bound for all α coefficients (default 2.0).
+        theta_S: System polar angle (default π/2).
+        phi_S: System azimuthal angle (default 0.0).
+        theta_A: Ancilla polar angle (default 0.0).
+        phi_A: Ancilla azimuthal angle (default 0.0).
+        T_BS1: First beam-splitter duration (default π/2).
+        T_BS2: Second beam-splitter duration (default π/2).
+        T_H: Holding time (default 1.0).
+        theta_true: True phase rate (default 1.0).
+        seed: Random seed for reproducibility (default 42).
+
+    Returns:
+        AlphaRandomSearchResult with all samples and the best found.
+    """
+    rng = np.random.default_rng(seed)
+    ops = build_two_qubit_operators()
+    psi0 = two_qubit_state(theta_S, phi_S, theta_A, phi_A)
+
+    # Sample uniformly in [alpha_min, alpha_max]^4
+    alpha_samples = rng.uniform(alpha_min, alpha_max, size=(n_samples, 4))
+    delta_theta_values = np.zeros(n_samples, dtype=float)
+
+    for i in range(n_samples):
+        alpha: tuple[float, float, float, float] = (
+            float(alpha_samples[i, 0]),
+            float(alpha_samples[i, 1]),
+            float(alpha_samples[i, 2]),
+            float(alpha_samples[i, 3]),
+        )
+        dtheta = compute_sensitivity(psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops)
+        delta_theta_values[i] = dtheta
+
+    # Find best (minimal Δθ)
+    best_idx = int(np.argmin(delta_theta_values))
+    best_alpha: tuple[float, float, float, float] = (
+        float(alpha_samples[best_idx, 0]),
+        float(alpha_samples[best_idx, 1]),
+        float(alpha_samples[best_idx, 2]),
+        float(alpha_samples[best_idx, 3]),
+    )
+    best_delta_theta = float(delta_theta_values[best_idx])
+
+    fixed_params = {
+        "theta_S": theta_S,
+        "phi_S": phi_S,
+        "theta_A": theta_A,
+        "phi_A": phi_A,
+        "T_BS1": T_BS1,
+        "T_BS2": T_BS2,
+        "T_H": T_H,
+        "theta_true": theta_true,
+    }
+
+    return AlphaRandomSearchResult(
+        alpha_samples=alpha_samples,
+        delta_theta_values=delta_theta_values,
+        best_alpha=best_alpha,
+        best_delta_theta=best_delta_theta,
+        fixed_params=fixed_params,
+    )

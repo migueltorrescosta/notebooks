@@ -19,9 +19,12 @@ import streamlit as st
 from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
     compute_convergence_metric,
+    get_default_bounds,
     run_theta_scan,
     sensitivity_objective,
+    two_qubit_state,
     validate_bs_unitarity,
+    validate_derivative_stability,
     validate_hold_unitarity,
     validate_operators,
     validate_sensitivity_reasonable,
@@ -47,17 +50,34 @@ st.markdown(
 
 # ── Validate core infrastructure ─────────────────────────────────────────────
 with st.expander("🔧 Validation Checks", expanded=False):
-    vcol1, vcol2, vcol3, vcol4 = st.columns(4)
+    vcol1, vcol2, vcol3, vcol4, vcol5 = st.columns(5)
     ops = build_two_qubit_operators()
     ops_ok = validate_operators(ops)
     bs_ok = validate_bs_unitarity()
     hold_ok = validate_hold_unitarity()
     sens_ok = validate_sensitivity_reasonable()
 
+    # Derivative stability check (uses SQL-optimal configuration)
+    psi0_check = two_qubit_state(0.0, 0.0, 0.0, 0.0)
+    alpha_check: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+    try:
+        deriv_ok = validate_derivative_stability(
+            psi0=psi0_check,
+            T_BS1=np.pi / 2,
+            T_BS2=np.pi / 2,
+            T_H=1.0,
+            theta_true=1.0,
+            alpha=alpha_check,
+            ops=ops,
+        )
+    except AssertionError:
+        deriv_ok = False
+
     vcol1.success("✅ Operators Hermitian & SU(2)") if ops_ok else vcol1.error("❌")
     vcol2.success("✅ BS unitaries unitary") if bs_ok else vcol2.error("❌")
     vcol3.success("✅ Hold unitaries unitary") if hold_ok else vcol3.error("❌")
     vcol4.success("✅ SQL sensitivity check") if sens_ok else vcol4.error("❌")
+    vcol5.success("✅ FD derivative stable") if deriv_ok else vcol5.error("❌")
 
 # ── Sidebar controls ─────────────────────────────────────────────────────────
 with st.sidebar:
@@ -77,10 +97,32 @@ with st.sidebar:
         "Restarts per θ",
         min_value=1,
         max_value=50,
-        value=5,
+        value=10,
         step=1,
         help="Number of random-start Nelder–Mead runs per θ value. More restarts = better coverage.",
     )
+
+    with st.expander("📐 Advanced: Bounds", expanded=False):
+        st.markdown(
+            "Adjust parameter search bounds. Use `T_H max = 20.0` to replicate the expanded-range investigation in the article."
+        )
+        t_h_min = st.number_input(
+            "T_H min",
+            value=0.0,
+            min_value=0.0,
+            max_value=50.0,
+            step=0.5,
+            format="%.1f",
+        )
+        t_h_max = st.number_input(
+            "T_H max",
+            value=5.0,
+            min_value=0.1,
+            max_value=50.0,
+            step=0.5,
+            format="%.1f",
+            help="Default = 5.0. Article's expanded-bound investigation used 20.0.",
+        )
 
     maxiter = st.slider(
         "Nelder–Mead max iterations",
@@ -125,10 +167,16 @@ st.markdown(
 theta_values = np.linspace(theta_min, theta_max, n_theta)
 st.caption(f"θ scan: {n_theta} values from {theta_min:.2f} to {theta_max:.2f}")
 
+# Build bounds dict (override T_H only if user changed it)
+bounds = get_default_bounds()
+if "t_h_min" in locals() and "t_h_max" in locals():
+    bounds["T_H"] = (float(t_h_min), float(t_h_max))
+
 if run_button:
     with st.spinner(
         f"Running Nelder–Mead optimisation over {n_theta} θ values "
-        f"× {n_restarts} restarts = {n_theta * n_restarts} runs..."
+        f"× {n_restarts} restarts = {n_theta * n_restarts} runs... "
+        f"(T_H ∈ [{bounds['T_H'][0]:.1f}, {bounds['T_H'][1]:.1f}])"
     ):
         start = time.time()
         scan_result = run_theta_scan(
@@ -136,6 +184,7 @@ if run_button:
             n_restarts=n_restarts,
             seed=int(seed),
             maxiter=maxiter,
+            bounds=bounds,
         )
         elapsed = time.time() - start
 

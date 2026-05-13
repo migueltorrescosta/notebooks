@@ -10,14 +10,14 @@ The central hypothesis is that a **non-zero interaction Hamiltonian** with suita
 
 ## 📖 Literature Review
 
-| Concept & Motivation | Article | Year |
+| Concept, Motivation and Connection | Article | Year |
 |---|---|---|
-| Standard MZI theory and error-propagation sensitivity | *Mach–Zehnder interferometry* (standard textbooks) | — |
-| Ancilla-assisted quantum metrology: using auxiliary systems to surpass SQL | Giovannetti *et al.*, *Advances in quantum metrology*, Nature Photonics **5**, 222 | 2011 |
-| Interaction-based readout in entangled interferometers | Davis *et al.*, *Interaction-based readout for spin-squeezed states*, PRA **94**, 063814 | 2016 |
-| Two-axis counter-twisting and spin-squeezing Hamiltonians | Kitagawa & Ueda, *Squeezed spin states*, PRA **47**, 5138 | 1993 |
-| Parameter estimation with product states and entangling interactions | Skotiniotis *et al.*, *Quantum metrology with a single spin*, PRA **92**, 032106 | 2015 |
-| Direct optimisation of metrological protocols via numerical search | Hentschel & Sanders, *Machine learning for quantum metrology*, PRA **88**, 062329 | 2013 |
+| Standard MZI theory and error-propagation sensitivity — Provides the beam-splitter conventions, $J_z$ measurement operator, and error-propagation formalism used throughout the numerical optimization. | *Mach–Zehnder interferometry* (standard textbooks) | — |
+| Ancilla-assisted quantum metrology: using auxiliary systems to surpass SQL — Establishes the theoretical framework for ancilla-assisted metrology that this article directly tests via numerical optimization of the $\alpha_{ij}$ interaction coefficients. | Giovannetti *et al.*, *Advances in quantum metrology*, Nature Photonics **5**, 222 | 2011 |
+| Interaction-based readout in entangled interferometers — Introduces interaction-based readout protocols that motivate the holding-time interaction Hamiltonian $H_{\text{int}}$ optimized here with a Nelder–Mead search. | Davis *et al.*, *Interaction-based readout for spin-squeezed states*, PRA **94**, 063814 | 2016 |
+| Two-axis counter-twisting and spin-squeezing Hamiltonians — Provides the $J_x/J_z$ spin-squeezing algebra used to construct the four interaction terms $\alpha_{ij} J_i^S \otimes J_j^A$ in the holding Hamiltonian. | Kitagawa & Ueda, *Squeezed spin states*, PRA **47**, 5138 | 1993 |
+| Parameter estimation with product states and entangling interactions — Establishes the single-spin SQL ($\Delta\theta = 1/T_H$) that serves as the baseline for evaluating ancilla-assisted improvement in the optimization. | Skotiniotis *et al.*, *Quantum metrology with a single spin*, PRA **92**, 032106 | 2015 |
+| Direct optimisation of metrological protocols via numerical search — Demonstrates numerical optimization of metrological protocols, providing the methodology adopted here for Nelder–Mead optimization over the 11-dimensional parameter space. | Hentschel & Sanders, *Machine learning for quantum metrology*, PRA **88**, 062329 | 2013 |
 
 **Key assumptions**: Single particle per system ($N=1$, each system is spin-$1/2$ equivalent), pure initial states, no decoherence, ideal $J_z^S$ measurement with infinite statistics (error propagation gives the asymptotic sensitivity).
 
@@ -93,7 +93,7 @@ For reference, the operators on $\mathcal{H}_{\text{tot}} = \mathbb{C}^2 \otimes
 
 ### Parameter Scan Over $\theta$
 
-The optimisation is repeated for each $\theta$ in a grid $\theta \in \{0.1,\; 0.2,\; 0.5,\; 1.0,\; 2.0,\; 5.0\}$. For each $\theta$, Nelder–Mead is run from multiple random initial seeds to mitigate local-minima trapping.
+The optimisation is repeated for each $\theta$ in a grid $\theta \in \{0.1,\; 0.2,\; 0.5,\; 1.0,\; 2.0,\; 5.0\}$. For each $\theta$, Nelder–Mead is run from 10 random initial seeds to mitigate local-minima trapping.
 
 ### Objective Function
 
@@ -109,56 +109,134 @@ The objective $f(\mathbf{p}) = \Delta\theta$ is computed as follows:
 
 ### Multiple Restarts, Observables, and Validation
 
-For each $\theta$, run Nelder–Mead from **10–20 random initial seeds** and keep the best result. Record the optimal $\Delta\theta$ (compared to $1/T_H$ SQL), optimal parameters $\theta_S^*, \phi_S^*, \theta_A^*, \phi_A^*, T_{\text{BS}1}^*, T_{\text{BS}2}^*, T_H^*, \alpha_{xx}^*, \alpha_{xz}^*, \alpha_{zx}^*, \alpha_{zz}^*$, $\langle J_z^S \rangle$ and $\text{Var}(J_z^S)$ at the operating point, entanglement generated (purity of reduced S state $\text{Tr}(\rho_S^2)$), convergence history, and number of iterations. Validate that $\|\psi_0\| = 1$, $U_{\text{BS}} U_{\text{BS}}^\dagger = I_2$, $U_{\text{hold}} U_{\text{hold}}^\dagger = I_4$, $\|\psi_{\text{final}}\| = 1$, $\text{Var}(J_z^S) \geq -10^{-12}$, and $\Delta\theta > 0$.
+For each $\theta$, run Nelder–Mead from **10 random initial seeds** and keep the best result. Record the optimal $\Delta\theta$ (compared to $1/T_H$ SQL), optimal parameters $\theta_S^*, \phi_S^*, \theta_A^*, \phi_A^*, T_{\text{BS}1}^*, T_{\text{BS}2}^*, T_H^*, \alpha_{xx}^*, \alpha_{xz}^*, \alpha_{zx}^*, \alpha_{zz}^*$, $\langle J_z^S \rangle$ and $\text{Var}(J_z^S)$ at the operating point, entanglement generated (purity of reduced S state $\text{Tr}(\rho_S^2)$), convergence history, and number of iterations. Validate that $\|\psi_0\| = 1$, $U_{\text{BS}} U_{\text{BS}}^\dagger = I_2$, $U_{\text{hold}} U_{\text{hold}}^\dagger = I_4$, $\|\psi_{\text{final}}\| = 1$, $\text{Var}(J_z^S) \geq -10^{-12}$, and $\Delta\theta > 0$.
+
+### Grid Scan Over Interaction Coefficients
+
+To complement the Nelder–Mead optimisation, a systematic grid scan over each $\alpha_{ij}$ is performed with fixed parameters (system in superposition $\theta_S=\pi/2$, 50/50 beam splitters, $T_H=1.0$, $\theta_{\text{true}}=1.0$, ancilla in $|1,0\rangle$). Each $\alpha_{ij}$ is scanned independently in $[-2, 2]$ with 21 points, while the other three are held at zero. A random search (200 samples) over the full 4D $\alpha$ space is also performed.
 
 ---
 
-## ⚠️ Likely Failure Conditions
+## ⚠️ Known Failure Conditions (Empirically Observed)
 
-| Failure Condition | Description | Mitigation |
+| Failure Condition | Description | Observed? |
 |---|---|---|
-| **Nelder–Mead convergence to local minima** | The 11-dimensional landscape is highly non-convex, with many local optima that can trap the optimiser. | Run 10–20 random restarts per $\theta$ value; monitor the spread of final objective values across restarts. |
-| **Vanishing derivative at the probing point** | For certain parameter combinations, $\partial\langle J_z^S\rangle/\partial\theta$ may be near zero (the operating point sits at a fringe extremum), giving a diverging $\Delta\theta$. | The optimiser should naturally avoid these regions since they produce large $\Delta\theta$ values. If the optimiser gets stuck there, the penalty in the objective will drive it away. |
-| **Boundary saturation** | Optimal parameters may lie at the boundaries (e.g., $T_H = 5$, $\alpha_{ij} = \pm 2$) rather than in the interior, suggesting the true optimum lies outside the search range. | Expand boundaries for parameters found at the edge and re-optimise; report which parameters are boundary-limited. |
-| **Flat objective near the SQL (decoupled regime)** | When $\alpha_{ij} \approx 0$, the sensitivity $\Delta\theta \approx 1/T_H$ regardless of the S and A initial states (as long as S is in a superposition). The landscape becomes nearly flat, confusing Nelder–Mead. | Use the decoupled analytical solution as one of the restart seeds; verify that the optimiser at least matches $1/T_H$. |
-| **Objective non-smoothness from finite-difference noise** | The finite-difference derivative with $\delta = 10^{-6}$ is generally safe for double precision, but if the objective landscape is very sensitive, the derivative estimate may be noisy. | Check derivative stability with $\delta = 10^{-5}$ and $10^{-7}$ for the optimal configuration. |
-| **Degeneracy in the interaction coefficients** | Different combinations of $\alpha_{ij}$ may produce the same $H_{\text{hold}}$ due to commutation relations (e.g., $[J_z, H_{\text{int}}] = 0$ for certain $\alpha$ combinations). The optimiser may wander along a degenerate valley. | Monitor the parameter covariance across restarts; report all degenerate $\alpha$ sets. |
-| **Small Hilbert space limits the gain** | With only one particle per subsystem, the maximum entanglement is limited (at most one ebit). The sensitivity enhancement over the SQL may be modest. | Frame results in terms of **fractional improvement** over SQL rather than absolute Heisenberg scaling. |
-| **$\theta$-dependent optimum shifts discontinuously** | The optimal parameters may change abruptly as $\theta$ varies, especially near resonances where $\theta T_H = \pi$. | Sample $\theta$ densely enough to capture any transitions; use a line search in $\theta$ for the optimal parameters. |
+| **Boundary saturation of $T_H$** | The optimiser consistently drives $T_H$ to its upper bound ($T_H = 5$ or $T_H = 20$ when expanded), because longer holding times always improve the SQL-limited sensitivity ($\Delta\theta_{\text{SQL}} = 1/T_H$). The optimal $T_H$ is unbounded within this model. | ✅ — observed in every optimisation run |
+| **Interaction coefficients driven to zero** | The optimiser consistently converges to $\alpha_{ij} \approx 0$ because any non-zero interaction only degrades sensitivity (increases $\Delta\theta$) without providing any benefit. The landscape at $\alpha=0$ is a global minimum. | ✅ — observed in every optimisation run |
+| **Flat objective across restarts** | Many different initial parameter sets converge to $\Delta\theta \approx 1/T_H$ because the landscape has a large plateau at the SQL when $\alpha\approx0$ and $T_H$ is large. This causes high convergence spread despite all runs finding the same SQL-limited physics. | ✅ — observed, spread $>15\%$ across restarts |
+| **No entanglement generated** | The reduced-system purity remains $1.0$ throughout optimisation. The optimiser never finds entangled solutions beneficial, confirming that entanglement with an unmeasured ancilla cannot improve S-only sensitivity. | ✅ — purity $=1.0$ for all best results |
+| **Nelder–Mead stagnation near analytical seed** | When seeded with the analytically optimal decoupled solution ($\theta_S=0$, 50/50 BS, $\alpha=0$, $T_H=\pi$), the optimiser barely deviates, confirming that the SQL solution is a strong attractor. | ✅ — observed in seeded runs |
 
 ---
 
-## ✅ Success Criteria
+## ✅ Success Criteria (Empirical Results)
 
-| # | Check | Expectation |
-|---|-------|-------------|
-| 1 | Nelder–Mead converges consistently across restarts | Spread in $\Delta\theta$ across restarts $< 10\%$ of the mean |
-| 2 | Optimised $\Delta\theta$ $\leq$ $1/T_H$ (decoupled SQL) | Achieves at least the decoupled bound |
-| 3 | Optimised $\Delta\theta$ $<$ $1/T_H$ for some $\theta$ values (interaction helps) | At least one $\theta$ shows $> 5\%$ improvement |
-| 4 | All unitaries are unitary ($U^\dagger U = I$) | Assertions pass |
-| 5 | State normalisation preserved throughout | $\||\Psi\rangle\| = 1$ at every stage |
-| 6 | Objective function is positive and finite | $\Delta\theta > 0$ for all probed $\theta$ |
-| 7 | Optimal parameters vary smoothly with $\theta$ | No discontinuous jumps in the $\theta$ scan |
-| 8 | At $\alpha_{ij} = 0$, the optimiser recovers the analytical solution | $\Delta\theta \approx 1/T_H$ within tolerance |
+| # | Check | Expectation | Status | Note |
+|---|-------|-------------|--------|------|
+| 1 | Nelder–Mead converges consistently across restarts | Spread $< 10\%$ | ❌ | Spread $>15\%$ — landscape has large plateau at SQL; many local minima produce similar $\Delta\theta$ |
+| 2 | $\Delta\theta_{\text{opt}} \leq 1/T_H$ (decoupled SQL) | Achieves at least decoupled bound | ✅ | $\Delta\theta_{\text{opt}} = 1/T_H$ exactly for all probed $\theta$ |
+| 3 | $\Delta\theta_{\text{opt}} < 1/T_H$ for some $\theta$ (interaction helps) | At least one $\theta$ shows $> 5\%$ improvement | ❌ | **No improvement found.** The best $\Delta\theta$ is exactly $1/T_H$ for all $\theta$. Grid scans confirm $\alpha_{ij} \neq 0$ always degrades sensitivity. |
+| 4 | All unitaries are unitary ($U^\dagger U = I$) | Assertions pass | ✅ | Passes test suite |
+| 5 | State normalisation preserved | $\||\Psi\rangle\| = 1$ | ✅ | Assertions pass throughout |
+| 6 | $\Delta\theta > 0$ for all probed $\theta$ | Positive and finite | ✅ | All results finite and positive |
+| 7 | Optimal parameters vary smoothly with $\theta$ | No discontinuous jumps | ❌ | High variance across restarts, but best-per-$\theta$ always converges to $T_H=5$ (boundary), $\alpha=0$ |
+| 8 | At $\alpha=0$, recovers analytical solution | $\Delta\theta \approx 1/T_H$ | ✅ | SQL sensitivity verified across $\theta$ values with $< 0.1\%$ error |
 
 ---
 
-## 🔬 Results and Next Steps
+## 🔬 Results
 
-The simulation code has been implemented and all 55 unit tests pass. Parameter sweeps are ready to be executed via the Streamlit UI or programmatically.
+### θ-Scan (Nelder–Mead Optimisation)
 
-| # | Test | Expectation | Status |
-|---|------|-------------|--------|
-| 1 | Convergence across restarts | Spread $< 10\%$ | ⏳ — sweep not yet run |
-| 2 | $\Delta\theta_{\text{opt}} \leq 1/T_H$ for all $\theta$ | SQL bound respected | ✅ — analytical check passes |
-| 3 | Interaction improves sensitivity | $\Delta\theta_{\text{opt}} < 1/T_H$ for some $\theta$ | ⏳ — sweep not yet run |
-| 4 | Unitarity and normality assertions | All pass | ✅ — unit tests validate this |
-| 5 | Smooth $\theta$-dependence of optimal params | No discontinuities | ⏳ — sweep not yet run |
-| 6 | Decoupled limit ($\alpha=0$) recovers SQL | $\Delta\theta = 1/T_H$ | ✅ — validated numerically |
+The Nelder–Mead optimisation was run over $\theta \in \{0.1, 0.2, 0.5, 1.0, 2.0, 5.0\}$ with 10 random restarts per $\theta$, maxiter $= 5000$ (module default).
 
-💡 **Expected Key Finding**: Non-zero interaction coefficients $\alpha_{ij}$ will produce a sensitivity improvement that is a non-trivial function of $\theta$. The improvement is expected to be modest (limited by the single-particle resource) but should demonstrate the principle of ancilla-assisted enhancement via optimised interaction-based readout.
+| $\theta$ | Best $\Delta\theta$ | SQL ($1/T_H^*$) | vs SQL | Spread | $T_H^*$ | Purity | Entangled? |
+|----------|--------------------|-----------------|--------|--------|---------|--------|------------|
+| 0.1 | 0.200000 | 0.200000 | 0.00% | 0.915 | 5.000 | 1.000 | ❌ |
+| 0.2 | 0.200000 | 0.200000 | 0.00% | 0.831 | 5.000 | 1.000 | ❌ |
+| 0.5 | 0.200000 | 0.200000 | 0.00% | 0.391 | 5.000 | 1.000 | ❌ |
+| 1.0 | 0.200000 | 0.200000 | 0.00% | 1.145 | 5.000 | 1.000 | ❌ |
+| 2.0 | 0.200000 | 0.200000 | 0.00% | 0.158 | 5.000 | 1.000 | ❌ |
+| 5.0 | 0.200053 | 0.200000 | -0.03% | 0.806 | 5.000 | 1.000 | ❌ |
 
-🔍 **Open items**: (a) Does a specific $\alpha_{ij}$ combination dominate (e.g., $\alpha_{xx}$ vs $\alpha_{zz}$)? (b) Is the optimal initial ancilla state $|\psi_A\rangle$ ever non-trivial (i.e., not $|1,0\rangle$)? (c) Does the optimal $T_H$ saturate the $T_H \leq 5$ bound, suggesting longer holds are better? (d) Are there parameter regimes where the interaction is detrimental (makes things worse)?
+**Key observations**:
+- $T_H$ **always saturates the upper bound** (5.0). When the bound was expanded to 20.0, $T_H$ saturated at 20.0 with $\Delta\theta = 0.05 = 1/20$, confirming that the optimiser simply maximises $T_H$ to minimise $\Delta\theta$.
+- **All interaction coefficients converge to $\alpha_{ij} \approx 0$** — the optimiser finds the decoupled solution in every case.
+- **Purity is always 1.0** — no entanglement is generated between S and A.
+- **High convergence spread** ($>15\%$) across restarts reflects the flat landscape near the SQL, not true local minima.
+
+### Grid Scan Over Interaction Coefficients
+
+A systematic scan of each $\alpha_{ij}$ in $[-2, 2]$ with all other parameters fixed at the SQL-optimal values ($\theta_S=\pi/2$, $\phi_S=0$, $\theta_A=0$, $T_{\text{BS}1}=T_{\text{BS}2}=\pi/2$, $T_H=1.0$, $\theta_{\text{true}}=1.0$) shows:
+
+- **$\Delta\theta(\alpha_{ij}) \geq 1/T_H$ for every $\alpha_{ij} \neq 0$** across all four interaction coefficients.
+- The sensitivity is exactly $1.0$ at $\alpha_{ij}=0$ and increases monotonically with $|\alpha_{ij}|$.
+- A random search over 200 points in the full 4D $\alpha$ space found **no combination achieving $\Delta\theta < 1/T_H$**.
+
+This conclusively demonstrates that **any non-zero system–ancilla interaction degrades the sensitivity** when $J_z^S$ is the sole measurement operator.
+
+### Expanded-Bound Investigation
+
+When the $T_H$ bound was expanded to 20.0, the best result was $\Delta\theta = 0.050000 = 1/20.0$, again at $T_H=20$ (boundary) and $\alpha=0$. The sensitivity scales exactly as $\Delta\theta = 1/T_H$, confirming the SQL-limited behaviour holds regardless of the available $T_H$ range.
+
+---
+
+## 📐 Analytical Bound: Why Ancilla Cannot Help with S-Only Measurement
+
+### Quantum Fisher Information Bound
+
+For the estimation of a parameter $\theta$ imprinted via the unitary $U = \exp(-i \theta T_H J_z^S)$ on the system qubit, the **Quantum Fisher Information (QFI)** provides a fundamental lower bound on the estimation error:
+
+$$\Delta\theta \geq \frac{1}{\sqrt{F_Q(\rho_\theta)}}$$
+
+For a **pure single-qubit state** $|\psi_S\rangle$ evolving under $e^{-i\theta T_H J_z}$:
+
+$$F_Q(|\psi_S\rangle) = T_H^2 \left[1 - \langle J_z\rangle^2\right] \leq T_H^2$$
+
+giving $\Delta\theta \geq 1/T_H$ — the standard quantum limit (SQL).
+
+When the system is entangled with an ancilla and the ancilla is traced out (which is equivalent to measuring only $S$), the reduced state is $\rho_S = \text{Tr}_A(|\Psi\rangle\langle\Psi|_{SA})$. By the **convexity of QFI**:
+
+$$F_Q(\rho_S) \leq F_Q(|\Psi\rangle_{SA}) \leq F_Q(|\psi_S\rangle) \leq T_H^2$$
+
+This chain of inequalities holds because:
+1. **Partial trace is a convex operation** — mixing reduces QFI
+2. **The overall QFI of $SA$ is bounded by the QFI of the optimal $S$-only state** because the ancilla does not couple to $\theta$
+3. **The maximum QFI for a single qubit under $J_z$ rotation** is $T_H^2$
+
+Therefore: $$\Delta\theta \geq 1/T_H$$
+**regardless of entanglement, interaction strength, or measurement choice on $S$ only.**
+
+This explains the numerical results: the Nelder–Mead optimiser correctly finds $\Delta\theta = 1/T_H$, and any non-zero $\alpha_{ij}$ only reduces the QFI further by creating a mixed reduced state, increasing $\Delta\theta$.
+
+### Implications
+
+- **An ancilla can only help through joint measurements** on S+A (e.g., measuring $\langle J_z^S + J_z^A\rangle$, which achieves SQL for $N=2$: $\Delta\theta = 1/(2T_H)$).
+- **Interaction-based readout** (Davis et al., PRA 2016) requires mapping ancilla correlations back onto S *before* measurement, which is not present in this circuit's post-hold readout.
+- The current protocol (BS1 → hold → BS2 → measure $J_z^S$) is **equivalent to a single-qubit MZI** — the ancilla is irrelevant for sensitivity.
+
+---
+
+## 🔬 Conclusions
+
+💡 **Key Finding**: The central hypothesis is **falsified** for the specific setup of $N=1$ per subsystem with $J_z^S$-only measurement. Non-zero interaction coefficients $\alpha_{ij}$ **never improve** the sensitivity $\Delta\theta$ below the SQL of $1/T_H$. Instead, any non-zero interaction strictly degrades performance.
+
+The root cause is a **fundamental QFI bound**: for any measurement performed solely on the system qubit (partial trace over ancilla), the Quantum Fisher Information cannot exceed $T_H^2$, giving $\Delta\theta \geq 1/T_H$. This bound is independent of the interaction Hamiltonian, the ancilla state, or the beam-splitter settings.
+
+**What the optimiser does find**:
+- It correctly identifies that longer holding times $T_H$ give better sensitivity ($\Delta\theta_{\text{SQL}} = 1/T_H$).
+- It correctly identifies that $\alpha_{ij} = 0$ is optimal (any interaction is detrimental).
+- It converges to the SQL exactly, validating the correctness of the implementation.
+
+**What the optimiser cannot find** (because it does not exist within this model):
+- Any configuration achieving $\Delta\theta < 1/T_H$.
+- Any configuration where entanglement improves the $S$-only measurement.
+
+🔍 **Open items**:
+- (a) Does a **joint measurement** on S+A (e.g., $J_z^S + J_z^A$, parity measurement) unlock sensitivity enhancement beyond the $N=1$ SQL? This would correspond to $N=2$ Heisenberg scaling.
+- (b) Can **interaction-based readout** (an additional interaction period after the hold, before the second BS) map ancilla correlations back onto S, enabling enhancement?
+- (c) What happens with **multiple particles** ($N > 1$ per subsystem), where spin-squeezing and two-axis counter-twisting can generate metrologically useful entanglement?
+- (d) Would a **different estimation strategy** (e.g., Bayesian estimation or maximum-likelihood) recover sensitivity when operating at fringe extrema, where the error-propagation formula diverges? This is a known limitation of the local-sensitivity approach that is independent of the QFI bound.
 
 ---
 
@@ -177,9 +255,35 @@ The simulation code has been implemented and all 55 unit tests pass. Parameter s
 | **Sensitivity** | $\Delta\theta = \sqrt{\text{Var}(J_z^S)} / |\partial\langle J_z^S\rangle/\partial\theta|$ via central finite differences |
 | **Nelder–Mead wrapper** | `scipy.optimize.minimize(method='Nelder-Mead')` with 11 parameters |
 | **θ-scan runner** | Multiple restarts per θ value, all results recorded |
-| **Validation helpers** | Hermiticity, unitarity, commutation, SQL baseline checks |
+| **Validation helpers** | Hermiticity, unitarity, commutation, SQL baseline checks, derivative stability |
+| **Bounds management** | `get_default_bounds()` + configurable bounds passed to optimisation |
+| **Convergence history** | `track_history=True` records objective values via Nelder–Mead callback |
+| **α-scan: single parameter** | `scan_alpha_single_parameter()` — scan one α_ij, others zero |
+| **α-scan: random search** | `random_search_alpha()` — uniform sampling in 4D α space |
 
-### Tests: `src/analysis/test_ancilla_optimization.py` (55 tests, all passing)
+#### Reproducing the Expanded-Bound ($T_H = 20.0$) Investigation
+
+The article's expanded-bound investigation (where $T_H$ saturated at 20.0 with $\Delta\theta = 0.05 = 1/20$) can be reproduced via the configurable bounds mechanism:
+
+```python
+from src.analysis.ancilla_optimization import run_theta_scan, get_default_bounds
+
+# Get default bounds and override T_H
+bounds = get_default_bounds()
+bounds["T_H"] = (0.0, 20.0)  # Expand from default (0, 5)
+
+# Run with expanded bounds
+result = run_theta_scan(
+    theta_values=[0.1, 0.2, 0.5, 1.0, 2.0, 5.0],
+    n_restarts=10,
+    bounds=bounds,  # ← Uses expanded T_H range
+    maxiter=5000,
+)
+```
+
+The UI also provides **T_H min** and **T_H max** controls in the "📐 Advanced: Bounds" expander in the sidebar to enable interactive exploration of expanded ranges.
+
+### Tests: `src/analysis/test_ancilla_optimization.py` (93 tests, all passing)
 
 Covers operator construction, state preparation, beam-splitter unitaries, holding Hamiltonian and unitary, circuit evolution, sensitivity computation, objective function, random initial parameters, optimisation interface, validation helpers, and convergence metric computation.
 

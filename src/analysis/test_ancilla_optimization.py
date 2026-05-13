@@ -20,6 +20,8 @@ from scipy.linalg import expm
 
 from src.analysis.ancilla_optimization import (
     I_2,
+    AlphaRandomSearchResult,
+    AlphaSingleScanResult,
     OptimisationResult,
     ThetaScanResult,
     bs_unitary,
@@ -31,10 +33,13 @@ from src.analysis.ancilla_optimization import (
     compute_reduced_purity,
     compute_sensitivity,
     evolve_full,
+    get_default_bounds,
     get_decoupled_sensitivity,
     hold_unitary,
     random_initial_params,
+    random_search_alpha,
     run_optimisation,
+    scan_alpha_single_parameter,
     sensitivity_objective,
     single_qubit_state,
     two_qubit_bs_unitary,
@@ -846,3 +851,208 @@ class TestConvergenceMetric:
             f"Converged results should give small spread, got {metric}"
         )
         assert metric > 0.0, "Spread must be positive for varied data"
+
+
+# ============================================================================
+# Bounds and Defaults Tests
+# ============================================================================
+
+
+class TestBounds:
+    """Test get_default_bounds and custom bounds support."""
+
+    def test_default_bounds_structure(self) -> None:
+        """get_default_bounds must return dict with correct keys."""
+        bounds = get_default_bounds()
+        assert isinstance(bounds, dict)
+        for key in ["theta", "phi", "T_BS", "T_H", "alpha"]:
+            assert key in bounds, f"Missing bounds key: {key}"
+            assert isinstance(bounds[key], tuple)
+            assert len(bounds[key]) == 2
+
+    def test_default_bounds_values(self) -> None:
+        """Default bounds must match article specification."""
+        bounds = get_default_bounds()
+        assert bounds["theta"] == (0.0, np.pi)
+        assert bounds["phi"] == (0.0, 2.0 * np.pi)
+        assert bounds["T_BS"] == (0.0, np.pi)
+        assert bounds["T_H"] == (0.0, 5.0)  # Article default
+        assert bounds["alpha"] == (-2.0, 2.0)
+
+    def test_random_initial_params_respects_custom_bounds(self) -> None:
+        """random_initial_params must generate within custom bounds."""
+        rng = np.random.default_rng(42)
+        custom_bounds = get_default_bounds()
+        custom_bounds["T_H"] = (0.0, 20.0)  # Expanded range like in article
+
+        for _ in range(50):
+            params = random_initial_params(rng, custom_bounds)
+            assert params.shape == (11,)
+            # T_H must be in [0, 20]
+            assert 0.0 <= params[6] <= 20.0, (
+                f"T_H = {params[6]} outside custom bounds [0, 20]"
+            )
+
+    def test_optimisation_result_has_history_field(self) -> None:
+        """OptimisationResult must have history field with default empty list."""
+        result = OptimisationResult(
+            delta_theta_opt=0.5,
+            params_opt=np.zeros(11),
+            theta_true=1.0,
+            success=True,
+            nfev=100,
+            message="OK",
+        )
+        assert hasattr(result, "history")
+        assert isinstance(result.history, list)
+        assert len(result.history) == 0  # Default empty
+
+    def test_optimisation_result_history_settable(self) -> None:
+        """history field must accept list of floats."""
+        result = OptimisationResult(
+            delta_theta_opt=0.5,
+            params_opt=np.zeros(11),
+            theta_true=1.0,
+            success=True,
+            nfev=100,
+            message="OK",
+            history=[1.0, 0.8, 0.6, 0.5],
+        )
+        assert result.history == [1.0, 0.8, 0.6, 0.5]
+
+    def test_track_history_in_optimisation(self) -> None:
+        """track_history=True must populate result.history via callback."""
+        ops = build_two_qubit_operators()
+        x0 = np.array(
+            [0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0]
+        )
+
+        # With track_history=False (default)
+        result_no_track = run_optimisation(
+            theta_true=1.0,
+            ops=ops,
+            x0=x0,
+            maxiter=20,
+            track_history=False,
+        )
+        assert len(result_no_track.history) == 0
+
+        # With track_history=True
+        result_with_track = run_optimisation(
+            theta_true=1.0,
+            ops=ops,
+            x0=x0,
+            maxiter=20,
+            track_history=True,
+        )
+        # Callback is called once per iteration
+        assert len(result_with_track.history) > 0
+        # All history values should be finite floats
+        assert all(np.isfinite(v) for v in result_with_track.history)
+        # History values should be positive (sensitivity Δθ)
+        assert all(v > 0 for v in result_with_track.history)
+
+
+# ============================================================================
+# α-Coefficient Scans Tests
+# ============================================================================
+
+
+class TestAlphaScans:
+    """Test the grid scan and random search over α coefficients."""
+
+    def test_scan_alpha_single_parameter_xx(self) -> None:
+        """Scanning α_xx must return valid structure and values."""
+        result = scan_alpha_single_parameter(
+            "xx", alpha_min=-0.5, alpha_max=0.5, n_points=5
+        )
+        assert isinstance(result, AlphaSingleScanResult)
+        assert result.alpha_name == "xx"
+        assert len(result.alpha_values) == 5
+        assert len(result.delta_theta_values) == 5
+        assert np.all(np.isfinite(result.delta_theta_values))
+
+    def test_scan_alpha_single_parameter_all_names(self) -> None:
+        """All four α coefficient names must work."""
+        for name in ["xx", "xz", "zx", "zz"]:
+            result = scan_alpha_single_parameter(
+                name, alpha_min=-0.1, alpha_max=0.1, n_points=3
+            )
+            assert result.alpha_name == name
+
+    def test_scan_alpha_single_parameter_invalid_name_raises(self) -> None:
+        """Invalid α name must raise ValueError."""
+        with pytest.raises(ValueError):
+            scan_alpha_single_parameter("invalid")  # type: ignore[arg-type]
+
+    def test_scan_alpha_achieves_sql_at_zero(self) -> None:
+        """At α=0, sensitivity should be ≈ 1.0 (1/T_H with T_H=1)."""
+        # Scan through 0; use fewer points for speed
+        result = scan_alpha_single_parameter(
+            "xx", alpha_min=-0.2, alpha_max=0.2, n_points=5, T_H=1.0, theta_true=1.0
+        )
+        # Middle value is at α=0
+        idx_mid = 2
+        assert result.alpha_values[idx_mid] == 0.0
+        # Δθ at α=0 should be close to 1.0 = 1/T_H
+        assert np.isclose(result.delta_theta_values[idx_mid], 1.0, rtol=0.1), (
+            f"At α=0, expected Δθ ≈ 1.0, got {result.delta_theta_values[idx_mid]}"
+        )
+
+    def test_random_search_alpha_basic(self) -> None:
+        """Random search must return valid result structure."""
+        result = random_search_alpha(n_samples=10, seed=42)
+        assert isinstance(result, AlphaRandomSearchResult)
+        assert result.alpha_samples.shape == (10, 4)
+        assert len(result.delta_theta_values) == 10
+        assert len(result.best_alpha) == 4
+        assert np.isfinite(result.best_delta_theta)
+
+    def test_random_search_alpha_bounds(self) -> None:
+        """All sampled α must be within [alpha_min, alpha_max]."""
+        result = random_search_alpha(
+            n_samples=50, alpha_min=-1.0, alpha_max=1.0, seed=42
+        )
+        for i in range(50):
+            for j in range(4):
+                assert -1.0 <= result.alpha_samples[i, j] <= 1.0
+
+    def test_random_search_alpha_reproducible_with_seed(self) -> None:
+        """Same seed must give same samples."""
+        result1 = random_search_alpha(n_samples=20, seed=123)
+        result2 = random_search_alpha(n_samples=20, seed=123)
+        assert np.allclose(result1.alpha_samples, result2.alpha_samples)
+        assert np.allclose(result1.delta_theta_values, result2.delta_theta_values)
+
+    @pytest.mark.slow
+    def test_alpha_never_beats_sql(self) -> None:
+        """Property-based: α ≠ 0 never gives Δθ < 1/T_H (SQL).
+
+        This validates the article's key finding: any non-zero interaction
+        degrades sensitivity when measuring J_z^S only.
+        """
+        T_H = 1.0
+        sql = 1.0 / T_H
+
+        # Check single-parameter scans
+        for name in ["xx", "xz", "zx", "zz"]:
+            result = scan_alpha_single_parameter(
+                name, alpha_min=-1.5, alpha_max=1.5, n_points=11, T_H=T_H
+            )
+            # Skip any inf values (fringe extrema)
+            finite = np.isfinite(result.delta_theta_values)
+            min_dtheta = float(np.min(result.delta_theta_values[finite]))
+            # Minimum should be at α=0, and never below SQL
+            assert min_dtheta >= sql - 1e-8, (
+                f"α_{name} scan found Δθ = {min_dtheta} < SQL = {sql}"
+            )
+
+        # Check random search
+        result_rand: AlphaRandomSearchResult = random_search_alpha(
+            n_samples=100, T_H=T_H, seed=42
+        )
+        finite = np.isfinite(result_rand.delta_theta_values)
+        min_dtheta = float(np.min(result_rand.delta_theta_values[finite]))
+        assert min_dtheta >= sql - 1e-8, (
+            f"Random search found Δθ = {min_dtheta} < SQL = {sql}"
+        )
