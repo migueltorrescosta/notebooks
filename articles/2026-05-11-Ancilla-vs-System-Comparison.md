@@ -50,7 +50,7 @@ Mode labels: 0 and 1, basis states $\vert n_0, n_1\rangle$.
 
 **Collective-Spin Operators (Two-Mode Fock)**
 
-The collective spin operators are $J_z = (n_0 - n_1)/2$ and $J_x = (a_0^\dagger a_1 + a_1^\dagger a_0)/2$, satisfying $[J_z, J_x] = i J_y$. $J_z$ is diagonal; $J_x$ couples $\vert n_0, n_1\rangle \leftrightarrow |n_0\pm 1, n_1\mp 1\rangle$.
+The collective spin operators are $J_z = (n_0 - n_1)/2$ and $J_x = (a_0^\dagger a_1 + a_1^\dagger a_0)/2$, satisfying $[J_z, J_x] = i J_y$. $J_z$ is diagonal; $J_x$ couples $\vert n_0, n_1\rangle \leftrightarrow \vert n_0\pm 1, n_1\mp 1\rangle$.
 
 For the ancilla (spin-$\frac12$): $J_z^{\text{anc}} = \sigma_z/2$, $J_x^{\text{anc}} = \sigma_x/2$.
 
@@ -107,7 +107,7 @@ This simplifies to $G_A = T_H \text{BS}_1^\dagger [\int_0^1 J_z(s) ds] \text{BS}
 
 **When $[J_z, H_{\text{int}}] \neq 0$** ($J_x \otimes J_z$ or $J_x \otimes J_x$ terms present): $J_z(s)$ acquires $J_y$ and $J_z$ components via the rotation, and the integral mixes them. The resulting $G_A$ can have a larger effective range than $J_z$ alone, potentially increasing the QFI.
 
-The QFI for a general mixed state $\rho$ is computed via the SLD eigen-decomposition formula: $F_Q(\rho, G) = 4 \sum_{i<j} \frac{(\lambda_i - \lambda_j)^2}{\lambda_i + \lambda_j} |\langle i|G|j\rangle|^2 + 4 \sum_{i\in\text{support}, j\in\text{nullspace}} \lambda_i |\langle i|G|j\rangle|^2$.
+The QFI for a general mixed state $\rho$ is computed via the SLD eigen-decomposition formula: $F_Q(\rho, G) = 4 \sum_{i<j} \frac{(\lambda_i - \lambda_j)^2}{\lambda_i + \lambda_j} \vert\langle i\vert G\vert j\rangle\vert^2 + 4 \sum_{i\in\text{support}, j\in\text{nullspace}} \lambda_i \vert\langle i\vert G\vert j\rangle\vert^2$.
 
 **Optimisation Problem**
 

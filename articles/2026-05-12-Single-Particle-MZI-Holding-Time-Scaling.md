@@ -11,7 +11,7 @@ For a single-particle Mach–Zehnder interferometer (MZI) with Hamiltonian $H = 
 | Concept, Motivation and Connection | Article | Year |
 |---|---|---|
 | Standard MZI theory: beam splitter conventions, phase accumulation, and readout in the two-mode Fock basis — Establishes the beam-splitter conventions, $J_z$ operator definition, and two-mode Fock basis used in the single-particle MZI simulation. | *Mach–Zehnder interferometry* (standard quantum optics textbooks) | — |
-| Error-propagation sensitivity formula: $\Delta\phi = \sigma_{J_z} / |\partial\langle J_z\rangle/\partial\phi|$ — Provides the $\Delta\theta = \sigma_{J_z} / |\partial\langle J_z\rangle/\partial\theta|$ error-propagation formula that is the core sensitivity metric verified analytically and numerically in this simulation. | *Quantum metrology* (standard review) | — |
+| Error-propagation sensitivity formula: $\Delta\phi = \sigma_{J_z} / \vert\partial\langle J_z\rangle/\partial\phi\vert$ — Provides the $\Delta\theta = \sigma_{J_z} / \vert\partial\langle J_z\rangle/\partial\theta\vert$ error-propagation formula that is the core sensitivity metric verified analytically and numerically in this simulation. | *Quantum metrology* (standard review) | — |
 | Ramsey interferometry with a single qubit: $\Delta\omega = 1/(T\sqrt{N})$ for $N$ independent measurements of a single probe with interrogation time $T$ — Establishes the $\Delta\omega = 1/(T\sqrt{N})$ scaling for $N$ independent measurements, providing the context that $\Delta\theta = 1/T_H$ ($N=1$) is the single-probe SQL verified here. | *Quantum metrology with a single spin* (various) | — |
 | SQL for a single probe: $\Delta\omega \propto 1/T$ when measuring a frequency $\omega$ via phase accumulation $\phi = \omega T$ — Establishes the $\Delta\omega \propto 1/T$ SQL for frequency estimation with a single probe, directly predicting the $\alpha = -1$ exponent confirmed numerically in this article. | *Quantum sensing: beyond the standard quantum limit* (review) | — |
 
@@ -23,15 +23,15 @@ For a single-particle Mach–Zehnder interferometer (MZI) with Hamiltonian $H = 
 
 ### Hilbert Space
 
-Two-mode bosonic Fock space truncated at max_photons = 1: $\mathcal{H} = \text{span}\{\,|1,0\rangle,\, |0,1\rangle\,\}$, dimension 2. This is equivalent to a spin-$1/2$ system with $J_z = (n_1 - n_2)/2$, eigenvalues $\pm 1/2$.
+Two-mode bosonic Fock space truncated at max_photons = 1: $\mathcal{H} = \text{span}\{\,\vert1,0\rangle,\, \vert0,1\rangle\,\}$, dimension 2. This is equivalent to a spin-$1/2$ system with $J_z = (n_1 - n_2)/2$, eigenvalues $\pm 1/2$.
 
 ### Input State
 
-$|\psi_0\rangle = |1,0\rangle$ (one particle in mode 0, vacuum in mode 1).
+$\vert\psi_0\rangle = \vert1,0\rangle$ (one particle in mode 0, vacuum in mode 1).
 
 ### Beam Splitter
 
-Symmetric 50:50 beam splitter ($\theta_{\text{BS}} = \pi/4$, $\phi_{\text{BS}} = 0$): $U_{\text{BS}} = \exp\!\big(-i(\pi/4)(a_0^\dagger a_1 + a_1^\dagger a_0)\big)$. In the $\{|1,0\rangle, |0,1\rangle\}$ basis, $U_{\text{BS}} = \frac{1}{\sqrt{2}}\bigl(\begin{smallmatrix} 1 & -i \\ -i & 1 \end{smallmatrix}\bigr)$.
+Symmetric 50:50 beam splitter ($\theta_{\text{BS}} = \pi/4$, $\phi_{\text{BS}} = 0$): $U_{\text{BS}} = \exp\!\big(-i(\pi/4)(a_0^\dagger a_1 + a_1^\dagger a_0)\big)$. In the $\{\vert1,0\rangle, \vert0,1\rangle\}$ basis, $U_{\text{BS}} = \frac{1}{\sqrt{2}}\bigl(\begin{smallmatrix} 1 & -i \\ -i & 1 \end{smallmatrix}\bigr)$.
 
 ### Holding Hamiltonian
 
@@ -39,7 +39,7 @@ $H = \theta J_z = \theta\,(n_1 - n_2)/2$, applied for time $T_H$, producing the 
 
 ### Full MZI Circuit
 
-$|\psi_{\text{final}}\rangle = U_{\text{BS}}\, U_{\text{hold}}(T_H)\, U_{\text{BS}}\, |1,0\rangle$.
+$\vert\psi_{\text{final}}\rangle = U_{\text{BS}}\, U_{\text{hold}}(T_H)\, U_{\text{BS}}\, \vert1,0\rangle$.
 
 ### Measurement
 
@@ -47,11 +47,11 @@ The observable $J_z = (n_1 - n_2)/2$ is diagonal with eigenvalues $\pm 1/2$.
 
 ### Sensitivity via Error Propagation
 
-$\Delta\theta = \sqrt{\text{Var}(J_z)} / \big|\partial\langle J_z\rangle/\partial\theta\big|$, where both $\langle J_z\rangle$ and $\text{Var}(J_z)$ are evaluated on $|\psi_{\text{final}}\rangle$.
+$\Delta\theta = \sqrt{\text{Var}(J_z)} / \big\vert\partial\langle J_z\rangle/\partial\theta\big\vert$, where both $\langle J_z\rangle$ and $\text{Var}(J_z)$ are evaluated on $\vert\psi_{\text{final}}\rangle$.
 
 #### Analytical Derivation
 
-The final state evaluates to $|\psi_{\text{final}}\rangle = -i\big[\sin(\theta T_H/2)\,|1,0\rangle + \cos(\theta T_H/2)\,|0,1\rangle\big]$, from which $\langle J_z\rangle = -\frac{1}{2}\cos(\theta T_H)$, $\text{Var}(J_z) = \frac{1}{4}\sin^2(\theta T_H)$, and $\partial\langle J_z\rangle/\partial\theta = \frac{T_H}{2}\sin(\theta T_H)$. Putting these together gives $\Delta\theta = \frac{\frac{1}{2}|\sin(\theta T_H)|}{\frac{T_H}{2}|\sin(\theta T_H)|} = 1/T_H$. This result is independent of $\theta$ (provided $\sin(\theta T_H) \neq 0$) and yields a clean power-law $\Delta\theta \propto T_H^{-1}$, i.e., scaling exponent $\alpha = -1$.
+The final state evaluates to $\vert\psi_{\text{final}}\rangle = -i\big[\sin(\theta T_H/2)\,\vert1,0\rangle + \cos(\theta T_H/2)\,\vert0,1\rangle\big]$, from which $\langle J_z\rangle = -\frac{1}{2}\cos(\theta T_H)$, $\text{Var}(J_z) = \frac{1}{4}\sin^2(\theta T_H)$, and $\partial\langle J_z\rangle/\partial\theta = \frac{T_H}{2}\sin(\theta T_H)$. Putting these together gives $\Delta\theta = \frac{\frac{1}{2}\vert\sin(\theta T_H)\vert}{\frac{T_H}{2}\vert\sin(\theta T_H)\vert} = 1/T_H$. This result is independent of $\theta$ (provided $\sin(\theta T_H) \neq 0$) and yields a clean power-law $\Delta\theta \propto T_H^{-1}$, i.e., scaling exponent $\alpha = -1$.
 
 #### Numerical Derivative (for verification)
 
@@ -66,7 +66,7 @@ The same derivative can be computed via central finite differences: $\partial\la
 1. Construct the two-mode Fock space with `max_photons = 1` (dimension = 4 total, 2 physical basis states).
 2. Build the beam-splitter unitary $U_{\text{BS}}$ using `scipy.linalg.expm` on $H_{\text{BS}} = a_0^\dagger a_1 + a_1^\dagger a_0$.
 3. Build $J_z$ as the diagonal operator $(n_1 - n_2)/2$ using the two-mode convention from `mzi_states.py`.
-4. For each $T_H$ in the sweep: (a) construct $U_{\text{hold}} = \exp(-i \theta_0 T_H J_z)$ where $\theta_0$ is the true value (e.g., $\theta_0 = 1$), (b) apply $U_{\text{BS}} \to U_{\text{hold}} \to U_{\text{BS}}$ to $|1,0\rangle$, (c) compute $\langle J_z\rangle$ and $\text{Var}(J_z)$, (d) compute $\partial\langle J_z\rangle/\partial\theta$ analytically and numerically, and (e) compute $\Delta\theta$ from both methods.
+4. For each $T_H$ in the sweep: (a) construct $U_{\text{hold}} = \exp(-i \theta_0 T_H J_z)$ where $\theta_0$ is the true value (e.g., $\theta_0 = 1$), (b) apply $U_{\text{BS}} \to U_{\text{hold}} \to U_{\text{BS}}$ to $\vert1,0\rangle$, (c) compute $\langle J_z\rangle$ and $\text{Var}(J_z)$, (d) compute $\partial\langle J_z\rangle/\partial\theta$ analytically and numerically, and (e) compute $\Delta\theta$ from both methods.
 5. Plot $\Delta\theta$ vs $T_H$ on a log-log scale and fit the scaling exponent $\alpha$, overlaying the analytical prediction $\Delta\theta = 1/T_H$ as a reference line.
 
 ### Parameter Sweep
@@ -103,7 +103,7 @@ assert np.allclose(dJz_dtheta_analytical,
 
 | Failure                                | Description                                                                                                                                                                                                                                 | Mitigation |
 |----------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| Numerical derivative at fringe extrema | When $\sin(\theta T_H) \approx 0$ (i.e., $\theta T_H \approx n\pi$), both the numerator $\sqrt{\text{Var}(J_z)}$ and denominator $\vert \partial\langle J_z\rangle/\partial\theta                                                           |$ vanish, producing an ill-defined $0/0$. | Exclude $T_H$ values where $\vert \sin(\theta T_H)| < 10^{-6}$ from the scaling fit; the analytical expression $\Delta\theta = 1/T_H$ handles the limit correctly via continuity but the numerical evaluation at exactly a fringe extremum will be unstable. |
+| Numerical derivative at fringe extrema | When $\sin(\theta T_H) \approx 0$ (i.e., $\theta T_H \approx n\pi$), both the numerator $\sqrt{\text{Var}(J_z)}$ and denominator $\vert \partial\langle J_z\rangle/\partial\theta                                                           \vert$ vanish, producing an ill-defined $0/0$. | Exclude $T_H$ values where $\vert \sin(\theta T_H)\vert < 10^{-6}$ from the scaling fit; the analytical expression $\Delta\theta = 1/T_H$ handles the limit correctly via continuity but the numerical evaluation at exactly a fringe extremum will be unstable. |
 | Finite-difference step-size error      | If $\delta$ is too large, truncation error dominates; if too small, subtractive cancellation dominates.                                                                                                                                     | Use $\delta = 10^{-6}$ (double-precision optimal for functions evaluating to $\mathcal{O}(1)$); optionally verify with $\delta = 10^{-5}$ and $10^{-7}$. |
 | Small-$T_H$ artifacts                  | At $T_H < 0.1$ and $\theta_0 = 1$, the accumulated phase $\phi = \theta T_H < 0.1 \ll 1$, making the signal $\langle J_z\rangle$ barely changed from its initial value. The finite-difference derivative may suffer from near-cancellation. | Include $T_H \geq 0.1$ in the sweep; monitor the condition number of the derivative. |
 | Log-log fit quality at large $T_H$     | At $T_H \gg 1$, $\Delta\theta \ll 1$ and may approach machine precision limits for the sensitivity.                                                                                                                                         | Cap $T_H$ at 100 (well within double precision); the fit only needs $R^2 > 0.99$. |

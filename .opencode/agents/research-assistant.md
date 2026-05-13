@@ -147,7 +147,7 @@ Table mapping components to descriptions (e.g., operator construction, state pre
 8. **Don't** use breaklines in prose when inline equations suffice.
 9. **Don't** use decorative emojis beyond the defined set.
 10. **Don't** write `**PASS**`/`**FAIL**` in tables — use emoji only.
-11. **Don't** use the `|` character inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert`.
+11. **Don't** use the `|` character inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.
 
 # Coding Workflow
 Follow these steps **in order** for every task that requires writing code.

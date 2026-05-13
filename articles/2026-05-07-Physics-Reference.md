@@ -272,7 +272,7 @@ where $\langle e^{i\phi}\rangle = \sum_\phi P(\phi\vert{}m_0) e^{i\phi}$.
 | Error Propagation | $\Delta\phi_{\text{EP}} = \sigma/\vert\partial\langle O\rangle/\partial\phi\vert$ | Quick estimates | Low |
 | Classical Fisher | $\Delta\phi_C = 1/\sqrt{F_C}$ | Optimized measurements | Medium |
 | Quantum Fisher | $\Delta\phi_Q = 1/\sqrt{F_Q}$ | Theoretical bounds | Medium (pure) / High (mixed) |
-| Bayesian | $\Delta\phi_B = \text{Std}[\phi\vertm_0]$ | Finite samples, prior info | High |
+| Bayesian | $\Delta\phi_B = \text{Std}[\phi\vert m_0]$ | Finite samples, prior info | High |
 
 **Inequality chain:**
 $$
@@ -508,11 +508,11 @@ $$
 
 | Concept | Equation |
 |---------|----------|
-| **NOON state** | $\vert\text{NOON}\rangle = \frac{\vertN,0\rangle + \vert0,N\rangle}{\sqrt{2}}$ |
+| **NOON state** | $\vert\text{NOON}\rangle = \frac{\vert N,0\rangle + \vert0,N\rangle}{\sqrt{2}}$ |
 | **QFI (pure)** | $F_Q = 4\text{Var}(G) = 4(\langle G^2\rangle - \langle G\rangle^2)$ |
-| **QFI (mixed)** | $F_Q = 2\sum_{i<j} \frac{(\lambda_i-\lambda_j)^2}{\lambda_i+\lambda_j}\vert\langle i\vertG\vertj\rangle\vert^2 + \sum_i 4\lambda_i\vert\Delta G_{ii}\vert^2$ |
+| **QFI (mixed)** | $F_Q = 2\sum_{i<j} \frac{(\lambda_i-\lambda_j)^2}{\lambda_i+\lambda_j}\vert\langle i\vert G\vert j\rangle\vert^2 + \sum_i 4\lambda_i\vert\Delta G_{ii}\vert^2$ |
 | **Cramér-Rao** | $\Delta\phi \geq \frac{1}{\sqrt{F}}$ |
-| **Error propagation** | $\Delta\phi_{\text{EP}} = \frac{\sigma_O}{\vertd\langle O\rangle/d\phi\vert}$ |
+| **Error propagation** | $\Delta\phi_{\text{EP}} = \frac{\sigma_O}{\vert d\langle O\rangle/d\phi\vert}$ |
 | **Bayesian (circular)** | $\Delta\phi_B = \sqrt{-2\ln\vert\langle e^{i\phi}\rangle\vert}$ |
 | **Heisenberg limit** | $\Delta\phi_{\text{HL}} = \frac{1}{N}$ |
 | **SQL** | $\Delta\phi_{\text{SQL}} = \frac{1}{\sqrt{N}}$ |
