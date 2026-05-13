@@ -73,6 +73,7 @@ class TensorTreeNetwork:
 
         Returns:
             TensorTreeNetwork.
+
         """
         expected_dim = local_dim ** (2 * n_sites)
         if state.shape[0] != expected_dim:

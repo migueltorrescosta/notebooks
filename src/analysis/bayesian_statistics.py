@@ -41,6 +41,7 @@ class BayesUpdate:
         2    0.1875
         3    0.0625
         Name: posterior, dtype: float64
+
     """
 
     def __init__(self, df: DataFrame) -> None:
@@ -52,6 +53,7 @@ class BayesUpdate:
 
         Raises:
             AssertionError: If columns are not exactly {prior, likelihood}.
+
         """
         assert set(df.columns) == {"prior", "likelihood"}
         self.df = df
@@ -85,6 +87,7 @@ class BayesUpdate:
 
         Returns:
             Matplotlib Figure object containing the three subplots.
+
         """
         fig, ax = plt.subplots(figsize=(15, 5), ncols=3, sharey=True)
         if self.is_categorical:

@@ -21,8 +21,20 @@ Key result: Weak-value amplification cannot beat the standard quantum
 limit for phase estimation. The amplification comes entirely at the cost
 of reduced post-selection probability.
 
+Hilbert Space:
+- Two-mode Fock basis with max N photons (dimension: (N+1)²)
+- Consistent with src.physics.mzi_simulation conventions
+
 Units:
-- Dimensionless throughout. Phase is measured in radians.
+- Dimensionless throughout (ℏ = 1)
+- Phase is measured in radians
+
+Conventions:
+- Same MZI conventions as src.physics.mzi_simulation
+- Beam splitter: 50:50 symmetric (θ = π/4)
+- Phase shift on mode 1: exp(i · φ · n₁)
+- Post-selection: project onto near-orthogonal state |f⟩ at output
+- Weak value A_w can be complex; amplification is |A_w|
 
 Conventions:
 - Two-mode Fock basis |n₁, n₂⟩ with n₁ as first mode, n₂ as second mode.
@@ -38,6 +50,7 @@ References:
 - Dixon et al., PRL 102, 173601 (2009)
 - Steinberg, Nature 463, 890 (2010)
 - Dressel et al., RMP 86, 307 (2014)
+
 """
 
 from dataclasses import dataclass
@@ -81,6 +94,7 @@ class WeakValueConfig:
             which yields ≈10× amplification.
         measurement_basis: Measurement basis for post-selection.
             Supported: 'parity', 'Jz'.
+
     """
 
     theta: float = np.pi / 4
@@ -114,6 +128,7 @@ def create_number_operator(max_photons: int) -> tuple[np.ndarray, np.ndarray]:
         0.0
         >>> n1[2, 2]  # |0,1⟩ has 1 photon in mode 1
         1.0
+
     """
     dim = (max_photons + 1) ** 2
     n0 = np.zeros((dim, dim), dtype=complex)
@@ -156,6 +171,7 @@ def _apply_jz_rotation(
         >>> rotated = _apply_jz_rotation(state, np.pi/2, max_photons=1)
         >>> np.allclose(rotated, state)  # J_z|0,0⟩ = 0
         True
+
     """
     dim = (max_photons + 1) ** 2
     result = np.empty(dim, dtype=complex)
@@ -183,6 +199,7 @@ def _mean_photon_number(state: np.ndarray, max_photons: int) -> float:
 
     Returns:
         Mean total photon number ⟨n₀ + n₁⟩.
+
     """
     n0, n1 = create_number_operator(max_photons)
     n_total = n0 + n1
@@ -265,6 +282,7 @@ def weak_value_mzi(
         >>> result = weak_value_mzi(psi0, phi=0.01, config=config, max_photons=10)
         >>> result["amplification"] > 1.0
         True
+
     """
     # ------------------------------------------------------------------
     # Input validation
@@ -507,6 +525,7 @@ def weak_value_mzi_sensitivity(
         True
         >>> result["delta_phi"] > result["delta_phi_conventional"]
         True
+
     """
     # ------------------------------------------------------------------
     # Input validation

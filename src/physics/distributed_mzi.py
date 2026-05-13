@@ -11,6 +11,22 @@ Physical Model:
 - Correlated noise degrades quantum advantage:
   Δφ_total² = (1-c)·Δφ_ind²/M + c·Δφ_corr²
 
+Hilbert Space:
+- Each MZI sensor: two-mode Fock basis (see src.physics.mzi_simulation)
+- Full array: M × (N+1)² (product space across sensors)
+- For entangled sensors: collective Hilbert space dimension grows as ((N+1)²)^M
+
+Units:
+- Dimensionless throughout (ℏ = 1)
+- Phase φ in radians
+- Correlation coefficient c ∈ [0, 1] is dimensionless
+
+Conventions:
+- Each sensor follows the MZI conventions from src.physics.mzi_simulation
+- Independent sensors: product state across the array
+- Entangled sensors: correlated state across the array (e.g., shared squeezed resource)
+- Noise correlation: c = 0 means independent noise, c = 1 means fully correlated
+
 Scaling Regimes:
 - Uncorrelated classical: Δφ ∝ N^(-0.5)
 - Entangled (no correlated noise): Δφ ∝ N^(-1.0)
@@ -20,6 +36,7 @@ References:
 - Giovannetti et al. "Quantum metrology" (2011)
 - Demkowicz-Dobrzanski et al. "Quantum metrology with nonclassical states" (2015)
 - Escher et al. "General framework for estimating the ultimate precision" (2011)
+
 """
 
 from __future__ import annotations
@@ -51,6 +68,7 @@ class DistributedMziConfig:
             Correlated noise reduces the benefit of having multiple sensors.
         theta: Beam splitter angle (π/4 = 50/50 beam splitter).
         phi_bs: Reference phase at output beam splitter.
+
     """
 
     M: int = 2
@@ -151,6 +169,7 @@ def distributed_mzi_sensitivity(
         >>> # Expected: 1/√100 = 0.1 (same as single sensor)
         >>> abs(result_corr["delta_phi"] - 0.1) < 0.01
         True
+
     """
     if N_per_sensor <= 0:
         raise ValueError(f"Photon number per sensor must be > 0, got {N_per_sensor}")
@@ -354,6 +373,7 @@ def distributed_scaling_exponent(
         >>> config_ent = DistributedMziConfig(M=4, entangled=True)
         >>> distributed_scaling_exponent(config_ent)
         -1.0
+
     """
     if config.entangled:
         return -1.0
@@ -382,6 +402,7 @@ def effective_scaling_at_N(
 
     Returns:
         Effective exponent α ≡ d(log(Δφ))/d(log(N)).
+
     """
     # Use central difference with small perturbation
     rel_perturb = 0.01
@@ -452,6 +473,7 @@ def compute_distributed_scaling(
         >>> result = compute_distributed_scaling(M_values, N_values, config)
         >>> result["delta_phi_grid"].shape
         (4, 3)
+
     """
     M_values = np.asarray(M_values)
     N_values = np.asarray(N_per_sensor_values)

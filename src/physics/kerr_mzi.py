@@ -104,6 +104,7 @@ def kerr_phase_shift_unitary(
         >>> from src.physics.mzi_simulation import phase_shift_unitary
         >>> np.allclose(U_lin, phase_shift_unitary(1.0, 2))
         True
+
     """
     if max_photons < 0:
         raise ValueError(f"max_photons must be non-negative, got {max_photons}")
@@ -190,6 +191,13 @@ def kerr_mzi(
         ValueError: If the input state is not normalized (invalid
             quantum state).
 
+    Constraints:
+        initial_state must be normalized (L2 norm = 1).
+        chi >= 0 (Kerr nonlinearity), T >= 0 (evolution time).
+        theta in [0, π] (beam splitter angle).
+        Output dimension = (max_photons + 1)².
+        Unitary evolution: norm is preserved.
+
     Example:
         >>> from src.physics.mzi_simulation import noon_state
         >>> state = noon_state(3, max_photons=3)
@@ -200,6 +208,7 @@ def kerr_mzi(
         >>> final_lin = kerr_mzi(state, phi=1.0, chi=0.0, T=0.0, max_photons=3)
         >>> np.isclose(np.sum(np.abs(final_lin) ** 2), 1.0)
         True
+
     """
     if not validate_state_mzi(initial_state):
         raise ValueError(
@@ -269,6 +278,7 @@ def compute_kerr_output_probabilities(
         >>> P0, P1 = compute_kerr_output_probabilities(state, 2)
         >>> np.isclose(P0 + P1, 1.0)
         True
+
     """
     P0 = 0.0
     P1 = 0.0
@@ -368,6 +378,7 @@ def compute_kerr_phase_sensitivity(
         This matches the standard quantum metrology convention
         where the NOON state is the path-entangled resource used
         for Heisenberg-limited phase estimation.
+
     """
     if max_photons is None:
         max_photons = N
@@ -454,6 +465,7 @@ def compute_kerr_interference_fringe(
         (100,)
         >>> np.all(fringe >= 0) and np.all(fringe <= 1)
         True
+
     """
     if initial_state is None:
         from src.physics.mzi_simulation import noon_state

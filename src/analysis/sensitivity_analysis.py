@@ -54,6 +54,7 @@ def compute_rabi_frequency(
 
     Raises:
         ValueError: If k > n or k < 0.
+
     """
     if k > n:
         raise ValueError(f"k={k} must be <= n={n}")
@@ -99,6 +100,13 @@ def sensitivity(
 
     Raises:
         ValueError: If k > n or k < 0.
+
+    Constraints:
+        0 <= k <= n (ancilla level within subspace).
+        j_s, delta_s, alpha_x, alpha_z are real coupling constants.
+        t >= 0 (evolution time).
+        Returns zero sensitivity when omega_k ≈ 0 (avoid division by zero).
+
     """
     if k > n:
         raise ValueError(f"k={k} must be <= n={n}")
@@ -170,6 +178,7 @@ def compute_sensitivity_grid(
 
     Returns:
         Dictionary with sensitivity grids.
+
     """
     omega_grid = np.zeros((len(alpha_x_range), len(alpha_z_range)))
     sens_j_grid = np.zeros_like(omega_grid)
@@ -218,6 +227,7 @@ def compute_observable(
 
     Returns:
         Observable value ⟨σ_z⟩.
+
     """
     x_coefficient = alpha_x * (n - 2 * k) / 2 - j_s
     z_coefficient = alpha_z * (n - 2 * k) / 2 + delta_s

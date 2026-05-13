@@ -43,6 +43,7 @@ def fourier_transform(
     Note:
         The FFT assumes periodic boundary conditions. Non-periodic
         signals will show spectral leakage.
+
     """
     x_axis = np.linspace(a, b, time_domain_n)
     time_frequency = np.divide(b - a, time_domain_n)
@@ -96,6 +97,7 @@ def finite_dimensional_populations_over_time(
         AssertionError: If time_window_upper_bound is not positive.
         AssertionError: If rho0 doesn't have trace 1.
         AssertionError: If number of labels doesn't match dimension.
+
     """
     n_states = hamiltonian.shape[0]
 
@@ -167,6 +169,7 @@ def quantum_state_heatmap(
         inefficient for large Hilbert spaces. For large systems,
         consider using the eigendecomposition method in
         `finite_dimensional_populations_over_time`.
+
     """
     rho_t = expm(-1j * hamiltonian * t) @ rho0 @ expm(1j * hamiltonian * t)
     fig, (ax1, ax2) = plt.subplots(1, 2)

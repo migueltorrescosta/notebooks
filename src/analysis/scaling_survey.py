@@ -85,6 +85,7 @@ def _non_gaussian_sensitivity_fn(
 
     Raises:
         ValueError: If n_order is not 2, 3, or 4.
+
     """
     import scipy.linalg  # noqa: PLC0415 — lazy import avoids startup cost
 
@@ -160,6 +161,7 @@ def _ancilla_sensitivity_fn(
         the ancilla-system coupling ``g_sa`` (larger noise_level =
         stronger coupling / effective decoherence). The base ``g_sa``
         is multiplied by ``(1 + noise_level)``.
+
     """
     from src.physics.pseudomode_system import PseudomodeConfig, run_metrology_protocol  # noqa: PLC0415
 
@@ -221,6 +223,7 @@ class SurveyConfig:
             "ep" (Error Propagation), "bayesian".
             Default: "qfi".
         seed: Random seed for reproducibility. Default: 42.
+
     """
 
     N_range: tuple[int, int] = (2, 64)
@@ -275,6 +278,7 @@ class ModelConfig:
             When set, ``state_type`` and ``entangler`` are ignored; the callable
             is invoked directly by ``run_scaling_survey``.
             Typical usage: plug in cavity, distributed, DD, TTL, or thermal models.
+
     """
 
     model_id: str
@@ -322,6 +326,7 @@ def _max_photons_for_state(state_type: str, N: int) -> int:
 
     Returns:
         Appropriate max_photons value.
+
     """
     # States that need larger Hilbert space for Poisson tails
     coherent_like = {"css", "coherent", "squeezed_vacuum"}
@@ -343,6 +348,7 @@ def _generate_N_values(config: SurveyConfig) -> np.ndarray:
 
     Returns:
         Sorted 1D array of unique integer N values.
+
     """
     N_min, N_max = config.N_range
     N_raw = np.logspace(np.log10(N_min), np.log10(N_max), config.N_points).astype(int)
@@ -382,6 +388,7 @@ def _apply_entanglement(
 
     Raises:
         ValueError: If entangler type is not recognized.
+
     """
     if entangler == "none":
         return state.copy()
@@ -465,6 +472,7 @@ def _compute_noisy_sensitivity(
     Returns:
         Phase sensitivity Δφ (lower is better). Returns np.inf if
         the QFI is zero or negative (no phase information).
+
     """
     noise_free = noise_level <= 0.0 or np.isclose(noise_level, 0.0)
     no_noise_type = noise_type == "none"
@@ -531,6 +539,7 @@ def _compute_detection_noise_sensitivity(
 
     Returns:
         Phase sensitivity Δφ.
+
     """
     if eta <= 0:
         return np.inf
@@ -563,6 +572,7 @@ def _compute_pure_state_sensitivity(state: np.ndarray, max_photons: int) -> floa
 
     Returns:
         Phase sensitivity Δφ.
+
     """
     try:
         F_Q = compute_fisher_information(state, max_photons)
@@ -589,6 +599,7 @@ def _apply_phase_imprint(
 
     Returns:
         Phase-imprinted state vector.
+
     """
     phase_U = phase_shift_unitary(phi, max_photons)
     return phase_U @ state
@@ -633,6 +644,7 @@ def run_scaling_survey(
 
     Raises:
         ValueError: If models list is empty or survey_config is invalid.
+
     """
     if not models:
         raise ValueError("At least one model must be specified")
@@ -785,6 +797,7 @@ def fit_all_exponents(
 
     Raises:
         ValueError: If survey_df is empty or missing required columns.
+
     """
     required = {"N", "delta_phi"}
     missing = required - set(survey_df.columns)
@@ -871,6 +884,7 @@ def survey_to_csv(survey_df: pd.DataFrame, path: str) -> None:
 
     Raises:
         ValueError: If survey_df is empty.
+
     """
     if survey_df.empty:
         raise ValueError("Cannot export empty DataFrame")
@@ -890,6 +904,7 @@ def survey_to_json(survey_df: pd.DataFrame, path: str) -> None:
 
     Raises:
         ValueError: If survey_df is empty.
+
     """
     if survey_df.empty:
         raise ValueError("Cannot export empty DataFrame")
@@ -955,6 +970,7 @@ def create_survey_model(
 
     Returns:
         ModelConfig with appropriate defaults for the given model_id.
+
     """
     defaults: dict[str, str] = {
         "ideal_coherent": "css",  # CSS = coherent state with |alpha|² = N
@@ -1106,6 +1122,7 @@ def create_default_survey() -> list[ModelConfig]:
 
     Returns:
         List of ModelConfig objects for the default survey.
+
     """
     model_ids = [
         "ideal_coherent",

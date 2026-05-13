@@ -33,6 +33,7 @@ Example:
     >>> css = coherent_spin_state(N)  # |J, -J>_z state
     >>> xi = squeezing_parameter(css, N)  # = 1.0 exactly
     >>> print(f"CSS squeezing parameter: {xi:.6f}")
+
 """
 
 from __future__ import annotations
@@ -72,6 +73,7 @@ def coherent_spin_state(N: int) -> np.ndarray:
         >>> xi = squeezing_parameter(css, N)
         >>> np.isclose(xi, 1.0, atol=1e-6)  # CSS has ξ ≈ 1
         True
+
     """
     from scipy.linalg import expm
     from src.physics.dicke_basis import jy_operator
@@ -132,6 +134,7 @@ def one_axis_twist(
         >>> # Squeezing parameter should be < 1 after OAT
         >>> xi = squeezing_parameter(squeezed, N)
         >>> print(f"Squeezing parameter: {xi:.4f}")
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -199,6 +202,7 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
         >>> xi = squeezing_parameter(css, N)
         >>> np.isclose(xi, 1.0, atol=1e-6)  # CSS has ξ ≈ 1
         True
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -300,6 +304,7 @@ def optimal_squeezing_time(N: int, chi: float) -> float:
         >>> N = 100
         >>> t_opt = optimal_squeezing_time(N, chi=1.0)
         >>> print(f"Optimal time: {t_opt:.4f}")
+
     """
     if N <= 0:
         raise ValueError(f"Number of atoms N must be positive, got {N}")
@@ -337,6 +342,7 @@ def generate_squeezed_state(N: int, chi: float, t: float) -> np.ndarray:
         >>> squeezed = generate_squeezed_state(N, chi=1.0, t=t_opt)
         >>> xi = squeezing_parameter(squeezed, N)
         >>> print(f"Squeezing parameter at t_opt: {xi:.4f}")
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")

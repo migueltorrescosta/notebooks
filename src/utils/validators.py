@@ -50,6 +50,7 @@ def validate_hamiltonian_hermitian(hamiltonian: np.ndarray) -> bool:
 
     Returns:
         True if H = H^\dagger.
+
     """
     return np.allclose(hamiltonian, hamiltonian.conj().T)
 
@@ -66,6 +67,7 @@ def validate_eigenvectors_orthonormal(
 
     Returns:
         True if V^\dagger V = I.
+
     """
     overlap = vectors.conj().T @ vectors
     return np.allclose(overlap, np.eye(vectors.shape[1]), atol=tolerance)
@@ -87,6 +89,7 @@ def validate_eigendecomposition(
 
     Returns:
         True if all equations hold.
+
     """
     for i in range(len(eigenvalues)):
         Hv = hamiltonian @ eigenvectors[:, i]
@@ -115,6 +118,7 @@ def validate_orthonormality(
 
     Returns:
         Maximum deviation from orthonormality.
+
     """
     n = eigenvectors.shape[1]
     overlap = np.real(np.conjugate(eigenvectors.T) @ eigenvectors)
@@ -134,6 +138,7 @@ def validate_probability_conservation(
 
     Returns:
         True if probability is conserved.
+
     """
     prob = np.sum(np.abs(wf) ** 2)
     return np.isclose(prob, 1.0, rtol=tolerance)
@@ -165,6 +170,7 @@ def validate_partial_trace(
 
     Returns:
         True if valid.
+
     """
     # Check trace = 1
     if not np.isclose(np.trace(rho_full), 1.0, atol=tolerance):
@@ -215,6 +221,19 @@ def validate_sensitivity(
 
     Returns:
         True if numerical derivative matches analytical.
+
+    Constraints:
+        0 <= k <= n (ancilla level within subspace).
+        tolerance > 0 (pass/fail threshold).
+        Uses internal eps = 1e-5 for finite difference step.
+
+    Agent Notes:
+        Imports compute_observable and sensitivity from
+        src.analysis.sensitivity_analysis inside the function body
+        to avoid circular imports (sensitivity_analysis imports
+        validators). If sensitivity_analysis is refactored, update
+        these local imports accordingly.
+
     """
     # Import here to avoid circular imports
     from src.analysis.sensitivity_analysis import compute_observable, sensitivity
@@ -260,6 +279,7 @@ def validate_state_delta_estimation(
 
     Returns:
         True if valid, False otherwise.
+
     """
     if state.shape != expected_dims:
         return False
@@ -284,6 +304,7 @@ def validate_hamiltonian_delta_estimation(hamiltonian: np.ndarray) -> bool:
 
     Returns:
         True if valid, False otherwise.
+
     """
     # Check Hermitian: H = H^\dagger
     if not np.allclose(hamiltonian, hamiltonian.conj().T):
@@ -307,6 +328,14 @@ def validate_state_mzi(state: np.ndarray) -> bool:
 
     Returns:
         True if the state is normalized (||ψ|| = 1), False otherwise.
+
+    Agent Notes:
+        This function is re-exported as `validate_state` in
+        src.physics.mzi_simulation (line 35) for backward compatibility.
+        Any refactoring that changes the name or signature must update
+        the alias. Also aliased in src.analysis.delta_estimation (line 35)
+        as `validate_state = validate_state_delta_estimation` (different function!).
+
     """
     norm = np.sqrt(np.sum(np.abs(state) ** 2))
     return np.isclose(norm, 1.0, atol=1e-10)
@@ -324,5 +353,6 @@ def validate_unitary(U: np.ndarray, tol: float = 1e-8) -> bool:
 
     Returns:
         True if the matrix is unitary, False otherwise.
+
     """
     return np.allclose(U @ U.conj().T, np.eye(U.shape[0]), atol=tol)

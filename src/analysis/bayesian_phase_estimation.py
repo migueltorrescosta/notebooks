@@ -52,6 +52,7 @@ def bayesian_likelihood(
 
     Returns:
         Array of P(m=0|φ) for each phase value.
+
     """
     n_phi = len(phi_grid)
     likelihood = np.zeros(n_phi)
@@ -107,6 +108,7 @@ def bayesian_posterior(
 
     Raises:
         ValueError: If measurement_outcome is not 0 or 1.
+
     """
     if measurement_outcome not in (0, 1):
         raise ValueError(
@@ -155,6 +157,7 @@ def bayesian_sensitivity(posterior: np.ndarray, phi_grid: np.ndarray) -> float:
 
     Raises:
         ValueError: If posterior doesn't sum to 1 or grid lengths don't match.
+
     """
     if len(posterior) != len(phi_grid):
         raise ValueError(
@@ -193,6 +196,7 @@ def bayesian_sensitivity_circular(posterior: np.ndarray, phi_grid: np.ndarray) -
 
     Returns:
         Circular standard deviation.
+
     """
     # Compute the resultant vector length R = |⟨e^{iφ}⟩|
     complex_mean = np.sum(posterior * np.exp(1j * phi_grid))
@@ -238,6 +242,7 @@ def sample_measurement_outcomes(
 
     Raises:
         ValueError: If n_samples <= 0.
+
     """
     if n_samples <= 0:
         raise ValueError(f"n_samples must be positive, got {n_samples}")
@@ -303,6 +308,7 @@ def bayesian_estimator(
 
     Raises:
         ValueError: If outcomes is empty.
+
     """
     if len(outcomes) == 0:
         raise ValueError("outcomes must not be empty")
@@ -378,6 +384,7 @@ def bayesian_estimator_batch(
 
     Returns:
         Dictionary from bayesian_estimator.
+
     """
     initial_state = prepare_input_state(state_type, max_photons=max_photons)
 
@@ -403,6 +410,7 @@ def compute_crb(
 
     Returns:
         Cramér-Rao bound Δφ_CRB = 1/√(N × F_Q).
+
     """
     # Compute QFI for single photon input
     # For a single photon in mode 0 through 50/50 BS:
@@ -438,6 +446,7 @@ def bayesian_sensitivity_analytical(
 
     Returns:
         Approximate sensitivity (posterior std) at n_outcomes_0/n_total successes.
+
     """
     if n_total <= 0:
         raise ValueError(f"n_total must be positive, got {n_total}")

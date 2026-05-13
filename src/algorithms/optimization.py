@@ -218,6 +218,7 @@ def create_minimizer(
 
     Returns:
         Minimizer function.
+
     """
     from scipy.optimize import minimize
 
@@ -268,6 +269,7 @@ def generate_surface(
 
     Returns:
         Matrix of shape (resolution, resolution) with function values.
+
     """
     if function_name not in TEST_FUNCTIONS:
         raise ValueError(f"Unknown function: {function_name}")
@@ -298,6 +300,7 @@ def benchmark_optimizers(
 
     Returns:
         Results dictionary with argmin and minimum values.
+
     """
     results = []
 
@@ -333,6 +336,7 @@ def normalize_benchmark_results(
 
     Returns:
         Normalized values array.
+
     """
     functions = list(set(r["function"] for r in results))
     minimizers = list(set(r["minimizer"] for r in results))

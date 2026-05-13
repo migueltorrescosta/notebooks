@@ -56,6 +56,7 @@ class LindbladConfig:
         gamma_2: Two-body loss rate (γ₂).
         gamma_phi: Phase diffusion rate (γ_φ).
         chi: One-axis twisting squeezing strength.
+
     """
 
     N: int
@@ -81,6 +82,7 @@ def create_bosonic_operators(N: int) -> Tuple[np.ndarray, np.ndarray]:
 
     Returns:
         Tuple of (a, a†) operators, both shape (N+1, N+1).
+
     """
     dim = N + 1
 
@@ -104,6 +106,7 @@ def number_operator(N: int) -> np.ndarray:
 
     Returns:
         Number operator of shape (N+1, N+1).
+
     """
     a, a_dag = create_bosonic_operators(N)
     return a_dag @ a
@@ -119,6 +122,7 @@ def create_two_mode_operators(
 
     Returns:
         Tuple of (a1, a2, a1†, a2†) operators.
+
     """
     dim = (N + 1) ** 2
 
@@ -159,6 +163,7 @@ def ket_to_density(psi: np.ndarray) -> np.ndarray:
 
     Returns:
         Density matrix ρ = |ψ⟩⟨ψ|.
+
     """
     return np.outer(psi, psi.conj())
 
@@ -173,6 +178,7 @@ def density_to_vector(rho: np.ndarray) -> np.ndarray:
 
     Returns:
         Vectorized density of shape (d*d,).
+
     """
     return rho.flatten(order="F")
 
@@ -185,6 +191,7 @@ def vector_to_density(rho_vec: np.ndarray) -> np.ndarray:
 
     Returns:
         Density matrix of shape (d, d).
+
     """
     d = int(np.sqrt(rho_vec.shape[0]))
     return rho_vec.reshape((d, d), order="F")
@@ -199,6 +206,7 @@ def create_fock_state(n: int, N: int) -> np.ndarray:
 
     Returns:
         Fock state vector of shape (N+1,).
+
     """
     if n > N:
         raise ValueError(f"n={n} exceeds truncation N={N}")
@@ -217,6 +225,7 @@ def create_coherent_state(alpha: complex, N: int, truncation: int = 10) -> np.nd
 
     Returns:
         Coherent state vector.
+
     """
     # Increase truncation if needed
     effective_N = max(N, int(np.abs(alpha) ** 2) + truncation)
@@ -264,6 +273,7 @@ def lindblad_liouvillian(
 
     Returns:
         Time derivative of density matrix (dρ/dt).
+
     """
     # Commutator term: -i[H, rho]
     drho_dt = -1.0j * (H @ rho - rho @ H)
@@ -305,6 +315,7 @@ def vectorized_liouvillian(
 
     Returns:
         Time derivative as vector.
+
     """
     rho = vector_to_density(rho_vec)
     drho_dt = lindblad_liouvillian(rho, H, L_ops, gammas)
@@ -330,6 +341,7 @@ def build_liouvillian_matrix(
 
     Returns:
         Liouvillian matrix of shape (d², d²).
+
     """
     d = H.shape[0]
     eye = np.eye(d, dtype=complex)
@@ -389,6 +401,14 @@ def evolve_lindblad(
 
     Returns:
         Final density matrix at time T.
+
+    Constraints:
+        initial_rho must be Hermitian, trace-1, positive semidefinite.
+        T >= 0, dt > 0 (integration parameters).
+        method in {"rk4", "scipy"}.
+        config.N >= 0, config.gamma_{1,2,phi} >= 0.
+        Performance: O((N+1)⁶ · T/dt) for full density matrix evolution.
+
     """
     # Build Hamiltonian and Lindblad operators
     N = config.N
@@ -462,6 +482,7 @@ def _evolve_rk4(
 
     Returns:
         Final density matrix.
+
     """
     if T <= 0:
         return initial_rho.copy()
@@ -506,6 +527,7 @@ def _evolve_scipy(
 
     Returns:
         Final density matrix.
+
     """
     # Vectorize initial state
     rho0 = density_to_vector(initial_rho)
@@ -555,6 +577,7 @@ def steady_state(
 
     Returns:
         Steady-state density matrix.
+
     """
     d = H.shape[0]
 
@@ -596,6 +619,7 @@ def steady_state_dense(
 
     Returns:
         Steady-state density matrix.
+
     """
     L_mat = build_liouvillian_matrix(H, L_ops, gammas)
 
@@ -633,6 +657,7 @@ def compute_expectation(rho: np.ndarray, operator: np.ndarray) -> complex:
 
     Returns:
         Expectation value.
+
     """
     return np.trace(rho @ operator)
 
@@ -646,6 +671,7 @@ def compute_photon_number(rho: np.ndarray, N: int) -> float:
 
     Returns:
         Mean photon number.
+
     """
     n = number_operator(N)
     return np.real(compute_expectation(rho, n))
@@ -662,6 +688,7 @@ def compute_phase_variance(rho: np.ndarray, N: int) -> float:
 
     Returns:
         Phase variance.
+
     """
     # Phase operator in truncated space
     dim = N + 1
@@ -709,6 +736,7 @@ def simulate_trajectory(
         Tuple of (times, rhos) where:
         - times: Array of time points.
         - rhos: Array of density matrices shape (num_times, d, d).
+
     """
     times = np.linspace(0, T, num_times)
     dt = times[1] - times[0] if num_times > 1 else T
@@ -745,6 +773,7 @@ def validate_density_matrix(
 
     Returns:
         Dictionary with validation results.
+
     """
     # Check Hermitian
     is_hermitian = np.allclose(rho, rho.conj().T, atol=tolerance)
@@ -804,6 +833,7 @@ def run_simulation(
 
     Returns:
         Dictionary with simulation results.
+
     """
     config = LindbladConfig(
         N=N,

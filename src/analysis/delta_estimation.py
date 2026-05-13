@@ -32,6 +32,10 @@ from src.utils.validators import (
 )
 
 # Aliases for backward compatibility
+# Agent Notes: validate_state here refers to validate_state_delta_estimation.
+# This is a DIFFERENT function from validate_state in src.physics.mzi_simulation
+# (which aliases validate_state_mzi). Do not merge them — they validate
+# different quantum system dimensionalities.
 validate_state = validate_state_delta_estimation
 validate_hamiltonian = validate_hamiltonian_delta_estimation
 
@@ -58,6 +62,7 @@ class DeltaEstimationConfig:
         alpha_zx: ZX interaction strength.
         alpha_zz: ZZ interaction strength.
         t: Evolution time.
+
     """
 
     ancillary_dimension: int = 5
@@ -88,6 +93,7 @@ def _get_paired_operators(
 
     Returns:
         Tuple of (sigma_x, sigma_z, jx, jz) matrices.
+
     """
     if dim not in _paired_operators:
         sigma_x, sigma_z = generate_spin_matrices(dim=2)
@@ -117,6 +123,7 @@ def generate_initial_state(ancillary_dimension: int, initial_state: int) -> np.n
 
     Raises:
         ValueError: If initial_state >= ancillary_dimension.
+
     """
     if initial_state >= ancillary_dimension:
         raise ValueError(
@@ -208,6 +215,7 @@ def generate_hamiltonian(config: DeltaEstimationConfig) -> np.ndarray:
 
     Returns:
         Hamiltonian matrix of shape (2N, 2N).
+
     """
     return _cached_generate_hamiltonian(*_hamiltonian_params(config))
 
@@ -231,6 +239,7 @@ def evolve_density_matrix(
 
     Returns:
         Evolved density matrix ρ(t).
+
     """
     return np.array(
         scipy.linalg.expm(-1j * time * hamiltonian)
@@ -256,6 +265,7 @@ def partial_trace_b(full_system: np.ndarray) -> np.ndarray:
 
     Returns:
         Reduced system density matrix of shape (2, 2).
+
     """
     derived_ancillary_dimension: int = full_system.shape[0] // 2
     return np.trace(
@@ -287,6 +297,7 @@ def compute_observables(
 
     Returns:
         Dictionary with observable values.
+
     """
     sigma_z = np.array([[1, 0], [0, -1]])
     pop_0 = rho_system[0, 0].real
@@ -322,6 +333,7 @@ def full_calculation(config: DeltaEstimationConfig) -> Dict[str, float]:
 
     Returns:
         Dictionary with time, populations, observables, and delta_s.
+
     """
     hamiltonian = generate_hamiltonian(config)
     initial_state = generate_initial_state(

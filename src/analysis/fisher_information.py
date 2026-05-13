@@ -38,6 +38,15 @@ def classical_fisher_information(
 
     Raises:
         ValueError: If dphi <= 0 or probabilities contain NaN.
+
+    Constraints:
+        probabilities shape must be (n_phi, n_outcomes) with n_phi >= 3
+            (need space for central difference).
+        All probability rows must sum to 1 (within tolerance).
+        dphi must be small enough for accurate finite difference
+            but large enough to avoid numerical noise (1e-8 to 1e-3).
+        Performance: O(n_phi × n_outcomes).
+
     """
     if dphi <= 0:
         raise ValueError(f"dphi must be positive, got {dphi}")
@@ -95,6 +104,7 @@ def classical_fisher_information_single(
 
     Raises:
         ValueError: If dphi <= 0 or arrays don't match.
+
     """
     if dphi <= 0:
         raise ValueError(f"dphi must be positive, got {dphi}")
@@ -134,6 +144,18 @@ def quantum_fisher_information(state: np.ndarray, generator: np.ndarray) -> floa
 
     Raises:
         ValueError: If state is not a vector or generator dimensions don't match.
+
+    Constraints:
+        state must be 1D ndarray of complex numbers.
+        generator must be square Hermitian (dim, dim).
+        state.shape[0] must match generator.shape[0].
+        Only valid for pure states (for mixed states use quantum_fisher_information_dm).
+
+    Agent Notes:
+        This is an O(dim²) computation (two matrix-vector products).
+        For mixed states, call quantum_fisher_information_dm instead
+        (which falls through to this function for effectively pure states).
+
     """
     state = np.asarray(state, dtype=complex)
     generator = np.asarray(generator, dtype=complex)
@@ -200,6 +222,21 @@ def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> flo
 
     Raises:
         ValueError: If rho or generator are not matrices or dimensions don't match.
+
+    Constraints:
+        rho must be Hermitian, trace-1, positive semidefinite.
+        generator must be Hermitian.
+        Both must share the same dimension.
+        Performance: O(dim³) due to eigendecomposition and double sum.
+
+    Agent Notes:
+        This is the primary QFI function — it handles both pure and mixed states.
+        The SLD formula is numerically delicate when eigenvalues are nearly
+        degenerate (small denominator). The rank_tol threshold controls the
+        boundary between "positive" and "zero" eigenvalues.
+        If you modify this function, verify against the pure-state special case
+        (n_pos=1 branch) and test with rank-deficient density matrices.
+
     """
     rho = np.asarray(rho, dtype=complex)
     generator = np.asarray(generator, dtype=complex)
@@ -331,6 +368,7 @@ def phase_sensitivity_from_fisher(F: float) -> float:
 
     Raises:
         ValueError: If F <= 0.
+
     """
     if F <= 0:
         raise ValueError(f"Fisher information must be positive, got {F}")
@@ -355,6 +393,7 @@ def generate_noon_state(N: int) -> np.ndarray:
         NOON state vector of dimension N+1 (for single mode).
         For full 2-mode space, dimension is (N+1)², but we return
         the superposition state in the symmetric subspace.
+
     """
     if N < 1:
         raise ValueError(f"N must be >= 1, got {N}")
@@ -385,6 +424,7 @@ def generate_css_state(N: int) -> np.ndarray:
     Returns:
         GHZ state vector. For practical computation, we return
         the state in the computational basis representation.
+
     """
     if N < 1:
         raise ValueError(f"N must be >= 1, got {N}")
@@ -412,6 +452,7 @@ def generate_phase_generator(N: int, generator_type: str = "Jz") -> np.ndarray:
 
     Returns:
         Generator matrix of dimension (N+1, N+1).
+
     """
     if generator_type == "Jz":
         # J_z for spin-J system where J = N/2
@@ -454,6 +495,7 @@ def validate_fisher_inputs(
 
     Raises:
         ValueError: If F <= 0 or is NaN.
+
     """
     if np.isnan(F):
         raise ValueError(f"{name} must not be NaN")

@@ -48,6 +48,7 @@ class TWAConfig:
         gamma_1: One-body loss rate.
         gamma_2: Two-body loss rate.
         gamma_phi: Phase diffusion rate.
+
     """
 
     N: int
@@ -84,6 +85,7 @@ def sample_wigner_sphere(
 
     Raises:
         ValueError: If state_type is not supported.
+
     """
     if state_type == "CSS":
         # Coherent Spin State (CSS) - coherent state at angle phi
@@ -219,6 +221,7 @@ def wigner_sde_trajectory(
         Dictionary with:
             - J_final: Final Bloch vector
             - trajectory: Full trajectory if store_trajectory=True
+
     """
     N = params.get("N", 10)
     chi = params.get("chi", 0.0)
@@ -357,6 +360,7 @@ def compute_twa_expectations(
             - Jz_std: Standard deviation ΔJ_z
             - J_total_mean: Mean total spin |⟨J⟩|
             - trajectories: All trajectories if store_trajectories=True
+
     """
     # Warning for NOON states
     if state_type == "NOON":
@@ -457,6 +461,7 @@ def compute_phase_sensitivity(
 
     Returns:
         Dictionary with phase sensitivity metrics.
+
     """
     result = compute_twa_expectations(
         N=N,
@@ -507,6 +512,7 @@ def validate_bloch_vector(J: np.ndarray, tol: float = 1e-6) -> dict:
 
     Returns:
         Dictionary with validation results.
+
     """
     x, y, z = J
     norm = np.sqrt(x**2 + y**2 + z**2)
@@ -553,6 +559,7 @@ def run_twa_simulation(
 
     Returns:
         Dictionary with simulation results.
+
     """
     params = {
         "chi": chi,
@@ -627,6 +634,7 @@ def compare_with_lindblad(
 
     Returns:
         Dictionary with comparison results.
+
     """
     try:
         from src.physics.dicke_basis import jz_operator

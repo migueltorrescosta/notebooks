@@ -1,3 +1,9 @@
+"""Wave interference simulation for Mach-Zehnder interferometer.
+
+Visualizes classical and quantum interference patterns, fringe visibility,
+and the effect of phase shifts on output intensity distributions.
+"""
+
 from functools import partial
 
 from matplotlib import pyplot as plt

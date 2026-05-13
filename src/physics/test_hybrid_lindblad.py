@@ -717,6 +717,7 @@ class TestN4WignerNegativityDiagnostic:
 
         Returns:
             Oscillator density matrix of shape (N+1, N+1).
+
         """
         dim_osc = N + 1
         rho_hybrid = np.outer(hybrid_state, hybrid_state.conj())

@@ -39,6 +39,7 @@ def plot_array(
         >>> import numpy as np
         >>> arr = np.random.randn(5, 5)
         >>> plot_array(arr, midpoint=0)  # Display in Streamlit
+
     """
     # Handle complex arrays by taking magnitude
     if np.iscomplexobj(my_array):

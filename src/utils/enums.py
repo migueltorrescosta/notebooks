@@ -15,6 +15,7 @@ class WavePacket(str, Enum):
     Attributes:
         Gaussian: Gaussian wave packet (coherent state in position).
         Step: Step function (Heaviside-like) wave packet.
+
     """
 
     Gaussian = "Gaussian"
@@ -33,6 +34,7 @@ class PotentialFunction(str, Enum):
         Quartic: Quartic potential (V ∝ x⁴).
         Trigonometric: Periodic potential (V ∝ cos(kx)).
         Uniform: Constant potential (no confinement).
+
     """
 
     DoubleWell = "Double-well"
@@ -48,6 +50,7 @@ class BoundaryCondition(str, Enum):
     Attributes:
         Cyclic: Periodic boundary conditions (wavefunction matches at edges).
         Dirichlet: Fixed boundary conditions (wavefunction = 0 at boundaries).
+
     """
 
     Cyclic = "Cyclic"
@@ -59,6 +62,7 @@ class ProbabilityDistribution(str, Enum):
 
     Attributes:
         ParticleDecay: Radioactive decay distribution (exponential).
+
     """
 
     ParticleDecay = "ParticleDecay"
@@ -77,6 +81,7 @@ class OperatorBasis(str, Enum):
             Dimension: N + 1.
             Used internally by lindblad_solver.py for consistency with
             bosonic Hamiltonian and Lindblad operators.
+
     """
 
     DICKE = "dicke"

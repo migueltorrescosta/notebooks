@@ -120,6 +120,7 @@ def compute_environment_tensor(
 
     Returns:
         Environment tensor of shape (chi, chi).
+
     """
     if ttn._state_vector is None:
         raise ValueError("TTN state vector is not initialized")
@@ -179,6 +180,7 @@ def apply_single_site_update(
 
     Returns:
         Updated TTN with site evolved.
+
     """
     if ttn._state_vector is None:
         raise ValueError("TTN state vector is not initialized")
@@ -311,6 +313,7 @@ def tdvp_single_site(
     Raises:
         ValueError: If TTN state vector is not initialized.
         ValueError: If H_eff dimensions don't match site.
+
     """
     if ttn._state_vector is None:
         raise ValueError("TTN state vector is not initialized")
@@ -344,6 +347,7 @@ def compute_local_expectation(
 
     Returns:
         Expectation value.
+
     """
     if site_idx < ttn.n_sites:
         # Main qubit site
@@ -371,6 +375,7 @@ def construct_effective_hamiltonian(
 
     Returns:
         Effective Hamiltonian matrix.
+
     """
     local_dim = ttn.local_dim
     H_eff = np.zeros((local_dim, local_dim), dtype=complex)
@@ -412,6 +417,7 @@ def apply_trotter_step(
 
     Raises:
         ValueError: If order is not 1 or 2.
+
     """
     if order not in (1, 2):
         raise ValueError(f"Trotter order must be 1 or 2, got {order}")
@@ -467,6 +473,7 @@ def compute_energy(
 
     Returns:
         Energy expectation value.
+
     """
     if ttn._state_vector is None:
         raise ValueError("TTN state vector is not initialized")
@@ -489,6 +496,7 @@ def compute_energy_variance(
 
     Returns:
         Energy variance.
+
     """
     if ttn._state_vector is None:
         raise ValueError("TTN state vector is not initialized")
@@ -535,6 +543,7 @@ def tdvp_evolution(
 
     Raises:
         ValueError: If dt is not positive or T is negative.
+
     """
     if config is None:
         config = TDVPConfig(dt=dt)
@@ -653,6 +662,7 @@ def decompose_hamiltonian_local(
 
     Returns:
         List of single-site Hamiltonian matrices.
+
     """
     dim = local_dim ** (2 * n_sites)  # Total Hilbert space dimension
 
@@ -687,6 +697,7 @@ def evolve_exact(
 
     Returns:
         Evolved state vector.
+
     """
     # Ensure psi0 is a 1D vector
     psi0 = psi0.flatten()
@@ -729,6 +740,7 @@ def compute_state_fidelity(
 
     Returns:
         Fidelity value in [0, 1].
+
     """
     # Normalize
     psi1_norm = psi1 / np.linalg.norm(psi1)
@@ -759,6 +771,7 @@ def apply_trotter_step_simple(
 
     Returns:
         Updated TTN state.
+
     """
     return tdvp_single_site(ttn, site_idx=0, H_eff=H_local, dt=dt)
 
@@ -779,6 +792,7 @@ def project_to_manifold(
 
     Returns:
         TTN representation of the state.
+
     """
     return TensorTreeNetwork.from_state_vector(
         psi_exact,
@@ -802,6 +816,7 @@ def compute_manifold_violation(
 
     Returns:
         Manifold violation (1 - fidelity).
+
     """
     ttn_state = ttn._to_state_vector()
     fidelity = compute_state_fidelity(ttn_state, exact_state)
@@ -831,6 +846,7 @@ def validate_tdvp_step(
 
     Returns:
         Dictionary with validation metrics.
+
     """
     psi_before = ttn_before._to_state_vector()
     psi_after = ttn_after._to_state_vector()

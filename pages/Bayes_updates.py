@@ -1,3 +1,9 @@
+"""Bayesian update visualization for phase estimation.
+
+Displays how prior distributions update to posteriors as measurement
+outcomes are incorporated, for various phase estimation protocols.
+"""
+
 from enum import Enum
 from functools import partial
 

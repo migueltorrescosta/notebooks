@@ -31,6 +31,7 @@ Example:
     >>> J_z = jz_operator(N)
     >>> J_z.diagonal()  # Eigenvalues: 2, 1, 0, -1, -2
     array([ 2.,  1.,  0., -1., -2.])
+
 """
 
 from __future__ import annotations
@@ -70,6 +71,7 @@ def dicke_states(N: int) -> dict[float, int]:
         >>> basis = dicke_states(N=5)  # J = 2.5, m values: 2.5, 1.5, 0.5, -0.5, -1.5, -2.5
         >>> len(basis)
         6
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -117,6 +119,7 @@ def to_dicke_basis(fock_state: np.ndarray, N: int) -> np.ndarray:
         >>> # m=1 at idx 0, m=0 at idx 1, m=-1 at idx 2
         >>> np.abs(dicke[0])  # amplitude for |J=1, m=1⟩
         1.0
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -173,6 +176,7 @@ def from_dicke_basis(dicke_state: np.ndarray, N: int) -> np.ndarray:
         >>> # |2,0⟩ at index 2*3+0=6 has amplitude 1.0
         >>> np.abs(fock[6])
         1.0
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -220,6 +224,7 @@ def jz_eigenvalues(N: int) -> np.ndarray:
         array([ 2.,  1.,  0., -1., -2.])
         >>> jz_eigenvalues(3)  # J = 1.5
         array([ 1.5,  0.5, -0.5, -1.5])
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -269,6 +274,7 @@ def jz_operator(N: int, basis: "OperatorBasis | None" = None) -> np.ndarray:
         array([-2., -1.,  0.,  1.,  2.])
         >>> np.allclose(J_z, J_z.T.conj())  # Hermitian check
         True
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -323,6 +329,7 @@ def jx_operator(N: int) -> np.ndarray:
         array([[0.        , 0.70710678, 0.        ],
                [0.70710678, 0.        , 0.70710678],
                [0.        , 0.70710678, 0.        ]])
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -367,6 +374,7 @@ def jy_operator(N: int) -> np.ndarray:
         >>> # For spin-1/2 (N=1), J_y = [[0, -i/2], [i/2, 0]]
         >>> np.allclose(J_y, J_y.T.conj())  # Hermitian check
         True
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -409,6 +417,7 @@ def j_squared_operator(N: int) -> np.ndarray:
         >>> expected = J * (J + 1) = 2 * 3 = 6
         >>> np.allclose(J2, expected * np.eye(5))
         True
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -435,6 +444,7 @@ def j_raising_operator(N: int) -> np.ndarray:
 
     Raises:
         ValueError: If N is negative.
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -472,6 +482,7 @@ def j_lowering_operator(N: int) -> np.ndarray:
 
     Raises:
         ValueError: If N is negative.
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -501,6 +512,7 @@ def basis_transformation_matrix(N: int) -> np.ndarray:
         >>> T = basis_transformation_matrix(N=2)
         >>> np.allclose(T @ T.conj().T, np.eye(9))  # Unitarity check
         True
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")

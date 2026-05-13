@@ -6,6 +6,7 @@ Mach–Zehnder interferometer for estimating an unknown phase rate θ.
 
 References:
 - `articles/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md`
+
 """
 
 from __future__ import annotations

@@ -32,6 +32,9 @@ from src.utils.validators import (
 )
 
 # Aliases for backward compatibility
+# Agent Notes: validate_state is also defined as an alias for
+# validate_state_delta_estimation in src.analysis.delta_estimation.
+# These are DIFFERENT functions — do not merge them.
 validate_state = validate_state_mzi
 
 
@@ -69,6 +72,7 @@ def fock_state(n1: int, n2: int, max_photons: int) -> np.ndarray:
         (9,)
         >>> np.abs(state[3])  # Index for |1,0⟩: 1*3 + 0 = 3
         1.0
+
     """
     if n1 < 0 or n2 < 0:
         raise ValueError("Photon numbers must be non-negative")
@@ -91,6 +95,7 @@ def vacuum_state(max_photons: int) -> np.ndarray:
 
     Returns:
         Complex state vector representing the two-mode vacuum.
+
     """
     return fock_state(0, 0, max_photons)
 
@@ -107,6 +112,7 @@ def single_photon_state(mode: int, max_photons: int) -> np.ndarray:
 
     Raises:
         ValueError: If mode is not 0 or 1.
+
     """
     if mode == 0:
         return fock_state(1, 0, max_photons)
@@ -135,6 +141,7 @@ def noon_state(N: int, max_photons: int) -> np.ndarray:
         >>> noon = noon_state(3, max_photons=3)  # |3,0⟩ + |0,3⟩
         >>> np.allclose(noon, noon)  # Check normalization
         True
+
     """
     # Need max_photons >= N for NOON state to fit in basis
     effective_max = max(N, max_photons)
@@ -164,6 +171,7 @@ def coherent_state(alpha: complex, max_photons: int) -> np.ndarray:
         >>> state = coherent_state(alpha, max_photons=10)
         >>> # Mean photon number ≈ |α|² = 1
         >>> # Probability of n photons = |α|^{2n} e^{-|α|²} / n!
+
     """
     state = np.zeros((max_photons + 1) ** 2, dtype=complex)
     for n in range(max_photons + 1):
@@ -185,6 +193,7 @@ def fock_state_n(n: int, max_photons: int) -> np.ndarray:
 
     Returns:
         State vector |n, 0⟩.
+
     """
     return fock_state(n, 0, max_photons)
 
@@ -216,6 +225,7 @@ def create_system_operators(
         - a₁: Annihilation operator for mode 1
         - a₀†: Creation operator for mode 0
         - a₁†: Creation operator for mode 1
+
     """
     dim = (max_photons + 1) ** 2
 
@@ -263,6 +273,7 @@ def create_ancilla_operators(ancilla_dim: int) -> Tuple[np.ndarray, np.ndarray]:
         >>> Jx, Jz = create_ancilla_operators(3)  # Spin-1 system
         >>> Jz.diagonal()  # Eigenvalues: +1, 0, -1
         array([ 1.,  0., -1.])
+
     """
     j = (ancilla_dim - 1) / 2
 
@@ -315,6 +326,7 @@ def beam_splitter_unitary(theta: float, phi: float, max_photons: int) -> np.ndar
         >>> bs = beam_splitter_unitary(np.pi/4, 0, max_photons=2)
         >>> np.allclose(bs @ bs.conj().T, np.eye(9))  # Check unitarity
         True
+
     """
     a0, a1, a0_dag, a1_dag = create_system_operators(max_photons)
 
@@ -341,6 +353,7 @@ def phase_shift_unitary(phi: float, max_photons: int) -> np.ndarray:
 
     Returns:
         Diagonal unitary matrix of dimension (max_photons+1)².
+
     """
     dim = (max_photons + 1) ** 2
     phase_op = np.zeros((dim, dim), dtype=complex)
@@ -381,6 +394,7 @@ def system_ancilla_interaction_unitary(
 
     Returns:
         Unitary matrix of dimension (sys_dim × ancilla_dim)².
+
     """
     a0, a1, a0_dag, a1_dag = create_system_operators(max_photons)
     jx, jz = create_ancilla_operators(ancilla_dim)
@@ -442,11 +456,19 @@ def evolve_mzi(
     Returns:
         Final state vector of dimension (sys_dim × ancilla_dim).
 
+    Constraints:
+        initial_system_state must be normalized (L2 norm = 1).
+        theta in [0, π] (beam splitter angle).
+        coupling_type in {"phase_coupling", "flip_flop"}.
+        max_photons >= 0, ancilla_dim >= 1.
+        Output dimension = (max_photons+1)² × ancilla_dim.
+
     Example:
         >>> state = vacuum_state(max_photons=2)
         >>> final = evolve_mzi(state, np.pi/4, 0, 1.0, 0, 0, "phase_coupling", 2, 3)
         >>> final.shape  # (9 * 3,) = (27,)
         (27,)
+
     """
     ancilla_dim_val = ancilla_dim
 
@@ -509,6 +531,7 @@ def get_reduced_density_matrix(
         >>> rho_sys = get_reduced_density_matrix(state, 2, 3, trace_out=True)
         >>> rho_sys.shape  # (9, 9)
         (9, 9)
+
     """
     sys_dim = (max_photons + 1) ** 2
 
@@ -548,6 +571,7 @@ def compute_output_probabilities(
         - P0: Probability of detecting photon in output mode 0
         - P1: Probability of detecting photon in output mode 1
         Both sum to 1 (if total photon number > 0).
+
     """
     rho_sys = get_reduced_density_matrix(
         full_state, max_photons, ancilla_dim, trace_out_ancilla=True
@@ -609,6 +633,7 @@ def compute_interference_fringe(
         ...     np.pi/4, 0, 0, 0, "phase_coupling", 2, 3)
         >>> fringe.shape
         (100,)
+
     """
     probs = []
     for phi in phase_range:
@@ -663,6 +688,7 @@ def compute_all_stage_states(
         - "after_phase": State after phase shift
         - "after_interaction": State after system-ancilla coupling
         - "final": State after second beam splitter (output)
+
     """
     anc = ancilla_dim
 
@@ -741,6 +767,15 @@ def prepare_input_state(
         >>> state = prepare_input_state("coherent", max_photons=10, alpha=2.0)
         >>> # NOON state for 5 photons
         >>> state = prepare_input_state("noon", max_photons=5, n_particles=5)
+
+    Agent Notes:
+        This is the primary API surface for UI pages (pages/*.py) to create
+        input states. New state types added here must also be registered in:
+        - the state_type parameter docstring above
+        - the UI selectbox widgets in pages/Fisher_information.py and similar
+        - any scaling survey functions in src.analysis.scaling_survey
+        Falls back to vacuum state for unrecognized types (no error raised).
+
     """
     match state_type:
         case "vacuum":
@@ -802,6 +837,21 @@ def evolve_mzi_with_noise(
         Tuple of (final_rho, reduced_system_rho) where both are density
         matrices in the two-mode Fock basis. For ancilla-free simulations
         (default), both are identical.
+
+    Constraints:
+        initial_system_state must be normalized (pure) or trace-1 (density matrix).
+        theta in [0, π].
+        noise_gamma_{1,2,phi} >= 0 (non-negative rates).
+        noise_T > 0, noise_dt > 0.
+        Performance: O((N+1)⁴ · T/dt) due to Lindblad integration.
+
+    Agent Notes:
+        Uses lazy import of MziNoiseConfig/run_noisy_mzi from mzi_lindblad
+        to avoid circular dependency with mzi_lindblad → mzi_simulation.
+        If you refactor mzi_lindblad, ensure this import path still resolves.
+        This function is the primary API surface for the scaling survey
+        (see src.analysis.scaling_survey).
+
     """
     # Lazy import to avoid circular dependency
     from src.physics.mzi_lindblad import MziNoiseConfig, run_noisy_mzi

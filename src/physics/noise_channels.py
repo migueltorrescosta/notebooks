@@ -6,9 +6,22 @@ utilizing the Dicke basis representation. These channels model decoherence
 effects in interferometers and atomic ensembles.
 
 Physical Model:
-- Hilbert space: Dicke basis |J, m⟩ with J = N/2, dimension N+1
-- Units: Dimensionless (ℏ = 1, time in arbitrary units)
-- Conventions: Same as Dicke basis module
+- Lindblad master equation: dρ/dt = -i[H, ρ] + Σ_k (L_k ρ L_k† - ½{L_k†L_k, ρ})
+- Noise channels are implemented as Lindblad operators in the Dicke basis
+- Detection noise modeled as binomial measurement projection
+
+Hilbert Space:
+- Dicke basis |J, m⟩ with J = N/2, dimension d = N + 1
+- Consistent with src.physics.dicke_basis conventions
+
+Units:
+- Dimensionless (ℏ = 1, time in arbitrary units)
+- Decay rates γ in same dimensionless units
+
+Conventions:
+- Same as src.physics.dicke_basis module
+- Lindblad operators have rates pre-absorbed: L = √γ × operator
+- Detection efficiency η ∈ [0, 1], probability P(k|n) = C(n,k) η^k (1-η)^(n-k)
 
 Noise Channels:
 | Channel      | Lindblad Operator L | Physical Rate     |
@@ -21,6 +34,7 @@ Noise Channels:
 References:
 - Walls & Milburn (2008) "Quantum Optics"
 - Gardiner & Zoller (2004) "Quantum Noise"
+
 """
 
 from __future__ import annotations
@@ -56,6 +70,7 @@ class NoiseConfig:
             Effect: Binomial detection noise.
             η = 1: Perfect detection (no noise).
             η = 0: No detection events.
+
     """
 
     gamma_1: float = 0.0  # one-body loss rate
@@ -94,6 +109,7 @@ def annihilation_operator(N: int) -> np.ndarray:
         >>> # Acting on |J=2, m=2⟩ (all in mode a) -> √4|J=2, m=1⟩
         >>> np.abs(a[1, 0])  # sqrt(J+m) = sqrt(2+2) = 2
         2.0
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -137,6 +153,7 @@ def creation_operator(N: int) -> np.ndarray:
         >>> # Acting on |J=2, m=-2⟩ (all in mode b) -> √4|J=2, m=-1⟩
         >>> np.abs(a_dag[3, 4])  # sqrt(J-m) = sqrt(2-(-2)) = 2
         2.0
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -189,6 +206,7 @@ def build_lindblad_operators(N: int, config: NoiseConfig) -> list[np.ndarray]:
         >>> L_ops = build_lindblad_operators(4, config)
         >>> len(L_ops)
         2
+
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -257,6 +275,7 @@ def validate_lindblad_completeness(
         >>> result = validate_lindblad_completeness(L_ops)
         >>> result['is_bounded']
         True
+
     """
     if len(L_ops) == 0:
         return {
@@ -324,6 +343,7 @@ def apply_detection_noise(
         >>> result = apply_detection_noise(probs, eta=1.0, n_trials=1000)
         >>> np.allclose(result, probs, atol=0.01)
         True
+
     """
     if eta < 0 or eta > 1:
         raise ValueError(f"Detection efficiency must be in [0, 1], got {eta}")
@@ -390,6 +410,7 @@ def detection_channel_pmf(
         >>> # P(0) = (1-0.5)² = 0.25, P(1) = 2*0.5*0.5 = 0.5, P(2) = 0.25
         >>> np.allclose(pmf, [0.25, 0.5, 0.25])
         True
+
     """
     from scipy import stats
 
@@ -417,6 +438,7 @@ def compute_mean_particle_number(
 
     Returns:
         Mean particle number.
+
     """
     n_values = np.arange(len(probabilities))
     return np.sum(n_values * probabilities)
@@ -434,6 +456,7 @@ def compute_particle_variance(
 
     Returns:
         Variance of particle number.
+
     """
     n_values = np.arange(len(probabilities))
     mean_n = compute_mean_particle_number(probabilities)
@@ -454,6 +477,7 @@ def test_one_body_decay() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     N = 10
     config = NoiseConfig(gamma_1=0.5)
@@ -475,6 +499,7 @@ def test_two_body_scaling() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     N = 10
     config = NoiseConfig(gamma_2=0.5)
@@ -500,6 +525,7 @@ def test_phase_diffusion_off_diagonal() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     N = 10
     config = NoiseConfig(gamma_phi=0.5)
@@ -521,6 +547,7 @@ def test_detection_noise_binomial() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     # Perfect detection: should return identity
     probs = np.array([0.1, 0.4, 0.5])

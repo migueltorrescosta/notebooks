@@ -33,6 +33,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
         configuration_history: List of accepted configurations.
         accepted_configuration_count: Number of accepted proposals.
         rejected_configuration_count: Number of rejected proposals.
+
     """
 
     def __init__(self, initial_configuration: T) -> None:
@@ -41,6 +42,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
         Args:
             initial_configuration: Starting point for the Markov chain.
                 Must have non-zero probability under the target distribution.
+
         """
         self.configuration_history: List[T] = [initial_configuration]
         self.accepted_configuration_count: int = 0
@@ -58,6 +60,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
         Returns:
             A new proposed configuration based on the current state.
             Common choices: Gaussian random walk, uniform perturbation, etc.
+
         """
 
     @abstractmethod
@@ -70,6 +73,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
         Returns:
             Unnormalized probability (likelihood) under the target distribution.
             Only needs to be proportional to the true probability.
+
         """
 
     def approval_function(
@@ -87,6 +91,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
 
         Returns:
             True if the proposal is accepted, False otherwise.
+
         """
         return (
             self.state_likelihood(new_configuration)
@@ -106,6 +111,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
 
         Returns:
             The newly accepted configuration (or current if rejected).
+
         """
         current_likelihood = self.state_likelihood(self.current_configuration)
         tries = 0
@@ -134,6 +140,7 @@ class AbstractMetropolisHastings(ABC, Generic[T]):
 
         Args:
             n: Number of iterations to run.
+
         """
         pbar = trange(n, desc="Bar desc", leave=True)
         for _ in pbar:
@@ -183,6 +190,7 @@ class GaussianMetropolisHastings(AbstractMetropolisHastings[float]):
         >>> samples = sampler.configuration_history[1000:]  # discard burn-in
         >>> np.mean(samples)  # should be close to 0
         >>> np.std(samples)   # should be close to 1
+
     """
 
     def generator_function(self) -> float:

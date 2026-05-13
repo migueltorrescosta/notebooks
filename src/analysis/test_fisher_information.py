@@ -1096,6 +1096,7 @@ class TestNoiseIntegrationDM:
 
         Returns:
             Density matrix of phase-diffused GHZ state.
+
         """
         dim = N + 1
         rho = np.zeros((dim, dim), dtype=complex)

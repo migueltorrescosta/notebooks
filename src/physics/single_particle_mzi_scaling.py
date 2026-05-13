@@ -46,6 +46,7 @@ def build_jz_operator() -> np.ndarray:
 
     Returns:
         4×4 diagonal J_z operator matrix.
+
     """
     dim = 4  # (max_photons + 1)^2 = 4
     jz = np.zeros((dim, dim), dtype=complex)
@@ -71,6 +72,7 @@ def build_beam_splitter() -> np.ndarray:
     Returns:
         4×4 unitary matrix (acts on the full 4D space, but only the
         2D |1,0⟩/|0,1⟩ subspace is physically relevant).
+
     """
     dim = 4  # (max_photons + 1)^2 = 4
     # Build H_BS = a0†a1 + a1†a0
@@ -102,6 +104,7 @@ def build_holding_unitary(theta: float, t_h: float, jz: np.ndarray) -> np.ndarra
 
     Returns:
         Unitary matrix of same dimension as jz.
+
     """
     return scipy.linalg.expm(-1j * theta * t_h * jz)
 
@@ -123,6 +126,7 @@ def fock_state(n0: int, n1: int) -> np.ndarray:
 
     Raises:
         ValueError: If n0 or n1 is not 0 or 1.
+
     """
     if n0 not in (0, 1) or n1 not in (0, 1):
         raise ValueError(f"Photon numbers must be 0 or 1, got ({n0}, {n1})")
@@ -157,6 +161,7 @@ def evolve_single_particle_mzi(
 
     Returns:
         Final state vector after the full MZI circuit.
+
     """
     if input_state is None:
         input_state = fock_state(1, 0)
@@ -182,6 +187,7 @@ def compute_expectation_jz(state: np.ndarray, jz: np.ndarray) -> float:
 
     Returns:
         Expectation value (real).
+
     """
     return float(np.real(np.conj(state) @ jz @ state))
 
@@ -195,6 +201,7 @@ def compute_variance_jz(state: np.ndarray, jz: np.ndarray) -> float:
 
     Returns:
         Variance (non-negative real).
+
     """
     mean = np.conj(state) @ jz @ state
     jz_sq = jz @ jz
@@ -215,6 +222,7 @@ def compute_analytical_derivative(t_h: float, theta: float) -> float:
 
     Returns:
         Analytical derivative value.
+
     """
     return float(0.5 * t_h * np.sin(theta * t_h))
 
@@ -239,6 +247,7 @@ def compute_numerical_derivative(
 
     Returns:
         Numerical derivative value.
+
     """
     psi_plus = evolve_single_particle_mzi(theta + delta, t_h, u_bs, jz)
     psi_minus = evolve_single_particle_mzi(theta - delta, t_h, u_bs, jz)
@@ -271,6 +280,7 @@ def compute_delta_theta_from_propagation(
 
     Returns:
         Tuple (delta_theta, jz_mean, jz_var, d_jz_dtheta, is_fringe_extremum).
+
     """
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
     jz_mean = compute_expectation_jz(psi, jz)
@@ -322,6 +332,7 @@ def compute_sensitivity_sweep(
             delta_theta_analytical, delta_theta_numerical,
             delta_theta_theory (1/T_H),
             is_fringe_extremum, abs_sin
+
     """
     # Build operators once
     u_bs = build_beam_splitter()
@@ -385,6 +396,7 @@ def fit_scaling_exponent(
     Returns:
         Tuple (alpha, r_squared, fit_df) where fit_df is a copy of df
         with a "valid_for_fit" column added.
+
     """
     fit_df = df.copy()
     fit_df["valid_for_fit"] = True
@@ -435,6 +447,7 @@ def run_validation(theta: float = 1.0, t_h: float = 1.0) -> dict:
             - delta_theta_matches_theory: bool
             - derivative_match: bool
             - derivative_relative_diff: float
+
     """
     u_bs = build_beam_splitter()
     jz = build_jz_operator()

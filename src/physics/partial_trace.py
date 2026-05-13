@@ -12,9 +12,20 @@ Physical Model:
 - Interaction H_int
 - Full Hamiltonian H = H_A ⊗ 1 + 1 ⊗ H_B + H_int
 
+Hilbert Space:
+- System A: dimension N_A (typically spin system)
+- System B: dimension N_B (typically bosonic or spin system)
+- Full space: N_A × N_B
+- Reduced state: Tr_B[ρ] operates on space A only (dimension N_A × N_A)
+
 Units:
-- Dimensionless throughout.
-- ℏ = 1.
+- Dimensionless throughout (ℏ = 1)
+- Hamiltonian eigenvalues in dimensionless energy units
+
+Conventions:
+- State ordering: |ψ_A⟩ ⊗ |ψ_B⟩
+- Partial trace over B: ρ_A = Tr_B[ρ] = Σ_k (I_A ⊗ ⟨k|_B) ρ (I_A ⊗ |k⟩_B)
+- Full density matrix indexing: ρ_{ij,kl} where i,j index A and k,l index B
 """
 
 from dataclasses import dataclass
@@ -53,6 +64,7 @@ def local_hamiltonian(
 
     Returns:
         Hamiltonian matrix of shape (N, N).
+
     """
     jx, jz = generate_spin_matrices(dimension)
     return -j * jx + u * jz @ jz + delta * jz
@@ -93,6 +105,7 @@ def build_bipartite_hamiltonian(
 
     Returns:
         Full Hamiltonian of shape (N_A * N_B, N_A * N_B).
+
     """
     n_a, n_b = config.dim_a, config.dim_b
     jx_a, jz_a = generate_spin_matrices(n_a)
@@ -136,6 +149,7 @@ def build_bipartite_hamiltonian_components(
 
     Returns:
         Tuple of (H_A, H_B, H_int, H_full).
+
     """
     n_a, n_b = config.dim_a, config.dim_b
     jx_a, jz_a = generate_spin_matrices(n_a)
@@ -190,6 +204,7 @@ def evolve_state(
 
     Returns:
         Evolved state vector.
+
     """
     return scipy.linalg.expm(-1j * time * hamiltonian) @ initial_state
 
@@ -210,6 +225,7 @@ def evolve_density_matrix(
 
     Returns:
         Evolved density matrix.
+
     """
     unitary = scipy.linalg.expm(-1j * time * hamiltonian)
     return unitary @ initial_density @ unitary.conj().T
@@ -236,6 +252,7 @@ def partial_trace_a(
 
     Returns:
         Reduced density matrix for A (N_A, N_A).
+
     """
     return np.trace(
         full_density.reshape(dim_a, dim_b, dim_a, dim_b),
@@ -258,6 +275,7 @@ def partial_trace_b(
 
     Returns:
         Reduced density matrix for B (N_B, N_B).
+
     """
     return np.trace(
         full_density.reshape(dim_a, dim_b, dim_a, dim_b),
@@ -287,6 +305,7 @@ def compute_reduced_densities(
 
     Returns:
         Tuple of (ρ_A, ρ_B, ρ_full).
+
     """
     # Build Hamiltonian
     hamiltonian = build_bipartite_hamiltonian(config)

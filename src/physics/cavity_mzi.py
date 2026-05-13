@@ -20,6 +20,21 @@ Circuit (noisy):
 The ℱ-fold phase accumulation is equivalent to a single
 phase shift ℱ·φ applied between two beam splitters.
 
+Hilbert Space:
+- Two-mode Fock basis with max N photons (dimension: (N+1)²)
+- Consistent with src.physics.mzi_simulation conventions
+
+Units:
+- Dimensionless throughout (ℏ = 1)
+- Phase φ in radians
+- Cavity finesse ℱ is dimensionless
+
+Conventions:
+- Beam splitter: same as src.physics.mzi_simulation (50:50 by default)
+- Phase shift on mode 1 (second arm): exp(i · φ · n₂)
+- Noise channels: one-body loss, two-body loss, phase diffusion
+  (see src.physics.mzi_lindblad for details)
+
 Noise Model:
 - Each pass through the cavity applies phase shift + Lindblad noise.
 - For efficiency, the ℱ noisy passes can be approximated by a single
@@ -40,6 +55,7 @@ References:
 - Walls & Milburn (2008) "Quantum Optics"
 - Gardiner & Zoller (2004) "Quantum Noise"
 - Dowling (2008) "Quantum optical metrology"
+
 """
 
 from __future__ import annotations
@@ -80,6 +96,7 @@ class CavityMziConfig:
             θ = 0 gives identity, θ = π/4 gives balanced splitting.
         phi_bs: Beam splitter phase. Controls the reflection amplitude
             phase of the beam splitter transformation.
+
     """
 
     F: float = 10.0
@@ -146,6 +163,7 @@ def cavity_enhanced_mzi(
         (9,)
         >>> np.isclose(np.sum(np.abs(final) ** 2), 1.0)
         True
+
     """
     if config.F < 1:
         raise ValueError(f"Cavity finesse must be >= 1, got {config.F}")
@@ -236,6 +254,13 @@ def cavity_enhanced_mzi_with_noise(
     Raises:
         ValueError: If config.F < 1 or any noise rate is negative.
 
+    Constraints:
+        initial_state must be normalized (pure) or trace-1 (density matrix).
+        config.F >= 1 (cavity finesse).
+        noise_gamma_{1,2,phi} >= 0 (non-negative rates per pass).
+        noise_T > 0, noise_dt > 0.
+        Performance: O(ℱ × (N+1)⁴) for exact; O((N+1)⁴) for efficient approximation.
+
     Example:
         >>> from src.physics.mzi_simulation import fock_state
         >>> config = CavityMziConfig(F=5.0)
@@ -250,6 +275,7 @@ def cavity_enhanced_mzi_with_noise(
         (9, 9)
         >>> np.isclose(np.trace(rho), 1.0)
         True
+
     """
     if config.F < 1:
         raise ValueError(f"Cavity finesse must be >= 1, got {config.F}")
@@ -319,6 +345,7 @@ def cavity_enhanced_sensitivity(
         >>> delta = cavity_enhanced_sensitivity(4, np.pi/4, config)
         >>> delta > 0
         True
+
     """
     if N <= 0:
         raise ValueError(f"Mean photon number must be positive, got {N}")

@@ -31,6 +31,10 @@ from src.utils.validators import (
 )
 
 # Aliases for backward compatibility
+# Agent Notes: These re-export validators from src.utils.validators
+# so that calling code can import them from quantum_time_evolution directly.
+# If the source functions in validators.py are moved or renamed,
+# update these aliases to maintain backward compatibility.
 validate_orthonormality = validate_orthonormality
 validate_probability_conservation = validate_probability_conservation
 
@@ -83,6 +87,7 @@ def gaussian_wave_packet(x: np.ndarray, d: float, x0: float, p: float) -> np.nda
 
     Returns:
         Complex wavefunction array.
+
     """
     return np.exp(-d * (x - x0) ** 2 - 1.0j * p * x)
 
@@ -98,6 +103,7 @@ def step_wave_packet(x: np.ndarray, r: float, s: float, p: float) -> np.ndarray:
 
     Returns:
         Complex wavefunction array.
+
     """
     return np.exp(1j * p * x) * (x >= r) * (x <= s)
 
@@ -132,6 +138,7 @@ def build_1d_hamiltonian(
 
     Returns:
         Hamiltonian as sparse matrix.
+
     """
     n = spatial_points
 
@@ -197,6 +204,7 @@ def compute_energy_levels(
 
     Returns:
         List of EnergyLevel objects.
+
     """
     eigenvalues, eigenvectors = scipy.sparse.linalg.eigs(
         hamiltonian, k=num_levels, which="SM"
@@ -233,6 +241,7 @@ def normalize_energy_levels(
 
     Returns:
         Tuple of (wave_functions_matrix, components, energies).
+
     """
     # Normalize to ensure |component| = sqrt(probability)
     for el in levels:
@@ -273,6 +282,7 @@ def prepare_initial_state(
 
     Returns:
         Normalized wavefunction.
+
     """
     match state_type.lower():
         case "gaussian":
@@ -319,6 +329,7 @@ class TimeEvolver:
             wave_functions: Matrix of shape (n_levels, n_points).
             components: Overlap with initial state (n_levels,).
             energies: Eigenvalues (n_levels,).
+
         """
         self.wave_functions = wave_functions
         self.components = components
@@ -336,6 +347,7 @@ class TimeEvolver:
 
         Returns:
             Evolved wavefunction.
+
         """
         # Phase factors: c_k * exp(-i E_k t)
         phases = self.components * np.exp(-1.0j * t * self.energies)
@@ -360,6 +372,7 @@ class TimeEvolver:
 
         Returns:
             Matrix of shape (n_times, n_points) with |ψ(x,t)|².
+
         """
         return np.array([np.abs(self.evolve(t)) ** 2 for t in times])
 
@@ -401,6 +414,7 @@ def run_simulation(
 
     Returns:
         Dictionary with all simulation data.
+
     """
     # Grid
     dx = (x_max - x_min) / (num_points - 1)

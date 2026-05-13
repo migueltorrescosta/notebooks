@@ -78,6 +78,7 @@ def generate_twin_fock_state(N: int) -> np.ndarray:
 
     Raises:
         ValueError: If N is odd.
+
     """
     if N % 2 != 0:
         raise ValueError(f"N must be even for Twin-Fock state, got N={N}")
@@ -99,6 +100,7 @@ def generate_noon_state(N: int) -> np.ndarray:
 
     Returns:
         State vector in Dicke basis.
+
     """
     dim = N + 1
     # All in mode a: |J, J⟩ = index 0
@@ -135,6 +137,7 @@ def compute_phase_uncertainty_lindblad(
 
     Returns:
         Phase uncertainty Δφ.
+
     """
     rho0 = ket_to_density(state)
 
@@ -194,6 +197,7 @@ def compute_sensitivity_vs_n(
 
     Returns:
         DataFrame with columns: N, delta_phi.
+
     """
     N_values = np.linspace(N_range[0], N_range[1], N_points, dtype=int)
     N_values = np.unique(N_values)  # Remove duplicates
@@ -263,6 +267,7 @@ def compute_scaling_exponent(N: np.ndarray, delta_phi: np.ndarray) -> float:
 
     Returns:
         Scaling exponent α.
+
     """
     log_N = np.log(N)
     log_dphi = np.log(delta_phi)

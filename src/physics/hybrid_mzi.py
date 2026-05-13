@@ -6,6 +6,13 @@ Implements the MZI readout protocol for the hybrid system:
 2. MZI evolution: BS → phase shift φ → BS
 3. QFI computation with G = n₁ ⊗ I_spin
 
+Physical Model:
+- The hybrid system (oscillator + spin) is embedded as the first mode
+  of a two-mode interferometer
+- A vacuum state is appended as the second mode to enable MZI readout
+- MZI protocol: BS → phase encoding on mode 1 → BS → measurement
+- QFI computed with phase generator G = n₁ (number in mode 1)
+
 Hilbert Space:
 - Original hybrid: dim = 2(N+1)
 - After embedding: dim = 2(N+1) × (N+1) = 2(N+1)²
@@ -14,7 +21,14 @@ Hilbert Space:
 
 Units:
 - Dimensionless throughout (ℏ = 1)
-- Phase φ in radians.
+- Phase φ in radians
+
+Conventions:
+- Beam splitter: 50:50 symmetric (θ = π/4, φ = 0)
+- Phase shift on mode 1: exp(i · φ · n₁)
+- State ordering after embedding: |n_hyb⟩_osc ⊗ |σ⟩_spin ⊗ |n⟩_vac
+- QFI convention: F_Q = 4 · Var(G) for pure states
+  (see src.analysis.fisher_information)
 """
 
 from typing import Tuple
@@ -63,6 +77,7 @@ def embed_hybrid_in_mzi(
     Returns:
         Embedded state vector of shape (2(N+1)²,) if input is 1D, or
         embedded density matrix of shape (2(N+1)², 2(N+1)²) if input is 2D.
+
     """
     dim_osc = N + 1
     dim_hybrid = 2 * dim_osc
@@ -131,6 +146,7 @@ def mzi_beam_splitter(N: int, theta: float = np.pi / 4) -> np.ndarray:
 
     Returns:
         Unitary of shape (2(N+1)², 2(N+1)²).
+
     """
     dim_osc = N + 1
     dim_modes = dim_osc**2
@@ -177,6 +193,7 @@ def mzi_phase_shift(N: int, phi: float) -> np.ndarray:
 
     Returns:
         Unitary of shape (2(N+1)², 2(N+1)²).
+
     """
     dim_osc = N + 1
     dim_modes = dim_osc**2
@@ -202,6 +219,7 @@ def mzi_phase_generator(N: int) -> np.ndarray:
 
     Returns:
         Generator matrix of shape (2(N+1)², 2(N+1)²).
+
     """
     dim_osc = N + 1
     dim_modes = dim_osc**2
@@ -240,6 +258,7 @@ def evolve_hybrid_mzi(
 
     Returns:
         Output state vector of shape (2(N+1)²,).
+
     """
     # Embed into MZI space
     state = embed_hybrid_in_mzi(hybrid_state, N)
@@ -276,6 +295,7 @@ def mzi_output_probabilities(
     Returns:
         Array of probabilities for each (n1, n2, s) configuration.
         Sum should be 1.
+
     """
     probs = np.abs(final_state) ** 2
     return probs
@@ -293,6 +313,7 @@ def mzi_marginal_photon_probs(
 
     Returns:
         Tuple (P1, P2) where P1[n1] = P(n1) summed over n2 and spin.
+
     """
     dim_osc = N + 1
 
@@ -341,6 +362,7 @@ def qfi_hybrid_mzi(
 
     Returns:
         Quantum Fisher Information F_Q.
+
     """
     # Extract oscillator density matrix (trace out spin)
     rho_osc = extract_oscillator_density(hybrid_state, N)
@@ -373,6 +395,7 @@ def extract_oscillator_density(hybrid_state: np.ndarray, N: int) -> np.ndarray:
 
     Returns:
         Density matrix of shape (N+1, N+1).
+
     """
     dim_osc = N + 1
 
@@ -402,6 +425,7 @@ def compute_wigner_for_state(
 
     Returns:
         Tuple (X, P, W) where X and P are 1D arrays, W is 2D array.
+
     """
     # Extract oscillator density matrix
     rho_osc = extract_oscillator_density(hybrid_state, N)

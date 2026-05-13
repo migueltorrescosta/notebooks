@@ -6,8 +6,24 @@ This module provides functions to construct angular momentum operators
 essential for modeling nuclear spin systems, atomic ensembles, and other
 few-level quantum systems with angular momentum symmetry.
 
-The operators are returned in the basis where Jz is diagonal, with
-magnetic quantum numbers m = -J, -J+1, ..., J.
+Physical Model:
+- Spin-J system with total angular momentum quantum number J = (dim - 1) / 2
+- Standard angular momentum algebra: [J_x, J_y] = i J_z (and cyclic permutations)
+- Operators constructed in the J_z-diagonal basis (magnetic quantum number basis)
+
+Hilbert Space:
+- Dimension: d = 2J + 1
+- Basis states: |J, m⟩ with m = -J, -J+1, ..., J (magnetic quantum numbers)
+- Index ordering: m descending (m = J at index 0, m = -J at index d-1)
+
+Units:
+- Dimensionless throughout (ℏ = 1)
+- Operator eigenvalues are dimensionless
+
+Conventions:
+- J_z is diagonal: J_z |J, m⟩ = m |J, m⟩
+- J_x = (J_+ + J_-) / 2
+- J_+ |J, m⟩ = √(J(J+1) - m(m+1)) |J, m+1⟩ (standard raising)
 """
 
 import numpy as np
@@ -39,6 +55,7 @@ def generate_spin_matrices(dim: int) -> tuple[np.ndarray, np.ndarray]:
         array([ 1.,  0., -1.])
         >>> np.allclose(Jx, Jx.conj().T)  # Jx is Hermitian
         True
+
     """
     if dim < 1:
         raise ValueError("Dimension must be at least 1")

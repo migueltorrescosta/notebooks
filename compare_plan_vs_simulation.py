@@ -69,6 +69,7 @@ def find_squeezing_time_for_target_photon(
 
     Returns:
         Tuple of (t_sqz, achieved_n, squeezed_state).
+
     """
     initial = hybrid_vacuum_state(N, spin_state="down")
 

@@ -14,6 +14,16 @@ where D(α) = exp(αa† - α*a) is the displacement operator and α = x + ip.
 In the Fock basis, the matrix elements are expressed through associated
 Laguerre polynomials (Gerry & Knight, Intro. Quantum Optics):
 
+Hilbert Space:
+- Single bosonic mode in truncated Fock basis |n⟩, n = 0…N
+- Dimension: N + 1
+- State represented as density matrix ρ of dimension (N+1) × (N+1)
+
+Units:
+- Dimensionless throughout (ℏ = 1)
+- Phase space coordinates α = x + ip are dimensionless
+- Wigner function W(α) has units of 1/area in phase space (normalized to 1)
+
 For m ≥ n:
     ⟨m| D(2α) (-1)^(a†a) |n⟩ = (-1)^n √(n!/m!) (2α)^(m-n) exp(-2|α|²)
                                 × L_n^{(m-n)}(4|α|²)
@@ -48,6 +58,7 @@ def _laguerre_value(n: int, alpha: int, x: float) -> float:
 
     Raises:
         ValueError: If n < 0 or alpha < 0.
+
     """
     if n < 0 or alpha < 0:
         raise ValueError(f"n={n} and alpha={alpha} must be non-negative")
@@ -84,6 +95,7 @@ def wigner_function_single(
 
     Raises:
         ValueError: If rho_osc is not square.
+
     """
     if rho_osc.ndim != 2 or rho_osc.shape[0] != rho_osc.shape[1]:
         raise ValueError(f"rho_osc must be square, got shape {rho_osc.shape}")
@@ -179,6 +191,7 @@ def wigner_from_hybrid_state(
 
     Raises:
         ValueError: If spin_component is invalid.
+
     """
     dim_osc = N + 1
     dim_hybrid = 2 * dim_osc
@@ -210,6 +223,7 @@ def wigner_minimum(W: np.ndarray) -> float:
 
     Returns:
         Minimum value of W.
+
     """
     return float(np.min(W))
 
@@ -223,5 +237,6 @@ def wigner_is_negative(W: np.ndarray, tol: float = 1e-10) -> bool:
 
     Returns:
         True if min(W) < -tol.
+
     """
     return wigner_minimum(W) < -tol

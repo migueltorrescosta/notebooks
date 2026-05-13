@@ -63,6 +63,7 @@ class PseudomodeConfig:
         lam: Bath correlation rate (pseudomode damping rate).
         T: Decoherence evolution time.
         dt: Time step for RK4 integration.
+
     """
 
     N: int
@@ -109,6 +110,7 @@ def create_pseudomode_operators(K: int) -> Tuple[np.ndarray, np.ndarray]:
 
     Raises:
         ValueError: If K is negative.
+
     """
     if K < 0:
         raise ValueError(f"K must be non-negative, got {K}")
@@ -129,6 +131,7 @@ def pseudomode_number_operator(K: int) -> np.ndarray:
 
     Returns:
         Diagonal operator of shape (K+1, K+1).
+
     """
     return np.diag(np.arange(K + 1, dtype=complex))
 
@@ -161,6 +164,7 @@ def tripartite_operator(
 
     Raises:
         AssertionError: If operator dimensions do not match expected sizes.
+
     """
     dim_osc = N + 1
     dim_pm = K + 1
@@ -201,6 +205,7 @@ def build_pseudomode_hamiltonian(
 
     Returns:
         Hamiltonian matrix of shape (2*(N+1)*(K+1), 2*(N+1)*(K+1)).
+
     """
     N = config.N
     K = config.K
@@ -263,6 +268,7 @@ def build_pseudomode_lindblad_operators(
           - L_ops[0] = sqrt(lam) * I_osc x I_spin x b  (if lam > 0)
           - gammas[0] = 1.0
           If lam <= 0, returns empty lists (no dissipation).
+
     """
     if config.lam <= 0:
         return [], []
@@ -302,6 +308,7 @@ def pseudomode_initial_state(config: PseudomodeConfig) -> np.ndarray:
     Returns:
         State vector of shape (2*(N+1)*(K+1),) representing
         |alpha> x |down> x |0>.
+
     """
     N = config.N
     K = config.K
@@ -351,6 +358,7 @@ def apply_ancilla_entanglement(
 
     Raises:
         AssertionError: If state dimension is incorrect.
+
     """
     N = config.N
     K = config.K
@@ -396,6 +404,7 @@ def _lindblad_rhs(
 
     Returns:
         Time derivative drho/dt of shape (dim, dim).
+
     """
     drho = -1.0j * (H @ rho - rho @ H)
 
@@ -434,6 +443,7 @@ def _evolve_rk4_pseudomode(
 
     Returns:
         Final density matrix of shape (dim, dim).
+
     """
     if T <= 0:
         return rho0.copy()
@@ -478,6 +488,7 @@ def _evolve_scipy_pseudomode(
 
     Returns:
         Final density matrix of shape (dim, dim).
+
     """
     d = rho0.shape[0]
     rho0_vec = rho0.flatten(order="F")
@@ -529,6 +540,7 @@ def evolve_pseudomode(
 
     Raises:
         ValueError: If method is not "rk4" or "scipy".
+
     """
     N = config.N
     K = config.K
@@ -591,6 +603,7 @@ def trace_out_pseudomode(
     Returns:
         Reduced density matrix for oscillator + spin of shape
         (2*(N+1), 2*(N+1)).
+
     """
     dim_osc = N + 1
     dim_pm = K + 1
@@ -632,6 +645,7 @@ def trace_out_spin(
     Returns:
         Reduced density matrix for oscillator + pseudomode of shape
         ((N+1)*(K+1), (N+1)*(K+1)).
+
     """
     dim_osc = N + 1
     dim_pm = K + 1
@@ -672,6 +686,7 @@ def trace_out_spin_and_pseudomode(
 
     Returns:
         Reduced density matrix for oscillator only of shape (N+1, N+1).
+
     """
     dim_osc = N + 1
     dim_pm = K + 1
@@ -722,6 +737,7 @@ def compute_qfi_with_ancilla(
 
     Returns:
         Quantum Fisher Information value.
+
     """
     # Trace out pseudomode -> rho_{osc+spin} of shape (2*(N+1), 2*(N+1))
     rho_os = trace_out_pseudomode(rho_full, N, K)
@@ -751,6 +767,7 @@ def compute_qfi_without_ancilla(
 
     Returns:
         Quantum Fisher Information value.
+
     """
     # Trace out spin and pseudomode -> rho_{osc} of shape (N+1, N+1)
     rho_osc = trace_out_spin_and_pseudomode(rho_full, N, K)
@@ -794,6 +811,7 @@ def run_metrology_protocol(
             - ratio_without: qfi_without / qfi_initial
             - pm_occupancy: <b^dagger b> (for truncation check)
             - validation: validation dict (trace, hermiticity, positivity)
+
     """
     # Step 1: initial state
     psi0 = pseudomode_initial_state(config)
@@ -861,6 +879,7 @@ def validate_pseudomode_density(
             - is_positive: bool
             - trace: float
             - min_eigenvalue: float
+
     """
     is_hermitian = np.allclose(rho, rho.conj().T, atol=tolerance)
     trace = np.trace(rho)
@@ -893,6 +912,7 @@ def check_pseudomode_occupancy(
 
     Returns:
         Tuple of (occupancy, is_safe) where is_safe = occupancy <= 0.8 * K.
+
     """
     # Build the pseudomode number operator in the full tripartite space
     I_osc = np.eye(N + 1, dtype=complex)
@@ -927,6 +947,7 @@ def qfi_preservation_ratio(
     Returns:
         Preservation ratio R = F_Q(T) / F_Q(0).
         Returns 0.0 if fq_initial is zero or negative.
+
     """
     if fq_initial <= 0:
         return 0.0

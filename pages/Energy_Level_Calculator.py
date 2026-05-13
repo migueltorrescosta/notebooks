@@ -1,3 +1,10 @@
+"""Energy level calculator for quantum systems.
+
+Computes and visualizes eigenvalues, eigenstates, and energy spectra
+for Hamiltonians of interest in quantum metrology (Heisenberg model,
+spin systems, etc.).
+"""
+
 from dataclasses import dataclass
 from typing import Callable, cast
 import numpy as np

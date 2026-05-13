@@ -23,6 +23,7 @@ Units:
 References:
 - Escher et al. "General framework for estimating the ultimate precision..."
 - Demkowicz-Dobrzanski et al. "Quantum metrology and noise effects"
+
 """
 
 from __future__ import annotations
@@ -92,6 +93,7 @@ def error_propagation_sensitivity(
 
     Raises:
         ValueError: If phi_grid has fewer than 3 points or dphi <= 0.
+
     """
     if len(phi_grid) < 3:
         raise ValueError("phi_grid must have at least 3 points")
@@ -237,6 +239,7 @@ def all_sensitivity_metrics(
 
     Raises:
         ValueError: If max_photons < 1 or n_mc < 1.
+
     """
     if max_photons < 1:
         raise ValueError(f"max_photons must be >= 1, got {max_photons}")
@@ -396,6 +399,7 @@ def sensitivity_scaling(
 
     Raises:
         ValueError: If state_type is invalid.
+
     """
     valid_states = ["css", "noon", "twin_fock", "single"]
     if state_type.lower() not in valid_states:
@@ -490,6 +494,7 @@ def validate_sensitivity_order(
 
     Returns:
         True if validation passes (EP ≥ CRB within tolerance).
+
     """
     if not np.isfinite(delta_phi_ep) or not np.isfinite(delta_phi_cr):
         return False
@@ -516,6 +521,7 @@ def compare_sensitivity_methods(
 
     Returns:
         Detailed comparison dictionary with all metrics and validation results.
+
     """
     metrics = all_sensitivity_metrics(state, max_photons, phi_true, n_mc=n_mc)
 

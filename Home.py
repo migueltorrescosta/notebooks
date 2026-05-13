@@ -1,3 +1,9 @@
+"""Main dashboard entry point for the CollapsedWave metro suite.
+
+Provides navigation to all simulation pages including interferometry,
+phase estimation, metrology, and quantum dynamics simulations.
+"""
+
 import streamlit as st
 from dataclasses import dataclass
 

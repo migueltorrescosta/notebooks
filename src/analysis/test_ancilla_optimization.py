@@ -652,7 +652,8 @@ class TestOptimisation:
 
     def test_run_optimisation_returns_result(self) -> None:
         """run_optimisation must return an OptimisationResult
-        with all fields populated."""
+        with all fields populated.
+        """
         ops = build_two_qubit_operators()
         # Use fixed optimal parameters as starting point
         x0 = np.array(
@@ -684,7 +685,8 @@ class TestOptimisation:
 
     def test_optimisation_result_dataclass(self) -> None:
         """OptimisationResult must store correct attributes
-        (including new fields from discrepancies #2, #3)."""
+        (including new fields from discrepancies #2, #3).
+        """
         result = OptimisationResult(
             delta_theta_opt=0.5,
             params_opt=np.zeros(11),
@@ -908,7 +910,7 @@ class TestBounds:
         assert len(result.history) == 0  # Default empty
 
     def test_optimisation_result_history_settable(self) -> None:
-        """history field must accept list of floats."""
+        """History field must accept list of floats."""
         result = OptimisationResult(
             delta_theta_opt=0.5,
             params_opt=np.zeros(11),

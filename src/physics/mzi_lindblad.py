@@ -22,6 +22,7 @@ Circuit for full MZI with decoherence:
 References:
 - Walls & Milburn (2008) "Quantum Optics"
 - Gardiner & Zoller (2004) "Quantum Noise"
+
 """
 
 from __future__ import annotations
@@ -59,6 +60,7 @@ class MziNoiseConfig:
         T: Decoherence time (dimensionless).
         dt: Time step for numerical integration.
         method: Integration method ('rk4' or 'scipy').
+
     """
 
     gamma_1: float = 0.0
@@ -104,6 +106,7 @@ def build_mzi_lindblad_operators(
         >>> L_ops = build_mzi_lindblad_operators(4, config)
         >>> len(L_ops)
         2
+
     """
     if config.gamma_1 < 0:
         raise ValueError(
@@ -168,6 +171,7 @@ def lindblad_liouvillian_mzi(
 
     Returns:
         dρ/dt matrix.
+
     """
     drho_dt = np.zeros_like(rho, dtype=complex)
 
@@ -212,6 +216,7 @@ def _evolve_rk4_mzi(
 
     Returns:
         Final density matrix after evolution.
+
     """
     if T <= 0:
         return initial_rho.copy()
@@ -257,6 +262,7 @@ def _evolve_scipy_mzi(
 
     Returns:
         Final density matrix.
+
     """
     # Vectorize initial state
     rho0 = density_to_vector(initial_rho)
@@ -318,6 +324,7 @@ def evolve_mzi_lindblad(
 
     Raises:
         ValueError: If method is not 'rk4' or 'scipy'.
+
     """
     # Convert pure state to density matrix if needed
     if initial_state.ndim == 1:
@@ -394,6 +401,13 @@ def run_noisy_mzi(
     Returns:
         Final density matrix in the two-mode Fock basis.
 
+    Constraints:
+        initial_state must be normalized (1D) or trace-1 (2D).
+        theta in [0, π] (beam splitter angle).
+        noise_config rates (gamma_{1,2,phi}) must be >= 0.
+        noise_config.T > 0, noise_config.dt > 0.
+        ancilla_dim >= 1 (1 = no ancilla).
+
     Example:
         >>> from src.physics.mzi_lindblad import MziNoiseConfig, run_noisy_mzi
         >>> from src.physics.mzi_simulation import fock_state
@@ -405,6 +419,7 @@ def run_noisy_mzi(
         (9, 9)
         >>> np.isclose(np.trace(rho), 1.0)
         True
+
     """
     # Convert to density matrix if needed
     if initial_state.ndim == 1:

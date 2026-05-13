@@ -12,12 +12,26 @@ Physical Model:
   extending the coherence time T₂
 - For CPMG: T₂^(DD) ≈ T₂⁰ · n_pulses^(2/3)
 - For XY-8: T₂^(DD) ≈ T₂⁰ · n_pulses^(0.8) (slightly better isotropy)
-
-Key Physics:
 - DD improves the prefactor C but does NOT change the SQL scaling
   exponent α = -0.5
 - Phase sensitivity: Δφ = 1/√(N · T₂^(DD) / T)
 - The filter function F(ω) quantifies the spectral suppression
+
+Hilbert Space:
+- Not applicable at the filter-function / sensitivity-scaling level
+- Quantum state dynamics assumed to live in a spin-1/2 or two-level subspace
+- For full state simulation, see src.evolution.lindblad_solver
+
+Units:
+- Dimensionless throughout (ℏ = 1)
+- Frequencies ω in rad/sample (dimensionless when multiplied by pulse spacing)
+- Coherence times T₂ in dimensionless units consistent with time t
+
+Conventions:
+- Filter function: F(ω) = |y(ω)|² where y(ω) = ∫ g(t) e^{iωt} dt / T
+- Modulation function g(t) = ±1 alternates sign at each π-pulse
+- CPMG sequence: all π-pulses have same phase (x-axis)
+- XY-8 sequence: π-pulses alternate phase (x→y→x→y→...) for isotropy
 
 Pulse Sequences:
 | Sequence | Power Law | Best For                      |
@@ -38,6 +52,7 @@ References:
   Nuclear Relaxation Times"
 - Gullion, Baker & Conradi (1990) "New, compensated Carr-Purcell
   sequences" (XY-8)
+
 """
 
 from __future__ import annotations
@@ -67,6 +82,7 @@ class DDConfig:
         ValueError: If sequence is not 'CPMG' or 'XY8'.
         ValueError: If tau is not positive.
         ValueError: If pulse_axis is not 'x' or 'y'.
+
     """
 
     n_pulses: int = 0
@@ -134,6 +150,7 @@ def cpmg_filter_function(
         0.0
         >>> np.all(F >= 0)
         True
+
     """
     if n_pulses < 0:
         raise ValueError(f"Number of pulses must be non-negative, got {n_pulses}")
@@ -223,6 +240,7 @@ def dd_effective_coherence_time(
         >>> T_dd_xy8 = dd_effective_coherence_time(1.0, 8, "XY8")
         >>> T_dd_xy8 > T_dd_cpmg  # XY-8 slightly better
         True
+
     """
     if T_2_0 <= 0:
         raise ValueError(f"Bare coherence time must be positive, got {T_2_0}")
@@ -304,6 +322,7 @@ def dd_phase_sensitivity(
         >>> d2 = dd_phase_sensitivity(100, 0, 1.0, 8, 1.0)
         >>> d2 < d1
         True
+
     """
     if N <= 0:
         raise ValueError(f"Mean photon number N must be positive, got {N}")
@@ -375,6 +394,7 @@ def dd_sensitivity_scaling(
         True
         >>> result['prefactor_C'] > 0
         True
+
     """
     N_values = np.asarray(N_values, dtype=float)
 
@@ -425,6 +445,7 @@ def test_cpmg_filter_zero_pulses() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     omega = np.linspace(-10, 10, 100)
 
@@ -443,6 +464,7 @@ def test_cpmg_filter_nonnegative() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     omega = np.linspace(-20, 20, 5000)
 
@@ -464,6 +486,7 @@ def test_cpmg_filter_dc_suppression() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     for n_pulses in [1, 2, 4, 8]:
         F = cpmg_filter_function(np.array([0.0]), n_pulses=n_pulses, tau=0.5)
@@ -484,6 +507,7 @@ def test_dd_coherence_time_improvement() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     T_2_0 = 1.0
 
@@ -517,6 +541,7 @@ def test_dd_xy8_better_than_cpmg() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     # For n_pulses = 1 both sequences give the same result (1^{any} = 1),
     # so we test from n_pulses >= 2 where the exponent difference matters.
@@ -542,6 +567,7 @@ def test_dd_phase_sensitivity_sql_scaling() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     N_values = np.logspace(1, 4, 20)
 
@@ -565,6 +591,7 @@ def test_dd_prefactor_improves_with_pulses() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     N_values = np.logspace(1, 4, 10)
     T = 1.0
@@ -638,6 +665,7 @@ def test_dd_sensitivity_consistency() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     T = 1.0
     T_2_0 = 1.0

@@ -42,6 +42,7 @@ class ScalingFitResult:
         delta_phi_values: Sensitivity values used in the fit.
         valid: Whether the fit succeeded (sufficient points, finite results).
         warnings: Any warnings (e.g., too few points, low R², negative values).
+
     """
 
     alpha: float
@@ -105,6 +106,7 @@ def fit_scaling_exponent(
         True
         >>> result.R_squared > 0.90
         True
+
     """
     # --- Input validation ---
     N_arr = np.asarray(N, dtype=float).ravel()
@@ -253,6 +255,7 @@ def validate_fit_quality(result: ScalingFitResult) -> bool:
 
     Returns:
         True if the fit quality is acceptable for further analysis.
+
     """
     if not result.valid:
         return False
@@ -300,6 +303,7 @@ def compare_exponents(
         2
         >>> df.loc["Heisenberg", "alpha"]  # Should be -1
         -1.0
+
     """
     rows = []
     for label, result in results.items():

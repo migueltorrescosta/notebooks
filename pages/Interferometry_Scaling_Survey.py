@@ -64,6 +64,7 @@ def model_selector() -> list[ModelConfig]:
 
     Returns:
         List of selected ModelConfig objects.
+
     """
     st.subheader("Models (Input States)")
 
@@ -169,6 +170,7 @@ def noise_selector() -> tuple[str, list[float]]:
 
     Returns:
         Tuple of (noise_type, noise_levels).
+
     """
     st.subheader("Noise Channels")
 
@@ -243,6 +245,7 @@ def n_range_selector() -> tuple[int, int, int]:
 
     Returns:
         Tuple of (N_min, N_max, N_points).
+
     """
     st.subheader("N Sweep Configuration")
 
@@ -262,6 +265,7 @@ def phase_selector() -> float:
 
     Returns:
         Operating phase φ in radians.
+
     """
     st.subheader("Operating Phase")
 
@@ -311,6 +315,7 @@ def run_full_survey(
 
     Returns:
         Tuple of (raw_results_df, fitted_exponents_df).
+
     """
     # Build the final model list:
     # - Custom models (with custom_sensitivity_fn) are kept as-is.
@@ -382,6 +387,7 @@ def plot_scaling_curves(
         fit_df: Fitted exponents.
         N_min: Minimum N for reference lines.
         N_max: Maximum N for reference lines.
+
     """
     st.subheader("Δφ vs N (Log-Log)")
 
@@ -470,6 +476,7 @@ def plot_alpha_heatmap(fit_df: pd.DataFrame) -> None:
 
     Args:
         fit_df: Fitted exponents DataFrame.
+
     """
     st.subheader("Phase Diagram: α by (State, Noise)")
 
@@ -530,6 +537,7 @@ def display_fit_table(fit_df: pd.DataFrame) -> None:
 
     Args:
         fit_df: Fitted exponents DataFrame.
+
     """
     st.subheader("Fitted Scaling Exponents")
 
@@ -589,6 +597,7 @@ def export_controls(raw_df: pd.DataFrame, fit_df: pd.DataFrame) -> None:
     Args:
         raw_df: Raw survey results.
         fit_df: Fitted exponents.
+
     """
     st.subheader("Export Results")
 

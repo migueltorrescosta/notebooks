@@ -73,6 +73,7 @@ def generate_system_state(
 
     Returns:
         State vector in Dicke basis.
+
     """
     if state_type == "coherent":
         return coherent_spin_state(N)
@@ -121,6 +122,7 @@ def compute_phase_sensitivity(
 
     Returns:
         Dictionary with phase sensitivity results.
+
     """
     rho0 = ket_to_density(state)
 
@@ -195,6 +197,7 @@ def compute_ttn_bond_growth(
 
     Returns:
         Dictionary with bond dimension data.
+
     """
     # For Dicke basis (N+1 dim), estimate effective bond dimension
     # based onParticipation ratio and Schmidt decomposition ideas

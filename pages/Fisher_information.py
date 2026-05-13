@@ -1,3 +1,10 @@
+"""Fisher information computation and visualization.
+
+Computes classical and quantum Fisher information for phase estimation,
+visualizes Cramér-Rao bounds, and compares sensitivity across different
+input states and interferometer configurations.
+"""
+
 from enum import Enum
 from functools import partial
 

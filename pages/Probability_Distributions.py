@@ -1,3 +1,10 @@
+"""Probability distribution visualization for quantum states.
+
+Plots photon number distributions, Wigner functions, and quasi-probability
+distributions for states used in quantum interferometry (Fock, coherent,
+squeezed, NOON states).
+"""
+
 from scipy.special import comb
 from src.utils.enums import ProbabilityDistribution
 from src.visualization.plotting import plot_array

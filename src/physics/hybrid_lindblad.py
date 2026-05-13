@@ -1,5 +1,32 @@
 """
 Hybrid Oscillator-Spin Lindblad Solver for High-Order Squeezing.
+
+Solves the Lindblad master equation for a hybrid system consisting of
+a bosonic oscillator mode coupled to a spin degree of freedom, with
+application to high-order squeezing generation and detection.
+
+Physical Model:
+- Oscillator: Bosonic mode in Fock basis |n⟩, n = 0…N (dimension N+1)
+- Spin: Two-level system |↓⟩, |↑⟩ (dimension 2)
+- Combined: |n⟩ ⊗ |σ⟩ (dimension 2(N+1))
+- Hamiltonian: H = H_0 + H_int where H_0 drives the oscillator
+  and H_int couples oscillator to spin (basis for squeezing protocol)
+- Lindblad operators: L_1 = √γ₁ a (one-body loss), L_φ = √γ_φ n (phase diffusion)
+
+Hilbert Space:
+- Total dimension: 2 × (N+1)
+- State ordering: |0,↓⟩, |0,↑⟩, |1,↓⟩, |1,↑⟩, ..., |N,↓⟩, |N,↑⟩
+- Consistent with src.physics.hybrid_system conventions
+
+Units:
+- Dimensionless throughout (ℏ = 1)
+- Decay rates γ in same dimensionless units
+- Time in dimensionless units
+
+Conventions:
+- Master equation: dρ/dt = -i[H, ρ] + Σ_k (L_k ρ L_k† - ½{L_k†L_k, ρ})
+- Phase convention: e^{-iHt} for unitary evolution
+- Lindblad form ensures complete positivity
 """
 
 from dataclasses import dataclass
@@ -338,6 +365,7 @@ def _qfi_mixed_state(rho: np.ndarray, G: np.ndarray) -> float:
 
     Returns:
         Quantum Fisher Information value F_Q.
+
     """
     from ..analysis.fisher_information import quantum_fisher_information_dm
 

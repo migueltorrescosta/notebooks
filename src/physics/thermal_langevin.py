@@ -7,22 +7,32 @@ estimation, where a thermal Langevin force creates a phase-noise floor.
 Physical Model:
 - A thermal Langevin force F_th with power spectral density:
   S_F(ω) = 2mΓk_B T
-
 - This creates displacement noise x(ω) = χ(ω) F(ω), where
   χ(ω) = 1/[m(ω_m² - ω² + iΓω)] is the mechanical susceptibility.
-
-- Phase noise comes from displacement: φ = k · x (in an interferometer.
-
+- Phase noise comes from displacement: φ = k · x (in an interferometer)
 - For ω << ω_m (below resonance), the susceptibility is approximately:
   χ(0) = 1/(m ω_m²)
+
+Hilbert Space:
+- Not applicable (semi-classical noise model, no quantum state evolution)
+- Phase noise is treated as a stochastic classical process
+
+Units:
+- Uses normalized units by default for consistent scaling behavior
+- All constants can be overridden for SI calculations
+- Temperature T in Kelvin (when using SI), or dimensionless (normalized)
+- Frequency ω in rad/s (SI) or dimensionless (normalized)
+
+Conventions:
+- Power spectral density: S_F(ω) = 2mΓk_B T (single-sided)
+- Mechanical susceptibility: χ(ω) = 1/[m(ω_m² - ω² + iΓω)]
+- Phase from displacement: φ = k · x (k = 2π/λ for optical interferometry)
+- Scaling exponent α defined by Δφ ∝ N^α
 
 Scaling Regimes:
 - When quantum noise (SQL) dominates: Δφ ∝ 1/√N → α = -0.5
 - When thermal noise dominates: Δφ ≈ constant → α = 0
 
-Units:
-- Uses normalized units by default for consistent scaling behavior.
-- All constants can be overridden for SI calculations.
 """
 
 from __future__ import annotations
@@ -62,6 +72,7 @@ class ThermalLangevinConfig:
             Use 0 for constant floor (α→0 limit), or slightly negative
             values for weak N-dependent thermal noise.
         use_normalized: Use normalized scaling mode (recommended for scaling surveys).
+
     """
 
     thermal_strength: float = 1.0
@@ -86,6 +97,7 @@ def sql_sensitivity(N: float) -> float:
 
     Returns:
         SQL sensitivity Δφ.
+
     """
     return 1.0 / np.sqrt(N)
 
@@ -104,6 +116,7 @@ def thermal_sensitivity_normalized(
 
     Returns:
         Thermal phase sensitivity Δφ_thermal.
+
     """
     exponent = config.thermal_exponent
     return config.thermal_strength * (N**exponent)
@@ -124,6 +137,7 @@ def combined_sensitivity(
 
     Returns:
         Combined sensitivity Δφ.
+
     """
     if config.use_normalized:
         delta_quantum = sql_sensitivity(N)
@@ -158,6 +172,7 @@ def thermal_sensitivity_at_N(
 
     Returns:
         Combined Δφ = sqrt(Δφ_quantum² + Δφ_thermal²).
+
     """
     return combined_sensitivity(N, base_config)
 
@@ -178,6 +193,7 @@ def sweep_thermal_scaling(
 
     Returns:
         Tuple of (N_array, delta_phi_array).
+
     """
     N_arr = np.asarray(N_values, dtype=float)
     delta_phi_arr = np.zeros_like(N_arr)
@@ -208,6 +224,7 @@ def fit_thermal_scaling_exponent(
 
     Returns:
         ScalingFitResult with exponent α and quality metrics.
+
     """
     N_arr, delta_phi_arr = sweep_thermal_scaling(N_values, base_config)
 
@@ -241,6 +258,7 @@ def crossover_N(
 
     Returns:
         N_crossover: Particle number where contributions are equal.
+
     """
     if not base_config.use_normalized:
         # Fallback for non-normalized: use bisection
@@ -300,6 +318,7 @@ def mechanical_susceptibility(
 
     Returns:
         Complex susceptibility χ(ω).
+
     """
     scalar_input = np.ndim(omega) == 0
     omega_arr = np.atleast_1d(np.asarray(omega, dtype=float))
@@ -327,6 +346,7 @@ def force_psd_thermal(
 
     Returns:
         Force PSD S_F.
+
     """
     return 2.0 * gamma * k_B * T
 
@@ -344,6 +364,7 @@ def thermal_floor_approximation(
 
     Returns:
         Approximate thermal phase noise floor at N=1.
+
     """
     return config.thermal_strength
 
@@ -370,6 +391,7 @@ def create_thermal_config(
 
     Returns:
         ThermalLangevinConfig object.
+
     """
     return ThermalLangevinConfig(
         thermal_strength=thermal_strength,

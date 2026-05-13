@@ -24,6 +24,7 @@ References:
 - Davis et al., PRA 94, 063814 (2016)
 - Kitagawa & Ueda, PRA 47, 5138 (1993)
 - Hentschel & Sanders, PRA 88, 062329 (2013)
+
 """
 
 from __future__ import annotations
@@ -66,6 +67,7 @@ def build_two_qubit_operators() -> dict[str, np.ndarray]:
     Returns:
         Dict with keys 'Jz_S', 'Jz_A', 'Jx_S', 'Jx_A', 'Jy_S', 'Jy_A',
         each a 4×4 complex Hermitian matrix.
+
     """
     return {
         "Jz_S": np.kron(J_Z, I_2),
@@ -90,6 +92,7 @@ def build_interaction_hamiltonian(
 
     Returns:
         4×4 Hermitian interaction matrix.
+
     """
     a_xx, a_xz, a_zx, a_zz = alpha
 
@@ -130,6 +133,7 @@ def single_qubit_state(theta: float, phi: float) -> np.ndarray:
 
     Returns:
         Normalised complex 2-vector.
+
     """
     return np.array(
         [np.cos(theta / 2.0), np.exp(1j * phi) * np.sin(theta / 2.0)], dtype=complex
@@ -149,6 +153,7 @@ def two_qubit_state(
 
     Returns:
         Normalised complex 4-vector (product state).
+
     """
     psi_S = single_qubit_state(theta_S, phi_S)
     psi_A = single_qubit_state(theta_A, phi_A)
@@ -172,6 +177,7 @@ def bs_unitary(T: float) -> np.ndarray:
 
     Returns:
         2×2 unitary matrix.
+
     """
     U = np.cos(T / 2.0) * I_2 - 1j * np.sin(T / 2.0) * SIGMA_X
     assert np.allclose(U @ U.conj().T, I_2, atol=1e-12), (
@@ -188,6 +194,7 @@ def two_qubit_bs_unitary(T: float) -> np.ndarray:
 
     Returns:
         4×4 unitary matrix (tensor product).
+
     """
     U = bs_unitary(T)
     return np.kron(U, U)
@@ -214,6 +221,7 @@ def build_hold_hamiltonian(
 
     Returns:
         4×4 Hermitian Hamiltonian matrix.
+
     """
     H_int = build_interaction_hamiltonian(alpha)
     H = theta * ops["Jz_S"] + H_int
@@ -240,6 +248,7 @@ def hold_unitary(
 
     Returns:
         4×4 unitary matrix.
+
     """
     H = build_hold_hamiltonian(theta, alpha, ops)
     U = expm(-1j * T_H * H)
@@ -282,6 +291,14 @@ def evolve_full(
 
     Raises:
         AssertionError: If input state is not normalised.
+
+    Constraints:
+        psi0 must be normalized 4-vector.
+        T_BS1, T_BS2, T_H > 0.
+        theta real (phase rate parameter).
+        alpha tuple must be length 4: (α_xx, α_xz, α_zx, α_zz).
+        ops must contain keys for all required two-qubit operators.
+
     """
     assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
 
@@ -309,6 +326,7 @@ def compute_expectation_and_variance(
 
     Returns:
         Tuple (expectation, variance).
+
     """
     exp_val = np.real(psi.conj() @ operator @ psi)
     op_sq = operator @ operator
@@ -339,6 +357,7 @@ def compute_reduced_purity(psi: np.ndarray) -> float:
 
     Returns:
         Purity Tr(ρ_S²) ∈ [0.5, 1.0].
+
     """
     # psi components: [⟨00|ψ⟩, ⟨01|ψ⟩, ⟨10|ψ⟩, ⟨11|ψ⟩]
     # Reduced density matrix ρ_S = Tr_A(|ψ⟩⟨ψ|):
@@ -388,6 +407,13 @@ def compute_sensitivity(
 
     Raises:
         RuntimeError: If derivative is zero (operating at fringe extremum).
+
+    Constraints:
+        psi0 must be normalized (L2 norm = 1).
+        fd_step > 0 (finite difference step); too small causes numerical noise.
+        ops must contain key 'Jz_S' (the measured observable).
+        T_BS1, T_BS2, T_H > 0 (positive durations).
+
     """
     Jz_S = ops["Jz_S"]
 
@@ -429,6 +455,7 @@ def _params_to_components(
 
     Returns:
         Tuple (theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_H, alpha).
+
     """
     theta_S = float(params[0])
     phi_S = float(params[1])
@@ -466,6 +493,13 @@ def sensitivity_objective(
 
     Returns:
         Δθ value (plus infinite penalty if bounds violated).
+
+    Constraints:
+        params must be length 11: (θ_S, φ_S, θ_A, φ_A, T_BS1, T_BS2, T_H, α_xx, α_xz, α_zx, α_zz).
+        fd_step > 0 (finite difference step).
+        theta_true real (valid phase rate).
+        penalty_scale > 0 (sensible default: 1e6).
+
     """
     # Default bounds from the article
     if bounds is None:
@@ -533,6 +567,7 @@ class OptimisationResult:
             0.5 = maximally entangled with ancilla).
         history: Objective function values at each iteration (for
             convergence analysis). Empty list if callback not enabled.
+
     """
 
     delta_theta_opt: float
@@ -556,6 +591,7 @@ class ThetaScanResult:
         theta_values: Array of θ values scanned.
         best_per_theta: Best Δθ for each θ value.
         all_results: All results (including non-best restarts) keyed by θ.
+
     """
 
     results: list[OptimisationResult] = field(default_factory=list)
@@ -570,6 +606,7 @@ def get_default_bounds() -> dict[str, tuple[float, float]]:
     Returns:
         Dict with keys 'theta', 'phi', 'T_BS', 'T_H', 'alpha' mapping to
         (min, max) tuples.
+
     """
     return {
         "theta": (0.0, np.pi),
@@ -593,6 +630,7 @@ def random_initial_params(
 
     Returns:
         11-element array of initial parameters.
+
     """
     if bounds is None:
         bounds = get_default_bounds()
@@ -642,6 +680,7 @@ def run_optimisation(
 
     Returns:
         OptimisationResult with the best parameters found.
+
     """
     return _run_nelder_mead(
         theta_true=theta_true,
@@ -682,6 +721,7 @@ def _run_nelder_mead(
         adaptive: Use adaptive Nelder–Mead parameters.
         bounds: Custom parameter bounds dictionary. Uses defaults if None.
         track_history: If True, record objective function values per iteration.
+
     """
     if x0 is None:
         rng = np.random.default_rng(seed)
@@ -776,6 +816,7 @@ def run_theta_scan(
 
     Returns:
         ThetaScanResult with all recorded information.
+
     """
     ops = build_two_qubit_operators()
     theta_arr = np.asarray(theta_values, dtype=float)
@@ -835,6 +876,7 @@ def validate_operators(ops: dict[str, np.ndarray]) -> bool:
 
     Raises:
         AssertionError: If any check fails.
+
     """
     for name, op in ops.items():
         assert op.shape == (4, 4), f"{name} must be 4×4, got {op.shape}"
@@ -863,6 +905,7 @@ def validate_bs_unitarity(T: float = np.pi / 4) -> bool:
 
     Returns:
         True if unitary.
+
     """
     U = bs_unitary(T)
     assert np.allclose(U @ U.conj().T, I_2, atol=1e-12), "BS must be unitary"
@@ -878,6 +921,7 @@ def validate_two_qubit_bs_unitarity(T: float = np.pi / 4) -> bool:
 
     Returns:
         True if unitary.
+
     """
     U = two_qubit_bs_unitary(T)
     I_4 = np.eye(4, dtype=complex)
@@ -899,6 +943,7 @@ def validate_hold_unitarity(
 
     Returns:
         True if unitary.
+
     """
     ops = build_two_qubit_operators()
     U = hold_unitary(T_H, theta, alpha, ops)
@@ -920,6 +965,7 @@ def validate_sensitivity_reasonable(
 
     Returns:
         True if all checks pass.
+
     """
     if T_H_vals is None:
         T_H_vals = [0.5, 1.0, 2.0]
@@ -968,6 +1014,7 @@ def validate_variance_positive(
 
     Raises:
         AssertionError: If variance < -atol (unphysical).
+
     """
     _, var = compute_expectation_and_variance(psi, operator)
     assert var >= -atol, f"Unphysical negative variance: Var = {var:.2e}"
@@ -1007,6 +1054,7 @@ def validate_derivative_stability(
 
     Raises:
         AssertionError: If derivative is unstable across step sizes.
+
     """
     sensitivities: list[float] = []
     for step in fd_steps:
@@ -1055,6 +1103,7 @@ def compute_convergence_metric(
     Returns:
         Relative standard deviation (spread / mean). Returns 0.0 if
         fewer than 2 results are provided or mean is zero.
+
     """
     if len(results) < 2:
         return 0.0
@@ -1080,6 +1129,7 @@ def get_decoupled_sensitivity(T_H: float, theta_true: float = 1.0) -> float:
 
     Returns:
         Δθ (ideally = 1/T_H).
+
     """
     ops = build_two_qubit_operators()
     psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)  # both in |1,0⟩
@@ -1102,6 +1152,7 @@ class AlphaSingleScanResult:
         alpha_values: Array of α values scanned.
         delta_theta_values: Corresponding Δθ sensitivity values.
         fixed_params: Dict of the other fixed parameters used.
+
     """
 
     alpha_name: str
@@ -1120,6 +1171,7 @@ class AlphaRandomSearchResult:
         best_alpha: The α = (α_xx, α_xz, α_zx, α_zz) that gave minimal Δθ.
         best_delta_theta: The minimal Δθ found.
         fixed_params: Dict of the other fixed parameters used.
+
     """
 
     alpha_samples: np.ndarray
@@ -1175,6 +1227,7 @@ def scan_alpha_single_parameter(
 
     Raises:
         ValueError: If alpha_name is not one of 'xx', 'xz', 'zx', 'zz'.
+
     """
     alpha_idx_map = {"xx": 0, "xz": 1, "zx": 2, "zz": 3}
     if alpha_name not in alpha_idx_map:
@@ -1257,6 +1310,7 @@ def random_search_alpha(
 
     Returns:
         AlphaRandomSearchResult with all samples and the best found.
+
     """
     rng = np.random.default_rng(seed)
     ops = build_two_qubit_operators()

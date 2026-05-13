@@ -12,9 +12,20 @@ Physical Model:
 - H_J = J Σ σ_i^x σ_{i+1}^x (nearest neighbor coupling)
 - H_U = (U/2) Σ σ_i^z (transverse field)
 
+Hilbert Space:
+- N spin-1/2 particles, each with basis |↑⟩, |↓⟩
+- Total dimension: 2^N (full Hilbert space)
+- Basis ordering: computational basis |s₁s₂...s_N⟩ with s_i ∈ {0, 1}
+- Integer indexing: binary representation of spin configuration
+
 Units:
-- Dimensionless throughout.
-- ℏ = 1, k_B = 1.
+- Dimensionless throughout (ℏ = 1, k_B = 1)
+- Coupling constants J and U in same dimensionless energy units
+
+Conventions:
+- Pauli matrices: standard (σ_z diagonal, σ_x off-diagonal)
+- Periodic boundary conditions: σ_{N+1} = σ₁
+- Hamiltonian is real symmetric (H = H^T = H^†)
 """
 
 from dataclasses import dataclass
@@ -31,6 +42,10 @@ from src.utils.validators import (
 )
 
 # Aliases for backward compatibility
+# Agent Notes: These re-export validators from src.utils.validators
+# so that calling code can import them from heisenberg_model directly.
+# If the source functions in validators.py are moved or renamed,
+# update these aliases to maintain backward compatibility.
 validate_hamiltonian_hermitian = validate_hamiltonian_hermitian
 validate_eigenvectors_orthonormal = validate_eigenvectors_orthonormal
 validate_eigendecomposition = validate_eigendecomposition
@@ -74,6 +89,7 @@ def heisenberg_hamiltonian(
 
     Raises:
         ValueError: If n_sites < 1 or n_sites > 26.
+
     """
     if n_sites < 1:
         raise ValueError("n_sites must be >= 1")
@@ -108,6 +124,7 @@ def heisenberg_coupling_term(n_sites: int) -> np.ndarray:
 
     Returns:
         Coupling Hamiltonian.
+
     """
     identities = [EYE] * n_sites
     hamiltonian = np.zeros((2**n_sites, 2**n_sites), dtype=complex)
@@ -129,6 +146,7 @@ def heisenberg_field_term(n_sites: int) -> np.ndarray:
 
     Returns:
         Field Hamiltonian.
+
     """
     return functools.reduce(np.kron, [SIGMA_Z for _ in range(n_sites)])
 
@@ -161,6 +179,7 @@ def diagonalize_hamiltonian(
 
     Returns:
         Tuple of (eigenvalues, eigenvectors).
+
     """
     hamiltonian = heisenberg_hamiltonian(n_sites, j, u)
     return np.linalg.eigh(hamiltonian)
@@ -181,6 +200,7 @@ def compute_expectation_values(
 
     Returns:
         Array of shape (n_sites, 2^N, 2) with [site, state, ±1] values.
+
     """
     dim = 2**n_sites
 
@@ -224,6 +244,7 @@ def run_simulation(
 
     Returns:
         Dictionary with hamiltonian, eigenvalues, eigenvectors, etc.
+
     """
     # Build Hamiltonians
     hamiltonian = heisenberg_hamiltonian(n_sites, j, u)

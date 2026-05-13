@@ -73,7 +73,7 @@ class TestAnnihilationOperator:
         assert a.shape == (N + 1, N + 1)
 
     def test_operator_hermitian(self, N: int) -> None:
-        """a is not Hermitian (lowering operator)."""
+        """A is not Hermitian (lowering operator)."""
         a = annihilation_operator(N)
         # a should NOT equal a†
         a_dag = a.conj().T
@@ -113,7 +113,7 @@ class TestCreationOperator:
         assert a_dag.shape == (N + 1, N + 1)
 
     def test_hermitian_conjugate(self, N: int) -> None:
-        """a relates to a via transpose-conjugate relationship."""
+        """A relates to a via transpose-conjugate relationship."""
         # The key property is that one operator is the transpose of the other
         a = annihilation_operator(N)
         a_dag = creation_operator(N)

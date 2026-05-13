@@ -16,10 +16,10 @@ Physical Model:
 
     where λ is the laser wavelength.
 
-Impact on Sensitivity Scaling:
-    - At large N (where quantum noise is small), TTL noise creates a constant
-      noise floor, and the scaling exponent α → 0.
-    - At small N, the standard quantum limit (SQL) scaling α = -0.5 still holds.
+Hilbert Space:
+    - Not applicable (classical noise model, no quantum state evolution)
+    - TTL noise is treated as a classical systematic effect that adds to
+      the quantum noise floor
 
 Units:
     - θ_rms: radians
@@ -30,6 +30,7 @@ References:
     - LISA Science Requirements Document (ESA L3 mission)
     - "Tilt-to-length coupling in LISA" — Hartig et al. (2022)
     - "Laser Interferometry for LISA" — Bender et al. (2008)
+
 """
 
 from __future__ import annotations
@@ -56,6 +57,7 @@ class TTLNoiseConfig:
         wavelength: Laser wavelength, same units as L (default: 1e-6 = 1 μm).
         beam_offset: Beam offset from the pivot point in the same units
             as L (default: 1e-3 = 1 mm).
+
     """
 
     theta_rms: float = 1e-6  # 1 μrad
@@ -91,6 +93,7 @@ def ttl_path_length_noise(config: TTLNoiseConfig) -> float:
         >>> config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3)
         >>> round(ttl_path_length_noise(config), 12)
         1e-09
+
     """
     _validate_config(config)
     return config.theta_rms * config.beam_offset
@@ -116,6 +119,7 @@ def ttl_phase_noise(config: TTLNoiseConfig) -> float:
         >>> result = ttl_phase_noise(config)
         >>> abs(result - 2 * np.pi * 1e-3) < 1e-10
         True
+
     """
     _validate_config(config)
     delta_L = ttl_path_length_noise(config)
@@ -139,6 +143,7 @@ def ttl_sensitivity_floor(config: TTLNoiseConfig) -> float:
 
     Raises:
         ValueError: If config parameters are non-positive or invalid.
+
     """
     return ttl_phase_noise(config)
 
@@ -173,6 +178,7 @@ def ttl_limited_sensitivity(
     Raises:
         ValueError: If N is negative or if quantum_sensitivity is negative.
         ValueError: If config parameters are invalid.
+
     """
     if N < 0:
         raise ValueError(f"Particle number N must be non-negative, got {N}")
@@ -196,6 +202,7 @@ def _quantum_sensitivity_sql(N: float) -> float:
 
     Raises:
         ValueError: If N is non-positive.
+
     """
     if N <= 0:
         raise ValueError(f"Particle number N must be positive for SQL, got {N}")
@@ -213,6 +220,7 @@ def _quantum_sensitivity_hl(N: float) -> float:
 
     Raises:
         ValueError: If N is non-positive.
+
     """
     if N <= 0:
         raise ValueError(f"Particle number N must be positive for HL, got {N}")
@@ -241,6 +249,7 @@ def _power_law(
 
     Returns:
         log10(Δφ) values.
+
     """
     return log_a + alpha * log_N
 
@@ -286,6 +295,7 @@ def ttl_scaling_sweep(
         >>> result = ttl_scaling_sweep(N, config, quantum_scaling="sql")
         >>> result["alpha_fitted"] is not None
         True
+
     """
     N_arr = np.asarray(N_values, dtype=np.float64)
 
@@ -354,6 +364,7 @@ def _validate_config(config: TTLNoiseConfig) -> None:
 
     Raises:
         ValueError: If any parameter is non-positive, NaN, or infinite.
+
     """
     if config.theta_rms <= 0:
         raise ValueError(
@@ -383,6 +394,7 @@ def test_ttl_path_length_noise() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     # Simple case: 1 μrad × 1 mm = 1 nm
     config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3)
@@ -397,6 +409,7 @@ def test_ttl_phase_noise_consistency() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3, wavelength=1e-6)
     delta_L = ttl_path_length_noise(config)
@@ -413,6 +426,7 @@ def test_sensitivity_floor_equals_phase_noise() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3)
     floor = ttl_sensitivity_floor(config)
@@ -431,6 +445,7 @@ def test_limited_sensitivity_quadrature_sum() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3)
 
@@ -455,6 +470,7 @@ def test_scaling_sweep_sql_low_N() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     config = TTLNoiseConfig(theta_rms=1e-12, beam_offset=1e-6, wavelength=1e-6)
     N = np.logspace(0, 3, 20)
@@ -473,6 +489,7 @@ def test_scaling_sweep_hl_low_N() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     config = TTLNoiseConfig(theta_rms=1e-12, beam_offset=1e-6, wavelength=1e-6)
     N = np.logspace(0, 3, 20)
@@ -490,6 +507,7 @@ def test_scaling_sweep_returns_dict() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     config = TTLNoiseConfig()
     N = np.logspace(0, 6, 10)
@@ -518,6 +536,7 @@ def test_config_validation_raises_on_zero_theta() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     import pytest as _pytest
 
@@ -532,6 +551,7 @@ def test_config_validation_raises_on_negative_wavelength() -> dict:
 
     Returns:
         Dictionary with test results.
+
     """
     import pytest as _pytest
 

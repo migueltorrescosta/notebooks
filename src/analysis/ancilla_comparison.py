@@ -27,6 +27,7 @@ References:
 - Demkowicz-Dobrzanski & Maccone, Phys. Rev. Lett. 113, 250801 (2014)
 - Paris, Int. J. Quantum Inf. 7, 125 (2009)
 - Yurke, McCall, Klauder, Phys. Rev. A 33, 4033 (1986)
+
 """
 
 from __future__ import annotations
@@ -57,6 +58,7 @@ def build_system_jz_jx(N_max: int) -> tuple[np.ndarray, np.ndarray]:
 
     Returns:
         Tuple (J_z, J_x) of Hermitian operators of dimension (N_max+1)².
+
     """
     dim = (N_max + 1) ** 2
 
@@ -81,6 +83,7 @@ def build_ancilla_operators() -> tuple[np.ndarray, np.ndarray]:
 
     Returns:
         Tuple (J_z_anc, J_x_anc) of 2×2 Hermitian operators.
+
     """
     sigma_z = np.array([[1, 0], [0, -1]], dtype=complex)
     sigma_x = np.array([[0, 1], [1, 0]], dtype=complex)
@@ -108,6 +111,7 @@ def build_interaction_hamiltonian(
 
     Returns:
         Full H_int matrix of dimension (dim_sys × 2).
+
     """
     a_xx, a_xz, a_zx, a_zz = alphas
     dim_sys = J_z_sys.shape[0]
@@ -145,6 +149,7 @@ def compute_generator_B(T_H: float, N_max: int) -> np.ndarray:
 
     Returns:
         Generator matrix of dimension (N_max+1)² × (N_max+1)².
+
     """
     J_z_sys, _ = build_system_jz_jx(N_max)
     BS = beam_splitter_unitary(np.pi / 4, 0.0, N_max)
@@ -178,6 +183,7 @@ def compute_generator_A(
 
     Returns:
         Generator matrix of dimension (N_max+1)² × 2 (system + ancilla).
+
     """
     J_z_sys, J_x_sys = build_system_jz_jx(N_max)
     J_z_anc, J_x_anc = build_ancilla_operators()
@@ -243,6 +249,7 @@ def compute_generator_A_at_theta(
 
     Returns:
         Generator matrix for Case A at given θ.
+
     """
     J_z_sys, J_x_sys = build_system_jz_jx(N_max)
     J_z_anc, J_x_anc = build_ancilla_operators()
@@ -294,6 +301,7 @@ def random_density_matrix(d: int, rng: np.random.Generator) -> np.ndarray:
 
     Returns:
         Random density matrix of shape (d, d).
+
     """
     # Lower-triangular matrix with complex entries
     T = rng.standard_normal((d, d)) + 1j * rng.standard_normal((d, d))
@@ -313,6 +321,7 @@ def random_pure_state_dm(d: int, rng: np.random.Generator) -> np.ndarray:
 
     Returns:
         Pure state density matrix of shape (d, d).
+
     """
     ψ = rng.standard_normal(d) + 1j * rng.standard_normal(d)
     ψ = ψ / np.linalg.norm(ψ)
@@ -329,6 +338,7 @@ def _subspace_indices(N_max: int, target_N: int) -> np.ndarray:
     Returns:
         Array of indices into the (N_max+1)²-dimensional Fock basis vectors
         that have the specified total particle number.
+
     """
     indices = []
     for n0 in range(N_max + 1):
@@ -357,6 +367,7 @@ def random_pure_state_in_subspace(
     Returns:
         Pure state density matrix of shape (d_full, d_full)
         supported only on the given subspace indices.
+
     """
     d_sub = len(subspace_idx)
     # Random state in the subspace
@@ -380,6 +391,7 @@ def random_alphas(
 
     Returns:
         Tuple (α_xx, α_xz, α_zx, α_zz) matching the article convention.
+
     """
     vals = rng.uniform(-scale, scale, size=4)
     return (float(vals[0]), float(vals[1]), float(vals[2]), float(vals[3]))
@@ -405,6 +417,7 @@ def check_particle_number(
         - mean_N: ⟨n₀ + n₁⟩
         - pop_00: population ρ_{|0,0⟩⟨0,0|}
         - pop_NN: population ρ_{|N_max,N_max⟩⟨N_max,N_max|}
+
     """
     mean_N = 0.0
 
@@ -442,6 +455,7 @@ def evaluate_qfi_case_B(
 
     Returns:
         QFI value F_Q.
+
     """
     G_B = compute_generator_B(T_H, N_max)
     F_Q = quantum_fisher_information_dm(rho, G_B)
@@ -466,6 +480,7 @@ def evaluate_qfi_case_A(
 
     Returns:
         QFI value F_Q.
+
     """
     G_A = compute_generator_A(T_H, alphas, N_max, n_quadrature)
     F_Q = quantum_fisher_information_dm(rho, G_A)
@@ -511,6 +526,7 @@ def optimize_qfi_case_B(
 
     Returns:
         RandomSearchResult with best QFI and state found.
+
     """
     rng = np.random.default_rng(seed)
     dim = (N_max + 1) ** 2
@@ -581,6 +597,7 @@ def optimize_qfi_case_A(
     Returns:
         RandomSearchResult with best QFI, ρ, and α found.
         Alpha ordering follows the article convention: (α_xx, α_xz, α_zx, α_zz).
+
     """
     rng = np.random.default_rng(seed)
     dim_sys = (N_max + 1) ** 2
@@ -691,6 +708,7 @@ def _partial_trace_system(rho_full: np.ndarray, N_max: int) -> np.ndarray:
 
     Returns:
         Reduced system density matrix.
+
     """
     dim_sys = (N_max + 1) ** 2
     dim_anc = 2
@@ -717,6 +735,7 @@ class ComparisonResult:
         fq_A_theta: QFI at different reference θ values (optional).
         fq_A_all: All QFI values from random search for Case A.
         fq_B_all: All QFI values from random search for Case B.
+
     """
 
     fq_A_max: float
@@ -765,6 +784,7 @@ def run_comparison(
     Returns:
         ComparisonResult with all findings.
         Alpha ordering follows the article convention: (α_xx, α_xz, α_zx, α_zz).
+
     """
     # Case B: 2 particles, N_max = 2, restrict to N=2 subspace
     result_B = optimize_qfi_case_B(
@@ -860,6 +880,7 @@ def analytical_fq_B_max(T_H: float) -> float:
 
     Returns:
         Theoretical maximum QFI.
+
     """
     return 4.0 * T_H**2
 
@@ -876,5 +897,6 @@ def analytical_fq_A_zero(T_H: float) -> float:
 
     Returns:
         Theoretical maximum QFI with zero interaction.
+
     """
     return 1.0 * T_H**2

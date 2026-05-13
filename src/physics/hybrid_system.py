@@ -70,6 +70,7 @@ def oscillator_annihilation(N: int) -> np.ndarray:
 
     Returns:
         Operator of shape (N+1, N+1) with a|n⟩ = √n |n-1⟩.
+
     """
     dim = N + 1
     a = np.zeros((dim, dim), dtype=complex)
@@ -86,6 +87,7 @@ def oscillator_creation(N: int) -> np.ndarray:
 
     Returns:
         Operator of shape (N+1, N+1) with a†|n⟩ = √(n+1) |n+1⟩.
+
     """
     return oscillator_annihilation(N).conj().T
 
@@ -98,6 +100,7 @@ def oscillator_number(N: int) -> np.ndarray:
 
     Returns:
         Diagonal operator of shape (N+1, N+1).
+
     """
     dim = N + 1
     n_op = np.zeros((dim, dim), dtype=complex)
@@ -118,6 +121,7 @@ def oscillator_power(a: np.ndarray, n: int) -> np.ndarray:
 
     Raises:
         ValueError: If n < 0.
+
     """
     if n < 0:
         raise ValueError(f"Power must be non-negative, got {n}")
@@ -146,6 +150,7 @@ def hybrid_operator(osc_op: np.ndarray, spin_op: np.ndarray, N: int) -> np.ndarr
 
     Returns:
         Hybrid operator of shape (2(N+1), 2(N+1)).
+
     """
     dim_osc = N + 1
     assert osc_op.shape == (dim_osc, dim_osc), (
@@ -178,6 +183,7 @@ def hybrid_hamiltonian_n(
 
     Raises:
         ValueError: If n is not 2, 3, or 4.
+
     """
     a = oscillator_annihilation(N)
     a_dag = oscillator_creation(N)
@@ -248,6 +254,7 @@ def hybrid_ground_state_n(
         (22,)
         >>> np.isclose(np.linalg.norm(gs), 1.0)
         True
+
     """
     H = hybrid_hamiltonian_n(N, n, omega_n, theta_n, phi)
     eigenvalues, eigenvectors = np.linalg.eigh(H)
@@ -264,6 +271,7 @@ def hybrid_vacuum_state(N: int, spin_state: str = "down") -> np.ndarray:
 
     Returns:
         State vector of shape (2(N+1),).
+
     """
     dim_hybrid = 2 * (N + 1)
     state = np.zeros(dim_hybrid, dtype=complex)
@@ -290,6 +298,7 @@ def hybrid_coherent_state(
 
     Returns:
         State vector of shape (2(N+1),).
+
     """
     dim_osc = N + 1
     dim_hybrid = 2 * dim_osc
@@ -342,6 +351,7 @@ def adaptive_truncation(
 
     Returns:
         Truncation N (maximum photon number).
+
     """
     mean_photon = np.abs(alpha) ** 2 + n * r_n
     safety_factor = 10 * n  # Wider safety margin for higher orders
@@ -363,6 +373,7 @@ def hybrid_expectation(state: np.ndarray, op: np.ndarray) -> complex:
 
     Returns:
         Expectation value (complex).
+
     """
     return np.vdot(state, op @ state)
 
@@ -376,6 +387,7 @@ def hybrid_mean_photon(state: np.ndarray, N: int) -> float:
 
     Returns:
         Mean photon number (real).
+
     """
     n_op = oscillator_number(N)
     n_hybrid = hybrid_operator(n_op, np.eye(2, dtype=complex), N)
@@ -400,6 +412,7 @@ def validate_hybrid_state(state: np.ndarray, N: int) -> bool:
 
     Returns:
         True if valid, False otherwise.
+
     """
     expected_dim = 2 * (N + 1)
     if state.shape != (expected_dim,):
@@ -417,6 +430,7 @@ def validate_hybrid_unitary(U: np.ndarray, tol: float = 1e-8) -> bool:
 
     Returns:
         True if unitary within tolerance.
+
     """
     if U.ndim != 2 or U.shape[0] != U.shape[1]:
         return False

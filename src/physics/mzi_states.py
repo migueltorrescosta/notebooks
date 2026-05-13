@@ -24,6 +24,7 @@ Conventions:
 Note:
 - The factory function `input_state_factory` is the preferred way
   to create input states.
+
 """
 
 from typing import Any
@@ -63,6 +64,7 @@ def twin_fock_state(N: int, max_photons: int | None = None) -> np.ndarray:
         >>> state = twin_fock_state(N=4)  # |0,4⟩ + |1,3⟩ + |2,2⟩ + |3,1⟩ + |4,0⟩) / √5
         >>> np.isclose(np.sum(np.abs(state)**2), 1.0)
         True
+
     """
     if N % 2 != 0:
         raise ValueError("Twin-Fock requires even N (N/2 must be integer)")
@@ -106,6 +108,7 @@ def coherent_state_two_mode(
         >>> state = coherent_state_two_mode(1.0+0j, 0.0+0j)
         >>> np.isclose(np.sum(np.abs(state)**2), 1.0)
         True
+
     """
     # Determine effective max if not provided
     mean_n1 = abs(alpha1) ** 2
@@ -157,6 +160,7 @@ def single_photon_split_state(N: int, max_photons: int | None = None) -> np.ndar
 
     Raises:
         ValueError: If N < 2.
+
     """
     if N < 2:
         raise ValueError("N must be >= 2 for single-photon split state")
@@ -234,6 +238,7 @@ def squeezed_vacuum_state(
         >>> for n in range(1, max_photons + 1, 2):
         ...     idx = n * dim  # index for |n, 0⟩
         ...     assert np.isclose(state[idx], 0.0)
+
     """
     if r < 0:
         raise ValueError(f"Squeezing magnitude r must be non-negative, got {r}")
@@ -312,6 +317,7 @@ def input_state_factory(
         >>> state = input_state_factory("twin_fock", N=4)
         >>> state = input_state_factory("noon", N=3)
         >>> state = input_state_factory("coherent", N=0, alpha1=1.0, alpha2=0.0)
+
     """
     match state_type:
         case "twin_fock":
@@ -384,6 +390,7 @@ def create_jz_operator(max_photons: int) -> np.ndarray:
 
     Returns:
         J_z operator matrix of dimension (max_photons+1)² × (max_photons+1)².
+
     """
     dim = (max_photons + 1) ** 2
     jz = np.zeros((dim, dim), dtype=complex)
@@ -407,6 +414,7 @@ def compute_jz_expectation(state: np.ndarray, max_photons: int) -> complex:
 
     Returns:
         Complex expectation value (should be real).
+
     """
     jz = create_jz_operator(max_photons)
     # Ensure state is in the right dimension
@@ -425,6 +433,7 @@ def compute_jz_variance(state: np.ndarray, max_photons: int) -> float:
 
     Returns:
         Variance of J_z.
+
     """
     jz = create_jz_operator(max_photons)
     jz_sq = jz @ jz
@@ -465,6 +474,7 @@ def compute_fisher_information(state: np.ndarray, max_photons: int) -> float:
     Returns:
         Quantum Fisher information for phase estimation under the J_z
         generator convention.
+
     """
     jz_var = compute_jz_variance(state, max_photons)
 
@@ -492,6 +502,7 @@ def validate_twin_fock(N: int, state: np.ndarray, max_photons: int) -> bool:
 
     Returns:
         True if valid.
+
     """
     # Check normalization
     if not validate_state_mzi(state):
@@ -521,6 +532,7 @@ def validate_noon(N: int, state: np.ndarray, max_photons: int) -> bool:
 
     Returns:
         True if valid.
+
     """
     # Check normalization
     if not validate_state_mzi(state):
