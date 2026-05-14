@@ -62,7 +62,7 @@ prepare_input_state(
 
 ---
 
-## ⚛️ 3. Mach-Zehnder Interferometer Evolution
+## 3. Mach-Zehnder Interferometer Evolution
 
 ### 3.1 Circuit Pipeline
 
@@ -178,7 +178,7 @@ $$
 
 ---
 
-## 📊 5. Sensitivity Metrics
+## 5. Sensitivity Metrics
 
 ### 5.1 Error Propagation
 
@@ -281,7 +281,7 @@ $$
 
 ---
 
-## ⚠️ 6. Noise Channels (Open Quantum Systems)
+## 6. Noise Channels (Open Quantum Systems)
 
 ### 6.1 Lindblad Master Equation
 
@@ -373,7 +373,7 @@ $$
 
 ---
 
-## 8. Scaling Laws
+## 📊 8. Scaling Laws
 
 ### 8.1 Standard Quantum Limit (SQL)
 
