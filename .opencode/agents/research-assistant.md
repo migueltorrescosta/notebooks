@@ -48,14 +48,13 @@ Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the em
 | `## 🧪 Hypothesis` | Core claim being tested |
 | `## ⚛️ Theoretical Model` | Hilbert space, Hamiltonian, protocol description |
 | `## 💻 Numerical Simulation` | Implementation strategy, parameters, methods |
-| `## ⚠️ Likely Failure Conditions` | Failure modes and mitigations |
+| `## ⚠️ Expected Failure Conditions` | Failure modes and mitigations |
+| `## 🔬 Results` | Quantitative findings and key results |
 | `## ✅ Success Criteria` | Criteria table verifying success |
-| `## 🔬 Results and Next Steps` | Findings and future work |
 | `## 📊 Models Survey` | Central model-to-exponent mapping table |
-| `## 🔍 Open Questions` | Unsolved issues and future directions |
-| `## 🔧 Implementation Status` | Code modules, tests, file organization |
 | `## 📐 Physical Invariants` | Known bounds, invariants, conservation laws |
 | `## 📝 Quick Reference` | Reference / cheat-sheet sections |
+| `## 🏁 Conclusions` | Summary of findings and next steps |
 
 ## Inline Emojis
 
@@ -77,18 +76,16 @@ Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the em
 
 ## Section Order
 
-| # | Section | Emoji | Mandatory? | When |
-|---|---------|-------|------------|------|
-| 1 | Hypothesis | 🧪 | ✅ | Always |
-| 3 | Theoretical Model | ⚛️ | ✅ | Always |
-| 4 | Models Survey | 📊 | 🔲 | Multi-model comparison articles |
-| 5 | Preliminary Analytical Bounds | 📐 | 🔲 | When analytical bounds exist |
-| 6 | Numerical Simulation | 💻 | ✅ | Always |
-| 7 | Likely Failure Conditions | ⚠️ | ✅ | Always |
-| 8 | Success Criteria | ✅ | ✅ | Always |
-| 9 | Results / Conclusions | 🔬 | ✅ | Always (⏳ pre-experiment, ✅/❌ post-experiment) |
-| 10 | Open Questions | 🔍 | 🔲 | Unsolved issues |
-| 11 | Implementation Status | 🔧 | 🔲 | After code is implemented |
+| Section | Emoji | Mandatory? | When |
+|---------|-------|------------|------|
+| Hypothesis | 🧪 | ✅ | Always |
+| Theoretical Model | ⚛️ | ✅ | Always |
+| Models Survey | 📊 | 🔲 | Multi-model comparison articles |
+| Numerical Simulation | 💻 | ✅ | Always |
+| Expected Failure Conditions | ⚠️ | ✅ | Always |
+| Results | 🔬 | ✅ | Always |
+| Success Criteria | ✅ | ✅ | Always |
+| Conclusions | 🏁 | ✅ | Always |
 
 ## Per-Section Patterns
 
@@ -96,38 +93,43 @@ Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the em
 Numbered list of specific, testable claims (or paragraph form for a single claim). Each claim maps to a row in the Success Criteria table (e.g., "State X achieves scaling α = -0.5 regardless of noise").
 
 ### ⚛️ Theoretical Model
-Always contains the following, **in order**:
-1. **Hilbert space** — basis vectors, dimension formula, index ordering convention
-2. **Operators** — explicit matrix elements or generator definitions in the chosen basis
-3. **Circuit / protocol** — step-by-step unitary sequence (BS → phase → hold → BS)
-4. **Measurement** — which observable, sensitivity formula used
-5. **Tables** for states, operators, noise channels where applicable
+Write the section as a continuous prose narrative that covers the **Hilbert space** (basis vectors, dimension formula, index ordering convention), **operators** (explicit matrix elements or generator definitions in the chosen basis), the **circuit protocol** as a step-by-step unitary sequence (BS → phase → hold → BS), the **measurement** observable and sensitivity formula used, and any **tables** for states, operators, or noise channels. Avoid subsection headings — the entire section must read as a single flowing exposition. Use **bold font** when introducing and defining each concept for the first time.
 
 ### 📊 Models Survey (survey articles only)
 Central table mapping models to expected scaling exponents. Columns: `| Model | Input State | Noise | Expected α | Implementation Status |`. This is the definitive reference. Use emoji status indicators.
 
 ### 💻 Numerical Simulation
 Three subsections:
-1. **Implementation strategy** — high-level approach (composable pipeline, key function signatures, dimension management, solvers)
+1. **Implementation strategy** — ordered list describing the high-level approach (composable pipeline, key function signatures, dimension management, solvers)
 2. **Parameter sweep** — table of swept values, ranges, step sizes
 3. **Validation** — code block of `assert` statements for invariant checks (trace, unitarity, positivity, fit quality)
 
-### ⚠️ Likely Failure Conditions
+#### 🔧 Implementation Status
+Table mapping components to descriptions (e.g., operator construction, state preparation, unitary evolution, sensitivity computation). Test count summary. Only for completed implementations.
+
+### ⚠️ Expected Failure Conditions
 Each entry includes: failure condition name, description (1-2 sentences), and mitigation strategy. Table format is required: `| Failure | Description | Mitigation |`.
 
-### ✅ Success Criteria
-- **Pre-experiment**: `| Check | Expectation |`
-- **Post-experiment**: add a `Status` column with emoji (✅/❌/🔄)
-
-### 🔬 Results / Conclusions
+### 🔬 Results
 **Required in every article.** Use a `⏳`-only table before experiments and a `✅/❌` table after.
 - **Pre-experiment**: table with `⏳` (pending) status — marks what hasn't been run yet
 - **Post-experiment**: table with actual status, plus a **Key Finding** paragraph starting with `💡`
 - Completed articles include quantitative summary table and `🔗` links to code modules
 - If no simulation was needed (pure analytical), state that clearly
 
-### 🔧 Implementation Status
-Table mapping components to descriptions (e.g., operator construction, state preparation, unitary evolution, sensitivity computation). Test count summary. Only for completed implementations.
+### ✅ Success Criteria
+- **Pre-experiment**: `| Check | Expectation |`
+- **Post-experiment**: add a `Status` column with emoji (✅/❌/🔄)
+- Follow the criteria table with a short prose paragraph that summarizes what passed and what failed, provides brief reasoning, and suggests possible next steps to test.
+
+#### 📐 Analytical Bounds
+Optional subsection containing known analytical bounds, invariants, or conservation laws relevant to the success criteria. Include explicit mathematical expressions and their domain of validity.
+
+### 🏁 Conclusions
+Final wrap-up section. Summarize what was learned, whether the hypothesis was supported, and the broader implications. Reference specific Results and any Open Questions that remain. This section must always appear last in the document.
+
+#### 🔍 Open Questions
+Optional unsolved issues and future directions. Use the `🔍` inline emoji to start key open-item paragraphs.
 
 ## Rules
 
@@ -142,6 +144,9 @@ Table mapping components to descriptions (e.g., operator construction, state pre
 9. **Don't** use decorative emojis beyond the defined set.
 10. **Don't** write `**PASS**`/`**FAIL**` in tables — use emoji only.
 11. **Don't** use the `|` character inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.
+12. **Don't** use the `\ket` as it is not recognised by the used Markdown engine.
+13. **Use** `\mathbb{1}_n` to signify an $n$ dimensional identity operator.
+4**Bold font for first mentions** — use **bold font** whenever a concept is first mentioned and when it is defined in the text.
 
 # Coding Workflow
 Follow these steps **in order** for every task that requires writing code.
