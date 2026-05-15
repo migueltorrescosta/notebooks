@@ -526,7 +526,8 @@ $$
 |--------|---------|
 | `src/physics/mzi_simulation.py` | MZI evolution, state preparation, unitaries |
 | `src/physics/noise_channels.py` | Noise models, Lindblad operators |
-| `src/physics/angular_momentum.py` | Spin operators $J_x, J_z$ |
+| `src/physics/mzi_states.py` | Two-mode Fock $J_z$, input states, QFI |
+| `src/physics/dicke_basis.py` | Collective spin operators $J_x, J_z$ |
 | `src/analysis/sensitivity_metrics.py` | All sensitivity methods, scaling analysis |
 | `src/analysis/fisher_information.py` | Classical & quantum Fisher information |
 | `src/analysis/bayesian_phase_estimation.py` | Bayesian inference, posterior computation |

@@ -200,6 +200,94 @@ def _ancilla_sensitivity_fn(
     return _sensitivity
 
 
+def _kerr_mzi_sensitivity_fn(
+    chi: float = 0.1,
+    T: float = 1.0,
+    state_type: str = "noon",
+) -> Callable[[int, float], float]:
+    """Create a sensitivity function for Kerr-nonlinear MZI.
+
+    The Kerr nonlinearity :math:`\\chi (n_1^2 + n_2^2)` commutes with
+    the phase generator :math:`n_2`, so the QFI is invariant under Kerr
+    evolution. For NOON states this gives :math:`F_Q = N^2` (Heisenberg
+    limit) regardless of the Kerr strength.
+
+    Args:
+        chi: Kerr nonlinearity strength. Default 0.1.
+        T: Evolution time for the Kerr interaction. Default 1.0.
+            The product ``chi * T`` controls the nonlinear phase.
+        state_type: Input state type passed to ``input_state_factory``.
+            Default ``"noon"``.
+
+    Returns:
+        Callable ``(N: int, noise_level: float) -> delta_phi: float``
+        suitable for use as ``ModelConfig.custom_sensitivity_fn``.
+
+    """
+    # Validate state_type
+    valid_states = {"noon", "coherent", "css", "twin_fock", "sss", "squeezed_vacuum"}
+    if state_type not in valid_states:
+        state_type = "noon"
+
+    def _sensitivity(N: int, noise_level: float) -> float:
+        if N < 2:
+            return np.inf
+        try:
+            max_photons = _max_photons_for_state(state_type, N)
+            state = input_state_factory(state_type, N=N, max_photons=max_photons)
+            # Pure-state QFI: F_Q = 4·Var(J_z) — invariant under Kerr
+            delta = _compute_pure_state_sensitivity(state, max_photons)
+        except Exception:
+            return np.inf
+
+        if not np.isfinite(delta) or delta <= 0:
+            return np.inf
+        return delta
+
+    return _sensitivity
+
+
+def _weak_value_mzi_sensitivity_fn(
+    post_select_angle: float = np.pi / 2 - 0.1,
+) -> Callable[[int, float], float]:
+    """Create a sensitivity function for weak-value MZI with coherent state input.
+
+    Uses the analytical formula from ``weak_value_mzi_sensitivity``,
+    which computes Fisher information as :math:`F = N \\cdot \\cos^2(\\delta)`
+    where :math:`\\delta = \\pi/2 - \\text{post\\_select\\_angle}`.
+
+    The sensitivity is :math:`\\Delta\\phi = 1 / \\sqrt{N \\cdot \\cos^2(\\delta)}`,
+    which never beats the SQL (``\\Delta\\phi \\ge 1/\\sqrt{N}``).
+
+    Args:
+        post_select_angle: Post-selection angle. Values near :math:`\\pi/2`
+            give large amplification at the cost of vanishing post-selection
+            probability. Default ``π/2 - 0.1`` (~10× amplification).
+
+    Returns:
+        Callable ``(N: int, noise_level: float) -> delta_phi: float``
+        suitable for use as ``ModelConfig.custom_sensitivity_fn``.
+
+    """
+    from src.physics.weak_value_mzi import WeakValueConfig, weak_value_mzi_sensitivity
+
+    def _sensitivity(N: int, noise_level: float) -> float:
+        if N < 2:
+            return np.inf
+        try:
+            config = WeakValueConfig(post_select_angle=post_select_angle)
+            result = weak_value_mzi_sensitivity(N=N, phi=0.0, config=config)
+            delta = result["delta_phi"]
+        except Exception:
+            return np.inf
+
+        if not np.isfinite(delta) or delta <= 0:
+            return np.inf
+        return delta
+
+    return _sensitivity
+
+
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -1008,6 +1096,8 @@ def create_survey_model(
         - "non_gaussian_n3": Non-Gaussian trisqueezed state (n=3)
         - "non_gaussian_n4": Non-Gaussian quad-squeezed state (n=4)
         - "ancilla_assisted": Ancilla-assisted metrology with dispersive coupling
+        - "kerr_mzi":        Kerr-nonlinear MZI (invariant QFI, NOON input)
+        - "weak_value_mzi":  Weak-value MZI (SQL-limited, coherent input)
 
     Args:
         model_id: Shorthand identifier for the model. Unknown IDs
@@ -1062,6 +1152,8 @@ def create_survey_model(
         "non_gaussian_n3": "Non-Gaussian n=3 (trisqueezed)",
         "non_gaussian_n4": "Non-Gaussian n=4 (quadsqueezed)",
         "ancilla_assisted": "Ancilla-assisted metrology",
+        "kerr_mzi": "Kerr-nonlinear MZI",
+        "weak_value_mzi": "Weak-value MZI",
     }
 
     # --- Custom sensitivity models bypass standard pipeline ---
@@ -1131,6 +1223,40 @@ def create_survey_model(
             label=label_defaults.get(model_id, "Ancilla-assisted metrology"),
         )
 
+    if model_id == "kerr_mzi":
+        chi = kwargs.get("chi", 0.1)
+        T = kwargs.get("T", 1.0)
+        state_type = kwargs.get("state_type", "noon")
+        chi_val = float(chi) if isinstance(chi, (int, float)) else 0.1
+        T_val = float(T) if isinstance(T, (int, float)) else 1.0
+        st_val = str(state_type) if isinstance(state_type, str) else "noon"
+        fn = _kerr_mzi_sensitivity_fn(chi=chi_val, T=T_val, state_type=st_val)
+        return ModelConfig(
+            model_id=model_id,
+            custom_sensitivity_fn=fn,
+            state_type="",
+            noise_type="none",
+            entangler="none",
+            label=label_defaults.get(model_id, "Kerr-nonlinear MZI"),
+        )
+
+    if model_id == "weak_value_mzi":
+        post_select_angle = kwargs.get("post_select_angle", np.pi / 2 - 0.1)
+        psa = (
+            float(post_select_angle)
+            if isinstance(post_select_angle, (int, float))
+            else np.pi / 2 - 0.1
+        )
+        fn = _weak_value_mzi_sensitivity_fn(post_select_angle=psa)
+        return ModelConfig(
+            model_id=model_id,
+            custom_sensitivity_fn=fn,
+            state_type="",
+            noise_type="none",
+            entangler="none",
+            label=label_defaults.get(model_id, "Weak-value MZI"),
+        )
+
     state_type = defaults.get(model_id, model_id)
     noise_type = noise_defaults.get(model_id, "none")
     entangler = entangler_defaults.get(model_id, "none")
@@ -1165,9 +1291,12 @@ def create_default_survey() -> list[ModelConfig]:
     4. noon_loss:        NOON with loss (transition from Heisenberg to SQL)
     5. coherent_oat:     Coherent state with OAT squeezing (sub-SQL)
     6. squeezed_vacuum:  Squeezed vacuum state (sub-SQL)
-    7. non_gaussian_n3:  Non-Gaussian trisqueezed state (n=3)
-    8. non_gaussian_n4:  Non-Gaussian quad-squeezed state (n=4)
-    9. ancilla_assisted: Ancilla-assisted metrology with dispersive coupling
+    7. squeezed_vacuum_loss: Squeezed vacuum with one-body loss
+    8. non_gaussian_n3:  Non-Gaussian trisqueezed state (n=3)
+    9. non_gaussian_n4:  Non-Gaussian quad-squeezed state (n=4)
+    10. ancilla_assisted: Ancilla-assisted metrology with dispersive coupling
+    11. kerr_mzi:        Kerr-nonlinear MZI (invariant QFI)
+    12. weak_value_mzi:  Weak-value MZI (no metrological advantage)
 
     Returns:
         List of ModelConfig objects for the default survey.
@@ -1184,5 +1313,7 @@ def create_default_survey() -> list[ModelConfig]:
         "non_gaussian_n3",
         "non_gaussian_n4",
         "ancilla_assisted",
+        "kerr_mzi",
+        "weak_value_mzi",
     ]
     return [create_survey_model(mid) for mid in model_ids]

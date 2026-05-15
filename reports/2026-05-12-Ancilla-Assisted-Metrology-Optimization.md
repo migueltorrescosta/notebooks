@@ -71,7 +71,7 @@ assert delta_theta > 0, "Sensitivity must be positive"
 | **$\alpha$-scan: random search** | Uniform sampling in 4D $\alpha$ space |
 | **Interactive page** | Streamlit UI with sidebar controls, results table, $\Delta\theta$ vs $\theta$ plot, parameter visualisation, and single-configuration manual probe |
 
-Test suite: **93 tests**, all passing.
+Test suite: **137 tests**, all passing.
 
 ## ⚠️ Expected Failure Conditions
 

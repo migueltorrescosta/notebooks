@@ -452,8 +452,8 @@ class TestSurveyModelFactories:
                 "Expected model to be instance of ModelConfig"
             )
 
-    def test_create_default_survey_now_has_ten_models(self) -> None:
-        """Default survey should include non-Gaussian, ancilla, and squeezed-vacuum-loss models."""
+    def test_create_default_survey_now_has_twelve_models(self) -> None:
+        """Default survey should include non-Gaussian, ancilla, squeezed-vacuum-loss, Kerr, and weak-value models."""
         from src.analysis.scaling_survey import create_default_survey
 
         models = create_default_survey()
@@ -467,7 +467,9 @@ class TestSurveyModelFactories:
         assert "squeezed_vacuum_loss" in model_ids, (
             'Expected "squeezed_vacuum_loss" in model_ids'
         )
-        assert len(models) == 10, "Expected len(models) == 10"
+        assert "kerr_mzi" in model_ids, 'Expected "kerr_mzi" in model_ids'
+        assert "weak_value_mzi" in model_ids, 'Expected "weak_value_mzi" in model_ids'
+        assert len(models) == 12, "Expected len(models) == 12"
 
     def test_squeezed_vacuum_loss_model_properties(self) -> None:
         """Squeezed-vacuum-loss model should have correct noise_type."""
@@ -579,5 +581,49 @@ class TestNewCustomModels:
     def test_ancilla_inf_for_small_N(self) -> None:
         """Ancilla sensitivity should return inf for N < 2."""
         model = create_survey_model("ancilla_assisted")
+        delta = self._call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
+        assert not np.isfinite(delta), "Expected inf for N < 2"
+
+    def test_kerr_mzi_smoke(self) -> None:
+        """Kerr MZI model should return finite sensitivity for small N."""
+        model = create_survey_model("kerr_mzi")
+        delta = self._call_sensitivity(model.custom_sensitivity_fn, 4, 0.0)
+        assert np.isfinite(delta), f"Expected finite Δφ, got {delta}"
+        assert delta > 0, f"Expected positive Δφ, got {delta}"
+
+    def test_kerr_mzi_noon_scaling(self) -> None:
+        """Kerr MZI with NOON input should give Heisenberg scaling Δφ = 1/N."""
+        model = create_survey_model("kerr_mzi")
+        for N in [2, 4, 8]:
+            delta = self._call_sensitivity(model.custom_sensitivity_fn, N, 0.0)
+            expected = 1.0 / N
+            assert np.isclose(delta, expected, rtol=1e-10), (
+                f"N={N}: Δφ={delta}, expected {expected}"
+            )
+
+    def test_kerr_mzi_inf_for_small_N(self) -> None:
+        """Kerr MZI sensitivity should return inf for N < 2."""
+        model = create_survey_model("kerr_mzi")
+        delta = self._call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
+        assert not np.isfinite(delta), "Expected inf for N < 2"
+
+    def test_weak_value_mzi_smoke(self) -> None:
+        """Weak-value MZI model should return finite sensitivity for small N."""
+        model = create_survey_model("weak_value_mzi")
+        delta = self._call_sensitivity(model.custom_sensitivity_fn, 4, 0.0)
+        assert np.isfinite(delta), f"Expected finite Δφ, got {delta}"
+        assert delta > 0, f"Expected positive Δφ, got {delta}"
+
+    def test_weak_value_mzi_sql_limited(self) -> None:
+        """Weak-value MZI sensitivity should be >= SQL (1/√N)."""
+        model = create_survey_model("weak_value_mzi")
+        for N in [4, 8, 16]:
+            delta = self._call_sensitivity(model.custom_sensitivity_fn, N, 0.0)
+            sql = 1.0 / np.sqrt(N)
+            assert delta >= sql - 1e-12, f"N={N}: Δφ={delta:.6f} < SQL={sql:.6f}"
+
+    def test_weak_value_mzi_inf_for_small_N(self) -> None:
+        """Weak-value MZI sensitivity should return inf for N < 2."""
+        model = create_survey_model("weak_value_mzi")
         delta = self._call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
         assert not np.isfinite(delta), "Expected inf for N < 2"
