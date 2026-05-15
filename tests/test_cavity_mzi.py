@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import qutip
 
 from src.physics.cavity_mzi import (
     CavityMziConfig,
@@ -19,7 +20,12 @@ from src.physics.cavity_mzi import (
     cavity_enhanced_mzi_with_noise,
     cavity_enhanced_sensitivity,
 )
-from src.physics.mzi_simulation import fock_state
+
+
+def _fock_10(max_photons: int) -> np.ndarray:
+    """Construct |1,0⟩ state via QuTiP."""
+    dim = max_photons + 1
+    return qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
 
 
 class TestCavityMziConfig:
@@ -40,7 +46,7 @@ class TestCavityEnhancedMzi:
     def test_norm_preservation(self) -> None:
         """Output state should be normalized."""
         config = CavityMziConfig(F=5.0)
-        state = fock_state(1, 0, max_photons=5)
+        state = _fock_10(max_photons=5)
         out = cavity_enhanced_mzi(state, np.pi / 4, config, max_photons=5)
         norm = np.sum(np.abs(out) ** 2)
         assert norm == pytest.approx(1.0, abs=1e-10), f"Norm = {norm}"
@@ -57,7 +63,7 @@ class TestCavityEnhancedMzi:
         max_photons = 5
 
         # Cavity-enhanced with F=1
-        state = fock_state(1, 0, max_photons)
+        state = _fock_10(max_photons)
         cavity_out = cavity_enhanced_mzi(state, phi, config, max_photons)
 
         # Standard MZI: BS -> Phase(phi) -> BS
@@ -72,7 +78,7 @@ class TestCavityEnhancedMzi:
     def test_finesse_lt_one_raises(self) -> None:
         """Finesse < 1 should raise ValueError."""
         config = CavityMziConfig(F=0.5)
-        state = fock_state(1, 0, max_photons=3)
+        state = _fock_10(max_photons=3)
         with pytest.raises(ValueError, match="Cavity finesse must be >= 1"):
             cavity_enhanced_mzi(state, 0.0, config, max_photons=3)
 
@@ -142,7 +148,7 @@ class TestCavityEnhancedMziWithNoise:
     def test_trace_preservation(self) -> None:
         """Noisy evolution should preserve trace."""
         config = CavityMziConfig(F=3.0)
-        state = fock_state(1, 0, max_photons=5)
+        state = _fock_10(max_photons=5)
         rho = cavity_enhanced_mzi_with_noise(
             state,
             phi=np.pi / 4,
@@ -159,7 +165,7 @@ class TestCavityEnhancedMziWithNoise:
     def test_no_noise_matches_unitary(self) -> None:
         """Zero noise should match unitary evolution (up to numerical)."""
         config = CavityMziConfig(F=3.0)
-        state = fock_state(1, 0, max_photons=5)
+        state = _fock_10(max_photons=5)
 
         rho_noisy = cavity_enhanced_mzi_with_noise(
             state,

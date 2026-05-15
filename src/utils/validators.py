@@ -5,17 +5,14 @@ Centralized validation functions for physics modules.
 Ensures consistent validation across the codebase.
 
 Functions:
-- validate_hamiltonian_hermitian: Check Hamiltonian is Hermitian
 - validate_eigenvectors_orthonormal: Check eigenvectors are orthonormal
 - validate_eigendecomposition: Verify H|v⟩ = E|v⟩
 - validate_orthonormality: Check orthonormality of eigenvectors
-- validate_probability_conservation: Verify probability conservation
 - validate_partial_trace: Validate partial trace properties
 - validate_sensitivity: Validate sensitivity calculation
 - validate_state_delta_estimation: Validate state for delta estimation
 - validate_hamiltonian_delta_estimation: Validate Hamiltonian for delta estimation
 - validate_state_mzi: Validate state for MZI simulation
-- validate_unitary: Check if matrix is unitary
 """
 
 import numpy as np
@@ -24,33 +21,17 @@ __all__ = [
     "validate_eigendecomposition",
     "validate_eigenvectors_orthonormal",
     "validate_hamiltonian_delta_estimation",
-    "validate_hamiltonian_hermitian",
     "validate_orthonormality",
     "validate_partial_trace",
-    "validate_probability_conservation",
     "validate_sensitivity",
     "validate_state_delta_estimation",
     "validate_state_mzi",
-    "validate_unitary",
 ]
 
 
 # =============================================================================
 # Heisenberg Model Validations
 # =============================================================================
-
-
-def validate_hamiltonian_hermitian(hamiltonian: np.ndarray) -> bool:
-    r"""Check Hamiltonian is Hermitian.
-
-    Args:
-        hamiltonian: Hamiltonian matrix.
-
-    Returns:
-        True if H = H^\dagger.
-
-    """
-    return np.allclose(hamiltonian, hamiltonian.conj().T)
 
 
 def validate_eigenvectors_orthonormal(
@@ -67,8 +48,9 @@ def validate_eigenvectors_orthonormal(
         True if V^\dagger V = I.
 
     """
-    overlap = vectors.conj().T @ vectors
-    return np.allclose(overlap, np.eye(vectors.shape[1]), atol=tolerance)
+    return np.allclose(
+        vectors.conj().T @ vectors, np.eye(vectors.shape[1]), atol=tolerance
+    )
 
 
 def validate_eigendecomposition(
@@ -77,7 +59,7 @@ def validate_eigendecomposition(
     eigenvectors: np.ndarray,
     tolerance: float = 1e-8,
 ) -> bool:
-    r"""Verify H|v⟩ = E|v⟩ for all eigenpairs.
+    r"""Verify H|v⟩ = E|v⟩ for all eigenpairs via vectorized broadcasting.
 
     Args:
         hamiltonian: Hamiltonian.
@@ -89,12 +71,13 @@ def validate_eigendecomposition(
         True if all equations hold.
 
     """
-    for i in range(len(eigenvalues)):
-        Hv = hamiltonian @ eigenvectors[:, i]
-        Ev = eigenvalues[i] * eigenvectors[:, i]
-        if not np.allclose(Hv, Ev, atol=tolerance):
-            return False
-    return True
+    return bool(
+        np.allclose(
+            hamiltonian @ eigenvectors,
+            eigenvectors * eigenvalues,
+            atol=tolerance,
+        )
+    )
 
 
 # =============================================================================
@@ -108,37 +91,18 @@ def validate_orthonormality(
 ) -> float:
     """Check orthonormality of eigenvectors.
 
-    Returns maximum deviation from identity.
+    Returns sum of absolute deviations from identity.
 
     Args:
         eigenvectors: Matrix with eigenvectors as columns.
         tolerance: Tolerance for assertion.
 
     Returns:
-        Maximum deviation from orthonormality.
+        Sum of absolute deviations from orthonormality.
 
     """
-    n = eigenvectors.shape[1]
-    overlap = np.real(np.conjugate(eigenvectors.T) @ eigenvectors)
-    return np.sum(np.abs(overlap - np.eye(n)))
-
-
-def validate_probability_conservation(
-    wf: np.ndarray,
-    tolerance: float = 1e-8,
-) -> bool:
-    """Verify that total probability is conserved.
-
-    Args:
-        wf: Wavefunction.
-        tolerance: Tolerance for check.
-
-    Returns:
-        True if probability is conserved.
-
-    """
-    prob = np.sum(np.abs(wf) ** 2)
-    return np.isclose(prob, 1.0, rtol=tolerance)
+    overlap = eigenvectors.conj().T @ eigenvectors
+    return float(np.sum(np.abs(overlap - np.eye(eigenvectors.shape[1]))))
 
 
 # =============================================================================
@@ -169,21 +133,12 @@ def validate_partial_trace(
         True if valid.
 
     """
-    # Check trace = 1
-    if not np.isclose(np.trace(rho_full), 1.0, atol=tolerance):
-        return False
-
-    # Check equality of traces
-    if not np.isclose(np.trace(rho_a), np.trace(rho_b), atol=tolerance):
-        return False
-
-    # Check Hermitian
-    if not np.allclose(rho_full, rho_full.conj().T):
-        return False
-
-    # Check positive semidefinite (full)
-    eigenvals = np.linalg.eigvalsh(rho_full)
-    return np.all(eigenvals >= -tolerance)
+    return (
+        np.isclose(np.trace(rho_full), 1.0, atol=tolerance)
+        and np.isclose(np.trace(rho_a), np.trace(rho_b), atol=tolerance)
+        and np.allclose(rho_full, rho_full.conj().T)
+        and bool(np.all(np.linalg.eigvalsh(rho_full) >= -tolerance))
+    )
 
 
 # =============================================================================
@@ -264,6 +219,9 @@ def validate_state_delta_estimation(
 ) -> bool:
     """Validate that a state matrix has expected dimensions and is valid density matrix.
 
+    Checks shape, Hermiticity, unit trace, and positivity — short-circuits
+    at the first failure (cheapest checks first).
+
     Args:
         state: State matrix to validate.
         expected_dims: Expected dimensions (rows, cols).
@@ -272,17 +230,12 @@ def validate_state_delta_estimation(
         True if valid, False otherwise.
 
     """
-    if state.shape != expected_dims:
-        return False
-    # Check Hermitian
-    if not np.allclose(state, state.conj().T):
-        return False
-    # Check trace = 1
-    if not np.isclose(np.trace(state), 1.0):
-        return False
-    # Check positive semidefinite (eigenvalues >= 0)
-    eigenvals = np.linalg.eigvalsh(state)
-    return np.all(eigenvals >= -1e-10)
+    return (
+        state.shape == expected_dims
+        and np.allclose(state, state.conj().T)
+        and np.isclose(np.trace(state), 1.0)
+        and bool(np.all(np.linalg.eigvalsh(state) >= -1e-10))
+    )
 
 
 def validate_hamiltonian_delta_estimation(hamiltonian: np.ndarray) -> bool:
@@ -324,22 +277,4 @@ def validate_state_mzi(state: np.ndarray) -> bool:
         as `validate_state = validate_state_delta_estimation` (different function!).
 
     """
-    norm = np.sqrt(np.sum(np.abs(state) ** 2))
-    return np.isclose(norm, 1.0, atol=1e-10)
-
-
-def validate_unitary(U: np.ndarray, tol: float = 1e-8) -> bool:
-    """Check if a matrix is unitary.
-
-    Validates that U†U = I within numerical tolerance. This is
-    essential for verifying that operator constructions are correct.
-
-    Args:
-        U: Matrix to validate.
-        tol: Numerical tolerance for the check (default: 1e-8).
-
-    Returns:
-        True if the matrix is unitary, False otherwise.
-
-    """
-    return np.allclose(U @ U.conj().T, np.eye(U.shape[0]), atol=tol)
+    return np.isclose(np.linalg.norm(state), 1.0, atol=1e-10)

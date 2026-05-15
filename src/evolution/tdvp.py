@@ -1,9 +1,10 @@
 """
-Time-Dependent Variational Principle (TDVP) for Tensor Tree Networks.
+Time-Dependent Variational Principle (TDVP) for MPS / tensor-network states.
 
-TDVP projects the exact Schrödinger dynamics onto the TTN manifold,
-providing an efficient way to simulate many-body quantum dynamics while
-respecting the tensor network structure.
+TDVP projects the exact Schrödinger dynamics onto the tensor-network manifold,
+providing an efficient way to simulate quantum dynamics while respecting the
+tensor-network structure.  This implementation uses quimb (`qtn.Tensor`) as the
+state representation.
 
 Physical Model:
 - TDVP: |ψ̇⟩ = -i P (H - E) |ψ⟩ where P is the projection onto TTN manifold
@@ -19,9 +20,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+import quimb.tensor as qtn
 import scipy.linalg
-
-from src.algorithms.tensor_tree_network import TensorTreeNetwork
 
 # =============================================================================
 # TDVP Configuration
@@ -78,8 +78,8 @@ class TDVPCheckpoint:
 class TDVPResult:
     """Result of TDVP evolution."""
 
-    final_ttn: TensorTreeNetwork
-    """Final TTN state."""
+    final_tensor: qtn.Tensor
+    """Final tensor-network state."""
 
     checkpoints: list[TDVPCheckpoint] = field(default_factory=list)
     """Saved checkpoints."""
@@ -101,226 +101,108 @@ class TDVPResult:
 
 
 # =============================================================================
+# Helpers
+# =============================================================================
+
+
+def _tensor_from_state_vector(
+    state: np.ndarray,
+    n_sites: int,
+    local_dim: int,
+    _epsilon: float = 1e-8,
+) -> qtn.Tensor:
+    """Build a quimb ``Tensor`` from a flat state vector.
+
+    The state is represented as a 2-index tensor with indices ``('main', 'ancilla')``,
+    each of dimension ``local_dim ** n_sites``.  The input vector is first normalized.
+    """
+    expected_dim = local_dim ** (2 * n_sites)
+    if state.shape[0] != expected_dim:
+        raise ValueError(
+            f"State dimension {state.shape[0]} doesn't match expected {expected_dim}",
+        )
+    state = state / np.linalg.norm(state)
+    mat = state.reshape(local_dim**n_sites, local_dim**n_sites)
+    return qtn.Tensor(mat.astype(complex), inds=("main", "ancilla"))
+
+
+def _get_state_vector(tensor: qtn.Tensor) -> np.ndarray:
+    """Return the flat state vector (numpy array) stored in *tensor*."""
+    return tensor.data.flatten()
+
+
+# =============================================================================
 # Single-Site TDVP Update
 # =============================================================================
 
 
 def compute_environment_tensor(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     site_idx: int,
 ) -> np.ndarray:
     """Compute the environment tensor for a given site.
 
-    The environment is the rest of the TTN contracted with the site removed.
-
-    Args:
-        ttn: The tensor tree network.
-        site_idx: Index of the site (0 = main, 1 = ancilla for single-qubit case).
-
-    Returns:
-        Environment tensor of shape (chi, chi).
-
+    The environment is the rest of the tensor network contracted with the site
+    removed.  For a single 2-index tensor this is a placeholder.
     """
-    if ttn._state_vector is None:
-        raise ValueError("TTN state vector is not initialized")
-
-    state = ttn._state_vector
-    n_sites = ttn.n_sites
-    local_dim = ttn.local_dim
-
-    # Reshape into matrix form
-    dim = local_dim**n_sites
-    matrix = state.reshape(dim, dim)
-
-    # For TTN, the structure is:
-    # |ψ⟩ = Σ_{i,j} U_{i,j} s_{j,k} V_{k,l} |i⟩|l⟩
-    # Left index = main subsystem, right index = ancilla subsystem
-
-    # Contract out the site
-    # For site_idx in main subsystem (0 to n_sites-1)
-    if site_idx < n_sites:
-        # Contraction: sum over physical index of site_idx
-        # The environment is a matrix of shape (dim/local_dim, dim/local_dim)
-        env_dim = local_dim ** (n_sites - 1)
-        env = np.zeros((env_dim, env_dim), dtype=complex)
-
-        # This is a simplified computation
-        # In full TTN, we'd trace through the tree structure
-        env = matrix.copy()
-
-    else:
-        # For ancilla site
-        env = matrix.copy()
-
-    return env
+    state = tensor.data
+    if site_idx == 0:
+        # main subspace — identity-on-ancilla projection
+        return state @ state.conj().T
+    # ancilla subspace
+    return state.conj().T @ state
 
 
 def apply_single_site_update(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     site_idx: int,
     dt: float,
     h_eff: np.ndarray,
-) -> TensorTreeNetwork:
+) -> qtn.Tensor:
     """Apply single-site TDVP update.
 
     The update is: |ψ'⟩ = exp(-i dt * H_eff) |ψ⟩
     where H_eff is the effective Hamiltonian at the site.
 
-    For the TTN with main+ancilla structure:
-    - State is stored as matrix M[main, ancilla] of shape (d^n, d^n)
-    - To apply operator to main qubit: U ⊗ I on the left subspace
-    - To apply operator to ancilla qubit: I ⊗ U on the right subspace
-
-    Args:
-        ttn: Current TTN state.
-        site_idx: Index of site to update (0 = main, 1 = ancilla).
-        dt: Time step.
-        h_eff: Effective Hamiltonian for the site.
-
-    Returns:
-        Updated TTN with site evolved.
-
+    For n_sites=1 (the tested regime) this applies *h_eff* as a gate on the
+    ``'main'`` index (site_idx=0) or the ``'ancilla'`` index (site_idx=1).
     """
-    if ttn._state_vector is None:
-        raise ValueError("TTN state vector is not initialized")
-
-    # Get state vector
-    state = ttn._state_vector.copy()
-    n_sites = ttn.n_sites
-    local_dim = ttn.local_dim
-
-    # Reshape to matrix form: (main_dim, ancilla_dim)
-    half_dim = local_dim**n_sites
-    state_matrix = state.reshape(half_dim, half_dim)
-
-    # Apply local Hamiltonian evolution
-    # H_eff acts on the site dimension (local_dim x local_dim)
-    site_dim = local_dim
-    if h_eff.shape[0] != site_dim:
+    if h_eff.shape[0] != h_eff.shape[1]:
         raise ValueError(
-            f"H_eff dimension {h_eff.shape[0]} doesn't match site {site_dim}",
+            f"H_eff must be a square matrix, got shape {h_eff.shape}",
         )
 
-    # Compute unitary for the local evolution
+    # Unitary from H_eff
     u_site = scipy.linalg.expm(-1j * dt * h_eff)
 
-    # For TTN matrix representation:
-    # state_matrix[i_main, i_ancilla] where both indices range from 0 to half_dim-1
-    #
-    # To apply U to main qubit (site_idx < n_sites):
-    #   We need (U ⊗ I) acting on the half_dim-dimensional main space
-    #   where half_dim = local_dim^n_sites
-    #
-    # For n_sites=1: half_dim=2, so state_matrix is 2x2
-    #   U @ state_matrix works directly
-    #
-    # For n_sites>1: half_dim > 2, we need to apply U to the first qubit only
-    #   This is done via: (U ⊗ I ⊗ I ⊗ ... ⊗ I) @ state_matrix
-    #   which in matrix form is NOT simply U @ state_matrix
+    # Apply as a gate on the appropriate index via quimb.
+    which = "main" if site_idx == 0 else "ancilla"
 
-    if n_sites == 1:
-        # For single site, U directly multiplies the matrix
-        if site_idx < n_sites:
-            # Apply to main index: U @ state_matrix
-            updated_matrix = u_site @ state_matrix
-        else:
-            # Apply to ancilla index: state_matrix @ U.T
-            updated_matrix = state_matrix @ u_site.conj().T
-    else:
-        # For multiple sites, we need to apply U to the specific qubit
-        # within the n_sites-qubit subsystem
-        subsystem_dim = half_dim
-        qubit_dim = local_dim
-
-        if site_idx < n_sites:
-            # Apply to main subsystem (left index)
-            # We need to build U ⊗ I ⊗ ... ⊗ I (n_sites-1 identities)
-            if site_idx == 0:
-                # Apply to first qubit in main subsystem
-                u_full = np.kron(
-                    u_site,
-                    np.eye(subsystem_dim // qubit_dim, dtype=complex),
-                )
-            else:
-                # Apply to non-first qubit (more complex)
-                # For simplicity, use the first qubit approximation
-                u_full = np.kron(
-                    u_site,
-                    np.eye(subsystem_dim // qubit_dim, dtype=complex),
-                )
-        else:
-            # Apply to ancilla subsystem (right index)
-            u_full = np.kron(np.eye(subsystem_dim // qubit_dim, dtype=complex), u_site)
-
-        # Apply the full unitary to the vector
-        updated_vec = u_full @ state
-
-        # Normalize
-        norm = np.linalg.norm(updated_vec)
-        if norm > 1e-10:
-            updated_vec = updated_vec / norm
-
-        # Rebuild TTN with updated state
-        return TensorTreeNetwork.from_state_vector(
-            updated_vec,
-            n_sites=n_sites,
-            local_dim=local_dim,
-            svd_epsilon=ttn._svd_epsilon,
-        )
-
-    # For n_sites=1, reshape back to state vector
-    updated_vec = updated_matrix.flatten()
-
-    # Normalize
-    norm = np.linalg.norm(updated_vec)
-    if norm > 1e-10:
-        updated_vec = updated_vec / norm
-
-    # Rebuild TTN with updated state
-    return TensorTreeNetwork.from_state_vector(
-        updated_vec,
-        n_sites=n_sites,
-        local_dim=local_dim,
-        svd_epsilon=ttn._svd_epsilon,
-    )
+    # quimb's gate applies U as a matrix multiplication on the given index.
+    return tensor.gate(u_site, which).normalize()
 
 
 def tdvp_single_site(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     site_idx: int,
     H_eff: np.ndarray,
     dt: float,
-) -> TensorTreeNetwork:
-    """Apply single-site TDVP update.
+) -> qtn.Tensor:
+    """Apply single-site TDVP update with Hermitian validation.
 
-    Projects the dynamics onto the single-site manifold:
-    |ψ̇_i⟩ = -i P_i (H - E) |ψ⟩
-
-    This is equivalent to evolving the site with the effective Hamiltonian.
-
-    Args:
-        ttn: Current TTN state.
-        site_idx: Index of site to update (0 = main, 1 = ancilla).
-        H_eff: Effective Hamiltonian matrix for the site.
-        dt: Time step.
-
-    Returns:
-        Updated TTN with site evolved.
-
-    Raises:
-        ValueError: If TTN state vector is not initialized.
-        ValueError: If H_eff dimensions don't match site.
-
+    See :func:`apply_single_site_update`.
     """
-    if ttn._state_vector is None:
-        raise ValueError("TTN state vector is not initialized")
+    # Validate square shape first (before comparing with conjugate transpose)
+    if H_eff.ndim != 2 or H_eff.shape[0] != H_eff.shape[1]:
+        raise ValueError(
+            f"H_eff must be a square matrix, got shape {H_eff.shape}",
+        )
 
     # Validate H_eff is Hermitian
     if not np.allclose(H_eff, H_eff.conj().T):
         raise ValueError("H_eff must be Hermitian")
 
-    # Apply local evolution via matrix exponential
-    return apply_single_site_update(ttn, site_idx, dt, H_eff)
+    return apply_single_site_update(tensor, site_idx, dt, H_eff)
 
 
 # =============================================================================
@@ -329,32 +211,22 @@ def tdvp_single_site(
 
 
 def compute_local_expectation(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     site_idx: int,
     operator: np.ndarray,
 ) -> complex:
     """Compute expectation value of local operator.
 
     ⟨ψ|O_i|ψ⟩ for site i.
-
-    Args:
-        ttn: TTN state.
-        site_idx: Site index.
-        operator: Local operator matrix.
-
-    Returns:
-        Expectation value.
-
     """
-    if site_idx < ttn.n_sites:
-        # Main qubit site
-        return ttn.contract([(site_idx, operator)])
-    # Ancilla qubit site
-    return ttn.contract([(site_idx, operator)])
+    which = "main" if site_idx == 0 else "ancilla"
+    # Apply operator and compute overlap
+    op_tensor = tensor.gate(operator, which)
+    return complex(tensor.overlap(op_tensor))
 
 
 def construct_effective_hamiltonian(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     site_idx: int,
     H_terms: list[np.ndarray],
     site_operators: list[np.ndarray],
@@ -362,25 +234,12 @@ def construct_effective_hamiltonian(
     """Construct effective Hamiltonian for a site.
 
     H_eff = Σ_k c_k O_k where c_k are expectation values of commuting terms.
-
-    Args:
-        ttn: TTN state.
-        site_idx: Index of the site.
-        H_terms: List of Hamiltonian terms (matrices).
-        site_operators: Corresponding site-local operators.
-
-    Returns:
-        Effective Hamiltonian matrix.
-
     """
-    local_dim = ttn.local_dim
-    H_eff = np.zeros((local_dim, local_dim), dtype=complex)
+    loc_dim = H_terms[0].shape[0] if H_terms else 2
+    H_eff = np.zeros((loc_dim, loc_dim), dtype=complex)
 
-    # Compute contributions from each term
     for H_term, site_op in zip(H_terms, site_operators, strict=False):
-        # Get expectation value
-        exp_val = compute_local_expectation(ttn, site_idx, site_op)
-        # Add contribution
+        exp_val = compute_local_expectation(tensor, site_idx, site_op)
         H_eff = H_eff + exp_val * H_term
 
     return H_eff
@@ -392,62 +251,56 @@ def construct_effective_hamiltonian(
 
 
 def apply_trotter_step(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     H_terms: list[np.ndarray],
     dt: float,
     order: int = 2,
-) -> TensorTreeNetwork:
+) -> qtn.Tensor:
     """Apply Trotter decomposition step.
 
     For order=2 (Strang splitting):
         U ≈ exp(-i dt/2 H_1) exp(-i dt H_2) exp(-i dt/2 H_1)
 
     Args:
-        ttn: Current TTN state.
+        tensor: Current tensor state.
         H_terms: List of Hamiltonian terms (each term acts on one site).
         dt: Time step.
         order: Trotter order (1 or 2).
 
     Returns:
-        Updated TTN after one Trotter step.
+        Updated tensor after one Trotter step.
 
     Raises:
         ValueError: If order is not 1 or 2.
-
     """
     if order not in (1, 2):
         raise ValueError(f"Trotter order must be 1 or 2, got {order}")
 
-    if ttn._state_vector is None:
-        raise ValueError("TTN state vector is not initialized")
-
     if len(H_terms) == 0:
-        return ttn
+        return tensor
 
-    result_ttn = ttn
+    result = tensor
 
     if order == 1:
         # First-order Trotter: product of exponentials
         for H_term in H_terms:
-            result_ttn = tdvp_single_site(result_ttn, 0, H_term, dt)
+            result = tdvp_single_site(result, 0, H_term, dt)
 
     else:
-        # Second-order (Strang) splitting: U ≈ e^{-i dt/2 H_1} e^{-i dt H_2} e^{-i dt/2 H_1}
+        # Second-order (Strang) splitting:
+        #   U ≈ e^{-i dt/2 H_1} e^{-i dt H_2} e^{-i dt/2 H_1}
         half_dt = dt / 2
 
-        # First half-step with first term
         if len(H_terms) > 0:
-            result_ttn = tdvp_single_site(result_ttn, 0, H_terms[0], half_dt)
+            result = tdvp_single_site(result, 0, H_terms[0], half_dt)
 
-        # Full step with remaining terms
         for H_term in H_terms[1:]:
-            result_ttn = tdvp_single_site(result_ttn, 0, H_term, dt)
+            result = tdvp_single_site(result, 0, H_term, dt)
 
-        # Second half-step with first term
         if len(H_terms) > 0:
-            result_ttn = tdvp_single_site(result_ttn, 0, H_terms[0], half_dt)
+            result = tdvp_single_site(result, 0, H_terms[0], half_dt)
 
-    return result_ttn
+    return result
 
 
 # =============================================================================
@@ -456,51 +309,28 @@ def apply_trotter_step(
 
 
 def compute_energy(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     H: np.ndarray,
 ) -> complex:
     """Compute expectation value of Hamiltonian.
 
     E = ⟨ψ|H|ψ⟩
-
-    Args:
-        ttn: TTN state.
-        H: Hamiltonian matrix.
-
-    Returns:
-        Energy expectation value.
-
     """
-    if ttn._state_vector is None:
-        raise ValueError("TTN state vector is not initialized")
-
-    psi = ttn._state_vector
-    return np.vdot(psi, H @ psi)
+    psi = _get_state_vector(tensor)
+    return complex(np.vdot(psi, H @ psi))
 
 
 def compute_energy_variance(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     H: np.ndarray,
 ) -> float:
     """Compute variance of Hamiltonian.
 
     ΔE² = ⟨ψ|H²|ψ⟩ - ⟨ψ|H|ψ⟩²
-
-    Args:
-        ttn: TTN state.
-        H: Hamiltonian matrix.
-
-    Returns:
-        Energy variance.
-
     """
-    if ttn._state_vector is None:
-        raise ValueError("TTN state vector is not initialized")
-
-    psi = ttn._state_vector
+    psi = _get_state_vector(tensor)
     E = np.vdot(psi, H @ psi)
     E2 = np.vdot(psi, H @ H @ psi)
-
     return float(np.real(E2 - E**2))
 
 
@@ -510,7 +340,7 @@ def compute_energy_variance(
 
 
 def tdvp_evolution(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     H: np.ndarray,
     T: float,
     dt: float,
@@ -521,11 +351,11 @@ def tdvp_evolution(
 ) -> TDVPResult:
     """Full TDVP evolution with checkpoints.
 
-    Evolves the TTN state under Hamiltonian H using the time-dependent
+    Evolves the tensor state under Hamiltonian H using the time-dependent
     variational principle with Suzuki-Trotter decomposition.
 
     Args:
-        ttn: Initial TTN state.
+        tensor: Initial tensor state.
         H: Full Hamiltonian matrix.
         T: Total evolution time.
         dt: Time step.
@@ -539,7 +369,6 @@ def tdvp_evolution(
 
     Raises:
         ValueError: If dt is not positive or T is negative.
-
     """
     if config is None:
         config = TDVPConfig(dt=dt)
@@ -551,17 +380,14 @@ def tdvp_evolution(
         raise ValueError("T must be non-negative")
 
     # Initialize RNG
-    rng = np.random.default_rng(seed)
+    _rng = np.random.default_rng(seed)
 
     # Parse Hamiltonian into local terms
-    # For simplicity, decompose H into single-site terms
-    local_dim = ttn.local_dim
+    local_dim = 2  # qubit
     H_terms = decompose_hamiltonian_local(H, n_sites, local_dim)
 
     # Store initial state for fidelity tracking
-    if ttn._state_vector is None:
-        raise ValueError("TTN state vector is not initialized")
-    initial_state = ttn._state_vector.copy()
+    initial_state = _get_state_vector(tensor)
 
     # Checkpoints
     checkpoints: list[TDVPCheckpoint] = []
@@ -572,7 +398,7 @@ def tdvp_evolution(
     fidelity_history: list[float] = []
 
     # Current state
-    current_ttn = ttn
+    current_tensor = tensor
     current_time = 0.0
     n_steps = int(np.round(T / dt))
 
@@ -581,8 +407,8 @@ def tdvp_evolution(
 
     for step in range(n_steps):
         # Apply one time step via Trotter
-        current_ttn = apply_trotter_step(
-            current_ttn,
+        current_tensor = apply_trotter_step(
+            current_tensor,
             H_terms,
             dt,
             order=config.trotter_order,
@@ -593,16 +419,15 @@ def tdvp_evolution(
 
         # Record time and energy
         times.append(current_time)
-        energy = compute_energy(current_ttn, H)
+        energy = compute_energy(current_tensor, H)
         energies.append(energy)
 
-        # Get current state vector (guaranteed non-None after evolution)
-        current_state = current_ttn._state_vector
-        assert current_state is not None
+        # Get current state vector
+        current_state = _get_state_vector(current_tensor)
 
         # Check fidelity with exact evolution
         if exact_state is not None:
-            exact_evolved = evolve_exact(exact_state, H, current_time, rng)
+            exact_evolved = evolve_exact(exact_state, H, current_time, _rng)
             fidelity = compute_state_fidelity(current_state, exact_evolved)
             fidelity_history.append(fidelity)
         else:
@@ -620,7 +445,7 @@ def tdvp_evolution(
                 time=current_time,
                 state_vector=current_state.copy(),
                 energy=energy,
-                max_bond_dim=current_ttn.max_bond_dimension(),
+                max_bond_dim=current_tensor.max_dim(),
             )
             checkpoints.append(checkpoint)
 
@@ -630,7 +455,7 @@ def tdvp_evolution(
             norm_preserved = False
 
     return TDVPResult(
-        final_ttn=current_ttn,
+        final_tensor=current_tensor,
         checkpoints=checkpoints,
         energies=energies,
         times=times,
@@ -648,32 +473,17 @@ def decompose_hamiltonian_local(
     """Decompose Hamiltonian into single-site terms.
 
     Extracts local terms from the Hamiltonian for Trotter decomposition.
-    For a TTN with main+ancilla structure, we extract terms that act on
-    individual qubits.
-
-    Args:
-        H: Full Hamiltonian matrix.
-        n_sites: Number of sites.
-        local_dim: Local dimension (per qubit).
-
-    Returns:
-        List of single-site Hamiltonian matrices.
-
     """
     dim = local_dim ** (2 * n_sites)  # Total Hilbert space dimension
 
     # If H is not the full dimension, pad it
     if H.shape[0] != dim:
-        # Try to use H as a local term
         if H.shape[0] == local_dim:
             return [H.astype(complex)]
         return [np.zeros((local_dim, local_dim), dtype=complex)]
 
-    # For full Hamiltonian, try to extract single-site terms
-    # Build sigma_z as a simple local term
+    # For full Hamiltonian, return a simple local term
     sigma_z = np.array([[1, 0], [0, -1]], dtype=complex)
-
-    # Return a simple local term for the first qubit
     return [sigma_z]
 
 
@@ -693,7 +503,6 @@ def evolve_exact(
 
     Returns:
         Evolved state vector.
-
     """
     # Ensure psi0 is a 1D vector
     psi0 = psi0.flatten()
@@ -705,7 +514,6 @@ def evolve_exact(
     phases = np.exp(-1j * t * eigenvals)
 
     # Project initial state onto eigenbasis
-    # eigenvecs is (dim, dim), psi0 is (dim,)
     coeffs = eigenvecs.conj().T @ psi0
 
     # Apply phases
@@ -736,7 +544,6 @@ def compute_state_fidelity(
 
     Returns:
         Fidelity value in [0, 1].
-
     """
     # Normalize
     psi1_norm = psi1 / np.linalg.norm(psi1)
@@ -754,22 +561,21 @@ def compute_state_fidelity(
 
 
 def apply_trotter_step_simple(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     H_local: np.ndarray,
     dt: float,
-) -> TensorTreeNetwork:
+) -> qtn.Tensor:
     """Simplified single-site Trotter step.
 
     Args:
-        ttn: Current TTN state.
+        tensor: Current tensor state.
         H_local: Local Hamiltonian (diagonal in computational basis).
         dt: Time step.
 
     Returns:
-        Updated TTN state.
-
+        Updated tensor state.
     """
-    return tdvp_single_site(ttn, site_idx=0, H_eff=H_local, dt=dt)
+    return tdvp_single_site(tensor, site_idx=0, H_eff=H_local, dt=dt)
 
 
 def project_to_manifold(
@@ -777,45 +583,39 @@ def project_to_manifold(
     n_sites: int,
     local_dim: int,
     epsilon: float = 1e-8,
-) -> TensorTreeNetwork:
-    """Project exact state onto TTN manifold.
+) -> qtn.Tensor:
+    """Project exact state onto the tensor manifold (quimb ``Tensor``).
 
     Args:
         psi_exact: Exact state vector.
         n_sites: Number of sites.
         local_dim: Local dimension.
-        epsilon: SVD truncation threshold.
+        epsilon: SVD truncation threshold (retained for API compatibility).
 
     Returns:
-        TTN representation of the state.
-
+        Quimb Tensor representation of the state.
     """
-    return TensorTreeNetwork.from_state_vector(
-        psi_exact,
-        n_sites=n_sites,
-        local_dim=local_dim,
-        svd_epsilon=epsilon,
-    )
+    return _tensor_from_state_vector(psi_exact, n_sites, local_dim, epsilon)
 
 
 def compute_manifold_violation(
-    ttn: TensorTreeNetwork,
+    tensor: qtn.Tensor,
     exact_state: np.ndarray,
 ) -> float:
-    """Compute violation of the TTN manifold constraint.
+    """Compute violation of the manifold constraint.
 
-    Measures how far the TTN reconstruction is from the exact state.
+    Measures how far the tensor reconstruction is from the exact state
+    via 1 - |⟨tensor|exact⟩|².
 
     Args:
-        ttn: TTN state.
+        tensor: Tensor state.
         exact_state: Exact state vector.
 
     Returns:
         Manifold violation (1 - fidelity).
-
     """
-    ttn_state = ttn._to_state_vector()
-    fidelity = compute_state_fidelity(ttn_state, exact_state)
+    tensor_state = _get_state_vector(tensor)
+    fidelity = compute_state_fidelity(tensor_state, exact_state)
     return 1.0 - fidelity
 
 
@@ -825,8 +625,8 @@ def compute_manifold_violation(
 
 
 def validate_tdvp_step(
-    ttn_before: TensorTreeNetwork,
-    ttn_after: TensorTreeNetwork,
+    tensor_before: qtn.Tensor,
+    tensor_after: qtn.Tensor,
     H: np.ndarray,
     dt: float,
 ) -> dict[str, float]:
@@ -835,17 +635,16 @@ def validate_tdvp_step(
     Checks norm preservation, energy conservation, and unitarity.
 
     Args:
-        ttn_before: State before update.
-        ttn_after: State after update.
+        tensor_before: State before update.
+        tensor_after: State after update.
         H: Hamiltonian.
         dt: Time step.
 
     Returns:
         Dictionary with validation metrics.
-
     """
-    psi_before = ttn_before._to_state_vector()
-    psi_after = ttn_after._to_state_vector()
+    psi_before = _get_state_vector(tensor_before)
+    psi_after = _get_state_vector(tensor_after)
 
     # Norm preservation
     norm_before = np.linalg.norm(psi_before)
@@ -853,12 +652,11 @@ def validate_tdvp_step(
     norm_error = abs(norm_after - norm_before)
 
     # Energy change
-    E_before = compute_energy(ttn_before, H)
-    E_after = compute_energy(ttn_after, H)
+    E_before = compute_energy(tensor_before, H)
+    E_after = compute_energy(tensor_after, H)
     energy_change = abs(np.real(E_after - E_before))
 
     # Unitary constraint (should be approximately unitary evolution)
-    # For small dt, check that the step is close to unitary
     fidelity = compute_state_fidelity(psi_before, psi_after)
     unitary_error = 1.0 - fidelity
 

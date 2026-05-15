@@ -27,7 +27,7 @@ from src.physics.hybrid_system import (
     hybrid_vacuum_state,
     validate_hybrid_state,
 )
-from src.physics.wigner import wigner_is_negative, wigner_minimum
+from src.physics.wigner import wigner_is_negative
 
 
 def evolve_hybrid_unitary(
@@ -181,7 +181,7 @@ def test_1_physics_validation_n2() -> list[dict[str, Any]]:
 
         # Compute Wigner minimum (should be positive for Gaussian)
         _, _, W = compute_wigner_for_state(squeezed, N, x_max=5.0, n_points=50)
-        w_min = wigner_minimum(W)
+        w_min = float(np.min(W))
         is_neg = wigner_is_negative(W)
 
         results.append(
@@ -262,7 +262,7 @@ def test_2_non_gaussian_signature() -> dict[int, list[dict[str, Any]]]:
 
             # Compute Wigner function
             _, _, W = compute_wigner_for_state(squeezed, N, x_max=5.0, n_points=50)
-            w_min = wigner_minimum(W)
+            w_min = float(np.min(W))
             is_neg = wigner_is_negative(W)
 
             results[n].append(

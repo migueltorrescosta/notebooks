@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+import qutip
 
 from src.analysis.fisher_information import quantum_fisher_information_dm
 from src.analysis.scaling_fit import fit_scaling_exponent
@@ -39,10 +40,8 @@ from src.physics.hybrid_system import (
     hybrid_hamiltonian_n,
     hybrid_vacuum_state,
 )
-from src.physics.mzi_lindblad import MziNoiseConfig, evolve_mzi_lindblad
 from src.physics.mzi_simulation import phase_shift_unitary
 from src.physics.mzi_states import (
-    compute_fisher_information,
     input_state_factory,
     two_mode_jz_operator,
 )
@@ -426,10 +425,8 @@ def _apply_entanglement(
         chi = 1.0
         t_opt = (6.0 / N) ** (1.0 / 3.0) / chi if N > 0 else 0.0
 
-        from src.physics.dicke_basis import j_lowering_operator, j_raising_operator
-
-        J_plus = j_raising_operator(N)
-        J_minus = j_lowering_operator(N)
+        J_plus = qutip.jmat(N / 2.0, "+").full()
+        J_minus = qutip.jmat(N / 2.0, "-").full()
         H_tnt = (J_plus @ J_plus + J_minus @ J_minus) / 2
 
         from scipy.linalg import expm
@@ -486,30 +483,37 @@ def _compute_noisy_sensitivity(
     if noise_free or no_noise_type:
         return _compute_pure_state_sensitivity(state, max_photons)
 
-    # --- Noisy case: use Lindblad evolution ---
-    # Build noise config based on noise_type
-    if noise_type == "dephasing":
-        noise_config = MziNoiseConfig(gamma_phi=noise_level, T=T, dt=0.1)
-    elif noise_type == "loss":
-        noise_config = MziNoiseConfig(gamma_1=noise_level, T=T, dt=0.1)
-    elif noise_type == "two_body":
-        noise_config = MziNoiseConfig(gamma_2=noise_level, T=T, dt=0.1)
-    elif noise_type == "detection":
-        # Detection noise is handled separately
-        return _compute_detection_noise_sensitivity(state, max_photons, noise_level)
-    else:
-        # Default to dephasing for unknown types
-        noise_config = MziNoiseConfig(gamma_phi=noise_level, T=T, dt=0.1)
-
-    # Evolve under Lindblad master equation
+    # --- Noisy case: use QuTiP Lindblad evolution ---
+    # Build Lindblad collapse operators based on noise_type
     try:
-        rho_noisy = evolve_mzi_lindblad(
-            state,
-            noise_config,
-            max_photons=max_photons,
-            H=None,
+        dim = max_photons + 1
+        n0 = qutip.tensor(qutip.num(dim), qutip.qeye(dim))
+        n1 = qutip.tensor(qutip.qeye(dim), qutip.num(dim))
+        jz = (n0 - n1) / 2.0
+
+        if noise_type == "dephasing":
+            c_ops = [np.sqrt(noise_level) * jz]
+        elif noise_type == "loss":
+            a1 = qutip.tensor(qutip.qeye(dim), qutip.destroy(dim))
+            c_ops = [np.sqrt(noise_level) * a1]
+        elif noise_type == "two_body":
+            a1 = qutip.tensor(qutip.qeye(dim), qutip.destroy(dim))
+            c_ops = [np.sqrt(noise_level) * (a1 * a1)]
+        elif noise_type == "detection":
+            return _compute_detection_noise_sensitivity(state, max_photons, noise_level)
+        else:
+            c_ops = [np.sqrt(noise_level) * jz]
+
+        H0 = 0 * n0  # zero Hamiltonian with matching dims
+        state_q = qutip.Qobj(state.reshape(-1, 1), dims=[[dim, dim], [1, 1]])
+        rho0 = qutip.ket2dm(state_q)
+        tlist = [0.0, T]
+
+        result = qutip.mesolve(
+            H0, rho0, tlist, c_ops=c_ops, options={"store_states": True}
         )
-    except (ValueError, np.linalg.LinAlgError, AssertionError):
+        rho_noisy = result.states[-1].full()
+    except Exception:
         return np.inf
 
     # J_z operator in the two-mode Fock basis
@@ -553,8 +557,17 @@ def _compute_detection_noise_sensitivity(
     if eta <= 0:
         return np.inf
 
-    # Base pure-state QFI
-    F_Q_pure = compute_fisher_information(state, max_photons)
+    # Base pure-state QFI via direct QuTiP variance computation
+    try:
+        dim = max_photons + 1
+        state_q = qutip.Qobj(state.reshape(-1, 1), dims=[[dim, dim], [1, 1]])
+        n0 = qutip.tensor(qutip.num(dim), qutip.qeye(dim))
+        n1 = qutip.tensor(qutip.qeye(dim), qutip.num(dim))
+        jz = (n0 - n1) / 2.0
+        var_jz = float(qutip.variance(jz, state_q))
+        F_Q_pure = 4.0 * var_jz
+    except Exception:
+        return np.inf
 
     if F_Q_pure <= 0 or not np.isfinite(F_Q_pure):
         return np.inf
@@ -575,6 +588,9 @@ def _compute_pure_state_sensitivity(state: np.ndarray, max_photons: int) -> floa
     Uses the Quantum Fisher Information for pure states:
         F_Q = 4 · Var(J_z)  →  Δφ = 1/√F_Q
 
+    Uses QuTiP directly for the J_z operator construction and variance
+    computation, bypassing intermediate wrappers.
+
     Args:
         state: Pure state vector in the two-mode Fock basis.
         max_photons: Hilbert space truncation.
@@ -584,8 +600,14 @@ def _compute_pure_state_sensitivity(state: np.ndarray, max_photons: int) -> floa
 
     """
     try:
-        F_Q = compute_fisher_information(state, max_photons)
-    except (ValueError, IndexError):
+        dim = max_photons + 1
+        state_q = qutip.Qobj(state.reshape(-1, 1), dims=[[dim, dim], [1, 1]])
+        n0 = qutip.tensor(qutip.num(dim), qutip.qeye(dim))
+        n1 = qutip.tensor(qutip.qeye(dim), qutip.num(dim))
+        jz = (n0 - n1) / 2.0
+        var_jz = float(qutip.variance(jz, state_q))
+        F_Q = 4.0 * var_jz
+    except (ValueError, IndexError, Exception):
         return np.inf
 
     if F_Q <= 0 or not np.isfinite(F_Q):

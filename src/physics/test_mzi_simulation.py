@@ -4,42 +4,49 @@ Tests for MZI with Ancilla simulation module.
 
 import numpy as np
 import pytest
-
-from src.utils.validators import validate_unitary
+import qutip
 
 from .mzi_simulation import (
     beam_splitter_unitary,
-    coherent_state,
     compute_interference_fringe,
     compute_output_probabilities,
     create_system_operators,
     evolve_mzi,
-    fock_state_n,
     noon_state,
     phase_shift_unitary,
     prepare_input_state,
-    single_photon_state,
     system_ancilla_interaction_unitary,
-    vacuum_state,
     validate_state,
 )
 
 
-class TestFockStates:
-    """Test Fock state creation."""
+# Test helpers: construct two-mode states via QuTiP (not wrappers of removed functions)
+def _vacuum(max_photons: int) -> np.ndarray:
+    dim = max_photons + 1
+    return qutip.tensor(qutip.fock(dim, 0), qutip.fock(dim, 0)).full().ravel()
+
+
+def _single_photon(mode: int, max_photons: int) -> np.ndarray:
+    dim = max_photons + 1
+    if mode == 0:
+        return qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
+    return qutip.tensor(qutip.fock(dim, 0), qutip.fock(dim, 1)).full().ravel()
+
+
+class TestStateCreation:
+    """Test state creation via QuTiP and noon_state."""
 
     def test_vacuum_state(self) -> None:
-        state = vacuum_state(max_photons=2)
+        state = _vacuum(max_photons=2)
         assert validate_state(state), "Condition failed: validate_state(state)"
         assert state[0] == pytest.approx(1.0)  # |0,0> is first state
 
     def test_single_photon_state_mode0(self) -> None:
-        state = single_photon_state(mode=0, max_photons=2)
+        state = _single_photon(mode=0, max_photons=2)
         assert validate_state(state), "Condition failed: validate_state(state)"
-        # |1,0> should have amplitude 1
 
     def test_single_photon_state_mode1(self) -> None:
-        state = single_photon_state(mode=1, max_photons=2)
+        state = _single_photon(mode=1, max_photons=2)
         assert validate_state(state), "Condition failed: validate_state(state)"
 
     def test_noon_state(self) -> None:
@@ -48,11 +55,17 @@ class TestFockStates:
         # Should be (|2,0> + |0,2>)/sqrt(2)
 
     def test_coherent_state(self) -> None:
-        state = coherent_state(alpha=0.5 + 0.5j, max_photons=5)
+        dim = 5 + 1
+        state = (
+            qutip.tensor(qutip.coherent(dim, 0.5 + 0.5j), qutip.fock(dim, 0))
+            .full()
+            .ravel()
+        )
         assert validate_state(state), "Condition failed: validate_state(state)"
 
     def test_fock_state_n(self) -> None:
-        state = fock_state_n(n=3, max_photons=5)
+        dim = 5 + 1
+        state = qutip.tensor(qutip.fock(dim, 3), qutip.fock(dim, 0)).full().ravel()
         assert validate_state(state), "Condition failed: validate_state(state)"
 
 
@@ -69,13 +82,13 @@ class TestOperators:
         # Beam splitter should preserve norm of any state
         bs = beam_splitter_unitary(theta=np.pi / 4, phi=0.0, max_photons=2)
         # Test with vacuum
-        vac = vacuum_state(2)
+        vac = _vacuum(2)
         vac_out = bs @ vac
         assert np.sum(np.abs(vac_out) ** 2) == pytest.approx(1.0, abs=1e-6), (
             "Expected np.sum(np.abs(vac_out) ** 2) == pytest.approx(1.0, abs=1e-6)"
         )
         # Test with single photon
-        sp = single_photon_state(0, 2)
+        sp = _single_photon(0, 2)
         sp_out = bs @ sp
         assert np.sum(np.abs(sp_out) ** 2) == pytest.approx(1.0, abs=1e-6), (
             "Expected np.sum(np.abs(sp_out) ** 2) == pytest.approx(1.0, abs=1e-6)"
@@ -83,8 +96,8 @@ class TestOperators:
 
     def test_phase_shift_unitarity(self) -> None:
         ps = phase_shift_unitary(phi=np.pi / 2, max_photons=2)
-        assert validate_unitary(ps, tol=1e-10), (
-            "Condition failed: validate_unitary(ps, tol=1e-10)"
+        assert np.allclose(ps @ ps.conj().T, np.eye(ps.shape[0]), atol=1e-10), (
+            "Phase shift unitary must satisfy U U† = I"
         )
 
     def test_ancilla_coupling_hermitian(self) -> None:
@@ -96,8 +109,8 @@ class TestOperators:
             ancilla_dim=3,
         )
         # Check that exp(-i*H) is unitary
-        assert validate_unitary(H, tol=1e-6), (
-            "Condition failed: validate_unitary(H, tol=1e-6)"
+        assert np.allclose(H @ H.conj().T, np.eye(H.shape[0]), atol=1e-6), (
+            "Ancilla coupling unitary must satisfy U U† = I"
         )
 
 
@@ -105,7 +118,7 @@ class TestEvolution:
     """Test state evolution."""
 
     def test_vacuum_produces_vacuum(self) -> None:
-        state = vacuum_state(max_photons=1)
+        state = _vacuum(max_photons=1)
         evolved = evolve_mzi(
             initial_system_state=state,
             theta=np.pi / 4,
@@ -121,7 +134,7 @@ class TestEvolution:
         assert validate_state(evolved), "Condition failed: validate_state(evolved)"
 
     def test_evolution_conserves_probability(self) -> None:
-        state = vacuum_state(max_photons=2)
+        state = _vacuum(max_photons=2)
         evolved = evolve_mzi(
             initial_system_state=state,
             theta=np.pi / 4,
@@ -137,7 +150,7 @@ class TestEvolution:
         assert prob == pytest.approx(1.0), "Expected prob == pytest.approx(1.0)"
 
     def test_output_probabilities_sum_to_one(self) -> None:
-        state = vacuum_state(max_photons=2)
+        state = _vacuum(max_photons=2)
         evolved = evolve_mzi(
             initial_system_state=state,
             theta=np.pi / 4,
@@ -157,7 +170,7 @@ class TestInterference:
     """Test interference pattern computation."""
 
     def test_interference_fringe_shape(self) -> None:
-        state = vacuum_state(max_photons=2)
+        state = _vacuum(max_photons=2)
         phases = np.linspace(0, 2 * np.pi, 50)
         fringe = compute_interference_fringe(
             phase_range=phases,
@@ -227,11 +240,3 @@ class TestValidation:
     def test_validate_unnormalized_state(self) -> None:
         state = np.array([1, 1, 1], dtype=complex)
         assert not validate_state(state), "validate_state(state) should be falsy"
-
-    def test_validate_unitary_matrix(self) -> None:
-        U = np.array([[1, 0], [0, 1]], dtype=complex)
-        assert validate_unitary(U), "Condition failed: validate_unitary(U)"
-
-    def test_validate_non_unitary(self) -> None:
-        U = np.array([[1, 1], [0, 1]], dtype=complex)
-        assert not validate_unitary(U), "validate_unitary(U) should be falsy"

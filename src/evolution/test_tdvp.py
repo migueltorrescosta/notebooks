@@ -1,9 +1,11 @@
-"""Unit tests for TDVP (Time-Dependent Variational Principle) module."""
+"""Unit tests for TDVP (Time-Dependent Variational Principle) module.
+
+Uses quimb :class:`~quimb.tensor.Tensor` as the state representation.
+"""
 
 import numpy as np
 import pytest
-
-from src.algorithms.tensor_tree_network import TensorTreeNetwork
+import quimb.tensor as qtn
 
 from .tdvp import (
     TDVPConfig,
@@ -26,6 +28,24 @@ SIGMA_X = np.array([[0, 1], [1, 0]], dtype=complex)
 SIGMA_Z = np.array([[1, 0], [0, -1]], dtype=complex)
 SIGMA_Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
 EYE = np.array([[1, 0], [0, 1]], dtype=complex)
+
+
+def _make_tensor(state: np.ndarray) -> qtn.Tensor:
+    """Shortcut: build a quimb Tensor from a 2-qubit (4-dim) state vector."""
+    return qtn.Tensor(
+        data=state.reshape(2, 2).astype(complex),
+        inds=("main", "ancilla"),
+    )
+
+
+def _flat(t: qtn.Tensor) -> np.ndarray:
+    """Return the flat state vector stored in *t*."""
+    return t.data.flatten()
+
+
+# =============================================================================
+#  TDVP Configuration
+# =============================================================================
 
 
 class TestTDVPConfiguration:
@@ -53,88 +73,75 @@ class TestTDVPConfiguration:
         assert config.bond_dim_limit == 32, "Expected config.bond_dim_limit == 32"
 
 
+# =============================================================================
+#  Single-site TDVP update
+# =============================================================================
+
+
 class TestTDPVSingleSite:
     """Tests for single-site TDVP update."""
 
     def test_single_site_update_product_state(self) -> None:
         """Single-site update on product state."""
-        # Initial state |00⟩
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
-        # Apply sigma_z evolution (should phase the state)
         H_z = SIGMA_Z
         dt = 0.1
-        updated_ttn = tdvp_single_site(ttn, site_idx=0, H_eff=H_z, dt=dt)
+        updated = tdvp_single_site(tensor, site_idx=0, H_eff=H_z, dt=dt)
 
-        # State should be evolved
-        assert updated_ttn._state_vector is not None, (
-            "Expected updated_ttn._state_vector to not be None"
-        )
-        assert np.linalg.norm(updated_ttn._state_vector) == pytest.approx(
-            1.0,
-            rel=1e-6,
-        ), (
-            "Expected np.linalg.norm(updated_ttn._state_vector) == pytest.approx(1.0, rel=1e-6)"
-        )
+        sv = _flat(updated)
+        assert sv is not None
+        assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)
 
     def test_single_site_update_preserves_norm(self) -> None:
         """Single-site update should preserve norm."""
-        # Bell state (entangled)
         state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H_z = SIGMA_Z
         dt = 0.05
+        updated = tdvp_single_site(tensor, site_idx=0, H_eff=H_z, dt=dt)
 
-        updated_ttn = tdvp_single_site(ttn, site_idx=0, H_eff=H_z, dt=dt)
-
-        # Check norm preservation
-        assert ttn._state_vector is not None, (
-            "Expected ttn._state_vector to not be None"
-        )
-        assert updated_ttn._state_vector is not None, (
-            "Expected updated_ttn._state_vector to not be None"
-        )
-        norm_before = np.linalg.norm(ttn._state_vector)
-        norm_after = np.linalg.norm(updated_ttn._state_vector)
-        assert norm_before == pytest.approx(norm_after, rel=1e-6), (
-            "Expected norm_before == pytest.approx(norm_after, rel=1e-6)"
-        )
+        norm_before = np.linalg.norm(_flat(tensor))
+        norm_after = np.linalg.norm(_flat(updated))
+        assert norm_before == pytest.approx(norm_after, rel=1e-6)
 
     def test_single_site_update_with_hermitian_h(self) -> None:
         """Should work with any Hermitian Hamiltonian."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
-        # Sigma_x is Hermitian
         H_x = SIGMA_X
         dt = 0.1
+        updated = tdvp_single_site(tensor, site_idx=0, H_eff=H_x, dt=dt)
 
-        updated_ttn = tdvp_single_site(ttn, site_idx=0, H_eff=H_x, dt=dt)
-
-        # Should complete without error
-        assert updated_ttn._state_vector is not None, (
-            "Expected updated_ttn._state_vector to not be None"
-        )
+        assert _flat(updated) is not None
 
     def test_single_site_update_rejects_non_hermitian(self) -> None:
         """Should reject non-Hermitian Hamiltonian."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
-        # Non-Hermitian matrix
         H_nh = np.array([[1, 1], [0, 1]], dtype=complex)
 
         with pytest.raises(ValueError, match="H_eff must be Hermitian"):
-            tdvp_single_site(ttn, site_idx=0, H_eff=H_nh, dt=0.1)
+            tdvp_single_site(tensor, site_idx=0, H_eff=H_nh, dt=0.1)
 
-    def test_single_site_update_empty_ttn_raises(self) -> None:
-        """Should raise error for empty TTN."""
-        ttn_empty = TensorTreeNetwork(n_sites=1, local_dim=2)
+    def test_single_site_update_rejects_nonsquare_h(self) -> None:
+        """Should reject non-square effective Hamiltonian."""
+        state = np.array([1, 0, 0, 0], dtype=complex)
+        tensor = _make_tensor(state)
 
-        with pytest.raises(ValueError, match="TTN state vector is not initialized"):
-            tdvp_single_site(ttn_empty, site_idx=0, H_eff=SIGMA_Z, dt=0.1)
+        H_bad = np.array([[1, 0, 0], [0, 1, 0]], dtype=complex)
+
+        with pytest.raises(ValueError, match="square"):
+            tdvp_single_site(tensor, site_idx=0, H_eff=H_bad, dt=0.1)
+
+
+# =============================================================================
+#  Trotter decomposition
+# =============================================================================
 
 
 class TestApplyTrotterStep:
@@ -143,74 +150,63 @@ class TestApplyTrotterStep:
     def test_trotter_order_1(self) -> None:
         """First-order Trotter should complete."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H_terms = [SIGMA_Z]
         dt = 0.1
+        result = apply_trotter_step(tensor, H_terms, dt, order=1)
 
-        result = apply_trotter_step(ttn, H_terms, dt, order=1)
-
-        assert result._state_vector is not None, (
-            "Expected result._state_vector to not be None"
-        )
-        assert np.linalg.norm(result._state_vector) == pytest.approx(1.0, rel=1e-6), (
-            "Expected np.linalg.norm(result._state_vector) == pytest.approx(1.0, rel=1e-6)"
-        )
+        sv = _flat(result)
+        assert sv is not None
+        assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)
 
     def test_trotter_order_2(self) -> None:
         """Second-order Trotter should complete."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H_terms = [SIGMA_Z]
         dt = 0.1
+        result = apply_trotter_step(tensor, H_terms, dt, order=2)
 
-        result = apply_trotter_step(ttn, H_terms, dt, order=2)
-
-        assert result._state_vector is not None, (
-            "Expected result._state_vector to not be None"
-        )
-        assert np.linalg.norm(result._state_vector) == pytest.approx(1.0, rel=1e-6), (
-            "Expected np.linalg.norm(result._state_vector) == pytest.approx(1.0, rel=1e-6)"
-        )
+        sv = _flat(result)
+        assert sv is not None
+        assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)
 
     def test_trotter_order_2_more_accurate(self) -> None:
         """Order 2 should be more accurate than order 1."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
-        H_z = np.kron(SIGMA_Z, EYE)  # Use full Hamiltonian
+        H_z = np.kron(SIGMA_Z, EYE)
         dt = 0.01
 
-        # Evolve exactly
+        # Exact evolution
         exact = evolve_exact(state, H_z, dt, np.random.default_rng(42))
 
         # First-order Trotter
-        result_1 = apply_trotter_step(ttn, [SIGMA_Z], dt, order=1)
-        assert result_1._state_vector is not None, (
-            "Expected result_1._state_vector to not be None"
-        )
-        fidelity_1 = compute_state_fidelity(result_1._state_vector, exact)
+        result_1 = apply_trotter_step(tensor, [SIGMA_Z], dt, order=1)
+        fidelity_1 = compute_state_fidelity(_flat(result_1), exact)
 
         # Second-order Trotter
-        result_2 = apply_trotter_step(ttn, [SIGMA_Z], dt, order=2)
-        assert result_2._state_vector is not None, (
-            "Expected result_2._state_vector to not be None"
-        )
-        fidelity_2 = compute_state_fidelity(result_2._state_vector, exact)
+        result_2 = apply_trotter_step(tensor, [SIGMA_Z], dt, order=2)
+        fidelity_2 = compute_state_fidelity(_flat(result_2), exact)
 
         # Order 2 should be at least as good as order 1
-        assert fidelity_2 >= fidelity_1 - 1e-6, (
-            "Expected fidelity_2 >= fidelity_1 - 1e-6"
-        )
+        assert fidelity_2 >= fidelity_1 - 1e-6
 
     def test_trotter_invalid_order_raises(self) -> None:
         """Invalid Trotter order should raise."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         with pytest.raises(ValueError, match="Trotter order must be 1 or 2"):
-            apply_trotter_step(ttn, [SIGMA_Z], 0.1, order=3)
+            apply_trotter_step(tensor, [SIGMA_Z], 0.1, order=3)
+
+
+# =============================================================================
+#  Energy calculations
+# =============================================================================
 
 
 class TestEnergyCalculations:
@@ -219,27 +215,23 @@ class TestEnergyCalculations:
     def test_compute_energy(self) -> None:
         """Energy should match expectation value."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
-        # H = sigma_z on first qubit
-        # |00⟩ has eigenvalue +1
         H = np.kron(SIGMA_Z, EYE)
-        energy = compute_energy(ttn, H)
+        energy = compute_energy(tensor, H)
 
-        assert np.real(energy) == pytest.approx(1.0, abs=1e-6), (
-            "Expected np.real(energy) == pytest.approx(1.0, abs=1e-6)"
-        )
+        assert np.real(energy) == pytest.approx(1.0, abs=1e-6)
 
     def test_compute_energy_variance(self) -> None:
         """Variance should be non-negative."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H = np.kron(SIGMA_Z, EYE)
-        variance = compute_energy_variance(ttn, H)
+        variance = compute_energy_variance(tensor, H)
 
         # For eigenstate, variance should be zero
-        assert variance >= -1e-10, "Expected variance >= -1e-10"
+        assert variance >= -1e-10
 
     def test_compute_energy_mixed_state(self) -> None:
         """Energy for superposition state."""
@@ -247,15 +239,18 @@ class TestEnergyCalculations:
             np.array([1, 0, 0, 0], dtype=complex)
             + np.array([0, 0, 1, 0], dtype=complex)
         ) / np.sqrt(2)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H = np.kron(SIGMA_Z, EYE)
-        energy = compute_energy(ttn, H)
+        energy = compute_energy(tensor, H)
 
         # Average of +1 and -1 = 0
-        assert np.real(energy) == pytest.approx(0.0, abs=1e-6), (
-            "Expected np.real(energy) == pytest.approx(0.0, abs=1e-6)"
-        )
+        assert np.real(energy) == pytest.approx(0.0, abs=1e-6)
+
+
+# =============================================================================
+#  Fidelity calculations
+# =============================================================================
 
 
 class TestFidelityCalculations:
@@ -264,28 +259,33 @@ class TestFidelityCalculations:
     def test_fidelity_identical_states(self) -> None:
         """Fidelity of identical states is 1."""
         psi = np.array([1, 0, 0, 0], dtype=complex)
-        fidelity = compute_state_fidelity(psi, psi)
-        assert fidelity == pytest.approx(1.0), "Expected fidelity == pytest.approx(1.0)"
+        f = compute_state_fidelity(psi, psi)
+        assert f == pytest.approx(1.0)
 
     def test_fidelity_orthogonal_states(self) -> None:
         """Fidelity of orthogonal states is 0."""
         psi1 = np.array([1, 0, 0, 0], dtype=complex)
         psi2 = np.array([0, 1, 0, 0], dtype=complex)
-        fidelity = compute_state_fidelity(psi1, psi2)
-        assert fidelity == pytest.approx(0.0), "Expected fidelity == pytest.approx(0.0)"
+        f = compute_state_fidelity(psi1, psi2)
+        assert f == pytest.approx(0.0)
 
     def test_fidelity_bell_states(self) -> None:
         """Fidelity for Bell states."""
         bell = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
-        fidelity = compute_state_fidelity(bell, bell)
-        assert fidelity == pytest.approx(1.0), "Expected fidelity == pytest.approx(1.0)"
+        f = compute_state_fidelity(bell, bell)
+        assert f == pytest.approx(1.0)
 
     def test_fidelity_normalizes_inputs(self) -> None:
         """Fidelity should normalize inputs."""
         psi1 = 2 * np.array([1, 0, 0, 0], dtype=complex)
         psi2 = 3 * np.array([1, 0, 0, 0], dtype=complex)
-        fidelity = compute_state_fidelity(psi1, psi2)
-        assert fidelity == pytest.approx(1.0), "Expected fidelity == pytest.approx(1.0)"
+        f = compute_state_fidelity(psi1, psi2)
+        assert f == pytest.approx(1.0)
+
+
+# =============================================================================
+#  Full TDVP evolution
+# =============================================================================
 
 
 class TestTDVPEvolution:
@@ -294,59 +294,87 @@ class TestTDVPEvolution:
     def test_evolution_runs(self) -> None:
         """Evolution should complete without error."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
-        # Diagonal Hamiltonian
         H = np.kron(SIGMA_Z, EYE)
         config = TDVPConfig(dt=0.01, checkpoint_every=10)
 
-        result = tdvp_evolution(ttn, H, T=0.1, dt=0.01, n_sites=1, config=config)
-
-        assert isinstance(result, TDVPResult), (
-            "Expected result to be instance of TDVPResult"
+        result = tdvp_evolution(
+            tensor,
+            H,
+            T=0.1,
+            dt=0.01,
+            n_sites=1,
+            config=config,
         )
-        assert result.final_ttn is not None, "Expected result.final_ttn to not be None"
-        assert len(result.times) > 0, "Expected len(result.times) > 0"
+
+        assert isinstance(result, TDVPResult)
+        assert result.final_tensor is not None
+        assert len(result.times) > 0
 
     def test_evolution_preserves_norm(self) -> None:
         """Norm should be preserved during evolution."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H = np.kron(SIGMA_Z, EYE)
         config = TDVPConfig(dt=0.01)
 
-        result = tdvp_evolution(ttn, H, T=0.1, dt=0.01, n_sites=1, config=config)
+        result = tdvp_evolution(
+            tensor,
+            H,
+            T=0.1,
+            dt=0.01,
+            n_sites=1,
+            config=config,
+        )
 
-        assert result.norm_preserved, "Condition failed: result.norm_preserved"
+        assert result.norm_preserved
 
     def test_evolution_checkpoints(self) -> None:
         """Checkpoints should be saved at correct intervals."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H = np.kron(SIGMA_Z, EYE)
         config = TDVPConfig(dt=0.01, checkpoint_every=5)
 
-        result = tdvp_evolution(ttn, H, T=0.1, dt=0.01, n_sites=1, config=config)
+        result = tdvp_evolution(
+            tensor,
+            H,
+            T=0.1,
+            dt=0.01,
+            n_sites=1,
+            config=config,
+        )
 
         # 0.1 / 0.01 = 10 steps, checkpoints every 5 = 2 checkpoints
-        assert len(result.checkpoints) == 2, "Expected len(result.checkpoints) == 2"
+        assert len(result.checkpoints) == 2
 
     def test_evolution_energy_history(self) -> None:
         """Energy history should be recorded."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H = np.kron(SIGMA_Z, EYE)
         config = TDVPConfig(dt=0.01)
 
-        result = tdvp_evolution(ttn, H, T=0.1, dt=0.01, n_sites=1, config=config)
-
-        assert len(result.energies) == len(result.times), (
-            "Expected len(result.energies) == len(result.times)"
+        result = tdvp_evolution(
+            tensor,
+            H,
+            T=0.1,
+            dt=0.01,
+            n_sites=1,
+            config=config,
         )
+
+        assert len(result.energies) == len(result.times)
         assert len(result.energies) == 10  # 0.1 / 0.01 = 10 steps
+
+
+# =============================================================================
+#  Exact evolution
+# =============================================================================
 
 
 class TestExactEvolution:
@@ -360,10 +388,7 @@ class TestExactEvolution:
 
         psi_t = evolve_exact(psi0, H, t=0.5, rng=rng)
 
-        # Should preserve norm
-        assert np.linalg.norm(psi_t) == pytest.approx(1.0, rel=1e-6), (
-            "Expected np.linalg.norm(psi_t) == pytest.approx(1.0, rel=1e-6)"
-        )
+        assert np.linalg.norm(psi_t) == pytest.approx(1.0, rel=1e-6)
 
     def test_exact_evolution_at_t0(self) -> None:
         """Evolution at t=0 should return initial state."""
@@ -373,12 +398,12 @@ class TestExactEvolution:
 
         psi_t = evolve_exact(psi0, H, t=0.0, rng=rng)
 
-        assert psi_t == pytest.approx(psi0), "Expected psi_t == pytest.approx(psi0)"
+        assert psi_t == pytest.approx(psi0)
 
     def test_exact_vs_trotter(self) -> None:
         """Trotter should approximate exact evolution."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H = np.kron(SIGMA_Z, EYE)
         rng = np.random.default_rng(42)
@@ -388,7 +413,7 @@ class TestExactEvolution:
 
         # Trotter evolution
         result = tdvp_evolution(
-            ttn,
+            tensor,
             H,
             T=0.1,
             dt=0.01,
@@ -396,48 +421,59 @@ class TestExactEvolution:
             config=TDVPConfig(dt=0.01, trotter_order=2),
         )
 
-        assert result.final_ttn._state_vector is not None, (
-            "Expected result.final_ttn._state_vector to not be None"
-        )
-        fidelity = compute_state_fidelity(result.final_ttn._state_vector, psi_exact)
+        sv = _flat(result.final_tensor)
+        fidelity = compute_state_fidelity(sv, psi_exact)
 
         # Should be reasonably accurate for small dt
-        assert fidelity > 0.99, "Expected fidelity > 0.99"
+        assert fidelity > 0.99
+
+
+# =============================================================================
+#  Project to manifold
+# =============================================================================
 
 
 class TestProjectToManifold:
-    """Tests for projection to TTN manifold."""
+    """Tests for projection to tensor manifold."""
 
     def test_projection_preserves_norm(self) -> None:
         """Projected state should be normalized."""
         state = np.array([1, 0, 0, 0], dtype=complex)
 
-        ttn = project_to_manifold(state, n_sites=1, local_dim=2)
+        tensor = project_to_manifold(state, n_sites=1, local_dim=2)
 
-        assert np.linalg.norm(ttn._to_state_vector()) == pytest.approx(1.0, rel=1e-6), (
-            "Expected np.linalg.norm(ttn._to_state_vector()) == pytest.approx(1.0, rel=1e-6)"
-        )
+        assert np.linalg.norm(_flat(tensor)) == pytest.approx(1.0, rel=1e-6)
 
     def test_projection_exact_for_product_state(self) -> None:
         """Product state should project exactly."""
         state = np.array([1, 0, 0, 0], dtype=complex)
 
-        ttn = project_to_manifold(state, n_sites=1, local_dim=2)
-        reconstructed = ttn._to_state_vector()
+        tensor = project_to_manifold(state, n_sites=1, local_dim=2)
+        reconstructed = _flat(tensor)
 
         fidelity = compute_state_fidelity(state, reconstructed)
-        assert fidelity > 1 - 1e-10, "Expected fidelity > 1 - 1e-10"
+        assert fidelity > 1 - 1e-10
 
     def test_projection_approximate_for_entangled(self) -> None:
         """Entangled state may not project exactly."""
         state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
 
-        ttn = project_to_manifold(state, n_sites=1, local_dim=2, epsilon=1e-8)
-        reconstructed = ttn._to_state_vector()
+        tensor = project_to_manifold(
+            state,
+            n_sites=1,
+            local_dim=2,
+            epsilon=1e-8,
+        )
+        reconstructed = _flat(tensor)
 
         # Should still have good fidelity
         fidelity = compute_state_fidelity(state, reconstructed)
-        assert fidelity > 0.99, "Expected fidelity > 0.99"
+        assert fidelity > 0.99
+
+
+# =============================================================================
+#  Manifold violation
+# =============================================================================
 
 
 class TestManifoldViolation:
@@ -446,22 +482,25 @@ class TestManifoldViolation:
     def test_zero_violation_for_projectable_state(self) -> None:
         """Product state has zero manifold violation."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = project_to_manifold(state, n_sites=1, local_dim=2)
+        tensor = project_to_manifold(state, n_sites=1, local_dim=2)
 
-        violation = compute_manifold_violation(ttn, state)
+        violation = compute_manifold_violation(tensor, state)
 
-        assert violation < 1e-10, "Expected violation < 1e-10"
+        assert violation < 1e-10
 
     def test_nonzero_violation_for_entangled(self) -> None:
         """Entangled state may have non-zero manifold violation."""
         state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
-        ttn = project_to_manifold(state, n_sites=1, local_dim=2)
+        tensor = project_to_manifold(state, n_sites=1, local_dim=2)
 
-        violation = compute_manifold_violation(ttn, state)
+        violation = compute_manifold_violation(tensor, state)
 
-        # TTN representation may not capture entanglement exactly
-        # Use a tolerance for numerical noise
-        assert violation >= -1e-10, "Expected violation >= -1e-10"
+        assert violation >= -1e-10
+
+
+# =============================================================================
+#  TDVP validation
+# =============================================================================
 
 
 class TestTDVPValidation:
@@ -470,22 +509,25 @@ class TestTDVPValidation:
     def test_validate_step_norm_preservation(self) -> None:
         """Validation should detect norm changes."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn_before = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor_before = _make_tensor(state)
 
-        # Manually create a slightly modified state
+        # Create a slightly modified state
         state_after = state.copy()
-        state_after[0] = 0.99  # Slightly change norm
-        ttn_after = TensorTreeNetwork.from_state_vector(
+        state_after[0] = 0.99
+        tensor_after = _make_tensor(
             state_after / np.linalg.norm(state_after),
-            n_sites=1,
-            local_dim=2,
         )
 
         H = np.kron(SIGMA_Z, EYE)
-        metrics = validate_tdvp_step(ttn_before, ttn_after, H, dt=0.01)
+        metrics = validate_tdvp_step(tensor_before, tensor_after, H, dt=0.01)
 
-        assert "norm_error" in metrics, 'Expected "norm_error" in metrics'
-        assert "energy_change" in metrics, 'Expected "energy_change" in metrics'
+        assert "norm_error" in metrics
+        assert "energy_change" in metrics
+
+
+# =============================================================================
+#  Energy conservation
+# =============================================================================
 
 
 class TestTDVPEnergyConservation:
@@ -494,15 +536,15 @@ class TestTDVPEnergyConservation:
     def test_energy_conservation_small_dt(self) -> None:
         """Energy should be approximately conserved for small dt."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         # Diagonal Hamiltonian - energy should be conserved exactly
         H = np.kron(SIGMA_Z, EYE)
 
-        E_initial = compute_energy(ttn, H)
+        E_initial = compute_energy(tensor, H)
 
         result = tdvp_evolution(
-            ttn,
+            tensor,
             H,
             T=0.05,
             dt=0.001,
@@ -510,11 +552,15 @@ class TestTDVPEnergyConservation:
             config=TDVPConfig(dt=0.001),
         )
 
-        E_final = compute_energy(result.final_ttn, H)
+        E_final = compute_energy(result.final_tensor, H)
 
-        # Energy change should be small
         energy_change = abs(np.real(E_final - E_initial))
         assert energy_change < 0.1  # Relaxed tolerance for numerical errors
+
+
+# =============================================================================
+#  TDVP vs exact
+# =============================================================================
 
 
 class TestTDVPAgainstExact:
@@ -524,7 +570,7 @@ class TestTDVPAgainstExact:
         """TDVP should match exact evolution for N=2."""
         # Initial superposition state
         state = np.array([1, 0, 1, 0], dtype=complex) / np.sqrt(2)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         # Full Hamiltonian for n_sites=1
         H = np.kron(SIGMA_Z, EYE)
@@ -535,7 +581,7 @@ class TestTDVPAgainstExact:
 
         # TDVP with small dt
         result = tdvp_evolution(
-            ttn,
+            tensor,
             H,
             T=0.1,
             dt=0.005,
@@ -543,27 +589,24 @@ class TestTDVPAgainstExact:
             config=TDVPConfig(dt=0.005, trotter_order=2),
         )
 
-        assert result.final_ttn._state_vector is not None, (
-            "Expected result.final_ttn._state_vector to not be None"
-        )
-        fidelity = compute_state_fidelity(result.final_ttn._state_vector, psi_exact)
+        sv = _flat(result.final_tensor)
+        fidelity = compute_state_fidelity(sv, psi_exact)
 
         # Should be accurate to within 10^-4 relative error
-        assert fidelity > 1 - 1e-4, f"Fidelity {fidelity} below threshold"
+        assert fidelity > 1 - 1e-4
 
     def test_tdvp_relative_error_n4(self) -> None:
-        """TDVP relative error for n_sites=2 with simple setup."""
-        # Use n_sites=1 to avoid complex unitary construction issues
+        """TDVP relative error for n_sites=1 with simple setup."""
         rng = np.random.default_rng(42)
         dim = 2**2  # n_sites=1, 2 qubits total
         state = rng.random(dim) + 1j * rng.random(dim)
         state = state / np.linalg.norm(state)
 
-        ttn = TensorTreeNetwork.from_state_vector(
+        tensor = project_to_manifold(
             state,
             n_sites=1,
             local_dim=2,
-            svd_epsilon=1e-8,
+            epsilon=1e-8,
         )
 
         # Use a diagonal Hamiltonian
@@ -571,7 +614,7 @@ class TestTDVPAgainstExact:
 
         # Evolve with TDVP
         result = tdvp_evolution(
-            ttn,
+            tensor,
             H,
             T=0.05,
             dt=0.001,
@@ -581,24 +624,28 @@ class TestTDVPAgainstExact:
 
         # Check against exact
         psi_exact = evolve_exact(state, H, t=0.05, rng=rng)
-        assert result.final_ttn._state_vector is not None, (
-            "Expected result.final_ttn._state_vector to not be None"
+        fidelity = compute_state_fidelity(
+            _flat(result.final_tensor),
+            psi_exact,
         )
-        fidelity = compute_state_fidelity(result.final_ttn._state_vector, psi_exact)
 
         # Relative error = 1 - fidelity
         relative_error = 1 - fidelity
 
         # Should be reasonably accurate
-        assert relative_error < 0.5, f"Relative error {relative_error} too high"
+        assert relative_error < 0.5
+
+
+# =============================================================================
+#  Small-system comparison
+# =============================================================================
 
 
 class TestTDVPSmallSystemComparison:
-    """Test TDVP + TTN vs exact for small systems."""
+    """Test TDVP + tensor manifold vs exact for small systems."""
 
     def test_tdvp_vs_qutip_style_n2(self) -> None:
-        """Compare TDVP+TTN with exact for n_sites=1."""
-        # For n_sites=1 (2 qubits), compare TDVP evolution
+        """Compare TDVP with exact for n_sites=1."""
         rng = np.random.default_rng(42)
 
         # Create a random initial state
@@ -606,19 +653,19 @@ class TestTDVPSmallSystemComparison:
         state = rng.random(dim) + 1j * rng.random(dim)
         state = state / np.linalg.norm(state)
 
-        ttn = TensorTreeNetwork.from_state_vector(
+        tensor = project_to_manifold(
             state,
             n_sites=1,
             local_dim=2,
-            svd_epsilon=1e-8,
+            epsilon=1e-8,
         )
 
-        # Create a simple diagonal Hamiltonian for comparison
+        # Simple diagonal Hamiltonian for comparison
         H = np.diag(np.arange(dim, dtype=complex))
 
         # Evolve with TDVP
         result = tdvp_evolution(
-            ttn,
+            tensor,
             H,
             T=0.02,
             dt=0.002,
@@ -630,24 +677,24 @@ class TestTDVPSmallSystemComparison:
         psi_exact = evolve_exact(state, H, t=0.02, rng=rng)
 
         # Compare
-        assert result.final_ttn._state_vector is not None, (
-            "Expected result.final_ttn._state_vector to not be None"
+        fidelity = compute_state_fidelity(
+            _flat(result.final_tensor),
+            psi_exact,
         )
-        fidelity = compute_state_fidelity(result.final_ttn._state_vector, psi_exact)
 
         # TDVP should capture the dynamics reasonably well
-        assert fidelity > 0.5, f"Fidelity {fidelity} too low"
+        assert fidelity > 0.5
 
     def test_tdvp_conserves_energy_manifield(self) -> None:
-        """Energy should be conserved within TTN manifold."""
+        """Energy should be conserved within tensor manifold."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         # Use diagonal Hamiltonian for exact conservation
         H = np.diag([1.0, -1.0, 0.5, -0.5])
 
         result = tdvp_evolution(
-            ttn,
+            tensor,
             H,
             T=0.1,
             dt=0.01,
@@ -655,26 +702,13 @@ class TestTDVPSmallSystemComparison:
             config=TDVPConfig(dt=0.01),
         )
 
-        # Energy variance should be tracked
-        variances = []
-        for _t, ttn_checkpoint in zip(
-            result.times[::5],
-            result.checkpoints,
-            strict=False,
-        ):
-            var = (
-                compute_energy_variance(
-                    ttn_checkpoint.state_vector.reshape(2, 2)
-                    @ ttn_checkpoint.state_vector.reshape(2, 2).T,
-                    H,
-                )
-                if False
-                else 0.0
-            )
-            variances.append(var)
-
         # Should have recorded energies
-        assert len(result.energies) > 0, "Expected len(result.energies) > 0"
+        assert len(result.energies) > 0
+
+
+# =============================================================================
+#  Performance
+# =============================================================================
 
 
 class TestTDVPPerformance:
@@ -685,41 +719,60 @@ class TestTDVPPerformance:
         import time
 
         rng = np.random.default_rng(42)
-        dim = 2**2  # n_sites=1, 2 qubits
+        dim = 2**2
         state = rng.random(dim) + 1j * rng.random(dim)
         state = state / np.linalg.norm(state)
 
-        ttn = TensorTreeNetwork.from_state_vector(
+        tensor = project_to_manifold(
             state,
             n_sites=1,
             local_dim=2,
-            svd_epsilon=1e-8,
+            epsilon=1e-8,
         )
 
         # Use a simple diagonal Hamiltonian
         H = np.diag(np.arange(dim, dtype=complex))
 
         start = time.perf_counter()
-        tdvp_evolution(ttn, H, T=0.1, dt=0.01, n_sites=1, config=TDVPConfig(dt=0.01))
+        tdvp_evolution(
+            tensor,
+            H,
+            T=0.1,
+            dt=0.01,
+            n_sites=1,
+            config=TDVPConfig(dt=0.01),
+        )
         elapsed = time.perf_counter() - start
 
-        assert elapsed < 0.5, f"TDVP took {elapsed * 1000:.1f}ms, expected < 500ms"
+        assert elapsed < 0.5
 
     def test_many_steps_fast(self) -> None:
         """Many steps should complete in reasonable time."""
         import time
 
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H = np.kron(SIGMA_Z, EYE)
 
         start = time.perf_counter()
-        tdvp_evolution(ttn, H, T=1.0, dt=0.01, n_sites=1, config=TDVPConfig(dt=0.01))
+        tdvp_evolution(
+            tensor,
+            H,
+            T=1.0,
+            dt=0.01,
+            n_sites=1,
+            config=TDVPConfig(dt=0.01),
+        )
         elapsed = time.perf_counter() - start
 
         # 100 steps should be reasonable
-        assert elapsed < 1.0, f"100 steps took {elapsed * 1000:.1f}ms"
+        assert elapsed < 1.0
+
+
+# =============================================================================
+#  Simplified Trotter step
+# =============================================================================
 
 
 class TestTrotterStepSimple:
@@ -728,14 +781,11 @@ class TestTrotterStepSimple:
     def test_simple_step_runs(self) -> None:
         """Simplified step should complete."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        tensor = _make_tensor(state)
 
         H_local = SIGMA_Z
-        result = apply_trotter_step_simple(ttn, H_local, dt=0.1)
+        result = apply_trotter_step_simple(tensor, H_local, dt=0.1)
 
-        assert result._state_vector is not None, (
-            "Expected result._state_vector to not be None"
-        )
-        assert np.linalg.norm(result._state_vector) == pytest.approx(1.0, rel=1e-6), (
-            "Expected np.linalg.norm(result._state_vector) == pytest.approx(1.0, rel=1e-6)"
-        )
+        sv = _flat(result)
+        assert sv is not None
+        assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)

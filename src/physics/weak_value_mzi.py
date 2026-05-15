@@ -275,9 +275,10 @@ def weak_value_mzi(
 
     Example:
         >>> import numpy as np
-        >>> from src.physics.mzi_simulation import coherent_state
+        >>> import qutip
         >>> config = WeakValueConfig()
-        >>> psi0 = coherent_state(alpha=2.0+0j, max_photons=10)
+        >>> dim = 10 + 1
+        >>> psi0 = qutip.tensor(qutip.coherent(dim, 2.0+0j), qutip.fock(dim, 0)).full()
         >>> result = weak_value_mzi(psi0, phi=0.01, config=config, max_photons=10)
         >>> result["amplification"] > 1.0
         True

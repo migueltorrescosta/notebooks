@@ -1,8 +1,9 @@
 """
 Dicke Basis Representation for N-Atom Two-Mode Systems.
 
-This module provides efficient computation of collective spin operators
-and basis transformations for atomic ensembles in quantum optics.
+This module provides collective spin operators and basis transformations
+for atomic ensembles in quantum optics, using QuTiP's jmat for the
+underlying angular momentum operator construction.
 
 Physical Model:
 - Hilbert space: Dicke basis |J, m⟩ with J = N/2, m ∈ {-J, ..., J}
@@ -45,10 +46,10 @@ if TYPE_CHECKING:
 
 
 def dicke_states(N: int) -> dict[float, int]:
-    """Generate Dicke basis states mapping m → fock_index for N atoms.
+    """Generate Dicke basis states mapping m → index for N atoms.
 
     Creates a dictionary mapping magnetic quantum number m to the
-    corresponding Fock basis index. The Dicke basis states |J, m⟩
+    corresponding basis index. The Dicke basis states |J, m⟩
     with J = N/2 are ordered by decreasing m (from +J to -J).
 
     Args:
@@ -56,28 +57,17 @@ def dicke_states(N: int) -> dict[float, int]:
             The Hilbert space dimension is d = N + 1.
 
     Returns:
-        Dictionary mapping m (magnetic quantum number) to fock_index
-        (1D index in the two-mode Fock basis). Keys are float values
-        for half-integer m when N is odd, and integer values when N is even.
+        Dictionary mapping m (magnetic quantum number) to index.
         Keys range from m = N/2 down to m = -N/2 in steps of 1.
 
     Raises:
         ValueError: If N is negative.
-
-    Example:
-        >>> basis = dicke_states(N=4)  # J = 2, m values: 2.0, 1.0, 0.0, -1.0, -2.0
-        >>> len(basis)
-        5
-        >>> basis = dicke_states(N=5)  # J = 2.5, m values: 2.5, 1.5, 0.5, -0.5, -1.5, -2.5
-        >>> len(basis)
-        6
 
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
 
     J = N / 2.0
-    # Map m values from +J down to -J
     result: dict[float, int] = {}
     m_values = np.arange(J, -J - 1, -1)
     for idx, m in enumerate(m_values):
@@ -97,8 +87,7 @@ def to_dicke_basis(fock_state: np.ndarray, N: int) -> np.ndarray:
 
     Args:
         fock_state: State vector in the two-mode Fock basis with
-            dimension (N+1)² × 1. Only states with total photon number
-            = N are represented (symmetric Dicke subspace).
+            dimension (N+1)² × 1.
         N: Total atom/photon number. Determines the Dicke space dimension.
 
     Returns:
@@ -108,17 +97,6 @@ def to_dicke_basis(fock_state: np.ndarray, N: int) -> np.ndarray:
     Raises:
         ValueError: If fock_state dimension doesn't match (N+1)².
         ValueError: If N is negative.
-
-    Example:
-        >>> N = 2
-        >>> # Fock state |2,0⟩ (n1=2, n2=0) → m=1
-        >>> fock_dim = (N+1)**2
-        >>> fock = np.zeros(fock_dim)
-        >>> fock[2*(N+1) + 0] = 1.0  # |2,0⟩ at index 2*3+0=6
-        >>> dicke = to_dicke_basis(fock, N)
-        >>> # m=1 at idx 0, m=0 at idx 1, m=-1 at idx 2
-        >>> np.abs(dicke[0])  # amplitude for |J=1, m=1⟩
-        1.0
 
     """
     if N < 0:
@@ -134,12 +112,10 @@ def to_dicke_basis(fock_state: np.ndarray, N: int) -> np.ndarray:
     dicke_vec = np.zeros(dicke_dim, dtype=complex)
 
     J = N / 2.0
-    # Map each Fock state |n1, n2⟩ with n1 + n2 = N to Dicke state |J, m⟩
     for n1 in range(N + 1):
-        n2 = N - n1  # Constraint: total photon number = N
+        n2 = N - n1
         fock_idx = n1 * (N + 1) + n2
         m = (n1 - n2) / 2.0
-        # m ranges from N/2 down to -N/2, so idx = N//2 - m
         dicke_idx = int(J - m)
         dicke_vec[dicke_idx] = fock_state[fock_idx]
 
@@ -168,15 +144,6 @@ def from_dicke_basis(dicke_state: np.ndarray, N: int) -> np.ndarray:
         ValueError: If dicke_state dimension doesn't match N+1.
         ValueError: If N is negative.
 
-    Example:
-        >>> N = 2
-        >>> # Dicke state |J=1, m=1⟩ (idx 0)
-        >>> dicke = np.array([1, 0, 0], dtype=complex)
-        >>> fock = from_dicke_basis(dicke, N)
-        >>> # |2,0⟩ at index 2*3+0=6 has amplitude 1.0
-        >>> np.abs(fock[6])
-        1.0
-
     """
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
@@ -191,7 +158,6 @@ def from_dicke_basis(dicke_state: np.ndarray, N: int) -> np.ndarray:
 
     J = N / 2.0
     for m_idx, m_val in enumerate(np.arange(J, -J - 1, -1)):
-        # Use exact arithmetic: n1 = J + m, n2 = J - m
         n1 = J + m_val
         n2 = J - m_val
         if np.isclose(n1, int(n1)) and np.isclose(n2, int(n2)):
@@ -201,36 +167,6 @@ def from_dicke_basis(dicke_state: np.ndarray, N: int) -> np.ndarray:
                 fock_vec[fock_idx] = dicke_state[m_idx]
 
     return fock_vec
-
-
-def jz_eigenvalues(N: int) -> np.ndarray:
-    """Compute the J_z eigenvalues for the Dicke basis.
-
-    Returns the eigenvalues of the collective spin J_z operator,
-    which are the magnetic quantum numbers m ∈ {-N/2, ..., N/2}.
-
-    Args:
-        N: Total number of two-level atoms. Must be non-negative.
-
-    Returns:
-        Array of eigenvalues of length N+1, ordered from
-        m = N/2 down to m = -N/2.
-
-    Raises:
-        ValueError: If N is negative.
-
-    Example:
-        >>> jz_eigenvalues(4)  # J = 2
-        array([ 2.,  1.,  0., -1., -2.])
-        >>> jz_eigenvalues(3)  # J = 1.5
-        array([ 1.5,  0.5, -0.5, -1.5])
-
-    """
-    if N < 0:
-        raise ValueError(f"Number of atoms N must be non-negative, got {N}")
-
-    J = N / 2.0
-    return np.arange(J, -J - 1, -1)
 
 
 def jz_operator(N: int, basis: OperatorBasis | None = None) -> np.ndarray:
@@ -280,12 +216,14 @@ def jz_operator(N: int, basis: OperatorBasis | None = None) -> np.ndarray:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
 
     if basis is None:
-        basis = _default_basis()
+        from src.utils.enums import OperatorBasis
+
+        basis = OperatorBasis.DICKE
 
     from src.utils.enums import OperatorBasis
 
     if basis == OperatorBasis.DICKE:
-        eigenvalues = jz_eigenvalues(N)
+        eigenvalues = np.arange(N / 2.0, -N / 2.0 - 1, -1)
     elif basis == OperatorBasis.FOCK:
         # Ascending: n - N/2 for n = 0, 1, ..., N
         eigenvalues = np.arange(N + 1) - N / 2.0
@@ -295,37 +233,25 @@ def jz_operator(N: int, basis: OperatorBasis | None = None) -> np.ndarray:
     return np.diag(eigenvalues)
 
 
-def _default_basis() -> OperatorBasis:
-    """Return the project's default operator basis (DICKE)."""
-    from src.utils.enums import OperatorBasis
-
-    return OperatorBasis.DICKE
-
-
 def jx_operator(N: int) -> np.ndarray:
     """Construct the dense J_x operator in the Dicke basis.
 
     The J_x operator is the collective spin x-component, obtained
-    from the raising and lowering operators:
-        J_x = (J_+ + J_-)/2
-
-    Matrix elements (off-diagonal):
-        ⟨J, m'|J_x|J, m⟩ = (1/2)√(J(J+1) - m(m∓1)) if m' = m∓1
+    from QuTiP's jmat.  Returns a real symmetric matrix.
 
     Args:
         N: Total number of two-level atoms. Must be non-negative.
 
     Returns:
         Real symmetric (N+1) × (N+1) matrix representing J_x in
-        the Dicke basis, with non-zero elements only on the
-        super/sub-diagonals.
+        the Dicke basis.
 
     Raises:
         ValueError: If N is negative.
 
     Example:
         >>> J_x = jx_operator(N=2)
-        >>> J_x  # For J=1, should be [[0, 1/√2, 0], [1/√2, 0, 1/√2], [0, 1/√2, 0]]
+        >>> J_x  # For J=1, diag entries are 0, super/sub-diagonal are 1/√2
         array([[0.        , 0.70710678, 0.        ],
                [0.70710678, 0.        , 0.70710678],
                [0.        , 0.70710678, 0.        ]])
@@ -334,30 +260,20 @@ def jx_operator(N: int) -> np.ndarray:
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
 
-    dim = N + 1
-    J = N / 2.0
-    J_x = np.zeros((dim, dim), dtype=float)
+    if N == 0:
+        return np.zeros((1, 1), dtype=float)
 
-    # Compute off-diagonal elements using ladder operator matrix elements
-    for i in range(dim - 1):
-        # Magnetic quantum number for state |i⟩
-        m = J - i
-        # Matrix element: ⟨J, m-1|J_x|J, m⟩ = ⟨J, m|J_x|J, m-1⟩
-        # = (1/2)√((J+m)(J-m+1))
-        element = 0.5 * np.sqrt((J + m) * (J - m + 1))
-        J_x[i + 1, i] = element
-        J_x[i, i + 1] = element
+    from qutip import jmat
 
-    return J_x
+    return jmat(N / 2.0, "x").full().real.astype(float)
 
 
 def jy_operator(N: int) -> np.ndarray:
     r"""Construct the dense J_y operator in the Dicke basis.
 
-    The J_y operator is the collective spin y-component:
-        J_y = (J_+ - J_-)/(2i) = -i(J_+ - J_-)/2
-
-    J_y is Hermitian (J_y = J_y^\dagger) with purely imaginary off-diagonal elements.
+    The J_y operator is the collective spin y-component, obtained
+    from QuTiP's jmat.  J_y is Hermitian with purely imaginary
+    off-diagonal elements.
 
     Args:
         N: Total number of two-level atoms. Must be non-negative.
@@ -371,7 +287,6 @@ def jy_operator(N: int) -> np.ndarray:
 
     Example:
         >>> J_y = jy_operator(N=1)
-        >>> # For spin-1/2 (N=1), J_y = [[0, -i/2], [i/2, 0]]
         >>> np.allclose(J_y, J_y.T.conj())  # Hermitian check
         True
 
@@ -379,116 +294,12 @@ def jy_operator(N: int) -> np.ndarray:
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
 
-    dim = N + 1
-    J = N / 2.0
-    J_y = np.zeros((dim, dim), dtype=complex)
+    if N == 0:
+        return np.zeros((1, 1), dtype=complex)
 
-    # Hermitian: J_y[i,i+1] = J_y[i+1,i].conj()
-    # J_y[i,i+1] = -i/2 * sqrt((J+m)(J-m+1)) where m = J - i
-    # J_y[i+1,i] = +i/2 * sqrt((J+m)(J-m+1)) = -J_y[i,i+1].conj()
-    for i in range(dim - 1):
-        m = J - i
-        element = 0.5 * np.sqrt((J + m) * (J - m + 1))
-        J_y[i, i + 1] = -1j * element
-        J_y[i + 1, i] = 1j * element
+    from qutip import jmat
 
-    return J_y
-
-
-def j_squared_operator(N: int) -> np.ndarray:
-    """Construct the J² operator in the Dicke basis.
-
-    The total angular momentum squared operator J² is diagonal in
-    the Dicke basis with eigenvalue J(J+1) for all states.
-
-    Args:
-        N: Total number of two-level atoms. Must be non-negative.
-
-    Returns:
-        Diagonal (N+1) × (N+1) matrix with all diagonal elements
-        equal to J(J+1) = (N/2)(N/2 + 1).
-
-    Raises:
-        ValueError: If N is negative.
-
-    Example:
-        >>> J2 = j_squared_operator(N=4)
-        >>> J = 4/2 = 2
-        >>> expected = J * (J + 1) = 2 * 3 = 6
-        >>> np.allclose(J2, expected * np.eye(5))
-        True
-
-    """
-    if N < 0:
-        raise ValueError(f"Number of atoms N must be non-negative, got {N}")
-
-    J = N / 2.0
-    eigenvalue = J * (J + 1)
-    return eigenvalue * np.eye(N + 1)
-
-
-def j_raising_operator(N: int) -> np.ndarray:
-    """Construct the J_+ raising operator in the Dicke basis.
-
-    J_+ = J_x + i J_y increases the magnetic quantum number m by 1.
-
-    Matrix elements:
-        ⟨J, m+1|J_+|J, m⟩ = √((J-m)(J+m+1))
-
-    Args:
-        N: Total number of two-level atoms. Must be non-negative.
-
-    Returns:
-        (N+1) × (N+1) matrix with non-zero elements only on the
-        super-diagonal (above diagonal).
-
-    Raises:
-        ValueError: If N is negative.
-
-    """
-    if N < 0:
-        raise ValueError(f"Number of atoms N must be non-negative, got {N}")
-
-    dim = N + 1
-    J = N / 2.0
-    J_plus = np.zeros((dim, dim), dtype=complex)
-
-    # For state i (m = J - i), connecting to state i-1 (m+1 = J - (i-1))
-    # J_plus[i-1, i] connects |m⟩ to |m+1⟩
-    for i in range(1, dim):
-        m = J - i  # m for state i
-        # ⟨J, m+1|J_+|J, m⟩ = √((J-m)(J+m+1))
-        element = np.sqrt((J - m) * (J + m + 1))
-        J_plus[i - 1, i] = element
-
-    return J_plus
-
-
-def j_lowering_operator(N: int) -> np.ndarray:
-    r"""Construct the J_- lowering operator in the Dicke basis.
-
-    J_- = J_x - i J_y decreases the magnetic quantum number m by 1.
-    This is the Hermitian conjugate of J_+.
-
-    Matrix elements:
-        ⟨J, m-1|J_-|J, m⟩ = √((J+m)(J-m+1))
-
-    Args:
-        N: Total number of two-level atoms. Must be non-negative.
-
-    Returns:
-        (N+1) × (N+1) matrix with non-zero elements only on the
-        sub-diagonal (below diagonal). J_- = (J_+)^\dagger.
-
-    Raises:
-        ValueError: If N is negative.
-
-    """
-    if N < 0:
-        raise ValueError(f"Number of atoms N must be non-negative, got {N}")
-
-    # J_- is the Hermitian conjugate of J_+
-    return j_raising_operator(N).T.conj()
+    return jmat(N / 2.0, "y").full()
 
 
 def basis_transformation_matrix(N: int) -> np.ndarray:

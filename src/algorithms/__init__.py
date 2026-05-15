@@ -1,5 +1,11 @@
 """CollapsedWave algorithms package.
 
 Numerical algorithms including spin squeezing, optimization,
-tensor tree networks, and Metropolis-Hastings sampling.
+and tensor tree networks.
 """
+
+# Archived Metropolis-Hastings implementations (kept for notebook compatibility)
+from ._mcmc_archive import (  # noqa: F401
+    AbstractMetropolisHastings,
+    GaussianMetropolisHastings,
+)

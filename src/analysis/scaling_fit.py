@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 # =============================================================================
 # Result Container
@@ -68,16 +69,15 @@ def fit_scaling_exponent(
 ) -> ScalingFitResult:
     """Fit Δφ = C·N^α via log-log linear regression.
 
-    Performs a weighted log-log linear fit to extract the scaling exponent
-    α and prefactor C. Uses np.polyfit with covariance for proper error
-    estimation.
+    Performs a log-log linear fit via scipy.stats.linregress to extract the
+    scaling exponent α and prefactor C.
 
     The fitting procedure:
         1. Filters out N < min_N to avoid finite-size artifacts
         2. Removes non-positive values (log undefined)
-        3. Performs log-log linear regression via np.polyfit with cov=True
-        4. Computes R² = 1 - SS_res/SS_tot
-        5. Extracts α, α_err, C, C_err from fit parameters and covariance
+        3. Performs log-log linear regression via scipy.stats.linregress
+        4. Computes R² = rvalue² (square of Pearson correlation coefficient)
+        5. Extracts α, α_err, C, C_err from slope, stderr, and intercept_stderr
 
     Args:
         N: Array of particle/atom numbers. Must be positive.
@@ -168,16 +168,13 @@ def fit_scaling_exponent(
             ],
         )
 
-    # --- Log-log linear regression ---
+    # --- Log-log linear regression via scipy.stats.linregress ---
     log_N = np.log(N_fit)
     log_delta = np.log(delta_fit)
 
     try:
-        # polyfit returns (slope, intercept) and covariance matrix
-        # p[0] = α (slope), p[1] = log(C) (intercept)
-        # cov=True requires >= order + 2 points for scaling (degree 1 → need >= 3)
-        p, C = np.polyfit(log_N, log_delta, 1, cov=True)
-    except (np.linalg.LinAlgError, ValueError) as e:
+        res = stats.linregress(log_N, log_delta)
+    except ValueError as e:
         return ScalingFitResult(
             alpha=0.0,
             alpha_err=0.0,
@@ -190,27 +187,15 @@ def fit_scaling_exponent(
             warnings=[f"Linear fit failed: {e}"],
         )
 
-    alpha = p[0]
-    log_C = p[1]
-
-    # Error estimates from covariance
-    # cov[0,0] = Var(α), cov[1,1] = Var(log(C))
-    alpha_err = np.sqrt(C[0, 0])
-    log_C_err = np.sqrt(C[1, 1])
+    alpha = res.slope
+    log_C = res.intercept
+    alpha_err = res.stderr
+    log_C_err = res.intercept_stderr
+    R_squared = res.rvalue**2
 
     # Prefactor C = exp(log_C), with relative error propagation
     C_val = np.exp(log_C)
     C_err = C_val * log_C_err  # dC = exp(log_C) * d(log_C)
-
-    # --- Compute R² ---
-    delta_pred = np.exp(p[0] * log_N + p[1])  # Predicted values in original space
-    ss_res = np.sum((delta_fit - delta_pred) ** 2)
-    ss_tot = np.sum((delta_fit - np.mean(delta_fit)) ** 2)
-
-    if ss_tot > 0:
-        R_squared = 1.0 - ss_res / ss_tot
-    else:
-        R_squared = 1.0  # All values identical (perfect fit)
 
     # --- Quality checks ---
     if R_squared < R_squared_threshold:

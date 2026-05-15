@@ -28,52 +28,14 @@ import scipy.sparse.linalg
 from src.utils.enums import BoundaryCondition
 from src.utils.validators import (
     validate_orthonormality,
-    validate_probability_conservation,
 )
 
-# Aliases for backward compatibility
-# Agent Notes: These re-export validators from src.utils.validators
+# Alias for backward compatibility
+# Agent Notes: This re-exports validators from src.utils.validators
 # so that calling code can import them from quantum_time_evolution directly.
 # If the source functions in validators.py are moved or renamed,
-# update these aliases to maintain backward compatibility.
+# update this alias to maintain backward compatibility.
 validate_orthonormality = validate_orthonormality
-validate_probability_conservation = validate_probability_conservation
-
-
-# =============================================================================
-# Potential Functions
-# =============================================================================
-
-
-def potential_quadratic(x: float, a: float, c: float) -> float:
-    """Quadratic potential V(x) = a(x - c)²."""
-    return a * (x - c) ** 2
-
-
-def potential_quartic(x: float, a: float, c: float) -> float:
-    """Quartic potential V(x) = a(x - c)⁴."""
-    return a * (x - c) ** 4
-
-
-def potential_trigonometric(
-    x: float,
-    amplitude: float,
-    phase: float,
-    k: float,
-    width: float,
-) -> float:
-    """Trigonometric potential V(x) = a*cos(phase + 2πkx/w)."""
-    return amplitude * np.cos(phase + k * 2 * np.pi * x / width)
-
-
-def potential_uniform(x: float, a: float) -> float:
-    """Uniform potential V(x) = a*x."""
-    return a * x
-
-
-def potential_double_well(x: float, a: float, b: float, c: float) -> float:
-    """Double well potential V(x) = a(x⁴ + 2x²) + b*exp(-cx²)."""
-    return a * (x**4 + 2 * x**2) + b * np.exp(-c * x**2)
 
 
 # =============================================================================
@@ -147,34 +109,29 @@ def build_1d_hamiltonian(
     """
     n = spatial_points
 
-    # Kinetic term T = -∂²/2m (set mass=1 for simplicity)
-    # Using second derivative central difference: d²ψ/dx² ≈ (ψ_{i+1} - 2ψ_i + ψ_{i-1})/dx²
-    # T = -1/2 * d²/dx² → matrix with -1 on off-diagonals, 2 on diagonal
+    # Kinetic term T = -∂²/2m using central differences:
+    # d²ψ/dx² ≈ (ψ_{i+1} - 2ψ_i + ψ_{i-1})/dx²
+    # T = -1/(2m) * d²/dx² → tridiag(-1, 2, -1) / (2*m*dx²)
+    T = scipy.sparse.diags([-1.0, 2.0, -1.0], [-1, 0, 1], shape=(n, n), format="csc")
 
-    # Build in LIL format for efficient construction, then convert to CSC
-    hamiltonian_lil = scipy.sparse.eye(n, n, format="lil") * 2
-
-    # Add second derivative (neighbor connections)
-    for i in range(n - 1):
-        hamiltonian_lil[i, i + 1] = -1
-        hamiltonian_lil[i + 1, i] = -1
-
-    # Cyclic boundary conditions
+    # Cyclic boundary conditions: wrap-around entries at [0, n-1] and [n-1, 0]
     if boundary_condition == BoundaryCondition.Cyclic:
-        hamiltonian_lil[0, n - 1] = -1
-        hamiltonian_lil[n - 1, 0] = -1
+        T = T + scipy.sparse.diags(
+            [-1.0, -1.0],
+            [-(n - 1), n - 1],
+            shape=(n, n),
+            format="csc",
+        )
 
-    # Convert to CSC format for efficient arithmetic
     # Use explicit constructor to help mypy understand the type
-    hamiltonian: scipy.sparse.csc_matrix = scipy.sparse.csc_matrix(
-        hamiltonian_lil.tocsc() / (2 * mass * dx**2),
-    )
+    T = scipy.sparse.csc_matrix(T / (2 * mass * dx**2))
 
-    # Add potential term V(x) - diagonal modification is efficient in CSC
-    for i in range(n):
-        hamiltonian[i, i] = hamiltonian[i, i] + potential_function(float(i * dx))
+    # Potential term V(x) as diagonal matrix
+    x_vals = np.arange(n, dtype=float) * dx
+    V_diag = np.array([potential_function(float(x)) for x in x_vals])
+    V = scipy.sparse.diags(V_diag, 0, shape=(n, n), format="csc")
 
-    return hamiltonian
+    return T + V
 
 
 # =============================================================================
@@ -211,10 +168,10 @@ def compute_energy_levels(
         List of EnergyLevel objects.
 
     """
-    eigenvalues, eigenvectors = scipy.sparse.linalg.eigs(
+    eigenvalues, eigenvectors = scipy.sparse.linalg.eigsh(
         hamiltonian,
         k=num_levels,
-        which="SM",
+        which="SA",
     )
 
     levels = []

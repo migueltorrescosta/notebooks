@@ -146,7 +146,8 @@ Optional unsolved issues and future directions. Use the `🔍` inline emoji to s
 11. **Don't** use the `|` character inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.
 12. **Don't** use the `\ket` as it is not recognised by the used Markdown engine.
 13. **Use** `\mathbb{1}_n` to signify an $n$ dimensional identity operator.
-4**Bold font for first mentions** — use **bold font** whenever a concept is first mentioned and when it is defined in the text.
+14. **Use** existing external implementation (`qutip`, `scipy`, etc) whenever possible. Do not re-implement existing functionality.
+15. **Bold font for first mentions** — use **bold font** whenever a concept is first mentioned and when it is defined in the text.
 
 # Coding Workflow
 Follow these steps **in order** for every task that requires writing code.

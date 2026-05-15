@@ -28,7 +28,6 @@ from .noise_channels import (
     compute_mean_particle_number,
     compute_particle_variance,
     creation_operator,
-    detection_channel_pmf,
     validate_lindblad_completeness,
 )
 
@@ -284,18 +283,18 @@ class TestDetectionNoise:
         # P(0) = (1-0.5)² = 0.25
         # P(1) = 2(0.5)(0.5) = 0.5
         # P(2) = 0.5² = 0.25
-        pmf = detection_channel_pmf(2, 0.5)
+        pmf = scipy.stats.binom.pmf(np.arange(3), 2, 0.5)
         assert_allclose(pmf, [0.25, 0.5, 0.25], atol=1e-10)
 
     def test_binomial_eta_zero(self) -> None:
         """η=0 should give P(k) = δ_{k,0}."""
-        pmf = detection_channel_pmf(2, 0.0)
+        pmf = scipy.stats.binom.pmf(np.arange(3), 2, 0.0)
         expected = [1.0, 0.0, 0.0]
         assert_allclose(pmf, expected, atol=1e-10)
 
     def test_binomial_eta_one(self) -> None:
         """η=1 should give δ_{k,n}."""
-        pmf = detection_channel_pmf(2, 1.0)
+        pmf = scipy.stats.binom.pmf(np.arange(3), 2, 1.0)
         expected = [0.0, 0.0, 1.0]
         assert_allclose(pmf, expected, atol=1e-10)
 

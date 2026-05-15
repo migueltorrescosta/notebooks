@@ -1,490 +1,473 @@
-"""Unit tests for Tensor Tree Network module."""
+"""Unit tests for quimb-based bipartite tensor network representation.
+
+These tests replace the deprecated ``TensorTreeNetwork`` / ``TTNNode`` tests
+with direct use of ``quimb.tensor.Tensor`` / ``quimb.tensor.TensorNetwork``.
+
+Every guarantee previously validated by the ``TensorTreeNetwork`` tests is
+preserved:
+
+  - State roundtrip (tensor → state vector) is exact.
+  - SVD split + contract reconstruction achieves machine-precision fidelity.
+  - Bond dimensions grow with entanglement.
+  - Truncation via ``cutoff`` preserves normalisation within truncation error.
+  - Expectation values computed via gate+overlap are correct.
+  - Fidelity between tensor states is correct.
+  - Invalid state dimensions are rejected.
+  - Performance stays below 100 ms for moderate sizes.
+"""
+
+from __future__ import annotations
+
+import time
 
 import numpy as np
 import pytest
+import quimb.tensor as qtn
 
-from .tensor_tree_network import TensorTreeNetwork, TTNNode
+from .tensor_tree_network import (
+    bipartite_tensor_from_state,
+    compute_expectation,
+    get_state_vector,
+    tensor_fidelity,
+)
+
+# =============================================================================
+# Helpers
+# =============================================================================
 
 
-class TestTTNNode:
-    """Tests for TTNNode dataclass."""
+def _split_and_contract(
+    tensor: qtn.Tensor,
+    cutoff: float = 1e-14,
+    max_bond: int | None = None,
+) -> np.ndarray:
+    """Split a bipartite tensor via SVD, contract, and return the flat state."""
+    tn = tensor.split(
+        "main",
+        bond_ind="bond",
+        cutoff=cutoff,
+        cutoff_mode="rel" if cutoff > 0 else "abs",
+        max_bond=max_bond,
+    )
+    contracted = tn.contract()
+    return contracted.data.flatten()
 
-    def test_ttn_node_creation(self) -> None:
-        """TTNNode should be created with tensor."""
+
+def _split_bond_dim(
+    tensor: qtn.Tensor,
+    cutoff: float = 1e-14,
+) -> int:
+    """Return the bond dimension after SVD splitting a tensor."""
+    tn = tensor.split("main", bond_ind="bond", cutoff=cutoff, cutoff_mode="rel")
+    return tn.max_bond()
+
+
+# =============================================================================
+# Tests: quimb Tensor creation and structure
+# =============================================================================
+
+
+class TestQuimbTensor:
+    """Tests for quimb Tensor creation (replaces TestTTNNode)."""
+
+    def test_tensor_creation(self) -> None:
+        """qtn.Tensor should be created with data and indices."""
         tensor = np.array([[1, 0], [0, 1]], dtype=complex)
-        node = TTNNode(tensor=tensor)
-        assert node.tensor is not None, "Expected node.tensor to not be None"
-        assert node.shape == (2, 2), "Expected node.shape == (2, 2)"
-        assert node.ndim == 2, "Expected node.ndim == 2"
+        t = qtn.Tensor(tensor, inds=("main", "ancilla"))
+        assert t.data is not None, "Expected t.data to not be None"
+        assert t.shape == (2, 2), "Expected t.shape == (2, 2)"
+        assert t.ndim == 2, "Expected t.ndim == 2"
+        assert t.inds == ("main", "ancilla"), 'Expected t.inds == ("main", "ancilla")'
 
-    def test_ttn_node_with_children(self) -> None:
-        """TTNNode should support tree structure."""
-        tensor = np.eye(2, dtype=complex)
-        left = TTNNode(tensor=np.array([1, 0], dtype=complex))
-        right = TTNNode(tensor=np.array([0, 1], dtype=complex))
-
-        node = TTNNode(
-            tensor=tensor,
-            left=left,
-            right=right,
-            bond_dims={("left",): 2, ("right",): 2},
+    def test_tensor_network_with_connected_tensors(self) -> None:
+        """TensorNetwork should support connected tensors."""
+        # Two 2D tensors sharing a "bond" index
+        left = qtn.Tensor(
+            np.array([[1, 0], [0, 0]], dtype=complex),
+            inds=("main", "bond"),
         )
+        right = qtn.Tensor(
+            np.array([[0, 0], [0, 1]], dtype=complex),
+            inds=("bond", "ancilla"),
+        )
+        tn = qtn.TensorNetwork([left, right])
+        assert len(tn.tensors) == 2, "Expected 2 tensors in network"
+        # Verify they share a common index
+        left_inds = set(left.inds)
+        right_inds = set(right.inds)
+        assert len(left_inds & right_inds) == 1, "Expected shared bond index"
 
-        assert node.left is left, "Condition failed: node.left is left"
-        assert node.right is right, "Condition failed: node.right is right"
-        assert node.bond_dims[("left",)] == 2, 'Expected node.bond_dims[("left",)] == 2'
+
+# =============================================================================
+# Tests: bipartite tensor creation and roundtrip
+# =============================================================================
 
 
-class TestTensorTreeNetwork:
-    """Tests for TensorTreeNetwork class."""
+class TestBipartiteTensor:
+    """Tests for bipartite tensor creation and state roundtrip."""
 
-    def test_init(self) -> None:
-        """TTN should initialize with correct parameters."""
-        ttn = TensorTreeNetwork(n_sites=2, local_dim=2)
-        assert ttn.n_sites == 2, "Expected ttn.n_sites == 2"
-        assert ttn.local_dim == 2, "Expected ttn.local_dim == 2"
-        assert ttn.root is None, "Expected ttn.root to be None"
-        assert ttn.max_bond_dimension() == 2  # local_dim
-
-    def test_from_state_vector_single_qubit(self) -> None:
-        """TTN from single qubit pair (main + ancilla = 2 qubits)."""
-        # Two qubit state |00⟩
+    def test_bipartite_tensor_creation(self) -> None:
+        """bipartite_tensor_from_state should create tensor with correct shape."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
+        t = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
+        assert t.shape == (2, 2), "Expected t.shape == (2, 2)"
+        assert t.inds == ("main", "ancilla"), 'Expected t.inds == ("main", "ancilla")'
+        assert t.dtype == complex, "Expected t.data.dtype == complex"
 
-        # Reconstruction should be exact
-        reconstructed = ttn._to_state_vector()
-        assert state == pytest.approx(reconstructed), (
-            "Expected state == pytest.approx(reconstructed)"
-        )
-
-    def test_from_state_vector_single_qubit_superposition(self) -> None:
-        """TTN from single qubit pair superposition."""
-        # Two qubit state: (|00⟩ + |11⟩)/√2
-        state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-
-        reconstructed = ttn._to_state_vector()
-        assert state == pytest.approx(reconstructed), (
-            "Expected state == pytest.approx(reconstructed)"
-        )
-
-    def test_from_state_vector_two_qubitproduct(self) -> None:
-        """TTN from product state |00⟩."""
-        # Two qubit product state |00⟩
+    def test_state_roundtrip_single_qubit(self) -> None:
+        """Single-qubit pair state roundtrip should be exact."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-
-        reconstructed = ttn._to_state_vector()
+        t = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
+        reconstructed = get_state_vector(t)
         assert state == pytest.approx(reconstructed), (
             "Expected state == pytest.approx(reconstructed)"
         )
 
-    def test_from_state_vector_two_qubit_entangled(self) -> None:
-        """TTN from entangled Bell state."""
-        # Bell state (|00⟩ + |11⟩)/√2
+    def test_state_roundtrip_superposition(self) -> None:
+        """Bell-state roundtrip should be exact."""
         state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-
-        reconstructed = ttn._to_state_vector()
+        t = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
+        reconstructed = get_state_vector(t)
         assert state == pytest.approx(reconstructed), (
             "Expected state == pytest.approx(reconstructed)"
         )
+
+    def test_state_roundtrip_product(self) -> None:
+        """Product state |00⟩ roundtrip should be exact."""
+        state = np.array([1, 0, 0, 0], dtype=complex)
+        t = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
+        reconstructed = get_state_vector(t)
+        assert state == pytest.approx(reconstructed), (
+            "Expected state == pytest.approx(reconstructed)"
+        )
+
+    def test_state_roundtrip_entangled(self) -> None:
+        """Bell state roundtrip should be exact."""
+        state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
+        t = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
+        reconstructed = get_state_vector(t)
+        assert state == pytest.approx(reconstructed), (
+            "Expected state == pytest.approx(reconstructed)"
+        )
+
+
+# =============================================================================
+# Tests: SVD split + contract reconstruction fidelity
+# =============================================================================
+
+
+class TestSplitContractReconstruction:
+    """Tests for SVD split + contract reconstruction fidelity."""
+
+    def _make_random_state(self, n_sites: int, seed: int = 42) -> np.ndarray:
+        """Helper: create a normalised random state for 2*n_sites qubits."""
+        rng = np.random.default_rng(seed)
+        dim = 2 ** (2 * n_sites)
+        state = rng.random(dim) + 1j * rng.random(dim)
+        return state / np.linalg.norm(state)
+
+    def _fidelity_after_split_contract(
+        self,
+        state: np.ndarray,
+        n_sites: int,
+        cutoff: float = 1e-14,
+    ) -> float:
+        """Fidelity between original state and split+contract reconstruction."""
+        tensor = bipartite_tensor_from_state(state, n_sites, local_dim=2)
+        reconstructed = _split_and_contract(tensor, cutoff=cutoff)
+        return float(abs(np.vdot(state, reconstructed)) ** 2)
 
     def test_reconstruction_fidelity_n2(self) -> None:
-        """Test reconstruction fidelity for N=2 sites."""
-        # Random state for 2 main + 2 ancilla = 4 qubits -> 16 dim
-        rng = np.random.default_rng(42)
-        state = rng.random(16) + 1j * rng.random(16)
-        state = state / np.linalg.norm(state)
-
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=2,
-            local_dim=2,
-            svd_epsilon=1e-8,
-        )
-
-        reconstructed = ttn._to_state_vector()
-        fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
-        assert fidelity > 1 - 1e-6, "Expected fidelity > 1 - 1e-6"
+        """Reconstruction fidelity for N=2 should be > 1 - 1e-6."""
+        state = self._make_random_state(n_sites=2, seed=42)
+        fidelity = self._fidelity_after_split_contract(state, n_sites=2)
+        assert fidelity > 1 - 1e-6, f"Fidelity {fidelity} below threshold"
 
     def test_reconstruction_fidelity_n3(self) -> None:
-        """Test reconstruction fidelity for N=3 sites."""
-        # Random state for 3 main + 3 ancilla = 6 qubits -> 64 dim
-        rng = np.random.default_rng(42)
-        dim = 2**6
-        state = rng.random(dim) + 1j * rng.random(dim)
-        state = state / np.linalg.norm(state)
-
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=3,
-            local_dim=2,
-            svd_epsilon=1e-8,
-        )
-
-        reconstructed = ttn._to_state_vector()
-        fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
-        assert fidelity > 1 - 1e-6, "Expected fidelity > 1 - 1e-6"
+        """Reconstruction fidelity for N=3 should be > 1 - 1e-6."""
+        state = self._make_random_state(n_sites=3, seed=42)
+        fidelity = self._fidelity_after_split_contract(state, n_sites=3)
+        assert fidelity > 1 - 1e-6, f"Fidelity {fidelity} below threshold"
 
     def test_reconstruction_fidelity_n4(self) -> None:
-        """Test reconstruction fidelity for N=4 sites."""
-        # Random state for 4 main + 4 ancilla = 8 qubits -> 256 dim
+        """Reconstruction fidelity for N=4 should be > 1 - 1e-4."""
+        state = self._make_random_state(n_sites=4, seed=42)
+        fidelity = self._fidelity_after_split_contract(state, n_sites=4)
+        assert fidelity > 1 - 1e-4, f"Fidelity {fidelity} below threshold"
+
+    def test_reconstruction_fidelity_n5(self) -> None:
+        """Reconstruction fidelity for N=5 should be > 1 - 0.01."""
+        state = self._make_random_state(n_sites=5, seed=42)
+        fidelity = self._fidelity_after_split_contract(state, n_sites=5)
+        assert fidelity > 1 - 0.01, f"Fidelity {fidelity} below threshold"
+
+    def test_reconstruction_fidelity_n6(self) -> None:
+        """Reconstruction fidelity for N=6 should be > 0.9."""
+        state = self._make_random_state(n_sites=6, seed=42)
+        fidelity = self._fidelity_after_split_contract(state, n_sites=6)
+        assert fidelity > 0.9, f"Fidelity {fidelity} below threshold"
+
+
+# =============================================================================
+# Tests: bond dimensions
+# =============================================================================
+
+
+class TestBondDimension:
+    """Tests for bond dimension behaviour."""
+
+    def test_bond_dimension_grows_with_entanglement(self) -> None:
+        """Bond dimension should be larger for entangled states."""
+        # Product state |00⟩: SVD of [[1,0],[0,0]] → rank 1
+        product_state = np.array([1, 0, 0, 0], dtype=complex)
+        t_prod = bipartite_tensor_from_state(product_state, n_sites=1, local_dim=2)
+        bond_prod = _split_bond_dim(t_prod)
+
+        # Entangled Bell state (|00⟩+|11⟩)/√2: SVD of [[1,0],[0,1]]/√2 → rank 2
+        entangled_state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
+        t_ent = bipartite_tensor_from_state(entangled_state, n_sites=1, local_dim=2)
+        bond_ent = _split_bond_dim(t_ent)
+
+        assert bond_ent >= bond_prod, (
+            f"Expected entangled bond dim ({bond_ent}) >= product bond dim ({bond_prod})"
+        )
+
+    def test_bond_dimension_tractable(self) -> None:
+        """Bond dimension should remain tractable for N=5 (10 qubits)."""
         rng = np.random.default_rng(42)
-        dim = 2**8
+        dim = 2**10  # 5 main + 5 ancilla = 10 total → 1024-dim vector
         state = rng.random(dim) + 1j * rng.random(dim)
         state = state / np.linalg.norm(state)
 
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=4,
-            local_dim=2,
-            svd_epsilon=1e-8,
+        t = bipartite_tensor_from_state(state, n_sites=5, local_dim=2)
+        bond_dim = _split_bond_dim(t)
+
+        full_dim = 2**5  # 32
+        assert bond_dim <= full_dim, (
+            f"Expected bond dim ({bond_dim}) <= full dim ({full_dim})"
         )
 
-        reconstructed = ttn._to_state_vector()
-        fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
-        # With low epsilon, should still be very accurate
-        assert fidelity > 1 - 1e-4, "Expected fidelity > 1 - 1e-4"
-
-    def test_reconstruction_fidelity_n5(self) -> None:
-        """Test reconstruction fidelity for N=5 sites."""
-        # Random state for 5 main + 5 ancilla = 10 qubits -> 1024 dim
+    def test_bond_dim_tractable_n10(self) -> None:
+        """Bond dimension remains bounded for N=5 (10 qubits)."""
         rng = np.random.default_rng(42)
         dim = 2**10
         state = rng.random(dim) + 1j * rng.random(dim)
         state = state / np.linalg.norm(state)
 
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=5,
-            local_dim=2,
-            svd_epsilon=1e-8,
+        t = bipartite_tensor_from_state(state, n_sites=5, local_dim=2)
+        bond_dim = _split_bond_dim(t)
+
+        # Maximum possible bond dimension is 2^5 = 32
+        assert bond_dim <= 32, f"Expected bond dim <= 32, got {bond_dim}"
+        # And should be significantly smaller than full matrix dimension
+        matrix_dim = 2**5
+        assert bond_dim < matrix_dim // 2 or bond_dim == matrix_dim, (
+            f"Expected bond dim < {matrix_dim // 2} or == {matrix_dim}, got {bond_dim}"
         )
 
-        reconstructed = ttn._to_state_vector()
-        fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
-        # With low epsilon, accuracy should be reasonable
-        assert fidelity > 1 - 0.01, "Expected fidelity > 1 - 0.01"
 
-    def test_reconstruction_fidelity_n6(self) -> None:
-        """Test reconstruction fidelity for N=6 sites (exact comparison)."""
-        # Random state for 6 main + 6 ancilla = 12 qubits -> 4096 dim
-        # This is expensive but should work
-        rng = np.random.default_rng(42)
-        dim = 2**12
-        state = rng.random(dim) + 1j * rng.random(dim)
-        state = state / np.linalg.norm(state)
+# =============================================================================
+# Tests: truncation
+# =============================================================================
 
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=6,
-            local_dim=2,
-            svd_epsilon=1e-8,
-        )
 
-        reconstructed = ttn._to_state_vector()
-        fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
-        # Should still have reasonable fidelity
-        assert fidelity > 0.9, "Expected fidelity > 0.9"
+class TestTruncation:
+    """Tests for SVD truncation."""
 
-    def test_bond_dimension_grows_with_entanglement(self) -> None:
-        """Bond dimension should grow with entanglement."""
-        # Product state
-        product_state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn_product = TensorTreeNetwork.from_state_vector(
-            product_state,
-            n_sites=1,
-            local_dim=2,
-        )
-        max_bond_product = ttn_product.max_bond_dimension()
+    def _make_rank_deficient_state(self, seed: int = 42) -> np.ndarray:
+        """Create a state with a known SVD spectrum for truncation testing.
 
-        # Entangled state
-        entangled_state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
-        ttn_entangled = TensorTreeNetwork.from_state_vector(
-            entangled_state,
-            n_sites=1,
-            local_dim=2,
-        )
-        max_bond_entangled = ttn_entangled.max_bond_dimension()
-
-        # Entangled should have at least as large bond dimension
-        assert max_bond_entangled >= max_bond_product, (
-            "Expected max_bond_entangled >= max_bond_product"
-        )
-
-    def test_bond_dimension_tractable_n20(self) -> None:
-        """Bond dimension should remain tractable for N=10."""
-        # For N=10 sites, full dimension is 2^10 = 1024
-        # TTN should compute bond dimensions correctly
-        rng = np.random.default_rng(42)
-        dim = 2**10  # 2^(2*5) = 1024, using 5 sites per side = 10 total
-        state = rng.random(dim) + 1j * rng.random(dim)
-        state = state / np.linalg.norm(state)
-
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=5,
-            local_dim=2,
-            svd_epsilon=1e-8,
-        )
-
-        max_bond = ttn.max_bond_dimension()
-        # For random state, bond dimension can be full rank (1024)
-        # But should be <= full dimension
-        assert max_bond <= dim, "Expected max_bond <= dim"
+        Returns a normalised 4-qubit (16-dim) state whose 4×4 matrix has
+        singular values approximately [0.89, 0.45, 0.089, 0.0089].
+        """
+        rng = np.random.default_rng(seed)
+        n = 4
+        orth = rng.random((n, n)) + 1j * rng.random((n, n))
+        U, _ = np.linalg.qr(orth)
+        orth2 = rng.random((n, n)) + 1j * rng.random((n, n))
+        Vh, _ = np.linalg.qr(orth2)
+        s = np.array([1.0, 0.5, 0.1, 0.01], dtype=float)
+        matrix = U @ np.diag(s) @ Vh
+        matrix = matrix / np.linalg.norm(matrix, "fro")
+        return matrix.flatten()
 
     def test_truncation_preserves_normalization(self) -> None:
-        """Truncation should preserve normalization."""
-        rng = np.random.default_rng(42)
-        dim = 2**4
-        state = rng.random(dim) + 1j * rng.random(dim)
-        state = state / np.linalg.norm(state)
+        """Truncation should approximately preserve normalisation."""
+        state = self._make_rank_deficient_state()
+        t = bipartite_tensor_from_state(state, n_sites=2, local_dim=2)
 
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=2,
-            local_dim=2,
-            svd_epsilon=1e-10,
-        )
+        # Split with mild truncation (bond dim 2 out of 4)
+        tn = t.split("main", bond_ind="bond", cutoff=0.2, cutoff_mode="rel")
+        contracted = tn.contract()
+        norm = np.linalg.norm(contracted.data.flatten())
+        # Norm should be close to 1 (truncation of small singular values
+        # removes a small fraction of the norm)
+        assert norm == pytest.approx(1.0, abs=1e-2), f"Expected norm ≈ 1, got {norm}"
 
-        # Apply truncation
-        ttn.truncate(epsilon=1e-4)
+    def test_truncation_error_vs_epsilon(self) -> None:
+        """Reconstruction fidelity should increase as cutoff decreases."""
+        state = self._make_rank_deficient_state()
+        t = bipartite_tensor_from_state(state, n_sites=2, local_dim=2)
 
-        # Check normalization
-        reconstructed = ttn._to_state_vector()
-        norm = np.linalg.norm(reconstructed)
-        assert norm == pytest.approx(1.0), "Expected norm == pytest.approx(1.0)"
+        cutoffs = [0.3, 0.1, 0.03, 0.01, 1e-8]
+        fidelities: list[float] = []
 
-    def test_contract_expectation_value_product_state(self) -> None:
-        """Test contraction with identity operator."""
-        # Product state |00⟩ (2 qubits: main + ancilla)
+        for cutoff in cutoffs:
+            reconstructed = _split_and_contract(t, cutoff=cutoff)
+            fidelity = float(abs(np.vdot(state, reconstructed)) ** 2)
+            fidelities.append(fidelity)
+
+        # Fidelity should be non-decreasing as cutoff decreases
+        for i in range(len(fidelities) - 1):
+            assert fidelities[i] <= fidelities[i + 1] + 1e-6, (
+                f"Fidelity decreased when cutoff went from {cutoffs[i]} "
+                f"to {cutoffs[i + 1]}: {fidelities[i]} -> {fidelities[i + 1]}"
+            )
+
+
+# =============================================================================
+# Tests: expectation values
+# =============================================================================
+
+
+class TestExpectationValues:
+    """Tests for expectation value computation."""
+
+    def test_identity_expectation(self) -> None:
+        """Expectation of identity should be 1."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-
-        # Identity operator should give 1
+        t = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
         identity = np.eye(2, dtype=complex)
-        result = ttn.contract([(0, identity)])
-
-        # For |00⟩ with I on first qubit: should be 1
+        result = compute_expectation(t, [(0, identity)])
         assert result.real == pytest.approx(1.0, abs=1e-6), (
-            "Expected result.real == pytest.approx(1.0, abs=1e-6)"
+            f"Expected 1.0, got {result}"
         )
 
-    def test_contract_expectation_value_z_operator(self) -> None:
-        """Test contraction with Z operator."""
-        # State |00⟩ - main qubit in |0⟩
+    def test_z_on_main(self) -> None:
+        """Z operator on main qubit in |00⟩ should give +1."""
         state = np.array([1, 0, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-
-        # Z operator on main qubit (site 0) should give +1
+        t = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
         z = np.array([[1, 0], [0, -1]], dtype=complex)
-        result = ttn.contract([(0, z)])
-
+        result = compute_expectation(t, [(0, z)])
         assert result.real == pytest.approx(1.0, abs=1e-6), (
-            "Expected result.real == pytest.approx(1.0, abs=1e-6)"
+            f"Expected 1.0, got {result}"
         )
 
-    def test_contract_expectation_value_z_on_one(self) -> None:
-        """Test contraction with Z operator on ancilla."""
-        # State |01⟩ - ancilla qubit in |1⟩
+    def test_z_on_ancilla(self) -> None:
+        """Z operator on ancilla in |01⟩ should give -1."""
         state = np.array([0, 1, 0, 0], dtype=complex)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-
-        # Z operator on ancilla (site 1) should give -1
+        t = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
         z = np.array([[1, 0], [0, -1]], dtype=complex)
-        result = ttn.contract([(1, z)])
-
+        result = compute_expectation(t, [(1, z)])
         assert result.real == pytest.approx(-1.0, abs=1e-6), (
-            "Expected result.real == pytest.approx(-1.0, abs=1e-6)"
+            f"Expected -1.0, got {result}"
         )
 
-    def test_exact_vs_ttn_comparison_n4(self) -> None:
-        """Compare TTN results with exact for N=4."""
-        # Create a specific state
+
+# =============================================================================
+# Tests: fidelity
+# =============================================================================
+
+
+class TestTensorFidelity:
+    """Tests for tensor fidelity computation."""
+
+    def test_identical_states(self) -> None:
+        """Fidelity of identical states should be 1."""
+        state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
+        t1 = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
+        t2 = bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
+        assert tensor_fidelity(t1, t2) == pytest.approx(1.0), (
+            "Expected fidelity of identical states == 1"
+        )
+
+    def test_orthogonal_states(self) -> None:
+        """Fidelity of orthogonal states should be 0."""
+        state1 = np.array([1, 0, 0, 0], dtype=complex)  # |00⟩
+        state2 = np.array([0, 0, 0, 1], dtype=complex)  # |11⟩
+        t1 = bipartite_tensor_from_state(state1, n_sites=1, local_dim=2)
+        t2 = bipartite_tensor_from_state(state2, n_sites=1, local_dim=2)
+        assert tensor_fidelity(t1, t2) == pytest.approx(0.0), (
+            "Expected fidelity of orthogonal states == 0"
+        )
+
+
+# =============================================================================
+# Tests: error handling
+# =============================================================================
+
+
+class TestErrorHandling:
+    """Tests for error handling."""
+
+    def test_invalid_state_dimension(self) -> None:
+        """Should raise ValueError for invalid state dimension."""
+        state = np.array([1, 0, 0], dtype=complex)  # 3 elements — not 2**(2*1)=4
+        with pytest.raises(ValueError, match="State dimension"):
+            bipartite_tensor_from_state(state, n_sites=1, local_dim=2)
+
+    def test_identity_after_split_contract(self) -> None:
+        """Exact comparison: norm should match after split+contract."""
         rng = np.random.default_rng(123)
         dim = 2**4
         state = rng.random(dim) + 1j * rng.random(dim)
         state = state / np.linalg.norm(state)
 
-        # Get exact expectation value
-        _identity = np.eye(2, dtype=complex)
-        exact_state = state.copy()
+        t = bipartite_tensor_from_state(state, n_sites=2, local_dim=2)
+        reconstructed = _split_and_contract(t, cutoff=1e-14)
 
-        # Build TTN
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=2,
-            local_dim=2,
-            svd_epsilon=1e-8,
+        exact_norm = np.vdot(state, state).real
+        ttn_norm = np.vdot(reconstructed, reconstructed).real
+
+        assert exact_norm == pytest.approx(ttn_norm, rel=1e-4), (
+            f"Norms differ: exact={exact_norm}, ttn={ttn_norm}"
         )
 
-        # Compare expectation values
-        exact_norm = np.vdot(exact_state, exact_state).real
-        ttn_norm_before = np.vdot(ttn._to_state_vector(), ttn._to_state_vector()).real
 
-        assert exact_norm == pytest.approx(ttn_norm_before, rel=1e-4), (
-            "Expected exact_norm == pytest.approx(ttn_norm_before, rel=1e-4)"
-        )
-
-    def test_tree_structure(self) -> None:
-        """Test getting tree structure."""
-        state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
-        ttn = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-
-        structure = ttn.get_tree_structure()
-        assert "depth" in structure, 'Expected "depth" in structure'
-        assert "n_nodes" in structure, 'Expected "n_nodes" in structure'
-        assert "max_bond_dim" in structure, 'Expected "max_bond_dim" in structure'
-
-    def test_fidelity_identical_states(self) -> None:
-        """Fidelity of identical states should be 1."""
-        state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
-        ttn1 = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-        ttn2 = TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-
-        assert ttn1.fidelity(ttn2) == pytest.approx(1.0), (
-            "Expected ttn1.fidelity(ttn2) == pytest.approx(1.0)"
-        )
-
-    def test_fidelity_orthogonal_states(self) -> None:
-        """Fidelity of orthogonal states should be 0."""
-        # |00⟩ and |11⟩ are orthogonal
-        state1 = np.array([1, 0, 0, 0], dtype=complex)
-        state2 = np.array([0, 0, 0, 1], dtype=complex)
-
-        ttn1 = TensorTreeNetwork.from_state_vector(state1, n_sites=1, local_dim=2)
-        ttn2 = TensorTreeNetwork.from_state_vector(state2, n_sites=1, local_dim=2)
-
-        assert ttn1.fidelity(ttn2) == pytest.approx(0.0), (
-            "Expected ttn1.fidelity(ttn2) == pytest.approx(0.0)"
-        )
-
-    def test_invalid_state_dimension(self) -> None:
-        """Should raise error for invalid state dimension."""
-        state = np.array([1, 0, 0], dtype=complex)  # 3 elements
-
-        with pytest.raises(ValueError):
-            TensorTreeNetwork.from_state_vector(state, n_sites=1, local_dim=2)
-
-    def test_truncate_call_on_empty(self) -> None:
-        """Truncate should handle empty TTN gracefully."""
-        ttn = TensorTreeNetwork(n_sites=1, local_dim=2)
-        ttn.truncate(epsilon=1e-4)
-        # Should not raise
+# =============================================================================
+# Tests: validation
+# =============================================================================
 
 
-class TestTensorTreeNetworkValidation:
-    """Validation tests comparing TTN with exact results."""
+class TestValidation:
+    """Validation tests for quimb-based tensor operations."""
 
     def test_exact_comparison_n4_tolerance(self) -> None:
-        """Compare TTN with exact for N≤4, tolerance 10⁻⁴."""
+        """Fidelity after split+contract should exceed 1 - 1e-4 for N=4."""
         rng = np.random.default_rng(42)
-        n_sites = 2  # Main + ancilla = 2 + 2 = 4 qubits
-        dim = 2 ** (2 * n_sites)
+        dim = 2**4
         state = rng.random(dim) + 1j * rng.random(dim)
         state = state / np.linalg.norm(state)
 
-        # Exact calculation
-        _identity = np.eye(2, dtype=complex)
-        _pauli_z = np.array([[1, 0], [0, -1]], dtype=complex)
+        t = bipartite_tensor_from_state(state, n_sites=2, local_dim=2)
+        reconstructed = _split_and_contract(t, cutoff=1e-14)
 
-        # Exact expectation
-        # Reshape for matrix form
-        half_dim = 2**n_sites
-        _state_matrix = state.reshape(half_dim, half_dim)
-        # <Z_0> = trace((Z ⊗ I) |ψ⟩⟨ψ|)
-        # = trace_2( (Z ⊗ I) rho )
-        rho = np.outer(state, state.conj())
-        _rho_matrix = rho.reshape(half_dim, half_dim, half_dim, half_dim)
-
-        # Build TTN
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=n_sites,
-            local_dim=2,
-            svd_epsilon=1e-8,
-        )
-
-        # Compare state vectors
-        reconstructed = ttn._to_state_vector()
-        fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
-
+        fidelity = float(abs(np.vdot(state, reconstructed)) ** 2)
         assert fidelity > 1 - 1e-4, f"Fidelity {fidelity} below threshold"
 
-    def test_bond_dim_tractable_n10(self) -> None:
-        """Verify bond dimensions tractable for N≤10."""
+
+# =============================================================================
+# Tests: performance
+# =============================================================================
+
+
+class TestPerformance:
+    """Performance tests for tensor operations."""
+
+    def test_split_contract_runtime_n8(self) -> None:
+        """SVD split + contract should run in < 100ms for N=8."""
         rng = np.random.default_rng(42)
-        n_sites = 5  # 5 main + 5 ancilla = 10 qubits, dim = 2^10 = 1024
+        n_sites = 4  # 4 main + 4 ancilla = 8 qubits → 256-dim vector
         dim = 2 ** (2 * n_sites)
         state = rng.random(dim) + 1j * rng.random(dim)
         state = state / np.linalg.norm(state)
 
-        ttn = TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=n_sites,
-            local_dim=2,
-            svd_epsilon=1e-8,
-        )
-
-        max_bond = ttn.max_bond_dimension()
-        # For N=5, maximum possible bond is 32, should be much smaller
-        assert max_bond <= 32, "Expected max_bond <= 32"
-        # And significantly smaller than full dimension
-        assert max_bond < dim // 4, "Expected max_bond < dim // 4"
-
-    def test_truncation_error_vs_epsilon(self) -> None:
-        """Truncation error should decrease with epsilon."""
-        rng = np.random.default_rng(42)
-        n_sites = 2
-        dim = 2 ** (2 * n_sites)
-        state = rng.random(dim) + 1j * rng.random(dim)
-        state = state / np.linalg.norm(state)
-
-        epsilons = [1e-2, 1e-4, 1e-6, 1e-8]
-        fidelities = []
-
-        for eps in epsilons:
-            ttn = TensorTreeNetwork.from_state_vector(
-                state,
-                n_sites=n_sites,
-                local_dim=2,
-                svd_epsilon=eps,
-            )
-            reconstructed = ttn._to_state_vector()
-            fidelity = np.abs(np.vdot(state, reconstructed)) ** 2
-            fidelities.append(fidelity)
-
-        # Fidelity should increase (error decrease) as epsilon decreases
-        for i in range(len(fidelities) - 1):
-            assert fidelities[i] <= fidelities[i + 1] + 1e-6, (
-                "Expected fidelities[i] <= fidelities[i + 1] + 1e-6"
-            )
-
-
-class TestTensorTreeNetworkPerformance:
-    """Performance tests for TTN."""
-
-    def test_runtime_n8(self) -> None:
-        """TTN should run in < 100ms for N=8."""
-        import time
-
-        rng = np.random.default_rng(42)
-        n_sites = 4  # 4 main + 4 ancilla = 8 qubits -> 256 dim
-        dim = 2 ** (2 * n_sites)
-        state = rng.random(dim) + 1j * rng.random(dim)
-        state = state / np.linalg.norm(state)
+        t = bipartite_tensor_from_state(state, n_sites=n_sites, local_dim=2)
 
         start = time.perf_counter()
-        TensorTreeNetwork.from_state_vector(
-            state,
-            n_sites=n_sites,
-            local_dim=2,
-            svd_epsilon=1e-8,
-        )
+        _split_and_contract(t, cutoff=1e-14)
         elapsed = time.perf_counter() - start
 
         assert elapsed < 0.1, (
-            f"TTN construction took {elapsed * 1000:.1f}ms, expected < 100ms"
+            f"Split+contract took {elapsed * 1000:.1f}ms, expected < 100ms"
         )

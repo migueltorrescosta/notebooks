@@ -15,7 +15,7 @@ from src.analysis.delta_estimation import (
     full_calculation,
     generate_hamiltonian,
 )
-from src.physics.angular_momentum import generate_spin_matrices
+from src.physics.dicke_basis import jx_operator, jz_operator
 from src.visualization.plotting import plot_array
 
 tqdm.pandas()
@@ -112,13 +112,13 @@ info_0, info_1, info_2, info_3, info_4 = st.tabs(
     [r"$\sigma_x$", r"$\sigma_z$", r"$J_x$", r"$J_z$", r"$H$"],
 )
 
-temp_sigma_x, temp_sigma_z = generate_spin_matrices(dim=2)
+temp_sigma_x, temp_sigma_z = jx_operator(1), jz_operator(1)
 with info_0:
     plot_array(temp_sigma_x, key="system_jx")
 with info_1:
     plot_array(temp_sigma_z, key="system_jz")
 
-temp_jx, temp_jz = generate_spin_matrices(dim=dim_a)
+temp_jx, temp_jz = jx_operator(dim_a - 1), jz_operator(dim_a - 1)
 with info_2:
     plot_array(temp_jx)
 with info_3:

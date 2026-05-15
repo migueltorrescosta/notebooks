@@ -2,17 +2,11 @@
 Wigner Function Computation for Oscillator States.
 
 Computes the Wigner function W(x,p) for a single bosonic mode
-in the truncated Fock basis.
+in the truncated Fock basis, delegating to qutip.wigner.
 
 Physical Model:
 The Wigner function for a single-mode density matrix ρ in the Fock basis
-is computed using the displaced-parity formula:
-
-    W(α) = (2/π) Tr[ρ D†(α) (-1)^(a†a) D(α)]
-
-where D(α) = exp(αa† - α*a) is the displacement operator and α = x + ip.
-In the Fock basis, the matrix elements are expressed through associated
-Laguerre polynomials (Gerry & Knight, Intro. Quantum Optics):
+is computed using methods implemented in QuTiP.
 
 Hilbert Space:
 - Single bosonic mode in truncated Fock basis |n⟩, n = 0…N
@@ -22,50 +16,14 @@ Hilbert Space:
 Units:
 - Dimensionless throughout (ℏ = 1)
 - Phase space coordinates α = x + ip are dimensionless
-- Wigner function W(α) has units of 1/area in phase space (normalized to 1)
-
-For m ≥ n:
-    ⟨m| D(2α) (-1)^(a†a) |n⟩ = (-1)^n √(n!/m!) (2α)^(m-n) exp(-2|α|²)
-                                × L_n^{(m-n)}(4|α|²)
-
-For m < n:
-    ⟨m| D(2α) (-1)^(a†a) |n⟩ = (-1)^n √(m!/n!) (-2α*)^(n-m) exp(-2|α|²)
-                                × L_m^{(n-m)}(4|α|²)
-
-The Wigner function is then:
-    W(x,p) = (2/π) Σ_{m,n} ρ_mn ⟨m| D(2α) (-1)^(a†a) |n⟩
-
-Units:
-- Dimensionless quadrature variables x, p (convention: α = x + ip,
-  so [x, p] = i/2).
-- Wigner function normalized: ∫∫ W(x,p) dx dp = 1.
+- Quadrature convention: W(x,p) normalized so ∫∫ W(x,p) dx dp = 1
+- Uses g=2 in qutip.wigner to match the convention α = x + ip,
+  i.e., [x, p] = i/2, and the Wigner function formula
+  W(α) = (2/π) Tr[ρ D†(α) (-1)^(a†a) D(α)].
 """
 
 import numpy as np
-import scipy.special
-
-
-def _laguerre_value(n: int, alpha: int, x: float) -> float:
-    """Evaluate associated Laguerre polynomial L_n^(alpha)(x).
-
-    Args:
-        n: Degree of the Laguerre polynomial.
-        alpha: Laguerre parameter (upper index).
-        x: Evaluation point.
-
-    Returns:
-        L_n^(alpha)(x) as a float.
-
-    Raises:
-        ValueError: If n < 0 or alpha < 0.
-
-    """
-    if n < 0 or alpha < 0:
-        raise ValueError(f"n={n} and alpha={alpha} must be non-negative")
-    if n == 0:
-        return 1.0
-    # eval_genlaguerre(n, alpha, x) evaluates L_n^(alpha)(x)
-    return float(scipy.special.eval_genlaguerre(n, alpha, x))
+import qutip
 
 
 def wigner_function_single(
@@ -75,15 +33,8 @@ def wigner_function_single(
 ) -> np.ndarray:
     """Compute Wigner function for single-mode density matrix.
 
-    Uses the displaced-parity formula with associated Laguerre polynomials.
-    This is the correct formula for arbitrary Fock states, unlike the
-    simplified (and incorrect) formula W ∝ α^m (α*)^n / √(m!n!).
-
-    For quadrature convention α = x + ip:
-      W(x,p) = (2/π) Σ_{m,n} ρ_mn ⟨m| D(2α) (-1)^(a†a) |n⟩
-
-    where ⟨m| D(2α) (-1)^(a†a) |n⟩ is given by expressions involving
-    associated Laguerre polynomials L_k^(d)(4|α|²).
+    Delegates to qutip.wigner with g=2 to match the α = x + ip convention
+    and normalization ∫∫ W(x,p) dx dp = 1.
 
     Args:
         rho_osc: Density matrix of oscillator (dim N+1, N+1).
@@ -100,74 +51,9 @@ def wigner_function_single(
     if rho_osc.ndim != 2 or rho_osc.shape[0] != rho_osc.shape[1]:
         raise ValueError(f"rho_osc must be square, got shape {rho_osc.shape}")
 
-    dim = rho_osc.shape[0]
-    nx = len(x_range)
-    np_ = len(p_range)
-
-    W = np.zeros((nx, np_), dtype=float)
-
-    # Precompute factorials for sqrt(n!/m!) factors
-    fact = np.array([float(scipy.special.factorial(n)) for n in range(dim)])
-
-    # Precompute sign factors (-1)^n
-    parity_sign = np.array([(-1) ** n for n in range(dim)])
-
-    # Precompute sqrt of factorial ratios: sqrt(n! / m!)
-    sqrt_fact_ratio = np.zeros((dim, dim), dtype=float)
-    for m in range(dim):
-        for n in range(dim):
-            if m >= n:
-                sqrt_fact_ratio[m, n] = np.sqrt(fact[n] / fact[m])
-            else:
-                sqrt_fact_ratio[m, n] = np.sqrt(fact[m] / fact[n])
-
-    for ix, x in enumerate(x_range):
-        for ip, p in enumerate(p_range):
-            alpha = x + 1j * p
-            r_sq = x**2 + p**2
-            tworm = 4.0 * r_sq  # 4|α|² = argument to Laguerre poly
-
-            if r_sq > 50.0:
-                # Far outside: exponential decay makes W ≈ 0
-                W[ix, ip] = 0.0
-                continue
-
-            two_mag = 2.0 * np.sqrt(r_sq)  # |2α|
-            exp_factor = np.exp(-2.0 * r_sq)
-
-            total = 0.0 + 0.0j
-
-            for m in range(dim):
-                for n in range(dim):
-                    if abs(rho_osc[m, n]) < 1e-15:
-                        continue
-
-                    sign = parity_sign[n]
-                    ratio = sqrt_fact_ratio[m, n]
-
-                    if m >= n:
-                        k = m - n
-                        # (2α)^k = (2r)^k * exp(i*k*theta)
-                        # Use polar representation for numerical stability
-                        term_mag = two_mag**k
-                        term_phase = np.exp(1j * k * np.angle(alpha))
-                        lag = _laguerre_value(n, k, tworm)
-                    else:
-                        k = n - m
-                        # (-2α*)^k = (-2r)^k * exp(-i*k*theta)
-                        # = (2r)^k * exp(i*pi*k) * exp(-i*k*theta)
-                        # = (2r)^k * (-1)^k * exp(-i*k*theta)
-                        term_mag = two_mag**k
-                        term_phase = ((-1.0) ** k) * np.exp(-1j * k * np.angle(alpha))
-                        lag = _laguerre_value(m, k, tworm)
-
-                    # W_mn contribution
-                    contrib = sign * ratio * term_mag * term_phase * lag * exp_factor
-                    total += rho_osc[m, n] * contrib
-
-            W[ix, ip] = (2.0 / np.pi) * np.real(total)
-
-    return W
+    rho_qobj = qutip.Qobj(rho_osc)
+    # qutip.wigner returns (len(p), len(x)); transpose to (len(x), len(p))
+    return qutip.wigner(rho_qobj, x_range, p_range, g=2).T
 
 
 def wigner_from_hybrid_state(
@@ -211,21 +97,10 @@ def wigner_from_hybrid_state(
 
     # Check if state is pure or mixed (for now assume pure from state vector)
     rho_osc = np.outer(osc_state, osc_state.conj())
+    rho_qobj = qutip.Qobj(rho_osc)
 
-    return wigner_function_single(rho_osc, x_range, p_range)
-
-
-def wigner_minimum(W: np.ndarray) -> float:
-    """Find minimum Wigner value (negative values indicate non-Gaussianity).
-
-    Args:
-        W: Wigner function array.
-
-    Returns:
-        Minimum value of W.
-
-    """
-    return float(np.min(W))
+    # qutip.wigner returns (len(p), len(x)); transpose to (len(x), len(p))
+    return qutip.wigner(rho_qobj, x_range, p_range, g=2).T
 
 
 def wigner_is_negative(W: np.ndarray, tol: float = 1e-10) -> bool:
@@ -239,4 +114,4 @@ def wigner_is_negative(W: np.ndarray, tol: float = 1e-10) -> bool:
         True if min(W) < -tol.
 
     """
-    return wigner_minimum(W) < -tol
+    return float(np.min(W)) < -tol

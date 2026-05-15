@@ -384,41 +384,6 @@ def apply_detection_noise(
     return result
 
 
-def detection_channel_pmf(
-    n: int,
-    eta: float,
-    max_k: int | None = None,
-) -> np.ndarray:
-    """Compute exact detection probability mass function.
-
-    Computes P(k detected | n actual) = Binomial(k; n, η)
-    for all k from 0 to n.
-
-    Args:
-        n: Actual particle number.
-        eta: Detection efficiency.
-        max_k: Maximum k to compute (default: n).
-
-    Returns:
-        Array of probabilities P(k | n) for k = 0, 1, ..., max_k.
-
-    Example:
-        >>> # For n=2 particles, η=0.5
-        >>> pmf = detection_channel_pmf(2, 0.5)
-        >>> # P(0) = (1-0.5)² = 0.25, P(1) = 2*0.5*0.5 = 0.5, P(2) = 0.25
-        >>> np.allclose(pmf, [0.25, 0.5, 0.25])
-        True
-
-    """
-    from scipy import stats
-
-    if max_k is None:
-        max_k = n
-
-    k_values = np.arange(0, max_k + 1)
-    return stats.binom.pmf(k_values, n, eta)
-
-
 # =============================================================================
 # Expectation Value Calculations
 # =============================================================================
@@ -556,9 +521,11 @@ def test_detection_noise_binomial() -> dict:
     assert np.allclose(result, probs, atol=1e-6), "Perfect detection failed"
 
     # Test with known binomial probabilities
+    from scipy import stats
+
     n = 2
     eta = 0.5
-    pmf = detection_channel_pmf(n, eta)
+    pmf = stats.binom.pmf(np.arange(0, n + 1), n, eta)
 
     expected = [0.25, 0.5, 0.25]
     assert np.allclose(pmf, expected, atol=1e-10), "Binomial PMF incorrect"

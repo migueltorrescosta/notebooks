@@ -152,9 +152,9 @@ def cavity_enhanced_mzi(
         ValueError: If config.F < 1.
 
     Example:
-        >>> from src.physics.mzi_simulation import fock_state
+        >>> from src.physics.mzi_simulation import prepare_input_state
         >>> config = CavityMziConfig(F=10.0)
-        >>> state = fock_state(1, 0, max_photons=2)
+        >>> state = prepare_input_state("fock", max_photons=2, n_particles=1)
         >>> final = cavity_enhanced_mzi(
         ...     state, phi=np.pi / 4, config=config, max_photons=2,
         ... )
@@ -259,9 +259,9 @@ def cavity_enhanced_mzi_with_noise(
         Performance: O(ℱ × (N+1)⁴) for exact; O((N+1)⁴) for efficient approximation.
 
     Example:
-        >>> from src.physics.mzi_simulation import fock_state
+        >>> from src.physics.mzi_simulation import prepare_input_state
         >>> config = CavityMziConfig(F=5.0)
-        >>> state = fock_state(1, 0, max_photons=2)
+        >>> state = prepare_input_state("fock", max_photons=2, n_particles=1)
         >>> rho = cavity_enhanced_mzi_with_noise(
         ...     state, phi=np.pi / 4,
         ...     noise_gamma_1=0.1, noise_gamma_2=0.0,

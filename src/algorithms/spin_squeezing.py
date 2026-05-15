@@ -42,10 +42,11 @@ import numpy as np
 
 
 def coherent_spin_state(N: int) -> np.ndarray:
-    """Generate the coherent spin state (CSS) pointing along +x.
+    """Generate the coherent spin state (CSS) pointing along -x.
 
-    Returns |J, -J⟩_x via rotation of |J, -J⟩_z around y-axis:
-        |J, -J⟩_x = exp(-i π/2 × J_y) |J, -J⟩_z
+    Returns |J, -J⟩_x — the eigenstate of J_x with eigenvalue -J.
+    Constructed via qutip.spin_coherent with the polar angle π/2
+    (equatorial) and azimuthal angle π (pointing along -x).
 
     This state has:
     - ⟨J_x⟩ = -J (maximum polarization in x)
@@ -75,25 +76,14 @@ def coherent_spin_state(N: int) -> np.ndarray:
         True
 
     """
-    from scipy.linalg import expm
-
-    from src.physics.dicke_basis import jy_operator
+    from qutip import spin_coherent
 
     if N < 0:
         raise ValueError(f"Number of atoms N must be non-negative, got {N}")
 
-    dim = N + 1
-
-    # Start with |J, -J⟩_z (eigenstate of J_z with eigenvalue -J)
-    z_state = np.zeros(dim, dtype=complex)
-    z_state[-1] = 1.0
-
-    # Rotate by +π/2 around y-axis to get |J, -J⟩_x
-    J_y = jy_operator(N)
-    theta = np.pi / 2
-    R_y = expm(-1j * theta * J_y)
-
-    return R_y @ z_state
+    # |J, -J⟩_x = spin_coherent(j, θ=π/2, φ=π)
+    state = spin_coherent(N / 2.0, np.pi / 2, np.pi)
+    return state.full().ravel()
 
 
 def one_axis_twist(
@@ -215,20 +205,22 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
     # Normalize state
     state = state / np.linalg.norm(state)
 
-    # Density matrix
-    rho = np.outer(state, state.conj())
+    # Convert state to QuTiP density matrix
+    from qutip import Qobj, expect, variance
+
+    rho = Qobj(np.outer(state, state.conj()))
 
     # Import J operators from dicke_basis
     from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 
-    J_x = jx_operator(N)
-    J_y = jy_operator(N)
-    J_z = jz_operator(N)
+    J_x = Qobj(jx_operator(N))
+    J_y = Qobj(jy_operator(N))
+    J_z = Qobj(jz_operator(N))
 
-    # Mean values
-    jx_mean = np.real(np.trace(rho @ J_x))
-    jy_mean = np.real(np.trace(rho @ J_y))
-    jz_mean = np.real(np.trace(rho @ J_z))
+    # Mean values using qutip.expect
+    jx_mean = float(expect(J_x, rho))
+    jy_mean = float(expect(J_y, rho))
+    jz_mean = float(expect(J_z, rho))
 
     # Normalize mean spin direction
     r = np.array([jx_mean, jy_mean, jz_mean])
@@ -249,20 +241,18 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
     perp_x = perp_x / np.linalg.norm(perp_x)
     perp_y = np.cross(r_unit, perp_x)
 
-    # Scan over angles in the perpendicular plane to find minimum variance
+    # Build Qobj operators for the two perpendicular directions
+    J_n1 = perp_x[0] * J_x + perp_x[1] * J_y + perp_x[2] * J_z
+    J_n2 = perp_y[0] * J_x + perp_y[1] * J_y + perp_y[2] * J_z
+
+    # Scan over angles in the perpendicular plane using qutip.variance
     min_perp_var = float("inf")
     n_angles = 180
 
     for k in range(n_angles):
         angle = k * np.pi / n_angles
-        # Rotated perpendicular direction
-        J_perp_op = np.cos(angle) * (
-            perp_x[0] * J_x + perp_x[1] * J_y + perp_x[2] * J_z
-        ) + np.sin(angle) * (perp_y[0] * J_x + perp_y[1] * J_y + perp_y[2] * J_z)
-
-        perp_mean = np.real(np.trace(rho @ J_perp_op))
-        perp_var = np.real(np.trace(rho @ J_perp_op @ J_perp_op)) - perp_mean**2
-
+        J_theta = np.cos(angle) * J_n1 + np.sin(angle) * J_n2
+        perp_var = float(variance(J_theta, rho))
         min_perp_var = min(min_perp_var, perp_var)
 
     # SQL variance
@@ -276,7 +266,7 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
         return 1.0
 
     xi = np.sqrt(min_perp_var / sql_var)
-    return np.real(xi)
+    return float(xi)
 
 
 def optimal_squeezing_time(N: int, chi: float) -> float:

@@ -11,25 +11,19 @@ Physical Validation Tests:
 
 import numpy as np
 import pytest
+import qutip
 import scipy
 
 from src.physics.dicke_basis import jz_operator
 
 from .lindblad_solver import (
     LindbladConfig,
-    build_liouvillian_matrix,
-    create_bosonic_operators,
     create_coherent_state,
     create_fock_state,
-    density_to_vector,
     evolve_lindblad,
-    ket_to_density,
-    number_operator,
     simulate_trajectory,
     steady_state,
-    steady_state_dense,
     validate_density_matrix,
-    vector_to_density,
 )
 
 # =============================================================================
@@ -67,7 +61,7 @@ class TestTracePreservation:
         """Trace should be preserved with no dissipation."""
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(1, 5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
 
@@ -80,7 +74,7 @@ class TestTracePreservation:
         """Trace should be ≤ 1 with one-body loss."""
         config = LindbladConfig(N=5, gamma_1=0.5, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(2, 5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
 
@@ -94,7 +88,7 @@ class TestTracePreservation:
         """Trace should be preserved with phase diffusion only."""
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0.5)
         psi = create_fock_state(1, 5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
 
@@ -116,7 +110,7 @@ class TestHermiticity:
         """Density matrix should remain Hermitian with no dissipation."""
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(1, 5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
@@ -129,7 +123,7 @@ class TestHermiticity:
         """Density matrix should remain Hermitian with dissipation."""
         config = LindbladConfig(N=5, gamma_1=0.3, gamma_2=0.1, gamma_phi=0.2)
         psi = create_fock_state(1, 5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
@@ -151,7 +145,7 @@ class TestPositivity:
         """Density matrix should remain positive with no dissipation."""
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(1, 5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         times, rhos = simulate_trajectory(rho0, config=config, T=1.0, num_times=50)
 
@@ -167,7 +161,7 @@ class TestPositivity:
         # Use small gamma_phi to avoid numerical instability
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0.01)
         psi = create_fock_state(1, 5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         times, rhos = simulate_trajectory(rho0, config=config, T=0.5, num_times=50)
 
@@ -182,7 +176,7 @@ class TestPositivity:
         """Density matrix should remain positive with phase diffusion."""
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=1.0)
         psi = create_fock_state(1, 5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
@@ -209,14 +203,18 @@ class TestParticleConservation:
 
         # Initial state |1⟩
         psi = create_fock_state(1, N)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
-        initial_n = np.real(np.trace(rho0 @ number_operator(N)))
+        initial_n = np.real(
+            np.trace(rho0 @ qutip.create(N + 1).full() @ qutip.destroy(N + 1).full())
+        )
 
         times, rhos = simulate_trajectory(rho0, config, T=2.0, num_times=50)
 
         for i, rho in enumerate(rhos):
-            mean_n = np.real(np.trace(rho @ number_operator(N)))
+            mean_n = np.real(
+                np.trace(rho @ qutip.create(N + 1).full() @ qutip.destroy(N + 1).full())
+            )
             assert mean_n == pytest.approx(initial_n, abs=1e-6), (
                 f"Particle number changed at t={times[i]}: {mean_n} vs {initial_n}"
             )
@@ -228,14 +226,18 @@ class TestParticleConservation:
 
         alpha = 2.0
         psi = create_coherent_state(alpha + 0j, N)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
-        initial_n = np.real(np.trace(rho0 @ number_operator(N)))
+        initial_n = np.real(
+            np.trace(rho0 @ qutip.create(N + 1).full() @ qutip.destroy(N + 1).full())
+        )
 
         times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=30)
 
         for i, rho in enumerate(rhos):
-            mean_n = np.real(np.trace(rho @ number_operator(N)))
+            mean_n = np.real(
+                np.trace(rho @ qutip.create(N + 1).full() @ qutip.destroy(N + 1).full())
+            )
             assert mean_n == pytest.approx(initial_n, abs=1e-4), (
                 f"Particle number changed at t={times[i]}"
             )
@@ -257,7 +259,7 @@ class TestPhaseDiffusion:
         # Initialize in coherent state |α⟩ with small α
         alpha = 0.3
         psi = create_coherent_state(alpha + 0j, N, truncation=5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         # Build config with phase diffusion only
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=gamma_phi)
@@ -287,7 +289,7 @@ class TestPhaseDiffusion:
 
         # Start with superposition
         psi = (create_fock_state(0, N) + create_fock_state(1, N)) / np.sqrt(2)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=gamma_phi)
 
@@ -319,7 +321,7 @@ class TestUnitaryEvolution:
 
         # Initial state
         psi = create_fock_state(1, N)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         T = 1.0
 
@@ -327,8 +329,7 @@ class TestUnitaryEvolution:
         final_rho = evolve_lindblad(rho0, config, T, dt=0.001)
 
         # Analytical unitary evolution
-        _a, _a_dag = create_bosonic_operators(N)
-        H = number_operator(N)  # H = n
+        H = qutip.create(N + 1).full() @ qutip.destroy(N + 1).full()  # H = n
         U = scipy.linalg.expm(-1.0j * H * T)
         expected_rho = U @ rho0 @ U.conj().T
 
@@ -348,7 +349,7 @@ class TestSteadyState:
     def test_steady_state_iterative(self) -> None:
         """Iterative steady state should converge (basic check)."""
         N = 3
-        a, _a_dag = create_bosonic_operators(N)
+        a = qutip.destroy(N + 1).full()
         H = np.zeros((N + 1, N + 1), dtype=complex)
 
         # One-body loss: L = a
@@ -367,14 +368,13 @@ class TestSteadyState:
         N = 5
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=1.0)
 
-        _a, _a_dag = create_bosonic_operators(N)
-        H = number_operator(N)
+        H = qutip.create(N + 1).full() @ qutip.destroy(N + 1).full()
         jz = jz_operator(N)
 
         L_ops = [np.sqrt(config.gamma_phi) * jz]
         gammas = [1.0]
 
-        rho_ss = steady_state_dense(H, L_ops, gammas)
+        rho_ss = steady_state(H, L_ops, gammas)
 
         # Off-diagonal should be small
         max_off_diag = 0.0
@@ -398,7 +398,7 @@ class TestValidation:
         """Valid density matrix should pass all checks."""
         N = 5
         psi = create_fock_state(1, N)
-        rho = ket_to_density(psi)
+        rho = np.outer(psi, psi.conj())
 
         validation = validate_density_matrix(rho)
 
@@ -432,66 +432,6 @@ class TestValidation:
 
 
 # =============================================================================
-# Test Liouvillian Construction
-# =============================================================================
-
-
-class TestLiouvillian:
-    """Test Liouvillian superoperator."""
-
-    def test_liouvillian_unitary_part(self) -> None:
-        """Liouvillian unitary part should give correct dynamics."""
-        N = 3
-        _a, _a_dag = create_bosonic_operators(N)
-        H = number_operator(N)
-
-        # Build Liouvillian with no dissipation
-        L_ops: list[np.ndarray] = []
-        gammas: list[float] = []
-
-        L_mat = build_liouvillian_matrix(H, L_ops, gammas)
-
-        # Test on a density matrix
-        psi = create_fock_state(1, N)
-        rho = ket_to_density(psi)
-
-        rho_vec = density_to_vector(rho)
-        drho_dt_vec = L_mat @ rho_vec
-        drho_dt = vector_to_density(drho_dt_vec)
-
-        # Expected: -i[H, rho]
-        expected = -1.0j * (H @ rho - rho @ H)
-
-        assert drho_dt == pytest.approx(expected, abs=1e-6), (
-            "Expected drho_dt == pytest.approx(expected, abs=1e-6)"
-        )
-
-    def test_liouvillian_dissipative_part(self) -> None:
-        """Liouvillian should give correct decay for one-body loss."""
-        N = 3
-        a, _a_dag = create_bosonic_operators(N)
-
-        H = number_operator(N)
-        L_ops = [a]
-        gammas = [1.0]
-
-        L_mat = build_liouvillian_matrix(H, L_ops, gammas)
-
-        # Test on vacuum
-        psi = create_fock_state(1, N)  # |1⟩
-        rho = ket_to_density(psi)
-
-        rho_vec = density_to_vector(rho)
-        drho_dt_vec = L_mat @ rho_vec
-        drho_dt = vector_to_density(drho_dt_vec)
-
-        # dρ/dt = L ρ L† - ½{L†L, ρ} for one-body loss from |1⟩
-        # Should have transitions to |0⟩
-        # At least one element should change
-        assert np.max(np.abs(drho_dt)) > 0, "Expected np.max(np.abs(drho_dt)) > 0"
-
-
-# =============================================================================
 # Integration Test: Full Simulation
 # =============================================================================
 
@@ -503,7 +443,7 @@ class TestFullSimulation:
         """Simulation should complete without errors."""
         config = LindbladConfig(N=5, gamma_1=0.1, gamma_2=0.05)
         psi = create_fock_state(2, 5)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         final_rho = evolve_lindblad(rho0, config, T=1.0, dt=0.01)
 
@@ -515,7 +455,7 @@ class TestFullSimulation:
         """RK4 and scipy methods should give similar results."""
         config = LindbladConfig(N=4, gamma_1=0.0, gamma_2=0.0, gamma_phi=0.2)
         psi = create_fock_state(1, 4)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         # Different methods
         rho_rk4 = evolve_lindblad(rho0, config, T=0.5, dt=0.01, method="rk4")
@@ -538,7 +478,7 @@ class TestEdgeCases:
         """Zero time should return initial state."""
         config = LindbladConfig(N=3, gamma_1=0.1)
         psi = create_fock_state(1, 3)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         final_rho = evolve_lindblad(rho0, config, T=0.0, dt=0.01)
 
@@ -550,7 +490,7 @@ class TestEdgeCases:
         """Small dt should give stable evolution."""
         config = LindbladConfig(N=4, gamma_1=0.1, gamma_2=0.0, gamma_phi=0.0)
         psi = create_fock_state(2, 4)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         final_rho = evolve_lindblad(rho0, config, T=0.5, dt=0.001)
 

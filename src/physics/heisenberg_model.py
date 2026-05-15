@@ -36,7 +36,6 @@ import numpy as np
 from src.utils.validators import (
     validate_eigendecomposition,
     validate_eigenvectors_orthonormal,
-    validate_hamiltonian_hermitian,
 )
 
 # Aliases for backward compatibility
@@ -44,7 +43,6 @@ from src.utils.validators import (
 # so that calling code can import them from heisenberg_model directly.
 # If the source functions in validators.py are moved or renamed,
 # update these aliases to maintain backward compatibility.
-validate_hamiltonian_hermitian = validate_hamiltonian_hermitian
 validate_eigenvectors_orthonormal = validate_eigenvectors_orthonormal
 validate_eigendecomposition = validate_eigendecomposition
 

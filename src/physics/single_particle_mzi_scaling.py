@@ -153,20 +153,6 @@ def evolve_single_particle_mzi(
 # =============================================================================
 
 
-def compute_expectation_jz(state: np.ndarray, jz: np.ndarray) -> float:
-    """Compute ⟨J_z⟩ = ⟨ψ|J_z|ψ⟩.
-
-    Args:
-        state: Pure state vector.
-        jz: J_z operator.
-
-    Returns:
-        Expectation value (real).
-
-    """
-    return float(np.real(np.conj(state) @ jz @ state))
-
-
 def compute_variance_jz(state: np.ndarray, jz: np.ndarray) -> float:
     """Compute Var(J_z) = ⟨J_z²⟩ - ⟨J_z⟩².
 
@@ -227,8 +213,8 @@ def compute_numerical_derivative(
     psi_plus = evolve_single_particle_mzi(theta + delta, t_h, u_bs, jz)
     psi_minus = evolve_single_particle_mzi(theta - delta, t_h, u_bs, jz)
 
-    jz_plus = compute_expectation_jz(psi_plus, jz)
-    jz_minus = compute_expectation_jz(psi_minus, jz)
+    jz_plus = float(np.real(np.conj(psi_plus) @ jz @ psi_plus))
+    jz_minus = float(np.real(np.conj(psi_minus) @ jz @ psi_minus))
 
     return float((jz_plus - jz_minus) / (2.0 * delta))
 
@@ -258,7 +244,7 @@ def compute_delta_theta_from_propagation(
 
     """
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
-    jz_mean = compute_expectation_jz(psi, jz)
+    jz_mean = float(np.real(np.conj(psi) @ jz @ psi))
     jz_var = compute_variance_jz(psi, jz)
 
     if use_numerical:

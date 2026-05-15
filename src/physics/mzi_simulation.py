@@ -23,6 +23,7 @@ Conventions:
 """
 
 import numpy as np
+import qutip
 import scipy
 
 from src.utils.validators import (
@@ -39,84 +40,6 @@ validate_state = validate_state_mzi
 # =============================================================================
 # State Preparation
 # =============================================================================
-
-
-def fock_state(n1: int, n2: int, max_photons: int) -> np.ndarray:
-    """Create a Fock state vector |n₁, n₂⟩ in the two-mode Fock basis.
-
-    Constructs a pure Fock state with exactly n₁ photons in mode 0
-    and n₂ photons in mode 1. The state is represented as a vector
-    in a truncated Fock space with maximum photon number max_photons
-    per mode.
-
-    Args:
-        n1: Photon number in mode 0 (first arm). Must be non-negative
-            and ≤ max_photons.
-        n2: Photon number in mode 1 (second arm). Must be non-negative
-            and ≤ max_photons.
-        max_photons: Maximum photon number per mode. Truncation parameter
-            for the Hilbert space.
-
-    Returns:
-        Complex state vector of dimension (max_photons+1)² with a single
-        1 at index n₁ × (max_photons+1) + n₂.
-
-    Raises:
-        ValueError: If n1 or n2 exceeds max_photons or is negative.
-
-    Example:
-        >>> state = fock_state(1, 0, max_photons=2)
-        >>> state.shape
-        (9,)
-        >>> np.abs(state[3])  # Index for |1,0⟩: 1*3 + 0 = 3
-        1.0
-
-    """
-    if n1 < 0 or n2 < 0:
-        raise ValueError("Photon numbers must be non-negative")
-    if n1 > max_photons or n2 > max_photons:
-        raise ValueError(f"Photon numbers must not exceed max_photons={max_photons}")
-
-    dim = (max_photons + 1) ** 2
-    state = np.zeros(dim, dtype=complex)
-    idx = n1 * (max_photons + 1) + n2
-    state[idx] = 1.0
-    return state
-
-
-def vacuum_state(max_photons: int) -> np.ndarray:
-    """Create the vacuum state |0, 0⟩ (no photons in either mode).
-
-    Args:
-        max_photons: Maximum photon number per mode for the truncated
-            Hilbert space.
-
-    Returns:
-        Complex state vector representing the two-mode vacuum.
-
-    """
-    return fock_state(0, 0, max_photons)
-
-
-def single_photon_state(mode: int, max_photons: int) -> np.ndarray:
-    """Create a single-photon state in a specific mode.
-
-    Args:
-        mode: Which mode to place the photon in (0 or 1).
-        max_photons: Maximum photon number per mode.
-
-    Returns:
-        State vector |1, 0⟩ if mode=0, or |0, 1⟩ if mode=1.
-
-    Raises:
-        ValueError: If mode is not 0 or 1.
-
-    """
-    if mode == 0:
-        return fock_state(1, 0, max_photons)
-    if mode == 1:
-        return fock_state(0, 1, max_photons)
-    raise ValueError("Mode must be 0 or 1")
 
 
 def noon_state(N: int, max_photons: int) -> np.ndarray:
@@ -142,57 +65,16 @@ def noon_state(N: int, max_photons: int) -> np.ndarray:
     """
     # Need max_photons >= N for NOON state to fit in basis
     effective_max = max(N, max_photons)
-    state = fock_state(N, 0, effective_max) + fock_state(0, N, effective_max)
-    return state / np.sqrt(2)
-
-
-def coherent_state(alpha: complex, max_photons: int) -> np.ndarray:
-    """Create a coherent state |α⟩ in mode 0 with mode 1 as vacuum.
-
-    A coherent state is the quantum state most closely resembling
-    a classical electromagnetic field. It has Poisson photon number
-    distribution and minimum uncertainty (balanced).
-
-    Args:
-        alpha: Complex amplitude of the coherent state. The mean
-            photon number is |α|².
-        max_photons: Maximum photon number for truncation. Should be
-            significantly larger than |α|² for accurate representation.
-
-    Returns:
-        State vector representing the coherent state in the truncated
-        Fock basis.
-
-    Example:
-        >>> alpha = 1.0 + 0j
-        >>> state = coherent_state(alpha, max_photons=10)
-        >>> # Mean photon number ≈ |α|² = 1
-        >>> # Probability of n photons = |α|^{2n} e^{-|α|²} / n!
-
-    """
-    state = np.zeros((max_photons + 1) ** 2, dtype=complex)
-    for n in range(max_photons + 1):
-        amplitude = (
-            alpha**n
-            / np.sqrt(scipy.special.factorial(n))
-            * np.exp(-(abs(alpha) ** 2) / 2)
+    dim_single = effective_max + 1
+    state = (
+        (
+            qutip.tensor(qutip.fock(dim_single, N), qutip.fock(dim_single, 0))
+            + qutip.tensor(qutip.fock(dim_single, 0), qutip.fock(dim_single, N))
         )
-        state[n * (max_photons + 1)] = amplitude
-    return state
-
-
-def fock_state_n(n: int, max_photons: int) -> np.ndarray:
-    """Create Fock state |n⟩ in mode 0 (mode 1 as vacuum).
-
-    Args:
-        n: Photon number (must be non-negative and ≤ max_photons).
-        max_photons: Maximum photon number per mode.
-
-    Returns:
-        State vector |n, 0⟩.
-
-    """
-    return fock_state(n, 0, max_photons)
+        .full()
+        .ravel()
+    )
+    return state / np.sqrt(2)
 
 
 # =============================================================================
@@ -206,46 +88,46 @@ def create_system_operators(
     """Create annihilation and creation operators for the two-mode system.
 
     Constructs the bosonic annihilation (a) and creation (a†) operators
-    for both modes of the interferometer. The operators act in the
-    truncated Fock space with dimension (max_photons+1)².
+    for both modes of the interferometer using the shared QuTiP backend
+    with two-mode embedding via Kronecker products.
 
-    The operators satisfy:
+    The operators act in the truncated Fock space with dimension
+    (max_photons+1)² with state ordering |n₀, n₁⟩.
+
+    Embedding convention (|n₀, n₁⟩ ordering):
+        a₀ = a ⊗ I   (annihilation on mode 0)
+        a₁ = I ⊗ a   (annihilation on mode 1)
+        a₀† = a† ⊗ I (creation on mode 0)
+        a₁† = I ⊗ a† (creation on mode 1)
+
+    The single-mode operators satisfy:
     - a |n⟩ = √n |n-1⟩ (annihilation)
     - a† |n⟩ = √(n+1) |n+1⟩ (creation)
+    - [a, a†] = I (up to truncation boundary)
 
     Args:
         max_photons: Maximum photon number per mode (truncation).
 
     Returns:
         Tuple of (a₀, a₁, a₀†, a₁†) where:
-        - a₀: Annihilation operator for mode 0
-        - a₁: Annihilation operator for mode 1
-        - a₀†: Creation operator for mode 0
-        - a₁†: Creation operator for mode 1
+        - a₀:   Annihilation operator for mode 0  (a ⊗ I)
+        - a₁:   Annihilation operator for mode 1  (I ⊗ a)
+        - a₀†:  Creation operator for mode 0      (a† ⊗ I)
+        - a₁†:  Creation operator for mode 1      (I ⊗ a†)
 
     """
-    dim = (max_photons + 1) ** 2
+    import qutip
 
-    a0 = np.zeros((dim, dim), dtype=complex)
-    a0_dag = np.zeros((dim, dim), dtype=complex)
-    a1 = np.zeros((dim, dim), dtype=complex)
-    a1_dag = np.zeros((dim, dim), dtype=complex)
+    dim_single = max_photons + 1
+    a = qutip.destroy(dim_single).full()  # (N+1, N+1) annihilation
+    a_dag = qutip.create(dim_single).full()  # (N+1, N+1) creation
+    identity = np.eye(dim_single, dtype=complex)
 
-    for n1 in range(max_photons + 1):
-        for n2 in range(max_photons + 1):
-            idx = n1 * (max_photons + 1) + n2
-
-            # a0 |n1, n2> = sqrt(n1) |n1-1, n2>
-            if n1 > 0:
-                new_idx = (n1 - 1) * (max_photons + 1) + n2
-                a0[idx, new_idx] = np.sqrt(n1)
-                a0_dag[new_idx, idx] = np.sqrt(n1)
-
-            # a1 |n1, n2> = sqrt(n2) |n1, n2-1>
-            if n2 > 0:
-                new_idx = n1 * (max_photons + 1) + (n2 - 1)
-                a1[idx, new_idx] = np.sqrt(n2)
-                a1_dag[new_idx, idx] = np.sqrt(n2)
+    # Two-mode embedding via Kronecker products
+    a0 = np.kron(a, identity)  # a ⊗ I  — acts on mode 0
+    a1 = np.kron(identity, a)  # I ⊗ a  — acts on mode 1
+    a0_dag = np.kron(a_dag, identity)  # a† ⊗ I — acts on mode 0
+    a1_dag = np.kron(identity, a_dag)  # I ⊗ a† — acts on mode 1
 
     return a0, a1, a0_dag, a1_dag
 
@@ -461,7 +343,9 @@ def evolve_mzi(
         Output dimension = (max_photons+1)² × ancilla_dim.
 
     Example:
-        >>> state = vacuum_state(max_photons=2)
+        >>> import qutip
+        >>> dim = 2 + 1
+        >>> state = qutip.tensor(qutip.fock(dim, 0), qutip.fock(dim, 0)).full()
         >>> final = evolve_mzi(state, np.pi/4, 0, 1.0, 0, 0, "phase_coupling", 2, 3)
         >>> final.shape  # (9 * 3,) = (27,)
         (27,)
@@ -630,7 +514,10 @@ def compute_interference_fringe(
 
     Example:
         >>> phases = np.linspace(0, 2*np.pi, 100)
-        >>> fringe = compute_interference_fringe(phases, vacuum_state(2),
+        >>> import qutip
+        >>> dim = 2 + 1
+        >>> vac = qutip.tensor(qutip.fock(dim, 0), qutip.fock(dim, 0)).full()
+        >>> fringe = compute_interference_fringe(phases, vac,
         ...     np.pi/4, 0, 0, 0, "phase_coupling", 2, 3)
         >>> fringe.shape
         (100,)
@@ -782,21 +669,52 @@ def prepare_input_state(
         Falls back to vacuum state for unrecognized types (no error raised).
 
     """
+    dim_single = max_photons + 1
     match state_type:
         case "vacuum":
-            return vacuum_state(max_photons)
+            return (
+                qutip.tensor(qutip.fock(dim_single, 0), qutip.fock(dim_single, 0))
+                .full()
+                .ravel()
+            )
         case "single_photon":
-            return single_photon_state(mode, max_photons)
+            if mode == 0:
+                return (
+                    qutip.tensor(qutip.fock(dim_single, 1), qutip.fock(dim_single, 0))
+                    .full()
+                    .ravel()
+                )
+            return (
+                qutip.tensor(qutip.fock(dim_single, 0), qutip.fock(dim_single, 1))
+                .full()
+                .ravel()
+            )
         case "coherent":
-            return coherent_state(alpha, max_photons)
+            return (
+                qutip.tensor(
+                    qutip.coherent(dim_single, alpha), qutip.fock(dim_single, 0)
+                )
+                .full()
+                .ravel()
+            )
         case "fock":
-            return fock_state_n(n_particles, max_photons)
+            return (
+                qutip.tensor(
+                    qutip.fock(dim_single, n_particles), qutip.fock(dim_single, 0)
+                )
+                .full()
+                .ravel()
+            )
         case "noon":
             # Ensure max_photons >= n_particles
             effective_max = max(n_particles, max_photons)
             return noon_state(n_particles, effective_max)
         case _:
-            return vacuum_state(max_photons)
+            return (
+                qutip.tensor(qutip.fock(dim_single, 0), qutip.fock(dim_single, 0))
+                .full()
+                .ravel()
+            )
 
 
 # =============================================================================

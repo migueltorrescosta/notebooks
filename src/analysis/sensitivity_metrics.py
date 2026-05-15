@@ -39,7 +39,6 @@ from src.analysis.bayesian_phase_estimation import (
 )
 from src.analysis.fisher_information import (
     classical_fisher_information,
-    phase_sensitivity_from_fisher,
     quantum_fisher_information,
 )
 from src.physics.mzi_simulation import (
@@ -320,7 +319,7 @@ def all_sensitivity_metrics(
     fq = quantum_fisher_information(final_state_at_phi, generator)
 
     # Quantum Fisher sensitivity (ultimate bound)
-    delta_phi_fq = phase_sensitivity_from_fisher(fq)
+    delta_phi_fq = 1.0 / np.sqrt(fq)
 
     # Classical Fisher sensitivity
     # Handle edge case: if FC is zero, the 2-output measurement is not optimal

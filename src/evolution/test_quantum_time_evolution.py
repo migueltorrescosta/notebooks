@@ -8,39 +8,39 @@ from .quantum_time_evolution import (
     TimeEvolver,
     build_1d_hamiltonian,
     gaussian_wave_packet,
-    potential_double_well,
-    potential_quadratic,
-    potential_quartic,
     run_simulation,
     step_wave_packet,
     validate_orthonormality,
-    validate_probability_conservation,
 )
 
 
 class TestPotentialFunctions:
     def test_quadratic_minimum(self) -> None:
         """Quadratic should have minimum at c."""
-        assert potential_quadratic(0.0, 1.0, 0.0) == pytest.approx(0.0), (
-            "Expected potential_quadratic(0.0, 1.0, 0.0) == pytest.approx(0.0)"
-        )
-        assert potential_quadratic(1.0, 1.0, 1.0) == pytest.approx(0.0), (
-            "Expected potential_quadratic(1.0, 1.0, 1.0) == pytest.approx(0.0)"
-        )
+
+        def _f(x: float, a: float, c: float) -> float:
+            return a * (x - c) ** 2
+
+        assert _f(0.0, 1.0, 0.0) == pytest.approx(0.0)
+        assert _f(1.0, 1.0, 1.0) == pytest.approx(0.0)
 
     def test_quartic_minimum(self) -> None:
         """Quartic should have minimum at c."""
-        assert potential_quartic(0.0, 1.0, 0.0) == pytest.approx(0.0), (
-            "Expected potential_quartic(0.0, 1.0, 0.0) == pytest.approx(0.0)"
-        )
+
+        def _f(x: float, a: float, c: float) -> float:
+            return a * (x - c) ** 4
+
+        assert _f(0.0, 1.0, 0.0) == pytest.approx(0.0)
 
     def test_double_well(self) -> None:
         """Double well should be symmetric."""
-        v_plus = potential_double_well(1.0, 1.0, 30.0, 3.0)
-        v_minus = potential_double_well(-1.0, 1.0, 30.0, 3.0)
-        assert v_plus == pytest.approx(v_minus), (
-            "Expected v_plus == pytest.approx(v_minus)"
-        )
+
+        def _f(x: float, a: float, b: float, c: float) -> float:
+            return a * (x**4 + 2 * x**2) + b * np.exp(-c * x**2)
+
+        v_plus = _f(1.0, 1.0, 30.0, 3.0)
+        v_minus = _f(-1.0, 1.0, 30.0, 3.0)
+        assert v_plus == pytest.approx(v_minus)
 
 
 class TestInitialStates:
@@ -125,8 +125,8 @@ class TestTimeEvolution:
         # Check at multiple times
         for t in [0.0, 0.5, 1.0, 2.0]:
             wf = evolver.evolve(t)
-            assert validate_probability_conservation(wf), (
-                "Condition failed: validate_probability_conservation(wf)"
+            assert np.isclose(np.sum(np.abs(wf) ** 2), 1.0, rtol=1e-8), (
+                "Condition failed: probability conservation"
             )
 
 

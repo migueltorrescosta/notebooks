@@ -31,10 +31,9 @@ Conventions:
 from dataclasses import dataclass
 
 import numpy as np
+import qutip
 import scipy
-import scipy.integrate
-import scipy.sparse
-import scipy.sparse.linalg
+import scipy.special
 
 from src.physics.dicke_basis import jz_operator as _jz_operator
 from src.utils.enums import OperatorBasis
@@ -67,47 +66,6 @@ class LindbladConfig:
 # =============================================================================
 # Bosonic Operators
 # =============================================================================
-
-
-def create_bosonic_operators(N: int) -> tuple[np.ndarray, np.ndarray]:
-    """Create annihilation and creation operators in Fock basis.
-
-    Constructs the bosonic operators a and a† acting on a truncated
-    Fock space of dimension N+1.
-
-    Args:
-        N: Maximum photon number (Fock space truncation).
-
-    Returns:
-        Tuple of (a, a†) operators, both shape (N+1, N+1).
-
-    """
-    dim = N + 1
-
-    a = np.zeros((dim, dim), dtype=complex)
-    a_dag = np.zeros((dim, dim), dtype=complex)
-
-    for n in range(dim):
-        # a|n⟩ = √n|n-1⟩
-        if n > 0:
-            a[n, n - 1] = np.sqrt(n)
-            a_dag[n - 1, n] = np.sqrt(n)
-
-    return a, a_dag
-
-
-def number_operator(N: int) -> np.ndarray:
-    """Create number operator n = a†a in Fock basis.
-
-    Args:
-        N: Maximum photon number.
-
-    Returns:
-        Number operator of shape (N+1, N+1).
-
-    """
-    a, a_dag = create_bosonic_operators(N)
-    return a_dag @ a
 
 
 def create_two_mode_operators(
@@ -151,48 +109,6 @@ def create_two_mode_operators(
 # =============================================================================
 # Density Matrix Utilities
 # =============================================================================
-
-
-def ket_to_density(psi: np.ndarray) -> np.ndarray:
-    """Convert pure state ket to density matrix.
-
-    Args:
-        psi: State vector (pure state).
-
-    Returns:
-        Density matrix ρ = |ψ⟩⟨ψ|.
-
-    """
-    return np.outer(psi, psi.conj())
-
-
-def density_to_vector(rho: np.ndarray) -> np.ndarray:
-    """Vectorize density matrix to Liouville space.
-
-    Uses column-major ordering: ρ_ij → vector element at index i + j*n.
-
-    Args:
-        rho: Density matrix of shape (d, d).
-
-    Returns:
-        Vectorized density of shape (d*d,).
-
-    """
-    return rho.flatten(order="F")
-
-
-def vector_to_density(rho_vec: np.ndarray) -> np.ndarray:
-    """Convert Liouville vector back to density matrix.
-
-    Args:
-        rho_vec: Vectorized density.
-
-    Returns:
-        Density matrix of shape (d, d).
-
-    """
-    d = int(np.sqrt(rho_vec.shape[0]))
-    return rho_vec.reshape((d, d), order="F")
 
 
 def create_fock_state(n: int, N: int) -> np.ndarray:
@@ -248,304 +164,132 @@ def create_coherent_state(alpha: complex, N: int, truncation: int = 10) -> np.nd
 
 
 # =============================================================================
-# Lindblad Superoperator
-# =============================================================================
-
-
-def lindblad_liouvillian(
-    rho: np.ndarray,
-    H: np.ndarray,
-    L_ops: list[np.ndarray],
-    gammas: list[float],
-) -> np.ndarray:
-    """Compute dρ/dt from Lindblad master equation.
-
-    Evaluates the Lindblad master equation:
-    dρ/dt = -i[H, ρ] + Σ_k γ_k (L_k ρ L_k† - ½{L_k†L_k, ρ})
-
-    Args:
-        rho: Density matrix.
-        H: Hamiltonian matrix.
-        L_ops: List of Lindblad operators L_k.
-        gammas: List of decay rates γ_k (same length as L_ops).
-
-    Returns:
-        Time derivative of density matrix (dρ/dt).
-
-    """
-    # Commutator term: -i[H, rho]
-    drho_dt = -1.0j * (H @ rho - rho @ H)
-
-    # Lindblad dissipation terms
-    for L, gamma in zip(L_ops, gammas, strict=False):
-        if gamma == 0:
-            continue
-        L_dag = L.conj().T
-
-        # L rho L†
-        L_rho_Ld = L @ rho @ L_dag
-
-        # ½{L†L, rho} = ½(L†L rho + rho L†L)
-        LdL = L_dag @ L
-        anticomm = LdL @ rho + rho @ LdL
-
-        drho_dt += gamma * (L_rho_Ld - 0.5 * anticomm)
-
-    return drho_dt
-
-
-def vectorized_liouvillian(
-    rho_vec: np.ndarray,
-    H: np.ndarray,
-    L_ops: list[np.ndarray],
-    gammas: list[float],
-) -> np.ndarray:
-    """Compute Liouvillian action on vectorized density matrix.
-
-    Uses the vectorized form of the Lindblad equation in
-    Liouville space for efficient computation.
-
-    Args:
-        rho_vec: Vectorized density matrix.
-        H: Hamiltonian.
-        L_ops: List of Lindblad operators.
-        gammas: List of decay rates.
-
-    Returns:
-        Time derivative as vector.
-
-    """
-    rho = vector_to_density(rho_vec)
-    drho_dt = lindblad_liouvillian(rho, H, L_ops, gammas)
-    return density_to_vector(drho_dt)
-
-
-def build_liouvillian_matrix(
-    H: np.ndarray,
-    L_ops: list[np.ndarray],
-    gammas: list[float],
-) -> np.ndarray:
-    """Build the full Liouvillian superoperator matrix.
-
-    Constructs the Lindblad Liouvillian as a matrix acting on
-    the vectorized density matrix space.
-
-    L = -i(H ⊗ I - I ⊗ H*) + Σ_k γ_k (L_k ⊗ L_k* - ½(I ⊗ L_k†L_k + L_k†L_k ⊗ I))
-
-    Args:
-        H: Hamiltonian matrix.
-        L_ops: List of Lindblad operators.
-        gammas: List of decay rates.
-
-    Returns:
-        Liouvillian matrix of shape (d², d²).
-
-    """
-    d = H.shape[0]
-    eye = np.eye(d, dtype=complex)
-
-    # Unitary part: -i(H ⊗ I - I ⊗ H*)
-    H_kron_I = np.kron(H, eye)
-    I_kron_Hstar = np.kron(eye, H.conj())
-    L_unitary = -1.0j * (H_kron_I - I_kron_Hstar)
-
-    # Initialize total Liouvillian
-    L_total = L_unitary.copy()
-
-    # Dissipative terms
-    for L, gamma in zip(L_ops, gammas, strict=False):
-        if gamma == 0:
-            continue
-
-        L_dag = L.conj().T
-        LdL = L_dag @ L
-
-        # dissipative part: L_k ⊗ L_k* - ½(I ⊗ L_k†L_k + L_k†L_k ⊗ I)
-        L_kron_Lstar = np.kron(L, L.conj())
-        I_kron_LdL = np.kron(eye, LdL)
-        LdL_kron_I = np.kron(LdL, eye)
-
-        L_dissipative = L_kron_Lstar - 0.5 * (I_kron_LdL + LdL_kron_I)
-
-        L_total += gamma * L_dissipative
-
-    return L_total
-
-
-# =============================================================================
 # Time Evolution
 # =============================================================================
+
+
+def _build_hamiltonian_and_cops(
+    config: LindbladConfig,
+) -> tuple[np.ndarray, list[np.ndarray]]:
+    """Build Hamiltonian and collapse operators from config.
+
+    Collapse operators have rates pre-absorbed (c_i = √γ_i · L_i),
+    matching the QuTiP convention for mesolve.
+
+    Args:
+        config: Lindblad configuration.
+
+    Returns:
+        Tuple of (H, c_ops) where H is the Hamiltonian matrix and
+        c_ops is the list of collapse operator matrices.
+
+    """
+    N = config.N
+    a, a_dag = qutip.destroy(N + 1).full(), qutip.create(N + 1).full()
+    n = a_dag @ a
+    jz = _jz_operator(N, basis=OperatorBasis.FOCK)
+
+    # Build Hamiltonian with optional OAT squeezing
+    if config.chi != 0:
+        H = config.chi * (jz @ jz)
+    else:
+        H = n
+
+    # Build collapse operators with rates pre-absorbed
+    c_ops: list[np.ndarray] = []
+
+    if config.gamma_1 > 0:
+        c_ops.append(np.sqrt(config.gamma_1) * a)
+
+    if config.gamma_2 > 0:
+        c_ops.append(np.sqrt(config.gamma_2) * (a @ a))
+
+    if config.gamma_phi > 0:
+        c_ops.append(np.sqrt(config.gamma_phi) * jz)
+
+    return H, c_ops
 
 
 def evolve_lindblad(
     initial_rho: np.ndarray,
     config: LindbladConfig,
     T: float,
-    dt: float,
+    dt: float = 0.01,
     method: str = "rk4",
     seed: int | None = None,
 ) -> np.ndarray:
     """Time-evolve density matrix under Lindblad equation.
 
-    Integrates the Lindblad master equation from t=0 to t=T.
+    Delegates to ``qutip.mesolve`` for the integration. The ``dt``
+    and ``method`` parameters are accepted for backward compatibility
+    but ignored — QuTiP manages adaptive stepping internally.
 
     Args:
         initial_rho: Initial density matrix.
         config: Lindblad configuration.
         T: Final evolution time.
-        dt: Timestep for integration.
-        method: Integration method ('rk4' for 4th-order Runge-Kutta, 'scipy' for ODE solver).
+        dt: Ignored (kept for backward compatibility).
+        method: Ignored (kept for backward compatibility).
         seed: Random seed (for reproducibility, currently unused).
 
     Returns:
-        Final density matrix at time T.
-
-    Constraints:
-        initial_rho must be Hermitian, trace-1, positive semidefinite.
-        T >= 0, dt > 0 (integration parameters).
-        method in {"rk4", "scipy"}.
-        config.N >= 0, config.gamma_{1,2,phi} >= 0.
-        Performance: O((N+1)⁶ · T/dt) for full density matrix evolution.
+        Final density matrix at time T as a numpy array.
 
     """
-    # Build Hamiltonian and Lindblad operators
-    N = config.N
+    H, c_ops = _build_hamiltonian_and_cops(config)
 
-    # Use single-mode bosonic operators
-    a, a_dag = create_bosonic_operators(N)
-    n = a_dag @ a
-    jz = _jz_operator(N, basis=OperatorBasis.FOCK)
+    # Convert to QuTiP objects
+    H_qobj = qutip.Qobj(H)
+    rho0_qobj = qutip.Qobj(initial_rho)
+    c_ops_qobj = [qutip.Qobj(L) for L in c_ops]
 
-    # Build Hamiltonian with optional OAT squeezing
-    if config.chi != 0:
-        # H = χ J_z² (one-axis twisting)
-        H = config.chi * (jz @ jz)
-    else:
-        # Free Hamiltonian H = n (number states have energy n)
-        H = n
+    # Call mesolve — QuTiP handles all integration
+    result = qutip.mesolve(H_qobj, rho0_qobj, [0, T], c_ops_qobj, [])
 
-    # Build Lindblad operators
-    L_ops = []
-    gammas = []
-
-    if config.gamma_1 > 0:
-        L_ops.append(np.sqrt(config.gamma_1) * a)
-        gammas.append(1.0)  # Rate absorbed into operator
-
-    if config.gamma_2 > 0:
-        # L_2 = √γ₂ a² for two-body loss
-        L_ops.append(np.sqrt(config.gamma_2) * (a @ a))
-        gammas.append(1.0)
-
-    if config.gamma_phi > 0:
-        # L_phi = √γ_phi * J_z for phase diffusion
-        # J_z = n - N/2 in Fock basis; the constant shift does not affect
-        # the Lindblad superoperator, so this is equivalent to using n.
-        # Dephasing rate between |n⟩ and |n'⟩ scales as (n - n')².
-        L_ops.append(np.sqrt(config.gamma_phi) * jz)
-        gammas.append(1.0)
-
-    # If no dissipation, use simple unitary evolution
-    if len(L_ops) == 0:
-        # Unitary evolution only
-        U = scipy.linalg.expm(-1.0j * H * T)
-        return U @ initial_rho @ U.conj().T
-
-    # Choose integration method
-    if method == "rk4":
-        return _evolve_rk4(initial_rho, H, L_ops, gammas, T, dt)
-    if method == "scipy":
-        return _evolve_scipy(initial_rho, H, L_ops, gammas, T)
-    raise ValueError(f"Unknown method: {method}")
+    return result.states[-1].full()
 
 
-def _evolve_rk4(
+def simulate_trajectory(
     initial_rho: np.ndarray,
-    H: np.ndarray,
-    L_ops: list[np.ndarray],
-    gammas: list[float],
+    config: LindbladConfig,
     T: float,
-    dt: float,
-) -> np.ndarray:
-    """4th-order Runge-Kutta integration of Lindblad equation.
+    num_times: int,
+    method: str = "rk4",
+    seed: int | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Simulate complete trajectory of density matrix.
+
+    Delegates to ``qutip.mesolve`` with the full time grid. The
+    ``method`` and ``seed`` parameters are accepted for backward
+    compatibility but ignored.
 
     Args:
         initial_rho: Initial density matrix.
-        H: Hamiltonian.
-        L_ops: Lindblad operators.
-        gammas: Decay rates.
+        config: Lindblad configuration.
         T: Final time.
-        dt: Timestep.
+        num_times: Number of time points.
+        method: Ignored (kept for backward compatibility).
+        seed: Random seed (for reproducibility, currently unused).
 
     Returns:
-        Final density matrix.
+        Tuple of (times, rhos) where:
+        - times: Array of time points.
+        - rhos: Array of density matrices shape (num_times, d, d).
 
     """
-    if T <= 0:
-        return initial_rho.copy()
+    H, c_ops = _build_hamiltonian_and_cops(config)
+    times = np.linspace(0, T, num_times)
 
-    rho = initial_rho.copy()
-    num_steps = max(1, int(np.ceil(T / dt)))
-    dt = T / num_steps  # Adjust to exactly hit T
+    # Convert to QuTiP objects
+    H_qobj = qutip.Qobj(H)
+    rho0_qobj = qutip.Qobj(initial_rho)
+    c_ops_qobj = [qutip.Qobj(L) for L in c_ops]
 
-    for _ in range(num_steps):
-        # RK4 steps
-        k1 = lindblad_liouvillian(rho, H, L_ops, gammas)
-        k2 = lindblad_liouvillian(rho + 0.5 * dt * k1, H, L_ops, gammas)
-        k3 = lindblad_liouvillian(rho + 0.5 * dt * k2, H, L_ops, gammas)
-        k4 = lindblad_liouvillian(rho + dt * k3, H, L_ops, gammas)
+    # Single call to mesolve returns states at every time point
+    result = qutip.mesolve(H_qobj, rho0_qobj, times, c_ops_qobj, [])
 
-        rho = rho + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
-
-        # Enforce Hermiticity and normalization for stability
-        rho = 0.5 * (rho + rho.conj().T)
-        trace = np.trace(rho)
-        if trace > 0:
-            rho = rho / trace
-
-    return rho
-
-
-def _evolve_scipy(
-    initial_rho: np.ndarray,
-    H: np.ndarray,
-    L_ops: list[np.ndarray],
-    gammas: list[float],
-    T: float,
-) -> np.ndarray:
-    """Evolve using scipy ODE solver.
-
-    Args:
-        initial_rho: Initial density matrix.
-        H: Hamiltonian.
-        L_ops: Lindblad operators.
-        gammas: Decay rates.
-        T: Final time.
-
-    Returns:
-        Final density matrix.
-
-    """
-    # Vectorize initial state
-    rho0 = density_to_vector(initial_rho)
-
-    # ODE function
-    def rhs(t: float, rho_vec: np.ndarray) -> np.ndarray:
-        return vectorized_liouvillian(rho_vec, H, L_ops, gammas)
-
-    # Integrate
-    sol = scipy.integrate.solve_ivp(
-        rhs,
-        (0, T),
-        rho0,
-        method="RK45",
-        dense_output=True,
-        rtol=1e-8,
-        atol=1e-10,
-    )
-
-    rho_final = sol.y[:, -1]
-    return vector_to_density(rho_final)
+    rhos = np.array([state.full() for state in result.states])
+    return times, rhos
 
 
 # =============================================================================
@@ -562,99 +306,46 @@ def steady_state(
 ) -> np.ndarray:
     """Compute steady-state density matrix.
 
-    Finds ρ such that dρ/dt = 0 under the Lindblad equation.
-    Uses iterative method starting from maximally mixed state.
+    Delegates to ``qutip.steadystate``. The ``max_iter`` and ``tol``
+    parameters are accepted for backward compatibility but ignored.
+    When the Liouvillian has a degenerate null space (e.g., phase
+    diffusion without particle loss), falls back to returning the
+    maximally mixed state.
 
     Args:
-        H: Hamiltonian.
-        L_ops: List of Lindblad operators.
-        gammas: List of decay rates.
-        max_iter: Maximum iterations.
-        tol: Convergence tolerance.
+        H: Hamiltonian matrix.
+        L_ops: List of Lindblad operators (bare, without sqrt-rate).
+        gammas: List of decay rates (same length as L_ops).
+        max_iter: Ignored (kept for backward compatibility).
+        tol: Ignored (kept for backward compatibility).
 
     Returns:
         Steady-state density matrix.
 
     """
-    d = H.shape[0]
+    H_qobj = qutip.Qobj(H)
+    c_ops_qobj = [
+        qutip.Qobj(np.sqrt(g) * L) for L, g in zip(L_ops, gammas, strict=False) if g > 0
+    ]
 
-    # Start from maximally mixed state
-    rho = np.eye(d, dtype=complex) / d
+    if not c_ops_qobj:
+        d = H.shape[0]
+        return np.eye(d, dtype=complex) / d
 
-    for _ in range(max_iter):
-        drho_dt = lindblad_liouvillian(rho, H, L_ops, gammas)
-
-        # Check convergence
-        norm = np.max(np.abs(drho_dt))
-        if norm < tol:
-            break
-
-        # Simple iteration (can be improved)
-        rho = rho + 0.01 * drho_dt
-
-        # Ensure proper density matrix
-        rho = 0.5 * (rho + rho.conj().T)  # Hermitize
-        rho = rho - np.eye(d) * np.min(np.linalg.eigvalsh(rho).real)  # Make positive
-        rho = rho / np.trace(rho)  # Normalize
-
-    return rho
-
-
-def steady_state_dense(
-    H: np.ndarray,
-    L_ops: list[np.ndarray],
-    gammas: list[float],
-) -> np.ndarray:
-    """Compute steady state via Liouvillian null space.
-
-    Finds the eigenvector with zero eigenvalue of the Liouvillian.
-
-    Args:
-        H: Hamiltonian.
-        L_ops: Lindblad operators.
-        gammas: Decay rates.
-
-    Returns:
-        Steady-state density matrix.
-
-    """
-    L_mat = build_liouvillian_matrix(H, L_ops, gammas)
-
-    # Find eigenvector with zero eigenvalue
-    eigenvalues, eigenvectors = np.linalg.eig(L_mat)
-
-    # Find index of eigenvalue closest to zero
-    zero_idx = np.argmin(np.abs(eigenvalues))
-
-    # Get eigenvector
-    rho_vec = eigenvectors[:, zero_idx]
-
-    # Reshape to density matrix
-    d = H.shape[0]
-    rho = rho_vec.reshape((d, d))
-
-    # Ensure physical properties
-    rho = 0.5 * (rho + rho.conj().T)
-    return rho / np.trace(rho)
+    try:
+        result = qutip.steadystate(H_qobj, c_ops_qobj, method="direct")
+        return result.full()
+    except ValueError:
+        # Degenerate null space (e.g., phase diffusion only):
+        # fall back to maximally mixed state, which is a valid
+        # steady state for any purely dephasing Liouvillian.
+        d = H.shape[0]
+        return np.eye(d, dtype=complex) / d
 
 
 # =============================================================================
 # Expectation Values
 # =============================================================================
-
-
-def compute_expectation(rho: np.ndarray, operator: np.ndarray) -> complex:
-    """Compute expectation value ⟨O⟩ = Tr(ρ O).
-
-    Args:
-        rho: Density matrix.
-        operator: Operator O.
-
-    Returns:
-        Expectation value.
-
-    """
-    return np.trace(rho @ operator)
 
 
 def compute_photon_number(rho: np.ndarray, N: int) -> float:
@@ -668,8 +359,8 @@ def compute_photon_number(rho: np.ndarray, N: int) -> float:
         Mean photon number.
 
     """
-    n = number_operator(N)
-    return np.real(compute_expectation(rho, n))
+    n = qutip.create(N + 1).full() @ qutip.destroy(N + 1).full()
+    return np.real(np.trace(rho @ n))
 
 
 def compute_phase_variance(rho: np.ndarray, N: int) -> float:
@@ -698,52 +389,10 @@ def compute_phase_variance(rho: np.ndarray, N: int) -> float:
                 )
 
     # Compute expectation
-    phi = compute_expectation(rho, phase_ops)
-    phi_sq = compute_expectation(rho, phase_ops @ phase_ops)
+    phi = np.trace(rho @ phase_ops)
+    phi_sq = np.trace(rho @ phase_ops @ phase_ops)
 
     return np.real(phi_sq - phi**2)
-
-
-# =============================================================================
-# Trajectory Simulation
-# =============================================================================
-
-
-def simulate_trajectory(
-    initial_rho: np.ndarray,
-    config: LindbladConfig,
-    T: float,
-    num_times: int,
-    method: str = "rk4",
-    seed: int | None = None,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Simulate complete trajectory of density matrix.
-
-    Args:
-        initial_rho: Initial density matrix.
-        config: Lindblad configuration.
-        T: Final time.
-        num_times: Number of time points.
-        method: Integration method.
-        seed: Random seed.
-
-    Returns:
-        Tuple of (times, rhos) where:
-        - times: Array of time points.
-        - rhos: Array of density matrices shape (num_times, d, d).
-
-    """
-    times = np.linspace(0, T, num_times)
-    dt = times[1] - times[0] if num_times > 1 else T
-
-    rhos = [initial_rho.copy()]
-
-    current_rho = initial_rho.copy()
-    for _ in range(num_times - 1):
-        current_rho = evolve_lindblad(current_rho, config, dt, dt, method, seed)
-        rhos.append(current_rho.copy())
-
-    return times, np.array(rhos)
 
 
 # =============================================================================
@@ -770,26 +419,15 @@ def validate_density_matrix(
         Dictionary with validation results.
 
     """
-    # Check Hermitian
-    is_hermitian = np.allclose(rho, rho.conj().T, atol=tolerance)
-
-    # Check trace
     trace = np.trace(rho)
-    is_normalized = np.isclose(trace, 1.0, atol=tolerance)
-
-    # Check positivity
     eigenvalues = np.linalg.eigvalsh(rho)
-    is_positive = np.all(eigenvalues >= -tolerance)
-
-    # Maximum deviation from positivity
-    min_eigenvalue = np.min(eigenvalues)
 
     return {
-        "is_hermitian": is_hermitian,
-        "is_normalized": is_normalized,
-        "is_positive": is_positive,
+        "is_hermitian": np.allclose(rho, rho.conj().T, atol=tolerance),
+        "is_normalized": np.isclose(trace, 1.0, atol=tolerance),
+        "is_positive": np.all(eigenvalues >= -tolerance),
         "trace": np.real(trace),
-        "min_eigenvalue": np.real(min_eigenvalue),
+        "min_eigenvalue": np.real(np.min(eigenvalues)),
     }
 
 
@@ -840,7 +478,7 @@ def run_simulation(
 
     # Initial state
     psi = create_fock_state(initial_n, N)
-    initial_rho = ket_to_density(psi)
+    initial_rho = np.outer(psi, psi.conj())
 
     # Evolve
     final_rho = evolve_lindblad(initial_rho, config, T, dt, method, seed)

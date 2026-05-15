@@ -1,131 +1,20 @@
-"""Tests for Bayesian update module (src.analysis.bayesian_statistics).
+"""Tests for Bayesian update using direct pandas expressions.
 
-Tests verify initialization, normalization, posterior properties,
-edge cases, and plot rendering using the BayesUpdate class.
+Tests verify that the expressions
+    df['posterior'] = df['prior'] * df['likelihood']
+    df['posterior'] /= df['posterior'].sum()
+correctly compute the posterior distribution and handle edge cases.
 """
 
 from __future__ import annotations
-
-from typing import cast
 
 import numpy as np
 import pandas as pd
 import pytest
 
-from .bayesian_statistics import BayesUpdate
 
-# =============================================================================
-# Initialization and column validation
-# =============================================================================
-
-
-class TestBayesUpdateInit:
-    """Tests for BayesUpdate initialization and column validation."""
-
-    def test_instantiation_with_valid_columns(self) -> None:
-        """Should accept DataFrame with exactly 'prior' and 'likelihood'."""
-        df = pd.DataFrame(
-            {"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]},
-            index=["A", "B"],
-        )
-        bayes = BayesUpdate(df)
-        assert "posterior" in bayes.df.columns, (
-            'Expected "posterior" in bayes.df.columns'
-        )
-
-    def test_rejects_wrong_columns(self) -> None:
-        """Should reject DataFrame without exact {'prior', 'likelihood'}."""
-        df = pd.DataFrame({"foo": [0.5, 0.5], "bar": [0.5, 0.5]})
-        with pytest.raises(AssertionError):
-            BayesUpdate(df)
-
-    def test_rejects_extra_columns(self) -> None:
-        """Should reject DataFrame with extra columns beyond prior/likelihood."""
-        df = pd.DataFrame(
-            {"prior": [0.5, 0.5], "likelihood": [0.8, 0.2], "extra": [1, 2]},
-            index=["A", "B"],
-        )
-        with pytest.raises(AssertionError):
-            BayesUpdate(df)
-
-    def test_detects_numeric_index(self) -> None:
-        """Should set is_categorical=False for numeric index."""
-        df = pd.DataFrame(
-            {"prior": [0.25, 0.25, 0.25, 0.25], "likelihood": [0.9, 0.6, 0.3, 0.1]},
-            index=[0, 1, 2, 3],
-        )
-        bayes = BayesUpdate(df)
-        assert not bayes.is_categorical, "bayes.is_categorical should be falsy"
-
-    def test_detects_categorical_index(self) -> None:
-        """Should set is_categorical=True for non-numeric index."""
-        df = pd.DataFrame(
-            {"prior": [0.25, 0.25, 0.25, 0.25], "likelihood": [0.9, 0.6, 0.3, 0.1]},
-            index=["a", "b", "c", "d"],
-        )
-        bayes = BayesUpdate(df)
-        assert bayes.is_categorical, "Condition failed: bayes.is_categorical"
-
-
-# =============================================================================
-# Normalization — all probability columns sum to 1
-# =============================================================================
-
-
-class TestBayesUpdateNormalization:
-    """Tests that prior, likelihood, and posterior columns sum to one."""
-
-    @pytest.mark.parametrize("column", ["prior", "likelihood", "posterior"])
-    def test_column_sums_to_one(self, column: str) -> None:
-        """Each probability column should sum to 1."""
-        df = pd.DataFrame({"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]})
-        bayes = BayesUpdate(df)
-        assert bayes.df[column].sum() == pytest.approx(1.0, abs=1e-10), (
-            f"{column} should sum to 1"
-        )
-
-    def test_random_distributions_normalize_correctly(self) -> None:
-        """Random prior/likelihood pairs should normalize correctly."""
-        rng = np.random.default_rng(42)
-        for _ in range(5):
-            prior = rng.random(100)
-            likelihood = rng.random(100)
-            df = pd.DataFrame({"prior": prior, "likelihood": likelihood})
-            bayes = BayesUpdate(df)
-
-            assert bayes.df["prior"].sum() == pytest.approx(1.0, abs=1e-10), (
-                'Expected bayes.df["prior"].sum() == pytest.approx(1.0, abs=1e-10)'
-            )
-            assert bayes.df["likelihood"].sum() == pytest.approx(1.0, abs=1e-10), (
-                'Expected bayes.df["likelihood"].sum() == pytest.approx(1.0, abs=1e-10)'
-            )
-            assert bayes.df["posterior"].sum() == pytest.approx(1.0, abs=1e-10), (
-                'Expected bayes.df["posterior"].sum() == pytest.approx(1.0, abs=1e-10)'
-            )
-
-    def test_normalize_columns_works(self) -> None:
-        """Normalize columns divides by row sums correctly."""
-        df = pd.DataFrame(
-            {"prior": [1.0, 2.0], "likelihood": [4.0, 2.0]},
-            index=["A", "B"],
-        )
-        bayes = BayesUpdate(df)
-        # After normalization, each column should sum to 1
-        assert bayes.df["prior"].sum() == pytest.approx(1.0), (
-            'Expected bayes.df["prior"].sum() == pytest.approx(1.0)'
-        )
-        assert bayes.df["likelihood"].sum() == pytest.approx(1.0), (
-            'Expected bayes.df["likelihood"].sum() == pytest.approx(1.0)'
-        )
-
-
-# =============================================================================
-# Posterior properties
-# =============================================================================
-
-
-class TestBayesUpdatePosteriorProperties:
-    """Tests for the posterior distribution computed via Bayes' rule."""
+class TestPosteriorProperties:
+    """Tests for posterior computation properties."""
 
     def test_calculate_posterior_basic(self) -> None:
         """Posterior should equal normalized prior * likelihood (Bayes' rule)."""
@@ -133,17 +22,24 @@ class TestBayesUpdatePosteriorProperties:
             {"prior": [0.4, 0.6], "likelihood": [0.5, 0.5]},
             index=["A", "B"],
         )
-        bayes = BayesUpdate(df)
-        # posterior = prior * likelihood, then normalized
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
         expected_A = (0.4 * 0.5) / ((0.4 * 0.5) + (0.6 * 0.5))  # = 0.4
         expected_B = (0.6 * 0.5) / ((0.4 * 0.5) + (0.6 * 0.5))  # = 0.6
-        posterior_A = cast("float", bayes.df.loc["A", "posterior"])
-        posterior_B = cast("float", bayes.df.loc["B", "posterior"])
-        assert posterior_A == pytest.approx(expected_A), (
-            "Expected posterior_A == pytest.approx(expected_A)"
+        assert df.loc["A", "posterior"] == pytest.approx(expected_A), (
+            "Expected posterior at A to match Bayes rule"
         )
-        assert posterior_B == pytest.approx(expected_B), (
-            "Expected posterior_B == pytest.approx(expected_B)"
+        assert df.loc["B", "posterior"] == pytest.approx(expected_B), (
+            "Expected posterior at B to match Bayes rule"
+        )
+
+    def test_posterior_sums_to_one(self) -> None:
+        """Posterior column should sum to 1."""
+        df = pd.DataFrame({"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]})
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        assert df["posterior"].sum() == pytest.approx(1.0, abs=1e-10), (
+            "Posterior should sum to 1"
         )
 
     def test_posterior_proportional_to_prior_times_likelihood(self) -> None:
@@ -154,12 +50,11 @@ class TestBayesUpdatePosteriorProperties:
                 "likelihood": [0.9, 0.6, 0.3, 0.1],
             },
         )
-        bayes = BayesUpdate(df)
-
-        # Check: posterior_i / (prior_i * likelihood_i) is constant forall i
-        product = bayes.df["prior"] * bayes.df["likelihood"]
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        product = df["prior"] * df["likelihood"]
         nonzero = product > 1e-10
-        ratios = bayes.df["posterior"][nonzero] / product[nonzero]
+        ratios = df["posterior"][nonzero] / product[nonzero]
         assert np.allclose(ratios, ratios.iloc[0], atol=1e-6), (
             "Posterior should be proportional to prior * likelihood"
         )
@@ -170,9 +65,9 @@ class TestBayesUpdatePosteriorProperties:
         prior = np.exp(-((domain - 0.3) ** 2) * 50)
         likelihood = np.exp(-((domain - 0.7) ** 2) * 50)
         df = pd.DataFrame({"prior": prior, "likelihood": likelihood})
-        bayes = BayesUpdate(df)
-
-        peak_x = domain[bayes.df["posterior"].argmax()]
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        peak_x = domain[df["posterior"].argmax()]
         assert 0.3 <= peak_x <= 0.7, (
             f"Posterior peak at {peak_x:.2f} should be between 0.3 and 0.7"
         )
@@ -182,13 +77,10 @@ class TestBayesUpdatePosteriorProperties:
         prior = np.ones(5)
         likelihood = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
         df = pd.DataFrame({"prior": prior, "likelihood": likelihood})
-        bayes = BayesUpdate(df)
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
         expected = likelihood / likelihood.sum()
-        np.testing.assert_allclose(
-            bayes.df["posterior"],
-            expected,
-            atol=1e-10,
-        )
+        np.testing.assert_allclose(df["posterior"], expected, atol=1e-10)
 
     def test_posterior_mean_between_prior_and_likelihood_means(self) -> None:
         """Posterior mean should lie between prior and likelihood means."""
@@ -196,12 +88,11 @@ class TestBayesUpdatePosteriorProperties:
         prior = np.exp(-((domain + 0.3) ** 2))
         likelihood = np.exp(-((domain - 0.3) ** 2))
         df = pd.DataFrame({"prior": prior, "likelihood": likelihood})
-        bayes = BayesUpdate(df)
-
-        prior_mean = np.sum(domain * bayes.df["prior"])
-        like_mean = np.sum(domain * bayes.df["likelihood"])
-        post_mean = np.sum(domain * bayes.df["posterior"])
-
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        prior_mean = np.sum(domain * df["prior"])
+        like_mean = np.sum(domain * df["likelihood"])
+        post_mean = np.sum(domain * df["posterior"])
         lower = min(prior_mean, like_mean)
         upper = max(prior_mean, like_mean)
         assert lower <= post_mean <= upper + 1e-10, (
@@ -214,27 +105,21 @@ class TestBayesUpdatePosteriorProperties:
         prior = np.exp(-(domain**2) * 10)
         likelihood = np.exp(-((domain - 0.1) ** 2) * 10)
         df = pd.DataFrame({"prior": prior, "likelihood": likelihood})
-        bayes = BayesUpdate(df)
-
-        prior_std = np.sqrt(np.sum(domain**2 * bayes.df["prior"]))
-        like_mean = np.sum(domain * bayes.df["likelihood"])
-        like_std = np.sqrt(np.sum((domain - like_mean) ** 2 * bayes.df["likelihood"]))
-        post_mean = np.sum(domain * bayes.df["posterior"])
-        post_std = np.sqrt(np.sum((domain - post_mean) ** 2 * bayes.df["posterior"]))
-
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        prior_std = np.sqrt(np.sum(domain**2 * df["prior"]))
+        like_mean = np.sum(domain * df["likelihood"])
+        like_std = np.sqrt(np.sum((domain - like_mean) ** 2 * df["likelihood"]))
+        post_mean = np.sum(domain * df["posterior"])
+        post_std = np.sqrt(np.sum((domain - post_mean) ** 2 * df["posterior"]))
         assert post_std <= max(prior_std, like_std) + 0.01, (
             f"Posterior std {post_std:.4f} should be <= "
             f"max({prior_std:.4f}, {like_std:.4f})"
         )
 
 
-# =============================================================================
-# Edge cases
-# =============================================================================
-
-
-class TestBayesUpdateEdgeCases:
-    """Edge cases for Bayesian updating via BayesUpdate."""
+class TestEdgeCases:
+    """Edge cases for Bayesian updating."""
 
     def test_point_mass_likelihood(self) -> None:
         """Posterior should concentrate at a point-mass likelihood."""
@@ -242,14 +127,11 @@ class TestBayesUpdateEdgeCases:
         likelihood = np.zeros(5)
         likelihood[2] = 1.0
         df = pd.DataFrame({"prior": prior, "likelihood": likelihood})
-        bayes = BayesUpdate(df)
-
-        # Posterior should be concentrated at index 2
-        assert bayes.df["posterior"].idxmax() == 2, (
-            'Expected bayes.df["posterior"].idxmax() == 2'
-        )
-        assert bayes.df["posterior"].iloc[2] > 0.99, (
-            'Expected bayes.df["posterior"].iloc[2] > 0.99'
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        assert df["posterior"].idxmax() == 2, "Posterior should peak at index 2"
+        assert df["posterior"].iloc[2] > 0.99, (
+            "Posterior at point mass should be near 1"
         )
 
     def test_zero_prior_vs_zero_likelihood(self) -> None:
@@ -257,35 +139,33 @@ class TestBayesUpdateEdgeCases:
         prior = np.array([1.0, 0.0, 0.0])
         likelihood = np.array([0.0, 1.0, 0.0])
         df = pd.DataFrame({"prior": prior, "likelihood": likelihood})
-        # The product prior * likelihood = [0, 0, 0] yields all-NaN posterior;
-        # the object should still be constructable without raising.
-        bayes = BayesUpdate(df)
-        # The prior and likelihood columns should still be valid
-        assert bayes.df["prior"].sum() == pytest.approx(1.0), (
-            'Expected bayes.df["prior"].sum() == pytest.approx(1.0)'
-        )
-        assert bayes.df["likelihood"].sum() == pytest.approx(1.0), (
-            'Expected bayes.df["likelihood"].sum() == pytest.approx(1.0)'
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        assert df["prior"].sum() == pytest.approx(1.0), "Prior should be unchanged"
+        assert df["likelihood"].sum() == pytest.approx(1.0), (
+            "Likelihood should be unchanged"
         )
 
     def test_nan_likelihood_raises(self) -> None:
-        """NaN values in likelihood should produce NaN posterior (graceful)."""
+        """NaN values in likelihood should produce NaN posterior."""
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [float("nan"), 1.0]},
         )
-        bayes = BayesUpdate(df)
-        assert np.any(np.isnan(bayes.df["posterior"])), (
-            'Expected at least one value to satisfy np.isnan(bayes.df["posterior"])'
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        assert np.any(np.isnan(df["posterior"])), (
+            "NaN in likelihood should produce NaN posterior"
         )
 
     def test_inf_likelihood_raises(self) -> None:
-        """Inf values in likelihood should produce NaN posterior (graceful)."""
+        """Inf values in likelihood should produce NaN posterior."""
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [float("inf"), 1.0]},
         )
-        bayes = BayesUpdate(df)
-        assert np.any(np.isnan(bayes.df["posterior"])), (
-            'Expected at least one value to satisfy np.isnan(bayes.df["posterior"])'
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        assert np.any(np.isnan(df["posterior"])), (
+            "Inf in likelihood should produce NaN posterior"
         )
 
     def test_zero_probability_likelihood(self) -> None:
@@ -293,42 +173,7 @@ class TestBayesUpdateEdgeCases:
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [0.0, 0.0]},
         )
-        bayes = BayesUpdate(df)
-        # Prior should still be valid, posterior may be NaN
-        assert bayes.df["prior"].sum() == pytest.approx(1.0), (
-            'Expected bayes.df["prior"].sum() == pytest.approx(1.0)'
-        )
-        assert bayes.df["likelihood"].sum() == pytest.approx(0.0), (
-            'Expected bayes.df["likelihood"].sum() == pytest.approx(0.0)'
-        )
-
-
-# =============================================================================
-# Plot smoke tests
-# =============================================================================
-
-
-class TestBayesUpdatePlot:
-    """Smoke tests for the BayesUpdate.plot() method."""
-
-    def test_plot_returns_figure(self) -> None:
-        """Plot should return a Figure for numeric index."""
-        df = pd.DataFrame({"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]})
-        bayes = BayesUpdate(df)
-        fig = bayes.plot()
-        assert fig is not None, "Expected fig to not be None"
-        assert len(fig.axes) > 0, "Expected len(fig.axes) > 0"
-
-    def test_plot_categorical_index_returns_figure(self) -> None:
-        """Plot should return a Figure for categorical index."""
-        df = pd.DataFrame(
-            {"prior": [0.25, 0.25, 0.25, 0.25], "likelihood": [0.9, 0.6, 0.3, 0.1]},
-            index=["a", "b", "c", "d"],
-        )
-        bayes = BayesUpdate(df)
-        fig = bayes.plot()
-        assert fig is not None, "Expected fig to not be None"
-        assert len(fig.axes) > 0, "Expected len(fig.axes) > 0"
-        import matplotlib.pyplot as plt
-
-        plt.close(fig)
+        df["posterior"] = df["prior"] * df["likelihood"]
+        df["posterior"] /= df["posterior"].sum()
+        assert df["prior"].sum() == pytest.approx(1.0), "Prior should be unchanged"
+        assert df["likelihood"].sum() == pytest.approx(0.0), "Likelihood should be zero"

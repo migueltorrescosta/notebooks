@@ -30,7 +30,7 @@ from src.physics.hybrid_system import (
     hybrid_vacuum_state,
     validate_hybrid_state,
 )
-from src.physics.wigner import wigner_is_negative, wigner_minimum
+from src.physics.wigner import wigner_is_negative
 
 # Page configuration
 st.set_page_config(
@@ -210,7 +210,7 @@ with col2:
 # Wigner function computation (computed once, used for both metric and visualization)
 if show_wigner:
     x, p, W = compute_wigner_for_state(squeezed, N, x_max=5.0, n_points=80)
-    w_min = wigner_minimum(W)
+    w_min = float(np.min(W))
     is_neg = wigner_is_negative(W)
 else:
     w_min = 0.0

@@ -355,30 +355,6 @@ def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> flo
     return float(np.real(fq))
 
 
-def phase_sensitivity_from_fisher(F: float) -> float:
-    """Compute phase sensitivity from Fisher Information.
-
-    The Cramér-Rao bound gives:
-        Δφ ≥ 1/√F
-
-    This is the standard quantum limit (SQL) for naive estimation.
-
-    Args:
-        F: Fisher Information value.
-
-    Returns:
-        Phase sensitivity Δφ ≥ 1/√F.
-
-    Raises:
-        ValueError: If F <= 0.
-
-    """
-    if F <= 0:
-        raise ValueError(f"Fisher information must be positive, got {F}")
-
-    return 1.0 / np.sqrt(F)
-
-
 def generate_noon_state(N: int) -> np.ndarray:
     """Generate NOON state for N photons.
 

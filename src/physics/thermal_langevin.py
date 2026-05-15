@@ -87,23 +87,6 @@ class ThermalLangevinConfig:
 # =============================================================================
 
 
-def sql_sensitivity(N: float) -> float:
-    """Standard Quantum Limit (SQL) sensitivity.
-
-    Δφ_SQL = 1 / √N
-
-    This is the quantum-limited sensitivity for unentangled states.
-
-    Args:
-        N: Particle number.
-
-    Returns:
-        SQL sensitivity Δφ.
-
-    """
-    return 1.0 / np.sqrt(N)
-
-
 def thermal_sensitivity_normalized(
     N: float,
     config: ThermalLangevinConfig,
@@ -142,12 +125,12 @@ def combined_sensitivity(
 
     """
     if config.use_normalized:
-        delta_quantum = sql_sensitivity(N)
+        delta_quantum = 1.0 / np.sqrt(N)
         delta_thermal = thermal_sensitivity_normalized(N, config)
     else:
         # Full physical model - compute via susceptibility integration
         # (for future extension)
-        delta_quantum = sql_sensitivity(N)
+        delta_quantum = 1.0 / np.sqrt(N)
         delta_thermal = thermal_sensitivity_normalized(N, config)
 
     # Quadrature sum
@@ -267,7 +250,7 @@ def crossover_N(
         low, high = 1.0, 1e9
         for _ in range(max_iter):
             mid = (low + high) / 2
-            delta_q = sql_sensitivity(mid)
+            delta_q = 1.0 / np.sqrt(mid)
             delta_t = thermal_sensitivity_normalized(mid, base_config)
             if delta_t > delta_q:
                 high = mid

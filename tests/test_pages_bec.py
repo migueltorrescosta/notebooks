@@ -55,9 +55,7 @@ class TestBECAncilla:
         from src.algorithms.spin_squeezing import coherent_spin_state
         from src.evolution.lindblad_solver import (
             LindbladConfig,
-            compute_expectation,
             evolve_lindblad,
-            ket_to_density,
         )
         from src.physics.dicke_basis import jz_operator
 
@@ -66,10 +64,10 @@ class TestBECAncilla:
         chi = 1.0
         T = 0.1
 
-        rho0 = ket_to_density(state)
+        rho0 = np.outer(state, state.conj())
         config = LindbladConfig(N=N, chi=chi)
         rho = evolve_lindblad(rho0, config, T, 0.01)
         J_z = jz_operator(N)
 
-        Jz_mean = np.real(compute_expectation(rho, J_z))
+        Jz_mean = np.real(np.trace(rho @ J_z))
         assert np.isfinite(Jz_mean), "Jz expectation should be finite"

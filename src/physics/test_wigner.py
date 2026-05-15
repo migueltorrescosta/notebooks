@@ -19,7 +19,6 @@ from .wigner import (
     wigner_from_hybrid_state,
     wigner_function_single,
     wigner_is_negative,
-    wigner_minimum,
 )
 
 # =============================================================================
@@ -140,7 +139,7 @@ class TestWignerMinimum:
         p = np.linspace(-5, 5, 50)
 
         W = wigner_function_single(rho, x, p)
-        min_w = wigner_minimum(W)
+        min_w = float(np.min(W))
 
         assert min_w >= -1e-10, "Expected min_w >= -1e-10"
 

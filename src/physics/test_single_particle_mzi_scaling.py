@@ -18,7 +18,6 @@ from src.physics.single_particle_mzi_scaling import (
     build_holding_unitary,
     compute_analytical_derivative,
     compute_delta_theta_from_propagation,
-    compute_expectation_jz,
     compute_numerical_derivative,
     compute_sensitivity_sweep,
     compute_variance_jz,
@@ -39,23 +38,23 @@ def test_jz_operator_diagonal() -> None:
     assert jz.shape == (4, 4), "Expected jz.shape == (4, 4)"
     # |1,0⟩ eigenvalue = +1/2
     state_10 = fock_state(1, 0)
-    assert compute_expectation_jz(state_10, jz) == pytest.approx(0.5), (
-        "Expected compute_expectation_jz(state_10, jz) == pytest.approx(0.5)"
+    assert float(np.real(np.conj(state_10) @ jz @ state_10)) == pytest.approx(0.5), (
+        "Expected ⟨J_z⟩ = 0.5 for |1,0⟩"
     )
     # |0,1⟩ eigenvalue = -1/2
     state_01 = fock_state(0, 1)
-    assert compute_expectation_jz(state_01, jz) == pytest.approx(-0.5), (
-        "Expected compute_expectation_jz(state_01, jz) == pytest.approx(-0.5)"
+    assert float(np.real(np.conj(state_01) @ jz @ state_01)) == pytest.approx(-0.5), (
+        "Expected ⟨J_z⟩ = -0.5 for |0,1⟩"
     )
     # |0,0⟩ eigenvalue = 0
     state_00 = fock_state(0, 0)
-    assert compute_expectation_jz(state_00, jz) == pytest.approx(0.0), (
-        "Expected compute_expectation_jz(state_00, jz) == pytest.approx(0.0)"
+    assert float(np.real(np.conj(state_00) @ jz @ state_00)) == pytest.approx(0.0), (
+        "Expected ⟨J_z⟩ = 0.0 for |0,0⟩"
     )
     # |1,1⟩ eigenvalue = 0
     state_11 = fock_state(1, 1)
-    assert compute_expectation_jz(state_11, jz) == pytest.approx(0.0), (
-        "Expected compute_expectation_jz(state_11, jz) == pytest.approx(0.0)"
+    assert float(np.real(np.conj(state_11) @ jz @ state_11)) == pytest.approx(0.0), (
+        "Expected ⟨J_z⟩ = 0.0 for |1,1⟩"
     )
 
 
@@ -141,7 +140,7 @@ def test_jz_expectation_analytical() -> None:
     for theta in [0.5, 1.0, 2.0]:
         for t_h in [0.1, 1.0, 10.0]:
             psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
-            jz_mean = compute_expectation_jz(psi, jz)
+            jz_mean = float(np.real(np.conj(psi) @ jz @ psi))
             expected = -0.5 * np.cos(theta * t_h)
             assert jz_mean == pytest.approx(expected, abs=1e-12), (
                 f"⟨J_z⟩ = {jz_mean:.6e}, expected {expected:.6e}"

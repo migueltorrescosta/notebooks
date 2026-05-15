@@ -39,9 +39,7 @@ from src.algorithms.spin_squeezing import (
 )
 from src.evolution.lindblad_solver import (
     LindbladConfig,
-    compute_expectation,
     evolve_lindblad,
-    ket_to_density,
 )
 from src.physics.dicke_basis import jz_operator
 from src.physics.noise_channels import NoiseConfig
@@ -138,7 +136,7 @@ def compute_phase_uncertainty_lindblad(
         Phase uncertainty Δφ.
 
     """
-    rho0 = ket_to_density(state)
+    rho0 = np.outer(state, state.conj())
 
     # Lindblad evolution
     config = LindbladConfig(
@@ -154,8 +152,8 @@ def compute_phase_uncertainty_lindblad(
 
     # Compute J_z variance
     J_z = jz_operator(N)
-    Jz_mean = np.real(compute_expectation(rho_final, J_z))
-    Jz2_mean = np.real(compute_expectation(rho_final, J_z @ J_z))
+    Jz_mean = np.real(np.trace(rho_final @ J_z))
+    Jz2_mean = np.real(np.trace(rho_final @ J_z @ J_z))
     Jz_var = Jz2_mean - Jz_mean**2
 
     # Phase sensitivity: Δφ = √(Var(J_z)) / |d⟨J_z⟩/dφ|

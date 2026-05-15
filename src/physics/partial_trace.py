@@ -34,7 +34,7 @@ from dataclasses import dataclass
 import numpy as np
 import scipy.linalg
 
-from src.physics.angular_momentum import generate_spin_matrices
+from src.physics.dicke_basis import jx_operator, jz_operator
 from src.utils.validators import validate_partial_trace
 
 # Alias for backward compatibility
@@ -64,7 +64,7 @@ def local_hamiltonian(
         Hamiltonian matrix of shape (N, N).
 
     """
-    jx, jz = generate_spin_matrices(dimension)
+    jx, jz = jx_operator(dimension - 1), jz_operator(dimension - 1)
     return -j * jx + u * jz @ jz + delta * jz
 
 
@@ -106,8 +106,8 @@ def build_bipartite_hamiltonian(
 
     """
     n_a, n_b = config.dim_a, config.dim_b
-    jx_a, jz_a = generate_spin_matrices(n_a)
-    jx_b, jz_b = generate_spin_matrices(n_b)
+    jx_a, jz_a = jx_operator(n_a - 1), jz_operator(n_a - 1)
+    jx_b, jz_b = jx_operator(n_b - 1), jz_operator(n_b - 1)
 
     # Local Hamiltonians
     h_a = -config.j_a * jx_a + config.u_a * jz_a @ jz_a + config.delta_a * jz_a
@@ -148,8 +148,8 @@ def build_bipartite_hamiltonian_components(
 
     """
     n_a, n_b = config.dim_a, config.dim_b
-    jx_a, jz_a = generate_spin_matrices(n_a)
-    jx_b, jz_b = generate_spin_matrices(n_b)
+    jx_a, jz_a = jx_operator(n_a - 1), jz_operator(n_a - 1)
+    jx_b, jz_b = jx_operator(n_b - 1), jz_operator(n_b - 1)
 
     # Local
     h_a = -config.j_a * jx_a + config.u_a * jz_a @ jz_a + config.delta_a * jz_a

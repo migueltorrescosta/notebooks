@@ -16,7 +16,6 @@ import pytest
 from src.evolution.lindblad_solver import (
     LindbladConfig,
     evolve_lindblad,
-    ket_to_density,
     simulate_trajectory,
 )
 from src.physics.dicke_basis import jz_operator
@@ -89,7 +88,7 @@ class TestPhaseDiffusionOffDiagonalDecay:
             psi = np.zeros(dim, dtype=complex)
             psi[i1] = 1.0 / np.sqrt(2)
             psi[i2] = 1.0 / np.sqrt(2)
-            rho0 = ket_to_density(psi)
+            rho0 = np.outer(psi, psi.conj())
 
             T = 1.0
             _times, rhos = simulate_trajectory(rho0, config, T=T, num_times=100)
@@ -134,7 +133,7 @@ class TestPhaseDiffusionOffDiagonalDecay:
         idx = N // 2
         psi = np.zeros(N + 1, dtype=complex)
         psi[idx] = 1.0
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
@@ -158,7 +157,7 @@ class TestUnitaryEvolutionUnchanged:
 
         psi = np.zeros(N + 1, dtype=complex)
         psi[1] = 1.0
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 
@@ -172,24 +171,21 @@ class TestUnitaryEvolutionUnchanged:
     @pytest.mark.parametrize("N", [4, 6])
     def test_gamma_zero_matches_analytical(self, N: int) -> None:
         """With gamma=0, numerical evolution should match exact unitary."""
+        import qutip
         import scipy
-
-        from src.evolution.lindblad_solver import (
-            number_operator,
-        )
 
         config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=0.0)
 
         psi = np.zeros(N + 1, dtype=complex)
         psi[1] = 1.0 / np.sqrt(2)
         psi[2] = 1.0 / np.sqrt(2)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         T = 1.0
         final_rho = evolve_lindblad(rho0, config, T=T, dt=0.001)
 
         # Analytical: U = exp(-i H T) with H = n
-        n_op = number_operator(N)
+        n_op = qutip.create(N + 1).full() @ qutip.destroy(N + 1).full()
         U = scipy.linalg.expm(-1.0j * n_op * T)
         expected = U @ rho0 @ U.conj().T
 
@@ -214,7 +210,7 @@ class TestTracePreservationUnderPhaseDiffusion:
         psi = np.zeros(N + 1, dtype=complex)
         psi[0] = 1.0 / np.sqrt(2)
         psi[1] = 1.0 / np.sqrt(2)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         _times, rhos = simulate_trajectory(rho0, config, T=2.0, num_times=100)
 
@@ -241,7 +237,7 @@ class TestTracePreservationUnderPhaseDiffusion:
             psi[n] = alpha**n / np.sqrt(scipy.special.factorial(n))
         psi *= np.exp(-(alpha**2) / 2)
         psi /= np.linalg.norm(psi)
-        rho0 = ket_to_density(psi)
+        rho0 = np.outer(psi, psi.conj())
 
         _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
 

@@ -321,7 +321,7 @@ $$
 - $\eta = 1$: Perfect detection, $P(k\vert{}n) = \delta_{k,n}$
 - $\eta = 0$: No detection, uniform over possible outcomes
 
-**Implementation:** `apply_detection_noise()` and `detection_channel_pmf()` in `noise_channels.py`
+**Implementation:** `apply_detection_noise()` in `noise_channels.py`; `scipy.stats.binom.pmf` for exact PMF
 
 ---
 

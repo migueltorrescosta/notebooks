@@ -2,7 +2,6 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import partial
 from typing import Any
 
 import numpy as np
@@ -16,11 +15,6 @@ from src.evolution.quantum_time_evolution import (
     compute_energy_levels,
     gaussian_wave_packet,
     normalize_energy_levels,
-    potential_double_well,
-    potential_quadratic,
-    potential_quartic,
-    potential_trigonometric,
-    potential_uniform,
     step_wave_packet,
 )
 from src.utils.enums import BoundaryCondition, PotentialFunction, WavePacket
@@ -125,20 +119,16 @@ with st.sidebar:
                 st.latex(r"a(x-c)^2")
                 potential_increase = st.number_input("$a$", value=0.2)
                 potential_center = st.number_input("$c$", value=0.0)
-                potential_x = partial(
-                    potential_quadratic,
-                    a=potential_increase,
-                    c=potential_center,
-                )
+
+                def potential_x(x: float) -> float:
+                    return potential_increase * (x - potential_center) ** 2
             case PotentialFunction.Quartic.value:
                 st.latex(r"a(x-c)^4")
                 potential_increase = st.number_input("$a$", value=0.05)
                 potential_center = st.number_input("$c$", value=0.0)
-                potential_x = partial(
-                    potential_quartic,
-                    a=potential_increase,
-                    c=potential_center,
-                )
+
+                def potential_x(x: float) -> float:
+                    return potential_increase * (x - potential_center) ** 4
             case PotentialFunction.Trigonometric.value:
                 width = x_max - x_min
                 st.latex(r"a\cos(\phi + 2\pi kx)")
@@ -146,23 +136,23 @@ with st.sidebar:
                 phase = st.number_input(r"$\phi$", value=0.0)
                 width = x_max - x_min
                 k = st.number_input("$k$", min_value=0.0, value=4.0)
-                potential_x = partial(
-                    potential_trigonometric,
-                    amplitude=amplitude,
-                    phase=phase,
-                    k=k,
-                    width=width,
-                )
+
+                def potential_x(x: float) -> float:
+                    return amplitude * np.cos(phase + k * 2 * np.pi * x / width)
             case PotentialFunction.Uniform.value:
                 st.latex(r"ax")
                 a = st.number_input("$a$", value=1.0)
-                potential_x = partial(potential_uniform, a=a)
+
+                def potential_x(x: float) -> float:
+                    return a * x
             case PotentialFunction.DoubleWell.value:
                 st.latex(r"a ( x^4 - 2 x^2 ) + be^{-cx^2}")
                 a = st.number_input("$a$", min_value=0.0, value=1.0)
                 b = st.number_input("$b$", min_value=0.0, value=30.0)
                 c = st.number_input("$c$", min_value=0.0, value=3.0)
-                potential_x = partial(potential_double_well, a=a, b=b, c=c)
+
+                def potential_x(x: float) -> float:
+                    return a * (x**4 + 2 * x**2) + b * np.exp(-c * x**2)
 
         boundary_condition = st.selectbox(
             "Boundary Condition",

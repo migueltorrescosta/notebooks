@@ -4,8 +4,7 @@ Tests for Kerr-nonlinear Mach-Zehnder Interferometer module.
 
 import numpy as np
 import pytest
-
-from src.utils.validators import validate_unitary
+import qutip
 
 from .kerr_mzi import (
     compute_kerr_interference_fringe,
@@ -15,10 +14,8 @@ from .kerr_mzi import (
     kerr_phase_shift_unitary,
 )
 from .mzi_simulation import (
-    fock_state,
     noon_state,
     phase_shift_unitary,
-    vacuum_state,
 )
 
 
@@ -35,8 +32,8 @@ class TestKerrPhaseShiftUnitary:
     def test_unitarity(self) -> None:
         """U^dagger U = I."""
         U = kerr_phase_shift_unitary(1.0, 0.1, 1.0, max_photons=2)
-        assert validate_unitary(U, tol=1e-10), (
-            "Condition failed: validate_unitary(U, tol=1e-10)"
+        assert np.allclose(U @ U.conj().T, np.eye(U.shape[0]), atol=1e-10), (
+            "Kerr phase shift unitary must satisfy U U† = I"
         )
 
     def test_dimensions(self) -> None:
@@ -142,7 +139,8 @@ class TestKerrMzi:
 
     def test_norm_preserved_fock_input(self) -> None:
         """Norm preserved for Fock state input."""
-        state = fock_state(2, 0, 3)
+        dim = 3 + 1
+        state = qutip.tensor(qutip.fock(dim, 2), qutip.fock(dim, 0)).full().ravel()
         final = kerr_mzi(state, phi=0.5, chi=0.3, T=2.0, max_photons=3)
         assert np.sum(np.abs(final) ** 2) == pytest.approx(1.0), (
             "Expected np.sum(np.abs(final) ** 2) == pytest.approx(1.0)"
@@ -183,7 +181,8 @@ class TestKerrMzi:
 
     def test_vacuum_balanced_output(self) -> None:
         """Vacuum input should always give 0.5/0.5 output."""
-        vac = vacuum_state(2)
+        dim = 2 + 1
+        vac = qutip.tensor(qutip.fock(dim, 0), qutip.fock(dim, 0)).full().ravel()
         for phi, chi, T in [(0.0, 0.0, 0.0), (0.5, 0.1, 1.0), (np.pi, 2.0, 0.5)]:
             final = kerr_mzi(vac, phi=phi, chi=chi, T=T, max_photons=2)
             P0, P1 = compute_kerr_output_probabilities(final, 2)
@@ -230,7 +229,8 @@ class TestKerrOutputProbabilities:
 
     def test_vacuum_gives_half(self) -> None:
         """Vacuum input gives P0=P1=0.5."""
-        vac = vacuum_state(2)
+        dim = 2 + 1
+        vac = qutip.tensor(qutip.fock(dim, 0), qutip.fock(dim, 0)).full().ravel()
         final = kerr_mzi(vac, phi=1.0, chi=0.5, T=1.0, max_photons=2)
         P0, P1 = compute_kerr_output_probabilities(final, 2)
         assert pytest.approx(0.5) == P0 and np.isclose(P1, 0.5), (
@@ -239,7 +239,8 @@ class TestKerrOutputProbabilities:
 
     def test_single_photon_output(self) -> None:
         """Single photon input should give valid probabilities."""
-        state = fock_state(1, 0, 2)
+        dim = 2 + 1
+        state = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
         final = kerr_mzi(state, phi=0.5, chi=0.1, T=1.0, max_photons=2)
         P0, P1 = compute_kerr_output_probabilities(final, 2)
         assert pytest.approx(1.0) == P0 + P1, "Expected P0 + P1 == pytest.approx(1.0)"

@@ -23,7 +23,7 @@ from dataclasses import dataclass
 import numpy as np
 import scipy.linalg
 
-from src.physics.angular_momentum import generate_spin_matrices
+from src.physics.dicke_basis import jx_operator, jz_operator
 from src.utils.validators import (
     validate_hamiltonian_delta_estimation,
     validate_state_delta_estimation,
@@ -94,8 +94,8 @@ def _get_paired_operators(
 
     """
     if dim not in _paired_operators:
-        sigma_x, sigma_z = generate_spin_matrices(dim=2)
-        jx, jz = generate_spin_matrices(dim=dim)
+        sigma_x, sigma_z = jx_operator(1), jz_operator(1)
+        jx, jz = jx_operator(dim - 1), jz_operator(dim - 1)
         _paired_operators[dim] = (sigma_x, sigma_z, jx, jz)
     return _paired_operators[dim]
 

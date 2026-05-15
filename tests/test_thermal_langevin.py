@@ -22,7 +22,6 @@ from src.physics.thermal_langevin import (
     crossover_N,
     fit_thermal_scaling_exponent,
     mechanical_susceptibility,
-    sql_sensitivity,
     sweep_thermal_scaling,
     thermal_sensitivity_at_N,
     thermal_sensitivity_normalized,
@@ -31,14 +30,6 @@ from src.physics.thermal_langevin import (
 
 class TestThermalLangevinBasics:
     """Basic tests for thermal Langevin noise model."""
-
-    def test_sql_sensitivity_scales_correctly(self) -> None:
-        """SQL should scale as 1/√N."""
-        assert sql_sensitivity(4) == pytest.approx(0.5)  # 1/2
-        assert sql_sensitivity(100) == pytest.approx(0.1)  # 1/10
-        assert sql_sensitivity(1) == pytest.approx(1.0), (
-            "Expected sql_sensitivity(1) == pytest.approx(1.0)"
-        )
 
     def test_thermal_sensitivity_normalized(self) -> None:
         """Normalized thermal sensitivity follows the formula."""

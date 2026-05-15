@@ -36,12 +36,6 @@ import scipy
 
 from .wigner import wigner_function_single
 
-
-def _oscillator_number(N: int) -> np.ndarray:
-    """Return diagonal number operator n̂ = a†a in truncated Fock basis (N+1)."""
-    return np.diag(np.arange(N + 1, dtype=complex))
-
-
 # =============================================================================
 # Two-Mode Embedding
 # =============================================================================
@@ -362,7 +356,7 @@ def qfi_hybrid_mzi(
     rho_osc = extract_oscillator_density(hybrid_state, N)
 
     # Photon number operator in oscillator space (diagonal)
-    n_op = _oscillator_number(N)
+    n_op = np.diag(np.arange(N + 1, dtype=complex))
 
     # Compute first and second moments of n
     mean_n = np.real(np.trace(rho_osc @ n_op))

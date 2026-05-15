@@ -194,42 +194,6 @@ def ttl_limited_sensitivity(
     return np.sqrt(quantum_sensitivity**2 + phi_ttl**2)
 
 
-def _quantum_sensitivity_sql(N: float) -> float:
-    """Standard quantum limit scaling: Δφ_Q = 1/√N.
-
-    Args:
-        N: Mean photon/atom number.
-
-    Returns:
-        SQL-limited phase sensitivity.
-
-    Raises:
-        ValueError: If N is non-positive.
-
-    """
-    if N <= 0:
-        raise ValueError(f"Particle number N must be positive for SQL, got {N}")
-    return 1.0 / np.sqrt(N)
-
-
-def _quantum_sensitivity_hl(N: float) -> float:
-    """Heisenberg-limited scaling: Δφ_Q = 1/N.
-
-    Args:
-        N: Mean photon/atom number.
-
-    Returns:
-        HL-limited phase sensitivity.
-
-    Raises:
-        ValueError: If N is non-positive.
-
-    """
-    if N <= 0:
-        raise ValueError(f"Particle number N must be positive for HL, got {N}")
-    return 1.0 / N
-
-
 # =============================================================================
 # Scaling Analysis
 # =============================================================================
@@ -314,15 +278,12 @@ def ttl_scaling_sweep(
             f"Quantum scaling must be 'sql' or 'hl', got '{quantum_scaling}'",
         )
 
-    # Select quantum scaling function
-    if quantum_scaling == "sql":
-        quantum_fn = _quantum_sensitivity_sql
-    else:
-        quantum_fn = _quantum_sensitivity_hl
-
     # Compute sensitivities
     phi_ttl = ttl_phase_noise(config)
-    phi_q = np.array([quantum_fn(N) for N in N_arr], dtype=np.float64)
+    if quantum_scaling == "sql":
+        phi_q = np.array([1.0 / np.sqrt(N) for N in N_arr], dtype=np.float64)
+    else:
+        phi_q = np.array([1.0 / N for N in N_arr], dtype=np.float64)
     phi_total = np.sqrt(phi_q**2 + phi_ttl**2)
 
     # Fit power law: Δφ = a · N^α in log-log space

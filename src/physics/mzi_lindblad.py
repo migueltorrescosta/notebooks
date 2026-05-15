@@ -30,17 +30,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-import scipy.integrate
-import scipy.linalg
+import qutip
 
-from src.evolution.lindblad_solver import (
-    density_to_vector,
-    vector_to_density,
-)
 from src.physics.mzi_simulation import (
-    beam_splitter_unitary,
     create_system_operators,
-    phase_shift_unitary,
 )
 
 # =============================================================================
@@ -148,146 +141,6 @@ def build_mzi_lindblad_operators(
 
 
 # =============================================================================
-# Lindblad Master Equation
-# =============================================================================
-
-
-def lindblad_liouvillian_mzi(
-    rho: np.ndarray,
-    H: np.ndarray | None,
-    L_ops: list[np.ndarray],
-) -> np.ndarray:
-    r"""Compute dρ/dt = -i[H,ρ] + Σ_k (L_k ρ L_k† - ½{L_k†L_k, ρ}).
-
-    Evaluates the Lindblad master equation. Lindblad operators are
-    assumed to have rates pre-absorbed (i.e., L_k already contains
-    the √γ factor).
-
-    Args:
-        rho: Density matrix in two-mode Fock basis.
-        H: Hamiltonian (can be None for zero Hamiltonian).
-        L_ops: Lindblad operators with rates pre-absorbed.
-
-    Returns:
-        dρ/dt matrix.
-
-    """
-    drho_dt = np.zeros_like(rho, dtype=complex)
-
-    # Hamiltonian commutator term: -i[H, ρ]
-    if H is not None:
-        drho_dt += -1.0j * (H @ rho - rho @ H)
-
-    # Lindblad dissipation terms
-    for L in L_ops:
-        L_dag = L.conj().T
-
-        # L ρ L†
-        L_rho_Ld = L @ rho @ L_dag
-
-        # ½{L†L, ρ} = ½(L†L ρ + ρ L†L)
-        LdL = L_dag @ L
-        anticomm = LdL @ rho + rho @ LdL
-
-        drho_dt += L_rho_Ld - 0.5 * anticomm
-
-    return drho_dt
-
-
-def _evolve_rk4_mzi(
-    initial_rho: np.ndarray,
-    H: np.ndarray | None,
-    L_ops: list[np.ndarray],
-    T: float,
-    dt: float,
-) -> np.ndarray:
-    """4th-order Runge-Kutta integration for Lindblad equation.
-
-    Uses the standard RK4 scheme with Hermiticity and trace
-    enforcement at each step for numerical stability.
-
-    Args:
-        initial_rho: Initial density matrix.
-        H: Hamiltonian (None for zero Hamiltonian).
-        L_ops: Lindblad operators with rates pre-absorbed.
-        T: Final evolution time.
-        dt: Time step.
-
-    Returns:
-        Final density matrix after evolution.
-
-    """
-    if T <= 0:
-        return initial_rho.copy()
-
-    rho = initial_rho.copy()
-    num_steps = max(1, int(np.ceil(T / dt)))
-    dt_eff = T / num_steps  # Adjust to exactly hit T
-
-    for _ in range(num_steps):
-        # RK4 steps
-        k1 = lindblad_liouvillian_mzi(rho, H, L_ops)
-        k2 = lindblad_liouvillian_mzi(rho + 0.5 * dt_eff * k1, H, L_ops)
-        k3 = lindblad_liouvillian_mzi(rho + 0.5 * dt_eff * k2, H, L_ops)
-        k4 = lindblad_liouvillian_mzi(rho + dt_eff * k3, H, L_ops)
-
-        rho = rho + (dt_eff / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4)
-
-        # Enforce Hermiticity and normalization for stability
-        rho = 0.5 * (rho + rho.conj().T)
-        trace = np.trace(rho)
-        if trace > 0:
-            rho = rho / trace
-
-    return rho
-
-
-def _evolve_scipy_mzi(
-    initial_rho: np.ndarray,
-    H: np.ndarray | None,
-    L_ops: list[np.ndarray],
-    T: float,
-) -> np.ndarray:
-    """Evolve using scipy ODE solver.
-
-    Uses scipy's adaptive Runge-Kutta (RK45) for robust integration
-    with error control.
-
-    Args:
-        initial_rho: Initial density matrix.
-        H: Hamiltonian (None for zero Hamiltonian).
-        L_ops: Lindblad operators with rates pre-absorbed.
-        T: Final evolution time.
-
-    Returns:
-        Final density matrix.
-
-    """
-    # Vectorize initial state
-    rho0 = density_to_vector(initial_rho)
-
-    # ODE function
-    def rhs(_t: float, rho_vec: np.ndarray) -> np.ndarray:
-        rho = vector_to_density(rho_vec)
-        drho_dt = lindblad_liouvillian_mzi(rho, H, L_ops)
-        return density_to_vector(drho_dt)
-
-    # Integrate
-    sol = scipy.integrate.solve_ivp(
-        rhs,
-        (0, T),
-        rho0,
-        method="RK45",
-        dense_output=True,
-        rtol=1e-8,
-        atol=1e-10,
-    )
-
-    rho_final_vec = sol.y[:, -1]
-    return vector_to_density(rho_final_vec)
-
-
-# =============================================================================
 # Time Evolution
 # =============================================================================
 
@@ -298,13 +151,16 @@ def evolve_mzi_lindblad(
     max_photons: int,
     H: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Evolve density matrix under Lindblad master equation.
+    r"""Evolve density matrix under Lindblad master equation using QuTiP.
 
     Handles both pure state (1D vector) and density matrix (2D) inputs.
-    Uses RK4 integration with Hermiticity/trace enforcement at each step.
+    Delegates integration to ``qutip.mesolve()``, which uses adaptive
+    stepping internally. The ``config.dt`` and ``config.method`` fields
+    are accepted for backward compatibility but ignored.
 
     When no Lindblad operators are active (all rates = 0), uses
-    scipy.linalg.expm for unitary evolution (or identity if no Hamiltonian).
+    QuTiP's matrix exponentiation for unitary evolution (or identity
+    if no Hamiltonian).
 
     Validation:
     - Trace preservation: assert np.isclose(np.trace(rho_final), 1.0, atol=1e-8)
@@ -315,14 +171,13 @@ def evolve_mzi_lindblad(
         initial_state: Initial state. Can be a pure state vector (1D)
             or a density matrix (2D).
         config: Noise configuration specifying rates, time, and method.
+            ``dt`` and ``method`` fields are ignored (QuTiP handles
+            adaptive stepping).
         max_photons: Maximum photon number per mode (for operator construction).
         H: Hamiltonian (optional, None means zero Hamiltonian).
 
     Returns:
         Final density matrix after evolution.
-
-    Raises:
-        ValueError: If method is not 'rk4' or 'scipy'.
 
     """
     # Convert pure state to density matrix if needed
@@ -331,22 +186,45 @@ def evolve_mzi_lindblad(
     else:
         rho = initial_state.copy()
 
-    # Build Lindblad operators (rates pre-absorbed)
+    # Build Lindblad operators (rates pre-absorbed, numpy arrays)
     L_ops = build_mzi_lindblad_operators(max_photons, config)
 
-    # Perform evolution
-    if len(L_ops) == 0:
-        # No dissipation: unitary evolution (or identity if no Hamiltonian)
-        if H is not None:
-            U = scipy.linalg.expm(-1.0j * H * config.T)
-            rho = U @ rho @ U.conj().T
-        # If no H and no L_ops, rho is unchanged
-    elif config.method == "rk4":
-        rho = _evolve_rk4_mzi(rho, H, L_ops, config.T, config.dt)
-    elif config.method == "scipy":
-        rho = _evolve_scipy_mzi(rho, H, L_ops, config.T)
+    # Proper tensor-product dims for the two-mode system
+    dim = max_photons + 1
+    dims = [[dim, dim], [dim, dim]]
+
+    if len(L_ops) == 0 and H is None:
+        # No dissipation and no Hamiltonian: rho unchanged
+        pass
     else:
-        raise ValueError(f"Unknown method '{config.method}'. Use 'rk4' or 'scipy'.")
+        # Convert to QuTiP objects
+        if H is not None:
+            H_qobj = qutip.Qobj(H, dims=dims)
+        else:
+            # Zero Hamiltonian with matching dims (QuTiP mesolve does not accept None)
+            H_qobj = qutip.Qobj(
+                np.zeros((rho.shape[0], rho.shape[0]), dtype=complex),
+                dims=dims,
+            )
+
+        rho_qobj = qutip.Qobj(rho, dims=dims)
+        c_ops_qobj = [qutip.Qobj(L, dims=dims) for L in L_ops]
+
+        if not c_ops_qobj:
+            # Unitary evolution only (no Lindblad terms)
+            U_qobj = (-1.0j * config.T * H_qobj).expm()
+            rho_qobj = U_qobj * rho_qobj * U_qobj.dag()
+            rho = rho_qobj.full()
+        else:
+            # Full Lindblad evolution via QuTiP mesolve
+            result = qutip.mesolve(
+                H_qobj,
+                rho_qobj,
+                [0, config.T],
+                c_ops_qobj,
+                [],
+            )
+            rho = result.states[-1].full()
 
     # Physics assertions
     trace = np.trace(rho)
@@ -374,7 +252,7 @@ def run_noisy_mzi(
     noise_config: MziNoiseConfig,
     ancilla_dim: int = 1,
 ) -> np.ndarray:
-    """Run a full noisy MZI simulation.
+    r"""Run a full noisy MZI simulation using QuTiP operators and mesolve.
 
     Circuit sequence:
         1. BS1: First beam splitter (mode mixing)
@@ -382,34 +260,46 @@ def run_noisy_mzi(
         3. Lindblad: Open-system decoherence for time T
         4. BS2: Second beam splitter (interference)
 
-    The Lindblad decoherence step is applied after the phase imprint
-    and before the second beam splitter, which models distributed
-    loss throughout the interferometer arms.
+    The beam splitters and phase shift are constructed using QuTiP
+    tensor-product operators. The Lindblad decoherence step is applied
+    after the phase imprint and before the second beam splitter, which
+    models distributed loss throughout the interferometer arms.
+
+    Beam splitter convention:
+        U_BS = exp(-i \theta H_{BS})
+        H_{BS} = e^{i\phi} a_0^\dagger a_1 + e^{-i\phi} a_1^\dagger a_0
+
+    Phase shift convention:
+        U_phase = exp(i \phi_{phase} n_1)  (on mode 1)
 
     Args:
         initial_state: Initial state. Can be pure state (1D vector) or
             density matrix (2D) in the two-mode Fock basis.
         max_photons: Maximum photon number per mode (Hilbert space truncation).
-        theta: Beam splitter transmittance angle (π/4 for 50/50).
+        theta: Beam splitter transmittance angle (\pi/4 for 50/50).
         phi_bs: Beam splitter phase parameter.
         phi_phase: Phase shift in arm 1 (the unknown parameter).
         noise_config: Noise configuration for Lindblad evolution.
+            ``dt`` and ``method`` fields are ignored (QuTiP handles
+            adaptive stepping).
         ancilla_dim: Dimension of ancilla Hilbert space. Default 1 (no ancilla).
+            Values > 1 are currently unsupported.
 
     Returns:
         Final density matrix in the two-mode Fock basis.
 
     Constraints:
         initial_state must be normalized (1D) or trace-1 (2D).
-        theta in [0, π] (beam splitter angle).
+        theta in [0, \pi] (beam splitter angle).
         noise_config rates (gamma_{1,2,phi}) must be >= 0.
-        noise_config.T > 0, noise_config.dt > 0.
+        noise_config.T > 0.
         ancilla_dim >= 1 (1 = no ancilla).
 
     Example:
+        >>> import qutip
         >>> from src.physics.mzi_lindblad import MziNoiseConfig, run_noisy_mzi
-        >>> from src.physics.mzi_simulation import fock_state
-        >>> state = fock_state(1, 0, max_photons=2)
+        >>> dim = 2 + 1
+        >>> state = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
         >>> config = MziNoiseConfig(gamma_1=0.1, T=0.5)
         >>> rho = run_noisy_mzi(state, max_photons=2, theta=np.pi/4,
         ...     phi_bs=0, phi_phase=1.0, noise_config=config)
@@ -425,15 +315,36 @@ def run_noisy_mzi(
     else:
         rho = initial_state.copy()
 
-    # Build unitaries
-    bs = beam_splitter_unitary(theta, phi_bs, max_photons)
-    phase = phase_shift_unitary(phi_phase, max_photons)
+    # --- Build QuTiP operators for the two-mode system ---
+    dim_single = max_photons + 1
+    a = qutip.destroy(dim_single)
+    eye = qutip.qeye(dim_single)
+
+    a0 = qutip.tensor(a, eye)  # a ⊗ I  — mode 0
+    a1 = qutip.tensor(eye, a)  # I ⊗ a  — mode 1
+    n1 = a1.dag() * a1  # number operator on mode 1
+
+    # Beam splitter unitary: U_BS = exp(-iθ H_BS)
+    # H_BS = e^{iφ} a₀† a₁ + e^{-iφ} a₁† a₀
+    H_bs = np.exp(1j * phi_bs) * (a0.dag() * a1) + np.exp(-1j * phi_bs) * (
+        a1.dag() * a0
+    )
+    U_bs = (-1j * theta * H_bs).expm()
+
+    # Phase shift unitary: U_phase = exp(i φ n₁)
+    U_phase = (1j * phi_phase * n1).expm()
+
+    # Proper tensor-product dims for the density matrix
+    dims = [[dim_single, dim_single], [dim_single, dim_single]]
+
+    # Convert rho to Qobj
+    rho_qobj = qutip.Qobj(rho, dims=dims)
 
     # Apply BS1: ρ → U_BS ρ U_BS†
-    rho = bs @ rho @ bs.conj().T
+    rho_qobj = U_bs * rho_qobj * U_bs.dag()
 
     # Apply phase shift: ρ → U_phase ρ U_phase†
-    rho = phase @ rho @ phase.conj().T
+    rho_qobj = U_phase * rho_qobj * U_phase.dag()
 
     # Apply Lindblad decoherence
     has_noise = (
@@ -442,10 +353,14 @@ def run_noisy_mzi(
         or noise_config.gamma_phi > 0
     )
     if has_noise:
+        rho = rho_qobj.full()
         rho = evolve_mzi_lindblad(rho, noise_config, max_photons)
+        rho_qobj = qutip.Qobj(rho, dims=dims)
 
     # Apply BS2: ρ → U_BS ρ U_BS†
-    return bs @ rho @ bs.conj().T
+    rho_qobj = U_bs * rho_qobj * U_bs.dag()
+
+    return rho_qobj.full()
 
 
 # =============================================================================
@@ -470,19 +385,22 @@ def _test_build_operators() -> dict:
 
 
 def _test_liouvillian_structure() -> dict:
-    """Test Liouvillian preserves Hermiticity of derivative."""
-    # Use small space
+    """Test Lindblad evolution preserves trace and Hermiticity."""
     max_photons = 2
     dim = (max_photons + 1) ** 2
     rho = np.eye(dim, dtype=complex) / dim  # Maximally mixed
 
-    config = MziNoiseConfig(gamma_1=0.1)
-    L_ops = build_mzi_lindblad_operators(max_photons, config)
+    config = MziNoiseConfig(gamma_1=0.1, gamma_phi=0.05, T=0.5)
+    rho_final = evolve_mzi_lindblad(rho, config, max_photons)
 
-    drho = lindblad_liouvillian_mzi(rho, H=None, L_ops=L_ops)
-
-    # dρ/dt is traceless (trace preservation)
-    assert np.isclose(np.trace(drho), 0.0, atol=1e-12), "Liouvillian is traceless"
+    # Trace preservation
+    assert np.isclose(np.trace(rho_final), 1.0, atol=1e-10), (
+        "Lindblad evolution must preserve trace"
+    )
+    # Hermiticity preservation
+    assert np.allclose(rho_final, rho_final.conj().T, atol=1e-10), (
+        "Lindblad evolution must preserve Hermiticity"
+    )
 
     return {"status": "passed"}
 
@@ -503,10 +421,11 @@ def _test_noiseless_evolution() -> dict:
 
 def test_noisy_mzi_symmetry() -> dict:
     """Test that noisy MZI produces valid density matrix."""
-    from src.physics.mzi_simulation import fock_state
+    import qutip
 
     max_photons = 4
-    state = fock_state(2, 0, max_photons)
+    dim = max_photons + 1
+    state = qutip.tensor(qutip.fock(dim, 2), qutip.fock(dim, 0)).full().ravel()
 
     config = MziNoiseConfig(gamma_1=0.1, gamma_phi=0.05, T=0.5, dt=0.05)
     rho = run_noisy_mzi(
@@ -529,14 +448,15 @@ def test_noisy_mzi_symmetry() -> dict:
 
 def _test_noiseless_mzi() -> dict:
     """Test noiseless MZI produces same result as unitary evolution."""
-    from src.physics.mzi_simulation import fock_state
+    import qutip
 
     max_photons = 3
+    dim = max_photons + 1
     theta = np.pi / 4
     phi_bs = 0.0
     phi_phase = 1.0
 
-    state = fock_state(1, 0, max_photons)
+    state = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
 
     # Noiseless noisy MZI
     config = MziNoiseConfig(T=1.0, dt=0.1)
@@ -549,14 +469,22 @@ def _test_noiseless_mzi() -> dict:
         noise_config=config,
     )
 
-    # Compare with unitary evolution as density matrix
-    bs = beam_splitter_unitary(theta, phi_bs, max_photons)
-    phase = phase_shift_unitary(phi_phase, max_photons)
+    # Compare with QuTiP unitary evolution as density matrix
+    a = qutip.destroy(dim)
+    eye = qutip.qeye(dim)
+    a0 = qutip.tensor(a, eye)
+    a1 = qutip.tensor(eye, a)
+    H_bs = np.exp(1j * phi_bs) * (a0.dag() * a1) + np.exp(-1j * phi_bs) * (
+        a1.dag() * a0
+    )
+    U_bs = (-1j * theta * H_bs).expm()
+    U_phase = (1j * phi_phase * a1.dag() * a1).expm()
 
-    psi = bs @ state
-    psi = phase @ psi
-    psi = bs @ psi
-    rho_unitary = np.outer(psi, psi.conj())
+    psi_q = qutip.Qobj(state.reshape(-1, 1), dims=[[dim, dim], [1, 1]])
+    psi_q = U_bs * psi_q
+    psi_q = U_phase * psi_q
+    psi_q = U_bs * psi_q
+    rho_unitary = (psi_q * psi_q.dag()).full()
 
     assert np.allclose(rho_noiseless, rho_unitary, atol=1e-10), (
         "Noiseless noisy MZI should match unitary evolution"

@@ -364,20 +364,6 @@ def adaptive_truncation(
 # =============================================================================
 
 
-def hybrid_expectation(state: np.ndarray, op: np.ndarray) -> complex:
-    """Compute expectation value ⟨ψ|O|ψ⟩ for pure state.
-
-    Args:
-        state: State vector of shape (dim,).
-        op: Operator of shape (dim, dim).
-
-    Returns:
-        Expectation value (complex).
-
-    """
-    return np.vdot(state, op @ state)
-
-
 def hybrid_mean_photon(state: np.ndarray, N: int) -> float:
     """Compute mean photon number ⟨a†a⟩.
 
@@ -391,7 +377,7 @@ def hybrid_mean_photon(state: np.ndarray, N: int) -> float:
     """
     n_op = oscillator_number(N)
     n_hybrid = hybrid_operator(n_op, np.eye(2, dtype=complex), N)
-    return np.real(hybrid_expectation(state, n_hybrid))
+    return np.real(np.vdot(state, n_hybrid @ state))
 
 
 # =============================================================================

@@ -638,10 +638,8 @@ def compare_with_lindblad(
     try:
         from src.evolution.lindblad_solver import (
             LindbladConfig,
-            compute_expectation,
             create_coherent_state,
             evolve_lindblad,
-            ket_to_density,
         )
         from src.physics.dicke_basis import jz_operator
 
@@ -685,7 +683,7 @@ def compare_with_lindblad(
     # For CSS, use coherent state with proper phase
     alpha = np.sqrt(N / 2.0)  # Approximately N/2 atoms
     psi0 = create_coherent_state(alpha + 0j, N, truncation=3)
-    rho0 = ket_to_density(psi0)
+    rho0 = np.outer(psi0, psi0.conj())
 
     # Evolve
     dt = 0.01
@@ -694,11 +692,11 @@ def compare_with_lindblad(
 
         # Compute Jz expectation
         J_z = jz_operator(N)
-        lindblad_Jz_mean = np.real(compute_expectation(rho_final, J_z))
+        lindblad_Jz_mean = np.real(np.trace(rho_final @ J_z))
     else:
         # At t=0, compute initial expectation
         J_z = jz_operator(N)
-        lindblad_Jz_mean = np.real(compute_expectation(rho0, J_z))
+        lindblad_Jz_mean = np.real(np.trace(rho0 @ J_z))
 
     # Compare
     twa_Jz_mean = twa_result["Jz_mean"]

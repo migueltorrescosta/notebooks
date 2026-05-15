@@ -9,35 +9,12 @@ from .validators import (
     validate_eigendecomposition,
     validate_eigenvectors_orthonormal,
     validate_hamiltonian_delta_estimation,
-    validate_hamiltonian_hermitian,
     validate_orthonormality,
     validate_partial_trace,
-    validate_probability_conservation,
     validate_sensitivity,
     validate_state_delta_estimation,
     validate_state_mzi,
-    validate_unitary,
 )
-
-
-class TestValidateHamiltonianHermitian:
-    def test_hermitian_passes(self) -> None:
-        H = np.array([[1.0, 2.0 - 1.0j], [2.0 + 1.0j, 3.0]])
-        assert validate_hamiltonian_hermitian(H), (
-            "Condition failed: validate_hamiltonian_hermitian(H)"
-        )
-
-    def test_non_hermitian_fails(self) -> None:
-        H = np.array([[1.0, 2.0], [3.0, 4.0]])
-        assert not validate_hamiltonian_hermitian(H), (
-            "validate_hamiltonian_hermitian(H) should be falsy"
-        )
-
-    def test_real_symmetric_passes(self) -> None:
-        H = np.array([[2.0, -1.0], [-1.0, 2.0]])
-        assert validate_hamiltonian_hermitian(H), (
-            "Condition failed: validate_hamiltonian_hermitian(H)"
-        )
 
 
 class TestValidateEigenvectorsOrthonormal:
@@ -105,34 +82,6 @@ class TestValidateOrthonormality:
         Q, _ = np.linalg.qr(rng.normal(size=(3, 3)))
         result = validate_orthonormality(Q)
         assert isinstance(result, float), "Expected result to be instance of float"
-
-
-class TestValidateProbabilityConservation:
-    def test_normalized_passes(self) -> None:
-        wf = np.array([0.6 + 0.0j, 0.0 + 0.8j])
-        assert validate_probability_conservation(wf), (
-            "Condition failed: validate_probability_conservation(wf)"
-        )
-
-    def test_unnormalized_fails(self) -> None:
-        wf = np.array([1.0, 1.0])
-        assert not validate_probability_conservation(wf), (
-            "validate_probability_conservation(wf) should be falsy"
-        )
-
-    def test_normalized_random_passes(self) -> None:
-        rng = np.random.default_rng(42)
-        wf = rng.normal(size=10) + 1j * rng.normal(size=10)
-        wf = wf / np.linalg.norm(wf)
-        assert validate_probability_conservation(wf), (
-            "Condition failed: validate_probability_conservation(wf)"
-        )
-
-    def test_zero_state_fails(self) -> None:
-        wf = np.zeros(4)
-        assert not validate_probability_conservation(wf), (
-            "validate_probability_conservation(wf) should be falsy"
-        )
 
 
 class TestValidatePartialTrace:
@@ -274,29 +223,4 @@ class TestValidateStateMzi:
         state = np.zeros(4)
         assert not validate_state_mzi(state), (
             "validate_state_mzi(state) should be falsy"
-        )
-
-
-class TestValidateUnitary:
-    def test_identity_passes(self) -> None:
-        U = np.eye(4)
-        assert validate_unitary(U), "Condition failed: validate_unitary(U)"
-
-    def test_non_unitary_fails(self) -> None:
-        U = np.array([[1.0, 2.0], [3.0, 4.0]])
-        assert not validate_unitary(U), "validate_unitary(U) should be falsy"
-
-    def test_random_unitary_passes(self) -> None:
-        rng = np.random.default_rng(42)
-        A = rng.normal(size=(5, 5)) + 1j * rng.normal(size=(5, 5))
-        Q, _ = np.linalg.qr(A)
-        assert validate_unitary(Q), "Condition failed: validate_unitary(Q)"
-
-    def test_custom_tolerance(self) -> None:
-        U = np.eye(3) + 1e-6 * np.ones((3, 3))
-        assert not validate_unitary(U, tol=1e-8), (
-            "validate_unitary(U, tol=1e-8) should be falsy"
-        )
-        assert validate_unitary(U, tol=1e-4), (
-            "Condition failed: validate_unitary(U, tol=1e-4)"
         )

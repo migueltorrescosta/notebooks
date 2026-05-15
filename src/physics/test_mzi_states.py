@@ -12,12 +12,12 @@ Tests:
 
 import numpy as np
 import pytest
+import qutip
 
 from src.physics.mzi_simulation import noon_state
 from src.utils.validators import validate_state_mzi
 
 from .mzi_states import (
-    coherent_state_two_mode,
     compute_fisher_information,
     compute_jz_expectation,
     compute_jz_variance,
@@ -170,7 +170,14 @@ class TestStateOrthogonality:
         for alpha1 in [0.5, 1.0, 1.5]:
             for alpha2 in [0.0, 0.5, 1.0]:
                 # Use sufficiently large max_photons to avoid truncation
-                state = coherent_state_two_mode(alpha1, alpha2, max_photons=15)
+                dim = 15 + 1
+                state = (
+                    qutip.tensor(
+                        qutip.coherent(dim, alpha1), qutip.coherent(dim, alpha2)
+                    )
+                    .full()
+                    .ravel()
+                )
                 norm = np.sum(np.abs(state) ** 2)
                 assert norm == pytest.approx(1.0, rel=1e-6), (
                     f"Coherent ({alpha1}, {alpha2}): norm = {norm}"
