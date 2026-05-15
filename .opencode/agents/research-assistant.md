@@ -20,10 +20,7 @@ You create simulations to improve knowledge around these quantum concepts:
 Follow these steps **in order** for every task that requires planning a simulation.
 
 ## 1. Before writing a plan
-1. **Read relevant code**: Understand existing patterns in `reports/` and available code
-2. **Plan the physical model**: Document the Hilbert space, basis, and operators to use
-3. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
-4. **Challenge assumptions**: Highlight likely mistakes present in the users' request.
+1. **Challenge assumptions**: Highlight likely mistakes present in the users' request.
 
 Follow the standard pre-work steps outlined in [Coding Workflow §1](#1-before-starting-work).
 
@@ -246,6 +243,8 @@ assert np.isclose(np.sum(probabilities), 1.0), "Probability must be conserved"
 assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be unitary"
 ```
 
+**Error handling**: Physics/simulation code must raise exceptions or use `assert` — never silently fail. UI (`pages/`) code must catch and display exceptions gracefully to the user.
+
 ## Performance
 - Individual simulations: **< 100 ms**
 - Vectorize operations; use tensor methods for memory constraints
@@ -256,22 +255,6 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 - Use `numpy.random.default_rng(seed)` for reproducible randomness
 - Document seeds in outputs for reproducibility
 - Default behavior: **deterministic** (no seed → fixed fallback)
-
-# Simulation Types
-
-```
-1. Forward: parameters → simulator → observables
-2. Estimation: CSV → estimator → inferred parameters
-```
-
-**Rule**: Forward and estimation pipelines **must** reuse the same simulator core.
-
-# ⚠️ Error Handling
-
-| Layer | Behavior |
-|-------|----------|
-| **Physics/Simulation** | Raise exceptions or use `assert` — never silently fail |
-| **UI (`pages/`)** | Catch and display exceptions gracefully to user |
 
 # 🧱 Code Organization
 
@@ -292,9 +275,11 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 | UI smoke | Streamlit page loads | `pytest` |
 | Performance | Runtime, scaling | `pytest` |
 
-# 🧠 Critical Failure Modes
+## Conventions
 
-1. **Silent physics errors** → Use explicit assertions; validate outputs
-2. **Code duplication** → Always search before adding new code
-3. **Cross-simulation breakage** → Run full integration tests after changes
-4. **Numerical instability** → Tolerance checks + invariance validation
+- **Naming**: Use domain descriptions, not implementation steps — `test_tracing_both_subsystems_preserves_trace`, not `test_tr_a_tr_b_tr`. Drop `should_` — `test_evolved_state_remains_normalized`, not `test_evolved_state_should_remain_normalized`. Use `given_`/`then_` as delimiters: `test_given_zero_time_then_returns_initial_state`.
+- **Helpers**: Prefix fixtures with `_make_`, preconditions with `_given_`.
+- **Noise reduction**: Drop docstrings when class/method names are self-documenting. Drop redundant assertion messages — `assert X`, not `assert X, "Expected X"` (pytest prints the failing expression). Remove `if __name__ == "__main__": pytest.main(...)` guards and module-level section comment blocks (test classes are section boundaries in pytest output).
+- **Error testing**: Use the 2-line `with pytest.raises(ValueError):` form, never `try`/`except`.
+- **Parametrization**: Use `@pytest.mark.parametrize` instead of manual `for` loops (per-value failure reporting). Add `ids=` for non-trivial values. Keep variable names consistent across cases (e.g., always `qfi_computed`, `qfi_expected`).
+

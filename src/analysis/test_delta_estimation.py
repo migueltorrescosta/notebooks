@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import numpy as np
 import pytest
 
@@ -14,194 +16,143 @@ from .delta_estimation import (
     partial_trace_b,
 )
 
-# Alias for backward compatibility in tests
 RunOptions = DeltaEstimationConfig
 
 
+def _make_valid_density_matrix(dim: int, seed: int = 42) -> np.ndarray:
+    """Create a random valid density matrix of given dimension."""
+    rng = np.random.default_rng(seed)
+    m = rng.standard_normal((dim, dim)) + 1j * rng.standard_normal((dim, dim))
+    rho = m @ m.conj().T
+    return rho / np.trace(rho)
+
+
+def _make_default_setup(dim_a: int = 2) -> tuple:
+    """Create default RunOptions, initial state, and Hamiltonian."""
+    options = RunOptions(ancillary_dimension=dim_a)
+    rho0 = generate_initial_state(dim_a, 0)
+    H = generate_hamiltonian(options)
+    return options, rho0, H
+
+
 class TestInitialStateGeneration:
-    """Tests for initial state generation."""
+    @pytest.mark.parametrize("dim_a", [2, 5, 10])
+    def test_is_normalized(self, dim_a: int) -> None:
+        for k in range(dim_a):
+            rho0 = generate_initial_state(dim_a, k)
+            assert np.isclose(np.trace(rho0).real, 1.0, atol=1e-10)
 
-    def test_initial_state_should_be_pure_with_trace_1(self) -> None:
-        for dim_a in [2, 5, 10]:
-            for k in range(dim_a):
-                rho0 = generate_initial_state(dim_a, k)
-                trace = np.trace(rho0)
-                assert trace.real == pytest.approx(1.0, abs=1e-10), (
-                    f"Initial state should be pure (trace=1), got {trace}"
-                )
+    @pytest.mark.parametrize("dim_a", [2, 5, 10])
+    def test_is_hermitian(self, dim_a: int) -> None:
+        rho0 = generate_initial_state(dim_a, 0)
+        assert np.allclose(rho0, rho0.conj().T, atol=1e-10)
 
-    def test_initial_state_should_be_hermitian(self) -> None:
-        for dim_a in [2, 5, 10]:
-            rho0 = generate_initial_state(dim_a, 0)
-            assert rho0 == pytest.approx(rho0.conj().T, abs=1e-10), (
-                "Initial state should be Hermitian"
-            )
+    @pytest.mark.parametrize("dim_a", [2, 5, 10])
+    def test_is_positive_semidefinite(self, dim_a: int) -> None:
+        rho0 = generate_initial_state(dim_a, 0)
+        eigenvalues = np.linalg.eigvalsh(rho0)
+        assert np.all(eigenvalues >= -1e-10), f"Eigenvalues: {eigenvalues}"
 
-    def test_initial_state_should_be_positive_semidefinite(self) -> None:
-        for dim_a in [2, 5, 10]:
-            rho0 = generate_initial_state(dim_a, 0)
-            eigenvalues = np.linalg.eigvalsh(rho0)
-            assert np.all(eigenvalues >= -1e-10), (
-                f"Eigenvalues should be non-negative: {eigenvalues}"
-            )
-
-    def test_initial_state_should_have_correct_dimension(self) -> None:
-        for dim_a in [2, 5, 10]:
-            rho0 = generate_initial_state(dim_a, 0)
-            expected_dim = 2 * dim_a  # System + Ancilla
-            assert rho0.shape[0] == expected_dim and rho0.shape[1] == expected_dim, (
-                f"Should be {expected_dim}x{expected_dim}, got {rho0.shape}"
-            )
+    @pytest.mark.parametrize("dim_a", [2, 5, 10])
+    def test_has_correct_dimension(self, dim_a: int) -> None:
+        rho0 = generate_initial_state(dim_a, 0)
+        assert rho0.shape == (2 * dim_a, 2 * dim_a)
 
 
 class TestHamiltonianGeneration:
-    """Tests for Hamiltonian generation."""
+    def test_is_hermitian(self) -> None:
+        H = generate_hamiltonian(RunOptions())
+        assert np.allclose(H, H.conj().T, atol=1e-10)
 
-    def test_hamiltonian_should_be_hermitian(self) -> None:
-        run_options = RunOptions()
-        H = generate_hamiltonian(run_options)
-        assert pytest.approx(H.conj().T, abs=1e-10) == H, (
-            "Hamiltonian should be Hermitian"
-        )
+    @pytest.mark.parametrize("dim_a", [2, 5, 10])
+    def test_has_correct_dimension(self, dim_a: int) -> None:
+        H = generate_hamiltonian(RunOptions(ancillary_dimension=dim_a))
+        assert H.shape == (2 * dim_a, 2 * dim_a)
 
-    def test_hamiltonian_should_have_correct_dimension(self) -> None:
-        for dim_a in [2, 5, 10]:
-            run_options = RunOptions(ancillary_dimension=dim_a)
-            H = generate_hamiltonian(run_options)
-            expected_dim = 2 * dim_a
-            assert H.shape[0] == expected_dim and H.shape[1] == expected_dim, (
-                f"Should be {expected_dim}x{expected_dim}, got {H.shape}"
-            )
+    def test_is_not_zero_matrix(self) -> None:
+        H = generate_hamiltonian(RunOptions())
+        assert not np.allclose(H, 0, atol=1e-10)
 
-    def test_hamiltonian_should_have_expected_structure(self) -> None:
-        run_options = RunOptions()
-        H = generate_hamiltonian(run_options)
-        # Hamiltonian should not be all zeros
-        assert pytest.approx(0, abs=1e-10) != H, (
-            "Hamiltonian should not be the zero matrix"
-        )
-
-    def test_hamiltonian_should_vary_with_parameters(self) -> None:
+    def test_varies_with_parameters(self) -> None:
         H1 = generate_hamiltonian(RunOptions(j_s=-5.0))
         H2 = generate_hamiltonian(RunOptions(j_s=5.0))
-        # Different j_s should give different Hamiltonians
-        assert pytest.approx(H2, abs=1e-10) != H1, (
-            "Different parameters should give different Hamiltonians"
-        )
+        assert not np.allclose(H1, H2, atol=1e-10)
 
 
 class TestStateEvolution:
-    """Tests for quantum state evolution."""
+    @pytest.mark.parametrize(
+        ("dim_a", "t"),
+        [
+            (2, 0.0),
+            (2, 0.5),
+            (2, 1.0),
+            (2, 2.0),
+            (5, 0.0),
+            (5, 0.5),
+            (5, 1.0),
+            (5, 2.0),
+        ],
+        ids=[
+            "dim_a=2_t=0.0",
+            "dim_a=2_t=0.5",
+            "dim_a=2_t=1.0",
+            "dim_a=2_t=2.0",
+            "dim_a=5_t=0.0",
+            "dim_a=5_t=0.5",
+            "dim_a=5_t=1.0",
+            "dim_a=5_t=2.0",
+        ],
+    )
+    def test_preserves_trace(self, dim_a: int, t: float) -> None:
+        _, rho0, H = _make_default_setup(dim_a)
+        rho_t = evolve_density_matrix(H, rho0, t)
+        assert np.isclose(np.trace(rho_t).real, 1.0, atol=1e-10)
 
-    def test_evolution_should_preserve_trace(self) -> None:
-        for dim_a in [2, 5]:
-            run_options = RunOptions(ancillary_dimension=dim_a)
-            initial_state = generate_initial_state(dim_a, 0)
-            H = generate_hamiltonian(run_options)
+    @pytest.mark.parametrize("t", [0.0, 0.5, 1.0])
+    def test_preserves_hermiticity(self, t: float) -> None:
+        _, rho0, H = _make_default_setup()
+        rho_t = evolve_density_matrix(H, rho0, t)
+        assert np.allclose(rho_t, rho_t.conj().T, atol=1e-10)
 
-            for t in [0.0, 0.5, 1.0, 2.0]:
-                rho_t = evolve_density_matrix(H, initial_state, t)
-                trace = np.trace(rho_t)
-                assert trace.real == pytest.approx(1.0, abs=1e-10), (
-                    f"Trace should be 1 at t={t}, got {trace}"
-                )
+    def test_given_zero_time_then_returns_initial_state(self) -> None:
+        _, rho0, H = _make_default_setup()
+        rho_t = evolve_density_matrix(H, rho0, 0.0)
+        assert np.allclose(rho_t, rho0, atol=1e-10)
 
-    def test_evolution_should_preserve_hermiticity(self) -> None:
-        run_options = RunOptions()
-        initial_state = generate_initial_state(run_options.ancillary_dimension, 0)
-        H = generate_hamiltonian(run_options)
-
-        for t in [0.0, 0.5, 1.0]:
-            rho_t = evolve_density_matrix(H, initial_state, t)
-            assert rho_t == pytest.approx(rho_t.conj().T, abs=1e-10), (
-                f"Density matrix should be Hermitian at t={t}"
-            )
-
-    def test_evolution_at_t0_should_return_initial_state(self) -> None:
-        run_options = RunOptions()
-        initial_state = generate_initial_state(run_options.ancillary_dimension, 0)
-        H = generate_hamiltonian(run_options)
-
-        rho_t = evolve_density_matrix(H, initial_state, 0.0)
-        assert rho_t == pytest.approx(initial_state, abs=1e-10), (
-            "At t=0, should return initial state"
-        )
-
-    def test_evolution_should_produce_valid_density_matrix(self) -> None:
-        run_options = RunOptions()
-        initial_state = generate_initial_state(run_options.ancillary_dimension, 0)
-        H = generate_hamiltonian(run_options)
-
-        rho_t = evolve_density_matrix(H, initial_state, 1.0)
-
-        # Check trace = 1
-        assert np.trace(rho_t).real == pytest.approx(1.0, abs=1e-10), (
-            "Expected np.trace(rho_t).real == pytest.approx(1.0, abs=1e-10)"
-        )
-        # Check Hermiticity
-        assert rho_t == pytest.approx(rho_t.conj().T, abs=1e-10), (
-            "Expected rho_t == pytest.approx(rho_t.conj().T, abs=1e-10)"
-        )
-        # Check positive semidefinite (all eigenvalues >= 0)
+    @pytest.mark.parametrize("t", [0.0, 0.5, 1.0])
+    def test_yields_valid_density_matrix(self, t: float) -> None:
+        _, rho0, H = _make_default_setup()
+        rho_t = evolve_density_matrix(H, rho0, t)
+        assert np.isclose(np.trace(rho_t).real, 1.0, atol=1e-10)
+        assert np.allclose(rho_t, rho_t.conj().T, atol=1e-10)
         eigenvalues = np.linalg.eigvalsh(rho_t)
-        assert np.all(eigenvalues >= -1e-10), "Expected np.all(eigenvalues >= -1e-10)"
+        assert np.all(eigenvalues >= -1e-10)
 
 
 class TestPartialTrace:
-    """Tests for partial trace operation."""
+    @pytest.mark.parametrize("dim_a", [2, 5, 10])
+    def test_gives_correct_dimension(self, dim_a: int) -> None:
+        rho = _make_valid_density_matrix(2 * dim_a)
+        rho_system = partial_trace_b(rho)
+        assert rho_system.shape == (2, 2)
 
-    def test_partial_trace_should_produce_correct_dimension(self) -> None:
-        for dim_a in [2, 5, 10]:
-            full_system = np.random.randn(2 * dim_a, 2 * dim_a) + 1j * np.random.randn(
-                2 * dim_a,
-                2 * dim_a,
-            )
-            # Make it a valid density matrix
-            full_system = full_system @ full_system.conj().T
-            full_system = full_system / np.trace(full_system)
+    @pytest.mark.parametrize("dim_a", [2, 5])
+    def test_preserves_total_trace(self, dim_a: int) -> None:
+        rho = _make_valid_density_matrix(2 * dim_a)
+        original_trace = np.trace(rho).real
+        rho_system = partial_trace_b(rho)
+        assert np.isclose(np.trace(rho_system).real, original_trace, atol=1e-10)
 
-            rho_system = partial_trace_b(full_system)
-            assert rho_system.shape == (2, 2), (
-                f"Reduced system should be 2x2, got {rho_system.shape}"
-            )
-
-    def test_partial_trace_should_preserve_trace(self) -> None:
-        for dim_a in [2, 5]:
-            full_system = np.random.randn(2 * dim_a, 2 * dim_a) + 1j * np.random.randn(
-                2 * dim_a,
-                2 * dim_a,
-            )
-            full_system = full_system @ full_system.conj().T
-            full_system = full_system / np.trace(full_system)
-
-            original_trace = np.trace(full_system).real
-            rho_system = partial_trace_b(full_system)
-            reduced_trace = np.trace(rho_system).real
-
-            assert original_trace == pytest.approx(reduced_trace, abs=1e-10), (
-                f"Trace should be preserved: {original_trace} vs {reduced_trace}"
-            )
-
-    def test_partial_trace_should_work_on_product_state(self) -> None:
-        dim_a = 5
-        rho0 = generate_initial_state(dim_a, 0)
-
+    def test_on_product_state(self) -> None:
+        rho0 = generate_initial_state(5, 0)
         rho_system = partial_trace_b(rho0)
-
-        # For |0><0| ⊗ |k><k|, the reduced system should be |0><0|
-        expected = np.array([[1, 0], [0, 0]])
-        assert rho_system == pytest.approx(expected, abs=1e-10), (
-            f"Partial trace of product state should give |0><0|, got {rho_system}"
-        )
+        expected = np.array([[1.0, 0.0], [0.0, 0.0]])
+        assert np.allclose(rho_system, expected, atol=1e-10)
 
 
 class TestFullCalculation:
-    """Tests for the full calculation pipeline."""
-
-    def test_full_calculation_should_return_all_expected_fields(self) -> None:
-        run_options = RunOptions()
-        result = full_calculation(run_options)
-
+    def test_returns_all_fields(self) -> None:
+        result = full_calculation(RunOptions())
         expected_fields = {
             "time",
             "<0|rho_system_t|0>",
@@ -210,115 +161,84 @@ class TestFullCalculation:
             "variance_sigma_z",
             "delta_s",
         }
-        assert set(result.keys()) == expected_fields, (
-            "Expected set(result.keys()) == expected_fields"
-        )
+        assert set(result.keys()) == expected_fields
 
-    def test_probabilities_should_sum_to_one(self) -> None:
-        for dim_a in [2, 5]:
-            for t in [0.0, 0.5, 1.0, 5.0]:
-                run_options = RunOptions(ancillary_dimension=dim_a, t=t)
-                result = full_calculation(run_options)
-                prob_0 = result["<0|rho_system_t|0>"]
-                prob_1 = result["<1|rho_system_t|1>"]
-                assert prob_0 + prob_1 == pytest.approx(1.0, abs=1e-10), (
-                    f"Probabilities should sum to 1: {prob_0} + {prob_1}"
-                )
+    @pytest.mark.parametrize(
+        ("dim_a", "t"),
+        [
+            (2, 0.0),
+            (2, 0.5),
+            (2, 1.0),
+            (2, 5.0),
+            (5, 0.0),
+            (5, 0.5),
+            (5, 1.0),
+            (5, 5.0),
+        ],
+        ids=[
+            "dim_a=2_t=0.0",
+            "dim_a=2_t=0.5",
+            "dim_a=2_t=1.0",
+            "dim_a=2_t=5.0",
+            "dim_a=5_t=0.0",
+            "dim_a=5_t=0.5",
+            "dim_a=5_t=1.0",
+            "dim_a=5_t=5.0",
+        ],
+    )
+    def test_probabilities_sum_to_one(self, dim_a: int, t: float) -> None:
+        result = full_calculation(RunOptions(ancillary_dimension=dim_a, t=t))
+        prob_sum = result["<0|rho_system_t|0>"] + result["<1|rho_system_t|1>"]
+        assert np.isclose(prob_sum, 1.0, atol=1e-10)
 
-    def test_sigma_z_expectation_should_be_in_valid_range(self) -> None:
-        run_options = RunOptions()
-        for t in np.linspace(0, 10, 10):
-            run_options.t = t
-            result = full_calculation(run_options)
-            sigma_z = result["expected_sigma_z"]
-            assert -1.0 - 1e-10 <= sigma_z <= 1.0 + 1e-10, (
-                f"<σ_z> should be in [-1, 1], got {sigma_z}"
-            )
+    @pytest.mark.parametrize("t", np.linspace(0, 10, 10).tolist())
+    def test_sigma_z_expectation_is_bounded(self, t: float) -> None:
+        result = full_calculation(RunOptions(t=t))
+        sigma_z = result["expected_sigma_z"]
+        assert -1.0 - 1e-10 <= sigma_z <= 1.0 + 1e-10, f"<sigma_z> = {sigma_z}"
 
-    def test_variance_sigma_z_should_be_in_valid_range(self) -> None:
-        run_options = RunOptions()
-        for t in np.linspace(0, 10, 10):
-            run_options.t = t
-            result = full_calculation(run_options)
-            variance = result["variance_sigma_z"]
-            assert 0.0 - 1e-10 <= variance <= 1.0 + 1e-10, (
-                f"Var(σ_z) should be in [0, 1], got {variance}"
-            )
+    @pytest.mark.parametrize("t", np.linspace(0, 10, 10).tolist())
+    def test_variance_sigma_z_is_bounded(self, t: float) -> None:
+        result = full_calculation(RunOptions(t=t))
+        variance = result["variance_sigma_z"]
+        assert 0.0 - 1e-10 <= variance <= 1.0 + 1e-10, f"Var(sigma_z) = {variance}"
 
-    def test_consistency_should_satisfy_variance_equals_1_minus_expectation_sq(
-        self,
-    ) -> None:
-        run_options = RunOptions()
-        result = full_calculation(run_options)
-
-        expected_sigma_z = result["expected_sigma_z"]
-        expected_variance = 1 - expected_sigma_z**2
-        actual_variance = result["variance_sigma_z"]
-
-        assert expected_variance == pytest.approx(actual_variance, abs=1e-10), (
-            f"Variance should be 1 - <σ_z>^2: {expected_variance} vs {actual_variance}"
-        )
+    def test_variance_satisfies_bernoulli_bound(self) -> None:
+        result = full_calculation(RunOptions())
+        expected_var = 1 - result["expected_sigma_z"] ** 2
+        assert np.isclose(expected_var, result["variance_sigma_z"], atol=1e-10)
 
 
 class TestNumericalStability:
-    """Tests for numerical stability."""
+    @pytest.mark.parametrize("dim_a", [2, 5, 10])
+    @pytest.mark.parametrize("t", [0.1, 1.0, 5.0, 10.0])
+    def test_evolution_avoids_nan(self, dim_a: int, t: float) -> None:
+        result = full_calculation(RunOptions(ancillary_dimension=dim_a, t=t))
+        assert all(np.isfinite(v) for v in result.values()), f"NaN in result: {result}"
 
-    def test_evolution_should_not_produce_nan(self) -> None:
-        for dim_a in [2, 5, 10]:
-            for t in [0.1, 1.0, 5.0, 10.0]:
-                run_options = RunOptions(ancillary_dimension=dim_a, t=t)
-                result = full_calculation(run_options)
-
-                for value in result.values():
-                    assert not np.isnan(value), (
-                        f"Result should not contain NaN: {result}"
-                    )
-
-    def test_results_should_be_stable_at_large_times(self) -> None:
-        run_options = RunOptions()
-        results = []
-        for t in [1.0, 5.0, 10.0, 50.0, 100.0]:
-            run_options.t = t
-            result = full_calculation(run_options)
-            results.append(result)
-
-        # All should be valid (no NaN or inf)
-        for r in results:
-            for key, value in r.items():
-                assert np.isfinite(value), f"{key} should be finite at large t: {value}"
+    @pytest.mark.parametrize("t", [1.0, 5.0, 10.0, 50.0, 100.0])
+    def test_results_remain_finite_at_large_times(self, t: float) -> None:
+        result = full_calculation(RunOptions(t=t))
+        assert all(np.isfinite(v) for v in result.values()), (
+            f"Non-finite at t={t}: {result}"
+        )
 
 
 class TestPerformance:
-    """Tests for performance characteristics."""
+    @pytest.mark.parametrize("dim_a", [5, 10, 20, 50])
+    def test_hamiltonian_generation_is_fast(self, dim_a: int) -> None:
+        options = RunOptions(ancillary_dimension=dim_a)
+        start = time.perf_counter()
+        for _ in range(10):
+            generate_hamiltonian(options)
+        elapsed = time.perf_counter() - start
+        assert elapsed < 1.0, f"Generation dim_a={dim_a} took {elapsed:.2f}s"
 
-    def test_hamiltonian_generation_should_be_fast(self) -> None:
-        import time
-
-        for dim_a in [5, 10, 20, 50]:
-            run_options = RunOptions(ancillary_dimension=dim_a)
-
-            start = time.perf_counter()
-            for _ in range(10):
-                _ = generate_hamiltonian(run_options)
-            elapsed = time.perf_counter() - start
-
-            # Should be under 1 second for 10 iterations
-            assert elapsed < 1.0, (
-                f"Hamiltonian generation for dim_a={dim_a} took {elapsed:.2f}s"
-            )
-
-    def test_evolution_should_scale_reasonably_with_dimension(self) -> None:
-        import time
-
-        for dim_a in [5, 10, 20]:
-            run_options = RunOptions(ancillary_dimension=dim_a)
-            initial_state = generate_initial_state(dim_a, 0)
-            H = generate_hamiltonian(run_options)
-
-            start = time.perf_counter()
-            for _ in range(5):
-                evolve_density_matrix(H, initial_state, 1.0)
-            elapsed = time.perf_counter() - start
-
-            # Should be under 5 seconds for 5 iterations
-            assert elapsed < 5.0, f"Evolution for dim_a={dim_a} took {elapsed:.2f}s"
+    @pytest.mark.parametrize("dim_a", [5, 10, 20])
+    def test_evolution_scales_with_dimension(self, dim_a: int) -> None:
+        _, rho0, H = _make_default_setup(dim_a)
+        start = time.perf_counter()
+        for _ in range(5):
+            evolve_density_matrix(H, rho0, 1.0)
+        elapsed = time.perf_counter() - start
+        assert elapsed < 5.0, f"Evolution dim_a={dim_a} took {elapsed:.2f}s"

@@ -1,11 +1,3 @@
-"""
-Unit tests for the Ancilla-Assisted Metrology Optimisation module.
-
-Covers operator construction, state preparation, beam-splitter unitaries,
-holding Hamiltonian/unitary, circuit evolution, sensitivity computation,
-objective function, optimisation, bounds, and alpha-coefficient scans.
-"""
-
 from __future__ import annotations
 
 import itertools
@@ -53,80 +45,74 @@ def _default_params() -> np.ndarray:
     return np.array([0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0])
 
 
-# ============================================================================
-# Fixtures
-# ============================================================================
-
-
 @pytest.fixture
-def ops() -> dict[str, np.ndarray]:
-    """Two-qubit operators for tests."""
+def make_ops() -> dict[str, np.ndarray]:
     return build_two_qubit_operators()
 
 
-# ============================================================================
-# Operator Construction
-# ============================================================================
-
-
 class TestOperatorConstruction:
-    """Two-qubit operator Hermiticity, dimensions, commutation."""
+    def test_given_two_qubit_operators_then_all_have_shape_4x4(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        for op in make_ops.values():
+            assert op.shape == (4, 4)
 
-    def test_shape(self, ops: dict[str, np.ndarray]) -> None:
-        for name, op in ops.items():
-            assert op.shape == (4, 4), f"{name} shape {op.shape}"
-
-    def test_hermitian(self, ops: dict[str, np.ndarray]) -> None:
-        for op in ops.values():
+    def test_given_two_qubit_operators_then_all_are_hermitian(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        for op in make_ops.values():
             assert op == pytest.approx(op.conj().T, abs=1e-12)
 
-    def test_jz_diagonal(self, ops: dict[str, np.ndarray]) -> None:
+    def test_given_jz_operators_then_are_diagonal(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
         for name in ["Jz_S", "Jz_A"]:
-            assert ops[name] == pytest.approx(np.diag(np.diag(ops[name])))
+            assert make_ops[name] == pytest.approx(np.diag(np.diag(make_ops[name])))
 
-    def test_jz_eigenvalues(self, ops: dict[str, np.ndarray]) -> None:
+    def test_given_jz_operators_then_eigenvalues_are_correct(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
         for name in ["Jz_S", "Jz_A"]:
-            assert sorted(np.linalg.eigvalsh(ops[name])) == pytest.approx(
+            assert sorted(np.linalg.eigvalsh(make_ops[name])) == pytest.approx(
                 [-0.5, -0.5, 0.5, 0.5]
             )
 
-    def test_commutation_jz_jx(self, ops: dict[str, np.ndarray]) -> None:
-        comm_S = ops["Jz_S"] @ ops["Jx_S"] - ops["Jx_S"] @ ops["Jz_S"]
-        assert comm_S == pytest.approx(1j * ops["Jy_S"], abs=1e-12)
-        comm_A = ops["Jz_A"] @ ops["Jx_A"] - ops["Jx_A"] @ ops["Jz_A"]
-        assert comm_A == pytest.approx(1j * ops["Jy_A"], abs=1e-12)
+    def test_commutation_jz_jx(self, make_ops: dict[str, np.ndarray]) -> None:
+        comm_S = (
+            make_ops["Jz_S"] @ make_ops["Jx_S"] - make_ops["Jx_S"] @ make_ops["Jz_S"]
+        )
+        assert comm_S == pytest.approx(1j * make_ops["Jy_S"], abs=1e-12)
+        comm_A = (
+            make_ops["Jz_A"] @ make_ops["Jx_A"] - make_ops["Jx_A"] @ make_ops["Jz_A"]
+        )
+        assert comm_A == pytest.approx(1j * make_ops["Jy_A"], abs=1e-12)
 
-    def test_interaction_zero(self) -> None:
+    def test_given_zero_coefficients_then_hamiltonian_is_zero(self) -> None:
         assert build_interaction_hamiltonian((0.0, 0.0, 0.0, 0.0)) == pytest.approx(0.0)
 
-    def test_interaction_hermitian(self) -> None:
-        rng = np.random.default_rng(42)
-        for _ in range(10):
-            alpha = tuple(rng.uniform(-2, 2, size=4))
-            H = build_interaction_hamiltonian(alpha)
-            assert pytest.approx(H.conj().T, abs=1e-12) == H
-
-
-# ============================================================================
-# State Preparation
-# ============================================================================
+    @pytest.mark.parametrize("seed", range(10), ids=[f"seed_{s}" for s in range(10)])
+    def test_given_random_coefficients_then_hamiltonian_is_hermitian(
+        self, seed: int
+    ) -> None:
+        rng = np.random.default_rng(seed)
+        alpha = tuple(rng.uniform(-2, 2, size=4))
+        H = build_interaction_hamiltonian(alpha)
+        assert pytest.approx(H.conj().T, abs=1e-12) == H
 
 
 class TestStatePreparation:
-    """Single- and two-qubit state parameterisation, purity."""
-
     @pytest.mark.parametrize(
         ("theta", "phi"), [(0.0, 0.0), (np.pi, 0.0), (np.pi / 2, np.pi)]
     )
     def test_single_qubit_normalised(self, theta: float, phi: float) -> None:
         assert np.linalg.norm(single_qubit_state(theta, phi)) == pytest.approx(1.0)
 
-    def test_zero_theta(self) -> None:
+    def test_given_zero_theta_then_state_is_up(self) -> None:
         assert single_qubit_state(0.0, 0.0) == pytest.approx(
             np.array([1.0, 0.0], dtype=complex)
         )
 
-    def test_pi_theta(self) -> None:
+    def test_given_pi_theta_then_state_is_down(self) -> None:
         assert single_qubit_state(np.pi, 0.0) == pytest.approx(
             np.array([0.0, 1.0], dtype=complex)
         )
@@ -137,15 +123,15 @@ class TestStatePreparation:
         assert psi == pytest.approx(expected)
         assert np.linalg.norm(psi) == pytest.approx(1.0)
 
-    # --- Reduced purity ---
     @pytest.mark.parametrize(
         ("psi", "expected"),
         [
-            (np.array([1.0, 0.0, 0.0, 0.0], dtype=complex), 1.0),  # |00⟩
-            (np.array([0.0, 1.0, 0.0, 0.0], dtype=complex), 1.0),  # |01⟩
-            (np.array([1.0, 0.0, 0.0, 1.0], dtype=complex) / np.sqrt(2), 0.5),  # |Φ⁺⟩
-            (np.array([0.0, 1.0, 1.0, 0.0], dtype=complex) / np.sqrt(2), 0.5),  # |Ψ⁺⟩
+            (np.array([1.0, 0.0, 0.0, 0.0], dtype=complex), 1.0),
+            (np.array([0.0, 1.0, 0.0, 0.0], dtype=complex), 1.0),
+            (np.array([1.0, 0.0, 0.0, 1.0], dtype=complex) / np.sqrt(2), 0.5),
+            (np.array([0.0, 1.0, 1.0, 0.0], dtype=complex) / np.sqrt(2), 0.5),
         ],
+        ids=["00", "01", "Phi+", "Psi+"],
     )
     def test_reduced_purity_known(self, psi: np.ndarray, expected: float) -> None:
         assert compute_reduced_purity(psi) == pytest.approx(expected, abs=1e-12)
@@ -155,43 +141,36 @@ class TestStatePreparation:
             two_qubit_state(0.7, 1.2, 0.3, 2.8)
         ) == pytest.approx(1.0, abs=1e-12)
 
-    def test_purity_through_circuit(self, ops: dict[str, np.ndarray]) -> None:
+    def test_purity_through_circuit(self, make_ops: dict[str, np.ndarray]) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         psi = evolve_full(
-            psi0, np.pi / 2, np.pi / 2, 1.0, 1.0, (0.0, 0.0, 0.0, 0.0), ops
+            psi0, np.pi / 2, np.pi / 2, 1.0, 1.0, (0.0, 0.0, 0.0, 0.0), make_ops
         )
         assert compute_reduced_purity(psi) == pytest.approx(1.0, abs=1e-10)
 
-    def test_purity_clamped_range(self) -> None:
-        rng = np.random.default_rng(42)
-        for _ in range(20):
-            psi = rng.standard_normal(4) + 1j * rng.standard_normal(4)
-            psi /= np.linalg.norm(psi)
-            assert 0.5 <= compute_reduced_purity(psi) <= 1.0
-
-
-# ============================================================================
-# Beam-Splitter
-# ============================================================================
+    @pytest.mark.parametrize("seed", range(20), ids=[f"seed_{s}" for s in range(20)])
+    def test_given_random_state_then_purity_in_range(self, seed: int) -> None:
+        rng = np.random.default_rng(seed)
+        psi = rng.standard_normal(4) + 1j * rng.standard_normal(4)
+        psi /= np.linalg.norm(psi)
+        assert 0.5 <= compute_reduced_purity(psi) <= 1.0
 
 
 class TestBeamSplitter:
-    """Beam-splitter unitaries: unitarity, special cases, tensor structure."""
-
     @pytest.mark.parametrize("T", [0.0, 0.5, np.pi / 4, np.pi / 2, np.pi])
-    def test_unitary(self, T: float) -> None:
+    def test_given_bs_unitary_then_is_unitary(self, T: float) -> None:
         U = bs_unitary(T)
         assert pytest.approx(I_2, abs=1e-12) == U @ U.conj().T
         assert pytest.approx(I_2, abs=1e-12) == U.conj().T @ U
 
     @pytest.mark.parametrize("T", [0.0, 0.3, np.pi / 4, np.pi / 2, np.pi])
-    def test_smoke(self, T: float) -> None:
+    def test_given_bs_unitary_then_shape_is_2x2(self, T: float) -> None:
         assert bs_unitary(T).shape == (2, 2)
 
-    def test_zero_time(self) -> None:
+    def test_given_zero_angle_then_identity(self) -> None:
         assert bs_unitary(0.0) == pytest.approx(I_2)
 
-    def test_half_pi(self) -> None:
+    def test_given_half_pi_angle_then_known_matrix(self) -> None:
         expected = np.array([[1, -1j], [-1j, 1]], dtype=complex) / np.sqrt(2)
         assert bs_unitary(np.pi / 2.0) == pytest.approx(expected, abs=1e-12)
 
@@ -207,66 +186,58 @@ class TestBeamSplitter:
         )
 
 
-# ============================================================================
-# Holding Hamiltonian & Unitary
-# ============================================================================
-
-
 class TestHold:
-    """Holding Hamiltonian Hermiticity and unitary evolution."""
+    def test_hamiltonian_hermitian(self, make_ops: dict[str, np.ndarray]) -> None:
+        H = build_hold_hamiltonian(1.0, (0.1, 0.2, 0.3, 0.4), make_ops)
+        assert pytest.approx(H, abs=1e-12) == H.conj().T
 
-    def test_hamiltonian_hermitian(self, ops: dict[str, np.ndarray]) -> None:
-        H = build_hold_hamiltonian(1.0, (0.1, 0.2, 0.3, 0.4), ops)
-        assert pytest.approx(H.conj().T, abs=1e-12) == H
-
-    def test_unitary(self, ops: dict[str, np.ndarray]) -> None:
-        U = hold_unitary(1.0, 1.0, (0.1, 0.0, 0.0, 0.0), ops)
+    def test_given_hold_unitary_then_is_unitary(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        U = hold_unitary(1.0, 1.0, (0.1, 0.0, 0.0, 0.0), make_ops)
         assert pytest.approx(I_4, abs=1e-12) == U @ U.conj().T
 
     @pytest.mark.parametrize("T_H", [0.0, 0.5, 2.0])
-    def test_matches_exact(self, T_H: float, ops: dict[str, np.ndarray]) -> None:
+    def test_given_hold_unitary_then_matches_scipy_exponential(
+        self, T_H: float, make_ops: dict[str, np.ndarray]
+    ) -> None:
         theta, alpha = 1.0, (0.1, 0.2, -0.1, 0.3)
-        H = build_hold_hamiltonian(theta, alpha, ops)
-        assert hold_unitary(T_H, theta, alpha, ops) == pytest.approx(
+        H = build_hold_hamiltonian(theta, alpha, make_ops)
+        assert hold_unitary(T_H, theta, alpha, make_ops) == pytest.approx(
             expm(-1j * T_H * H), abs=1e-12
         )
 
-    def test_zero_hold_identity(self, ops: dict[str, np.ndarray]) -> None:
-        assert hold_unitary(0.0, 1.0, (0.1, 0.0, 0.0, 0.0), ops) == pytest.approx(
+    def test_zero_hold_identity(self, make_ops: dict[str, np.ndarray]) -> None:
+        assert hold_unitary(0.0, 1.0, (0.1, 0.0, 0.0, 0.0), make_ops) == pytest.approx(
             I_4, abs=1e-12
         )
 
     @pytest.mark.parametrize("T_H", [0.0, 0.5, 1.0, 2.0])
-    def test_smoke(self, T_H: float, ops: dict[str, np.ndarray]) -> None:
-        assert hold_unitary(T_H, 1.0, (0.1, 0.0, -0.2, 0.3), ops).shape == (4, 4)
-
-
-# ============================================================================
-# Full Circuit Evolution
-# ============================================================================
+    def test_given_hold_unitary_then_shape_is_4x4(
+        self, T_H: float, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        assert hold_unitary(T_H, 1.0, (0.1, 0.0, -0.2, 0.3), make_ops).shape == (4, 4)
 
 
 class TestCircuitEvolution:
-    """Full MZI circuit: norm preservation, unitarity."""
-
     @pytest.mark.parametrize("T_H", [0.0, 0.5, 1.0])
     def test_normalisation_preserved(
-        self, T_H: float, ops: dict[str, np.ndarray]
+        self, T_H: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         psi = evolve_full(
-            psi0, np.pi / 4, np.pi / 4, T_H, 1.0, (0.0, 0.0, 0.0, 0.0), ops
+            psi0, np.pi / 4, np.pi / 4, T_H, 1.0, (0.0, 0.0, 0.0, 0.0), make_ops
         )
         assert np.linalg.norm(psi) == pytest.approx(1.0, abs=1e-12)
 
-    def test_no_hold_no_bs_identity(self, ops: dict[str, np.ndarray]) -> None:
+    def test_no_hold_no_bs_identity(self, make_ops: dict[str, np.ndarray]) -> None:
         psi0 = two_qubit_state(0.5, 0.3, 1.2, 0.8)
-        psi = evolve_full(psi0, 0.0, 0.0, 0.0, 0.0, (0.0, 0.0, 0.0, 0.0), ops)
+        psi = evolve_full(psi0, 0.0, 0.0, 0.0, 0.0, (0.0, 0.0, 0.0, 0.0), make_ops)
         assert psi == pytest.approx(psi0, abs=1e-12)
 
-    @pytest.mark.parametrize("random_state", [True, False])
+    @pytest.mark.parametrize("random_state", [True, False], ids=["random", "basis"])
     def test_unitarity_of_evolution(
-        self, random_state: bool, ops: dict[str, np.ndarray]
+        self, random_state: bool, make_ops: dict[str, np.ndarray]
     ) -> None:
         rng = np.random.default_rng(42)
         v1 = rng.standard_normal(4) + 1j * rng.standard_normal(4)
@@ -284,46 +255,42 @@ class TestCircuitEvolution:
 
         inner_before = np.vdot(psi0_1, psi0_2)
         alpha = (0.3, -0.1, 0.2, 0.0)
-        psi1 = evolve_full(psi0_1, 0.8, 0.6, 1.5, 2.0, alpha, ops)
-        psi2 = evolve_full(psi0_2, 0.8, 0.6, 1.5, 2.0, alpha, ops)
+        psi1 = evolve_full(psi0_1, 0.8, 0.6, 1.5, 2.0, alpha, make_ops)
+        psi2 = evolve_full(psi0_2, 0.8, 0.6, 1.5, 2.0, alpha, make_ops)
         assert np.vdot(psi1, psi2) == pytest.approx(inner_before, abs=1e-12)
 
 
-# ============================================================================
-# Sensitivity Computation
-# ============================================================================
-
-
 class TestSensitivity:
-    """Error-propagation sensitivity: SQL, fringe extrema, validation."""
-
     _alpha_zero = (0.0, 0.0, 0.0, 0.0)
 
-    def test_expectation_variance_consistency(self, ops: dict[str, np.ndarray]) -> None:
+    def test_expectation_variance_consistency(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
         psi = two_qubit_state(0.5, 0.3, 0.8, 1.2)
-        exp_val, var_val = compute_expectation_and_variance(psi, ops["Jz_S"])
-        exp_direct = np.real(psi.conj() @ ops["Jz_S"] @ psi)
+        exp_val, var_val = compute_expectation_and_variance(psi, make_ops["Jz_S"])
+        exp_direct = np.real(psi.conj() @ make_ops["Jz_S"] @ psi)
         var_direct = (
-            np.real(psi.conj() @ (ops["Jz_S"] @ ops["Jz_S"]) @ psi) - exp_direct**2
+            np.real(psi.conj() @ (make_ops["Jz_S"] @ make_ops["Jz_S"]) @ psi)
+            - exp_direct**2
         )
         assert exp_val == pytest.approx(exp_direct)
         assert var_val == pytest.approx(max(0.0, var_direct))
 
     @pytest.mark.parametrize("T_H", [0.5, 1.0, 2.0])
     def test_decoupled_sensitivity_sql(
-        self, T_H: float, ops: dict[str, np.ndarray]
+        self, T_H: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         dtheta = compute_sensitivity(
-            psi0, np.pi / 2, np.pi / 2, T_H, 1.0, self._alpha_zero, ops
+            psi0, np.pi / 2, np.pi / 2, T_H, 1.0, self._alpha_zero, make_ops
         )
         assert dtheta == pytest.approx(1.0 / T_H, rel=0.05)
 
-    def test_fringe_extremum_returns_inf(self, ops: dict[str, np.ndarray]) -> None:
+    def test_fringe_extremum_returns_inf(self, make_ops: dict[str, np.ndarray]) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         assert np.isinf(
             compute_sensitivity(
-                psi0, np.pi / 2, np.pi / 2, 1.0, np.pi, self._alpha_zero, ops
+                psi0, np.pi / 2, np.pi / 2, 1.0, np.pi, self._alpha_zero, make_ops
             )
         )
 
@@ -331,11 +298,11 @@ class TestSensitivity:
         ("T_H", "theta"), itertools.product([0.5, 1.0, 2.0], [0.5, 1.0, 1.5])
     )
     def test_finite_away_from_fringe(
-        self, T_H: float, theta: float, ops: dict[str, np.ndarray]
+        self, T_H: float, theta: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         dtheta = compute_sensitivity(
-            psi0, np.pi / 2, np.pi / 2, T_H, theta, self._alpha_zero, ops
+            psi0, np.pi / 2, np.pi / 2, T_H, theta, self._alpha_zero, make_ops
         )
         assert np.isfinite(dtheta) and dtheta > 0
 
@@ -350,119 +317,113 @@ class TestSensitivity:
         list(itertools.product([0.3, 0.7, 1.0, 1.3, 1.7], [0.5, 1.0, 1.5, 2.0])),
     )
     def test_decoupled_sensitivity_analytical(
-        self, theta_true: float, T_H: float, ops: dict[str, np.ndarray]
+        self, theta_true: float, T_H: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         dtheta = compute_sensitivity(
-            psi0, np.pi / 2, np.pi / 2, T_H, theta_true, self._alpha_zero, ops
+            psi0, np.pi / 2, np.pi / 2, T_H, theta_true, self._alpha_zero, make_ops
         )
         assert dtheta == pytest.approx(1.0 / T_H, rel=5e-3)
 
-    def test_variance_nonnegative(self, ops: dict[str, np.ndarray]) -> None:
-        rng = np.random.default_rng(42)
-        for _ in range(20):
-            psi = rng.standard_normal(4) + 1j * rng.standard_normal(4)
-            psi /= np.linalg.norm(psi)
-            assert validate_variance_positive(psi, ops["Jz_S"]) is True
+    @pytest.mark.parametrize("seed", range(20), ids=[f"seed_{s}" for s in range(20)])
+    def test_variance_nonnegative(
+        self, seed: int, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        rng = np.random.default_rng(seed)
+        psi = rng.standard_normal(4) + 1j * rng.standard_normal(4)
+        psi /= np.linalg.norm(psi)
+        assert validate_variance_positive(psi, make_ops["Jz_S"]) is True
 
-    # --- Validation helpers ---
     def test_validate_sensitivity_reasonable(self) -> None:
         assert validate_sensitivity_reasonable() is True
 
-    def test_validate_operators_raises_on_bad(self, ops: dict[str, np.ndarray]) -> None:
-        ops["Jz_S"] = np.zeros((4, 4))
+    def test_validate_operators_raises_on_bad(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        make_ops["Jz_S"] = np.zeros((4, 4))
         with pytest.raises(AssertionError):
-            validate_operators(ops)
+            validate_operators(make_ops)
 
     def test_validate_variance_positive_passes(
-        self, ops: dict[str, np.ndarray]
+        self, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
-        psi = evolve_full(psi0, np.pi / 2, np.pi / 2, 1.0, 1.0, self._alpha_zero, ops)
-        assert validate_variance_positive(psi, ops["Jz_S"]) is True
+        psi = evolve_full(
+            psi0, np.pi / 2, np.pi / 2, 1.0, 1.0, self._alpha_zero, make_ops
+        )
+        assert validate_variance_positive(psi, make_ops["Jz_S"]) is True
 
     def test_validate_derivative_stability_passes(
-        self, ops: dict[str, np.ndarray]
+        self, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         assert (
             validate_derivative_stability(
-                psi0, np.pi / 2, np.pi / 2, 1.0, 1.0, self._alpha_zero, ops
+                psi0, np.pi / 2, np.pi / 2, 1.0, 1.0, self._alpha_zero, make_ops
             )
             is True
         )
 
     def test_validate_derivative_stability_at_fringe(
-        self, ops: dict[str, np.ndarray]
+        self, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         assert (
             validate_derivative_stability(
-                psi0, np.pi / 2, np.pi / 2, 1.0, np.pi, self._alpha_zero, ops
+                psi0, np.pi / 2, np.pi / 2, 1.0, np.pi, self._alpha_zero, make_ops
             )
             is True
         )
 
 
-# ============================================================================
-# Objective Function
-# ============================================================================
-
-
 class TestObjective:
-    """Nelder–Mead objective: validity, SQL match, bounds, smoothness."""
-
-    def test_valid_params_finite(self, ops: dict[str, np.ndarray]) -> None:
-        val = sensitivity_objective(_default_params(), theta_true=1.0, ops=ops)
+    def test_valid_params_finite(self, make_ops: dict[str, np.ndarray]) -> None:
+        val = sensitivity_objective(_default_params(), theta_true=1.0, ops=make_ops)
         assert np.isfinite(val) and val > 0
 
-    def test_matches_sql(self, ops: dict[str, np.ndarray]) -> None:
+    def test_matches_sql(self, make_ops: dict[str, np.ndarray]) -> None:
         assert sensitivity_objective(
-            _default_params(), theta_true=1.0, ops=ops
+            _default_params(), theta_true=1.0, ops=make_ops
         ) == pytest.approx(1.0, rel=0.05)
 
-    def test_penalty_out_of_bounds_theta(self, ops: dict[str, np.ndarray]) -> None:
+    def test_penalty_out_of_bounds_theta(self, make_ops: dict[str, np.ndarray]) -> None:
         params = _default_params().copy()
-        params[0] = 4.0  # theta_S out of [0, π]
-        assert sensitivity_objective(params, theta_true=1.0, ops=ops) > 1e9
+        params[0] = 4.0
+        assert sensitivity_objective(params, theta_true=1.0, ops=make_ops) > 1e9
 
-    def test_penalty_out_of_bounds_alpha(self, ops: dict[str, np.ndarray]) -> None:
+    def test_penalty_out_of_bounds_alpha(self, make_ops: dict[str, np.ndarray]) -> None:
         params = _default_params().copy()
-        params[7] = 5.0  # alpha_xx out of [-2, 2]
-        assert sensitivity_objective(params, theta_true=1.0, ops=ops) > 1e9
+        params[7] = 5.0
+        assert sensitivity_objective(params, theta_true=1.0, ops=make_ops) > 1e9
 
-    def test_smoothness(self, ops: dict[str, np.ndarray]) -> None:
+    @pytest.mark.parametrize("idx", range(11), ids=[f"param_{i}" for i in range(11)])
+    def test_given_small_perturbation_then_objective_changes_smoothly(
+        self, idx: int, make_ops: dict[str, np.ndarray]
+    ) -> None:
         base = _default_params()
-        val_base = sensitivity_objective(base, theta_true=1.0, ops=ops)
-        for i in range(11):
-            perturbed = base.copy()
-            perturbed[i] += 1e-6
-            assert (
-                abs(
-                    sensitivity_objective(perturbed, theta_true=1.0, ops=ops) - val_base
-                )
-                < 1.0
+        val_base = sensitivity_objective(base, theta_true=1.0, ops=make_ops)
+        perturbed = base.copy()
+        perturbed[idx] += 1e-6
+        assert (
+            abs(
+                sensitivity_objective(perturbed, theta_true=1.0, ops=make_ops)
+                - val_base
             )
-
-
-# ============================================================================
-# Optimisation
-# ============================================================================
+            < 1.0
+        )
 
 
 class TestOptimisation:
-    """Nelder–Mead optimisation interface, result dataclasses, convergence."""
-
-    def test_run_returns_result_type(self, ops: dict[str, np.ndarray]) -> None:
+    def test_run_returns_result_type(self, make_ops: dict[str, np.ndarray]) -> None:
         result = run_optimisation(
-            theta_true=1.0, ops=ops, x0=_default_params(), maxiter=10
+            theta_true=1.0, ops=make_ops, x0=_default_params(), maxiter=10
         )
         assert isinstance(result, OptimisationResult)
         assert result.theta_true == 1.0
 
-    def test_run_returns_valid_params(self, ops: dict[str, np.ndarray]) -> None:
+    def test_run_returns_valid_params(self, make_ops: dict[str, np.ndarray]) -> None:
         result = run_optimisation(
-            theta_true=1.0, ops=ops, x0=_default_params(), maxiter=10
+            theta_true=1.0, ops=make_ops, x0=_default_params(), maxiter=10
         )
         assert result.params_opt.shape == (11,)
         assert not np.isnan(result.delta_theta_opt)
@@ -497,15 +458,14 @@ class TestOptimisation:
         assert r.best_per_theta[0] == pytest.approx(0.6)
 
     @pytest.mark.slow
-    def test_explores_t_h(self, ops: dict[str, np.ndarray]) -> None:
+    def test_explores_t_h(self, make_ops: dict[str, np.ndarray]) -> None:
         result = run_optimisation(
-            theta_true=1.0, ops=ops, x0=_default_params(), maxiter=200
+            theta_true=1.0, ops=make_ops, x0=_default_params(), maxiter=200
         )
         T_H_opt = result.params_opt[6]
         assert T_H_opt > 1.5
         assert result.delta_theta_opt == pytest.approx(1.0 / T_H_opt, rel=0.15)
 
-    # --- Convergence metric ---
     def test_convergence_fewer_than_two(self) -> None:
         r = OptimisationResult(0.5, np.zeros(11), 1.0, True, 10, "ok")
         assert compute_convergence_metric([r]) == 0.0
@@ -526,14 +486,7 @@ class TestOptimisation:
         assert 0.0 < metric < 0.10
 
 
-# ============================================================================
-# Bounds
-# ============================================================================
-
-
 class TestBounds:
-    """Default bounds, custom bounds, random initial params, history."""
-
     @pytest.mark.parametrize("key", ["theta", "phi", "T_BS", "T_H", "alpha"])
     def test_default_bounds_structure(self, key: str) -> None:
         bounds = get_default_bounds()
@@ -558,7 +511,7 @@ class TestBounds:
     def test_random_initial_params_shape(self) -> None:
         assert random_initial_params(np.random.default_rng(42)).shape == (11,)
 
-    @pytest.mark.parametrize("seed", range(5))
+    @pytest.mark.parametrize("seed", range(5), ids=[f"seed_{s}" for s in range(5)])
     def test_random_initial_params_within_bounds(self, seed: int) -> None:
         rng = np.random.default_rng(seed)
         params = random_initial_params(rng)
@@ -576,7 +529,6 @@ class TestBounds:
             assert params.shape == (11,)
             assert 0.0 <= params[6] <= 20.0
 
-    # --- History ---
     def test_optimisation_result_history(self) -> None:
         r = OptimisationResult(0.5, np.zeros(11), 1.0, True, 100, "OK")
         assert hasattr(r, "history")
@@ -588,10 +540,10 @@ class TestBounds:
         )
         assert r.history == [1.0, 0.8, 0.6, 0.5]
 
-    def test_track_history(self, ops: dict[str, np.ndarray]) -> None:
+    def test_track_history(self, make_ops: dict[str, np.ndarray]) -> None:
         result_no_track = run_optimisation(
             theta_true=1.0,
-            ops=ops,
+            ops=make_ops,
             x0=_default_params(),
             maxiter=20,
             track_history=False,
@@ -599,7 +551,7 @@ class TestBounds:
         assert result_no_track.history == []
         result_with_track = run_optimisation(
             theta_true=1.0,
-            ops=ops,
+            ops=make_ops,
             x0=_default_params(),
             maxiter=20,
             track_history=True,
@@ -608,14 +560,7 @@ class TestBounds:
         assert all(np.isfinite(v) and v > 0 for v in result_with_track.history)
 
 
-# ============================================================================
-# α-Coefficient Scans
-# ============================================================================
-
-
 class TestAlphaScans:
-    """Grid scan and random search over α coefficients."""
-
     def test_single_parameter_xx(self) -> None:
         result = scan_alpha_single_parameter(
             "xx", alpha_min=-0.5, alpha_max=0.5, n_points=5
@@ -651,13 +596,12 @@ class TestAlphaScans:
         assert len(result.delta_theta_values) == 10
         assert np.isfinite(result.best_delta_theta)
 
-    def test_random_search_bounds(self) -> None:
+    @pytest.mark.parametrize("seed", range(50), ids=[f"seed_{s}" for s in range(50)])
+    def test_random_search_bounds(self, seed: int) -> None:
         result = random_search_alpha(
-            n_samples=50, alpha_min=-1.0, alpha_max=1.0, seed=42
+            n_samples=1, alpha_min=-1.0, alpha_max=1.0, seed=seed
         )
-        for i in range(50):
-            for j in range(4):
-                assert -1.0 <= result.alpha_samples[i, j] <= 1.0
+        assert np.all((result.alpha_samples >= -1.0) & (result.alpha_samples <= 1.0))
 
     def test_random_search_reproducible(self) -> None:
         result1 = random_search_alpha(n_samples=20, seed=123)
@@ -665,16 +609,20 @@ class TestAlphaScans:
         assert result1.alpha_samples == pytest.approx(result2.alpha_samples)
         assert result1.delta_theta_values == pytest.approx(result2.delta_theta_values)
 
+    @pytest.mark.parametrize("name", ["xx", "xz", "zx", "zz"])
     @pytest.mark.slow
-    def test_alpha_nonzero_should_never_beat_sql_when_measuring_jz_s(self) -> None:
+    def test_alpha_nonzero_does_not_beat_sql_when_measuring_jz_s(
+        self, name: str
+    ) -> None:
         T_H, sql = 1.0, 1.0
-        for name in ["xx", "xz", "zx", "zz"]:
-            result = scan_alpha_single_parameter(
-                name, alpha_min=-1.5, alpha_max=1.5, n_points=11, T_H=T_H
-            )
-            finite = np.isfinite(result.delta_theta_values)
-            assert np.min(result.delta_theta_values[finite]) >= sql - 1e-8
+        result = scan_alpha_single_parameter(
+            name, alpha_min=-1.5, alpha_max=1.5, n_points=11, T_H=T_H
+        )
+        finite = np.isfinite(result.delta_theta_values)
+        assert np.min(result.delta_theta_values[finite]) >= sql - 1e-8
 
-        result_rand = random_search_alpha(n_samples=100, T_H=T_H, seed=42)
-        finite = np.isfinite(result_rand.delta_theta_values)
-        assert np.min(result_rand.delta_theta_values[finite]) >= sql - 1e-8
+    @pytest.mark.slow
+    def test_random_search_does_not_beat_sql(self) -> None:
+        result = random_search_alpha(n_samples=100, T_H=1.0, seed=42)
+        finite = np.isfinite(result.delta_theta_values)
+        assert np.min(result.delta_theta_values[finite]) >= 1.0 - 1e-8

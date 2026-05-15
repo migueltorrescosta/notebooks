@@ -1,7 +1,14 @@
-"""Unit tests for Optimization physics module."""
+"""Unit tests for the optimization physics module."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from .optimization import (
     MINIMIZERS,
@@ -16,71 +23,75 @@ from .optimization import (
 
 
 class TestTestFunctions:
-    def test_sphere_should_have_minimum_at_0_0(self) -> None:
-        assert sphere(0.0, 0.0) == pytest.approx(0.0), (
-            "Expected sphere(0.0, 0.0) == pytest.approx(0.0)"
-        )
+    def test_given_sphere_then_minimum_at_origin(self) -> None:
+        assert sphere(0.0, 0.0) == pytest.approx(0.0)
 
-    def test_rastrigin_should_have_minimum_at_0_0(self) -> None:
-        assert rastrigin(0.0, 0.0) == pytest.approx(0.0), (
-            "Expected rastrigin(0.0, 0.0) == pytest.approx(0.0)"
-        )
+    def test_given_rastrigin_then_minimum_at_origin(self) -> None:
+        assert rastrigin(0.0, 0.0) == pytest.approx(0.0)
 
-    def test_rosenbrock_should_have_minimum_at_1_1(self) -> None:
-        assert rosenbrock(1.0, 1.0) == pytest.approx(0.0, abs=0.01), (
-            "Expected rosenbrock(1.0, 1.0) == pytest.approx(0.0, abs=0.01)"
-        )
+    def test_given_rosenbrock_then_minimum_at_ones(self) -> None:
+        assert rosenbrock(1.0, 1.0) == pytest.approx(0.0, abs=0.01)
 
-    def test_himmelblau_should_have_multiple_minima(self) -> None:
-        # Just test that function has reasonable values
+    def test_given_himmelblau_then_values_are_finite(self) -> None:
         val1 = himmelblau(3.0, 2.0)
         val2 = himmelblau(-3.0, -3.0)
-        # Both should be finite
-        assert np.isfinite(val1), "Expected val1 to be finite"
-        assert np.isfinite(val2), "Expected val2 to be finite"
+        assert np.isfinite(val1)
+        assert np.isfinite(val2)
 
 
 class TestFunctionDictionary:
-    def test_all_functions_should_be_callable(self) -> None:
-        for func in TEST_FUNCTIONS.values():
-            assert callable(func), "Expected func to be callable"
+    @pytest.mark.parametrize(
+        ("name", "func"),
+        list(TEST_FUNCTIONS.items()),
+        ids=list(TEST_FUNCTIONS.keys()),
+    )
+    def test_given_function_then_is_callable(
+        self, name: str, func: Callable[[float, float], float]
+    ) -> None:
+        assert callable(func)
 
-    def test_all_functions_should_work_with_numpy_arrays(self) -> None:
-        x = np.array([0.0, 1.0])
-        y = np.array([0.0, 1.0])
-        for func in TEST_FUNCTIONS.values():
-            result = func(x[0], y[0])  # Just scalar for now
-            assert np.isfinite(result), "Expected result to be finite"
+    @pytest.mark.parametrize(
+        ("name", "func"),
+        list(TEST_FUNCTIONS.items()),
+        ids=list(TEST_FUNCTIONS.keys()),
+    )
+    def test_given_function_then_returns_finite_for_scalar(
+        self, name: str, func: Callable[[float, float], float]
+    ) -> None:
+        result = func(0.0, 1.0)
+        assert np.isfinite(result)
 
 
 class TestMinimizers:
-    def test_all_minimizers_should_exist(self) -> None:
-        for minimizer in MINIMIZERS.values():
-            assert callable(minimizer), "Expected minimizer to be callable"
+    @pytest.mark.parametrize(
+        ("name", "minimizer"),
+        list(MINIMIZERS.items()),
+        ids=list(MINIMIZERS.keys()),
+    )
+    def test_given_minimizer_then_is_callable(
+        self, name: str, minimizer: Callable[..., dict[str, Any]]
+    ) -> None:
+        assert callable(minimizer)
 
-    def test_minimizer_should_find_minimum_for_sphere(self) -> None:
+    def test_given_nelder_mead_then_finds_sphere_minimum(self) -> None:
         minimizer = MINIMIZERS["Nelder-Mead"]
         result = minimizer(sphere, np.array([2.0, 2.0]))
-        # Should converge close to (0, 0)
-        assert np.linalg.norm(result["x"]) < 0.1, (
-            'Expected np.linalg.norm(result["x"]) < 0.1'
-        )
+        assert np.linalg.norm(result["x"]) < 0.1
 
 
 class TestSurfaceGeneration:
-    def test_surface_should_have_correct_shape(self) -> None:
+    def test_given_grid_then_surface_has_correct_shape(self) -> None:
         surf = generate_surface("Sphere", (-3, 3), (-3, 3), 11)
-        assert surf.shape == (11, 11), "Expected surf.shape == (11, 11)"
+        assert surf.shape == (11, 11)
 
-    def test_surface_minimum_should_be_near_center_for_sphere(self) -> None:
+    def test_given_sphere_then_surface_minimum_near_center(self) -> None:
         surf = generate_surface("Sphere", (-3, 3), (-3, 3), 101)
         center = surf.shape[0] // 2
-        # Center pixel should be ~0
-        assert surf[center, center] < 0.1, "Expected surf[center, center] < 0.1"
+        assert surf[center, center] < 0.1
 
 
 class TestNormalization:
-    def test_normalized_values_should_be_in_0_1(self) -> None:
+    def test_given_benchmark_results_then_values_in_unit_interval(self) -> None:
         results = [
             {"function": "Sphere", "minimizer": "BFGS", "minimum": 0.0},
             {"function": "Sphere", "minimizer": "Nelder-Mead", "minimum": 1.0},
@@ -88,6 +99,5 @@ class TestNormalization:
             {"function": "Rastrigin", "minimizer": "Nelder-Mead", "minimum": 10.0},
         ]
         values = normalize_benchmark_results(results)
-        # All values should be in [0, 1]
-        assert np.all(values >= 0), "Expected np.all(values >= 0)"
-        assert np.all(values <= 1), "Expected np.all(values <= 1)"
+        assert np.all(values >= 0)
+        assert np.all(values <= 1)

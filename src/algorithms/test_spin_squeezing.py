@@ -1,4 +1,4 @@
-"""Tests for spin_squeezing.py - One-axis twisting Hamiltonian."""
+"""Tests for spin_squeezing.py - one-axis twisting (OAT) spin squeezing."""
 
 from __future__ import annotations
 
@@ -15,172 +15,139 @@ from .spin_squeezing import (
 
 
 class TestCoherentSpinState:
-    """Test suite for coherent_spin_state function."""
-
-    def test_css_is_the_j_j_x_state_pointing_along_x(self) -> None:
+    @pytest.mark.parametrize("N", [1, 2, 3, 4, 5, 10])
+    def test_given_css_then_points_along_negative_x(self, N: int) -> None:
         from src.physics.dicke_basis import jx_operator
 
-        for N in [1, 2, 3, 4, 5, 10]:
-            css = coherent_spin_state(N)
-            rho = np.outer(css, css.conj())
-            J_x = jx_operator(N)
-            jx = np.real(np.trace(rho @ J_x))
-            assert jx == pytest.approx(-N / 2), (
-                f"N={N}: <J_x> = {jx}, expected -N/2 = {-N / 2}"
-            )
+        css = coherent_spin_state(N)
+        rho = np.outer(css, css.conj())
+        J_x = jx_operator(N)
+        jx = np.real(np.trace(rho @ J_x))
+        assert jx == pytest.approx(-N / 2)
 
-    def test_css_has_maximum_spin_magnitude_n_2(self) -> None:
+    @pytest.mark.parametrize("N", [1, 2, 5, 10])
+    def test_given_css_then_spin_magnitude_is_N_over_2(self, N: int) -> None:
         from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 
-        for N in [1, 2, 5, 10]:
-            css = coherent_spin_state(N)
-            rho = np.outer(css, css.conj())
-            J_x = jx_operator(N)
-            J_y = jy_operator(N)
-            J_z = jz_operator(N)
+        css = coherent_spin_state(N)
+        rho = np.outer(css, css.conj())
+        J_x = jx_operator(N)
+        J_y = jy_operator(N)
+        J_z = jz_operator(N)
 
-            jx = np.real(np.trace(rho @ J_x))
-            jy = np.real(np.trace(rho @ J_y))
-            jz = np.real(np.trace(rho @ J_z))
+        jx = np.real(np.trace(rho @ J_x))
+        jy = np.real(np.trace(rho @ J_y))
+        jz = np.real(np.trace(rho @ J_z))
 
-            j_mag = np.sqrt(jx**2 + jy**2 + jz**2)
-            assert j_mag == pytest.approx(N / 2, abs=1e-6), (
-                f"N={N}: |J| = {j_mag}, expected {N / 2}"
-            )
+        j_mag = np.sqrt(jx**2 + jy**2 + jz**2)
+        assert j_mag == pytest.approx(N / 2, abs=1e-6)
 
 
 class TestOneAxisTwist:
-    """Test suite for one_axis_twist function."""
+    @pytest.mark.parametrize("t", [0.1, 0.5, 1.0])
+    @pytest.mark.parametrize("N", [2, 5, 10])
+    def test_given_oat_then_norm_is_preserved(self, N: int, t: float) -> None:
+        css = coherent_spin_state(N)
+        evolved = one_axis_twist(css, N, chi=1.0, t=t)
+        assert np.linalg.norm(evolved) == pytest.approx(1.0, abs=1e-6)
 
-    def test_oat_evolution_is_unitary(self) -> None:
-        for N in [2, 5, 10]:
-            css = coherent_spin_state(N)
-            for t in [0.1, 0.5, 1.0]:
-                evolved = one_axis_twist(css, N, chi=1.0, t=t)
-                # Check normalization is preserved
-                assert np.linalg.norm(evolved) == pytest.approx(1.0, abs=1e-6), (
-                    f"N={N}, t={t}: norm changed"
-                )
-
-    def test_oat_evolution_changes_css_non_trivial_for_x_polarized_css(self) -> None:
+    def test_given_oat_on_css_then_state_differs(self) -> None:
         N = 4
-        css = coherent_spin_state(N)  # |J, -J>_x
-
-        # OAT should change the state (not a global phase)
+        css = coherent_spin_state(N)
         evolved = one_axis_twist(css, N, chi=1.0, t=0.5)
-
-        # State should be different from original (not just a global phase)
         overlap = np.abs(np.vdot(css, evolved)) ** 2
-        assert overlap < 0.99, f"Overlap should be < 0.99, got {overlap}"
+        assert overlap < 0.99
 
 
 class TestSqueezingParameter:
-    """Test suite for squeezing_parameter function."""
+    @pytest.mark.parametrize("N", [1, 2, 4, 8, 16])
+    def test_given_css_then_squeezing_parameter_is_one(self, N: int) -> None:
+        css = coherent_spin_state(N)
+        xi = squeezing_parameter(css, N)
+        assert xi == pytest.approx(1.0, abs=1e-6)
 
-    def test_css_has_squeezing_parameter_1(self) -> None:
-        for N in [1, 2, 4, 8, 16]:
-            css = coherent_spin_state(N)
-            xi = squeezing_parameter(css, N)
-            # Numerical tolerance: should be exactly 1.0 for CSS
-            assert xi == pytest.approx(1.0, abs=1e-6), f"N={N}: ξ = {xi}, expected 1.0"
-
-    def test_squeezing_parameter_is_non_negative(self) -> None:
-        for N in [2, 5, 10]:
-            for t in [0.0, 0.1, 0.5, 1.0]:
-                state = generate_squeezed_state(N, chi=1.0, t=t)
-                xi = squeezing_parameter(state, N)
-                assert xi >= 0, f"N={N}, t={t}: ξ = {xi} is negative"
+    @pytest.mark.parametrize("t", [0.0, 0.1, 0.5, 1.0])
+    @pytest.mark.parametrize("N", [2, 5, 10])
+    def test_given_squeezed_state_then_xi_is_non_negative(
+        self, N: int, t: float
+    ) -> None:
+        state = generate_squeezed_state(N, chi=1.0, t=t)
+        xi = squeezing_parameter(state, N)
+        assert xi >= 0
 
 
 class TestOptimalSqueezingTime:
-    """Test suite for optimal_squeezing_time function."""
+    @pytest.mark.parametrize(
+        ("N", "expected"),
+        [
+            (2, (6.0 / 2.0) ** (1.0 / 3.0)),
+            (4, (6.0 / 4.0) ** (1.0 / 3.0)),
+            (8, (6.0 / 8.0) ** (1.0 / 3.0)),
+            (16, (6.0 / 16.0) ** (1.0 / 3.0)),
+        ],
+        ids=["N=2", "N=4", "N=8", "N=16"],
+    )
+    def test_given_oat_then_optimal_time_matches_formula(
+        self, N: int, expected: float
+    ) -> None:
+        t_opt = optimal_squeezing_time(N, chi=1.0)
+        assert t_opt == pytest.approx(expected, rel=1e-10)
 
-    def test_optimal_time_formula_t_opt_6_n_1_3(self) -> None:
-        for N in [2, 4, 8, 16]:
-            t_opt = optimal_squeezing_time(N, chi=1.0)
-            expected = (6 / N) ** (1 / 3)
-            assert t_opt == pytest.approx(expected, rel=1e-10), (
-                f"N={N}: t_opt = {t_opt}, expected {expected}"
-            )
-
-    def test_optimal_time_scales_as_n_1_3(self) -> None:
-        # t_opt ∝ N^(-1/3), so t_opt1/t_opt2 ≈ (N1/N2)^(-1/3)
+    def test_given_oat_then_optimal_time_scales_as_N_neg_one_third(self) -> None:
         N1, N2 = 10, 40
         t1 = optimal_squeezing_time(N1, chi=1.0)
         t2 = optimal_squeezing_time(N2, chi=1.0)
-
         ratio_actual = t1 / t2
-        ratio_expected = (N1 / N2) ** (-1 / 3)
+        ratio_expected = (N1 / N2) ** (-1.0 / 3.0)
+        assert ratio_actual == pytest.approx(ratio_expected, rel=1e-6)
 
-        assert ratio_actual == pytest.approx(ratio_expected, rel=1e-6), (
-            f"t_opt scaling: {ratio_actual:.4f} vs {(N1 / N2) ** (-1 / 3):.4f}"
-        )
-
-    def test_optimal_time_scales_as_1_over_chi(self) -> None:
-        chi_values = [0.5, 1.0, 2.0]
+    @pytest.mark.parametrize(
+        "chi", [0.5, 1.0, 2.0], ids=["chi=0.5", "chi=1.0", "chi=2.0"]
+    )
+    def test_given_oat_then_optimal_time_scales_as_one_over_chi(
+        self, chi: float
+    ) -> None:
         N = 10
-
-        for chi in chi_values:
-            t_opt = optimal_squeezing_time(N, chi=chi)
-            # With chi = 1, t_opt = (6/N)^(1/3)
-            # With chi, scaled by 1/chi
-            expected = (6 / N) ** (1 / 3) / chi
-            assert t_opt == pytest.approx(expected, rel=1e-10), (
-                f"N={N}, chi={chi}: t_opt = {t_opt}, expected {expected}"
-            )
+        t_opt = optimal_squeezing_time(N, chi=chi)
+        expected = (6.0 / N) ** (1.0 / 3.0) / chi
+        assert t_opt == pytest.approx(expected, rel=1e-10)
 
 
 class TestGenerateSqueezedState:
-    """Test suite for generate_squeezed_state function."""
+    @pytest.mark.parametrize("N", [2, 5, 10])
+    def test_given_zero_time_then_returns_css(self, N: int) -> None:
+        state = generate_squeezed_state(N, chi=1.0, t=0.0)
+        css = coherent_spin_state(N)
+        assert state == pytest.approx(css, abs=1e-6)
 
-    def test_t_0_returns_css(self) -> None:
-        for N in [2, 5, 10]:
-            state = generate_squeezed_state(N, chi=1.0, t=0.0)
-            css = coherent_spin_state(N)
-            # Should be identical (up to global phase)
-            assert state == pytest.approx(css, abs=1e-6), f"N={N}: state != CSS at t=0"
+    @pytest.mark.parametrize("t", [0.1, 0.5, 1.0])
+    @pytest.mark.parametrize("N", [2, 5, 10])
+    def test_given_squeezed_state_then_norm_is_one(self, N: int, t: float) -> None:
+        state = generate_squeezed_state(N, chi=1.0, t=t)
+        norm = np.linalg.norm(state)
+        assert norm == pytest.approx(1.0, abs=1e-6)
 
-    def test_generated_state_is_normalized(self) -> None:
-        for N in [2, 5, 10]:
-            for t in [0.1, 0.5, 1.0]:
-                state = generate_squeezed_state(N, chi=1.0, t=t)
-                norm = np.linalg.norm(state)
-                assert norm == pytest.approx(1.0, abs=1e-6), (
-                    f"N={N}, t={t}: norm = {norm}"
-                )
-
-    def test_state_has_correct_dimension_n_1(self) -> None:
-        for N in [2, 5, 10]:
-            state = generate_squeezed_state(N, chi=1.0, t=0.5)
-            assert state.shape[0] == N + 1, (
-                f"N={N}: dimension {state.shape[0]} vs {N + 1}"
-            )
+    @pytest.mark.parametrize("N", [2, 5, 10])
+    def test_given_squeezed_state_then_dimension_is_N_plus_one(self, N: int) -> None:
+        state = generate_squeezed_state(N, chi=1.0, t=0.5)
+        assert state.shape[0] == N + 1
 
 
 class TestPhysicalInvariants:
-    """Test physical invariants."""
+    @pytest.mark.parametrize("t", [0.1, 0.5, 1.0])
+    @pytest.mark.parametrize("N", [2, 5, 10])
+    def test_total_probability_is_conserved(self, N: int, t: float) -> None:
+        state = generate_squeezed_state(N, chi=1.0, t=t)
+        probs = np.abs(state) ** 2
+        assert np.sum(probs) == pytest.approx(1.0, abs=1e-6)
 
-    def test_total_probability_is_conserved(self) -> None:
-        for N in [2, 5, 10]:
-            for t in [0.1, 0.5, 1.0]:
-                state = generate_squeezed_state(N, chi=1.0, t=t)
-                probs = np.abs(state) ** 2
-                assert np.sum(probs) == pytest.approx(1.0, abs=1e-6), (
-                    f"N={N}, t={t}: sum probs = {np.sum(probs)}"
-                )
-
-    def test_oat_is_unitary_for_any_initial_state(self) -> None:
-        for N in [2, 5, 10]:
-            # Random initial state
-            rng = np.random.default_rng(42)
-            psi = rng.random(N + 1) + 1j * rng.random(N + 1)
-            psi = psi / np.linalg.norm(psi)
-
-            for t in [0.1, 0.5]:
-                evolved = one_axis_twist(psi, N, chi=1.0, t=t)
-                assert np.linalg.norm(evolved) == pytest.approx(
-                    np.linalg.norm(psi),
-                    abs=1e-6,
-                ), (
-                    f"N={N}: norm changed from {np.linalg.norm(psi)} to {np.linalg.norm(evolved)}"
-                )
+    @pytest.mark.parametrize("t", [0.1, 0.5])
+    @pytest.mark.parametrize("N", [2, 5, 10])
+    def test_given_oat_on_arbitrary_state_then_norm_preserved(
+        self, N: int, t: float
+    ) -> None:
+        rng = np.random.default_rng(42)
+        psi = rng.random(N + 1) + 1j * rng.random(N + 1)
+        psi = psi / np.linalg.norm(psi)
+        evolved = one_axis_twist(psi, N, chi=1.0, t=t)
+        assert np.linalg.norm(evolved) == pytest.approx(np.linalg.norm(psi), abs=1e-6)

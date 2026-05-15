@@ -1,7 +1,10 @@
 """Smoke tests for enums module."""
 
+import pytest
+
 from .enums import (
     BoundaryCondition,
+    OperatorBasis,
     PotentialFunction,
     ProbabilityDistribution,
     WavePacket,
@@ -9,73 +12,71 @@ from .enums import (
 
 
 class TestWavePacket:
-    def test_gaussian_exists(self) -> None:
-        assert WavePacket.Gaussian is not None, (
-            "Expected WavePacket.Gaussian to not be None"
-        )
-        assert WavePacket.Gaussian.value == "Gaussian", (
-            'Expected WavePacket.Gaussian.value == "Gaussian"'
-        )
+    @pytest.mark.parametrize(
+        ("member", "expected_value"),
+        [
+            (WavePacket.Gaussian, "Gaussian"),
+            (WavePacket.Step, "Step function"),
+        ],
+        ids=["Gaussian", "Step"],
+    )
+    def test_given_member_then_has_expected_value(
+        self, member: WavePacket, expected_value: str
+    ) -> None:
+        assert member.value == expected_value
 
-    def test_step_exists(self) -> None:
-        assert WavePacket.Step is not None, "Expected WavePacket.Step to not be None"
-        assert WavePacket.Step.value == "Step function", (
-            'Expected WavePacket.Step.value == "Step function"'
-        )
-
-    def test_all_are_strings(self) -> None:
-        assert all(isinstance(wp.value, str) for wp in WavePacket), (
-            "Expected all(isinstance(wp.value, str) for wp in WavePacket)"
-        )
+    def test_given_all_members_then_values_are_strings(self) -> None:
+        assert all(isinstance(wp.value, str) for wp in WavePacket)
 
 
 class TestPotentialFunction:
-    def test_double_well_exists(self) -> None:
-        assert PotentialFunction.DoubleWell is not None, (
-            "Expected PotentialFunction.DoubleWell to not be None"
-        )
-
-    def test_quadratic_exists(self) -> None:
-        assert PotentialFunction.Quadratic is not None, (
-            "Expected PotentialFunction.Quadratic to not be None"
-        )
-
-    def test_quartic_exists(self) -> None:
-        assert PotentialFunction.Quartic is not None, (
-            "Expected PotentialFunction.Quartic to not be None"
-        )
-
-    def test_trigonometric_exists(self) -> None:
-        assert PotentialFunction.Trigonometric is not None, (
-            "Expected PotentialFunction.Trigonometric to not be None"
-        )
-
-    def test_uniform_exists(self) -> None:
-        assert PotentialFunction.Uniform is not None, (
-            "Expected PotentialFunction.Uniform to not be None"
-        )
+    @pytest.mark.parametrize(
+        ("member", "expected_value"),
+        [
+            (PotentialFunction.DoubleWell, "Double-well"),
+            (PotentialFunction.Quadratic, "Quadratic"),
+            (PotentialFunction.Quartic, "Quartic"),
+            (PotentialFunction.Trigonometric, "Trigonometric"),
+            (PotentialFunction.Uniform, "Uniform"),
+        ],
+        ids=["DoubleWell", "Quadratic", "Quartic", "Trigonometric", "Uniform"],
+    )
+    def test_given_member_then_has_expected_value(
+        self, member: PotentialFunction, expected_value: str
+    ) -> None:
+        assert member.value == expected_value
 
 
 class TestBoundaryCondition:
-    def test_cyclic_exists(self) -> None:
-        assert BoundaryCondition.Cyclic is not None, (
-            "Expected BoundaryCondition.Cyclic to not be None"
-        )
-        assert BoundaryCondition.Cyclic.value == "Cyclic", (
-            'Expected BoundaryCondition.Cyclic.value == "Cyclic"'
-        )
-
-    def test_dirichlet_exists(self) -> None:
-        assert BoundaryCondition.Dirichlet is not None, (
-            "Expected BoundaryCondition.Dirichlet to not be None"
-        )
-        assert BoundaryCondition.Dirichlet.value == "Dirichlet", (
-            'Expected BoundaryCondition.Dirichlet.value == "Dirichlet"'
-        )
+    @pytest.mark.parametrize(
+        ("member", "expected_value"),
+        [
+            (BoundaryCondition.Cyclic, "Cyclic"),
+            (BoundaryCondition.Dirichlet, "Dirichlet"),
+        ],
+        ids=["Cyclic", "Dirichlet"],
+    )
+    def test_given_member_then_has_expected_value(
+        self, member: BoundaryCondition, expected_value: str
+    ) -> None:
+        assert member.value == expected_value
 
 
 class TestProbabilityDistribution:
-    def test_particle_decay_exists(self) -> None:
-        assert ProbabilityDistribution.ParticleDecay is not None, (
-            "Expected ProbabilityDistribution.ParticleDecay to not be None"
-        )
+    def test_given_particle_decay_then_has_expected_value(self) -> None:
+        assert ProbabilityDistribution.ParticleDecay.value == "ParticleDecay"
+
+
+class TestOperatorBasis:
+    @pytest.mark.parametrize(
+        ("member", "expected_value"),
+        [
+            (OperatorBasis.DICKE, "dicke"),
+            (OperatorBasis.FOCK, "fock"),
+        ],
+        ids=["DICKE", "FOCK"],
+    )
+    def test_given_member_then_has_expected_value(
+        self, member: OperatorBasis, expected_value: str
+    ) -> None:
+        assert member.value == expected_value
