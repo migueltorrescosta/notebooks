@@ -71,7 +71,7 @@ def model_selector() -> list[ModelConfig]:
     all_models = create_default_survey()
     model_options = {m.label: m for m in all_models}
 
-    # Add advanced scaling models (from this article) as custom-sensitivity plugins
+    # Add advanced scaling models (from this report) as custom-sensitivity plugins
     # Thermal model: uses noise_level as thermal_strength S
     _thermal_model = ModelConfig(
         model_id="thermal_sql",

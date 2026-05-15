@@ -139,7 +139,7 @@ def _ancilla_sensitivity_fn(
 
     When ``g_sp=0`` and ``lam=0`` (the defaults), the environment is
     effectively Markovian and the protocol reduces to the dispersive
-    ancilla-coupling model described in the article.
+    ancilla-coupling model described in the report.
 
     Args:
         alpha: Coherent state amplitude for the oscillator probe.

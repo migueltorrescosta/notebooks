@@ -5,7 +5,7 @@ Implements the full-parameter optimisation of a two-qubit (system + ancilla)
 Mach–Zehnder interferometer for estimating an unknown phase rate θ.
 
 References:
-- `articles/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md`
+- `reports/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md`
 
 """
 
@@ -117,7 +117,7 @@ with st.sidebar:
 
     with st.expander("📐 Advanced: Bounds", expanded=False):
         st.markdown(
-            "Adjust parameter search bounds. Use `T_H max = 20.0` to replicate the expanded-range investigation in the article.",
+            "Adjust parameter search bounds. Use `T_H max = 20.0` to replicate the expanded-range investigation in the report.",
         )
         t_h_min = st.number_input(
             "T_H min",
@@ -518,6 +518,6 @@ st.caption(
     **Model**: $\mathcal{H} = \mathbb{C}^2 \otimes \mathbb{C}^2$ |
     **Method**: Nelder–Mead (11 parameters) |
     **Objective**: $\Delta\theta = \sqrt{\text{Var}(J_z^S)} / |\partial\langle J_z^S\rangle/\partial\theta|$ |
-    🔗 See `articles/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md` for the full plan.
+    🔗 See `reports/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md` for the full plan.
     """,
 )

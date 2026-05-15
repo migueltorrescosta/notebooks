@@ -386,7 +386,7 @@ def random_alphas(
         scale: Max absolute value for coefficients (default 10).
 
     Returns:
-        Tuple (α_xx, α_xz, α_zx, α_zz) matching the article convention.
+        Tuple (α_xx, α_xz, α_zx, α_zz) matching the report convention.
 
     """
     vals = rng.uniform(-scale, scale, size=4)
@@ -592,7 +592,7 @@ def optimize_qfi_case_A(
 
     Returns:
         RandomSearchResult with best QFI, ρ, and α found.
-        Alpha ordering follows the article convention: (α_xx, α_xz, α_zx, α_zz).
+        Alpha ordering follows the report convention: (α_xx, α_xz, α_zx, α_zz).
 
     """
     rng = np.random.default_rng(seed)
@@ -784,7 +784,7 @@ def run_comparison(
 
     Returns:
         ComparisonResult with all findings.
-        Alpha ordering follows the article convention: (α_xx, α_xz, α_zx, α_zz).
+        Alpha ordering follows the report convention: (α_xx, α_xz, α_zx, α_zz).
 
     """
     # Case B: 2 particles, N_max = 2, restrict to N=2 subspace

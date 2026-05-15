@@ -20,7 +20,7 @@ You create simulations to improve knowledge around these quantum concepts:
 Follow these steps **in order** for every task that requires planning a simulation.
 
 ## 1. Before writing a plan
-1. **Read relevant code**: Understand existing patterns in `articles/` and available code
+1. **Read relevant code**: Understand existing patterns in `reports/` and available code
 2. **Plan the physical model**: Document the Hilbert space, basis, and operators to use
 3. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
 4. **Challenge assumptions**: Highlight likely mistakes present in the users' request.
@@ -29,7 +29,7 @@ Follow the standard pre-work steps outlined in [Coding Workflow §1](#1-before-s
 
 ## 2. During implementation
 
-1. Write the document in `articles/` using the format `YYYY-MM-DD-{title}.md` (e.g., `2026-05-07-example.md`).
+1. Write the document in `reports/` using the format `YYYY-MM-DD-{title}.md` (e.g., `2026-05-07-example.md`).
 2. Include the following sections:
    1. Hypothesis: Describe succintly what is the goal of this research avenue.
    2. Theoretical model: describe what is the system to be simulated.
@@ -37,9 +37,9 @@ Follow the standard pre-work steps outlined in [Coding Workflow §1](#1-before-s
 3. Highlight likely failure conditions for the simulation, answering the question "What are the most likely failure modes?"
 4. Avoid breaklines in prose unless necessary. Use paragraphs with inline equations as much as possible.
 
-# 📝 Article Format
+# 📝 Report Format
 
-Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the emoji system below.
+Every report in `reports/` uses `YYYY-MM-DD-{title}.md` and MUST follow the emoji system below.
 
 ## Section Header Emojis
 
@@ -62,7 +62,7 @@ Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the em
 |-------|-------|---------|
 | 💡 | **Key Finding** — start of a significant result paragraph | `💡 **Key Finding**: The core hypothesis is supported...` |
 | 🔍 | **Open items** — start of an open-questions paragraph | `🔍 **Open items**: (a) n=4 Wigner negativity...` |
-| 🔗 | **Cross-reference** — linking to other articles or code | `🔗 See `articles/2026-05-09-...`` |
+| 🔗 | **Cross-reference** — linking to other reports or code | `🔗 See `reports/2026-05-09-...`` |
 | 📐 | **Validation / Invariant** — near assertions and checks | `📐 `assert np.isclose(np.trace(rho), 1.0)`` |
 
 ## Status Indicators in Tables
@@ -80,7 +80,7 @@ Every article in `articles/` uses `YYYY-MM-DD-{title}.md` and MUST follow the em
 |---------|-------|------------|------|
 | Hypothesis | 🧪 | ✅ | Always |
 | Theoretical Model | ⚛️ | ✅ | Always |
-| Models Survey | 📊 | 🔲 | Multi-model comparison articles |
+| Models Survey | 📊 | 🔲 | Multi-model comparison reports |
 | Numerical Simulation | 💻 | ✅ | Always |
 | Expected Failure Conditions | ⚠️ | ✅ | Always |
 | Results | 🔬 | ✅ | Always |
@@ -95,7 +95,7 @@ Numbered list of specific, testable claims (or paragraph form for a single claim
 ### ⚛️ Theoretical Model
 Write the section as a continuous prose narrative that covers the **Hilbert space** (basis vectors, dimension formula, index ordering convention), **operators** (explicit matrix elements or generator definitions in the chosen basis), the **circuit protocol** as a step-by-step unitary sequence (BS → phase → hold → BS), the **measurement** observable and sensitivity formula used, and any **tables** for states, operators, or noise channels. Avoid subsection headings — the entire section must read as a single flowing exposition. Use **bold font** when introducing and defining each concept for the first time.
 
-### 📊 Models Survey (survey articles only)
+### 📊 Models Survey (survey reports only)
 Central table mapping models to expected scaling exponents. Columns: `| Model | Input State | Noise | Expected α | Implementation Status |`. This is the definitive reference. Use emoji status indicators.
 
 ### 💻 Numerical Simulation
@@ -111,10 +111,10 @@ Table mapping components to descriptions (e.g., operator construction, state pre
 Each entry includes: failure condition name, description (1-2 sentences), and mitigation strategy. Table format is required: `| Failure | Description | Mitigation |`.
 
 ### 🔬 Results
-**Required in every article.** Use a `⏳`-only table before experiments and a `✅/❌` table after.
+**Required in every report.** Use a `⏳`-only table before experiments and a `✅/❌` table after.
 - **Pre-experiment**: table with `⏳` (pending) status — marks what hasn't been run yet
 - **Post-experiment**: table with actual status, plus a **Key Finding** paragraph starting with `💡`
-- Completed articles include quantitative summary table and `🔗` links to code modules
+- Completed reports include quantitative summary table and `🔗` links to code modules
 - If no simulation was needed (pure analytical), state that clearly
 
 ### ✅ Success Criteria
@@ -176,7 +176,7 @@ Before completing any task, verify:
 5. **No silent physics errors** — explicit assertions in place (trace conservation, unitarity, positivity)
 6. **Performance within 100 ms** constraint per individual simulation
 7. **Randomness handled** via `seed` parameter (deterministic by default)
-8. If a new experiment was run based on an article, add a "Conclusions" section to the paper detailing the results.
+8. If a new experiment was run based on a report, add a "Conclusions" section to the paper detailing the results.
 
 > When in doubt, prefer **simplicity, explicitness, and reuse**.
 
@@ -184,7 +184,7 @@ Before completing any task, verify:
 
 ```
 notebooks/                   # Root folder (streamlit app)
-├── articles/                # Markdown files describing WIP and completed research
+├── reports/                # Markdown files describing WIP and completed research
 │                           # Format: YYYY-MM-DD-{title}.md (e.g., 2026-05-07-example.md)
 ├── pages/                   # Streamlit UI (20+ pages, one per simulation)
 ├── src/                     # Core modules organized by domain

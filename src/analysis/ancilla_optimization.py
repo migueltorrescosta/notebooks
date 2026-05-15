@@ -498,7 +498,7 @@ def sensitivity_objective(
         theta_true: True phase rate parameter.
         ops: Two-qubit operators.
         fd_step: Finite-difference step size.
-        bounds: Dict of parameter bounds (defaults to article values).
+        bounds: Dict of parameter bounds (defaults to report values).
         penalty_scale: Scale for bound-violation penalty.
 
     Returns:
@@ -511,7 +511,7 @@ def sensitivity_objective(
         penalty_scale > 0 (sensible default: 1e6).
 
     """
-    # Default bounds from the article
+    # Default bounds from the report
     if bounds is None:
         bounds = get_default_bounds()
 
@@ -1220,7 +1220,7 @@ def scan_alpha_single_parameter(
 ) -> AlphaSingleScanResult:
     """Scan a single α coefficient while holding others fixed.
 
-    This replicates the grid scan described in the article: "each α_ij is
+    This replicates the grid scan described in the report: "each α_ij is
     scanned independently in [-2, 2] with 21 points, while the other three
     are held at zero."
 
@@ -1312,7 +1312,7 @@ def random_search_alpha(
 ) -> AlphaRandomSearchResult:
     """Random search over the 4D α = (α_xx, α_xz, α_zx, α_zz) space.
 
-    This replicates the random search described in the article: "200 samples
+    This replicates the random search described in the report: "200 samples
     over the full 4D α space" to verify that no combination achieves
     Δθ < 1/T_H (SQL).
 

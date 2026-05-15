@@ -118,7 +118,7 @@ assert R_squared >= 0.9                                  # fit quality
 | **Minimum $N$ threshold enforced** | ⏳ |
 | **Phase-bias optimality** | ⏳ |
 
-All twelve checks are pending. No numerical experiments have been run yet; this article currently serves as the survey design document.
+All twelve checks are pending. No numerical experiments have been run yet; this report currently serves as the survey design document.
 
 ## ✅ Success Criteria
 
@@ -139,6 +139,6 @@ All twelve checks are pending. No numerical experiments have been run yet; this 
 
 ## 🏁 Conclusions
 
-This article establishes the design for a comprehensive survey of scaling exponents ($\alpha$) in Mach–Zehnder interferometry across a suite of two-mode Fock-basis states under Markovian decoherence. The theoretical framework — Hilbert space, interferometer unitary, input states, noise channels, generator convention, and measurement strategies — is fully specified, and the numerical pipeline is ready. The Models Survey table provides the definitive reference mapping each (state, noise) combination to its expected scaling exponent $\alpha$, including predicted transitions (NOON collapse under loss, two-body scaling collapse, squeezed-vacuum Heisenberg scaling). All success criteria are defined; numerical results are pending execution.
+This report establishes the design for a comprehensive survey of scaling exponents ($\alpha$) in Mach–Zehnder interferometry across a suite of two-mode Fock-basis states under Markovian decoherence. The theoretical framework — Hilbert space, interferometer unitary, input states, noise channels, generator convention, and measurement strategies — is fully specified, and the numerical pipeline is ready. The Models Survey table provides the definitive reference mapping each (state, noise) combination to its expected scaling exponent $\alpha$, including predicted transitions (NOON collapse under loss, two-body scaling collapse, squeezed-vacuum Heisenberg scaling). All success criteria are defined; numerical results are pending execution.
 
 🔍 **Open items**: (a) Run the full survey sweep to populate the Results table with $\alpha$ measurements. (b) Verify predicted thresholds for NOON collapse under one-body loss and two-body scaling collapse. (c) Validate analytical bounds for detection noise ($F_Q \to \eta F_Q$) with the full binomial convolution. (d) Extend parity-measurement analysis and determine whether parity CFI recovers QFI scaling for relevant states.

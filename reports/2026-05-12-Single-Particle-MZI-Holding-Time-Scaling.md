@@ -65,7 +65,7 @@ assert np.allclose(dJz_dtheta_analytical,
 | Finite-difference step-size error | If $\delta$ is too large, truncation error dominates; if too small, subtractive cancellation dominates. | Use $\delta = 10^{-6}$ (double-precision optimal for functions evaluating to $\mathcal{O}(1)$); optionally verify with $\delta = 10^{-5}$ and $10^{-7}$. |
 | Small-$T_H$ artifacts | At $T_H < 0.1$ and $\theta_0 = 1$, the accumulated phase $\phi = \theta T_H < 0.1 \ll 1$, making the signal $\langle J_z\rangle$ barely changed from its initial value. The finite-difference derivative may suffer from near-cancellation. | Include $T_H \geq 0.1$ in the sweep; monitor the condition number of the derivative. |
 | Log-log fit quality at large $T_H$ | At $T_H \gg 1$, $\Delta\theta \ll 1$ and may approach machine precision limits for the sensitivity. | Cap $T_H$ at 100 (well within double precision); the fit only needs $R^2 > 0.99$. |
-| Trivial result | The $\Delta\theta = 1/T_H$ prediction is analytically exact, so the simulation is primarily a verification/visualization exercise. No new physics is expected. | Frame the article as a pedagogical demonstration and sanity check of the error-propagation formalism, not as a discovery. |
+| Trivial result | The $\Delta\theta = 1/T_H$ prediction is analytically exact, so the simulation is primarily a verification/visualization exercise. No new physics is expected. | Frame the report as a pedagogical demonstration and sanity check of the error-propagation formalism, not as a discovery. |
 
 ## 🔬 Results
 

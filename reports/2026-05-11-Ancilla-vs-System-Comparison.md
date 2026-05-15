@@ -149,7 +149,7 @@ assert np.sqrt(max_F_Q_B / max_F_Q_A) >= 1.0, "Ancilla cannot outperform"
 | 6 | Truncation boundary population $< 10^{-6}$ | Check $\rho[N_{\max}, N_{\max}]$ element | ✅ |
 | 7 | $\theta$-dependence of QFI is quantified | Report $F_Q$ at $\theta \in \{0, 0.1, \pi/4, \pi/2\}$ | ✅ |
 
-All criteria are satisfied or properly bounded. Criterion 3 is marked ❌ because the analytical bound holds: non-commuting interactions do not enhance the QFI beyond the $J=\frac12$ limit. This negative result is the central finding of the article — the ancilla-assisted configuration fundamentally cannot outperform the two-system-particle configuration at equal particle count. The numerical optimisation confirms the bound across all tested parameters.
+All criteria are satisfied or properly bounded. Criterion 3 is marked ❌ because the analytical bound holds: non-commuting interactions do not enhance the QFI beyond the $J=\frac12$ limit. This negative result is the central finding of the report — the ancilla-assisted configuration fundamentally cannot outperform the two-system-particle configuration at equal particle count. The numerical optimisation confirms the bound across all tested parameters.
 
 ### 📐 Analytical Bounds
 
