@@ -38,8 +38,7 @@ from .hybrid_system import (
 class TestEmbedding:
     """Test hybrid state embedding into MZI space."""
 
-    def test_embed_preserves_norm(self) -> None:
-        """‖embedded‖² = ‖hybrid‖² = 1 (pure state)."""
+    def test_embedded_hybrid_1_pure_state(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         embedded = embed_hybrid_in_mzi(state, N)
@@ -51,8 +50,7 @@ class TestEmbedding:
             "Expected norm_embedded == pytest.approx(norm_hybrid, abs=1e-10)"
         )
 
-    def test_embed_dimension(self) -> None:
-        """Embedded state should have correct dimension (pure state)."""
+    def test_embedded_state_should_have_correct_dimension_pure_state(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         embedded = embed_hybrid_in_mzi(state, N)
@@ -62,8 +60,7 @@ class TestEmbedding:
             "Expected embedded.shape == (expected_dim,)"
         )
 
-    def test_embed_vacuum_structure(self) -> None:
-        """|0,↓⟩ ⊗ |0⟩ should only have amplitude at (n1=0, n2=0, s=0)."""
+    def test_0_0_should_only_have_amplitude_at_n1_0_n2_0_s_0(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         embedded = embed_hybrid_in_mzi(state, N)
@@ -81,8 +78,7 @@ class TestEmbedding:
     # Density matrix embedding tests
     # ------------------------------------------------------------------ #
 
-    def test_embed_density_dimension(self) -> None:
-        """Embedded density matrix should have correct 2D shape."""
+    def test_embedded_density_matrix_should_have_correct_2d_shape(self) -> None:
         N = 5
         dim_mzi = 2 * (N + 1) ** 2
 
@@ -94,8 +90,7 @@ class TestEmbedding:
             "Expected embedded.shape == (dim_mzi, dim_mzi)"
         )
 
-    def test_embed_density_trace_preserved(self) -> None:
-        """Tr(ρ_embedded) = Tr(ρ_hybrid) = 1."""
+    def test_tr_embedded_tr_hybrid_1(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         rho = np.outer(state, state.conj())
@@ -106,8 +101,7 @@ class TestEmbedding:
             "Expected np.trace(embedded) == pytest.approx(1.0, abs=1e-10)"
         )
 
-    def test_embed_density_hermiticity_preserved(self) -> None:
-        """ρ_embedded should be Hermitian."""
+    def test_embedded_should_be_hermitian(self) -> None:
         N = 5
         state = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
         rho = np.outer(state, state.conj())
@@ -118,8 +112,7 @@ class TestEmbedding:
             "Expected embedded == pytest.approx(embedded.conj().T, abs=1e-10)"
         )
 
-    def test_embed_density_positivity_preserved(self) -> None:
-        """ρ_embedded should be positive semidefinite."""
+    def test_embedded_should_be_positive_semidefinite(self) -> None:
         N = 5
         state = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
         rho = np.outer(state, state.conj())
@@ -129,8 +122,7 @@ class TestEmbedding:
         eigenvalues = np.linalg.eigvalsh(embedded)
         assert np.all(eigenvalues >= -1e-10), "Expected np.all(eigenvalues >= -1e-10)"
 
-    def test_embed_density_vacuum_structure(self) -> None:
-        """|0,↓⟩⟨0,↓| should only have nonzero entry at (0,0)."""
+    def test_0_0_should_only_have_nonzero_entry_at_0_0(self) -> None:
         N = 5
         dim_hybrid = 2 * (N + 1)
 
@@ -147,8 +139,7 @@ class TestEmbedding:
             "Expected all_others == pytest.approx(0.0, abs=1e-10)"
         )
 
-    def test_embed_density_agrees_with_pure(self) -> None:
-        """Embedding ρ = |ψ⟩⟨ψ| should match |ψ_emb⟩⟨ψ_emb|."""
+    def test_embedding_should_match_emb_emb(self) -> None:
         N = 5
         state = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
         rho = np.outer(state, state.conj())
@@ -164,8 +155,7 @@ class TestEmbedding:
             "Expected rho_emb == pytest.approx(rho_from_pure, abs=1e-10)"
         )
 
-    def test_embed_density_off_diagonal_mapping(self) -> None:
-        """Off-diagonal ρ[i,j] should map to correct embedded position."""
+    def test_off_diagonal_i_j_should_map_to_correct_embedded_position(self) -> None:
         N = 3
         dim_hybrid = 2 * (N + 1)
 
@@ -183,15 +173,13 @@ class TestEmbedding:
             "Expected embedded[idx_0, idx_1] == pytest.approx(0.5 + 0.5j, abs=1e-10)"
         )
 
-    def test_embed_density_rejects_wrong_shape(self) -> None:
-        """Non-square density matrix should raise ValueError."""
+    def test_non_square_density_matrix_should_raise_valueerror(self) -> None:
         N = 5
         bad_rho = np.zeros((4, 6), dtype=complex)
         with pytest.raises(ValueError, match="must have shape"):
             embed_hybrid_in_mzi(bad_rho, N)
 
-    def test_embed_density_high_N(self) -> None:
-        """Embedding should work for larger N."""
+    def test_embedding_should_work_for_larger_n(self) -> None:
         N = 10
         state = hybrid_vacuum_state(N, spin_state="up")
         rho = np.outer(state, state.conj())
@@ -218,32 +206,28 @@ class TestEmbedding:
 class TestMZIOperators:
     """Test MZI operator properties."""
 
-    def test_beam_splitter_unitary(self) -> None:
-        """BS should be unitary."""
+    def test_bs_should_be_unitary(self) -> None:
         N = 5
         bs = mzi_beam_splitter(N, theta=np.pi / 4)
         assert validate_hybrid_unitary(bs, tol=1e-8), (
             "Condition failed: validate_hybrid_unitary(bs, tol=1e-8)"
         )
 
-    def test_phase_shift_unitary(self) -> None:
-        """Phase shift should be unitary."""
+    def test_phase_shift_should_be_unitary(self) -> None:
         N = 5
         ps = mzi_phase_shift(N, phi=0.5)
         assert validate_hybrid_unitary(ps, tol=1e-8), (
             "Condition failed: validate_hybrid_unitary(ps, tol=1e-8)"
         )
 
-    def test_phase_generator_hermitian(self) -> None:
-        """Phase generator should be Hermitian."""
+    def test_phase_generator_should_be_hermitian(self) -> None:
         N = 5
         G = mzi_phase_generator(N)
         assert pytest.approx(G.conj().T, abs=1e-10) == G, (
             "Expected G == pytest.approx(G.conj().T, abs=1e-10)"
         )
 
-    def test_phase_generator_diagonal(self) -> None:
-        """G = n₁ ⊗ I should be diagonal."""
+    def test_g_n_i_should_be_diagonal(self) -> None:
         N = 5
         G = mzi_phase_generator(N)
         # G should be diagonal
@@ -260,8 +244,7 @@ class TestMZIOperators:
 class TestMZIEvolution:
     """Test evolution through MZI."""
 
-    def test_evolution_preserves_norm(self) -> None:
-        """Output state should be normalized."""
+    def test_output_state_should_be_normalized(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         output = evolve_hybrid_mzi(state, N, phi=0.5)
@@ -271,8 +254,7 @@ class TestMZIEvolution:
             "Expected norm == pytest.approx(1.0, abs=1e-6)"
         )
 
-    def test_evolution_no_phase(self) -> None:
-        """With φ=0, vacuum should remain same (up to BS transformations)."""
+    def test_with_0_vacuum_should_remain_same_up_to_bs_transformations(self) -> None:
         N = 3
         state = hybrid_vacuum_state(N, spin_state="down")
         output = evolve_hybrid_mzi(state, N, phi=0.0)
@@ -283,8 +265,7 @@ class TestMZIEvolution:
             "Expected norm == pytest.approx(1.0, abs=1e-6)"
         )
 
-    def test_evolution_output_shape(self) -> None:
-        """Output should have correct shape."""
+    def test_output_should_have_correct_shape(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         output = evolve_hybrid_mzi(state, N, phi=1.0)
@@ -303,8 +284,7 @@ class TestMZIEvolution:
 class TestOutputProbabilities:
     """Test probability computations."""
 
-    def test_probabilities_sum_to_one(self) -> None:
-        """Sum of all |amplitudes|² should be 1."""
+    def test_sum_of_all_amplitudes_should_be_1(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         output = evolve_hybrid_mzi(state, N, phi=0.5)
@@ -314,8 +294,7 @@ class TestOutputProbabilities:
             "Expected np.sum(probs) == pytest.approx(1.0, abs=1e-6)"
         )
 
-    def test_marginal_probs(self) -> None:
-        """Marginal probabilities should sum to 1."""
+    def test_marginal_probabilities_should_sum_to_1(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         output = evolve_hybrid_mzi(state, N, phi=0.5)
@@ -328,8 +307,7 @@ class TestOutputProbabilities:
             "Expected np.sum(P2) == pytest.approx(1.0, abs=1e-6)"
         )
 
-    def test_marginal_probs_shape(self) -> None:
-        """Marginal arrays should have length N+1."""
+    def test_marginal_arrays_should_have_length_n_1(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         output = evolve_hybrid_mzi(state, N, phi=0.5)
@@ -347,16 +325,14 @@ class TestOutputProbabilities:
 class TestQFIHybridMZI:
     """Test Quantum Fisher Information computation."""
 
-    def test_qfi_non_negative(self) -> None:
-        """QFI should be non-negative."""
+    def test_qfi_should_be_non_negative(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         fq = qfi_hybrid_mzi(state, N)
 
         assert fq >= 0.0, "Expected fq >= 0.0"
 
-    def test_qfi_vacuum(self) -> None:
-        """Vacuum input should give zero QFI (no phase sensitivity)."""
+    def test_vacuum_input_should_give_zero_qfi_no_phase_sensitivity(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         fq = qfi_hybrid_mzi(state, N)
@@ -366,8 +342,7 @@ class TestQFIHybridMZI:
             "Expected fq == pytest.approx(0.0, abs=1e-6)"
         )
 
-    def test_qfi_scales_with_photons(self) -> None:
-        """More photons should give higher QFI."""
+    def test_more_photons_should_give_higher_qfi(self) -> None:
         N = 10
         # Coherent state with |α|² = 1
         state1 = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
@@ -389,8 +364,7 @@ class TestQFIHybridMZI:
 class TestDensityExtraction:
     """Test oscillator density matrix extraction."""
 
-    def test_extract_vacuum(self) -> None:
-        """Vacuum should give ρ = |0⟩⟨0|."""
+    def test_vacuum_should_give_0_0(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
         rho_osc = extract_oscillator_density(state, N)
@@ -403,8 +377,7 @@ class TestDensityExtraction:
             "Expected np.sum(np.abs(rho_osc[1:, :])) == pytest.approx(0.0, abs=1e-10)"
         )
 
-    def test_extract_preserves_trace(self) -> None:
-        """Trace of extracted density should be 1."""
+    def test_trace_of_extracted_density_should_be_1(self) -> None:
         N = 5
         state = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
         rho_osc = extract_oscillator_density(state, N)
@@ -424,8 +397,7 @@ class TestDensityExtraction:
 class TestWignerComputation:
     """Test Wigner function computation."""
 
-    def test_compute_wigner_shape(self) -> None:
-        """Wigner output should have correct shape."""
+    def test_wigner_output_should_have_correct_shape(self) -> None:
         N = 10
         state = hybrid_vacuum_state(N, spin_state="down")
         x, p, W = compute_wigner_for_state(state, N, x_max=3.0, n_points=50)
@@ -434,8 +406,7 @@ class TestWignerComputation:
         assert p.shape == (50,), "Expected p.shape == (50,)"
         assert W.shape == (50, 50), "Expected W.shape == (50, 50)"
 
-    def test_compute_wigner_vacuum_positive(self) -> None:
-        """Vacuum Wigner should be positive."""
+    def test_vacuum_wigner_should_be_positive(self) -> None:
         N = 10
         state = hybrid_vacuum_state(N, spin_state="down")
         _, _, W = compute_wigner_for_state(state, N, x_max=3.0, n_points=50)

@@ -22,22 +22,19 @@ from .mzi_simulation import (
 class TestKerrPhaseShiftUnitary:
     """Test combined phase + Kerr unitary construction."""
 
-    def test_diagonal_structure(self) -> None:
-        """Kerr-phase unitary should be diagonal in Fock basis."""
+    def test_kerr_phase_unitary_should_be_diagonal_in_fock_basis(self) -> None:
         U = kerr_phase_shift_unitary(1.0, 0.1, 1.0, max_photons=2)
         assert pytest.approx(np.diag(np.diag(U))) == U, (
             "Expected U == pytest.approx(np.diag(np.diag(U)))"
         )
 
-    def test_unitarity(self) -> None:
-        """U^dagger U = I."""
+    def test_u_dagger_u_i(self) -> None:
         U = kerr_phase_shift_unitary(1.0, 0.1, 1.0, max_photons=2)
         assert np.allclose(U @ U.conj().T, np.eye(U.shape[0]), atol=1e-10), (
             "Kerr phase shift unitary must satisfy U U† = I"
         )
 
-    def test_dimensions(self) -> None:
-        """Matrix dimension should be (max_photons+1)^2."""
+    def test_matrix_dimension_should_be_max_photons_1_2(self) -> None:
         for mp in [0, 1, 2, 3]:
             U = kerr_phase_shift_unitary(0.5, 0.1, 1.0, max_photons=mp)
             expected_dim = (mp + 1) ** 2
@@ -45,8 +42,7 @@ class TestKerrPhaseShiftUnitary:
                 "Expected U.shape == (expected_dim, expected_dim)"
             )
 
-    def test_reduces_to_standard_phase_shift(self) -> None:
-        """When chi=0, should match phase_shift_unitary."""
+    def test_when_chi_0_should_match_phase_shift_unitary(self) -> None:
         for phi in [0.0, np.pi / 4, np.pi / 2, np.pi]:
             U_kerr = kerr_phase_shift_unitary(phi, 0.0, 1.0, max_photons=2)
             U_std = phase_shift_unitary(phi, max_photons=2)
@@ -54,14 +50,12 @@ class TestKerrPhaseShiftUnitary:
                 "Expected U_kerr == pytest.approx(U_std)"
             )
 
-    def test_chi_zero_independent_of_T(self) -> None:
-        """When chi=0, T should not affect the unitary."""
+    def test_when_chi_0_t_should_not_affect_the_unitary(self) -> None:
         U_T1 = kerr_phase_shift_unitary(1.0, 0.0, 0.0, max_photons=2)
         U_T2 = kerr_phase_shift_unitary(1.0, 0.0, 10.0, max_photons=2)
         assert pytest.approx(U_T2) == U_T1, "Expected U_T1 == pytest.approx(U_T2)"
 
-    def test_diagonal_element_formula(self) -> None:
-        """Each diagonal element should be exp(i * [phi*n2 + chi*T*(n1^2 + n2^2)])."""
+    def test_each_diagonal_element_should_be_exp_i_phi_n2_chi_t_n1_2_n2_2(self) -> None:
         phi, chi, T = 0.5, 0.3, 2.0
         max_photons = 3
         U = kerr_phase_shift_unitary(phi, chi, T, max_photons=max_photons)
@@ -75,45 +69,39 @@ class TestKerrPhaseShiftUnitary:
                     "Expected U[idx, idx] == pytest.approx(expected)"
                 )
 
-    def test_chi_T_scaling(self) -> None:
-        """Same chi*T product should give same unitary."""
+    def test_same_chi_t_product_should_give_same_unitary(self) -> None:
         U_a = kerr_phase_shift_unitary(0.5, 0.2, 3.0, max_photons=2)
         U_b = kerr_phase_shift_unitary(0.5, 0.6, 1.0, max_photons=2)
         assert U_a == pytest.approx(U_b), "Expected U_a == pytest.approx(U_b)"
 
-    def test_negative_chi_raises(self) -> None:
-        """Negative chi should raise ValueError."""
+    def test_negative_chi_should_raise_valueerror(self) -> None:
         try:
             kerr_phase_shift_unitary(1.0, -0.1, 1.0, 2)
             raise AssertionError("Should have raised ValueError")
         except ValueError:
             pass
 
-    def test_negative_T_raises(self) -> None:
-        """Negative T should raise ValueError."""
+    def test_negative_t_should_raise_valueerror(self) -> None:
         try:
             kerr_phase_shift_unitary(1.0, 0.1, -1.0, 2)
             raise AssertionError("Should have raised ValueError")
         except ValueError:
             pass
 
-    def test_negative_max_photons_raises(self) -> None:
-        """Negative max_photons should raise ValueError."""
+    def test_negative_max_photons_should_raise_valueerror(self) -> None:
         try:
             kerr_phase_shift_unitary(1.0, 0.1, 1.0, -1)
             raise AssertionError("Should have raised ValueError")
         except ValueError:
             pass
 
-    def test_phi_zero_gives_identity_at_chi_zero(self) -> None:
-        """When phi=0 and chi=0, unitary should be identity."""
+    def test_when_phi_0_and_chi_0_unitary_should_be_identity(self) -> None:
         U = kerr_phase_shift_unitary(0.0, 0.0, 1.0, max_photons=3)
         assert pytest.approx(np.eye((3 + 1) ** 2)) == U, (
             "Expected U == pytest.approx(np.eye((3 + 1) ** 2))"
         )
 
-    def test_phi_zero_with_kerr_not_identity(self) -> None:
-        """When phi=0 but chi>0, unitary should not be identity."""
+    def test_when_phi_0_but_chi_0_unitary_should_not_be_identity(self) -> None:
         U = kerr_phase_shift_unitary(0.0, 0.5, 1.0, max_photons=2)
         assert pytest.approx(np.eye(9)) != U, "Expected U != pytest.approx(np.eye(9))"
 
@@ -121,8 +109,7 @@ class TestKerrPhaseShiftUnitary:
 class TestKerrMzi:
     """Test full Kerr MZI circuit."""
 
-    def test_norm_preserved_no_kerr(self) -> None:
-        """Norm preserved without Kerr."""
+    def test_norm_preserved_without_kerr(self) -> None:
         state = noon_state(3, max_photons=3)
         final = kerr_mzi(state, phi=1.0, chi=0.0, T=0.0, max_photons=3)
         assert np.sum(np.abs(final) ** 2) == pytest.approx(1.0), (
@@ -130,15 +117,13 @@ class TestKerrMzi:
         )
 
     def test_norm_preserved_with_kerr(self) -> None:
-        """Norm preserved with Kerr."""
         state = noon_state(3, max_photons=3)
         final = kerr_mzi(state, phi=1.0, chi=0.5, T=1.0, max_photons=3)
         assert np.sum(np.abs(final) ** 2) == pytest.approx(1.0), (
             "Expected np.sum(np.abs(final) ** 2) == pytest.approx(1.0)"
         )
 
-    def test_norm_preserved_fock_input(self) -> None:
-        """Norm preserved for Fock state input."""
+    def test_norm_preserved_for_fock_state_input(self) -> None:
         dim = 3 + 1
         state = qutip.tensor(qutip.fock(dim, 2), qutip.fock(dim, 0)).full().ravel()
         final = kerr_mzi(state, phi=0.5, chi=0.3, T=2.0, max_photons=3)
@@ -146,8 +131,7 @@ class TestKerrMzi:
             "Expected np.sum(np.abs(final) ** 2) == pytest.approx(1.0)"
         )
 
-    def test_kerr_modifies_output(self) -> None:
-        """Kerr should change the output probabilities."""
+    def test_kerr_should_change_the_output_probabilities(self) -> None:
         state = noon_state(3, max_photons=3)
         final_lin = kerr_mzi(state, phi=1.0, chi=0.0, T=0.0, max_photons=3)
         final_kerr = kerr_mzi(state, phi=1.0, chi=0.5, T=1.0, max_photons=3)
@@ -157,8 +141,7 @@ class TestKerrMzi:
             "Expected P0_lin != pytest.approx(P0_kerr, abs=1e-6)"
         )
 
-    def test_identity_bs_at_theta_zero(self) -> None:
-        """With theta=0, BS is identity, MZI reduces to phase+Kerr."""
+    def test_with_theta_0_bs_is_identity_mzi_reduces_to_phase_kerr(self) -> None:
         state = noon_state(3, max_photons=3)
         final = kerr_mzi(state, phi=0.5, chi=0.3, T=1.0, max_photons=3, theta=0.0)
         # Phase + Kerr only (no mode mixing)
@@ -168,8 +151,9 @@ class TestKerrMzi:
             "Expected final == pytest.approx(expected)"
         )
 
-    def test_zero_phase_gives_no_change_without_kerr(self) -> None:
-        """With phi=0, chi=0 and theta=pi/4, MZI should output same as input BS2(BS1|psi>)."""
+    def test_with_phi_0_chi_0_and_theta_pi_4_mzi_should_output_same_as_input_bs2_bs1_psi(
+        self,
+    ) -> None:
         state = noon_state(2, max_photons=2)
         final = kerr_mzi(state, phi=0.0, chi=0.0, T=0.0, max_photons=2)
         # With phi=chi=0, the state just goes BS1 -> BS2 = identity
@@ -179,8 +163,7 @@ class TestKerrMzi:
             "Expected P0 == pytest.approx(0.5, abs=1e-10)"
         )
 
-    def test_vacuum_balanced_output(self) -> None:
-        """Vacuum input should always give 0.5/0.5 output."""
+    def test_vacuum_input_should_always_give_0_5_0_5_output(self) -> None:
         dim = 2 + 1
         vac = qutip.tensor(qutip.fock(dim, 0), qutip.fock(dim, 0)).full().ravel()
         for phi, chi, T in [(0.0, 0.0, 0.0), (0.5, 0.1, 1.0), (np.pi, 2.0, 0.5)]:
@@ -190,8 +173,7 @@ class TestKerrMzi:
                 "Expected P0 == pytest.approx(0.5) and np.isclose(P1, 0.5)"
             )
 
-    def test_invalid_state_raises(self) -> None:
-        """Non-normalized state should raise ValueError."""
+    def test_non_normalized_state_should_raise_valueerror(self) -> None:
         bad_state = np.array([0.5, 0.5, 0.0, 0.0])
         try:
             kerr_mzi(bad_state, phi=0.0, chi=0.0, T=0.0, max_photons=1)
@@ -199,8 +181,7 @@ class TestKerrMzi:
         except ValueError:
             pass
 
-    def test_wrong_dimension_raises(self) -> None:
-        """State with wrong dimension should raise ValueError."""
+    def test_state_with_wrong_dimension_should_raise_valueerror(self) -> None:
         bad_state = np.array([1.0, 0.0])  # dim=2, expected 4 for max_photons=1
         try:
             kerr_mzi(bad_state, phi=0.0, chi=0.0, T=0.0, max_photons=1)
@@ -212,23 +193,20 @@ class TestKerrMzi:
 class TestKerrOutputProbabilities:
     """Test output probability computation."""
 
-    def test_probabilities_sum_to_one(self) -> None:
-        """Probabilities should sum to 1 for any state."""
+    def test_probabilities_should_sum_to_1_for_any_state(self) -> None:
         state = noon_state(2, max_photons=2)
         final = kerr_mzi(state, phi=0.5, chi=0.2, T=1.0, max_photons=2)
         P0, P1 = compute_kerr_output_probabilities(final, 2)
         assert pytest.approx(1.0) == P0 + P1, "Expected P0 + P1 == pytest.approx(1.0)"
 
-    def test_probabilities_nonnegative(self) -> None:
-        """Probabilities should be non-negative."""
+    def test_probabilities_should_be_non_negative(self) -> None:
         state = noon_state(3, max_photons=3)
         for phi in np.linspace(0, 2 * np.pi, 8):
             final = kerr_mzi(state, phi=phi, chi=0.3, T=1.0, max_photons=3)
             P0, P1 = compute_kerr_output_probabilities(final, 3)
             assert P0 >= 0 and P1 >= 0, "Expected P0 >= 0; Expected P1 >= 0"
 
-    def test_vacuum_gives_half(self) -> None:
-        """Vacuum input gives P0=P1=0.5."""
+    def test_vacuum_input_gives_p0_p1_0_5(self) -> None:
         dim = 2 + 1
         vac = qutip.tensor(qutip.fock(dim, 0), qutip.fock(dim, 0)).full().ravel()
         final = kerr_mzi(vac, phi=1.0, chi=0.5, T=1.0, max_photons=2)
@@ -237,8 +215,7 @@ class TestKerrOutputProbabilities:
             "Expected P0 == pytest.approx(0.5) and np.isclose(P1, 0.5)"
         )
 
-    def test_single_photon_output(self) -> None:
-        """Single photon input should give valid probabilities."""
+    def test_single_photon_input_should_give_valid_probabilities(self) -> None:
         dim = 2 + 1
         state = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
         final = kerr_mzi(state, phi=0.5, chi=0.1, T=1.0, max_photons=2)
@@ -249,36 +226,31 @@ class TestKerrOutputProbabilities:
 class TestKerrPhaseSensitivity:
     """Test QFI computation for Kerr MZI."""
 
-    def test_no_kerr_heisenberg_limit(self) -> None:
-        """Without Kerr, NOON QFI = N^2 (Heisenberg limit)."""
+    def test_without_kerr_noon_qfi_n_2_heisenberg_limit(self) -> None:
         for N in [1, 2, 3, 4, 5]:
             F = compute_kerr_phase_sensitivity(N, 0.0, 0.0)
             assert pytest.approx(N**2) == F, f"N={N}: F_Q={F}, expected {N**2}"
 
-    def test_with_kerr_same_qfi(self) -> None:
-        """Kerr preserves QFI since generator n2 is diagonal."""
+    def test_kerr_preserves_qfi_since_generator_n2_is_diagonal(self) -> None:
         for N in [1, 2, 3]:
             F_no_kerr = compute_kerr_phase_sensitivity(N, 0.0, 0.0)
             F_kerr = compute_kerr_phase_sensitivity(N, 0.5, 1.0)
             assert F_no_kerr == pytest.approx(F_kerr), "QFI should be same with Kerr"
 
-    def test_qfi_independent_of_chi(self) -> None:
-        """QFI should not depend on chi for different values."""
+    def test_qfi_should_not_depend_on_chi_for_different_values(self) -> None:
         F_base = compute_kerr_phase_sensitivity(4, 0.0, 0.0)
         for chi in [0.1, 0.5, 1.0, 2.0]:
             F = compute_kerr_phase_sensitivity(4, chi, 1.0)
             assert pytest.approx(F_base) == F, "Expected F == pytest.approx(F_base)"
 
-    def test_default_max_photons(self) -> None:
-        """When max_photons=None, should default to N."""
+    def test_when_max_photons_none_should_default_to_n(self) -> None:
         F_explicit = compute_kerr_phase_sensitivity(3, 0.0, 0.0, max_photons=3)
         F_default = compute_kerr_phase_sensitivity(3, 0.0, 0.0)
         assert F_explicit == pytest.approx(F_default), (
             "Expected F_explicit == pytest.approx(F_default)"
         )
 
-    def test_qfi_scaling(self) -> None:
-        """Verify F_Q = N^2 for NOON states."""
+    def test_verify_f_q_n_2_for_noon_states(self) -> None:
         F_1 = compute_kerr_phase_sensitivity(1, 0.0, 0.0)
         F_2 = compute_kerr_phase_sensitivity(2, 0.0, 0.0)
         F_10 = compute_kerr_phase_sensitivity(10, 0.0, 0.0)
@@ -290,8 +262,7 @@ class TestKerrPhaseSensitivity:
 class TestKerrInterferenceFringe:
     """Test interference fringe computation."""
 
-    def test_fringe_shape(self) -> None:
-        """Fringe should return array matching phase_range."""
+    def test_fringe_should_return_array_matching_phase_range(self) -> None:
         phases = np.linspace(0, 2 * np.pi, 50)
         fringe = compute_kerr_interference_fringe(
             phases,
@@ -302,8 +273,7 @@ class TestKerrInterferenceFringe:
         )
         assert fringe.shape == (50,), "Expected fringe.shape == (50,)"
 
-    def test_fringe_values_in_range(self) -> None:
-        """Probabilities should be in [0, 1]."""
+    def test_probabilities_should_be_in_0_1(self) -> None:
         phases = np.linspace(0, 2 * np.pi, 50)
         fringe = compute_kerr_interference_fringe(
             phases,
@@ -316,8 +286,7 @@ class TestKerrInterferenceFringe:
             "Expected np.all(fringe >= 0) and np.all(fringe <= 1)"
         )
 
-    def test_fringe_default_initial_state(self) -> None:
-        """Should work with default NOON state."""
+    def test_should_work_with_default_noon_state(self) -> None:
         phases = np.linspace(0, np.pi, 20)
         fringe_default = compute_kerr_interference_fringe(
             phases,
@@ -337,8 +306,7 @@ class TestKerrInterferenceFringe:
             "Expected fringe_default == pytest.approx(fringe_explicit)"
         )
 
-    def test_fringe_periodic(self) -> None:
-        """Interference fringe should be 2pi periodic without Kerr."""
+    def test_interference_fringe_should_be_2pi_periodic_without_kerr(self) -> None:
         phases = np.linspace(0, 2 * np.pi, 100)
         fringe = compute_kerr_interference_fringe(
             phases,

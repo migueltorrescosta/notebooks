@@ -16,26 +16,22 @@ from .optimization import (
 
 
 class TestTestFunctions:
-    def test_sphere_minimum(self) -> None:
-        """Sphere should have minimum at (0, 0)."""
+    def test_sphere_should_have_minimum_at_0_0(self) -> None:
         assert sphere(0.0, 0.0) == pytest.approx(0.0), (
             "Expected sphere(0.0, 0.0) == pytest.approx(0.0)"
         )
 
-    def test_rastrigin_minimum(self) -> None:
-        """Rastrigin should have minimum at (0, 0)."""
+    def test_rastrigin_should_have_minimum_at_0_0(self) -> None:
         assert rastrigin(0.0, 0.0) == pytest.approx(0.0), (
             "Expected rastrigin(0.0, 0.0) == pytest.approx(0.0)"
         )
 
-    def test_rosenbrock_minimum(self) -> None:
-        """Rosenbrock should have minimum at (1, 1)."""
+    def test_rosenbrock_should_have_minimum_at_1_1(self) -> None:
         assert rosenbrock(1.0, 1.0) == pytest.approx(0.0, abs=0.01), (
             "Expected rosenbrock(1.0, 1.0) == pytest.approx(0.0, abs=0.01)"
         )
 
-    def test_himmelblau_values(self) -> None:
-        """Himmelblau should have multiple minima."""
+    def test_himmelblau_should_have_multiple_minima(self) -> None:
         # Just test that function has reasonable values
         val1 = himmelblau(3.0, 2.0)
         val2 = himmelblau(-3.0, -3.0)
@@ -45,13 +41,11 @@ class TestTestFunctions:
 
 
 class TestFunctionDictionary:
-    def test_all_functions_callable(self) -> None:
-        """All functions should be callable."""
+    def test_all_functions_should_be_callable(self) -> None:
         for func in TEST_FUNCTIONS.values():
             assert callable(func), "Expected func to be callable"
 
-    def test_all_functions_vectorized(self) -> None:
-        """All functions should work with numpy arrays."""
+    def test_all_functions_should_work_with_numpy_arrays(self) -> None:
         x = np.array([0.0, 1.0])
         y = np.array([0.0, 1.0])
         for func in TEST_FUNCTIONS.values():
@@ -60,13 +54,11 @@ class TestFunctionDictionary:
 
 
 class TestMinimizers:
-    def test_all_minimizers_exist(self) -> None:
-        """All minimizers should exist."""
+    def test_all_minimizers_should_exist(self) -> None:
         for minimizer in MINIMIZERS.values():
             assert callable(minimizer), "Expected minimizer to be callable"
 
-    def test_sphere_minimization(self) -> None:
-        """Minimizer should find minimum for sphere."""
+    def test_minimizer_should_find_minimum_for_sphere(self) -> None:
         minimizer = MINIMIZERS["Nelder-Mead"]
         result = minimizer(sphere, np.array([2.0, 2.0]))
         # Should converge close to (0, 0)
@@ -76,13 +68,11 @@ class TestMinimizers:
 
 
 class TestSurfaceGeneration:
-    def test_surface_shape(self) -> None:
-        """Surface should have correct shape."""
+    def test_surface_should_have_correct_shape(self) -> None:
         surf = generate_surface("Sphere", (-3, 3), (-3, 3), 11)
         assert surf.shape == (11, 11), "Expected surf.shape == (11, 11)"
 
-    def test_surface_minimum(self) -> None:
-        """Surface minimum should be near center for sphere."""
+    def test_surface_minimum_should_be_near_center_for_sphere(self) -> None:
         surf = generate_surface("Sphere", (-3, 3), (-3, 3), 101)
         center = surf.shape[0] // 2
         # Center pixel should be ~0
@@ -90,8 +80,7 @@ class TestSurfaceGeneration:
 
 
 class TestNormalization:
-    def test_normalize_results(self) -> None:
-        """Normalized values should be in [0, 1]."""
+    def test_normalized_values_should_be_in_0_1(self) -> None:
         results = [
             {"function": "Sphere", "minimizer": "BFGS", "minimum": 0.0},
             {"function": "Sphere", "minimizer": "Nelder-Mead", "minimum": 1.0},

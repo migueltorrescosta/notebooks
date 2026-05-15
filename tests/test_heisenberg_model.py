@@ -41,8 +41,7 @@ def _build_hamiltonian(n_sites: int, j: float = 1.0, u: float = 1.0) -> np.ndarr
 class TestHeisenbergModelHamiltonian:
     """Tests for Heisenberg model Hamiltonian construction."""
 
-    def test_hamiltonian_dimension(self) -> None:
-        """Test that Hamiltonian has correct dimension 2^n x 2^n."""
+    def test_hamiltonian_dimension_should_be_2_to_the_n(self) -> None:
         for n_sites in [2, 3, 4, 5]:
             H = _build_hamiltonian(n_sites)
             expected_dim = 2**n_sites
@@ -51,32 +50,30 @@ class TestHeisenbergModelHamiltonian:
                 expected_dim,
             ), f"Should be {expected_dim}x{expected_dim}"
 
-    def test_hamiltonian_is_hermitian(self) -> None:
-        """Test that Hamiltonian is Hermitian."""
+    def test_hamiltonian_is_hermitian_should_be_hermitian(self) -> None:
         for n_sites in [2, 3, 4]:
             H = _build_hamiltonian(n_sites)
             assert pytest.approx(H.conj().T, abs=1e-10) == H, (
                 "Hamiltonian should be Hermitian"
             )
 
-    def test_hamiltonian_varying_j(self) -> None:
-        """Test that different J values give different Hamiltonians."""
+    def test_hamiltonian_varying_j_should_give_different_hamiltonians(self) -> None:
         H_pos = _build_hamiltonian(n_sites=3, j=1.0)
         H_neg = _build_hamiltonian(n_sites=3, j=-1.0)
         assert H_pos != pytest.approx(H_neg, abs=1e-10), (
             "Different J values should give different Hamiltonians"
         )
 
-    def test_hamiltonian_varying_u(self) -> None:
-        """Test that different U values give different Hamiltonians."""
+    def test_hamiltonian_varying_u_should_give_different_hamiltonians(self) -> None:
         H_low = _build_hamiltonian(n_sites=3, u=0.1)
         H_high = _build_hamiltonian(n_sites=3, u=10.0)
         assert H_low != pytest.approx(H_high, abs=1e-10), (
             "Different U values should give different Hamiltonians"
         )
 
-    def test_hamiltonian_has_correct_structure(self) -> None:
-        """Test that Hamiltonian has expected non-zero elements."""
+    def test_hamiltonian_has_correct_structure_should_have_expected_nonzero_elements(
+        self,
+    ) -> None:
         n_sites = 3
         H = _build_hamiltonian(n_sites)
         # Should have many non-zero elements
@@ -91,8 +88,7 @@ class TestHeisenbergModelHamiltonian:
 class TestHeisenbergModelEigendecomposition:
     """Tests for eigendecomposition of Heisenberg Hamiltonian."""
 
-    def test_eigenvalues_are_real(self) -> None:
-        """Test that eigenvalues are real (Hermitian matrix)."""
+    def test_eigenvalues_are_real_should_be_real_for_hermitian_matrix(self) -> None:
         for n_sites in [2, 3, 4]:
             H = _build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
@@ -101,8 +97,9 @@ class TestHeisenbergModelEigendecomposition:
                 "Eigenvalues should be real"
             )
 
-    def test_eigenvectors_form_orthonormal_basis(self) -> None:
-        """Test that eigenvectors form an orthonormal basis."""
+    def test_eigenvectors_form_orthonormal_basis_should_form_orthonormal_basis(
+        self,
+    ) -> None:
         for n_sites in [2, 3, 4]:
             H = _build_hamiltonian(n_sites)
             eigenvalues, eigenvectors = np.linalg.eigh(H)
@@ -114,8 +111,7 @@ class TestHeisenbergModelEigendecomposition:
                 abs=1e-10,
             ), "Eigenvectors should form orthonormal basis"
 
-    def test_eigenvalue_ordering(self) -> None:
-        """Test that eigenvalues are returned in ascending order."""
+    def test_eigenvalue_ordering_should_be_ascending(self) -> None:
         for n_sites in [2, 3, 4]:
             H = _build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
@@ -125,8 +121,9 @@ class TestHeisenbergModelEigendecomposition:
                     f"Eigenvalues should be sorted: {eigenvalues[i]} > {eigenvalues[i + 1]}"
                 )
 
-    def test_spectral_decomposition_reconstruction(self) -> None:
-        """Test that H can be reconstructed from eigenvalues and eigenvectors."""
+    def test_spectral_decomposition_reconstruction_should_reconstruct_h_from_eigenpairs(
+        self,
+    ) -> None:
         for n_sites in [2, 3, 4]:
             H = _build_hamiltonian(n_sites)
             eigenvalues, eigenvectors = np.linalg.eigh(H)
@@ -141,8 +138,7 @@ class TestHeisenbergModelEigendecomposition:
 class TestHeisenbergModelExpectationValues:
     """Tests for expectation value calculations."""
 
-    def test_expectation_values_via_einsum(self) -> None:
-        """Test expectation value calculation using einsum."""
+    def test_expectation_values_via_einsum_should_compute_correctly(self) -> None:
         n_sites = 3
         H = _build_hamiltonian(n_sites)
         _eigenvalues, eigenvectors = np.linalg.eigh(H)
@@ -171,8 +167,9 @@ class TestHeisenbergModelExpectationValues:
                     # Allow values slightly outside [-1, 1] due to numerical precision
                     assert -2.0 <= val <= 2.0, f"Expectation value out of bounds: {val}"
 
-    def test_sum_rule_for_expectation_values(self) -> None:
-        """Test that sum of σ_z expectation values has correct properties."""
+    def test_sum_rule_for_expectation_values_should_have_correct_properties(
+        self,
+    ) -> None:
         n_sites = 3
         H = _build_hamiltonian(n_sites)
         _eigenvalues, eigenvectors = np.linalg.eigh(H)
@@ -204,8 +201,7 @@ class TestHeisenbergModelExpectationValues:
 class TestHeisenbergModelPhysicalConstraints:
     """Tests for physical constraints of the Heisenberg model."""
 
-    def test_energy_levels_are_bounded(self) -> None:
-        """Test that energy levels are within reasonable bounds."""
+    def test_energy_levels_are_bounded_should_be_within_reasonable_bounds(self) -> None:
         for n_sites in [2, 3, 4, 5]:
             H = _build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
@@ -222,8 +218,9 @@ class TestHeisenbergModelPhysicalConstraints:
                 f"Maximum energy too high: {max(eigenvalues)}"
             )
 
-    def test_ground_state_is_unique_for_ferromagnetic_case(self) -> None:
-        """Test that ground state is unique for ferromagnetic coupling."""
+    def test_ground_state_is_unique_for_ferromagnetic_case_should_be_unique(
+        self,
+    ) -> None:
         H = _build_hamiltonian(n_sites=3, j=1.0, u=0.1)
         eigenvalues = np.linalg.eigvalsh(H)
 
@@ -238,8 +235,7 @@ class TestHeisenbergModelPhysicalConstraints:
         # This is just a sanity check that we can find the ground state
         assert degeneracy >= 1, "Should have at least one ground state"
 
-    def test_excited_states_exist(self) -> None:
-        """Test that there are excited states above the ground state."""
+    def test_excited_states_exist_should_exist_above_ground_state(self) -> None:
         for n_sites in [2, 3, 4]:
             H = _build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
@@ -256,8 +252,7 @@ class TestHeisenbergModelPhysicalConstraints:
 class TestHeisenbergModelScaling:
     """Tests for scaling behavior of the Heisenberg model."""
 
-    def test_hilbert_space_grows_exponentially(self) -> None:
-        """Test that Hilbert space dimension grows as 2^n."""
+    def test_hilbert_space_grows_exponentially_should_grow_as_2_to_the_n(self) -> None:
         dimensions = []
         # Start from n_sites=2 since n_sites=1 has no coupling terms
         for n_sites in [2, 3, 4, 5, 6]:
@@ -270,8 +265,7 @@ class TestHeisenbergModelScaling:
                 f"Dimension should double: {dimensions[i]} vs {dimensions[i - 1]}"
             )
 
-    def test_computation_time_scales(self) -> None:
-        """Test that computation time scales reasonably."""
+    def test_computation_time_scales_should_scale_reasonably(self) -> None:
         import time
 
         times = []

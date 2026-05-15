@@ -22,8 +22,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 
 class TestFourierTransform:
-    def test_creates_three_subplots(self) -> None:
-        """Fourier transform should create a figure with exactly 3 subplots."""
+    def test_fourier_transform_should_create_figure_with_exactly_3_subplots(
+        self,
+    ) -> None:
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
@@ -39,8 +40,7 @@ class TestFourierTransform:
             mock_subplots.assert_called_once_with(3)
             assert len(mock_axs) == 3, "Expected len(mock_axs) == 3"
 
-    def test_sets_correct_titles(self) -> None:
-        """Each subplot should have the expected title."""
+    def test_each_subplot_should_have_expected_title(self) -> None:
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
@@ -56,8 +56,7 @@ class TestFourierTransform:
             )
             mock_axs[2].set_title.assert_called_once_with("Frequency Domain, angle")
 
-    def test_calls_plot_for_each_subplot(self) -> None:
-        """Each subplot should have plot called on it."""
+    def test_each_subplot_should_have_plot_called_on_it(self) -> None:
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
@@ -70,8 +69,7 @@ class TestFourierTransform:
             for ax in mock_axs:
                 ax.plot.assert_called()
 
-    def test_uses_fig_tight_layout(self) -> None:
-        """Figure should use tight_layout for proper spacing."""
+    def test_figure_should_use_tight_layout_for_proper_spacing(self) -> None:
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
@@ -83,8 +81,7 @@ class TestFourierTransform:
 
             mock_fig.tight_layout.assert_called_once_with(pad=1)
 
-    def test_default_parameters_work(self) -> None:
-        """Default parameters should allow the function to run."""
+    def test_default_parameters_should_allow_function_to_run(self) -> None:
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
@@ -96,8 +93,7 @@ class TestFourierTransform:
             fourier_transform(np.sin)
 
     @pytest.mark.parametrize("n_samples", [10, 100, 1000])
-    def test_different_sample_counts(self, n_samples: int) -> None:
-        """Function should work with various sample counts."""
+    def test_should_work_with_various_sample_counts(self, n_samples: int) -> None:
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
             mock_fig = MagicMock()
             mock_axs = [MagicMock(), MagicMock(), MagicMock()]
@@ -125,12 +121,11 @@ class TestFiniteDimensionalPopulationsOverTime:
         """Pure density matrix for |0⟩⟨0|."""
         return np.array([[1.0, 0.0], [0.0, 0.0]], dtype=complex)
 
-    def test_calls_stackplot(
+    def test_should_call_plt_stackplot_to_create_population_plot(
         self,
         simple_hamiltonian: np.ndarray,
         pure_state: np.ndarray,
     ) -> None:
-        """Function should call plt.stackplot to create the population plot."""
         with patch("matplotlib.pyplot.stackplot") as mock_stackplot:
             with patch("matplotlib.pyplot.legend"):
                 from .visualization import (
@@ -145,12 +140,11 @@ class TestFiniteDimensionalPopulationsOverTime:
 
                 mock_stackplot.assert_called()
 
-    def test_stackplot_called_with_time_axis(
+    def test_stackplot_should_receive_time_axis_as_first_argument(
         self,
         simple_hamiltonian: np.ndarray,
         pure_state: np.ndarray,
     ) -> None:
-        """Stackplot should receive the time axis as first argument."""
         with patch("matplotlib.pyplot.stackplot") as mock_stackplot:
             with patch("matplotlib.pyplot.legend"):
                 from .visualization import (
@@ -171,12 +165,11 @@ class TestFiniteDimensionalPopulationsOverTime:
                 )
                 assert time_axis[0] == 0  # Should start at 0
 
-    def test_stackplot_called_with_populations(
+    def test_stackplot_should_receive_population_arrays(
         self,
         simple_hamiltonian: np.ndarray,
         pure_state: np.ndarray,
     ) -> None:
-        """Stackplot should receive population arrays (array-like, time-invariant)."""
         with patch("matplotlib.pyplot.stackplot") as mock_stackplot:
             with patch("matplotlib.pyplot.legend"):
                 from .visualization import (
@@ -199,12 +192,11 @@ class TestFiniteDimensionalPopulationsOverTime:
                     np.ndarray,
                 )  # populations (array-like)
 
-    def test_legend_is_called(
+    def test_should_call_plt_legend_when_labels_are_provided(
         self,
         simple_hamiltonian: np.ndarray,
         pure_state: np.ndarray,
     ) -> None:
-        """Function should call plt.legend when labels are provided."""
         with patch("matplotlib.pyplot.stackplot"):
             with patch("matplotlib.pyplot.legend") as mock_legend:
                 from .visualization import (
@@ -220,8 +212,7 @@ class TestFiniteDimensionalPopulationsOverTime:
 
                 mock_legend.assert_called()
 
-    def test_raises_on_non_square_hamiltonian(self) -> None:
-        """Should raise AssertionError for non-square Hamiltonian."""
+    def test_should_raise_assertion_error_for_non_square_hamiltonian(self) -> None:
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0], [0.0, 0.0]], dtype=complex)
         rho0 = np.array([[1.0, 0.0], [0.0, 0.0]], dtype=complex)
 
@@ -232,8 +223,9 @@ class TestFiniteDimensionalPopulationsOverTime:
         with pytest.raises(AssertionError, match="not square"):
             finite_dimensional_populations_over_time(hamiltonian, rho0)
 
-    def test_raises_on_dimension_mismatch(self) -> None:
-        """Should raise AssertionError when rho0 dimensions don't match Hamiltonian."""
+    def test_should_raise_assertion_error_when_rho0_dimensions_dont_match_hamiltonian(
+        self,
+    ) -> None:
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
         rho0 = np.array(
             [[1.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
@@ -247,12 +239,11 @@ class TestFiniteDimensionalPopulationsOverTime:
         with pytest.raises(AssertionError, match="does not match"):
             finite_dimensional_populations_over_time(hamiltonian, rho0)
 
-    def test_raises_on_negative_time(
+    def test_should_raise_assertion_error_for_negative_time_window(
         self,
         simple_hamiltonian: np.ndarray,
         pure_state: np.ndarray,
     ) -> None:
-        """Should raise AssertionError for negative time window."""
         from .visualization import (
             finite_dimensional_populations_over_time,
         )
@@ -264,12 +255,11 @@ class TestFiniteDimensionalPopulationsOverTime:
                 time_window_upper_bound=-1,
             )
 
-    def test_raises_on_zero_time(
+    def test_should_raise_assertion_error_for_zero_time_window(
         self,
         simple_hamiltonian: np.ndarray,
         pure_state: np.ndarray,
     ) -> None:
-        """Should raise AssertionError for zero time window."""
         from .visualization import (
             finite_dimensional_populations_over_time,
         )
@@ -281,8 +271,9 @@ class TestFiniteDimensionalPopulationsOverTime:
                 time_window_upper_bound=0,
             )
 
-    def test_raises_on_non_traceless_rho0(self, simple_hamiltonian: np.ndarray) -> None:
-        """Should raise AssertionError when rho0 trace != 1."""
+    def test_should_raise_assertion_error_when_rho0_trace_not_1(
+        self, simple_hamiltonian: np.ndarray
+    ) -> None:
         rho0 = np.array([[0.8, 0.0], [0.0, 0.1]], dtype=complex)  # Trace = 0.9
 
         from .visualization import (
@@ -292,12 +283,11 @@ class TestFiniteDimensionalPopulationsOverTime:
         with pytest.raises(AssertionError, match="add up to 1"):
             finite_dimensional_populations_over_time(simple_hamiltonian, rho0)
 
-    def test_raises_on_wrong_number_of_labels(
+    def test_should_raise_assertion_error_when_label_count_does_not_match_state_count(
         self,
         simple_hamiltonian: np.ndarray,
         pure_state: np.ndarray,
     ) -> None:
-        """Should raise AssertionError when label count doesn't match state count."""
         from .visualization import (
             finite_dimensional_populations_over_time,
         )
@@ -309,12 +299,11 @@ class TestFiniteDimensionalPopulationsOverTime:
                 labels=["only_one"],
             )
 
-    def test_accepts_valid_labels(
+    def test_should_accept_labels_array_with_correct_count(
         self,
         simple_hamiltonian: np.ndarray,
         pure_state: np.ndarray,
     ) -> None:
-        """Should accept labels array with correct count."""
         with patch("matplotlib.pyplot.stackplot"):
             with patch("matplotlib.pyplot.legend"):
                 from .visualization import (
@@ -337,8 +326,7 @@ class TestQuantumStateHeatmap:
         """Mixed density matrix with both diagonal and off-diagonal elements."""
         return np.array([[0.5, 0.3], [0.3, 0.5]], dtype=complex)
 
-    def test_creates_two_subplots(self) -> None:
-        """Heatmap should create a figure with exactly 2 subplots (real and imag)."""
+    def test_heatmap_should_create_figure_with_exactly_2_subplots(self) -> None:
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
         rho0 = np.array([[1.0, 0.0], [0.0, 0.0]], dtype=complex)
 
@@ -354,8 +342,9 @@ class TestQuantumStateHeatmap:
 
             mock_subplots.assert_called_once_with(1, 2)
 
-    def test_both_subplots_show_imshow(self, mixed_state: np.ndarray) -> None:
-        """Both subplots should call imshow to display the density matrix."""
+    def test_both_subplots_should_call_imshow_to_display_density_matrix(
+        self, mixed_state: np.ndarray
+    ) -> None:
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
 
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
@@ -371,8 +360,9 @@ class TestQuantumStateHeatmap:
             mock_ax1.imshow.assert_called()
             mock_ax2.imshow.assert_called()
 
-    def test_imshow_uses_correct_vmin_vmax(self, mixed_state: np.ndarray) -> None:
-        """Imshow should use vmin=-1 and vmax=1 for proper color scaling."""
+    def test_imshow_should_use_vmin_minus_1_and_vmax_1_for_proper_color_scaling(
+        self, mixed_state: np.ndarray
+    ) -> None:
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
 
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
@@ -391,8 +381,9 @@ class TestQuantumStateHeatmap:
                 assert call_kwargs["vmin"] == -1, 'Expected call_kwargs["vmin"] == -1'
                 assert call_kwargs["vmax"] == 1, 'Expected call_kwargs["vmax"] == 1'
 
-    def test_sets_tick_labels(self, mixed_state: np.ndarray) -> None:
-        """Both subplots should have x and y tick labels set."""
+    def test_both_subplots_should_have_x_and_y_tick_labels_set(
+        self, mixed_state: np.ndarray
+    ) -> None:
         hamiltonian = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
 
         with patch("matplotlib.pyplot.subplots") as mock_subplots:
@@ -409,8 +400,7 @@ class TestQuantumStateHeatmap:
                 ax_mock.set_xticks.assert_called()
                 ax_mock.set_yticks.assert_called()
 
-    def test_time_evolution_affects_result(self) -> None:
-        """Different times should produce different density matrices."""
+    def test_different_times_should_produce_different_density_matrices(self) -> None:
         hamiltonian = np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)  # Pauli X
         rho0 = np.array([[1.0, 0.0], [0.0, 0.0]], dtype=complex)
 
@@ -442,8 +432,7 @@ class TestQuantumStateHeatmap:
 class TestLargerDimensions:
     """Test visualization functions with larger Hilbert spaces."""
 
-    def test_populations_work_with_larger_dimensions(self) -> None:
-        """Functions should handle 4x4 systems correctly."""
+    def test_functions_should_handle_4x4_systems_correctly(self) -> None:
         hamiltonian = np.diag([1.0, 0.5, -0.5, -1.0])
         rho0 = np.diag([1.0, 0.0, 0.0, 0.0])
 
@@ -460,8 +449,7 @@ class TestLargerDimensions:
                     time_window_upper_bound=10,
                 )
 
-    def test_heatmap_works_with_3x3_system(self) -> None:
-        """Heatmap should handle 3x3 density matrices."""
+    def test_heatmap_should_handle_3x3_density_matrices(self) -> None:
         hamiltonian = np.diag([1.0, 0.0, -1.0])
         rho0 = np.array(
             [[0.5, 0.2, 0.1], [0.2, 0.3, 0.1], [0.1, 0.1, 0.2]],

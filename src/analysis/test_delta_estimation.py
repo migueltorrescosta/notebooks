@@ -21,8 +21,7 @@ RunOptions = DeltaEstimationConfig
 class TestInitialStateGeneration:
     """Tests for initial state generation."""
 
-    def test_initial_state_purity(self) -> None:
-        """Test that the initial state is a pure state (trace = 1)."""
+    def test_initial_state_should_be_pure_with_trace_1(self) -> None:
         for dim_a in [2, 5, 10]:
             for k in range(dim_a):
                 rho0 = generate_initial_state(dim_a, k)
@@ -31,16 +30,14 @@ class TestInitialStateGeneration:
                     f"Initial state should be pure (trace=1), got {trace}"
                 )
 
-    def test_initial_state_hermitian(self) -> None:
-        """Test that the initial state is Hermitian."""
+    def test_initial_state_should_be_hermitian(self) -> None:
         for dim_a in [2, 5, 10]:
             rho0 = generate_initial_state(dim_a, 0)
             assert rho0 == pytest.approx(rho0.conj().T, abs=1e-10), (
                 "Initial state should be Hermitian"
             )
 
-    def test_initial_state_positive_semidefinite(self) -> None:
-        """Test that the initial state is positive semidefinite."""
+    def test_initial_state_should_be_positive_semidefinite(self) -> None:
         for dim_a in [2, 5, 10]:
             rho0 = generate_initial_state(dim_a, 0)
             eigenvalues = np.linalg.eigvalsh(rho0)
@@ -48,8 +45,7 @@ class TestInitialStateGeneration:
                 f"Eigenvalues should be non-negative: {eigenvalues}"
             )
 
-    def test_initial_state_dimension(self) -> None:
-        """Test that initial state has correct dimension."""
+    def test_initial_state_should_have_correct_dimension(self) -> None:
         for dim_a in [2, 5, 10]:
             rho0 = generate_initial_state(dim_a, 0)
             expected_dim = 2 * dim_a  # System + Ancilla
@@ -61,16 +57,14 @@ class TestInitialStateGeneration:
 class TestHamiltonianGeneration:
     """Tests for Hamiltonian generation."""
 
-    def test_hamiltonian_is_hermitian(self) -> None:
-        """Test that the Hamiltonian is Hermitian."""
+    def test_hamiltonian_should_be_hermitian(self) -> None:
         run_options = RunOptions()
         H = generate_hamiltonian(run_options)
         assert pytest.approx(H.conj().T, abs=1e-10) == H, (
             "Hamiltonian should be Hermitian"
         )
 
-    def test_hamiltonian_dimension(self) -> None:
-        """Test that Hamiltonian has correct dimension."""
+    def test_hamiltonian_should_have_correct_dimension(self) -> None:
         for dim_a in [2, 5, 10]:
             run_options = RunOptions(ancillary_dimension=dim_a)
             H = generate_hamiltonian(run_options)
@@ -79,8 +73,7 @@ class TestHamiltonianGeneration:
                 f"Should be {expected_dim}x{expected_dim}, got {H.shape}"
             )
 
-    def test_hamiltonian_sparse_structure(self) -> None:
-        """Test that Hamiltonian has expected structure (no zero matrix)."""
+    def test_hamiltonian_should_have_expected_structure(self) -> None:
         run_options = RunOptions()
         H = generate_hamiltonian(run_options)
         # Hamiltonian should not be all zeros
@@ -88,8 +81,7 @@ class TestHamiltonianGeneration:
             "Hamiltonian should not be the zero matrix"
         )
 
-    def test_hamiltonian_varying_parameters(self) -> None:
-        """Test that different parameters produce different Hamiltonians."""
+    def test_hamiltonian_should_vary_with_parameters(self) -> None:
         H1 = generate_hamiltonian(RunOptions(j_s=-5.0))
         H2 = generate_hamiltonian(RunOptions(j_s=5.0))
         # Different j_s should give different Hamiltonians
@@ -101,8 +93,7 @@ class TestHamiltonianGeneration:
 class TestStateEvolution:
     """Tests for quantum state evolution."""
 
-    def test_evolution_preserves_trace(self) -> None:
-        """Test that time evolution preserves the trace of density matrix."""
+    def test_evolution_should_preserve_trace(self) -> None:
         for dim_a in [2, 5]:
             run_options = RunOptions(ancillary_dimension=dim_a)
             initial_state = generate_initial_state(dim_a, 0)
@@ -115,8 +106,7 @@ class TestStateEvolution:
                     f"Trace should be 1 at t={t}, got {trace}"
                 )
 
-    def test_evolution_preserves_hermiticity(self) -> None:
-        """Test that time evolution preserves Hermiticity."""
+    def test_evolution_should_preserve_hermiticity(self) -> None:
         run_options = RunOptions()
         initial_state = generate_initial_state(run_options.ancillary_dimension, 0)
         H = generate_hamiltonian(run_options)
@@ -127,8 +117,7 @@ class TestStateEvolution:
                 f"Density matrix should be Hermitian at t={t}"
             )
 
-    def test_evolution_at_t0_returns_initial_state(self) -> None:
-        """Test that evolution at t=0 returns the initial state."""
+    def test_evolution_at_t0_should_return_initial_state(self) -> None:
         run_options = RunOptions()
         initial_state = generate_initial_state(run_options.ancillary_dimension, 0)
         H = generate_hamiltonian(run_options)
@@ -138,8 +127,7 @@ class TestStateEvolution:
             "At t=0, should return initial state"
         )
 
-    def test_evolution_produces_valid_density_matrix(self) -> None:
-        """Test that evolved state is a valid density matrix."""
+    def test_evolution_should_produce_valid_density_matrix(self) -> None:
         run_options = RunOptions()
         initial_state = generate_initial_state(run_options.ancillary_dimension, 0)
         H = generate_hamiltonian(run_options)
@@ -162,8 +150,7 @@ class TestStateEvolution:
 class TestPartialTrace:
     """Tests for partial trace operation."""
 
-    def test_partial_trace_dimension(self) -> None:
-        """Test that partial trace produces correct dimension."""
+    def test_partial_trace_should_produce_correct_dimension(self) -> None:
         for dim_a in [2, 5, 10]:
             full_system = np.random.randn(2 * dim_a, 2 * dim_a) + 1j * np.random.randn(
                 2 * dim_a,
@@ -178,8 +165,7 @@ class TestPartialTrace:
                 f"Reduced system should be 2x2, got {rho_system.shape}"
             )
 
-    def test_partial_trace_preserves_properties(self) -> None:
-        """Test that partial trace preserves trace."""
+    def test_partial_trace_should_preserve_trace(self) -> None:
         for dim_a in [2, 5]:
             full_system = np.random.randn(2 * dim_a, 2 * dim_a) + 1j * np.random.randn(
                 2 * dim_a,
@@ -196,8 +182,7 @@ class TestPartialTrace:
                 f"Trace should be preserved: {original_trace} vs {reduced_trace}"
             )
 
-    def test_partial_trace_of_product_state(self) -> None:
-        """Test partial trace of a product state."""
+    def test_partial_trace_should_work_on_product_state(self) -> None:
         dim_a = 5
         rho0 = generate_initial_state(dim_a, 0)
 
@@ -213,8 +198,7 @@ class TestPartialTrace:
 class TestFullCalculation:
     """Tests for the full calculation pipeline."""
 
-    def test_full_calculation_returns_all_fields(self) -> None:
-        """Test that full_calculation returns all expected fields."""
+    def test_full_calculation_should_return_all_expected_fields(self) -> None:
         run_options = RunOptions()
         result = full_calculation(run_options)
 
@@ -230,8 +214,7 @@ class TestFullCalculation:
             "Expected set(result.keys()) == expected_fields"
         )
 
-    def test_probabilities_sum_to_one(self) -> None:
-        """Test that |<0|rho|0> + <1|rho|1> = 1."""
+    def test_probabilities_should_sum_to_one(self) -> None:
         for dim_a in [2, 5]:
             for t in [0.0, 0.5, 1.0, 5.0]:
                 run_options = RunOptions(ancillary_dimension=dim_a, t=t)
@@ -242,8 +225,7 @@ class TestFullCalculation:
                     f"Probabilities should sum to 1: {prob_0} + {prob_1}"
                 )
 
-    def test_sigma_z_expectation_bounds(self) -> None:
-        """Test that <σ_z> is in valid range [-1, 1]."""
+    def test_sigma_z_expectation_should_be_in_valid_range(self) -> None:
         run_options = RunOptions()
         for t in np.linspace(0, 10, 10):
             run_options.t = t
@@ -253,8 +235,7 @@ class TestFullCalculation:
                 f"<σ_z> should be in [-1, 1], got {sigma_z}"
             )
 
-    def test_variance_sigma_z_bounds(self) -> None:
-        """Test that Var(σ_z) is in valid range [0, 1]."""
+    def test_variance_sigma_z_should_be_in_valid_range(self) -> None:
         run_options = RunOptions()
         for t in np.linspace(0, 10, 10):
             run_options.t = t
@@ -264,8 +245,9 @@ class TestFullCalculation:
                 f"Var(σ_z) should be in [0, 1], got {variance}"
             )
 
-    def test_consistency_between_expectation_and_variance(self) -> None:
-        """Test that variance = 1 - <σ_z>^2."""
+    def test_consistency_should_satisfy_variance_equals_1_minus_expectation_sq(
+        self,
+    ) -> None:
         run_options = RunOptions()
         result = full_calculation(run_options)
 
@@ -281,8 +263,7 @@ class TestFullCalculation:
 class TestNumericalStability:
     """Tests for numerical stability."""
 
-    def test_no_nan_in_evolution(self) -> None:
-        """Test that evolution doesn't produce NaN values."""
+    def test_evolution_should_not_produce_nan(self) -> None:
         for dim_a in [2, 5, 10]:
             for t in [0.1, 1.0, 5.0, 10.0]:
                 run_options = RunOptions(ancillary_dimension=dim_a, t=t)
@@ -293,8 +274,7 @@ class TestNumericalStability:
                         f"Result should not contain NaN: {result}"
                     )
 
-    def test_stability_at_large_times(self) -> None:
-        """Test that results remain stable at large times."""
+    def test_results_should_be_stable_at_large_times(self) -> None:
         run_options = RunOptions()
         results = []
         for t in [1.0, 5.0, 10.0, 50.0, 100.0]:
@@ -311,8 +291,7 @@ class TestNumericalStability:
 class TestPerformance:
     """Tests for performance characteristics."""
 
-    def test_hamiltonian_generation_is_fast(self) -> None:
-        """Test that Hamiltonian generation is reasonably fast."""
+    def test_hamiltonian_generation_should_be_fast(self) -> None:
         import time
 
         for dim_a in [5, 10, 20, 50]:
@@ -328,8 +307,7 @@ class TestPerformance:
                 f"Hamiltonian generation for dim_a={dim_a} took {elapsed:.2f}s"
             )
 
-    def test_evolution_scales_reasonably(self) -> None:
-        """Test that evolution time scales reasonably with dimension."""
+    def test_evolution_should_scale_reasonably_with_dimension(self) -> None:
         import time
 
         for dim_a in [5, 10, 20]:

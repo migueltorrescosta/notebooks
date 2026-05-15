@@ -79,8 +79,7 @@ class TestSpinOperators:
                 "Expected sphi == pytest.approx(sphi.conj().T, abs=1e-10)"
             )
 
-    def test_sigma_phi_normalization(self) -> None:
-        """σ_φ should have eigenvalues ±1."""
+    def test_should_have_eigenvalues_1(self) -> None:
         sphi = spin_operator_phi(np.pi / 3)
         eigenvalues = np.linalg.eigvalsh(sphi)
         assert np.abs(eigenvalues) == pytest.approx([1, 1], abs=1e-10), (
@@ -138,8 +137,7 @@ class TestOscillatorOperators:
             "Expected np.diag(n) == pytest.approx(expected_diag)"
         )
 
-    def test_annihilation_action(self) -> None:
-        """a|n⟩ = √n |n-1⟩."""
+    def test_a_n_n_n_1(self) -> None:
         N = 5
         a = oscillator_annihilation(N)
         # Check a|3⟩ = √3 |2⟩
@@ -152,8 +150,7 @@ class TestOscillatorOperators:
             "Expected result == pytest.approx(expected)"
         )
 
-    def test_oscillator_power(self) -> None:
-        """Test a^n computation."""
+    def test_test_a_n_computation(self) -> None:
         N = 5
         a = oscillator_annihilation(N)
         a2 = oscillator_power(a, 2)
@@ -167,8 +164,7 @@ class TestOscillatorOperators:
             "Expected result == pytest.approx(expected)"
         )
 
-    def test_oscillator_power_zero(self) -> None:
-        """a^0 should be identity."""
+    def test_a_0_should_be_identity(self) -> None:
         N = 5
         a = oscillator_annihilation(N)
         a0 = oscillator_power(a, 0)
@@ -244,8 +240,7 @@ class TestHybridHamiltonian:
                 "Expected H.shape == (2 * (N + 1), 2 * (N + 1))"
             )
 
-    def test_hamiltonian_zero_omega(self) -> None:
-        """H should be zero when omega_n = 0."""
+    def test_h_should_be_zero_when_omega_n_0(self) -> None:
         N = 5
         H = hybrid_hamiltonian_n(N, n=2, omega_n=0.0, theta_n=0.0)
         assert pytest.approx(0, abs=1e-10) == H, (
@@ -315,30 +310,27 @@ class TestStatePreparation:
 class TestAdaptiveTruncation:
     """Test adaptive truncation formula."""
 
-    def test_vacuum_input(self) -> None:
-        """Vacuum (alpha=0) with small r_n should give small N."""
+    def test_vacuum_alpha_0_with_small_r_n_should_give_small_n(self) -> None:
         N = adaptive_truncation(alpha=0j, r_n=0.1, n=2, N_max=100)
         assert N > 0, "Expected N > 0"
         assert N <= 100, "Expected N <= 100"
 
-    def test_coherent_input(self) -> None:
-        """Coherent state with |α|²=4 should give N ≥ 4."""
+    def test_coherent_state_with_4_should_give_n_4(self) -> None:
         N = adaptive_truncation(alpha=2.0 + 0j, r_n=0.0, n=2, N_max=100)
         assert N >= 4, "Expected N >= 4"
 
-    def test_rn_increases_truncation(self) -> None:
-        """Larger r_n should give larger N."""
+    def test_larger_r_n_should_give_larger_n(self) -> None:
         N1 = adaptive_truncation(alpha=0j, r_n=1.0, n=2, N_max=100)
         N2 = adaptive_truncation(alpha=0j, r_n=5.0, n=2, N_max=100)
         assert N2 >= N1, "Expected N2 >= N1"
 
-    def test_respects_max(self) -> None:
-        """N should not exceed N_max."""
+    def test_n_should_not_exceed_n_max(self) -> None:
         N = adaptive_truncation(alpha=100j, r_n=100.0, n=4, N_max=50)
         assert N <= 50, "Expected N <= 50"
 
-    def test_higher_order_gives_larger_N(self) -> None:
-        """Higher order n should give larger N at same r_n (wider safety margin)."""
+    def test_higher_order_n_should_give_larger_n_at_same_r_n_wider_safety_margin(
+        self,
+    ) -> None:
         N2 = adaptive_truncation(alpha=0j, r_n=1.0, n=2, N_max=200)
         N3 = adaptive_truncation(alpha=0j, r_n=1.0, n=3, N_max=200)
         N4 = adaptive_truncation(alpha=0j, r_n=1.0, n=4, N_max=200)
@@ -420,8 +412,7 @@ class TestValidation:
 class TestUnitaryEvolution:
     """Test time evolution under Hamiltonian."""
 
-    def test_evolution_preserves_norm(self) -> None:
-        """Unitary evolution should preserve norm."""
+    def test_unitary_evolution_should_preserve_norm(self) -> None:
         N = 5
         H = hybrid_hamiltonian_n(N, n=2, omega_n=0.5, theta_n=0.0)
         # U = exp(-iHt)
@@ -436,8 +427,7 @@ class TestUnitaryEvolution:
             "Expected np.sum(np.abs(evolved) ** 2) == pytest.approx(1.0, abs=1e-6)"
         )
 
-    def test_evolution_with_scipy(self) -> None:
-        """Test that evolution works with scipy.linalg.expm."""
+    def test_test_that_evolution_works_with_scipy_linalg_expm(self) -> None:
         N = 4
         H = hybrid_hamiltonian_n(N, n=3, omega_n=0.3, theta_n=np.pi / 4)
         T = 0.5
@@ -455,8 +445,7 @@ class TestUnitaryEvolution:
 class TestHybridGroundState:
     """Tests for hybrid_ground_state_n."""
 
-    def test_ground_state_dimension(self) -> None:
-        """Ground state should have correct dimension."""
+    def test_ground_state_should_have_correct_dimension(self) -> None:
         N = 6
         for n_order in (2, 3, 4):
             gs = hybrid_ground_state_n(N, n=n_order, omega_n=0.5, theta_n=0.0)
@@ -465,8 +454,7 @@ class TestHybridGroundState:
                 f"n={n_order}: expected dim {expected_dim}, got {gs.shape}"
             )
 
-    def test_ground_state_normalized(self) -> None:
-        """Ground state should be normalised to 1."""
+    def test_ground_state_should_be_normalised_to_1(self) -> None:
         N = 6
         for n_order in (2, 3, 4):
             gs = hybrid_ground_state_n(N, n=n_order, omega_n=0.5, theta_n=0.0)
@@ -474,8 +462,7 @@ class TestHybridGroundState:
                 f"n={n_order}: norm not preserved"
             )
 
-    def test_ground_state_is_lowest_eigenvector(self) -> None:
-        """Ground state should be the lowest eigenvector of H_n."""
+    def test_ground_state_should_be_the_lowest_eigenvector_of_h_n(self) -> None:
         N = 5
         n_order = 2
         omega_n = 1.0
@@ -492,8 +479,7 @@ class TestHybridGroundState:
             f"Overlap with lowest eigenvector: {overlap:.2e}"
         )
 
-    def test_ground_state_energy(self) -> None:
-        """Ground state energy should be the minimum eigenvalue."""
+    def test_ground_state_energy_should_be_the_minimum_eigenvalue(self) -> None:
         N = 5
         for n_order in (2, 3, 4):
             H = hybrid_hamiltonian_n(N, n_order, omega_n=0.5, theta_n=0.0)
@@ -504,13 +490,13 @@ class TestHybridGroundState:
                 f"n={n_order}: GS energy {gs_energy:.6e} != min eigenvalue {eigenvalues[0]:.6e}"
             )
 
-    def test_invalid_order_raises(self) -> None:
-        """Invalid order should raise ValueError."""
+    def test_invalid_order_should_raise_valueerror(self) -> None:
         with pytest.raises(ValueError, match="Unsupported order"):
             hybrid_ground_state_n(N=5, n=5, omega_n=0.5, theta_n=0.0)
 
-    def test_ground_state_differs_from_vacuum(self) -> None:
-        """For non-trivial omega_n, the ground state should differ from |0,↓⟩."""
+    def test_for_non_trivial_omega_n_the_ground_state_should_differ_from_0(
+        self,
+    ) -> None:
         N = 5
         gs = hybrid_ground_state_n(N, n=2, omega_n=1.0, theta_n=0.0)
         vac = hybrid_vacuum_state(N, spin_state="down")

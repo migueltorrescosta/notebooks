@@ -16,8 +16,7 @@ import pytest
 class TestPosteriorProperties:
     """Tests for posterior computation properties."""
 
-    def test_calculate_posterior_basic(self) -> None:
-        """Posterior should equal normalized prior * likelihood (Bayes' rule)."""
+    def test_posterior_should_equal_normalized_prior_times_likelihood(self) -> None:
         df = pd.DataFrame(
             {"prior": [0.4, 0.6], "likelihood": [0.5, 0.5]},
             index=["A", "B"],
@@ -33,8 +32,7 @@ class TestPosteriorProperties:
             "Expected posterior at B to match Bayes rule"
         )
 
-    def test_posterior_sums_to_one(self) -> None:
-        """Posterior column should sum to 1."""
+    def test_posterior_column_should_sum_to_1(self) -> None:
         df = pd.DataFrame({"prior": [0.5, 0.5], "likelihood": [0.8, 0.2]})
         df["posterior"] = df["prior"] * df["likelihood"]
         df["posterior"] /= df["posterior"].sum()
@@ -42,8 +40,7 @@ class TestPosteriorProperties:
             "Posterior should sum to 1"
         )
 
-    def test_posterior_proportional_to_prior_times_likelihood(self) -> None:
-        """Posterior should be proportional to prior * likelihood."""
+    def test_posterior_should_be_proportional_to_prior_times_likelihood(self) -> None:
         df = pd.DataFrame(
             {
                 "prior": [0.25, 0.25, 0.25, 0.25],
@@ -59,8 +56,7 @@ class TestPosteriorProperties:
             "Posterior should be proportional to prior * likelihood"
         )
 
-    def test_posterior_peak_between_prior_and_likelihood(self) -> None:
-        """Posterior peak should lie between prior and likelihood peaks."""
+    def test_posterior_peak_should_lie_between_prior_and_likelihood_peaks(self) -> None:
         domain = np.linspace(0, 1, 101)
         prior = np.exp(-((domain - 0.3) ** 2) * 50)
         likelihood = np.exp(-((domain - 0.7) ** 2) * 50)
@@ -72,8 +68,9 @@ class TestPosteriorProperties:
             f"Posterior peak at {peak_x:.2f} should be between 0.3 and 0.7"
         )
 
-    def test_uniform_prior_posterior_equals_normalized_likelihood(self) -> None:
-        """With uniform prior, posterior should equal normalized likelihood."""
+    def test_with_uniform_prior_posterior_should_equal_normalized_likelihood(
+        self,
+    ) -> None:
         prior = np.ones(5)
         likelihood = np.array([0.1, 0.3, 0.5, 0.7, 0.9])
         df = pd.DataFrame({"prior": prior, "likelihood": likelihood})
@@ -82,8 +79,7 @@ class TestPosteriorProperties:
         expected = likelihood / likelihood.sum()
         np.testing.assert_allclose(df["posterior"], expected, atol=1e-10)
 
-    def test_posterior_mean_between_prior_and_likelihood_means(self) -> None:
-        """Posterior mean should lie between prior and likelihood means."""
+    def test_posterior_mean_should_lie_between_prior_and_likelihood_means(self) -> None:
         domain = np.linspace(-1, 1, 201)
         prior = np.exp(-((domain + 0.3) ** 2))
         likelihood = np.exp(-((domain - 0.3) ** 2))
@@ -99,8 +95,7 @@ class TestPosteriorProperties:
             f"Posterior mean {post_mean:.4f} not in [{lower:.4f}, {upper:.4f}]"
         )
 
-    def test_posterior_narrower_than_max_std(self) -> None:
-        """Posterior std should be <= max(prior_std, likelihood_std)."""
+    def test_posterior_std_should_be_leq_max_prior_std_likelihood_std(self) -> None:
         domain = np.linspace(-1, 1, 201)
         prior = np.exp(-(domain**2) * 10)
         likelihood = np.exp(-((domain - 0.1) ** 2) * 10)
@@ -121,8 +116,7 @@ class TestPosteriorProperties:
 class TestEdgeCases:
     """Edge cases for Bayesian updating."""
 
-    def test_point_mass_likelihood(self) -> None:
-        """Posterior should concentrate at a point-mass likelihood."""
+    def test_posterior_should_concentrate_at_point_mass_likelihood(self) -> None:
         prior = np.ones(5)
         likelihood = np.zeros(5)
         likelihood[2] = 1.0
@@ -134,8 +128,7 @@ class TestEdgeCases:
             "Posterior at point mass should be near 1"
         )
 
-    def test_zero_prior_vs_zero_likelihood(self) -> None:
-        """Should not crash when prior and likelihood have disjoint support."""
+    def test_should_not_crash_on_disjoint_prior_and_likelihood(self) -> None:
         prior = np.array([1.0, 0.0, 0.0])
         likelihood = np.array([0.0, 1.0, 0.0])
         df = pd.DataFrame({"prior": prior, "likelihood": likelihood})
@@ -146,8 +139,7 @@ class TestEdgeCases:
             "Likelihood should be unchanged"
         )
 
-    def test_nan_likelihood_raises(self) -> None:
-        """NaN values in likelihood should produce NaN posterior."""
+    def test_nan_likelihood_should_produce_nan_posterior(self) -> None:
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [float("nan"), 1.0]},
         )
@@ -157,8 +149,7 @@ class TestEdgeCases:
             "NaN in likelihood should produce NaN posterior"
         )
 
-    def test_inf_likelihood_raises(self) -> None:
-        """Inf values in likelihood should produce NaN posterior."""
+    def test_inf_likelihood_should_produce_nan_posterior(self) -> None:
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [float("inf"), 1.0]},
         )
@@ -168,8 +159,7 @@ class TestEdgeCases:
             "Inf in likelihood should produce NaN posterior"
         )
 
-    def test_zero_probability_likelihood(self) -> None:
-        """Zero total likelihood should produce NaN posterior."""
+    def test_zero_total_likelihood_should_produce_nan_posterior(self) -> None:
         df = pd.DataFrame(
             {"prior": [0.5, 0.5], "likelihood": [0.0, 0.0]},
         )

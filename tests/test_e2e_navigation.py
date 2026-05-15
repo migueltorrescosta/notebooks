@@ -70,17 +70,17 @@ def streamlit_server() -> Generator[tuple[subprocess.Popen, int], None, None]:
     process.wait(timeout=5)
 
 
-def test_streamlit_app_launches(streamlit_server: tuple[subprocess.Popen, int]) -> None:
-    """Verify Streamlit process started without immediate errors."""
+def test_streamlit_app_launches_should_start_without_immediate_errors(
+    streamlit_server: tuple[subprocess.Popen, int],
+) -> None:
     process, _port = streamlit_server
     time.sleep(5)
     assert process.poll() is None, "Streamlit process should be running"
 
 
-def test_sidebar_navigation_visible(
+def test_sidebar_navigation_visible_should_be_visible(
     streamlit_server: tuple[subprocess.Popen, int],
 ) -> None:
-    """Verify sidebar navigation element is visible."""
     _, port = streamlit_server
     base_url = f"http://localhost:{port}"
 

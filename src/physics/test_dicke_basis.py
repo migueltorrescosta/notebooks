@@ -19,8 +19,9 @@ from .dicke_basis import (
 class TestDickeStates:
     """Test suite for dicke_states function."""
 
-    def test_output_keys(self) -> None:
-        """Test that dictionary keys are correct magnetic quantum numbers."""
+    def test_test_that_dictionary_keys_are_correct_magnetic_quantum_numbers(
+        self,
+    ) -> None:
         for N in [1, 2, 3, 4, 5, 10]:
             J = N / 2.0
             basis = dicke_states(N)
@@ -29,14 +30,12 @@ class TestDickeStates:
                 "Expected set(basis.keys()) == expected_m_values"
             )
 
-    def test_output_length(self) -> None:
-        """Test that output has N+1 entries."""
+    def test_test_that_output_has_n_1_entries(self) -> None:
         for N in [0, 1, 2, 5, 10, 50]:
             basis = dicke_states(N)
             assert len(basis) == N + 1, "Expected len(basis) == N + 1"
 
-    def test_index_mapping(self) -> None:
-        """Test that indices increase correctly."""
+    def test_test_that_indices_increase_correctly(self) -> None:
         N = 4
         basis = dicke_states(N)
         # m=N/2 should have lowest index (0), m=-N/2 highest (N)
@@ -44,8 +43,7 @@ class TestDickeStates:
         assert basis[float(J)] == 0  # m=2.0 at idx 0
         assert basis[float(-J)] == N  # m=-2.0 at idx 4
 
-    def test_negative_N_raises(self) -> None:
-        """Test that negative N raises ValueError."""
+    def test_test_that_negative_n_raises_valueerror(self) -> None:
         with pytest.raises(ValueError):
             dicke_states(-1)
 
@@ -53,8 +51,7 @@ class TestDickeStates:
 class TestBasisConversions:
     """Test suite for to_dicke_basis and from_dicke_basis."""
 
-    def test_roundtrip_vacuum(self) -> None:
-        """Test conversion roundtrip for Dicke states with N=2."""
+    def test_test_conversion_roundtrip_for_dicke_states_with_n_2(self) -> None:
         N = 2
         # For Dicke states with total N=2, states are |n1,n2⟩ with n1+n2=2
         # n1=2, n2=0 → m=1; n1=1, n2=1 → m=0; n1=0, n2=2 → m=-1
@@ -71,8 +68,7 @@ class TestBasisConversions:
             "Expected fock == pytest.approx(fock_back)"
         )
 
-    def test_roundtrip_single_photon(self) -> None:
-        """Test conversion roundtrip for Dicke states."""
+    def test_test_conversion_roundtrip_for_dicke_states(self) -> None:
         for N in [2, 3, 5]:
             # |N,0⟩ → m = N/2 (max m)
             fock = np.zeros((N + 1) ** 2, dtype=complex)
@@ -106,8 +102,7 @@ class TestBasisConversions:
                     "Expected fock == pytest.approx(fock_back)"
                 )
 
-    def test_roundtrip_arbitrary_state(self) -> None:
-        """Test conversion roundtrip for arbitrary Dicke state."""
+    def test_test_conversion_roundtrip_for_arbitrary_dicke_state(self) -> None:
         N = 4
         # Create a random state in the symmetric subspace only
         rng = np.random.default_rng(42)
@@ -126,8 +121,7 @@ class TestBasisConversions:
             "Expected fock == pytest.approx(fock_back)"
         )
 
-    def test_basis_dimension_N_plus_one(self) -> None:
-        """Test that Dicke basis dimension is N+1."""
+    def test_test_that_dicke_basis_dimension_is_n_1(self) -> None:
         for N in [1, 2, 3, 5, 10]:
             # Create Fock state in symmetric subspace
             fock = np.zeros((N + 1) ** 2, dtype=complex)
@@ -135,8 +129,7 @@ class TestBasisConversions:
             dicke = to_dicke_basis(fock, N)
             assert len(dicke) == N + 1, "Expected len(dicke) == N + 1"
 
-    def test_unitarity_of_transformation(self) -> None:
-        """Test that basis transformation is unitary."""
+    def test_test_that_basis_transformation_is_unitary(self) -> None:
         for N in [1, 2, 3, 4, 5]:
             T = basis_transformation_matrix(N)
             assert T.shape == ((N + 1) ** 2, N + 1), (
@@ -148,22 +141,21 @@ class TestBasisConversions:
                 "Expected T_dag_T == pytest.approx(np.eye(N + 1), abs=1e-10)"
             )
 
-    def test_wrong_dimension_raises(self) -> None:
-        """Test that wrong dimensions raise ValueError."""
+    def test_test_that_wrong_dimensions_raise_valueerror(self) -> None:
         N = 2
         wrong_dim = np.zeros(5)  # Wrong dimension
         with pytest.raises(ValueError):
             to_dicke_basis(wrong_dim, N)
 
-    def test_negative_N_raises(self) -> None:
-        """Test that negative N raises ValueError."""
+    def test_test_that_negative_n_raises_valueerror(self) -> None:
         fock = np.zeros(9, dtype=complex)
         fock[0] = 1.0
         with pytest.raises(ValueError):
             to_dicke_basis(fock, -1)
 
-    def test_mapping_correctness(self) -> None:
-        """Test that Fock to Dicke mapping is correct for specific states."""
+    def test_test_that_fock_to_dicke_mapping_is_correct_for_specific_states(
+        self,
+    ) -> None:
         for N in [2, 3, 4]:
             # |N,0⟩ → m = N/2 → idx 0
             fock = np.zeros((N + 1) ** 2, dtype=complex)
@@ -181,8 +173,7 @@ class TestBasisConversions:
 class TestJzOperator:
     """Test suite for jz_operator function."""
 
-    def test_is_diagonal(self) -> None:
-        """Test that J_z is diagonal."""
+    def test_test_that_j_z_is_diagonal(self) -> None:
         for N in [1, 2, 3, 5, 10]:
             J_z = jz_operator(N)
             off_diagonal = J_z - np.diag(np.diag(J_z))
@@ -190,8 +181,7 @@ class TestJzOperator:
                 "Expected off_diagonal == pytest.approx(0)"
             )
 
-    def test_eigenvalues_match(self) -> None:
-        """Test that diagonal matches expected eigenvalues."""
+    def test_test_that_diagonal_matches_expected_eigenvalues(self) -> None:
         for N in [1, 2, 5, 10]:
             J_z = jz_operator(N)
             eigenvalues = np.arange(N / 2.0, -N / 2.0 - 1, -1)
@@ -199,16 +189,14 @@ class TestJzOperator:
                 "Expected J_z.diagonal() == pytest.approx(eigenvalues)"
             )
 
-    def test_hermitian(self) -> None:
-        """Test that J_z is Hermitian."""
+    def test_test_that_j_z_is_hermitian(self) -> None:
         for N in [1, 2, 5]:
             J_z = jz_operator(N)
             assert J_z == pytest.approx(J_z.T.conj()), (
                 "Expected J_z == pytest.approx(J_z.T.conj())"
             )
 
-    def test_dimension(self) -> None:
-        """Test that dimension is N+1."""
+    def test_test_that_dimension_is_n_1(self) -> None:
         for N in [1, 2, 5, 10]:
             J_z = jz_operator(N)
             assert J_z.shape == (N + 1, N + 1), "Expected J_z.shape == (N + 1, N + 1)"
@@ -217,14 +205,12 @@ class TestJzOperator:
 class TestJxOperator:
     """Test suite for jx_operator function."""
 
-    def test_is_symmetric(self) -> None:
-        """Test that J_x is symmetric (real)."""
+    def test_test_that_j_x_is_symmetric_real(self) -> None:
         for N in [1, 2, 3, 5, 10]:
             J_x = jx_operator(N)
             assert J_x == pytest.approx(J_x.T), "Expected J_x == pytest.approx(J_x.T)"
 
-    def test_off_diagonal_only_adjacent(self) -> None:
-        """Test J_x has non-zero only on super/sub-diagonals."""
+    def test_test_j_x_has_non_zero_only_on_super_sub_diagonals(self) -> None:
         N = 5
         J_x = jx_operator(N)
         for i in range(N + 1):
@@ -234,8 +220,7 @@ class TestJxOperator:
                         "Expected J_x[i, j] == pytest.approx(0)"
                     )
 
-    def test_correct_matrix_elements(self) -> None:
-        """Test J_x matrix elements match analytical formula."""
+    def test_test_j_x_matrix_elements_match_analytical_formula(self) -> None:
         N = 4
         J = N / 2.0
         J_x = jx_operator(N)
@@ -250,16 +235,14 @@ class TestJxOperator:
                 "Expected J_x[i, i + 1] == pytest.approx(expected)"
             )
 
-    def test_hermitian(self) -> None:
-        """Test that J_x is Hermitian."""
+    def test_test_that_j_x_is_hermitian(self) -> None:
         for N in [1, 2, 5]:
             J_x = jx_operator(N)
             assert J_x == pytest.approx(J_x.conj().T), (
                 "Expected J_x == pytest.approx(J_x.conj().T)"
             )
 
-    def test_dimension(self) -> None:
-        """Test that dimension is N+1."""
+    def test_test_that_dimension_is_n_1(self) -> None:
         for N in [1, 2, 5, 10]:
             J_x = jx_operator(N)
             assert J_x.shape == (N + 1, N + 1), "Expected J_x.shape == (N + 1, N + 1)"
@@ -268,8 +251,7 @@ class TestJxOperator:
 class TestCommutationRelations:
     """Test SU(2) commutation relations [J_i, J_j] = i ε_ijk J_k."""
 
-    def test_xy_commutator(self) -> None:
-        """Test [J_x, J_y] = i J_z."""
+    def test_test_j_x_j_y_i_j_z(self) -> None:
         for N in [1, 2, 3, 5]:
             J_x = jx_operator(N)
             J_y = jy_operator(N)
@@ -281,8 +263,7 @@ class TestCommutationRelations:
                 "Expected commutator == pytest.approx(expected, abs=1e-10)"
             )
 
-    def test_yz_commutator(self) -> None:
-        """Test [J_y, J_z] = i J_x."""
+    def test_test_j_y_j_z_i_j_x(self) -> None:
         for N in [1, 2, 3, 5]:
             J_x = jx_operator(N)
             J_y = jy_operator(N)
@@ -294,8 +275,7 @@ class TestCommutationRelations:
                 "Expected commutator == pytest.approx(expected, abs=1e-10)"
             )
 
-    def test_zx_commutator(self) -> None:
-        """Test [J_z, J_x] = i J_y."""
+    def test_test_j_z_j_x_i_j_y(self) -> None:
         for N in [1, 2, 3, 5]:
             J_x = jx_operator(N)
             J_y = jy_operator(N)
@@ -311,8 +291,7 @@ class TestCommutationRelations:
 class TestPhysicalInvariants:
     """Test physical invariants that must hold."""
 
-    def test_trace_of_jz_for_half_integer_spin(self) -> None:
-        """Test Tr(J_z) = 0 for half-integer spin (any N)."""
+    def test_test_tr_j_z_0_for_half_integer_spin_any_n(self) -> None:
         for N in [1, 2, 3, 4, 5]:
             J_z = jz_operator(N)
             trace = np.trace(J_z)
@@ -320,14 +299,12 @@ class TestPhysicalInvariants:
                 "Expected trace == pytest.approx(0, abs=1e-10)"
             )
 
-    def test_jx_is_real(self) -> None:
-        """Test J_x has no imaginary part."""
+    def test_test_j_x_has_no_imaginary_part(self) -> None:
         for N in [1, 2, 5]:
             J_x = jx_operator(N)
             assert np.isrealobj(J_x), "Condition failed: np.isrealobj(J_x)"
 
-    def test_jy_is_hermitian(self) -> None:
-        r"""Test J_y is Hermitian: J_y = J_y^\dagger."""
+    def test_test_j_y_is_hermitian_j_y_j_y_dagger(self) -> None:
         for N in [1, 2, 3, 5]:
             J_y = jy_operator(N)
             # Check Hermitian: J_y = J_y^\dagger
@@ -339,16 +316,14 @@ class TestPhysicalInvariants:
 class TestEdgeCases:
     """Test edge cases and special values."""
 
-    def test_N_equals_zero(self) -> None:
-        """Test N=0 (single atom)."""
+    def test_test_n_0_single_atom(self) -> None:
         J_z = jz_operator(0)
         assert J_z.shape == (1, 1), "Expected J_z.shape == (1, 1)"
         assert J_z[0, 0] == pytest.approx(0.0), (
             "Expected J_z[0, 0] == pytest.approx(0.0)"
         )
 
-    def test_N_equals_one(self) -> None:
-        """Test N=1 (spin-1/2)."""
+    def test_test_n_1_spin_1_2(self) -> None:
         J_z = jz_operator(1)
         J_x = jx_operator(1)
 
@@ -359,8 +334,7 @@ class TestEdgeCases:
             "J_x should be [[0, 0.5], [0.5, 0]]"
         )
 
-    def test_N_equals_two(self) -> None:
-        """Test N=2 (spin-1)."""
+    def test_test_n_2_spin_1(self) -> None:
         J_z = jz_operator(2)
         J_x = jx_operator(2)
 
@@ -377,8 +351,7 @@ class TestEdgeCases:
 class TestNumericalStability:
     """Test numerical stability for larger N."""
 
-    def test_large_N_dimensions(self) -> None:
-        """Test that operations complete for N=100."""
+    def test_test_that_operations_complete_for_n_100(self) -> None:
         N = 100
         J_z = jz_operator(N)
         J_x = jx_operator(N)

@@ -72,36 +72,31 @@ class TestQuantumFisherInformationPure:
     """QFI for pure states: scaling laws, variance formula, edge cases."""
 
     @pytest.mark.parametrize("N", [2, 4, 8, 10])
-    def test_noon_heisenberg_scaling(self, N: int) -> None:
-        """NOON state achieves F_Q = N² (Heisenberg scaling)."""
+    def test_noon_state_should_achieve_fq_equals_n_squared(self, N: int) -> None:
         fq = quantum_fisher_information(
             _noon_state(N), generate_phase_generator(N, "Jz")
         )
         assert fq == pytest.approx(N**2, rel=0.1)
 
     @pytest.mark.parametrize("N", [2, 4, 8, 10])
-    def test_css_heisenberg_scaling(self, N: int) -> None:
-        """CSS (GHZ) state achieves F_Q = N² (same as NOON in J_z basis)."""
+    def test_css_state_should_achieve_fq_equals_n_squared(self, N: int) -> None:
         fq = quantum_fisher_information(
             _noon_state(N), generate_phase_generator(N, "Jz")
         )
         assert fq == pytest.approx(N**2, rel=0.1)
 
-    def test_noon_beats_eigenstate(self) -> None:
-        """NOON has higher QFI than an eigenstate (which has zero)."""
+    def test_noon_should_have_higher_qfi_than_eigenstate(self) -> None:
         G = generate_phase_generator(10, "Jz")
         fq_noon = quantum_fisher_information(_noon_state(10), G)
         fq_eigen = quantum_fisher_information(_eigenstate(10), G)
         assert fq_noon > fq_eigen + 1e-5
 
-    def test_eigenstate_zero(self) -> None:
-        """Eigenstate of generator gives zero QFI."""
+    def test_eigenstate_of_generator_should_give_zero_qfi(self) -> None:
         assert quantum_fisher_information(
             _eigenstate(5), generate_phase_generator(5, "Jz")
         ) == pytest.approx(0.0, abs=1e-10)
 
-    def test_variance_formula(self) -> None:
-        """F_Q = 4 Var(G) for pure states."""
+    def test_qfi_should_equal_4_variance_for_pure_states(self) -> None:
         N = 5
         state = _noon_state(N)
         G = generate_phase_generator(N, "Jz")
@@ -111,22 +106,19 @@ class TestQuantumFisherInformationPure:
             4.0 * (g2_exp - g_exp**2), rel=1e-5
         )
 
-    def test_noon_sensitivity_beats_sql(self) -> None:
-        """NOON achieves Δφ < 1/√N (Heisenberg scaling)."""
+    def test_noon_should_achieve_delta_phi_less_than_1_over_sqrt_n(self) -> None:
         N = 100
         G = generate_phase_generator(N, "Jz")
         fq = quantum_fisher_information(_noon_state(N), G)
         assert 1.0 / np.sqrt(fq) < 1.0 / np.sqrt(N)
 
-    def test_phase_sensitivity_definition(self) -> None:
-        """Δφ = 1/√F holds as definition."""
+    def test_delta_phi_should_equal_1_over_sqrt_f(self) -> None:
         for N in [10, 50, 100]:
             state = np.ones(N + 1, dtype=complex) / np.sqrt(N + 1)
             fq = quantum_fisher_information(state, generate_phase_generator(N, "Jz"))
             assert 1.0 / np.sqrt(fq) == pytest.approx(1.0 / np.sqrt(fq))
 
-    def test_large_N_no_overflow(self) -> None:
-        """Handle N=1000 without overflow."""
+    def test_should_handle_n_1000_without_overflow(self) -> None:
         assert (
             quantum_fisher_information(
                 _noon_state(1000), generate_phase_generator(1000, "Jz")
@@ -134,13 +126,11 @@ class TestQuantumFisherInformationPure:
             > 0
         )
 
-    def test_generator_dim_mismatch(self) -> None:
-        """Dimension mismatch raises ValueError."""
+    def test_dimension_mismatch_should_raise_value_error(self) -> None:
         with pytest.raises(ValueError):
             quantum_fisher_information(np.ones(5), np.eye(10))
 
-    def test_small_probabilities(self) -> None:
-        """classical_fisher_information handles tiny probabilities."""
+    def test_cfi_should_handle_tiny_probabilities(self) -> None:
         probs = np.array([[1e-10, 1 - 1e-10], [0.5, 0.5]])
         assert np.all(np.isfinite(classical_fisher_information(probs, dphi=1e-3)))
 
@@ -153,8 +143,7 @@ class TestQuantumFisherInformationPure:
 class TestQuantumFisherInformationMixed:
     """QFI for mixed states: purity limits, first-principles verification, edge cases."""
 
-    def test_matches_pure(self) -> None:
-        """DM QFI matches pure-state QFI when ρ is pure."""
+    def test_dm_qfi_should_match_pure_state_qfi(self) -> None:
         N = 5
         state = _noon_state(N)
         G = generate_phase_generator(N, "Jz")
@@ -162,8 +151,7 @@ class TestQuantumFisherInformationMixed:
         fq_dm = quantum_fisher_information_dm(np.outer(state, state.conj()), G)
         assert fq_pure == pytest.approx(fq_dm, rel=1e-5)
 
-    def test_lower_than_pure(self) -> None:
-        """Mixing reduces QFI."""
+    def test_mixing_should_reduce_qfi(self) -> None:
         N = 5
         state = _noon_state(N)
         G = generate_phase_generator(N, "Jz")
@@ -175,8 +163,7 @@ class TestQuantumFisherInformationMixed:
             <= quantum_fisher_information_dm(rho_pure, G) + 1e-5
         )
 
-    def test_maximally_mixed_zero(self) -> None:
-        """Maximally mixed state has F_Q = 0."""
+    def test_maximally_mixed_state_should_have_qfi_0(self) -> None:
         dim = 4
         G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
         G = G + G.conj().T
@@ -184,15 +171,13 @@ class TestQuantumFisherInformationMixed:
             0.0, abs=1e-12
         )
 
-    def test_commuting_zero(self) -> None:
-        """[ρ, G] = 0 gives F_Q = 0."""
+    def test_commuting_rho_and_g_should_give_qfi_0(self) -> None:
         assert quantum_fisher_information_dm(
             np.diag([0.4, 0.3, 0.2, 0.1, 0.0]), np.diag(np.arange(5.0))
         ) == pytest.approx(0.0, abs=1e-12)
 
     @pytest.mark.parametrize("seed", range(5))
-    def test_matches_first_principles_2d(self, seed: int) -> None:
-        """2D mixed QFI matches textbook SLD formula."""
+    def test_2d_mixed_qfi_should_match_sld_formula(self, seed: int) -> None:
         np.random.seed(42 + seed)
         a = np.random.uniform(0.1, 0.9)
         rho = np.diag([a, 1.0 - a])
@@ -204,8 +189,7 @@ class TestQuantumFisherInformationMixed:
         assert fq >= 0.0
 
     @pytest.mark.parametrize("dim", [3, 5, 8])
-    def test_matches_first_principles_high_dim(self, dim: int) -> None:
-        """Higher-dimensional mixed QFI matches SLD formula."""
+    def test_high_dim_mixed_qfi_should_match_sld_formula(self, dim: int) -> None:
         np.random.seed(123)
         A = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
         rho = A @ A.conj().T
@@ -216,8 +200,7 @@ class TestQuantumFisherInformationMixed:
         assert fq == pytest.approx(_qfi_first_principles(rho, G), rel=1e-10)
         assert fq >= 0.0
 
-    def test_equal_eigenvalues(self) -> None:
-        """Degenerate eigenvalues handled correctly."""
+    def test_degenerate_eigenvalues_should_be_handled_correctly(self) -> None:
         dim = 3
         rho = np.diag([0.4, 0.4, 0.2])
         G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
@@ -227,8 +210,9 @@ class TestQuantumFisherInformationMixed:
         )
 
     @pytest.mark.parametrize("eps", [1e-3, 1e-6, 1e-10])
-    def test_pure_state_limit(self, eps: float) -> None:
-        """As mixedness → 0, F_Q approaches pure-state value from below."""
+    def test_qfi_should_approach_pure_state_value_as_mixedness_goes_to_0(
+        self, eps: float
+    ) -> None:
         dim = 4
         np.random.seed(7)
         G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
@@ -239,14 +223,12 @@ class TestQuantumFisherInformationMixed:
         rho = (1.0 - eps) * np.outer(state, state.conj()) + eps * np.eye(dim) / dim
         assert quantum_fisher_information_dm(rho, G) <= fq_pure + 1e-10
 
-    def test_dim_one(self) -> None:
-        """1D Hilbert space gives F_Q = 0."""
+    def test_1d_hilbert_space_should_give_qfi_0(self) -> None:
         assert quantum_fisher_information_dm(
             np.ones((1, 1)), np.array([[2.0]])
         ) == pytest.approx(0.0, abs=1e-15)
 
-    def test_real_density_matrix(self) -> None:
-        """Real symmetric inputs are handled."""
+    def test_real_symmetric_inputs_should_be_handled(self) -> None:
         rng = np.random.default_rng(42)
         dim = 4
         A = rng.normal(size=(dim, dim))
@@ -257,8 +239,7 @@ class TestQuantumFisherInformationMixed:
         assert np.isfinite(fq)
         assert fq >= 0.0
 
-    def test_pure_state_from_dm(self) -> None:
-        """Rank-1 ρ gives same QFI as pure-state path."""
+    def test_rank_1_rho_should_match_pure_state_qfi(self) -> None:
         rng = np.random.default_rng(42)
         dim = 6
         vec = rng.normal(size=dim) + 1j * rng.normal(size=dim)
@@ -278,8 +259,7 @@ class TestQuantumFisherInformationMixed:
 class TestClassicalAndQuantumFisher:
     """Classical Fisher info: positivity, CFI ≤ QFI bound, phase sensitivity."""
 
-    def test_cfi_positive(self) -> None:
-        """F_C is non-negative for non-zero probabilities."""
+    def test_fc_should_be_non_negative(self) -> None:
         n_phi = 10
         phis = np.linspace(0, 2 * np.pi, n_phi)
         probs = np.zeros((n_phi, 2))
@@ -287,8 +267,7 @@ class TestClassicalAndQuantumFisher:
         probs[:, 1] = 1 - probs[:, 0]
         assert np.all(classical_fisher_information(probs, dphi=1e-3) >= 0)
 
-    def test_cfi_positive_parametrized(self) -> None:
-        """F_C > 0 where P(m|φ) > 0."""
+    def test_fc_should_be_positive_where_prob_positive(self) -> None:
         n_phi = 20
         phis = np.linspace(0.1, 2 * np.pi - 0.1, n_phi)
         probs = np.zeros((n_phi, 2))
@@ -298,8 +277,7 @@ class TestClassicalAndQuantumFisher:
             classical_fisher_information(np.clip(probs, 1e-10, None), dphi=1e-4) >= 0
         )
 
-    def test_cfi_leq_qfi(self) -> None:
-        """F_C ≤ F_Q (Cramér-Rao bound)."""
+    def test_fc_should_be_leq_fq_cramer_rao_bound(self) -> None:
         N = 5
         dim = N + 1
         phis = np.linspace(0, 2 * np.pi, 20)
@@ -315,8 +293,7 @@ class TestClassicalAndQuantumFisher:
         fc = classical_fisher_information(probs, dphi=1e-3)
         assert np.max(fc) <= fq + 1e-5
 
-    def test_cfi_leq_qfi_comprehensive(self) -> None:
-        """F_C ≤ F_Q at each φ."""
+    def test_fc_should_be_leq_fq_at_each_phi(self) -> None:
         N = 5
         dim = N + 1
         phis = np.linspace(0, 2 * np.pi, 20)
@@ -332,8 +309,7 @@ class TestClassicalAndQuantumFisher:
         fc = classical_fisher_information(probs, dphi=1e-3)
         assert np.all(fc <= fq + 1e-5)
 
-    def test_squeezed_beats_sql(self) -> None:
-        """Uniform superposition achieves F_Q > N (sub-SQL)."""
+    def test_uniform_superposition_should_achieve_fq_greater_than_n(self) -> None:
         N = 20
         probs = np.ones(N + 1) / (N + 1)
         state = np.sqrt(probs).astype(complex)
@@ -412,8 +388,7 @@ class TestInputValidation:
                 np.eye(3, dtype=complex) / 3, np.ones((3, 4), dtype=complex)
             )
 
-    def test_zero_trace_rho_handled(self) -> None:
-        """Zero-trace ρ produces finite non-negative QFI."""
+    def test_zero_trace_rho_should_produce_finite_non_negative_qfi(self) -> None:
         fq = quantum_fisher_information_dm(
             np.zeros((3, 3), dtype=complex), np.eye(3, dtype=complex)
         )
@@ -438,8 +413,7 @@ class TestInputValidation:
 class TestPhysicalInvariantsDM:
     """QFI satisfies fundamental physical invariants for mixed states."""
 
-    def test_convexity(self) -> None:
-        """F_Q(p·ρ₁+(1-p)·ρ₂) ≤ p·F_Q(ρ₁)+(1-p)·F_Q(ρ₂)."""
+    def test_qfi_should_satisfy_convexity_inequality(self) -> None:
         rng = np.random.default_rng(42)
         dim = 5
         A1 = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
@@ -455,8 +429,7 @@ class TestPhysicalInvariantsDM:
             fq_mix = quantum_fisher_information_dm(p * rho1 + (1.0 - p) * rho2, G)
             assert fq_mix <= p * fq1 + (1.0 - p) * fq2 + 1e-10
 
-    def test_additivity(self) -> None:
-        """F_Q(ρ₁⊗ρ₂, G₁⊗I+I⊗G₂) = F_Q(ρ₁, G₁) + F_Q(ρ₂, G₂)."""
+    def test_qfi_should_be_additive_over_tensor_products(self) -> None:
         rng = np.random.default_rng(42)
         d1, d2 = 3, 2
         A1 = rng.normal(size=(d1, d1)) + 1j * rng.normal(size=(d1, d1))
@@ -477,8 +450,7 @@ class TestPhysicalInvariantsDM:
             expected, rel=1e-10
         )
 
-    def test_shift_invariance(self) -> None:
-        """F_Q(ρ, G + cI) = F_Q(ρ, G)."""
+    def test_qfi_should_be_invariant_under_g_shift(self) -> None:
         rng = np.random.default_rng(42)
         dim = 4
         A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
@@ -492,8 +464,7 @@ class TestPhysicalInvariantsDM:
                 quantum_fisher_information_dm(rho, G + c * np.eye(dim)), rel=1e-12
             )
 
-    def test_unitary_covariance(self) -> None:
-        """F_Q(UρU†, UGU†) = F_Q(ρ, G)."""
+    def test_qfi_should_be_covariant_under_unitary_transformation(self) -> None:
         rng = np.random.default_rng(42)
         dim = 4
         A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
@@ -510,8 +481,7 @@ class TestPhysicalInvariantsDM:
             rel=1e-10,
         )
 
-    def test_qfi_leq_four_variance(self) -> None:
-        """F_Q(ρ, G) ≤ 4·Var_ρ(G), equality iff ρ is pure."""
+    def test_qfi_should_be_leq_4_variance_equality_for_pure(self) -> None:
         rng = np.random.default_rng(42)
         for dim in [3, 5]:
             G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
@@ -533,8 +503,7 @@ class TestPhysicalInvariantsDM:
             )
             assert fq_mixed <= 4.0 * var_g_mixed + 1e-10
 
-    def test_zero_generator(self) -> None:
-        """F_Q(ρ, 0) = 0."""
+    def test_zero_generator_should_give_qfi_0(self) -> None:
         rng = np.random.default_rng(42)
         dim = 4
         A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
@@ -552,8 +521,7 @@ class TestPhysicalInvariantsDM:
 class TestNumericalStabilityDM:
     """QFI handles numerical edge cases stably."""
 
-    def test_rank_deficient_with_null_space(self) -> None:
-        """Rank-deficient ρ with known manual expectation."""
+    def test_rank_deficient_rho_should_give_known_qfi(self) -> None:
         dim = 6
         rho = np.diag([0.5, 0.3, 0.2, 0.0, 0.0, 0.0])
         G = np.zeros((dim, dim), dtype=complex)
@@ -566,8 +534,7 @@ class TestNumericalStabilityDM:
         #           λ₂=0.2,λ₃=0.0: 4*((0.2-0)²/(0.2+0))*0.5² = 0.2
         assert fq == pytest.approx(0.4, rel=1e-10)
 
-    def test_rank_deficient_diagonal_basis(self) -> None:
-        """G couples support ↔ null-space in rank-deficient ρ."""
+    def test_g_coupling_support_null_space_should_work(self) -> None:
         dim = 5
         rho = np.diag([0.6, 0.4, 0.0, 0.0, 0.0])
         G = np.zeros((dim, dim), dtype=complex)
@@ -578,8 +545,7 @@ class TestNumericalStabilityDM:
         # λ₁=0.4,λ₂=0.0: 4*((0.4)²/0.4)*1 = 1.6
         assert fq == pytest.approx(11.2, rel=1e-10)
 
-    def test_near_degenerate_eigenvalues(self) -> None:
-        """Near-degenerate eigenvalues do not cause instability."""
+    def test_near_degenerate_eigenvalues_should_not_cause_instability(self) -> None:
         rng = np.random.default_rng(99)
         dim = 4
         G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
@@ -592,8 +558,7 @@ class TestNumericalStabilityDM:
             assert np.isfinite(fq)
             assert fq >= 0.0
 
-    def test_large_dimension(self) -> None:
-        """Handle dim=100 without error."""
+    def test_should_handle_dim_100_without_error(self) -> None:
         rng = np.random.default_rng(42)
         dim = 100
         A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
@@ -605,14 +570,12 @@ class TestNumericalStabilityDM:
         assert fq >= 0.0
         assert fq < dim**3
 
-    def test_diagonal_g_in_rho_eigenbasis(self) -> None:
-        """G diagonal in ρ's eigenbasis → F_Q = 0."""
+    def test_diagonal_g_in_rho_eigenbasis_should_give_qfi_0(self) -> None:
         rho = np.diag([0.3, 0.25, 0.2, 0.15, 0.1])
         G = np.diag(np.random.default_rng(42).uniform(-2, 2, size=5))
         assert quantum_fisher_information_dm(rho, G) == pytest.approx(0.0, abs=1e-15)
 
-    def test_generator_equal_to_identity(self) -> None:
-        """G = c·I gives F_Q = 0 for any ρ."""
+    def test_g_equal_c_times_i_should_give_qfi_0(self) -> None:
         rng = np.random.default_rng(42)
         dim = 4
         A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
@@ -642,8 +605,7 @@ def _phase_diffused_ghz(N: int, gamma_phi: float, t: float) -> np.ndarray:
 class TestNoiseIntegrationDM:
     """QFI correctly captures phase diffusion noise effects."""
 
-    def test_monotonic_decrease(self) -> None:
-        """QFI decreases monotonically with increasing phase noise."""
+    def test_qfi_should_decrease_monotonically_with_phase_noise(self) -> None:
         N = 6
         G = generate_phase_generator(N, "Jz")
         fq_prev: float = float(N**2)
@@ -658,8 +620,7 @@ class TestNoiseIntegrationDM:
             _phase_diffused_ghz(N, 100.0, 1.0), G
         ) == pytest.approx(0.0, abs=1e-10)
 
-    def test_analytical_formula(self) -> None:
-        """F_Q matches N²·exp(-γ·t·N²)."""
+    def test_qfi_should_match_n_squared_times_exp_minus_gamma_t_n_squared(self) -> None:
         for N in [4, 6]:
             G = generate_phase_generator(N, "Jz")
             for gamma_phi in [0.0, 0.02, 0.05, 0.1]:
@@ -668,8 +629,9 @@ class TestNoiseIntegrationDM:
                 )
                 assert fq == pytest.approx(N**2 * np.exp(-gamma_phi * N**2), rel=1e-10)
 
-    def test_no_noise_limit(self) -> None:
-        """As γ·t → 0, F_Q → N² from below."""
+    def test_as_gamma_t_goes_to_0_qfi_should_approach_n_squared_from_below(
+        self,
+    ) -> None:
         N = 8
         G = generate_phase_generator(N, "Jz")
         for gamma_phi in [1e-3, 1e-6, 1e-10]:

@@ -31,8 +31,9 @@ class TestJzBasisConventions:
     """Verify jz_operator basis conventions are consistent."""
 
     @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_dicke_basis_explicit_vs_default(self, N: int) -> None:
-        """Explicit DICKE basis must match default (None) basis."""
+    def test_dicke_basis_explicit_vs_default_should_match_default_basis(
+        self, N: int
+    ) -> None:
         mat_default = jz_operator(N)
         mat_explicit = jz_operator(N, basis=OperatorBasis.DICKE)
         np.testing.assert_allclose(
@@ -43,8 +44,9 @@ class TestJzBasisConventions:
         )
 
     @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_fock_basis_is_reversed_dicke(self, N: int) -> None:
-        """FOCK basis J_z should be DICKE J_z with eigenvalues reversed."""
+    def test_fock_basis_is_reversed_dicke_should_have_reversed_eigenvalues(
+        self, N: int
+    ) -> None:
         mat_dicke = jz_operator(N, basis=OperatorBasis.DICKE)
         mat_fock = jz_operator(N, basis=OperatorBasis.FOCK)
 
@@ -68,8 +70,9 @@ class TestPhaseDiffusionOffDiagonalDecay:
     """Verify phase diffusion causes off-diagonal decay proportional to (m₁ - m₂)²."""
 
     @pytest.mark.parametrize("N", [4, 6])
-    def test_decay_rate_scales_with_m_difference_squared(self, N: int) -> None:
-        """Decay rate between |m₁⟩ and |m₂⟩ is proportional to (m₁ - m₂)²."""
+    def test_decay_rate_scales_with_m_difference_squared_should_scale_with_m1_minus_m2_squared(
+        self, N: int
+    ) -> None:
         gamma_phi = 0.1
         config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=gamma_phi)
 
@@ -124,8 +127,7 @@ class TestPhaseDiffusionOffDiagonalDecay:
             )
 
     @pytest.mark.parametrize("N", [4, 6])
-    def test_same_m_no_decay(self, N: int) -> None:
-        """Diagonal elements (m₁ = m₂) should not decay."""
+    def test_same_m_no_decay_should_not_decay_diagonal_elements(self, N: int) -> None:
         gamma_phi = 0.5
         config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=gamma_phi)
 
@@ -151,8 +153,9 @@ class TestUnitaryEvolutionUnchanged:
     """Verify unitary evolution is unaffected by the J_z fix."""
 
     @pytest.mark.parametrize("N", [3, 5, 8])
-    def test_gamma_zero_preserves_fock_state(self, N: int) -> None:
-        """With gamma=0, Fock state |n⟩ should only acquire a phase."""
+    def test_gamma_zero_preserves_fock_state_should_only_acquire_a_phase(
+        self, N: int
+    ) -> None:
         config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=0.0)
 
         psi = np.zeros(N + 1, dtype=complex)
@@ -169,8 +172,9 @@ class TestUnitaryEvolutionUnchanged:
             np.testing.assert_allclose(populations, expected, atol=1e-6)
 
     @pytest.mark.parametrize("N", [4, 6])
-    def test_gamma_zero_matches_analytical(self, N: int) -> None:
-        """With gamma=0, numerical evolution should match exact unitary."""
+    def test_gamma_zero_matches_analytical_should_match_exact_unitary(
+        self, N: int
+    ) -> None:
         import qutip
         import scipy
 
@@ -202,8 +206,9 @@ class TestTracePreservationUnderPhaseDiffusion:
 
     @pytest.mark.parametrize("N", [3, 5, 8])
     @pytest.mark.parametrize("gamma_phi", [0.1, 0.5, 1.0])
-    def test_trace_preserved(self, N: int, gamma_phi: float) -> None:
-        """Trace must remain exactly 1 under phase diffusion."""
+    def test_trace_preserved_should_remain_exactly_1_under_phase_diffusion(
+        self, N: int, gamma_phi: float
+    ) -> None:
         config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=gamma_phi)
 
         # Superposition state
@@ -223,8 +228,9 @@ class TestTracePreservationUnderPhaseDiffusion:
         )
 
     @pytest.mark.parametrize("N", [4, 6])
-    def test_trace_preserved_coherent_state(self, N: int) -> None:
-        """Trace must remain 1 for coherent states under phase diffusion."""
+    def test_trace_preserved_coherent_state_should_remain_1_for_coherent_states(
+        self, N: int
+    ) -> None:
         import scipy.special
 
         gamma_phi = 0.3
@@ -254,8 +260,9 @@ class TestNoiseConfigJzUsage:
     """Verify build_lindblad_operators uses J_z (Dicke basis)."""
 
     @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_phase_diffusion_uses_jz(self, N: int) -> None:
-        """Phase diffusion Lindblad operator should be √γ_φ * J_z."""
+    def test_phase_diffusion_uses_jz_should_use_sqrt_gamma_phi_times_jz_lindblad_operator(
+        self, N: int
+    ) -> None:
         gamma_phi = 0.05
         config = NoiseConfig(gamma_phi=gamma_phi)
         L_ops = build_lindblad_operators(N, config)
@@ -265,8 +272,9 @@ class TestNoiseConfigJzUsage:
         np.testing.assert_allclose(L_ops[0], expected, rtol=1e-12)
 
     @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_combined_channels_all_correct(self, N: int) -> None:
-        """All channels should use correct operators simultaneously."""
+    def test_combined_channels_all_correct_should_use_correct_operators_simultaneously(
+        self, N: int
+    ) -> None:
         config = NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02)
         L_ops = build_lindblad_operators(N, config)
 

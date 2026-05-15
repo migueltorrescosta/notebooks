@@ -20,8 +20,7 @@ from .bayesian_phase_estimation import (
 class TestBayesianPosterior:
     """Tests for bayesian_posterior function."""
 
-    def test_posterior_normalization(self) -> None:
-        """Posterior must sum to 1."""
+    def test_posterior_should_sum_to_1(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 180)
@@ -36,8 +35,7 @@ class TestBayesianPosterior:
         total = np.sum(posterior)
         assert total == pytest.approx(1.0, rel=1e-5), f"Posterior sum is {total}"
 
-    def test_prior_is_recovered_for_flat_likelihood(self) -> None:
-        """When likelihood is uniform, posterior equals prior (uniform on grid)."""
+    def test_uniform_likelihood_should_recover_uniform_prior(self) -> None:
         max_photons = 2
         state = prepare_input_state("vacuum", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 180)
@@ -56,8 +54,7 @@ class TestBayesianPosterior:
             "Expected posterior == pytest.approx(expected, abs=0.1)"
         )
 
-    def test_posterior_peaks_near_phi_true(self) -> None:
-        """Posterior should peak near the true phase (or its complement)."""
+    def test_posterior_should_peak_near_true_phase(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 360)
@@ -80,8 +77,7 @@ class TestBayesianPosterior:
             "Expected np.pi - 0.5 < peak_phi < np.pi + 0.5"
         )
 
-    def test_outcome_1_complementary(self) -> None:
-        """Outcome 1 should give complementary posterior to outcome 0."""
+    def test_outcome_1_should_give_complementary_posterior(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 90)
@@ -105,8 +101,7 @@ class TestBayesianPosterior:
             "Expected posterior_0 != pytest.approx(posterior_1)"
         )
 
-    def test_invalid_outcome_raises(self) -> None:
-        """Invalid measurement outcome should raise ValueError."""
+    def test_invalid_outcome_should_raise_value_error(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 90)
@@ -123,8 +118,7 @@ class TestBayesianPosterior:
 class TestBayesianSensitivity:
     """Tests for bayesian_sensitivity function."""
 
-    def test_sensitivity_decreases_with_more_data(self) -> None:
-        """Sensitivity should decrease as we get more measurement outcomes."""
+    def test_sensitivity_should_decrease_with_more_data(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 180)
@@ -170,8 +164,7 @@ class TestBayesianSensitivity:
         assert sens_1 > 0, "Expected sens_1 > 0"
         assert sens_5 > 0, "Expected sens_5 > 0"
 
-    def test_sensitivity_bounded(self) -> None:
-        """Sensitivity should be reasonable (not too large or small)."""
+    def test_sensitivity_should_be_between_0_and_pi(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 180)
@@ -188,8 +181,7 @@ class TestBayesianSensitivity:
         # Sensitivity should be between 0 and π (range of phase)
         assert 0 < sensitivity < np.pi, "Expected 0 < sensitivity < np.pi"
 
-    def test_circular_sensitivity(self) -> None:
-        """Circular sensitivity should handle phase wrapping."""
+    def test_circular_sensitivity_should_handle_phase_wrapping(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 360)
@@ -214,8 +206,7 @@ class TestBayesianSensitivity:
 class TestBayesianLikelihood:
     """Tests for bayesian_likelihood function."""
 
-    def test_likelihood_values_bounded(self) -> None:
-        """Likelihood should be between 0 and 1."""
+    def test_likelihood_should_be_between_0_and_1(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 90)
@@ -225,8 +216,7 @@ class TestBayesianLikelihood:
         assert np.all(likelihood >= 0), "Expected np.all(likelihood >= 0)"
         assert np.all(likelihood <= 1), "Expected np.all(likelihood <= 1)"
 
-    def test_single_photon_likelihood_shape(self) -> None:
-        """Single photon likelihood should follow cos²(φ/2) shifted by π."""
+    def test_single_photon_likelihood_should_follow_cos_squared(self) -> None:
         max_photons = 1
         state = prepare_input_state("single_photon", max_photons=max_photons, mode=0)
         prior_range = np.linspace(0, 2 * np.pi, 180)
@@ -248,8 +238,7 @@ class TestBayesianLikelihood:
 class TestSampleMeasurementOutcomes:
     """Tests for sample_measurement_outcomes function."""
 
-    def test_sample_outcomes_numerical(self) -> None:
-        """Sampled outcomes should be 0 or 1."""
+    def test_sampled_outcomes_should_be_0_or_1(self) -> None:
         max_photons = 1
         state = prepare_input_state("single_photon", max_photons=max_photons)
         rng = np.random.default_rng(42)
@@ -266,8 +255,7 @@ class TestSampleMeasurementOutcomes:
             "Expected np.all((outcomes == 0) | (outcomes == 1))"
         )
 
-    def test_sample_probability_correct(self) -> None:
-        """Sampling should match the true probability in aggregate."""
+    def test_sampling_should_match_true_probability_in_aggregate(self) -> None:
         max_photons = 1
         state = prepare_input_state("single_photon", max_photons=max_photons)
         rng = np.random.default_rng(12345)
@@ -290,8 +278,7 @@ class TestSampleMeasurementOutcomes:
 class TestBayesianEstimator:
     """Tests for bayesian_estimator function."""
 
-    def test_estimator_returns_dict(self) -> None:
-        """Estimator should return proper dictionary."""
+    def test_estimator_should_return_proper_dictionary(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         outcomes = np.array([0, 1, 0])
@@ -302,8 +289,7 @@ class TestBayesianEstimator:
         assert "phi_estimate" in result, 'Expected "phi_estimate" in result'
         assert "sensitivity" in result, 'Expected "sensitivity" in result'
 
-    def test_estimator_empty_outcomes_raises(self) -> None:
-        """Empty outcomes should raise ValueError."""
+    def test_empty_outcomes_should_raise_value_error(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         outcomes = np.array([])
@@ -311,8 +297,7 @@ class TestBayesianEstimator:
         with pytest.raises(ValueError):
             bayesian_estimator(outcomes, state, max_photons)
 
-    def test_estimator_phi_estimate_in_range(self) -> None:
-        """Phi estimate should be in valid range."""
+    def test_phi_estimate_should_be_in_valid_range(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         rng = np.random.default_rng(42)
@@ -338,8 +323,7 @@ class TestBayesianEstimator:
 class TestComputeCRB:
     """Tests for compute_crb function."""
 
-    def test_crb_decreases_with_n(self) -> None:
-        """CRB should decrease as sqrt(N)."""
+    def test_crb_should_decrease_as_sqrt_n(self) -> None:
         max_photons = 1
         state = prepare_input_state("single_photon", max_photons=max_photons)
 
@@ -356,8 +340,7 @@ class TestComputeCRB:
 class TestBayesianSensitivityAnalytical:
     """Tests for analytical sensitivity function."""
 
-    def test_analytical_sensitivity_valid(self) -> None:
-        """Analytical sensitivity should match expected scaling."""
+    def test_analytical_sensitivity_should_match_expected_scaling(self) -> None:
         sens = bayesian_sensitivity_analytical(n_outcomes_0=5, n_total=10)
 
         # Expected: 1/sqrt(N * F_C) = 1/sqrt(10 * 1) ≈ 0.316
@@ -370,8 +353,7 @@ class TestBayesianSensitivityAnalytical:
 class TestPhysicsInvariance:
     """Additional physics invariance tests."""
 
-    def test_posterior_maximum_at_likelihood_mode(self) -> None:
-        """Posterior maximum should align with likelihood mode."""
+    def test_posterior_maximum_should_align_with_likelihood_mode(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
         prior_range = np.linspace(0, 2 * np.pi, 360)
@@ -393,8 +375,7 @@ class TestPhysicsInvariance:
             "Expected abs(like_max_idx - post_max_idx) <= 1"
         )
 
-    def test_noon_state_enhanced_sensitivity(self) -> None:
-        """NOON states should have enhanced sensitivity compared to single photon."""
+    def test_noon_state_should_have_enhanced_sensitivity(self) -> None:
         max_photons = 2
 
         # Single photon state

@@ -12,13 +12,11 @@ from .sensitivity_analysis import (
 
 
 class TestRabiFrequency:
-    def test_rabi_frequency_positive(self) -> None:
-        """Rabi frequency should be positive."""
+    def test_rabi_frequency_should_be_positive(self) -> None:
         omega = compute_rabi_frequency(4, 0, 0.0, 0.0, 1.0, 1.0)
         assert omega >= 0, "Expected omega >= 0"
 
-    def test_rabi_frequency_zero(self) -> None:
-        """Should be zero when coefficients cancel."""
+    def test_rabi_frequency_should_be_zero_when_coefficients_cancel(self) -> None:
         # At resonance: x_coeff = -j_s, z_coeff = δ_s
         # At ω = 0 when both are 0
         omega = compute_rabi_frequency(4, 2, 0.0, 0.0, 0.0, 0.0)
@@ -26,8 +24,7 @@ class TestRabiFrequency:
 
 
 class TestSensitivity:
-    def test_sensitivity_dict(self) -> None:
-        """Should return dictionary with all keys."""
+    def test_sensitivity_should_return_dict_with_all_keys(self) -> None:
         result = sensitivity(4, 0, 0.0, 0.0, 1.0, 1.0, 1.0)
         assert "omega_k" in result, 'Expected "omega_k" in result'
         assert "sensitivity_to_j" in result, 'Expected "sensitivity_to_j" in result'
@@ -35,8 +32,7 @@ class TestSensitivity:
             'Expected "sensitivity_to_delta" in result'
         )
 
-    def test_sensitivity_bounds(self) -> None:
-        """Sensitivities should be bounded."""
+    def test_sensitivity_should_be_bounded(self) -> None:
         result = sensitivity(4, 0, 0.0, 0.0, 1.0, 1.0, 10.0)
         # sin²(ωt) ≤ 1, divided by ω², so bounded
         assert abs(result["sensitivity_to_j"]) <= 1.0, (
@@ -48,8 +44,7 @@ class TestSensitivity:
 
 
 class TestGrid:
-    def test_grid_shapes(self) -> None:
-        """Grids should have correct shapes."""
+    def test_grids_should_have_correct_shapes(self) -> None:
         alpha_x = np.linspace(-5, 5, 11)
         alpha_z = np.linspace(-5, 5, 11)
         result = compute_sensitivity_grid(4, 0, 0.0, 0.0, alpha_x, alpha_z, 1.0)
@@ -62,13 +57,11 @@ class TestGrid:
 
 
 class TestObservable:
-    def test_observable_in_range(self) -> None:
-        """⟨σ_z⟩ should be in [-1, 1]."""
+    def test_sigma_z_should_be_in_minus_1_to_1(self) -> None:
         obs = compute_observable(4, 0, 0.0, 0.0, 1.0, 1.0, 1.0)
         assert -1.0 <= obs <= 1.0, "Expected -1.0 <= obs <= 1.0"
 
-    def test_observable_at_t0(self) -> None:
-        """At t=0, ⟨σ_z⟩ = 1."""
+    def test_at_t0_sigma_z_should_equal_1(self) -> None:
         obs = compute_observable(4, 0, 0.0, 0.0, 1.0, 1.0, 0.0)
         assert obs == pytest.approx(1.0, abs=0.01), (
             "Expected obs == pytest.approx(1.0, abs=0.01)"
@@ -76,8 +69,7 @@ class TestObservable:
 
 
 class TestValidation:
-    def test_sensitivity_values(self) -> None:
-        """Sensitivities should be calculated."""
+    def test_sensitivities_should_be_calculated(self) -> None:
         result = sensitivity(4, 0, 1.0, 1.0, 1.0, 1.0, 0.5)
         # Just check that sensitivities are calculated (finite values)
         assert np.isfinite(result["sensitivity_to_j"]), (

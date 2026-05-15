@@ -51,16 +51,14 @@ def _flat(t: qtn.Tensor) -> np.ndarray:
 class TestTDVPConfiguration:
     """Tests for TDVP configuration."""
 
-    def test_default_config(self) -> None:
-        """Default config should have sensible values."""
+    def test_default_config_should_have_sensible_values(self) -> None:
         config = TDVPConfig()
         assert config.dt == 0.01, "Expected config.dt == 0.01"
         assert config.trotter_order == 2, "Expected config.trotter_order == 2"
         assert config.checkpoint_every == 10, "Expected config.checkpoint_every == 10"
         assert config.max_sweeps == 100, "Expected config.max_sweeps == 100"
 
-    def test_custom_config(self) -> None:
-        """Custom config should accept all parameters."""
+    def test_custom_config_should_accept_all_parameters(self) -> None:
         config = TDVPConfig(
             dt=0.001,
             trotter_order=1,
@@ -81,8 +79,7 @@ class TestTDVPConfiguration:
 class TestTDPVSingleSite:
     """Tests for single-site TDVP update."""
 
-    def test_single_site_update_product_state(self) -> None:
-        """Single-site update on product state."""
+    def test_single_site_update_on_product_state(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -94,8 +91,7 @@ class TestTDPVSingleSite:
         assert sv is not None
         assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)
 
-    def test_single_site_update_preserves_norm(self) -> None:
-        """Single-site update should preserve norm."""
+    def test_single_site_update_should_preserve_norm(self) -> None:
         state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
         tensor = _make_tensor(state)
 
@@ -107,8 +103,7 @@ class TestTDPVSingleSite:
         norm_after = np.linalg.norm(_flat(updated))
         assert norm_before == pytest.approx(norm_after, rel=1e-6)
 
-    def test_single_site_update_with_hermitian_h(self) -> None:
-        """Should work with any Hermitian Hamiltonian."""
+    def test_should_work_with_any_hermitian_hamiltonian(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -118,8 +113,7 @@ class TestTDPVSingleSite:
 
         assert _flat(updated) is not None
 
-    def test_single_site_update_rejects_non_hermitian(self) -> None:
-        """Should reject non-Hermitian Hamiltonian."""
+    def test_should_reject_non_hermitian_hamiltonian(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -128,8 +122,7 @@ class TestTDPVSingleSite:
         with pytest.raises(ValueError, match="H_eff must be Hermitian"):
             tdvp_single_site(tensor, site_idx=0, H_eff=H_nh, dt=0.1)
 
-    def test_single_site_update_rejects_nonsquare_h(self) -> None:
-        """Should reject non-square effective Hamiltonian."""
+    def test_should_reject_non_square_effective_hamiltonian(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -147,8 +140,7 @@ class TestTDPVSingleSite:
 class TestApplyTrotterStep:
     """Tests for Trotter decomposition."""
 
-    def test_trotter_order_1(self) -> None:
-        """First-order Trotter should complete."""
+    def test_first_order_trotter_should_complete(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -160,8 +152,7 @@ class TestApplyTrotterStep:
         assert sv is not None
         assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)
 
-    def test_trotter_order_2(self) -> None:
-        """Second-order Trotter should complete."""
+    def test_second_order_trotter_should_complete(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -173,8 +164,7 @@ class TestApplyTrotterStep:
         assert sv is not None
         assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)
 
-    def test_trotter_order_2_more_accurate(self) -> None:
-        """Order 2 should be more accurate than order 1."""
+    def test_order_2_should_be_more_accurate_than_order_1(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -195,8 +185,7 @@ class TestApplyTrotterStep:
         # Order 2 should be at least as good as order 1
         assert fidelity_2 >= fidelity_1 - 1e-6
 
-    def test_trotter_invalid_order_raises(self) -> None:
-        """Invalid Trotter order should raise."""
+    def test_invalid_trotter_order_should_raise(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -212,8 +201,7 @@ class TestApplyTrotterStep:
 class TestEnergyCalculations:
     """Tests for energy-related functions."""
 
-    def test_compute_energy(self) -> None:
-        """Energy should match expectation value."""
+    def test_energy_should_match_expectation_value(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -222,8 +210,7 @@ class TestEnergyCalculations:
 
         assert np.real(energy) == pytest.approx(1.0, abs=1e-6)
 
-    def test_compute_energy_variance(self) -> None:
-        """Variance should be non-negative."""
+    def test_variance_should_be_non_negative(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -233,8 +220,7 @@ class TestEnergyCalculations:
         # For eigenstate, variance should be zero
         assert variance >= -1e-10
 
-    def test_compute_energy_mixed_state(self) -> None:
-        """Energy for superposition state."""
+    def test_energy_for_superposition_state(self) -> None:
         state = (
             np.array([1, 0, 0, 0], dtype=complex)
             + np.array([0, 0, 1, 0], dtype=complex)
@@ -256,27 +242,23 @@ class TestEnergyCalculations:
 class TestFidelityCalculations:
     """Tests for fidelity calculations."""
 
-    def test_fidelity_identical_states(self) -> None:
-        """Fidelity of identical states is 1."""
+    def test_fidelity_of_identical_states_should_be_1(self) -> None:
         psi = np.array([1, 0, 0, 0], dtype=complex)
         f = compute_state_fidelity(psi, psi)
         assert f == pytest.approx(1.0)
 
-    def test_fidelity_orthogonal_states(self) -> None:
-        """Fidelity of orthogonal states is 0."""
+    def test_fidelity_of_orthogonal_states_should_be_0(self) -> None:
         psi1 = np.array([1, 0, 0, 0], dtype=complex)
         psi2 = np.array([0, 1, 0, 0], dtype=complex)
         f = compute_state_fidelity(psi1, psi2)
         assert f == pytest.approx(0.0)
 
-    def test_fidelity_bell_states(self) -> None:
-        """Fidelity for Bell states."""
+    def test_fidelity_for_bell_states(self) -> None:
         bell = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
         f = compute_state_fidelity(bell, bell)
         assert f == pytest.approx(1.0)
 
-    def test_fidelity_normalizes_inputs(self) -> None:
-        """Fidelity should normalize inputs."""
+    def test_fidelity_should_normalize_inputs(self) -> None:
         psi1 = 2 * np.array([1, 0, 0, 0], dtype=complex)
         psi2 = 3 * np.array([1, 0, 0, 0], dtype=complex)
         f = compute_state_fidelity(psi1, psi2)
@@ -291,8 +273,7 @@ class TestFidelityCalculations:
 class TestTDVPEvolution:
     """Tests for full TDVP evolution."""
 
-    def test_evolution_runs(self) -> None:
-        """Evolution should complete without error."""
+    def test_evolution_should_complete_without_error(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -312,8 +293,7 @@ class TestTDVPEvolution:
         assert result.final_tensor is not None
         assert len(result.times) > 0
 
-    def test_evolution_preserves_norm(self) -> None:
-        """Norm should be preserved during evolution."""
+    def test_norm_should_be_preserved_during_evolution(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -331,8 +311,7 @@ class TestTDVPEvolution:
 
         assert result.norm_preserved
 
-    def test_evolution_checkpoints(self) -> None:
-        """Checkpoints should be saved at correct intervals."""
+    def test_checkpoints_should_be_saved_at_correct_intervals(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -351,8 +330,7 @@ class TestTDVPEvolution:
         # 0.1 / 0.01 = 10 steps, checkpoints every 5 = 2 checkpoints
         assert len(result.checkpoints) == 2
 
-    def test_evolution_energy_history(self) -> None:
-        """Energy history should be recorded."""
+    def test_energy_history_should_be_recorded(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -380,8 +358,7 @@ class TestTDVPEvolution:
 class TestExactEvolution:
     """Tests for exact evolution benchmark."""
 
-    def test_exact_evolution_is_unitary(self) -> None:
-        """Exact evolution should be unitary."""
+    def test_exact_evolution_should_be_unitary(self) -> None:
         psi0 = np.array([1, 0, 0, 0], dtype=complex)
         H = np.kron(SIGMA_Z, EYE)
         rng = np.random.default_rng(42)
@@ -390,8 +367,7 @@ class TestExactEvolution:
 
         assert np.linalg.norm(psi_t) == pytest.approx(1.0, rel=1e-6)
 
-    def test_exact_evolution_at_t0(self) -> None:
-        """Evolution at t=0 should return initial state."""
+    def test_evolution_at_t_zero_should_return_initial_state(self) -> None:
         psi0 = np.array([1, 0, 0, 0], dtype=complex)
         H = np.kron(SIGMA_Z, EYE)
         rng = np.random.default_rng(42)
@@ -400,8 +376,7 @@ class TestExactEvolution:
 
         assert psi_t == pytest.approx(psi0)
 
-    def test_exact_vs_trotter(self) -> None:
-        """Trotter should approximate exact evolution."""
+    def test_trotter_should_approximate_exact_evolution(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -436,16 +411,14 @@ class TestExactEvolution:
 class TestProjectToManifold:
     """Tests for projection to tensor manifold."""
 
-    def test_projection_preserves_norm(self) -> None:
-        """Projected state should be normalized."""
+    def test_projected_state_should_be_normalized(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
 
         tensor = project_to_manifold(state, n_sites=1, local_dim=2)
 
         assert np.linalg.norm(_flat(tensor)) == pytest.approx(1.0, rel=1e-6)
 
-    def test_projection_exact_for_product_state(self) -> None:
-        """Product state should project exactly."""
+    def test_product_state_should_project_exactly(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
 
         tensor = project_to_manifold(state, n_sites=1, local_dim=2)
@@ -454,8 +427,7 @@ class TestProjectToManifold:
         fidelity = compute_state_fidelity(state, reconstructed)
         assert fidelity > 1 - 1e-10
 
-    def test_projection_approximate_for_entangled(self) -> None:
-        """Entangled state may not project exactly."""
+    def test_entangled_state_may_not_project_exactly(self) -> None:
         state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
 
         tensor = project_to_manifold(
@@ -479,8 +451,7 @@ class TestProjectToManifold:
 class TestManifoldViolation:
     """Tests for manifold violation measurement."""
 
-    def test_zero_violation_for_projectable_state(self) -> None:
-        """Product state has zero manifold violation."""
+    def test_product_state_should_have_zero_manifold_violation(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = project_to_manifold(state, n_sites=1, local_dim=2)
 
@@ -488,8 +459,7 @@ class TestManifoldViolation:
 
         assert violation < 1e-10
 
-    def test_nonzero_violation_for_entangled(self) -> None:
-        """Entangled state may have non-zero manifold violation."""
+    def test_entangled_state_should_have_nonzero_manifold_violation(self) -> None:
         state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
         tensor = project_to_manifold(state, n_sites=1, local_dim=2)
 
@@ -506,8 +476,7 @@ class TestManifoldViolation:
 class TestTDVPValidation:
     """Tests for TDVP validation functions."""
 
-    def test_validate_step_norm_preservation(self) -> None:
-        """Validation should detect norm changes."""
+    def test_validation_should_detect_norm_changes(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor_before = _make_tensor(state)
 
@@ -533,8 +502,7 @@ class TestTDVPValidation:
 class TestTDVPEnergyConservation:
     """Tests for energy conservation within TTN manifold."""
 
-    def test_energy_conservation_small_dt(self) -> None:
-        """Energy should be approximately conserved for small dt."""
+    def test_energy_should_be_approximately_conserved_for_small_dt(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -566,8 +534,7 @@ class TestTDVPEnergyConservation:
 class TestTDVPAgainstExact:
     """Tests comparing TDVP with exact evolution."""
 
-    def test_trotter_vs_exact_n2(self) -> None:
-        """TDVP should match exact evolution for N=2."""
+    def test_tdvp_should_match_exact_evolution_for_n_2(self) -> None:
         # Initial superposition state
         state = np.array([1, 0, 1, 0], dtype=complex) / np.sqrt(2)
         tensor = _make_tensor(state)
@@ -595,8 +562,7 @@ class TestTDVPAgainstExact:
         # Should be accurate to within 10^-4 relative error
         assert fidelity > 1 - 1e-4
 
-    def test_tdvp_relative_error_n4(self) -> None:
-        """TDVP relative error for n_sites=1 with simple setup."""
+    def test_tdvp_relative_error_for_n_sites_1_with_simple_setup(self) -> None:
         rng = np.random.default_rng(42)
         dim = 2**2  # n_sites=1, 2 qubits total
         state = rng.random(dim) + 1j * rng.random(dim)
@@ -644,8 +610,7 @@ class TestTDVPAgainstExact:
 class TestTDVPSmallSystemComparison:
     """Test TDVP + tensor manifold vs exact for small systems."""
 
-    def test_tdvp_vs_qutip_style_n2(self) -> None:
-        """Compare TDVP with exact for n_sites=1."""
+    def test_compare_tdvp_with_exact_for_n_sites_1(self) -> None:
         rng = np.random.default_rng(42)
 
         # Create a random initial state
@@ -685,8 +650,7 @@ class TestTDVPSmallSystemComparison:
         # TDVP should capture the dynamics reasonably well
         assert fidelity > 0.5
 
-    def test_tdvp_conserves_energy_manifield(self) -> None:
-        """Energy should be conserved within tensor manifold."""
+    def test_energy_should_be_conserved_within_tensor_manifold(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 
@@ -714,8 +678,7 @@ class TestTDVPSmallSystemComparison:
 class TestTDVPPerformance:
     """Performance tests for TDVP."""
 
-    def test_tdvp_runs_under_100ms_n2(self) -> None:
-        """TDVP should complete quickly for n_sites=1."""
+    def test_tdvp_should_complete_quickly_for_n_sites_1(self) -> None:
         import time
 
         rng = np.random.default_rng(42)
@@ -746,8 +709,7 @@ class TestTDVPPerformance:
 
         assert elapsed < 0.5
 
-    def test_many_steps_fast(self) -> None:
-        """Many steps should complete in reasonable time."""
+    def test_many_steps_should_complete_in_reasonable_time(self) -> None:
         import time
 
         state = np.array([1, 0, 0, 0], dtype=complex)
@@ -778,8 +740,7 @@ class TestTDVPPerformance:
 class TestTrotterStepSimple:
     """Tests for simplified Trotter step."""
 
-    def test_simple_step_runs(self) -> None:
-        """Simplified step should complete."""
+    def test_simplified_step_should_complete(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = _make_tensor(state)
 

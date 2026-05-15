@@ -38,8 +38,9 @@ class TestOperatorConstruction:
     """Test J_z, J_x, J_z_anc, J_x_anc operator properties."""
 
     @pytest.mark.parametrize("N_max", [1, 2, 3])
-    def test_jz_diagonal(self, N_max: int) -> None:
-        """J_z must be diagonal in Fock basis with correct eigenvalues."""
+    def test_jz_diagonal_should_be_diagonal_in_fock_basis_with_correct_eigenvalues(
+        self, N_max: int
+    ) -> None:
         J_z, _ = build_system_jz_jx(N_max)
         dim = (N_max + 1) ** 2
 
@@ -59,13 +60,13 @@ class TestOperatorConstruction:
         )
 
     @pytest.mark.parametrize("N_max", [1, 2])
-    def test_jx_hermitian(self, N_max: int) -> None:
-        """J_x must be Hermitian."""
+    def test_jx_hermitian_should_be_hermitian(self, N_max: int) -> None:
         _, J_x = build_system_jz_jx(N_max)
         assert J_x == pytest.approx(J_x.conj().T), "J_x must be Hermitian"
 
-    def test_jx_bridges_fock_states(self) -> None:
-        """J_x must couple |n0,n1⟩ to |n0±1,n1∓1⟩."""
+    def test_jx_bridges_fock_states_should_couple_n0n1_to_n0_plus_minus_1_n1_minus_plus_1(
+        self,
+    ) -> None:
         N_max = 2
         _, J_x = build_system_jz_jx(N_max)
 
@@ -77,8 +78,7 @@ class TestOperatorConstruction:
             "J_x must be symmetric"
         )
 
-    def test_ancilla_operators(self) -> None:
-        """Spin-½ ancilla operators must be Pauli matrices / 2."""
+    def test_ancilla_operators_should_be_pauli_matrices_divided_by_2(self) -> None:
         J_z_anc, J_x_anc = build_ancilla_operators()
 
         assert J_z_anc.shape == (2, 2), "Expected J_z_anc.shape == (2, 2)"
@@ -104,26 +104,26 @@ class TestOperatorConstruction:
 class TestGeneratorB:
     """Test G_B for the 2-particle system (Case B)."""
 
-    def test_generator_b_hermitian(self) -> None:
-        """G_B must be Hermitian."""
+    def test_generator_b_hermitian_should_be_hermitian(self) -> None:
         G_B = compute_generator_B(T_H=1.0, N_max=2)
         assert pytest.approx(G_B.conj().T) == G_B, "G_B must be Hermitian"
 
-    def test_generator_b_eigenvalue_range(self) -> None:
-        """G_B eigenvalues must be in [-1, 1] for T_H=1, N_max=2."""
+    def test_generator_b_eigenvalue_range_should_be_in_minus_1_to_1_for_th_1_nmax_2(
+        self,
+    ) -> None:
         G_B = compute_generator_B(T_H=1.0, N_max=2)
         evals = np.linalg.eigvalsh(G_B)
         assert np.min(evals) >= -1.0 - 1e-10, f"Min eigenvalue {np.min(evals)} < -1"
         assert np.max(evals) <= 1.0 + 1e-10, f"Max eigenvalue {np.max(evals)} > 1"
 
-    def test_generator_b_scales_with_T_H(self) -> None:
-        """G_B must scale linearly with T_H."""
+    def test_generator_b_scales_with_th_should_scale_linearly_with_th(self) -> None:
         G_B_1 = compute_generator_B(T_H=1.0, N_max=2)
         G_B_2 = compute_generator_B(T_H=2.0, N_max=2)
         assert pytest.approx(2.0 * G_B_1) == G_B_2, "G_B must scale linearly with T_H"
 
-    def test_fq_b_max_equals_four(self) -> None:
-        """Maximum QFI for Case B must be 4 at T_H = 1."""
+    def test_fq_b_max_equals_four_should_max_qfi_for_case_b_be_4_at_th_equal_1(
+        self,
+    ) -> None:
         from src.analysis.ancilla_comparison import optimize_qfi_case_B
 
         result = optimize_qfi_case_B(
@@ -143,8 +143,7 @@ class TestGeneratorB:
 class TestGeneratorA:
     """Test G_A for the ancilla-assisted case (Case A)."""
 
-    def test_generator_a_hermitian(self) -> None:
-        """G_A must be Hermitian."""
+    def test_generator_a_hermitian_should_be_hermitian(self) -> None:
         G_A = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
         assert pytest.approx(G_A.conj().T) == G_A, "G_A must be Hermitian"
 
@@ -209,8 +208,9 @@ class TestGeneratorA:
             f"Case A (α=0) max QFI = {best_fq}, expected ~{expected}"
         )
 
-    def test_generator_a_scales_with_T_H(self) -> None:
-        """G_A must scale linearly with T_H for commuting case."""
+    def test_generator_a_scales_with_th_should_scale_linearly_with_th_for_commuting_case(
+        self,
+    ) -> None:
         G_A_1 = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
         G_A_2 = compute_generator_A(T_H=2.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
         assert pytest.approx(2.0 * G_A_1) == G_A_2, "G_A must scale linearly with T_H"
@@ -224,30 +224,26 @@ class TestGeneratorA:
 class TestDensityMatrix:
     """Test random density matrix generation."""
 
-    def test_random_dm_trace_one(self) -> None:
-        """Random density matrix must have trace 1."""
+    def test_random_dm_trace_one_should_have_trace_1(self) -> None:
         rng = np.random.default_rng(42)
         for d in [2, 4, 8]:
             rho = random_density_matrix(d, rng)
             assert np.trace(rho) == pytest.approx(1.0), "Tr(ρ) must be 1"
 
-    def test_random_dm_positive(self) -> None:
-        """Random density matrix must be positive semidefinite."""
+    def test_random_dm_positive_should_be_positive_semidefinite(self) -> None:
         rng = np.random.default_rng(42)
         for d in [2, 4, 8]:
             rho = random_density_matrix(d, rng)
             evals = np.linalg.eigvalsh(rho)
             assert np.all(evals >= -1e-12), "ρ must be positive semidefinite"
 
-    def test_random_dm_hermitian(self) -> None:
-        """Random density matrix must be Hermitian."""
+    def test_random_dm_hermitian_should_be_hermitian(self) -> None:
         rng = np.random.default_rng(42)
         for d in [2, 4, 8]:
             rho = random_density_matrix(d, rng)
             assert rho == pytest.approx(rho.conj().T), "ρ must be Hermitian"
 
-    def test_random_pure_dm_purity_one(self) -> None:
-        """Random pure-state density matrix must have purity 1."""
+    def test_random_pure_dm_purity_one_should_have_purity_1(self) -> None:
         rng = np.random.default_rng(42)
         for d in [2, 4, 8]:
             rho = random_pure_state_dm(d, rng)
@@ -265,8 +261,7 @@ class TestDensityMatrix:
 class TestInteractionHamiltonian:
     """Test H_int construction and commutation."""
 
-    def test_h_int_hermitian(self) -> None:
-        """H_int must be Hermitian."""
+    def test_h_int_hermitian_should_be_hermitian(self) -> None:
         J_z_sys, J_x_sys = build_system_jz_jx(N_max=1)
         J_z_anc, J_x_anc = build_ancilla_operators()
 
@@ -342,8 +337,9 @@ class TestBSConvention:
     unaffected since Var(J_y) = Var(-J_y).
     """
 
-    def test_bs_rotated_jz_eigenvalue_range(self) -> None:
-        """BS† J_z BS eigenvalues must cover [-1, 1] range."""
+    def test_bs_rotated_jz_eigenvalue_range_should_cover_minus_1_to_1_range(
+        self,
+    ) -> None:
         from src.physics.mzi_simulation import beam_splitter_unitary
 
         N_max = 2
@@ -363,8 +359,9 @@ class TestBSConvention:
             "Expected np.max(evals) == pytest.approx(1.0, abs=1e-10)"
         )
 
-    def test_generator_b_spectrum_in_n2_subspace(self) -> None:
-        """G_B must have eigenvalues in [-1, 1] for T_H=1 in the N=2 subspace."""
+    def test_generator_b_spectrum_in_n2_subspace_should_have_eigenvalues_in_minus_1_to_1_for_th_1(
+        self,
+    ) -> None:
         G_B = compute_generator_B(T_H=1.0, N_max=2)
         evals = np.linalg.eigvalsh(G_B)
         assert np.min(evals) >= -1.0 - 1e-10, "Expected np.min(evals) >= -1.0 - 1e-10"
@@ -379,8 +376,9 @@ class TestBSConvention:
 class TestComparisonPipeline:
     """End-to-end tests of the comparison pipeline."""
 
-    def test_run_comparison_returns_result(self) -> None:
-        """run_comparison must return a ComparisonResult."""
+    def test_run_comparison_returns_result_should_return_a_comparisonresult(
+        self,
+    ) -> None:
         result = run_comparison(
             T_H=1.0,
             n_samples_B=100,
@@ -393,8 +391,7 @@ class TestComparisonPipeline:
             "Expected result to be instance of ComparisonResult"
         )
 
-    def test_comparison_fq_B_positive(self) -> None:
-        """Case B QFI must be positive."""
+    def test_comparison_fq_b_positive_should_be_positive(self) -> None:
         result = run_comparison(
             T_H=1.0,
             n_samples_B=100,
@@ -405,8 +402,7 @@ class TestComparisonPipeline:
         )
         assert result.fq_B_max > 0, "Case B QFI must be positive"
 
-    def test_comparison_fq_A_positive(self) -> None:
-        """Case A QFI must be positive."""
+    def test_comparison_fq_a_positive_should_be_positive(self) -> None:
         result = run_comparison(
             T_H=1.0,
             n_samples_B=100,
@@ -417,8 +413,7 @@ class TestComparisonPipeline:
         )
         assert result.fq_A_max > 0, "Case A QFI must be positive"
 
-    def test_comparison_ratio_finite(self) -> None:
-        """Ratio must be finite and positive."""
+    def test_comparison_ratio_finite_should_be_finite_and_positive(self) -> None:
         result = run_comparison(
             T_H=1.0,
             n_samples_B=100,
@@ -430,8 +425,9 @@ class TestComparisonPipeline:
         assert np.isfinite(result.ratio), "Ratio must be finite"
         assert result.ratio > 0, "Ratio must be positive"
 
-    def test_fq_A_zero_baseline(self) -> None:
-        """Case A with α=0 must give F_Q ≈ 1."""
+    def test_fq_a_zero_baseline_should_give_fq_approx_1_with_alpha_equal_0(
+        self,
+    ) -> None:
         result = run_comparison(
             T_H=1.0,
             n_samples_B=100,
@@ -442,8 +438,9 @@ class TestComparisonPipeline:
         )
         assert result.fq_A_zero > 0.0, "Baseline F_Q must be positive"
 
-    def test_theta_dependence_dict(self) -> None:
-        """θ-dependence check must return a dict with expected keys."""
+    def test_theta_dependence_dict_should_return_a_dict_with_expected_keys(
+        self,
+    ) -> None:
         result = run_comparison(
             T_H=1.0,
             n_samples_B=100,
@@ -466,8 +463,7 @@ class TestComparisonPipeline:
 class TestAnalyticalBounds:
     """Verify analytical bounds match expectations."""
 
-    def test_analytical_fq_B(self) -> None:
-        """analytical_fq_B_max must return 4 at T_H = 1."""
+    def test_analytical_fq_b_should_return_4_at_th_equal_1(self) -> None:
         assert analytical_fq_B_max(1.0) == pytest.approx(4.0), (
             "Expected analytical_fq_B_max(1.0) == pytest.approx(4.0)"
         )
@@ -475,8 +471,7 @@ class TestAnalyticalBounds:
             "Expected analytical_fq_B_max(2.0) == pytest.approx(16.0)"
         )
 
-    def test_analytical_fq_A_zero(self) -> None:
-        """analytical_fq_A_zero must return 1 at T_H = 1."""
+    def test_analytical_fq_a_zero_should_return_1_at_th_equal_1(self) -> None:
         assert analytical_fq_A_zero(1.0) == pytest.approx(1.0), (
             "Expected analytical_fq_A_zero(1.0) == pytest.approx(1.0)"
         )
@@ -503,8 +498,9 @@ class TestAnalyticalBounds:
 class TestEdgeCases:
     """Test edge cases and error handling."""
 
-    def test_zerocoupling_identical_to_nointeraction(self) -> None:
-        """G_A with all α = 0 must reproduce the no-interaction case."""
+    def test_zerocoupling_identical_to_nointeraction_should_reproduce_no_interaction_case_with_all_alpha_zero(
+        self,
+    ) -> None:
         G_A_1 = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
         G_A_2 = compute_generator_A(T_H=1.0, alphas=(0.0, 0.0, 0.0, 0.0), N_max=1)
         assert pytest.approx(G_A_2) == G_A_1, "Must be consistent for same α"

@@ -666,8 +666,7 @@ class TestAlphaScans:
         assert result1.delta_theta_values == pytest.approx(result2.delta_theta_values)
 
     @pytest.mark.slow
-    def test_alpha_never_beats_sql(self) -> None:
-        """α ≠ 0 never gives Δθ < 1/T_H when measuring J_z^S only."""
+    def test_alpha_nonzero_should_never_beat_sql_when_measuring_jz_s(self) -> None:
         T_H, sql = 1.0, 1.0
         for name in ["xx", "xz", "zx", "zz"]:
             result = scan_alpha_single_parameter(

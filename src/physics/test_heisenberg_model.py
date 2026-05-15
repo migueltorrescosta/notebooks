@@ -28,53 +28,47 @@ from .heisenberg_model import (
 class TestHamiltonianConstruction:
     """Tests for Hamiltonian dimension, Hermiticity, and parameter sensitivity."""
 
-    def test_hamiltonian_shape(self) -> None:
-        """Hamiltonian should have dimension 2^n x 2^n."""
+    def test_hamiltonian_should_have_dimension_2_n_x_2_n(self) -> None:
         for n in [2, 3, 4]:
             H = heisenberg_hamiltonian(n)
             dim = 2**n
             assert H.shape == (dim, dim), "Expected H.shape == (dim, dim)"
 
-    def test_hamiltonian_hermitian(self) -> None:
-        """Hamiltonian should be Hermitian."""
+    def test_hamiltonian_should_be_hermitian(self) -> None:
         H = heisenberg_hamiltonian(4)
         assert pytest.approx(H.conj().T) == H, "Expected H == pytest.approx(H.conj().T)"
 
-    def test_coupling_term_hermitian(self) -> None:
-        """Coupling term should be Hermitian."""
+    def test_coupling_term_should_be_hermitian(self) -> None:
         H = heisenberg_coupling_term(3)
         assert pytest.approx(H.conj().T) == H, "Expected H == pytest.approx(H.conj().T)"
 
-    def test_field_term_hermitian(self) -> None:
-        """Field term should be Hermitian."""
+    def test_field_term_should_be_hermitian(self) -> None:
         H = heisenberg_field_term(3)
         assert pytest.approx(H.conj().T) == H, "Expected H == pytest.approx(H.conj().T)"
 
-    def test_invalid_n_sites_raises(self) -> None:
-        """Should raise ValueError for invalid n_sites."""
+    def test_should_raise_valueerror_for_invalid_n_sites(self) -> None:
         with pytest.raises(ValueError):
             heisenberg_hamiltonian(0)
         with pytest.raises(ValueError):
             heisenberg_hamiltonian(27)
 
-    def test_varying_j_yields_different_hamiltonians(self) -> None:
-        """Different J values should yield different Hamiltonians."""
+    def test_different_j_values_should_yield_different_hamiltonians(self) -> None:
         H_pos = heisenberg_hamiltonian(n_sites=3, j=1.0)
         H_neg = heisenberg_hamiltonian(n_sites=3, j=-1.0)
         assert H_pos != pytest.approx(H_neg, abs=1e-10), (
             "Expected H_pos != pytest.approx(H_neg, abs=1e-10)"
         )
 
-    def test_varying_u_yields_different_hamiltonians(self) -> None:
-        """Different U values should yield different Hamiltonians."""
+    def test_different_u_values_should_yield_different_hamiltonians(self) -> None:
         H_low = heisenberg_hamiltonian(n_sites=3, u=0.1)
         H_high = heisenberg_hamiltonian(n_sites=3, u=10.0)
         assert H_low != pytest.approx(H_high, abs=1e-10), (
             "Expected H_low != pytest.approx(H_high, abs=1e-10)"
         )
 
-    def test_hamiltonian_has_nonzero_structure(self) -> None:
-        """Hamiltonian should have a non-trivial fraction of non-zero elements."""
+    def test_hamiltonian_should_have_a_non_trivial_fraction_of_non_zero_elements(
+        self,
+    ) -> None:
         H = heisenberg_hamiltonian(n_sites=3)
         non_zero_count = np.count_nonzero(H)
         total_elements = H.shape[0] ** 2
@@ -91,30 +85,28 @@ class TestHamiltonianConstruction:
 class TestEigendecomposition:
     """Tests for eigenvalues and eigenvectors of the Hamiltonian."""
 
-    def test_eigenvalues_sorted(self) -> None:
-        """Eigenvalues should be returned in ascending order."""
+    def test_eigenvalues_should_be_returned_in_ascending_order(self) -> None:
         eigenvalues, _ = diagonalize_hamiltonian(3)
         assert np.all(eigenvalues[:-1] <= eigenvalues[1:]), (
             "Expected np.all(eigenvalues[:-1] <= eigenvalues[1:])"
         )
 
-    def test_eigenvectors_orthonormal(self) -> None:
-        """Eigenvectors should form an orthonormal basis."""
+    def test_eigenvectors_should_form_an_orthonormal_basis(self) -> None:
         _, eigenvectors = diagonalize_hamiltonian(3)
         assert validate_eigenvectors_orthonormal(eigenvectors), (
             "Condition failed: validate_eigenvectors_orthonormal(eigenvectors)"
         )
 
-    def test_eigendecomposition_valid(self) -> None:
-        """Should satisfy H|v⟩ = E|v⟩ for all eigenpairs."""
+    def test_should_satisfy_h_v_e_v_for_all_eigenpairs(self) -> None:
         H = heisenberg_hamiltonian(3)
         eigenvalues, eigenvectors = diagonalize_hamiltonian(3)
         assert validate_eigendecomposition(H, eigenvalues, eigenvectors), (
             "Condition failed: validate_eigendecomposition(H, eigenvalues, eigenvectors)"
         )
 
-    def test_spectral_reconstruction(self) -> None:
-        """H should be exactly recoverable from its spectral decomposition."""
+    def test_h_should_be_exactly_recoverable_from_its_spectral_decomposition(
+        self,
+    ) -> None:
         for n_sites in [2, 3, 4]:
             H = heisenberg_hamiltonian(n_sites)
             eigenvalues, eigenvectors = np.linalg.eigh(H)
@@ -123,8 +115,7 @@ class TestEigendecomposition:
                 "Expected H == pytest.approx(reconstructed, abs=1e-10)"
             )
 
-    def test_hilbert_space_grows_exponentially(self) -> None:
-        """Hilbert-space dimension should double with each added site."""
+    def test_hilbert_space_dimension_should_double_with_each_added_site(self) -> None:
         dimensions = []
         for n_sites in [2, 3, 4, 5]:
             H = heisenberg_hamiltonian(n_sites)
@@ -144,24 +135,21 @@ class TestEigendecomposition:
 class TestExpectationValues:
     """Tests for expectation value calculations on eigenstates."""
 
-    def test_expectation_values_real(self) -> None:
-        """Expectation values should be real."""
+    def test_expectation_values_should_be_real(self) -> None:
         _, eigenvectors = diagonalize_hamiltonian(3, j=1.0, u=1.0)
         expectations = compute_expectation_values(3, eigenvectors)
         assert np.all(np.isreal(expectations)), (
             "All values should satisfy np.isreal(expectations)"
         )
 
-    def test_expectation_values_in_range(self) -> None:
-        """σ_z expectation values should be in [-1, 1]."""
+    def test_z_expectation_values_should_be_in_1_1(self) -> None:
         _, eigenvectors = diagonalize_hamiltonian(3, j=1.0, u=1.0)
         expectations = compute_expectation_values(3, eigenvectors)
         assert np.all(np.abs(expectations[:, :, 0]) <= 1.0 + 1e-8), (
             "Expected np.all(np.abs(expectations[:, :, 0]) <= 1.0 + 1e-8)"
         )
 
-    def test_sum_rule_for_expectation_values(self) -> None:
-        """Sum of σ_z expectation values should be physically bounded."""
+    def test_sum_of_z_expectation_values_should_be_physically_bounded(self) -> None:
         _, eigenvectors = diagonalize_hamiltonian(3, j=1.0, u=1.0)
         expectations = compute_expectation_values(3, eigenvectors)
         n_sites = 3
@@ -185,8 +173,9 @@ class TestExpectationValues:
 class TestPhysicalConstraints:
     """Tests for energy bounds and Hilbert-space structure."""
 
-    def test_energy_levels_are_bounded(self) -> None:
-        """Energy levels should be within reasonable bounds for a spin-1/2 chain."""
+    def test_energy_levels_should_be_within_reasonable_bounds_for_a_spin_1_2_chain(
+        self,
+    ) -> None:
         for n_sites in [2, 3, 4]:
             H = heisenberg_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
@@ -210,15 +199,13 @@ class TestPhysicalConstraints:
 class TestSimulationRunner:
     """Tests for the run_simulation function."""
 
-    def test_run_simulation_returns_dict(self) -> None:
-        """Should return correctly shaped dictionary."""
+    def test_should_return_correctly_shaped_dictionary(self) -> None:
         result = run_simulation(3, j=1.0, u=1.0)
         assert "hamiltonian" in result, 'Expected "hamiltonian" in result'
         assert "eigenvalues" in result, 'Expected "eigenvalues" in result'
         assert "eigenvectors" in result, 'Expected "eigenvectors" in result'
 
-    def test_run_simulation_consistency(self) -> None:
-        """Eigenvalues should match hamiltonian."""
+    def test_eigenvalues_should_match_hamiltonian(self) -> None:
         result = run_simulation(3, j=1.0, u=1.0)
         eigenvalues, _ = np.linalg.eigh(result["hamiltonian"])
         assert eigenvalues == pytest.approx(result["eigenvalues"]), (

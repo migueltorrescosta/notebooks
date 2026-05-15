@@ -6,8 +6,7 @@ import numpy as np
 
 
 class TestPlotArray:
-    def test_plot_array_runs_without_error(self) -> None:
-        """Test that plot_array executes without raising an exception."""
+    def test_plot_array_should_execute_without_raising_exception(self) -> None:
         # Mock streamlit components to avoid display errors
         with (
             patch("src.visualization.plotting.st") as mock_st,

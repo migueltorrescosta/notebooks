@@ -333,16 +333,18 @@ class TestPseudomodeInitialState:
         state = pseudomode_initial_state(PseudomodeConfig(N=N, K=3, alpha=alpha))
         assert np.sum(np.abs(state) ** 2) == pytest.approx(1.0, abs=1e-3)
 
-    def test_spin_down(self, config: PseudomodeConfig) -> None:
-        """Only spin-down (s=0) components are non-zero."""
+    def test_only_spin_down_s_0_components_are_non_zero(
+        self, config: PseudomodeConfig
+    ) -> None:
         state = pseudomode_initial_state(config)
         dim_pm = config.K + 1
         for n in range(config.N + 1):
             for k in range(dim_pm):
                 assert np.abs(state[(n * 2 + 1) * dim_pm + k]) == 0
 
-    def test_pm_vacuum(self, config: PseudomodeConfig) -> None:
-        """Only k=0 pseudomode components are non-zero."""
+    def test_only_k_0_pseudomode_components_are_non_zero(
+        self, config: PseudomodeConfig
+    ) -> None:
         state = pseudomode_initial_state(config)
         dim_pm = config.K + 1
         for n in range(config.N + 1):
@@ -383,16 +385,18 @@ class TestApplyAncillaEntanglement:
         )
 
     @pytest.mark.parametrize(("g_sa", "tau"), [(1.0, 0.0), (0.0, 0.2)])
-    def test_identity_limit(self, g_sa: float, tau: float) -> None:
-        """Zero tau or zero coupling returns the original state."""
+    def test_zero_tau_or_zero_coupling_returns_the_original_state(
+        self, g_sa: float, tau: float
+    ) -> None:
         config = PseudomodeConfig(N=5, K=3, g_sa=g_sa, tau=tau)
         state = pseudomode_initial_state(config)
         assert apply_ancilla_entanglement(state, config) == pytest.approx(
             state, abs=1e-10
         )
 
-    def test_generates_spin_population(self, config: PseudomodeConfig) -> None:
-        """Entanglement creates spin-up population from spin-down."""
+    def test_entanglement_creates_spin_up_population_from_spin_down(
+        self, config: PseudomodeConfig
+    ) -> None:
         config = PseudomodeConfig(N=5, K=3, g_sa=2.0, tau=0.5)
         state = pseudomode_initial_state(config)
         entangled = apply_ancilla_entanglement(state, config)
@@ -440,8 +444,7 @@ class TestPartialTrace:
         rho = self._make_test_density(N, K)
         assert trace_out_spin_and_pseudomode(rho, N, K).shape == (N + 1, N + 1)
 
-    def test_trace_equality(self) -> None:
-        """Sequential trace equals combined trace."""
+    def test_sequential_trace_equals_combined_trace(self) -> None:
         N, K = 5, 3
         rho = self._make_test_density(N, K)
         rho_op = trace_out_spin(rho, N, K)
@@ -566,8 +569,7 @@ class TestQFIComputation:
         )
         assert compute_qfi_with_ancilla(rho, cfg.N, cfg.K) > 0
 
-    def test_coherent_state_formula(self) -> None:
-        """For |α⟩|↓⟩, QFI = 4|α|² (generator = a†a ⊗ I)."""
+    def test_for_qfi_4_generator_a_a_i(self) -> None:
         cfg = PseudomodeConfig(N=30, K=3, alpha=2.0, g_sa=0.0, g_sp=0.0, lam=0.0)
         rho = np.outer(
             pseudomode_initial_state(cfg), pseudomode_initial_state(cfg).conj()
@@ -576,8 +578,7 @@ class TestQFIComputation:
             4.0 * cfg.alpha**2, rel=1e-3
         )
 
-    def test_zero_alpha(self) -> None:
-        """Vacuum has zero QFI."""
+    def test_vacuum_has_zero_qfi(self) -> None:
         cfg = PseudomodeConfig(N=5, K=3, alpha=0.0, g_sa=0.0, g_sp=0.0, lam=0.0)
         rho = np.outer(
             pseudomode_initial_state(cfg), pseudomode_initial_state(cfg).conj()
@@ -748,8 +749,7 @@ class TestEdgeCases:
         )
         assert result["validation"]["is_normalized"]
 
-    def test_zero_g_sp(self) -> None:
-        """Zero system-pseudomode coupling → no decoherence."""
+    def test_zero_system_pseudomode_coupling_no_decoherence(self) -> None:
         result = run_metrology_protocol(
             PseudomodeConfig(
                 N=5, K=3, alpha=1.0, g_sa=0.5, tau=0.2, g_sp=0.0, lam=1.0, T=0.5
@@ -757,8 +757,7 @@ class TestEdgeCases:
         )
         assert result["ratio_with"] == pytest.approx(1.0, abs=1e-4)
 
-    def test_zero_lam_valid_result(self) -> None:
-        """Zero dissipation yields coherent dynamics with valid state."""
+    def test_zero_dissipation_yields_coherent_dynamics_with_valid_state(self) -> None:
         result = run_metrology_protocol(
             PseudomodeConfig(
                 N=15, K=3, alpha=1.0, g_sa=0.5, tau=0.2, g_sp=0.3, lam=0.0, T=0.5

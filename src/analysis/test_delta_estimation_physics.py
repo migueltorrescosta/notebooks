@@ -16,45 +16,39 @@ from .delta_estimation import (
 
 
 class TestStatePreparation:
-    def test_generate_initial_state_dimensions(self) -> None:
-        """Initial state should have correct dimensions."""
+    def test_initial_state_should_have_correct_dimensions(self) -> None:
         for dim in [2, 5, 10]:
             state = generate_initial_state(dim, 0)
             assert state.shape == (2 * dim, 2 * dim), (
                 "Expected state.shape == (2 * dim, 2 * dim)"
             )
 
-    def test_generate_initial_state_trace(self) -> None:
-        """Initial state should have trace 1."""
+    def test_initial_state_should_have_trace_1(self) -> None:
         dim = 5
         state = generate_initial_state(dim, 2)
         assert np.trace(state) == pytest.approx(1.0), (
             "Expected np.trace(state) == pytest.approx(1.0)"
         )
 
-    def test_generate_initial_state_invalid_state(self) -> None:
-        """Should raise for invalid initial state."""
+    def test_initial_state_should_raise_for_invalid_state(self) -> None:
         with pytest.raises(ValueError):
             generate_initial_state(5, 10)
 
 
 class TestHamiltonian:
-    def test_hamiltonian_hermitian(self) -> None:
-        """Hamiltonian should be Hermitian."""
+    def test_hamiltonian_should_be_hermitian(self) -> None:
         config = DeltaEstimationConfig()
         H = generate_hamiltonian(config)
         assert pytest.approx(H.conj().T) == H, "Expected H == pytest.approx(H.conj().T)"
 
-    def test_hamiltonian_shape(self) -> None:
-        """Hamiltonian should have correct dimensions."""
+    def test_hamiltonian_should_have_correct_dimensions(self) -> None:
         config = DeltaEstimationConfig(ancillary_dimension=5)
         H = generate_hamiltonian(config)
         assert H.shape == (10, 10), "Expected H.shape == (10, 10)"
 
 
 class TestEvolution:
-    def test_evolved_state_normalized(self) -> None:
-        """Evolved state should remain normalized."""
+    def test_evolved_state_should_remain_normalized(self) -> None:
         config = DeltaEstimationConfig()
         H = generate_hamiltonian(config)
         rho0 = generate_initial_state(
@@ -69,8 +63,7 @@ class TestEvolution:
 
 
 class TestObservables:
-    def test_observables_sum_to_one(self) -> None:
-        """Populations should sum to 1."""
+    def test_populations_should_sum_to_1(self) -> None:
         rho = np.array([[0.8, 0.1], [0.1, 0.2]], dtype=complex)
         obs = compute_observables(rho)
         assert obs["pop_0"] + obs["pop_1"] == pytest.approx(1.0), (
@@ -79,8 +72,7 @@ class TestObservables:
 
 
 class TestFullCalculation:
-    def test_full_calculation_returns_dict(self) -> None:
-        """Should return correctly shaped dictionary."""
+    def test_full_calculation_should_return_correctly_shaped_dict(self) -> None:
         config = DeltaEstimationConfig(t=0.0)
         result = full_calculation(config)
         assert "time" in result, 'Expected "time" in result'
@@ -89,8 +81,7 @@ class TestFullCalculation:
         )
         assert "expected_sigma_z" in result, 'Expected "expected_sigma_z" in result'
 
-    def test_full_calculation_at_t0(self) -> None:
-        """At t=0, should return initial state."""
+    def test_full_calculation_at_t0_should_return_initial_state(self) -> None:
         config = DeltaEstimationConfig(t=0.0)
         result = full_calculation(config)
         # At t=0, population in |0⟩ should be 1
@@ -100,22 +91,19 @@ class TestFullCalculation:
 
 
 class TestValidation:
-    def test_validate_valid_state(self) -> None:
-        """Valid density matrix should pass."""
+    def test_validate_should_pass_for_valid_density_matrix(self) -> None:
         rho = np.array([[1, 0], [0, 0]], dtype=complex)
         assert validate_state(rho, (2, 2)), (
             "Condition failed: validate_state(rho, (2, 2))"
         )
 
-    def test_validate_invalid_trace(self) -> None:
-        """State with wrong trace should fail."""
+    def test_validate_should_fail_for_wrong_trace(self) -> None:
         rho = np.array([[0.5, 0], [0, 0]], dtype=complex)
         assert not validate_state(rho, (2, 2)), (
             "validate_state(rho, (2, 2)) should be falsy"
         )
 
-    def test_validate_hamiltonian(self) -> None:
-        """Valid Hamiltonian should pass."""
+    def test_validate_should_pass_for_valid_hamiltonian(self) -> None:
         config = DeltaEstimationConfig()
         H = generate_hamiltonian(config)
         assert validate_hamiltonian(H), "Condition failed: validate_hamiltonian(H)"

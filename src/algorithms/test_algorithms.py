@@ -16,8 +16,9 @@ class TestGaussianMetropolisHastings:
         """Create a fresh sampler instance."""
         return GaussianMetropolisHastings(initial_configuration=0.0)
 
-    def test_initial_configuration(self, sampler: GaussianMetropolisHastings) -> None:
-        """Test that initial configuration is set correctly."""
+    def test_initial_configuration_is_set_correctly(
+        self, sampler: GaussianMetropolisHastings
+    ) -> None:
         assert sampler.current_configuration == 0.0, (
             "Expected sampler.current_configuration == 0.0"
         )
@@ -25,8 +26,7 @@ class TestGaussianMetropolisHastings:
             "Expected len(sampler.configuration_history) == 1"
         )
 
-    def test_state_likelihood_is_normalized(self) -> None:
-        """Test that state_likelihood returns valid probabilities."""
+    def test_state_likelihood_returns_valid_probabilities(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         # Likelihood should be highest at x=0
         assert sampler.state_likelihood(0.0) == 1.0, (
@@ -40,8 +40,7 @@ class TestGaussianMetropolisHastings:
             "Expected sampler.state_likelihood(-1.0) > 0"
         )
 
-    def test_generator_produces_gaussian_distribution(self) -> None:
-        """Test that generator produces approximately Gaussian samples."""
+    def test_generator_produces_approximately_gaussian_samples(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         np.random.seed(42)
         samples = []
@@ -57,8 +56,7 @@ class TestGaussianMetropolisHastings:
             f"Std should be ~1, got {std}"
         )  # Less strict
 
-    def test_approval_function_accepts_higher_likelihood(self) -> None:
-        """Test that acceptance is more likely for higher likelihood states."""
+    def test_acceptance_is_more_likely_for_higher_likelihood_states(self) -> None:
         np.random.seed(42)
 
         # Verify acceptance ratio (higher likelihood should be accepted)
@@ -76,8 +74,7 @@ class TestGaussianMetropolisHastings:
             f"Should accept high likelihood >50%, got {accepted_count}%"
         )
 
-    def test_approval_function_rejects_lower_likelihood(self) -> None:
-        """Test that acceptance is less likely for lower likelihood states."""
+    def test_acceptance_is_less_likely_for_lower_likelihood_states(self) -> None:
         np.random.seed(42)
         # Move to a state with much lower likelihood (far from 0)
         current_likelihood = 1.0  # Likelihood at configuration=0
@@ -94,8 +91,7 @@ class TestGaussianMetropolisHastings:
             f"Should accept low likelihood <30%, got {accepted_count}%"
         )
 
-    def test_run_single_iteration_changes_state(self) -> None:
-        """Test that running iterations changes the configuration."""
+    def test_running_iterations_changes_the_configuration(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         np.random.seed(123)
 
@@ -107,8 +103,7 @@ class TestGaussianMetropolisHastings:
             "Expected len(sampler.configuration_history) > 1"
         )
 
-    def test_accept_reject_counting(self) -> None:
-        """Test that acceptance/rejection counting works."""
+    def test_acceptance_rejection_counting_works(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         initial_accepted = sampler.accepted_configuration_count
         initial_rejected = sampler.rejected_configuration_count
@@ -125,8 +120,7 @@ class TestGaussianMetropolisHastings:
         )
         assert total_change >= 1, "At least one trial should have occurred"
 
-    def test_configuration_history_grows(self) -> None:
-        """Test that configuration history grows with iterations."""
+    def test_configuration_history_grows_with_iterations(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         initial_length = len(sampler.configuration_history)
 
@@ -136,8 +130,7 @@ class TestGaussianMetropolisHastings:
             "History should grow by 10"
         )
 
-    def test_likelihood_computation_is_cached(self) -> None:
-        """Test that computing likelihood twice gives same result."""
+    def test_computing_likelihood_twice_gives_same_result(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         config = 1.5
 
@@ -149,8 +142,7 @@ class TestGaussianMetropolisHastings:
             "Expected lik1 == pytest.approx(np.exp(-1 * config**2))"
         )
 
-    def test_run_iterations_with_progress(self) -> None:
-        """Test that run_iterations completes without errors."""
+    def test_run_iterations_completes_without_errors(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         sampler.run_iterations(50)
         assert len(sampler.configuration_history) == 51  # 1 initial + 50
@@ -159,8 +151,9 @@ class TestGaussianMetropolisHastings:
 class TestMetropolisHastingsEdgeCases:
     """Test edge cases for Metropolis-Hastings algorithm."""
 
-    def test_zero_temperature_limit(self) -> None:
-        """Test behavior as temperature goes to zero (deterministic acceptance)."""
+    def test_behavior_as_temperature_goes_to_zero_deterministic_acceptance(
+        self,
+    ) -> None:
         # In our implementation, temperature is implicit in the acceptance ratio
         # At very low "temperature", we should only accept moves that increase likelihood
         np.random.seed(42)
@@ -170,8 +163,7 @@ class TestMetropolisHastingsEdgeCases:
         # The acceptance probability for a worse move is proportional to likelihood ratio
         # This tests the basic acceptance mechanism
 
-    def test_very_high_likelihood_state(self) -> None:
-        """Test behavior when moving to a state with very high likelihood."""
+    def test_behavior_when_moving_to_a_state_with_very_high_likelihood(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=5.0)
         # Moving toward 0 should always be accepted eventually
         accepted = False
@@ -186,8 +178,7 @@ class TestMetropolisHastingsEdgeCases:
 class TestMetropolisHastingsStatisticalProperties:
     """Test statistical properties of the Metropolis-Hastings sampler."""
 
-    def test_detailed_balance_approximate(self) -> None:
-        """Test that detailed balance is approximately satisfied."""
+    def test_detailed_balance_is_approximately_satisfied(self) -> None:
         # This is a weak test - real verification would require many samples
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         np.random.seed(42)
@@ -204,8 +195,7 @@ class TestMetropolisHastingsStatisticalProperties:
             f"Distribution should be roughly symmetric, got ratio {ratio}"
         )
 
-    def test_sample_variance_reasonable(self) -> None:
-        """Test that sampled distribution has reasonable variance."""
+    def test_sampled_distribution_has_reasonable_variance(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         np.random.seed(42)
         sampler.run_iterations(2000)
@@ -217,8 +207,7 @@ class TestMetropolisHastingsStatisticalProperties:
         # But Metropolis has lower variance due to correlation
         assert 0.1 < variance < 2.0, f"Variance should be reasonable, got {variance}"
 
-    def test_positive_and_negative_samples(self) -> None:
-        """Test that both positive and negative samples are generated."""
+    def test_both_positive_and_negative_samples_are_generated(self) -> None:
         sampler = GaussianMetropolisHastings(initial_configuration=0.0)
         np.random.seed(42)
         sampler.run_iterations(1000)
@@ -233,8 +222,7 @@ class TestMetropolisHastingsStatisticalProperties:
 class TestReproducibility:
     """Test reproducibility with seed."""
 
-    def test_same_seed_same_results(self) -> None:
-        """Test that using same seed gives same results."""
+    def test_using_same_seed_gives_same_results(self) -> None:
         np.random.seed(42)
         sampler1 = GaussianMetropolisHastings(initial_configuration=0.0)
         sampler1.run_iterations(100)
@@ -247,8 +235,7 @@ class TestReproducibility:
             sampler2.configuration_history,
         ), "Same seed should give same results"
 
-    def test_different_seed_different_results(self) -> None:
-        """Test that different seeds give different results."""
+    def test_different_seeds_give_different_results(self) -> None:
         np.random.seed(42)
         sampler1 = GaussianMetropolisHastings(initial_configuration=0.0)
         sampler1.run_iterations(100)

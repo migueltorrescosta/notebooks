@@ -17,8 +17,9 @@ import numpy as np
 class TestBECSensitivityScaling:
     """Tests for BEC sensitivity scaling physics."""
 
-    def test_twa_simulation_completes_quickly(self) -> None:
-        """Test that TWA simulation with small N completes within timeout."""
+    def test_twa_simulation_completes_quickly_should_complete_within_timeout_for_small_n(
+        self,
+    ) -> None:
         import time
 
         from src.physics.truncated_wigner import run_twa_simulation
@@ -50,8 +51,9 @@ class TestBECSensitivityScaling:
 class TestBECAncilla:
     """Tests for BEC ancilla physics."""
 
-    def test_ancilla_evolution_produces_finite_expectations(self) -> None:
-        """Test ancilla evolution produces finite Jz expectation."""
+    def test_ancilla_evolution_produces_finite_expectations_should_produce_finite_jz_expectation(
+        self,
+    ) -> None:
         from src.algorithms.spin_squeezing import coherent_spin_state
         from src.evolution.lindblad_solver import (
             LindbladConfig,

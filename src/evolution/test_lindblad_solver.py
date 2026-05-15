@@ -57,8 +57,7 @@ def coherent_alpha() -> np.ndarray:
 class TestTracePreservation:
     """Test that Tr[ρ(t)] = 1 for all t."""
 
-    def test_trace_preservation_no_loss(self) -> None:
-        """Trace should be preserved with no dissipation."""
+    def test_trace_should_be_preserved_with_no_dissipation(self) -> None:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
@@ -70,8 +69,7 @@ class TestTracePreservation:
         # All traces should be 1
         assert traces == pytest.approx(1.0, abs=1e-6), f"Traces: {traces}"
 
-    def test_trace_preservation_one_body_loss(self) -> None:
-        """Trace should be ≤ 1 with one-body loss."""
+    def test_trace_should_be_less_than_or_equal_to_1_with_one_body_loss(self) -> None:
         config = LindbladConfig(N=5, gamma_1=0.5, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(2, 5)
         rho0 = np.outer(psi, psi.conj())
@@ -84,8 +82,7 @@ class TestTracePreservation:
         assert np.all(traces <= 1.0 + 1e-6), f"Traces exceed 1: {traces}"
         assert np.all(np.diff(traces) <= 1e-6), "Trace should be monotonic"
 
-    def test_trace_preservation_phase_diffusion(self) -> None:
-        """Trace should be preserved with phase diffusion only."""
+    def test_trace_should_be_preserved_with_phase_diffusion_only(self) -> None:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0.5)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
@@ -106,8 +103,7 @@ class TestTracePreservation:
 class TestHermiticity:
     """Test that density matrix remains Hermitian."""
 
-    def test_hermiticity_no_loss(self) -> None:
-        """Density matrix should remain Hermitian with no dissipation."""
+    def test_density_matrix_should_remain_hermitian_with_no_dissipation(self) -> None:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
@@ -119,8 +115,7 @@ class TestHermiticity:
                 f"Non-Hermitian at t={times[i]}"
             )
 
-    def test_hermiticity_with_losses(self) -> None:
-        """Density matrix should remain Hermitian with dissipation."""
+    def test_density_matrix_should_remain_hermitian_with_dissipation(self) -> None:
         config = LindbladConfig(N=5, gamma_1=0.3, gamma_2=0.1, gamma_phi=0.2)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
@@ -141,8 +136,7 @@ class TestHermiticity:
 class TestPositivity:
     """Test that density matrix eigenvalues are non-negative."""
 
-    def test_positivity_no_loss(self) -> None:
-        """Density matrix should remain positive with no dissipation."""
+    def test_density_matrix_should_remain_positive_with_no_dissipation(self) -> None:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
@@ -156,8 +150,9 @@ class TestPositivity:
                 f"Negative eigenvalue {min_eigenvalue} at t={times[i]}"
             )
 
-    def test_positivity_with_phase_diffusion_small(self) -> None:
-        """Density matrix should remain positive with small phase diffusion."""
+    def test_density_matrix_should_remain_positive_with_small_phase_diffusion(
+        self,
+    ) -> None:
         # Use small gamma_phi to avoid numerical instability
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0.01)
         psi = create_fock_state(1, 5)
@@ -172,8 +167,7 @@ class TestPositivity:
                 f"Negative eigenvalue {min_eigenvalue} at t={times[i]}"
             )
 
-    def test_positivity_with_phase_diffusion(self) -> None:
-        """Density matrix should remain positive with phase diffusion."""
+    def test_density_matrix_should_remain_positive_with_phase_diffusion(self) -> None:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=1.0)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
@@ -196,8 +190,7 @@ class TestPositivity:
 class TestParticleConservation:
     """Test particle number is conserved when gamma_1 = gamma_2 = 0."""
 
-    def test_particle_conservation_no_loss(self) -> None:
-        """Mean photon number should be conserved with no loss."""
+    def test_mean_photon_number_should_be_conserved_with_no_loss(self) -> None:
         N = 5
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=0)
 
@@ -219,8 +212,7 @@ class TestParticleConservation:
                 f"Particle number changed at t={times[i]}: {mean_n} vs {initial_n}"
             )
 
-    def test_particle_conservation_coherent_state(self) -> None:
-        """Coherent state should preserve mean photon number."""
+    def test_coherent_state_should_preserve_mean_photon_number(self) -> None:
         N = 10
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=0)
 
@@ -251,8 +243,9 @@ class TestParticleConservation:
 class TestPhaseDiffusion:
     """Test phase diffusion behavior."""
 
-    def test_phase_diffusion_decay_rate_small(self) -> None:
-        """Off-diagonal elements should decay at rate γ_φ for small amplitude states."""
+    def test_off_diagonal_elements_should_decay_at_rate_gamma_phi_for_small_amplitude_states(
+        self,
+    ) -> None:
         N = 10
         gamma_phi = 0.1  # Use smaller value for numerical stability
 
@@ -282,8 +275,7 @@ class TestPhaseDiffusion:
             # Should have some decay
             assert ratio < 1.0, "Should decay"
 
-    def test_phase_diffusion_preserves_populations(self) -> None:
-        """Phase diffusion should preserve diagonal populations."""
+    def test_phase_diffusion_should_preserve_diagonal_populations(self) -> None:
         N = 5
         gamma_phi = 0.1  # Use smaller value
 
@@ -314,8 +306,9 @@ class TestPhaseDiffusion:
 class TestUnitaryEvolution:
     """Test unitary evolution when all dissipation is zero."""
 
-    def test_unitary_evolution_matches_exact(self) -> None:
-        """Numerical evolution should match analytical unitary evolution."""
+    def test_numerical_evolution_should_match_analytical_unitary_evolution(
+        self,
+    ) -> None:
         N = 5
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=0)
 
@@ -346,8 +339,7 @@ class TestUnitaryEvolution:
 class TestSteadyState:
     """Test steady state calculations."""
 
-    def test_steady_state_iterative(self) -> None:
-        """Iterative steady state should converge (basic check)."""
+    def test_iterative_steady_state_should_converge(self) -> None:
         N = 3
         a = qutip.destroy(N + 1).full()
         H = np.zeros((N + 1, N + 1), dtype=complex)
@@ -363,8 +355,7 @@ class TestSteadyState:
         validation = validate_density_matrix(rho_ss)
         assert validation["is_hermitian"], "Steady state should be Hermitian"
 
-    def test_steady_state_with_phase_diffusion(self) -> None:
-        """With phase diffusion, steady state should be diagonal."""
+    def test_with_phase_diffusion_steady_state_should_be_diagonal(self) -> None:
         N = 5
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=1.0)
 
@@ -394,8 +385,7 @@ class TestSteadyState:
 class TestValidation:
     """Test the validate_density_matrix function."""
 
-    def test_valid_density_matrix(self) -> None:
-        """Valid density matrix should pass all checks."""
+    def test_valid_density_matrix_should_pass_all_checks(self) -> None:
         N = 5
         psi = create_fock_state(1, N)
         rho = np.outer(psi, psi.conj())
@@ -410,8 +400,7 @@ class TestValidation:
         )
         assert validation["is_positive"], 'Condition failed: validation["is_positive"]'
 
-    def test_unnormalized_fails(self) -> None:
-        """Unnormalized state should fail trace check."""
+    def test_unnormalized_state_should_fail_trace_check(self) -> None:
         rho = np.array([[1, 0], [0, 0.5]], dtype=complex)  # trace = 1.5
 
         validation = validate_density_matrix(rho)
@@ -420,8 +409,7 @@ class TestValidation:
             'validation["is_normalized"] should be falsy'
         )
 
-    def test_non_hermitian_fails(self) -> None:
-        """Non-Hermitian should fail hermiticity check."""
+    def test_non_hermitian_should_fail_hermiticity_check(self) -> None:
         rho = np.array([[1, 0.1], [-0.1, 0]], dtype=complex)
 
         validation = validate_density_matrix(rho)
@@ -439,8 +427,7 @@ class TestValidation:
 class TestFullSimulation:
     """Integration tests for full simulation."""
 
-    def test_simulation_completes(self) -> None:
-        """Simulation should complete without errors."""
+    def test_simulation_should_complete_without_errors(self) -> None:
         config = LindbladConfig(N=5, gamma_1=0.1, gamma_2=0.05)
         psi = create_fock_state(2, 5)
         rho0 = np.outer(psi, psi.conj())
@@ -451,8 +438,7 @@ class TestFullSimulation:
 
         assert validation["is_hermitian"], "Final state not Hermitian"
 
-    def test_rk4_vs_scipy_methods(self) -> None:
-        """RK4 and scipy methods should give similar results."""
+    def test_rk4_and_scipy_methods_should_give_similar_results(self) -> None:
         config = LindbladConfig(N=4, gamma_1=0.0, gamma_2=0.0, gamma_phi=0.2)
         psi = create_fock_state(1, 4)
         rho0 = np.outer(psi, psi.conj())
@@ -474,8 +460,7 @@ class TestFullSimulation:
 class TestEdgeCases:
     """Test edge cases."""
 
-    def test_zero_time_evolution(self) -> None:
-        """Zero time should return initial state."""
+    def test_zero_time_should_return_initial_state(self) -> None:
         config = LindbladConfig(N=3, gamma_1=0.1)
         psi = create_fock_state(1, 3)
         rho0 = np.outer(psi, psi.conj())
@@ -486,8 +471,7 @@ class TestEdgeCases:
             "Expected final_rho == pytest.approx(rho0, abs=1e-6)"
         )
 
-    def test_small_dt(self) -> None:
-        """Small dt should give stable evolution."""
+    def test_small_dt_should_give_stable_evolution(self) -> None:
         config = LindbladConfig(N=4, gamma_1=0.1, gamma_2=0.0, gamma_phi=0.0)
         psi = create_fock_state(2, 4)
         rho0 = np.outer(psi, psi.conj())

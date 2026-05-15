@@ -15,8 +15,7 @@ from .quantum_time_evolution import (
 
 
 class TestPotentialFunctions:
-    def test_quadratic_minimum(self) -> None:
-        """Quadratic should have minimum at c."""
+    def test_quadratic_should_have_minimum_at_c(self) -> None:
 
         def _f(x: float, a: float, c: float) -> float:
             return a * (x - c) ** 2
@@ -24,16 +23,14 @@ class TestPotentialFunctions:
         assert _f(0.0, 1.0, 0.0) == pytest.approx(0.0)
         assert _f(1.0, 1.0, 1.0) == pytest.approx(0.0)
 
-    def test_quartic_minimum(self) -> None:
-        """Quartic should have minimum at c."""
+    def test_quartic_should_have_minimum_at_c(self) -> None:
 
         def _f(x: float, a: float, c: float) -> float:
             return a * (x - c) ** 4
 
         assert _f(0.0, 1.0, 0.0) == pytest.approx(0.0)
 
-    def test_double_well(self) -> None:
-        """Double well should be symmetric."""
+    def test_double_well_should_be_symmetric(self) -> None:
 
         def _f(x: float, a: float, b: float, c: float) -> float:
             return a * (x**4 + 2 * x**2) + b * np.exp(-c * x**2)
@@ -44,15 +41,13 @@ class TestPotentialFunctions:
 
 
 class TestInitialStates:
-    def test_gaussian_has_nonzero_norm(self) -> None:
-        """Gaussian should have nonzero norm."""
+    def test_gaussian_should_have_nonzero_norm(self) -> None:
         x = np.linspace(-5, 5, 101)
         wf = gaussian_wave_packet(x, d=1.0, x0=0.0, p=0.0)
         norm = np.sqrt(np.sum(np.abs(wf) ** 2))
         assert norm > 0.1  # Has some norm
 
-    def test_step_has_nonzero_norm(self) -> None:
-        """Step should have nonzero norm."""
+    def test_step_should_have_nonzero_norm(self) -> None:
         x = np.linspace(-2, 2, 101)
         wf = step_wave_packet(x, r=-1.0, s=1.0, p=0.0)
         norm = np.sqrt(np.sum(np.abs(wf) ** 2))
@@ -60,8 +55,7 @@ class TestInitialStates:
 
 
 class TestHamiltonian:
-    def test_hamiltonian_hermitian(self) -> None:
-        """Hamiltonian should be Hermitian."""
+    def test_hamiltonian_should_be_hermitian(self) -> None:
 
         def pot(x: float) -> float:
             return 0.1 * x**2
@@ -73,8 +67,7 @@ class TestHamiltonian:
 
 
 class TestEigendecomposition:
-    def test_energy_levels_positive(self) -> None:
-        """Energy levels should be positive for bound potential."""
+    def test_energy_levels_should_be_positive_for_bound_potential(self) -> None:
 
         def pot(x: float) -> float:
             return 0.1 * x**2
@@ -87,8 +80,7 @@ class TestEigendecomposition:
         for el in result["energy_levels"]:
             assert el.energy > 0, "Expected el.energy > 0"
 
-    def test_normalize_energy_levels(self) -> None:
-        """Normalized components should be real."""
+    def test_normalized_components_should_be_real(self) -> None:
 
         def pot(x: float) -> float:
             return 0.1 * x**2
@@ -105,8 +97,7 @@ class TestEigendecomposition:
 
 
 class TestTimeEvolution:
-    def test_evolver_conserves_probability(self) -> None:
-        """Time evolver should conserve probability."""
+    def test_time_evolver_should_conserve_probability(self) -> None:
 
         def pot(x: float) -> float:
             return 0.1 * x**2
@@ -131,15 +122,12 @@ class TestTimeEvolution:
 
 
 class TestValidation:
-    def test_orthonormality_check(self) -> None:
-        """Should detect orthonormal vectors."""
-        # Create identity
+    def test_should_detect_orthonormal_vectors(self) -> None:
         vectors = np.eye(5)
         deviation = validate_orthonormality(vectors)
         assert deviation < 1e-8, "Expected deviation < 1e-8"
 
-    def test_orthonormality_check_non_orthogonal(self) -> None:
-        """Should detect non-orthogonal vectors."""
+    def test_should_detect_non_orthogonal_vectors(self) -> None:
         vectors = np.ones((5, 5))
         deviation = validate_orthonormality(vectors)
         assert deviation > 0.1, "Expected deviation > 0.1"

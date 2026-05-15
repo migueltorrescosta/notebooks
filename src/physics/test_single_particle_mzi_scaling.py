@@ -32,8 +32,7 @@ from src.physics.single_particle_mzi_scaling import (
 # =============================================================================
 
 
-def test_jz_operator_diagonal() -> None:
-    """J_z must be diagonal with eigenvalues ±1/2 for physical states."""
+def test_j_z_must_be_diagonal_with_eigenvalues_1_2_for_physical_states() -> None:
     jz = two_mode_jz_operator(1)
     assert jz.shape == (4, 4), "Expected jz.shape == (4, 4)"
     # |1,0⟩ eigenvalue = +1/2
@@ -58,8 +57,7 @@ def test_jz_operator_diagonal() -> None:
     )
 
 
-def test_beam_splitter_unitarity() -> None:
-    """Beam splitter must be unitary: U_BS U_BS^† = I."""
+def test_beam_splitter_must_be_unitary_u_bs_u_bs_i() -> None:
     u_bs = build_beam_splitter()
     result = u_bs @ u_bs.conj().T
     assert result == pytest.approx(np.eye(4), abs=1e-12), (
@@ -67,8 +65,7 @@ def test_beam_splitter_unitarity() -> None:
     )
 
 
-def test_beam_splitter_acts_on_subspace() -> None:
-    """BS on |1,0⟩ must produce balanced superposition."""
+def test_bs_on_1_0_must_produce_balanced_superposition() -> None:
     u_bs = build_beam_splitter()
     state_in = fock_state(1, 0)
     psi = u_bs @ state_in
@@ -81,8 +78,7 @@ def test_beam_splitter_acts_on_subspace() -> None:
     )
 
 
-def test_holding_unitary_unitarity() -> None:
-    """U_hold must be unitary."""
+def test_u_hold_must_be_unitary() -> None:
     jz = two_mode_jz_operator(1)
     u_hold = build_holding_unitary(theta=1.0, t_h=1.0, jz=jz)
     assert u_hold @ u_hold.conj().T == pytest.approx(np.eye(4), abs=1e-12), (
@@ -95,8 +91,7 @@ def test_holding_unitary_unitarity() -> None:
 # =============================================================================
 
 
-def test_evolution_preserves_norm() -> None:
-    """Full MZI circuit must preserve state norm."""
+def test_full_mzi_circuit_must_preserve_state_norm() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
@@ -112,8 +107,7 @@ def test_evolution_preserves_norm() -> None:
 # =============================================================================
 
 
-def test_analytical_formula() -> None:
-    """Δθ from error propagation must equal exactly 1/T_H."""
+def test_from_error_propagation_must_equal_exactly_1_t_h() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
@@ -133,8 +127,7 @@ def test_analytical_formula() -> None:
             )
 
 
-def test_jz_expectation_analytical() -> None:
-    """⟨J_z⟩ must match -½ cos(θ T_H)."""
+def test_j_z_must_match_cos_t_h() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
@@ -147,8 +140,7 @@ def test_jz_expectation_analytical() -> None:
             )
 
 
-def test_jz_variance_analytical() -> None:
-    """Var(J_z) must match ¼ sin²(θ T_H)."""
+def test_var_j_z_must_match_sin_t_h() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
@@ -161,8 +153,7 @@ def test_jz_variance_analytical() -> None:
             )
 
 
-def test_analytical_derivative_formula() -> None:
-    """∂⟨J_z⟩/∂θ must match (T_H/2) sin(θ T_H)."""
+def test_j_z_must_match_t_h_2_sin_t_h() -> None:
     for theta in [0.5, 1.0, 2.0]:
         for t_h in [0.1, 1.0, 10.0]:
             d_jz = compute_analytical_derivative(t_h, theta)
@@ -177,8 +168,7 @@ def test_analytical_derivative_formula() -> None:
 # =============================================================================
 
 
-def test_numerical_derivative_matches_analytical() -> None:
-    """Numerical and analytical derivatives must agree to 1e-6 relative."""
+def test_numerical_and_analytical_derivatives_must_agree_to_1e_6_relative() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     for theta in [0.5, 1.0, 2.0]:
@@ -201,8 +191,7 @@ def test_numerical_derivative_matches_analytical() -> None:
 # =============================================================================
 
 
-def test_validation_passes() -> None:
-    """All validation checks must pass at a non-singular point."""
+def test_all_validation_checks_must_pass_at_a_non_singular_point() -> None:
     result = run_validation(theta=1.0, t_h=1.0)
     assert result["state_normalized"], 'Condition failed: result["state_normalized"]'
     assert result["bs_unitary"], 'Condition failed: result["bs_unitary"]'
@@ -243,8 +232,7 @@ def test_validation_at_fringe_extremum() -> None:
 # =============================================================================
 
 
-def test_sweep_produces_dataframe() -> None:
-    """Sensitivity sweep must produce a DataFrame with expected columns."""
+def test_sensitivity_sweep_must_produce_a_dataframe_with_expected_columns() -> None:
     df = compute_sensitivity_sweep(theta=1.0, n_points=10)
     expected_cols = [
         "T_H",
@@ -268,8 +256,7 @@ def test_sweep_produces_dataframe() -> None:
     )
 
 
-def test_sweep_delta_theta_matches_theory() -> None:
-    """Δθ from sweep must match 1/T_H for all non-fringe points."""
+def test_from_sweep_must_match_1_t_h_for_all_non_fringe_points() -> None:
     df = compute_sensitivity_sweep(theta=1.0, n_points=20)
     non_fringe = df[~df["is_fringe_extremum"]]
     for _, row in non_fringe.iterrows():
@@ -281,8 +268,7 @@ def test_sweep_delta_theta_matches_theory() -> None:
         )
 
 
-def test_fringe_detection() -> None:
-    """Fringe extremum detection should flag points near sin(θ T_H) ≈ 0."""
+def test_fringe_extremum_detection_should_flag_points_near_sin_t_h_0() -> None:
     df = compute_sensitivity_sweep(theta=1.0, n_points=50)
     # Points near θ T_H = nπ should be flagged
     # θ=1, so T_H = nπ ≈ {3.14, 6.28, ...}
@@ -300,8 +286,7 @@ def test_fringe_detection() -> None:
 # =============================================================================
 
 
-def test_scaling_exponent_is_minus_one() -> None:
-    """Scaling exponent must be α = -1 from log-log fit."""
+def test_scaling_exponent_must_be_1_from_log_log_fit() -> None:
     df = compute_sensitivity_sweep(theta=1.0, n_points=50)
     alpha, r_sq, _fit_df = fit_scaling_exponent(df)
     assert np.isfinite(alpha), "Alpha must be finite"
@@ -311,8 +296,7 @@ def test_scaling_exponent_is_minus_one() -> None:
     assert r_sq > 0.999, f"R² = {r_sq:.6f}, expected > 0.999"
 
 
-def test_scaling_exponent_independent_of_theta() -> None:
-    """Scaling exponent must be α ≈ -1 for different true θ values."""
+def test_scaling_exponent_must_be_1_for_different_true_values() -> None:
     for theta in [0.5, 1.0, 2.0, 3.0]:
         df = compute_sensitivity_sweep(theta=theta, n_points=50)
         alpha, r_sq, _ = fit_scaling_exponent(df)
@@ -323,8 +307,7 @@ def test_scaling_exponent_independent_of_theta() -> None:
         assert r_sq > 0.999, f"R² = {r_sq:.6f} at θ={theta}"
 
 
-def test_scaling_exponent_numerical_derivative() -> None:
-    """Scaling exponent using numerical derivatives must also be α ≈ -1."""
+def test_scaling_exponent_using_numerical_derivatives_must_also_be_1() -> None:
     df = compute_sensitivity_sweep(theta=1.0, n_points=50)
     alpha, _r_sq, _ = fit_scaling_exponent(df, column="delta_theta_numerical")
     assert np.isfinite(alpha), "Alpha must be finite (numerical)"
@@ -333,8 +316,7 @@ def test_scaling_exponent_numerical_derivative() -> None:
     )
 
 
-def test_fringe_exclusion_improves_fit() -> None:
-    """Excluding fringe points should produce a cleaner fit."""
+def test_excluding_fringe_points_should_produce_a_cleaner_fit() -> None:
     df = compute_sensitivity_sweep(theta=1.0, n_points=100)
     # Fit without excluding fringe points — some may be NaN/inf
     _alpha_all, r_sq_all, _ = fit_scaling_exponent(df, exclude_fringe=False)
@@ -349,8 +331,7 @@ def test_fringe_exclusion_improves_fit() -> None:
 # =============================================================================
 
 
-def test_zero_holding_time_limit() -> None:
-    """At T_H → 0, sensitivity diverges (Δθ → ∞)."""
+def test_at_t_h_0_sensitivity_diverges() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     dt_a, _, _, _, _ = compute_delta_theta_from_propagation(
@@ -363,8 +344,7 @@ def test_zero_holding_time_limit() -> None:
     assert dt_a > 1e8, f"Δθ should be large for tiny T_H, got {dt_a:.2e}"
 
 
-def test_large_holding_time() -> None:
-    """At large T_H, sensitivity should approach zero."""
+def test_at_large_t_h_sensitivity_should_approach_zero() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     dt_a, _, _, _, _ = compute_delta_theta_from_propagation(

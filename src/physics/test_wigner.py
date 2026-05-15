@@ -29,8 +29,7 @@ from .wigner import (
 class TestWignerFunctionSingle:
     """Test Wigner function computation for single-mode states."""
 
-    def test_vacuum_normalization(self) -> None:
-        """∫∫ W(x,p) dx dp ≈ 1 for vacuum."""
+    def test_w_x_p_dx_dp_1_for_vacuum(self) -> None:
         N = 10
         rho = np.zeros((N + 1, N + 1), dtype=complex)
         rho[0, 0] = 1.0  # |0⟩⟨0|
@@ -50,8 +49,7 @@ class TestWignerFunctionSingle:
             "Expected integral == pytest.approx(1.0, rel=1e-1, abs=0.1)"
         )
 
-    def test_vacuum_maximum(self) -> None:
-        """Vacuum Wigner max should be 2/π ≈ 0.637 at origin."""
+    def test_vacuum_wigner_max_should_be_2_0_637_at_origin(self) -> None:
         N = 10
         rho = np.zeros((N + 1, N + 1), dtype=complex)
         rho[0, 0] = 1.0
@@ -66,8 +64,7 @@ class TestWignerFunctionSingle:
             "Expected max_w == pytest.approx(2.0 / np.pi, abs=0.1)"
         )
 
-    def test_vacuum_no_negative(self) -> None:
-        """Vacuum Wigner should be non-negative everywhere."""
+    def test_vacuum_wigner_should_be_non_negative_everywhere(self) -> None:
         N = 10
         rho = np.zeros((N + 1, N + 1), dtype=complex)
         rho[0, 0] = 1.0
@@ -79,8 +76,7 @@ class TestWignerFunctionSingle:
 
         assert np.min(W) >= -1e-10, "Expected np.min(W) >= -1e-10"
 
-    def test_wigner_shape(self) -> None:
-        """Wigner output should have correct shape."""
+    def test_wigner_output_should_have_correct_shape(self) -> None:
         N = 5
         rho = np.eye(N + 1, dtype=complex) / (N + 1)  # Maximally mixed
 
@@ -95,8 +91,7 @@ class TestWignerFunctionSingle:
 class TestWignerFromHybridState:
     """Test Wigner extraction from hybrid state."""
 
-    def test_hybrid_vacuum(self) -> None:
-        """Wigner for |0,↓⟩ should be vacuum Wigner."""
+    def test_wigner_for_0_should_be_vacuum_wigner(self) -> None:
         N = 10
         state = hybrid_vacuum_state(N, spin_state="down")
 
@@ -110,8 +105,7 @@ class TestWignerFromHybridState:
         assert np.max(W) > 0.3, "Expected np.max(W) > 0.3"
 
     @pytest.mark.slow
-    def test_hybrid_coherent(self) -> None:
-        """Wigner for coherent state should be Gaussian."""
+    def test_wigner_for_coherent_state_should_be_gaussian(self) -> None:
         N = 20
         alpha = 1.0 + 0j
         state = hybrid_coherent_state(N, alpha, spin_state="down")
@@ -129,8 +123,7 @@ class TestWignerFromHybridState:
 class TestWignerMinimum:
     """Test Wigner minimum and negativity detection."""
 
-    def test_minimum_vacuum(self) -> None:
-        """Vacuum Wigner minimum should be positive."""
+    def test_vacuum_wigner_minimum_should_be_positive(self) -> None:
         N = 10
         rho = np.zeros((N + 1, N + 1), dtype=complex)
         rho[0, 0] = 1.0
@@ -143,8 +136,7 @@ class TestWignerMinimum:
 
         assert min_w >= -1e-10, "Expected min_w >= -1e-10"
 
-    def test_is_negative_vacuum(self) -> None:
-        """Vacuum is not Wigner-negative."""
+    def test_vacuum_is_not_wigner_negative(self) -> None:
         N = 10
         rho = np.zeros((N + 1, N + 1), dtype=complex)
         rho[0, 0] = 1.0
@@ -195,8 +187,7 @@ class TestWignerMinimum:
             f"Fock |2⟩ W(0,0) should be +2/π ≈ +0.637, got {max_W}"
         )
 
-    def test_maximally_mixed_no_negativity(self) -> None:
-        """Maximally mixed state has no Wigner negativity."""
+    def test_maximally_mixed_state_has_no_wigner_negativity(self) -> None:
         N = 5
         rho = np.eye(N + 1, dtype=complex) / (N + 1)
 
@@ -215,8 +206,7 @@ class TestWignerMinimum:
 class TestWignerIntegration:
     """Integration tests for Wigner function."""
 
-    def test_wigner_grid_symmetry(self) -> None:
-        """Wigner function should be symmetric for vacuum."""
+    def test_wigner_function_should_be_symmetric_for_vacuum(self) -> None:
         N = 10
         rho = np.zeros((N + 1, N + 1), dtype=complex)
         rho[0, 0] = 1.0
@@ -230,8 +220,7 @@ class TestWignerIntegration:
         # W(0,0) should be maximum for vacuum
         assert W[40, 40] == np.max(W), "Expected W[40, 40] == np.max(W)"
 
-    def test_invalid_rho_shape(self) -> None:
-        """Non-square rho should raise ValueError."""
+    def test_non_square_rho_should_raise_valueerror(self) -> None:
         rho = np.zeros((5, 3), dtype=complex)
         x = np.linspace(-3, 3, 10)
         p = np.linspace(-3, 3, 10)
