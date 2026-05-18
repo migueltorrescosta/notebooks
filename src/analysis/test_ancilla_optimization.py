@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+from pathlib import Path  # noqa: TC003 — used at runtime via tmp_path fixture
 
 import numpy as np
 import pytest
@@ -11,6 +12,8 @@ from src.analysis.ancilla_optimization import (
     AlphaRandomSearchResult,
     AlphaReoptScanResult,
     AlphaSingleScanResult,
+    CovarianceAnalysisResult,
+    DecoupledBaselineResult,
     InteractionRobustnessResult,
     OptimisationResult,
     ThetaScanResult,
@@ -895,3 +898,102 @@ class TestInteractionRobustness:
             expected = 1.0 / T_H
             assert result.delta_theta_sonly[i, 2] == pytest.approx(expected, rel=0.05)
             assert result.delta_theta_joint[i, 2] == pytest.approx(expected, rel=0.05)
+
+
+class TestCsvRoundtrip:
+    """Verify that each plottable dataclass can roundtrip through CSV."""
+
+    def test_decoupled_baseline_roundtrip(self, tmp_path: Path) -> None:
+        T_H = np.array([0.5, 1.0, 2.0, 5.0])
+        sql = 1.0 / T_H
+        original = DecoupledBaselineResult(
+            T_H_values=T_H,
+            delta_theta_values=sql.copy(),
+            sql_values=sql.copy(),
+        )
+        csv_path = tmp_path / "test.csv"
+        original.save_csv(csv_path)
+        loaded = DecoupledBaselineResult.from_csv(csv_path)
+        assert loaded.T_H_values == pytest.approx(original.T_H_values)
+        assert loaded.delta_theta_values == pytest.approx(original.delta_theta_values)
+        assert loaded.sql_values == pytest.approx(original.sql_values)
+
+    def test_theta_scan_roundtrip(self, tmp_path: Path) -> None:
+        original = ThetaScanResult(
+            theta_values=np.array([0.5, 1.0, 2.0]),
+            best_per_theta=np.array([0.2, 0.3, 0.4]),
+            all_results={},
+        )
+        csv_path = tmp_path / "test.csv"
+        original.save_csv(csv_path)
+        loaded = ThetaScanResult.from_csv(csv_path)
+        assert loaded.theta_values == pytest.approx(original.theta_values)
+        assert loaded.best_per_theta == pytest.approx(original.best_per_theta)
+
+    def test_alpha_reopt_roundtrip(self, tmp_path: Path) -> None:
+        original = AlphaReoptScanResult(
+            alpha_values=np.array([-1.0, 0.0, 1.0]),
+            delta_theta_joint=np.array([0.5, 0.6, 0.7]),
+            delta_theta_sonly=np.array([0.8, 0.9, 1.0]),
+        )
+        csv_path = tmp_path / "test.csv"
+        original.save_csv(csv_path)
+        loaded = AlphaReoptScanResult.from_csv(csv_path)
+        assert loaded.alpha_values == pytest.approx(original.alpha_values)
+        assert loaded.delta_theta_joint == pytest.approx(original.delta_theta_joint)
+        assert loaded.delta_theta_sonly == pytest.approx(original.delta_theta_sonly)
+
+    def test_alpha_single_roundtrip(self, tmp_path: Path) -> None:
+        original = AlphaSingleScanResult(
+            alpha_name="xx",
+            alpha_values=np.linspace(-1.0, 1.0, 5),
+            delta_theta_values=np.ones(5),
+        )
+        csv_path = tmp_path / "test.csv"
+        original.save_csv(csv_path)
+        loaded = AlphaSingleScanResult.from_csv(csv_path)
+        # alpha_name is not preserved — must be set manually
+        assert loaded.alpha_values == pytest.approx(original.alpha_values)
+        assert loaded.delta_theta_values == pytest.approx(original.delta_theta_values)
+
+    def test_alpha_random_search_roundtrip(self, tmp_path: Path) -> None:
+        original = AlphaRandomSearchResult(
+            alpha_samples=np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0]]),
+            delta_theta_values=np.array([0.5, 0.6]),
+            best_alpha=(1.0, 0.0, 0.0, 0.0),
+            best_delta_theta=0.5,
+        )
+        csv_path = tmp_path / "test.csv"
+        original.save_csv(csv_path)
+        loaded = AlphaRandomSearchResult.from_csv(csv_path)
+        assert loaded.alpha_samples == pytest.approx(original.alpha_samples)
+        assert loaded.delta_theta_values == pytest.approx(original.delta_theta_values)
+        assert loaded.best_delta_theta == pytest.approx(original.best_delta_theta)
+
+    def test_interaction_robustness_roundtrip(self, tmp_path: Path) -> None:
+        original = InteractionRobustnessResult(
+            T_H_values=np.array([0.5, 1.0]),
+            alpha_values=np.array([-1.0, 0.0, 1.0]),
+            delta_theta_joint=np.array([[0.8, 0.6, 0.8], [0.4, 0.3, 0.4]]),
+            delta_theta_sonly=np.array([[1.0, 0.9, 1.0], [0.5, 0.4, 0.5]]),
+        )
+        csv_path = tmp_path / "test.csv"
+        original.save_csv(csv_path)
+        loaded = InteractionRobustnessResult.from_csv(csv_path)
+        assert loaded.T_H_values == pytest.approx(original.T_H_values)
+        assert loaded.alpha_values == pytest.approx(original.alpha_values)
+        assert loaded.delta_theta_joint == pytest.approx(original.delta_theta_joint)
+        assert loaded.delta_theta_sonly == pytest.approx(original.delta_theta_sonly)
+
+    def test_covariance_analysis_roundtrip(self, tmp_path: Path) -> None:
+        original = CovarianceAnalysisResult(
+            coefficient_names=["α_xx", "α_xz", "α_zx", "α_zz"],
+            max_covariances=np.array([0.12, 0.12, 0.10, 0.10]),
+            covariance_signs=np.array([1.0, 1.0, 1.0, -1.0]),
+        )
+        csv_path = tmp_path / "test.csv"
+        original.save_csv(csv_path)
+        loaded = CovarianceAnalysisResult.from_csv(csv_path)
+        assert loaded.coefficient_names == original.coefficient_names
+        assert loaded.max_covariances == pytest.approx(original.max_covariances)
+        assert loaded.covariance_signs == pytest.approx(original.covariance_signs)

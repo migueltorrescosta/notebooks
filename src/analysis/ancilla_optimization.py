@@ -30,8 +30,10 @@ References:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from scipy.linalg import expm
 from scipy.optimize import minimize
 
@@ -675,6 +677,95 @@ class ThetaScanResult:
     best_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
     all_results: dict[float, list[OptimisationResult]] = field(default_factory=dict)
 
+    def to_dataframe(self) -> pd.DataFrame:
+        """Flatten the θ-scan results into a tabular DataFrame.
+
+        One row per θ value with the best result and derived quantities.
+        Works both from full results (with ``all_results`` populated) and
+        from CSV-loaded summary (using ``theta_values`` / ``best_per_theta``).
+
+        Returns:
+            DataFrame with columns: theta, best_delta_theta, sql, vs_sql,
+            spread, T_H_star, covariance, expectation_M, flag.
+        """
+        rows: list[dict[str, float | str]] = []
+        for i, theta in enumerate(self.theta_values):
+            restarts = self.all_results.get(float(theta), [])
+            if restarts:
+                best = restarts[0]
+                spread = compute_convergence_metric(restarts)
+                T_H_star = float(best.params_opt[6])
+                cov_val = float(best.covariance_SA)
+                exp_m = float(best.expectation_M)
+            else:
+                # Summary-only mode (loaded from CSV)
+                spread = 0.0
+                T_H_star = 0.0
+                cov_val = 0.0
+                exp_m = 0.0
+
+            sql = 1.0 / T_H_star if T_H_star > 0 else float("inf")
+            flag = "fringe" if abs(exp_m) < 1e-10 else "ok"
+
+            rows.append(
+                {
+                    "theta": float(theta),
+                    "best_delta_theta": float(best.delta_theta_opt)
+                    if restarts
+                    else float(self.best_per_theta[i]),
+                    "sql": sql,
+                    "vs_sql": (
+                        float(best.delta_theta_opt / sql)
+                        if restarts and np.isfinite(sql)
+                        else float("inf")
+                    ),
+                    "spread": spread,
+                    "T_H_star": T_H_star,
+                    "covariance": cov_val,
+                    "expectation_M": exp_m,
+                    "flag": flag,
+                },
+            )
+        return pd.DataFrame(rows)
+
+    def save_csv(self, path: str | Path) -> Path:
+        """Save the θ-scan summary to a CSV file.
+
+        Args:
+            path: File path to write to.
+
+        Returns:
+            The path that was written to.
+        """
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        return path
+
+    @classmethod
+    def from_csv(cls, path: str | Path) -> ThetaScanResult:
+        """Reconstruct a ThetaScanResult from a CSV file written by ``save_csv``.
+
+        Note: The reconstructed result contains only the summary per θ value
+        (one row = one θ), not the full per-restart details.
+
+        Args:
+            path: Path to the CSV file.
+
+        Returns:
+            A ThetaScanResult with the summary data.
+        """
+        path = Path(path)
+        df = pd.read_csv(path)
+        theta_values = df["theta"].to_numpy(dtype=float)
+        best_per_theta = df["best_delta_theta"].to_numpy(dtype=float)
+        return cls(
+            results=[],
+            theta_values=theta_values,
+            best_per_theta=best_per_theta,
+            all_results={},
+        )
+
 
 def get_default_bounds() -> dict[str, tuple[float, float]]:
     """Get the default parameter bounds.
@@ -1046,6 +1137,51 @@ class AlphaReoptScanResult:
     best_params_joint: list[np.ndarray] = field(default_factory=list)
     best_params_sonly: list[np.ndarray] = field(default_factory=list)
 
+    def to_dataframe(self) -> pd.DataFrame:
+        """Flatten the α re-optimisation scan into a DataFrame.
+
+        Returns:
+            DataFrame with columns: alpha, delta_theta_joint, delta_theta_sonly.
+        """
+        return pd.DataFrame(
+            {
+                "alpha": self.alpha_values,
+                "delta_theta_joint": self.delta_theta_joint,
+                "delta_theta_sonly": self.delta_theta_sonly,
+            },
+        )
+
+    def save_csv(self, path: str | Path) -> Path:
+        """Save to a CSV file.
+
+        Args:
+            path: File path to write to.
+
+        Returns:
+            The path that was written to.
+        """
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        return path
+
+    @classmethod
+    def from_csv(cls, path: str | Path) -> AlphaReoptScanResult:
+        """Reconstruct from a CSV file.
+
+        Args:
+            path: Path to the CSV file.
+
+        Returns:
+            Reconstructed AlphaReoptScanResult.
+        """
+        df = pd.read_csv(path)
+        return cls(
+            alpha_values=df["alpha"].to_numpy(dtype=float),
+            delta_theta_joint=df["delta_theta_joint"].to_numpy(dtype=float),
+            delta_theta_sonly=df["delta_theta_sonly"].to_numpy(dtype=float),
+        )
+
 
 def scan_alpha_with_reoptimisation(
     alpha_name: str,
@@ -1153,6 +1289,198 @@ def scan_alpha_with_reoptimisation(
         delta_theta_sonly=delta_theta_sonly,
         best_params_joint=best_params_joint,
         best_params_sonly=best_params_sonly,
+    )
+
+
+# ============================================================================
+# Decoupled Baseline Result
+# ============================================================================
+
+
+@dataclass
+class DecoupledBaselineResult:
+    """Result from evaluating the decoupled baseline (α=0).
+
+    Attributes:
+        T_H_values: Array of holding-time values.
+        delta_theta_values: Corresponding Δθ (both joint and S-only give
+            the same value in the decoupled case).
+        sql_values: SQL = 1/T_H values.
+
+    """
+
+    T_H_values: np.ndarray
+    delta_theta_values: np.ndarray
+    sql_values: np.ndarray
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Flatten into a DataFrame.
+
+        Returns:
+            DataFrame with columns: T_H, delta_theta, sql, ratio.
+        """
+        return pd.DataFrame(
+            {
+                "T_H": self.T_H_values,
+                "delta_theta": self.delta_theta_values,
+                "sql": self.sql_values,
+                "ratio": np.where(
+                    self.sql_values > 0,
+                    self.delta_theta_values / self.sql_values,
+                    np.nan,
+                ),
+            },
+        )
+
+    def save_csv(self, path: str | Path) -> Path:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        return path
+
+    @classmethod
+    def from_csv(cls, path: str | Path) -> DecoupledBaselineResult:
+        df = pd.read_csv(path)
+        return cls(
+            T_H_values=df["T_H"].to_numpy(dtype=float),
+            delta_theta_values=df["delta_theta"].to_numpy(dtype=float),
+            sql_values=df["sql"].to_numpy(dtype=float),
+        )
+
+
+def compute_decoupled_baseline(
+    T_H_values: np.ndarray,
+    theta_true: float = 1.0,
+) -> DecoupledBaselineResult:
+    """Compute the decoupled baseline sensitivity Δθ for a range of T_H values.
+
+    The optimal decoupled configuration is: system in |1,0⟩, ancilla in |1,0⟩,
+    50/50 beam splitters, α=0.  At this configuration, Δθ = 1/T_H exactly.
+
+    Args:
+        T_H_values: Array of holding-time strengths to evaluate.
+        theta_true: True phase rate (default 1.0).
+
+    Returns:
+        DecoupledBaselineResult with computed sensitivities.
+    """
+    T_H_arr = np.asarray(T_H_values, dtype=float)
+    delta_theta = np.array(
+        [get_decoupled_sensitivity(T_H, theta_true) for T_H in T_H_arr],
+        dtype=float,
+    )
+    sql = 1.0 / T_H_arr
+    return DecoupledBaselineResult(
+        T_H_values=T_H_arr,
+        delta_theta_values=delta_theta,
+        sql_values=sql,
+    )
+
+
+# ============================================================================
+# Covariance Analysis Result
+# ============================================================================
+
+
+@dataclass
+class CovarianceAnalysisResult:
+    """Result from analysing Cov(J_z^S, J_z^A) across α coefficients.
+
+    Attributes:
+        coefficient_names: List of coefficient labels e.g. ['α_xx', ...].
+        max_covariances: Max |Cov| for each coefficient over the scanned
+            α range.
+        covariance_signs: Sign of the max covariance (+1 or -1) for each
+            coefficient.
+
+    """
+
+    coefficient_names: list[str]
+    max_covariances: np.ndarray
+    covariance_signs: np.ndarray
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Flatten into a DataFrame.
+
+        Returns:
+            DataFrame with columns: coefficient, max_covariance, sign.
+        """
+        return pd.DataFrame(
+            {
+                "coefficient": self.coefficient_names,
+                "max_covariance": self.max_covariances,
+                "sign": self.covariance_signs,
+            },
+        )
+
+    def save_csv(self, path: str | Path) -> Path:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        return path
+
+    @classmethod
+    def from_csv(cls, path: str | Path) -> CovarianceAnalysisResult:
+        df = pd.read_csv(path)
+        return cls(
+            coefficient_names=list(df["coefficient"]),
+            max_covariances=df["max_covariance"].to_numpy(dtype=float),
+            covariance_signs=df["sign"].to_numpy(dtype=float),
+        )
+
+
+def compute_covariance_analysis(
+    alpha_range: tuple[float, float] = (-2.0, 2.0),
+    n_points: int = 101,
+    T_H: float = 1.0,
+    theta_true: float = 1.0,
+) -> CovarianceAnalysisResult:
+    """Compute max |Cov(J_z^S, J_z^A)| for each α coefficient type.
+
+    Uses the analytically optimal decoupled state configuration
+    (θ_S=0, θ_A=0, 50/50 BS).  Scans each α coefficient independently
+    over ``alpha_range`` and records the maximum absolute covariance
+    and its sign.
+
+    Args:
+        alpha_range: (min, max) for scanning each α coefficient.
+        n_points: Number of points per scan.
+        T_H: Holding-time strength (default 1.0).
+        theta_true: True phase rate (default 1.0).
+
+    Returns:
+        CovarianceAnalysisResult with max covariances and signs.
+    """
+    ops = build_two_qubit_operators()
+    alpha_lo, alpha_hi = alpha_range
+    alpha_scan = np.linspace(alpha_lo, alpha_hi, n_points)
+    psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
+
+    coeff_names = ["α_xx", "α_xz", "α_zx", "α_zz"]
+    max_covs = np.zeros(4, dtype=float)
+    cov_signs = np.zeros(4, dtype=float)
+
+    for idx in range(4):
+        covs = np.zeros(n_points, dtype=float)
+        for j, a_val in enumerate(alpha_scan):
+            alpha_list = [0.0, 0.0, 0.0, 0.0]
+            alpha_list[idx] = a_val
+            alpha: tuple[float, float, float, float] = (
+                alpha_list[0],
+                alpha_list[1],
+                alpha_list[2],
+                alpha_list[3],
+            )
+            psi = evolve_full(psi0, np.pi / 2, np.pi / 2, T_H, theta_true, alpha, ops)
+            covs[j] = compute_covariance(psi, ops)
+        max_idx = int(np.argmax(np.abs(covs)))
+        max_covs[idx] = abs(covs[max_idx])
+        cov_signs[idx] = np.sign(covs[max_idx])
+
+    return CovarianceAnalysisResult(
+        coefficient_names=coeff_names,
+        max_covariances=max_covs,
+        covariance_signs=cov_signs,
     )
 
 
@@ -1465,6 +1793,34 @@ class AlphaSingleScanResult:
     delta_theta_values: np.ndarray
     fixed_params: dict[str, float] = field(default_factory=dict)
 
+    def to_dataframe(self) -> pd.DataFrame:
+        """Flatten the single-α scan into a DataFrame.
+
+        Returns:
+            DataFrame with columns: alpha, delta_theta.
+        """
+        return pd.DataFrame(
+            {
+                "alpha": self.alpha_values,
+                "delta_theta": self.delta_theta_values,
+            },
+        )
+
+    def save_csv(self, path: str | Path) -> Path:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        return path
+
+    @classmethod
+    def from_csv(cls, path: str | Path) -> AlphaSingleScanResult:
+        df = pd.read_csv(path)
+        return cls(
+            alpha_name="",  # must be set manually
+            alpha_values=df["alpha"].to_numpy(dtype=float),
+            delta_theta_values=df["delta_theta"].to_numpy(dtype=float),
+        )
+
 
 @dataclass
 class AlphaRandomSearchResult:
@@ -1484,6 +1840,49 @@ class AlphaRandomSearchResult:
     best_alpha: tuple[float, float, float, float]
     best_delta_theta: float
     fixed_params: dict[str, float] = field(default_factory=dict)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Flatten the random search into a DataFrame.
+
+        Returns:
+            DataFrame with columns: alpha_xx, alpha_xz, alpha_zx,
+            alpha_zz, delta_theta.
+        """
+        return pd.DataFrame(
+            {
+                "alpha_xx": self.alpha_samples[:, 0],
+                "alpha_xz": self.alpha_samples[:, 1],
+                "alpha_zx": self.alpha_samples[:, 2],
+                "alpha_zz": self.alpha_samples[:, 3],
+                "delta_theta": self.delta_theta_values,
+            },
+        )
+
+    def save_csv(self, path: str | Path) -> Path:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        return path
+
+    @classmethod
+    def from_csv(cls, path: str | Path) -> AlphaRandomSearchResult:
+        df = pd.read_csv(path)
+        alphas = df[["alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz"]].to_numpy(
+            dtype=float
+        )
+        deltas = df["delta_theta"].to_numpy(dtype=float)
+        best_idx = int(np.argmin(deltas))
+        return cls(
+            alpha_samples=alphas,
+            delta_theta_values=deltas,
+            best_alpha=(
+                float(alphas[best_idx, 0]),
+                float(alphas[best_idx, 1]),
+                float(alphas[best_idx, 2]),
+                float(alphas[best_idx, 3]),
+            ),
+            best_delta_theta=float(deltas[best_idx]),
+        )
 
 
 def scan_alpha_single_parameter(
@@ -1714,6 +2113,64 @@ class InteractionRobustnessResult:
     alpha_values: np.ndarray = field(default_factory=lambda: np.array([]))
     delta_theta_joint: np.ndarray = field(default_factory=lambda: np.array([]))
     delta_theta_sonly: np.ndarray = field(default_factory=lambda: np.array([]))
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Melt the 2D arrays into a long-format DataFrame.
+
+        Returns:
+            DataFrame with columns: T_H, alpha, measurement, delta_theta.
+        """
+        n_T = len(self.T_H_values)
+        n_a = len(self.alpha_values)
+        rows: list[dict[str, float | str]] = []
+        for i in range(n_T):
+            for j in range(n_a):
+                rows.append(
+                    {
+                        "T_H": float(self.T_H_values[i]),
+                        "alpha": float(self.alpha_values[j]),
+                        "measurement": "joint",
+                        "delta_theta": float(self.delta_theta_joint[i, j]),
+                    },
+                )
+                rows.append(
+                    {
+                        "T_H": float(self.T_H_values[i]),
+                        "alpha": float(self.alpha_values[j]),
+                        "measurement": "sonly",
+                        "delta_theta": float(self.delta_theta_sonly[i, j]),
+                    },
+                )
+        return pd.DataFrame(rows)
+
+    def save_csv(self, path: str | Path) -> Path:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        return path
+
+    @classmethod
+    def from_csv(cls, path: str | Path) -> InteractionRobustnessResult:
+        df = pd.read_csv(path)
+        T_H_unique = sorted(df["T_H"].unique())
+        alpha_unique = sorted(df["alpha"].unique())
+        n_T = len(T_H_unique)
+        n_a = len(alpha_unique)
+        dtheta_j = np.full((n_T, n_a), np.nan)
+        dtheta_s = np.full((n_T, n_a), np.nan)
+        for _, row in df.iterrows():
+            i = T_H_unique.index(row["T_H"])
+            j = alpha_unique.index(row["alpha"])
+            if row["measurement"] == "joint":
+                dtheta_j[i, j] = row["delta_theta"]
+            else:
+                dtheta_s[i, j] = row["delta_theta"]
+        return cls(
+            T_H_values=np.array(T_H_unique, dtype=float),
+            alpha_values=np.array(alpha_unique, dtype=float),
+            delta_theta_joint=dtheta_j,
+            delta_theta_sonly=dtheta_s,
+        )
 
 
 def compute_interaction_robustness(

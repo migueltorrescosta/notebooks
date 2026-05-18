@@ -30,6 +30,12 @@ Follow these steps **in order** for every task that requires planning a simulati
 
 1. Write the document in `reports/` using the format `YYYY-MM-DD-{title}.md` (e.g., `2026-05-07-example.md`).
 2. Follow the **Report Format** below: include all mandatory sections listed in the Section Order table, in the prescribed order, with the prescribed emoji headers.
+3. **Generate figures** — If the report contains parameter-sweep tables suited to line plots:
+   - Add `to_dataframe()`/`save_csv()`/`from_csv()` to the relevant result dataclass in `src/`
+   - Add a `plot_<description>()` function in `src/visualization/ancilla_plots.py` (or create a new module there) that reads the dataclass or CSV and saves SVG
+   - Add a `generate_<name>()` function in `src/visualization/report_figures.py` (runs sim, saves CSV, renders SVG)
+   - CSVs go to `reports/raw_data/{date}-{name}.csv`; SVGs to `reports/figures/{date}-{name}.svg`
+   - Embed in the report with `![alt](reports/figures/{date}-{name}.svg)`
 
 # 📝 Report Format
 
