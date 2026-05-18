@@ -195,12 +195,12 @@ edge cases — all passing.
 
 | # | Test | Expectation | Status |
 |---|------|-------------|--------|
-| 1 | Pseudomode Lindblad reproduces Markovian limit ($\lambda \to \infty$) | $\mathcal{R}(T)$ matches standard Lindblad at $\gamma = g_{\text{sp}}^2 / \lambda$ | ⏳ |
-| 2 | Ancilla improves QFI at moderate θ | $\mathcal{R}_{\text{with}} > \mathcal{R}_{\text{without}}$ at fixed $T > 0$ | ⏳ |
-| 3 | Optimal $\theta^*$ exists at finite value | $\mathcal{R}(T)$ is concave in θ | ⏳ |
-| 4 | Non-Markovian advantage | $\Delta\mathcal{R}$ larger for smaller λ | ⏳ |
-| 5 | Numerical validity | Trace, Hermiticity, positivity | ✅ |
-| 6 | Over-rotation at strong coupling | $\mathcal{R}(T)$ decreases for $\theta \gg \theta^*$ | ⏳ |
+| 1 | Pseudomode Lindblad reproduces Markovian limit ($\lambda \to \infty$) | $\mathcal{R}(T)$ matches standard Lindblad at $\gamma = g_{\text{sp}}^2 / \lambda$ | PENDING |
+| 2 | Ancilla improves QFI at moderate θ | $\mathcal{R}_{\text{with}} > \mathcal{R}_{\text{without}}$ at fixed $T > 0$ | PENDING |
+| 3 | Optimal $\theta^*$ exists at finite value | $\mathcal{R}(T)$ is concave in θ | PENDING |
+| 4 | Non-Markovian advantage | $\Delta\mathcal{R}$ larger for smaller λ | PENDING |
+| 5 | Numerical validity | Trace, Hermiticity, positivity | PASS |
+| 6 | Over-rotation at strong coupling | $\mathcal{R}(T)$ decreases for $\theta \gg \theta^*$ | PENDING |
 
 Numerical validity (test 5) has been verified through 75 unit tests — trace preservation,
 Hermiticity, and positivity hold throughout all tested scenarios. The remaining five tests
@@ -242,4 +242,4 @@ $\gamma = g_{\text{sp}}^2 / \lambda$ will confirm the Markovian recovery predict
 
 #### 🔍 Open Questions
 
-🔍 **Open items**: (a) What is the optimal initial state (coherent vs squeezed vs Fock) for the oscillator? (b) Does multiple ancilla entanglement (using the spin as a multi-level system) provide additional benefit beyond the two-level case? (c) How does the optimal ancilla coupling depend on the bath central frequency $\omega_0$ (off-resonant vs resonant)? (d) Can the ancilla-assisted protocol be combined with existing high-order squeezing (n=3,4) for further enhancement?
+**Open items**: (a) What is the optimal initial state (coherent vs squeezed vs Fock) for the oscillator? (b) Does multiple ancilla entanglement (using the spin as a multi-level system) provide additional benefit beyond the two-level case? (c) How does the optimal ancilla coupling depend on the bath central frequency $\omega_0$ (off-resonant vs resonant)? (d) Can the ancilla-assisted protocol be combined with existing high-order squeezing (n=3,4) for further enhancement?

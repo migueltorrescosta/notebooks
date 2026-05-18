@@ -20,9 +20,9 @@ The **entanglement Hamiltonians** for spin squeezing are **one-axis twisting (OA
 
 The **input states** considered are: the **coherent spin state (CSS)** $\vert J, -J\rangle$ rotated to the $x$-axis (used for OAT/TNT entangling); the **spin-squeezed state (SSS)** obtained by OAT evolution at $t_{\text{opt}}$; the **balanced Dicke superposition** $\sum_{n=0}^N \vert n,N-n\rangle/\sqrt{N+1}$ (implemented in the code as `twin_fock_state`, distinct from the standard $\vert N/2,N/2\rangle$ Twin-Fock — see **Note on naming** below); **non-Gaussian states** from hybrid oscillator-spin evolution under $H_n$; and **ancilla-assisted states** coupling the probe to an ancillary register.
 
-> 💡 **Note on naming**: The code's `twin_fock_state` returns the uniform superposition of all $\vert n,N-n\rangle$ Fock states (balanced Dicke superposition), *not* the single Fock state $\vert N/2,N/2\rangle$. This choice preserves $\langle J_z\rangle=0$ and achieves near-Heisenberg QFI $F_Q=N(N+2)/3$. The standard $\vert N/2,N/2\rangle$ Twin-Fock has $F_Q=N$ (SQL scaling) and is not used here.
+> **Note on naming**: The code's `twin_fock_state` returns the uniform superposition of all $\vert n,N-n\rangle$ Fock states (balanced Dicke superposition), *not* the single Fock state $\vert N/2,N/2\rangle$. This choice preserves $\langle J_z\rangle=0$ and achieves near-Heisenberg QFI $F_Q=N(N+2)/3$. The standard $\vert N/2,N/2\rangle$ Twin-Fock has $F_Q=N$ (SQL scaling) and is not used here.
 
-> 💡 **Note on CSS conventions**: In the Dicke-basis context (OAT/TNT entanglers), CSS means $\vert J,-J\rangle_x$ — the eigenstate of $J_x$ with eigenvalue $-J$, which has definite particle number $N$. In the Fock-basis scaling survey pipeline (`input_state_factory("css", ...)`), it refers to a two-mode coherent state with $\alpha=\sqrt{N}$ on mode 0, which does not have definite $N$. The two conventions give the same SQL scaling $\alpha=-0.5$ but differ in finite-$N$ prefactors. The OAT/TNT models consistently use the Dicke-basis CSS.
+> **Note on CSS conventions**: In the Dicke-basis context (OAT/TNT entanglers), CSS means $\vert J,-J\rangle_x$ — the eigenstate of $J_x$ with eigenvalue $-J$, which has definite particle number $N$. In the Fock-basis scaling survey pipeline (`input_state_factory("css", ...)`), it refers to a two-mode coherent state with $\alpha=\sqrt{N}$ on mode 0, which does not have definite $N$. The two conventions give the same SQL scaling $\alpha=-0.5$ but differ in finite-$N$ prefactors. The OAT/TNT models consistently use the Dicke-basis CSS.
 
 The interferometric **circuit protocol** follows a standard **Mach-Zehnder** sequence: a $\pi/2$ beam splitter, a phase imprint $e^{i\phi n_2}$ (equivalent to $e^{-i\phi J_z}$ up to a global phase), and a final $\pi/2$ beam splitter. The scaling survey computes sensitivity via the **Quantum Fisher Information** $F_Q = 4\,\text{Var}(J_z)$ for pure states, which is independent of the beam splitter convention and depends only on the probe state. This means the survey's $\alpha$ predictions hold regardless of whether the Dicke-basis rotation (about $J_y$) or Fock-basis beam-splitter Hamiltonian ($a_1^\dagger a_2 + a_2^\dagger a_1$) is used. The **sensitivity metrics** are:
 
@@ -39,13 +39,13 @@ The interferometric **circuit protocol** follows a standard **Mach-Zehnder** seq
 
 | Model | Input State | Noise | Expected $\alpha$ | Implementation Status |
 |---|---|---|---|---|---|
-| OAT spin-squeezed ($\chi J_z^2$ at $t_{\text{opt}}$) | CSS ($\vert J,-J\rangle_x$) | Ideal; phase diffusion $\gamma_\phi$ | $-2/3$, $C \approx (2^{1/3}/3^{1/6})\chi^{-1/3}$ | ✅ via `coherent_oat` entangler |
-| Balanced Dicke superposition (uniform $\sum\vert n,N-n\rangle/\sqrt{N+1}$) | Even $N$ | Ideal; one-body loss $\gamma_1$ | $-1.0$ (ideal, $F_Q=N(N+2)/3$), $-0.5$ (with loss) | ✅ as `ideal_twin_fock` |
-| Two-axis CT (TNT) | CSS ($\vert J,-J\rangle_x$) | Ideal | $-1.0$ (Heisenberg-limited) | 🔄 via `tnt` entangler (not in default survey; uses OAT $t_{\text{opt}}$ as approximation) |
-| Non-Gaussian $n=3$ | Vacuum $\otimes \vert\downarrow\rangle$ under $H_3$ | Ideal | $\approx -0.75$, $C \approx 1.5$ | ✅ as `non_gaussian_n3` |
-| Non-Gaussian $n=4$ | Vacuum $\otimes \vert\downarrow\rangle$ under $H_4$ | Ideal | $\approx -0.85$, $C \approx 2.0$ | ✅ as `non_gaussian_n4` |
-| Ancilla-assisted (Markovian, survey pipeline) | Probe $\otimes$ ancilla | Markovian (dispersive coupling) | Same $\alpha$ as probe; $C$ improved | ✅ as `ancilla_assisted` (g_sp=0, lam=0) |
-| Ancilla-assisted (non-Markovian, pseudomode) | Probe $\otimes$ ancilla $\otimes$ bath | Non-Markovian $\mathcal{R}(T)$ | Same $\alpha$; $C$ improved by $\mathcal{R}(T)^{-1/2}$ | ✅ in `pseudomode_system.py` (separate module; not in scaling survey) |
+| OAT spin-squeezed ($\chi J_z^2$ at $t_{\text{opt}}$) | CSS ($\vert J,-J\rangle_x$) | Ideal; phase diffusion $\gamma_\phi$ | $-2/3$, $C \approx (2^{1/3}/3^{1/6})\chi^{-1/3}$ | PASS via `coherent_oat` entangler |
+| Balanced Dicke superposition (uniform $\sum\vert n,N-n\rangle/\sqrt{N+1}$) | Even $N$ | Ideal; one-body loss $\gamma_1$ | $-1.0$ (ideal, $F_Q=N(N+2)/3$), $-0.5$ (with loss) | PASS as `ideal_twin_fock` |
+| Two-axis CT (TNT) | CSS ($\vert J,-J\rangle_x$) | Ideal | $-1.0$ (Heisenberg-limited) | PARTIAL via `tnt` entangler (not in default survey; uses OAT $t_{\text{opt}}$ as approximation) |
+| Non-Gaussian $n=3$ | Vacuum $\otimes \vert\downarrow\rangle$ under $H_3$ | Ideal | $\approx -0.75$, $C \approx 1.5$ | PASS as `non_gaussian_n3` |
+| Non-Gaussian $n=4$ | Vacuum $\otimes \vert\downarrow\rangle$ under $H_4$ | Ideal | $\approx -0.85$, $C \approx 2.0$ | PASS as `non_gaussian_n4` |
+| Ancilla-assisted (Markovian, survey pipeline) | Probe $\otimes$ ancilla | Markovian (dispersive coupling) | Same $\alpha$ as probe; $C$ improved | PASS as `ancilla_assisted` (g_sp=0, lam=0) |
+| Ancilla-assisted (non-Markovian, pseudomode) | Probe $\otimes$ ancilla $\otimes$ bath | Non-Markovian $\mathcal{R}(T)$ | Same $\alpha$; $C$ improved by $\mathcal{R}(T)^{-1/2}$ | PASS in `pseudomode_system.py` (separate module; not in scaling survey) |
 
 ---
 
@@ -102,18 +102,18 @@ The scaling survey pipeline is fully implemented and can be run interactively vi
 
 | # | Check | Status |
 |---|---|---|
-| 1 | OAT squeezing scaling ($\xi^2_{\min} \propto N^{-2/3}$) | ⏳ |
-| 2 | OAT sensitivity exponent ($\alpha = -2/3$) | ⏳ |
-| 3 | Balanced Dicke superposition (Twin-Fock) Heisenberg scaling ($\alpha = -1.0$) | ⏳ |
-| 4 | Two-axis countertwisting (TNT) — via `tnt` entangler (note: uses OAT $t_{\text{opt}}$ approximation) | ⏳ |
-| 5 | Non-Gaussian $n=3$ scaling ($\alpha \approx -0.75$) | ⏳ |
-| 6 | Non-Gaussian $n=4$ scaling ($\alpha \approx -0.85$) | ⏳ |
-| 7 | Ancilla-assisted prefactor preservation (Markovian survey model) | ⏳ |
-| 8 | Phase-diffusion degradation with $\gamma_\phi$ | ⏳ |
-| 9 | Quantum state invariants throughout evolution | ⏳ |
-| 10 | QFI upper bound ($F_Q \leq 4N^2$) | ⏳ |
-| 11 | Log-log fit quality ($R^2 \geq 0.9$) | ⏳ |
-| 12 | Balanced Dicke vs NOON comparison under one-body loss | ⏳ |
+| 1 | OAT squeezing scaling ($\xi^2_{\min} \propto N^{-2/3}$) | PENDING |
+| 2 | OAT sensitivity exponent ($\alpha = -2/3$) | PENDING |
+| 3 | Balanced Dicke superposition (Twin-Fock) Heisenberg scaling ($\alpha = -1.0$) | PENDING |
+| 4 | Two-axis countertwisting (TNT) — via `tnt` entangler (note: uses OAT $t_{\text{opt}}$ approximation) | PENDING |
+| 5 | Non-Gaussian $n=3$ scaling ($\alpha \approx -0.75$) | PENDING |
+| 6 | Non-Gaussian $n=4$ scaling ($\alpha \approx -0.85$) | PENDING |
+| 7 | Ancilla-assisted prefactor preservation (Markovian survey model) | PENDING |
+| 8 | Phase-diffusion degradation with $\gamma_\phi$ | PENDING |
+| 9 | Quantum state invariants throughout evolution | PENDING |
+| 10 | QFI upper bound ($F_Q \leq 4N^2$) | PENDING |
+| 11 | Log-log fit quality ($R^2 \geq 0.9$) | PENDING |
+| 12 | Balanced Dicke vs NOON comparison under one-body loss | PENDING |
 
 ---
 
@@ -134,7 +134,7 @@ The scaling survey pipeline is fully implemented and can be run interactively vi
 | 11 | **Log-log fit quality (all models)** | $R^2 \geq 0.9$ for all scaling sweeps with $\geq 5$ $N$-points; outliers flagged when fit residuals exceed $3\sigma$ |
 | 12 | **NOON vs Balanced Dicke comparison under loss** | Both states collapse to $\alpha = -0.5$ under $\gamma_1 > 0$; prefactor $C$ differs by at most a constant factor set by the initial $F_Q$ ratio |
 
-All checks are pending execution of the numerical sweeps described in Numerical Simulation. Once completed, each check will be assigned a status (✅/❌/🔄) and this section will summarize which of the five hypotheses were supported.
+All checks are pending execution of the numerical sweeps described in Numerical Simulation. Once completed, each check will be assigned a status (PASS/FAIL/PARTIAL) and this section will summarize which of the five hypotheses were supported.
 
 #### ⚖️ Analytical Bounds
 
@@ -152,10 +152,10 @@ Once the full parameter sweeps are run, the Success Criteria table will reveal w
 
 #### 🔍 Open Items
 
-🔍 **Numerical verification**: The predicted exponents $\alpha = -2/3$ for OAT and $\alpha = -1.0$ for balanced Dicke superposition/TNT are analytically motivated and should be confirmed via log-log regression over $N \in \{2, \dots, 128\}$.
+**Numerical verification**: The predicted exponents $\alpha = -2/3$ for OAT and $\alpha = -1.0$ for balanced Dicke superposition/TNT are analytically motivated and should be confirmed via log-log regression over $N \in \{2, \dots, 128\}$.
 
-🔍 **Noise robustness**: To what extent does phase diffusion $\gamma_\phi$ degrade the scaling exponent for each model? Hypothesis 5 predicts monotonic degradation for entanglement-enhanced states but robustness for coherent states.
+**Noise robustness**: To what extent does phase diffusion $\gamma_\phi$ degrade the scaling exponent for each model? Hypothesis 5 predicts monotonic degradation for entanglement-enhanced states but robustness for coherent states.
 
-🔍 **Ancilla overhead**: The QFI bound for ancilla-assisted protocols does not account for the additional measurement cost of projective ancilla readout. Bayesian estimation with finite $n_{\text{shots}}$ should be compared to the ideal QFI bound to assess practical advantage.
+**Ancilla overhead**: The QFI bound for ancilla-assisted protocols does not account for the additional measurement cost of projective ancilla readout. Bayesian estimation with finite $n_{\text{shots}}$ should be compared to the ideal QFI bound to assess practical advantage.
 
-🔍 **TNT optimal time**: The code reuses the OAT formula $t_{\text{opt}} = (6/N)^{1/3}$ for TNT. A dedicated $t_{\text{opt}}$ search for TNT dynamics would verify whether the squeezing scaling matches the analytical prediction $\xi^2_{\min} \propto N^{-1}$.
+**TNT optimal time**: The code reuses the OAT formula $t_{\text{opt}} = (6/N)^{1/3}$ for TNT. A dedicated $t_{\text{opt}}$ search for TNT dynamics would verify whether the squeezing scaling matches the analytical prediction $\xi^2_{\min} \propto N^{-1}$.

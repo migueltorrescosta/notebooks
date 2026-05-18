@@ -41,23 +41,25 @@ Follow these steps **in order** for every task that requires planning a simulati
 
 Every report in `reports/` uses `YYYY-MM-DD-{title}.md` and MUST follow the emoji system below.
 
-## Inline Emojis
+## Inline Callouts
 
-| Emoji | Usage | Example |
-|-------|-------|---------|
-| 💡 | **Key Finding** — start of a significant result paragraph | `💡 **Key Finding**: The core hypothesis is supported...` |
-| 🔍 | **Open items** — start of an open-questions paragraph | `🔍 **Open items**: (a) n=4 Wigner negativity...` |
-| 🔗 | **Cross-reference** — linking to other reports or code | `🔗 See `reports/2026-05-09-...`` |
-| 📐 | **Validation / Invariant** — near assertions and checks | `📐 `assert np.isclose(np.trace(rho), 1.0)`` |
+All inline annotations use **bold text** instead of emojis.
+
+| Marker | Usage | Example |
+|--------|-------|---------|
+| **Key Finding** | Start of a significant result paragraph | `**Key Finding**: The core hypothesis is supported...` |
+| **Open items** | Start of an open-questions paragraph | `**Open items**: (a) n=4 Wigner negativity...` |
+| **See** | Cross-reference linking to other reports or code | `See `reports/2026-05-09-...`` |
+| **Validation** | Near assertions and invariant checks | `**Validation**: `assert np.isclose(np.trace(rho), 1.0)`` |
 
 ## Status Indicators in Tables
 
 | Use this | Not this |
 |----------|----------|
-| ✅ | `**PASS**`, `**READY**`, `**SUPPORTED**` |
-| ❌ | `**FAIL**` |
-| ⏳ | `**PENDING**` |
-| 🔄 | `**PARTIAL**` |
+| `PASS` | `**PASS**`, `**READY**`, `**SUPPORTED**`, ✅ |
+| `FAIL` | `**FAIL**`, ❌ |
+| `PENDING` | `**PENDING**`, ⏳ |
+| `PARTIAL` | `**PARTIAL**`, 🔄 |
 
 ## Section Order
 
@@ -65,15 +67,15 @@ Reference documents (files whose primary title is 📝 Quick Reference or simila
 
 | Section | Emoji | Mandatory? | When |
 |---------|-------|------------|------|
-| Hypothesis | 🧪 | ✅ | Always |
-| Theoretical Model | ⚛️ | ✅ | Always |
-| Models Survey | 📊 | 🔲 | Multi-model comparison reports |
-| Numerical Simulation | 💻 | ✅ | Always |
-| Expected Failure Conditions | ⚠️ | ✅ | Always |
-| Results | 🔬 | ✅ | Always |
-| Success Criteria | ✅ | ✅ | Always |
-| Physical Invariants / Analytical Bounds | ⚖️ | 🔲 | When needed for conservation-law analysis or analytical bound derivation. Use `###` heading level. |
-| Conclusions | 🏁 | ✅ | Always |
+| Hypothesis | 🧪 | Yes | Always |
+| Theoretical Model | ⚛️ | Yes | Always |
+| Models Survey | 📊 | No | Multi-model comparison reports |
+| Numerical Simulation | 💻 | Yes | Always |
+| Expected Failure Conditions | ⚠️ | Yes | Always |
+| Results | 🔬 | Yes | Always |
+| Success Criteria | ✅ | Yes | Always |
+| Physical Invariants / Analytical Bounds | ⚖️ | No | When needed for conservation-law analysis or analytical bound derivation. Use `###` heading level. |
+| Conclusions | 🏁 | Yes | Always |
 
 ## Per-Section Patterns
 
@@ -84,7 +86,7 @@ Numbered list of specific, testable claims (or paragraph form for a single claim
 Write the section as a continuous prose narrative that covers the **Hilbert space** (basis vectors, dimension formula, index ordering convention), **operators** (explicit matrix elements or generator definitions in the chosen basis), the **circuit protocol** as a step-by-step unitary sequence (BS → phase → hold → BS), the **measurement** observable and sensitivity formula used, and any **tables** for states, operators, or noise channels. Avoid subsection headings — the entire section must read as a single flowing exposition. Use **bold font** when introducing and defining each concept for the first time.
 
 ### 📊 Models Survey (survey reports only)
-Central table mapping models to expected scaling exponents. Columns: `| Model | Input State | Noise | Expected α | Implementation Status |`. This is the definitive reference. Use emoji status indicators.
+Central table mapping models to expected scaling exponents. Columns: `| Model | Input State | Noise | Expected α | Implementation Status |`. This is the definitive reference. Use text status indicators (PASS/FAIL/PENDING/PARTIAL).
 
 ### 💻 Numerical Simulation
 Three subsections:
@@ -99,16 +101,16 @@ Table mapping components to descriptions (e.g., operator construction, state pre
 Each entry includes: failure condition name, description (1-2 sentences), and mitigation strategy. Table format is required: `| Failure | Description | Mitigation |`.
 
 ### 🔬 Results
-**Required in every report.** Organise results as subsections, one per experiment. Each subsection ends with a 💡 Key Finding paragraph. A summary table may conclude the section.
+**Required in every report.** Organise results as subsections, one per experiment. Each subsection ends with a **Key Finding** paragraph. A summary table may conclude the section.
 
-- **Pre-experiment**: a table with `⏳` (pending) status — marks what hasn't been run yet
-- **Post-experiment**: a table with actual status (✅/❌), plus a **Key Finding** paragraph starting with `💡`
-- Completed reports include a quantitative summary table and `🔗` links to code modules
+- **Pre-experiment**: a table with `PENDING` status — marks what hasn't been run yet
+- **Post-experiment**: a table with actual status (`PASS`/`FAIL`), plus a **Key Finding** paragraph starting with `**Key Finding**`
+- Completed reports include a quantitative summary table and cross-references (via `See`) to code modules
 - If no simulation was needed (pure analytical), state that clearly
 
 ### ✅ Success Criteria
 - **Pre-experiment**: `| Check | Expectation |`
-- **Post-experiment**: add a `Status` column with emoji (✅/❌/🔄)
+- **Post-experiment**: add a `Status` column with text status (PASS/FAIL/PARTIAL)
 - Follow the criteria table with a short prose paragraph that summarizes what passed and what failed, provides brief reasoning, and suggests possible next steps to test.
 
 ### ⚖️ Physical Invariants / Analytical Bounds
@@ -117,16 +119,16 @@ Optional section documenting known analytical bounds, conservation laws, and inv
 ### 🏁 Conclusions
 Final wrap-up section. Summarize what was learned, whether the hypothesis was supported, and the broader implications. Reference specific Results and any Open Questions that remain. This section must always appear last in the document.
 
-Optional unsolved issues and future directions. Start the paragraph with the 🔍 inline emoji — do not use a heading.
+Optional unsolved issues and future directions. Start the paragraph with `**Open items**` in bold — do not use a heading.
 
 ## Rules
 
 1. **Section header emoji** goes after `## ` and before the title text: `## 🧪 Hypothesis` (not `## Hypothesis 🧪`).
-2. **Inline callouts** get the emoji at the **start of the paragraph**, followed by a space.
-3. **Status columns** use emojis only (✅/❌/⏳/🔄) — never literal words like `**PASS**` or `**PENDING**`.
-4. **No emoji inflation** — each emoji has one distinct meaning; don't add decorative emojis to every bullet or use emojis beyond the defined set.
+2. **Inline callouts** use **bold text** at the **start of the paragraph**. Use `**Key Finding**`, `**Open items**`, `**See**`, or `**Validation**` as appropriate.
+3. **Status columns** use text words only (`PASS`/`FAIL`/`PENDING`/`PARTIAL`).
+4. **No inflation** — section-title emojis are the only emojis allowed in reports; never add decorative or ad-hoc emojis outside section headers.
 5. **First occurrence only** — section emojis appear once per document, not on every sub-subsection.
-6. For **reference documents** (e.g., `Physics-Reference.md`), apply emojis to numbered sections where they fit semantically.
+6. For **reference documents** (e.g., `Physics-Reference.md`), apply emojis only to section titles where they fit semantically; all body text and tables follow the same emoji-free rules.
 7. **Don't** include repo-specific filepaths in the Numerical Simulation section (theoretical model should be implementation-agnostic).
 8. **Don't** use breaklines in prose when inline equations suffice.
 9. **Don't** use the `|` character inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.

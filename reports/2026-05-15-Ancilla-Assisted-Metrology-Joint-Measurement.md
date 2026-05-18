@@ -97,13 +97,13 @@ The following table marks the experiments that were run to test the hypotheses.
 
 | Experiment | Status | Description |
 |---|---|---|
-| $\theta$-scan, decoupled ($\alpha=0$), joint $M$ | ✅ | Verify $\Delta\theta = 1/T_H$ recovers the SQL with joint measurement at optimal decoupled settings |
-| $\theta$-scan, optimised $\alpha$, joint $M$ | ✅ | Full Nelder–Mead optimisation to find optimal parameters; compare $\Delta\theta$ to S-only baseline |
-| $\alpha$-scan: single parameter, joint $M$ | ✅ | Scan each $\alpha_{ij}$ independently in $[-2, 2]$ with all other parameters at SQL-optimal; compare with S-only curves |
-| $\alpha$-scan: 4D random search, joint $M$ | ✅ | Sample 200 random points in 4D $\alpha$ space; verify $\min \Delta\theta \geq 1/T_H$ |
-| Expanded $T_H$ bound investigation | ✅ | Increase $T_H$ bound to 20 and verify $\Delta\theta = 1/T_H$ scaling still holds |
-| Covariance analysis | ✅ | Compute $\text{Cov}(J_z^S, J_z^A)$ as a function of $\alpha_{ij}$ to quantify entanglement-mediated information transfer |
-| $\alpha$-scan with state re-optimisation | ✅ | Re-optimise state parameters at each $\alpha_{xx}$ value to test joint vs S-only robustness |
+| $\theta$-scan, decoupled ($\alpha=0$), joint $M$ | PASS | Verify $\Delta\theta = 1/T_H$ recovers the SQL with joint measurement at optimal decoupled settings |
+| $\theta$-scan, optimised $\alpha$, joint $M$ | PASS | Full Nelder–Mead optimisation to find optimal parameters; compare $\Delta\theta$ to S-only baseline |
+| $\alpha$-scan: single parameter, joint $M$ | PASS | Scan each $\alpha_{ij}$ independently in $[-2, 2]$ with all other parameters at SQL-optimal; compare with S-only curves |
+| $\alpha$-scan: 4D random search, joint $M$ | PASS | Sample 200 random points in 4D $\alpha$ space; verify $\min \Delta\theta \geq 1/T_H$ |
+| Expanded $T_H$ bound investigation | PASS | Increase $T_H$ bound to 20 and verify $\Delta\theta = 1/T_H$ scaling still holds |
+| Covariance analysis | PASS | Compute $\text{Cov}(J_z^S, J_z^A)$ as a function of $\alpha_{ij}$ to quantify entanglement-mediated information transfer |
+| $\alpha$-scan with state re-optimisation | PASS | Re-optimise state parameters at each $\alpha_{xx}$ value to test joint vs S-only robustness |
 
 ---
 
@@ -115,7 +115,7 @@ The decoupled baseline and expanded $T_H$ bound are shown together in the figure
 
 With Nelder–Mead optimisation at $\theta=1.0$ and $T_H \in [0, 20]$, the optimiser drives $T_H$ to its upper bound ($T_H^* = 20.0$) achieving $\Delta\theta \approx 0.0501 \approx 1/T_H$.
 
-💡 **Key Finding**: The $\Delta\theta = 1/T_H$ scaling is exact and holds for arbitrarily large $T_H$. The optimiser learns to increase $T_H$ as much as possible because longer holding times always improve SQL-limited sensitivity. This confirms Hypothesis 1: in the decoupled baseline, the joint measurement offers no advantage over the S-only measurement, and both achieve the SQL.
+**Key Finding**: The $\Delta\theta = 1/T_H$ scaling is exact and holds for arbitrarily large $T_H$. The optimiser learns to increase $T_H$ as much as possible because longer holding times always improve SQL-limited sensitivity. This confirms Hypothesis 1: in the decoupled baseline, the joint measurement offers no advantage over the S-only measurement, and both achieve the SQL.
 
 ---
 
@@ -127,7 +127,7 @@ Full Nelder–Mead optimisation was run with **10 random restarts per $\theta$ v
 
 **5 of 6 $\theta$ values converge to $\Delta\theta \approx 1/T_H^*$.** The single exception ($\theta = 0.5$) converges to $\langle M \rangle \approx 0$ (a fringe extremum), where the finite-difference derivative loses accuracy and the reported $\Delta\theta$ is a numerical artifact that violates the QFI bound. This fringe-extremum configuration is detectable because $\langle M \rangle \approx 0$ and the covariance is anomalously non-zero.
 
-💡 **Key Finding**: Across $\theta$ values, the joint measurement consistently achieves $\Delta\theta = 1/T_H$ when the optimal configuration drives $T_H$ to its upper bound. The QFI bound $\Delta\theta \geq 1/T_H$ is never violated by physically valid configurations (i.e., those away from fringe extrema).
+**Key Finding**: Across $\theta$ values, the joint measurement consistently achieves $\Delta\theta = 1/T_H$ when the optimal configuration drives $T_H$ to its upper bound. The QFI bound $\Delta\theta \geq 1/T_H$ is never violated by physically valid configurations (i.e., those away from fringe extrema).
 
 ---
 
@@ -137,12 +137,12 @@ Each $\alpha_{ij}$ was scanned independently over $[-2, 2]$ with 21 points, keep
 
 | $\alpha$ coefficient | $\Delta\theta$ at $\alpha=0$ (joint) | $\Delta\theta$ at $\alpha=0$ (S-only) | $\min \Delta\theta$ joint | $\min \Delta\theta$ S-only | Joint beats S-only? |
 |---|---|---|---|---|---|
-| $\alpha_{xx}$ | 1.0000 | 1.0000 | 1.0000 | 1.0000 | ❌ |
-| $\alpha_{xz}$ | 1.0000 | 1.0000 | 1.0000 | 1.0000 | ❌ |
-| $\alpha_{zx}$ | 1.0000 | 1.0000 | 1.0000 | 1.0000 | ❌ |
-| $\alpha_{zz}$ | 1.0000 | 1.0000 | 1.0000 | 1.0000 | ❌ |
+| $\alpha_{xx}$ | 1.0000 | 1.0000 | 1.0000 | 1.0000 | FAIL |
+| $\alpha_{xz}$ | 1.0000 | 1.0000 | 1.0000 | 1.0000 | FAIL |
+| $\alpha_{zx}$ | 1.0000 | 1.0000 | 1.0000 | 1.0000 | FAIL |
+| $\alpha_{zz}$ | 1.0000 | 1.0000 | 1.0000 | 1.0000 | FAIL |
 
-💡 **Key Finding**: At fixed SQL-optimal state parameters, **both** the joint and S-only measurements achieve $\Delta\theta = 1.0$ across all $\alpha$ values. The joint measurement does not beat S-only in this regime because the SQL is already saturated at $\alpha=0$, and the interaction does not degrade either measurement at these specific state parameters. The $\alpha$-scans at fixed parameters are a limited test — they do not capture the benefit of re-optimising the state preparation for $\alpha \neq 0$.
+**Key Finding**: At fixed SQL-optimal state parameters, **both** the joint and S-only measurements achieve $\Delta\theta = 1.0$ across all $\alpha$ values. The joint measurement does not beat S-only in this regime because the SQL is already saturated at $\alpha=0$, and the interaction does not degrade either measurement at these specific state parameters. The $\alpha$-scans at fixed parameters are a limited test — they do not capture the benefit of re-optimising the state preparation for $\alpha \neq 0$.
 
 ---
 
@@ -167,7 +167,7 @@ All four coefficients generate non-zero covariance, confirming that S-A entangle
 | SQL ($1/T_H$) | 1.000 | 0.200 |
 | Best $\alpha$ (joint) | (0.674, -0.116, 0.261, 1.060) | — |
 
-💡 **Key Finding**: At $T_H = 1.0$, the joint measurement achieves a lower $\Delta\theta$ than S-only (1.012 vs 1.044), confirming a modest robustness advantage when the S-A interaction is active. At $T_H = 5.0$, the relationship reverses because the fixed state parameters become increasingly suboptimal for larger $T_H$, and the linear sum $M = J_z^S + J_z^A$ adds ancilla noise without commensurate derivative signal. In both cases, **the QFI bound $\Delta\theta \geq 1/T_H$ is respected** — neither measurement strategy beats the SQL.
+**Key Finding**: At $T_H = 1.0$, the joint measurement achieves a lower $\Delta\theta$ than S-only (1.012 vs 1.044), confirming a modest robustness advantage when the S-A interaction is active. At $T_H = 5.0$, the relationship reverses because the fixed state parameters become increasingly suboptimal for larger $T_H$, and the linear sum $M = J_z^S + J_z^A$ adds ancilla noise without commensurate derivative signal. In both cases, **the QFI bound $\Delta\theta \geq 1/T_H$ is respected** — neither measurement strategy beats the SQL.
 
 ---
 
@@ -179,7 +179,7 @@ To provide a more complete test, the state parameters ($\theta_S, \phi_S, \theta
 
 When state preparation is re-optimised for $\alpha \neq 0$, both the joint and S-only measurements converge to the same sensitivity within numerical noise. The $\alpha=0$ point saturates the SQL ($\Delta\theta = 1/T_H$ with $T_H = 5$), while at $\alpha=\pm1$ both strategies are slightly worse ($\Delta\theta \approx 0.223$) due to the interaction's perturbation of the optimal state. The previously reported $\sim 1\%$ advantage at $\alpha=\pm 1$ was an artifact of insufficient Nelder–Mead restarts; with 10 restarts and 2000 maxiter per restart, the advantage is no longer statistically significant.
 
-💡 **Key Finding**: When state parameters are re-optimised at each $\alpha$, both joint and S-only measurements converge to the same $\Delta\theta$ within numerical precision. The $\alpha=0$ baseline saturates the SQL ($\Delta\theta = 1/T_H$), while at $\alpha=\pm 1$ both strategies degrade equally to $\Delta\theta \approx 0.223$. The previously reported marginal advantage at $\alpha \neq 0$ was an artifact of insufficient Nelder–Mead restarts. The joint measurement's value therefore lies not in exceeding the SQL but in **robustness under fixed state preparation** (Section 8).
+**Key Finding**: When state parameters are re-optimised at each $\alpha$, both joint and S-only measurements converge to the same $\Delta\theta$ within numerical precision. The $\alpha=0$ baseline saturates the SQL ($\Delta\theta = 1/T_H$), while at $\alpha=\pm 1$ both strategies degrade equally to $\Delta\theta \approx 0.223$. The previously reported marginal advantage at $\alpha \neq 0$ was an artifact of insufficient Nelder–Mead restarts. The joint measurement's value therefore lies not in exceeding the SQL but in **robustness under fixed state preparation** (Section 8).
 
 ---
 
@@ -189,7 +189,7 @@ At the fixed SQL-optimal configuration ($|\psi_S\rangle = |1,0\rangle$, $|\psi_A
 
 ![Interaction robustness: Δθ vs T_H](reports/figures/2026-05-15-interaction-robustness.svg)
 
-💡 **Key Finding**: At fixed state parameters, the S-only measurement **outperforms** the joint measurement when $\alpha_{xx} \neq 0$. The interaction $J_x^S \otimes J_x^A$ modifies the effective evolution of $J_z^S$ in a way that can increase the derivative $|\partial\langle J_z^S\rangle/\partial\theta|$, while the joint measurement adds ancilla variance $\text{Var}(J_z^A)$ without a commensurate increase in derivative signal. This demonstrates that $M = J_z^S + J_z^A$ is **not an informationally complete measurement** — a POVM or weighted measurement $M = c_S J_z^S + c_A J_z^A$ could potentially do better.
+**Key Finding**: At fixed state parameters, the S-only measurement **outperforms** the joint measurement when $\alpha_{xx} \neq 0$. The interaction $J_x^S \otimes J_x^A$ modifies the effective evolution of $J_z^S$ in a way that can increase the derivative $|\partial\langle J_z^S\rangle/\partial\theta|$, while the joint measurement adds ancilla variance $\text{Var}(J_z^A)$ without a commensurate increase in derivative signal. This demonstrates that $M = J_z^S + J_z^A$ is **not an informationally complete measurement** — a POVM or weighted measurement $M = c_S J_z^S + c_A J_z^A$ could potentially do better.
 
 ---
 
@@ -205,26 +205,26 @@ Both joint and S-only measurements converge to $\Delta\theta \approx 1/T_H$ when
 
 | Experiment | Status | Description |
 |---|---|---|
-| $\theta$-scan, decoupled ($\alpha=0$), joint $M$ | ✅ | $\Delta\theta = 1/T_H$ exactly, confirming SQL saturation |
-| $\theta$-scan, optimised $\alpha$, joint $M$ | ✅ | $\Delta\theta \approx 1/T_H$ (5/6 clean results, 1 fringe artifact) |
-| $\alpha$-scan: single parameter, joint $M$ | ✅ | Both joint and S-only achieve $\Delta\theta = 1.0$ at fixed parameters |
-| $\alpha$-scan: 4D random search, joint $M$ | ✅ | Joint beats S-only at $T_H=1.0$ (1.012 vs 1.044); reversed at $T_H=5.0$ |
-| Expanded $T_H$ bound investigation | ✅ | $\Delta\theta = 1/T_H$ scaling holds exactly up to $T_H = 20$ |
-| Covariance analysis | ✅ | Non-zero covariance generated by all $\alpha$ coefficients ($\max|\text{Cov}| = 0.122$) |
-| $\alpha$-scan with state re-optimisation | ✅ | Joint marginally beats S-only at $\alpha_{xx} \neq 0$ ($\sim 1\%$ advantage) |
+| $\theta$-scan, decoupled ($\alpha=0$), joint $M$ | PASS | $\Delta\theta = 1/T_H$ exactly, confirming SQL saturation |
+| $\theta$-scan, optimised $\alpha$, joint $M$ | PASS | $\Delta\theta \approx 1/T_H$ (5/6 clean results, 1 fringe artifact) |
+| $\alpha$-scan: single parameter, joint $M$ | PASS | Both joint and S-only achieve $\Delta\theta = 1.0$ at fixed parameters |
+| $\alpha$-scan: 4D random search, joint $M$ | PASS | Joint beats S-only at $T_H=1.0$ (1.012 vs 1.044); reversed at $T_H=5.0$ |
+| Expanded $T_H$ bound investigation | PASS | $\Delta\theta = 1/T_H$ scaling holds exactly up to $T_H = 20$ |
+| Covariance analysis | PASS | Non-zero covariance generated by all $\alpha$ coefficients ($\max|\text{Cov}| = 0.122$) |
+| $\alpha$-scan with state re-optimisation | PASS | Joint marginally beats S-only at $\alpha_{xx} \neq 0$ ($\sim 1\%$ advantage) |
 
 ## ✅ Success Criteria
 
 | # | Check | Expectation | Status |
 |---|---|---|---|
-| 1 | Nelder–Mead converges consistently across restarts | Spread $< 10\%$ | 🔄 **Partial**: Most $\theta$ values show spread $\sim 0.3\text{--}1.2$, indicating the landscape has multiple local minima |
-| 2 | $\Delta\theta = 1/T_H$ at $\alpha=0$ for joint $M$ | Achieves SQL in decoupled baseline | ✅ **Pass**: $\Delta\theta = 1/T_H$ exactly for all $T_H$ tested ($0.5$ to $20$) |
-| 3 | $\Delta\theta \geq 1/T_H$ for all $\alpha, \theta$ configurations (QFI bound) | No configuration beats the SQL | ✅ **Pass**: Every physically valid configuration (away from fringe extrema) satisfies $\Delta\theta \geq 1/T_H$ |
-| 4 | For $\alpha \neq 0$, joint $M$ achieves $\Delta\theta < \Delta\theta_{\text{S-only}}$ at same $\alpha$ | Joint measurement is more robust to interaction | 🔄 **Partial**: True at $T_H=1.0$ with state re-optimisation ($\sim 1\%$ advantage) but S-only can be better at fixed state parameters or larger $T_H$ |
-| 5 | Covariance $\text{Cov}(J_z^S, J_z^A) \neq 0$ when $\alpha \neq 0$ and the interaction has non-commuting terms | Entanglement is generated | ✅ **Pass**: All $\alpha$ coefficients generate non-zero covariance ($\max|\text{Cov}| = 0.122$ at $\alpha_{xx} = \pm 2$, $T_H = 1$) |
-| 6 | All unitaries are unitary ($U^\dagger U = I$) | Assertions pass | ✅ **Pass**: All assertion checks pass |
-| 7 | State normalisation preserved | $\|\vert\Psi\rangle\| = 1$ | ✅ **Pass**: Normalisation is preserved to machine precision |
-| 8 | $\Delta\theta > 0$ for all probed $\theta$ | Positive and finite | ✅ **Pass**: All valid configurations yield positive finite $\Delta\theta$ |
+| 1 | Nelder–Mead converges consistently across restarts | Spread $< 10\%$ | PARTIAL **Partial**: Most $\theta$ values show spread $\sim 0.3\text{--}1.2$, indicating the landscape has multiple local minima |
+| 2 | $\Delta\theta = 1/T_H$ at $\alpha=0$ for joint $M$ | Achieves SQL in decoupled baseline | PASS **Pass**: $\Delta\theta = 1/T_H$ exactly for all $T_H$ tested ($0.5$ to $20$) |
+| 3 | $\Delta\theta \geq 1/T_H$ for all $\alpha, \theta$ configurations (QFI bound) | No configuration beats the SQL | PASS **Pass**: Every physically valid configuration (away from fringe extrema) satisfies $\Delta\theta \geq 1/T_H$ |
+| 4 | For $\alpha \neq 0$, joint $M$ achieves $\Delta\theta < \Delta\theta_{\text{S-only}}$ at same $\alpha$ | Joint measurement is more robust to interaction | PARTIAL **Partial**: True at $T_H=1.0$ with state re-optimisation ($\sim 1\%$ advantage) but S-only can be better at fixed state parameters or larger $T_H$ |
+| 5 | Covariance $\text{Cov}(J_z^S, J_z^A) \neq 0$ when $\alpha \neq 0$ and the interaction has non-commuting terms | Entanglement is generated | PASS **Pass**: All $\alpha$ coefficients generate non-zero covariance ($\max|\text{Cov}| = 0.122$ at $\alpha_{xx} = \pm 2$, $T_H = 1$) |
+| 6 | All unitaries are unitary ($U^\dagger U = I$) | Assertions pass | PASS **Pass**: All assertion checks pass |
+| 7 | State normalisation preserved | $\|\vert\Psi\rangle\| = 1$ | PASS **Pass**: Normalisation is preserved to machine precision |
+| 8 | $\Delta\theta > 0$ for all probed $\theta$ | Positive and finite | PASS **Pass**: All valid configurations yield positive finite $\Delta\theta$ |
 
 The experimental evidence supports **Hypothesis 1** (SQL at $\alpha=0$) and **Hypothesis 3** (QFI bound) unambiguously. **Hypothesis 2** is partially supported: the joint measurement provides a modest robustness advantage ($\sim 1\%$) over S-only when state parameters are re-optimised for $\alpha \neq 0$, but the advantage is not universal — it depends on the specific $\alpha$ coefficients, $T_H$, and whether state parameters are re-optimised. At fixed state parameters, the S-only measurement can actually outperform the joint measurement, because $M = J_z^S + J_z^A$ adds ancilla variance without necessarily adding derivative signal.
 
@@ -246,6 +246,6 @@ The experimental results paint a nuanced picture of the joint measurement $M = J
 
 **Hypothesis 3 is fully supported.** No configuration — regardless of $\alpha$, $T_H$, or measurement choice — beats the QFI bound $\Delta\theta \geq 1/T_H$. Every physically valid result respects this bound.
 
-💡 **Key Finding**: The value of the joint measurement $M = J_z^S + J_z^A$ lies not in fundamentally beating the SQL (which is impossible), but in **robustness** — it recovers $\theta$-information that leaks to the ancilla via the S-A interaction. However, the linear sum is a **suboptimal joint observable** because it weights the ancilla equally with the system. An optimised weighted measurement $M = c_S J_z^S + c_A J_z^A$, or — in the limit — a full informationally complete POVM, would be required to saturate the QFI bound $F_Q(|\Psi\rangle_{SA})$ for arbitrary interaction strengths. This explains why the S-only measurement sometimes outperforms the joint measurement: when the interaction does not transfer significant $\theta$-information to the ancilla, adding ancilla readout only adds noise.
+**Key Finding**: The value of the joint measurement $M = J_z^S + J_z^A$ lies not in fundamentally beating the SQL (which is impossible), but in **robustness** — it recovers $\theta$-information that leaks to the ancilla via the S-A interaction. However, the linear sum is a **suboptimal joint observable** because it weights the ancilla equally with the system. An optimised weighted measurement $M = c_S J_z^S + c_A J_z^A$, or — in the limit — a full informationally complete POVM, would be required to saturate the QFI bound $F_Q(|\Psi\rangle_{SA})$ for arbitrary interaction strengths. This explains why the S-only measurement sometimes outperforms the joint measurement: when the interaction does not transfer significant $\theta$-information to the ancilla, adding ancilla readout only adds noise.
 
-🔍 **Open items**: (a) What is the optimised weight ratio $c_S/c_A$ that saturates the QFI bound for each $\alpha_{ij}$ family? (b) Can an **informationally complete POVM** (e.g., full state tomography) on S+A saturate the QFI bound $F_Q \leq T_H^2$ for arbitrary $\alpha$? (c) Does a **parity measurement** on S+A (projecting the two-qubit state into even/odd total $J_z$ parity) give better sensitivity than the linear sum $J_z^S + J_z^A$? (d) Can **interaction-based readout** (an additional interaction period before the second BS) map ancilla correlations back onto S, enabling enhancement with an S-only measurement? (e) What is the role of the **covariance term** $\text{Cov}(J_z^S, J_z^A)$ — can it be exploited by a better-chosen measurement to reduce $\Delta\theta$ below the S-only value at the same $\alpha$? (f) The fringe-extremum issue (where $\langle M \rangle \approx 0$ causes unreliable finite-difference derivatives) suggests that adaptive sensing protocols should avoid operating points where the derivative vanishes.
+**Open items**: (a) What is the optimised weight ratio $c_S/c_A$ that saturates the QFI bound for each $\alpha_{ij}$ family? (b) Can an **informationally complete POVM** (e.g., full state tomography) on S+A saturate the QFI bound $F_Q \leq T_H^2$ for arbitrary $\alpha$? (c) Does a **parity measurement** on S+A (projecting the two-qubit state into even/odd total $J_z$ parity) give better sensitivity than the linear sum $J_z^S + J_z^A$? (d) Can **interaction-based readout** (an additional interaction period before the second BS) map ancilla correlations back onto S, enabling enhancement with an S-only measurement? (e) What is the role of the **covariance term** $\text{Cov}(J_z^S, J_z^A)$ — can it be exploited by a better-chosen measurement to reduce $\Delta\theta$ below the S-only value at the same $\alpha$? (f) The fringe-extremum issue (where $\langle M \rangle \approx 0$ causes unreliable finite-difference derivatives) suggests that adaptive sensing protocols should avoid operating points where the derivative vanishes.

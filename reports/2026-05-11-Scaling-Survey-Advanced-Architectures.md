@@ -53,12 +53,12 @@ independent of $N$, giving $\alpha \to 0$ in the TTL-dominated regime. The quant
 
 | Model | Input State | Noise Model | Expected $\alpha$ | Status |
 |---|---|---|---|---|
-| Non-Markovian bath (Lorentzian) | Coherent + ancilla | Lorentzian (pseudomode) | $\approx -0.5$ (tentative — depends on $\lambda/g_{\text{sp}}$) | ✅ |
-| Thermal noise (Langevin) | Coherent (normalized) | Langevin force | $0$ (thermal floor) or $-0.5$ (SQL); cross-over at $N_{\text{co}}$ | ✅ |
-| Cavity-enhanced MZI | Coherent | Per-pass loss/dephasing | $-0.5$, $C = 1/\sqrt{\mathcal{F}}$ | ✅ |
-| Distributed array | Coherent per node | Correlated / uncorrelated | $-0.5$ (classical $\sqrt{M}$) or $-1.0$ (entangled $M$) | ✅ |
-| Dynamical decoupling | Coherent | Low-frequency noise | $-0.5$, $C \propto (T_2^{(\text{DD})}/T)^{-1/2}$ | ✅ |
-| Tilt-to-length noise | Coherent | Geometric jitter | $0$ (noise floor) | ✅ |
+| Non-Markovian bath (Lorentzian) | Coherent + ancilla | Lorentzian (pseudomode) | $\approx -0.5$ (tentative — depends on $\lambda/g_{\text{sp}}$) | PASS |
+| Thermal noise (Langevin) | Coherent (normalized) | Langevin force | $0$ (thermal floor) or $-0.5$ (SQL); cross-over at $N_{\text{co}}$ | PASS |
+| Cavity-enhanced MZI | Coherent | Per-pass loss/dephasing | $-0.5$, $C = 1/\sqrt{\mathcal{F}}$ | PASS |
+| Distributed array | Coherent per node | Correlated / uncorrelated | $-0.5$ (classical $\sqrt{M}$) or $-1.0$ (entangled $M$) | PASS |
+| Dynamical decoupling | Coherent | Low-frequency noise | $-0.5$, $C \propto (T_2^{(\text{DD})}/T)^{-1/2}$ | PASS |
+| Tilt-to-length noise | Coherent | Geometric jitter | $0$ (noise floor) | PASS |
 
 ---
 
@@ -88,7 +88,7 @@ All models are integrated into the scaling survey pipeline, enabling log-log reg
 
 ### Validation
 
-📐 Invariance and consistency checks:
+Invariance and consistency checks:
 
 ```python
 # Non-Markovian: trace preservation
@@ -127,16 +127,16 @@ All simulations are currently pending. The table below tracks each check's statu
 
 | Check | Status |
 |---|---|
-| Non-Markovian: scaling exponent via pseudomode QFI | ⏳ |
-| Thermal noise: cross-over identification | ⏳ |
-| Cavity-enhanced MZI: finesse prefactor | ⏳ |
-| Distributed array: classical vs entangled scaling | ⏳ |
-| Dynamical decoupling: coherence enhancement | ⏳ |
-| Tilt-to-length: noise-floor exponent | ⏳ |
-| Log-log fit quality ($R^2 \geq 0.9$) | ⏳ |
-| Trace preservation (pseudomode) | ⏳ |
-| Cavity: per-pass small-noise validity | ⏳ |
-| Non-Markovian: Markovian limit recovery | ⏳ |
+| Non-Markovian: scaling exponent via pseudomode QFI | PENDING |
+| Thermal noise: cross-over identification | PENDING |
+| Cavity-enhanced MZI: finesse prefactor | PENDING |
+| Distributed array: classical vs entangled scaling | PENDING |
+| Dynamical decoupling: coherence enhancement | PENDING |
+| Tilt-to-length: noise-floor exponent | PENDING |
+| Log-log fit quality ($R^2 \geq 0.9$) | PENDING |
+| Trace preservation (pseudomode) | PENDING |
+| Cavity: per-pass small-noise validity | PENDING |
+| Non-Markovian: Markovian limit recovery | PENDING |
 
 ---
 
@@ -161,4 +161,4 @@ All simulations are currently pending. The table below tracks each check's statu
 
 This survey establishes the theoretical framework and numerical pipeline for testing six advanced interferometer architectures against their expected scaling exponents. All models are implemented with validated consistency checks. The core classification — **noise-floor models** ($\alpha \to 0$ at large $N$), **topological modifications** ($\alpha = -0.5$ with improved prefactors), and **non-Markovian baths** (potentially preserving SQL scaling under non-Markovian noise) — provides the organizing structure for the upcoming simulations.
 
-🔍 **Open questions:** (a) Whether non-Markovian QFI oscillations translate into a genuine scaling advantage or merely a prefactor improvement in finite-$N$ regimes; (b) the practical $N$ at which the thermal cross-over occurs for typical experimental parameters; (c) whether the entangled distributed array scaling $\alpha = -1.0$ can be achieved with any finite-overhead entanglement distillation protocol. All checks currently show ⏳ pending status — the Results table will be updated once simulations are executed and measured exponents are compared against the Success Criteria expectations.
+**Open questions:** (a) Whether non-Markovian QFI oscillations translate into a genuine scaling advantage or merely a prefactor improvement in finite-$N$ regimes; (b) the practical $N$ at which the thermal cross-over occurs for typical experimental parameters; (c) whether the entangled distributed array scaling $\alpha = -1.0$ can be achieved with any finite-overhead entanglement distillation protocol. All checks currently show PENDING status — the Results table will be updated once simulations are executed and measured exponents are compared against the Success Criteria expectations.

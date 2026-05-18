@@ -89,24 +89,24 @@ assert np.isclose(F_Q_n2, 2 * mean_n**2 + 3 * mean_n, rtol=1e-6), "n=2 QFI must 
 
 | # | Test | Expectation | Status |
 |---|------|-------------|--------|
-| 1 | n=2 physics | ⟨n⟩ = sinh²(r) | ✅ |
-| 2 | Wigner negativity for n≥3 | min(W) < 0 | ✅ (both n=3 and n=4 detected) |
-| 3 | QFI at fixed ⟨n⟩ | QFI(n=3,4) > QFI(n=2) | ✅ (both n=3,4 beat n=2 at all ⟨n⟩) |
-| 4 | Decoherence crossover | γ_c > 0 exists | ⏳ (solver implemented, sweep not yet run) |
-| 5 | Numerical stability | Trace, positivity, truncation | ✅ |
+| 1 | n=2 physics | ⟨n⟩ = sinh²(r) | PASS |
+| 2 | Wigner negativity for n≥3 | min(W) < 0 | PASS (both n=3 and n=4 detected) |
+| 3 | QFI at fixed ⟨n⟩ | QFI(n=3,4) > QFI(n=2) | PASS (both n=3,4 beat n=2 at all ⟨n⟩) |
+| 4 | Decoherence crossover | γ_c > 0 exists | PENDING (solver implemented, sweep not yet run) |
+| 5 | Numerical stability | Trace, positivity, truncation | PASS |
 
-💡 **Key Finding**: The core hypothesis is supported: both n=3 and n=4 states achieve higher QFI than n=2 at all tested ⟨n⟩ (0.5–3.0), with factors of 2–5×. The n=2 QFI matches the analytical formula $F_Q = 2\langle n\rangle^2 + 3\langle n\rangle$ (derived from $F_Q = \text{Var}(n) + \langle n\rangle$ for this MZI configuration). Wigner negativity is now confirmed for n=4 with default parameters (baseline test passes).
+**Key Finding**: The core hypothesis is supported: both n=3 and n=4 states achieve higher QFI than n=2 at all tested ⟨n⟩ (0.5–3.0), with factors of 2–5×. The n=2 QFI matches the analytical formula $F_Q = 2\langle n\rangle^2 + 3\langle n\rangle$ (derived from $F_Q = \text{Var}(n) + \langle n\rangle$ for this MZI configuration). Wigner negativity is now confirmed for n=4 with default parameters (baseline test passes).
 
 ## ✅ Success Criteria
 
 | # | Check | Expectation | Status |
-| 1 | n=2 physics | Results match analytical Gaussian squeezing formulas | ✅ |
-| 2 | Wigner negativity for n≥3 | $\min(W) < 0$ detected | ✅ |
-| 3 | QFI enhancement at fixed ⟨n⟩ | $\text{QFI}(n=3,4) > \text{QFI}(n=2)$ at zero decoherence, same $\langle n \rangle$ | ✅ |
-| 4 | Decoherence crossover | $\text{QFI}$ curves cross at some $\gamma_c > 0$ | ⏳ |
-| 5 | Numerical stability | Trace preservation, Hermiticity, positivity conserved throughout | ✅ |
+| 1 | n=2 physics | Results match analytical Gaussian squeezing formulas | PASS |
+| 2 | Wigner negativity for n≥3 | $\min(W) < 0$ detected | PASS |
+| 3 | QFI enhancement at fixed ⟨n⟩ | $\text{QFI}(n=3,4) > \text{QFI}(n=2)$ at zero decoherence, same $\langle n \rangle$ | PASS |
+| 4 | Decoherence crossover | $\text{QFI}$ curves cross at some $\gamma_c > 0$ | PENDING |
+| 5 | Numerical stability | Trace preservation, Hermiticity, positivity conserved throughout | PASS |
 
-Four of the five success criteria are met (✅): n=2 baseline physics matches analytical predictions, QFI enhancement is confirmed at all tested mean photon numbers, Wigner negativity is confirmed for both n=3 and n=4, and numerical stability invariants hold throughout. The decoherence crossover criterion remains untested (⏳): the Lindblad solver is implemented and validated, but systematic sweeps over $\gamma_1$ and $\gamma_\phi$ have not yet been run to locate the critical rate $\gamma_c$.
+Four of the five success criteria are met (PASS): n=2 baseline physics matches analytical predictions, QFI enhancement is confirmed at all tested mean photon numbers, Wigner negativity is confirmed for both n=3 and n=4, and numerical stability invariants hold throughout. The decoherence crossover criterion remains untested (PENDING): the Lindblad solver is implemented and validated, but systematic sweeps over $\gamma_1$ and $\gamma_\phi$ have not yet been run to locate the critical rate $\gamma_c$.
 
 ## 🏁 Conclusions
 
@@ -114,4 +114,4 @@ The core hypothesis is supported for zero-decoherence: both n=3 (trisqueezed) an
 
 #### 🔍 Open Questions
 
-🔍 **Open items**: (a) Decoherence sweeps to find $\gamma_c$ are ready but unrun. (b) The adaptive Fock truncation (safety factor $10n$) may be insufficient for n=4 at moderate $\langle n \rangle$, potentially affecting QFI accuracy — the post-hoc occupancy check ( $\langle a^\dagger a \rangle \leq 0.9 N_\text{osc}$ ) should be verified during production sweeps.
+**Open items**: (a) Decoherence sweeps to find $\gamma_c$ are ready but unrun. (b) The adaptive Fock truncation (safety factor $10n$) may be insufficient for n=4 at moderate $\langle n \rangle$, potentially affecting QFI accuracy — the post-hoc occupancy check ( $\langle a^\dagger a \rangle \leq 0.9 N_\text{osc}$ ) should be verified during production sweeps.

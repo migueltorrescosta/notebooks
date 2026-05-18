@@ -71,13 +71,13 @@ assert np.allclose(dJz_dtheta_analytical,
 
 | # | Test | Expectation | Status |
 |---|---|---|---|
-| 1 | Analytical $\partial\langle J_z\rangle/\partial\theta$ | $\frac{T_H}{2}\sin(\theta T_H)$ | ✅ |
-| 2 | Numerical derivative matches analytical | rtol $< 10^{-6}$ | ✅ |
-| 3 | $\Delta\theta = 1/T_H$ independently of $\theta$ | Verified at 10 values of $\theta_0$ | ✅ |
-| 4 | Scaling exponent $\alpha = -1$ | $\alpha \in [-1.005, -0.995]$ | ✅ |
-| 5 | Fringe-crossing detection works | Excluded points flagged | ✅ |
+| 1 | Analytical $\partial\langle J_z\rangle/\partial\theta$ | $\frac{T_H}{2}\sin(\theta T_H)$ | PASS |
+| 2 | Numerical derivative matches analytical | rtol $< 10^{-6}$ | PASS |
+| 3 | $\Delta\theta = 1/T_H$ independently of $\theta$ | Verified at 10 values of $\theta_0$ | PASS |
+| 4 | Scaling exponent $\alpha = -1$ | $\alpha \in [-1.005, -0.995]$ | PASS |
+| 5 | Fringe-crossing detection works | Excluded points flagged | PASS |
 
-💡 **Key Finding**: The single-particle MZI holding-time scaling simulation confirms the analytical prediction $\Delta\theta = 1/T_H$ (scaling exponent $\alpha = -1$) to machine precision. The simulation was run with the following parameters and results:
+**Key Finding**: The single-particle MZI holding-time scaling simulation confirms the analytical prediction $\Delta\theta = 1/T_H$ (scaling exponent $\alpha = -1$) to machine precision. The simulation was run with the following parameters and results:
 
 | Parameter / Result | Value |
 |---|---|
@@ -96,19 +96,19 @@ The analytical and numerical derivatives agree to within $10^{-8}$ relative diff
 - The finite-difference derivative reproduces the analytical result with high fidelity (mean relative difference $< 10^{-9}$).
 - Fringe-extremum exclusion works correctly ($0/0$ singularities are flagged).
 
-🔗 The simulation code, 21 unit/integration tests, and a Streamlit page are available as `single_particle_mzi_scaling.py` (core module), its test suite, and a corresponding interactive Streamlit page.
+The simulation code, 21 unit/integration tests, and a Streamlit page are available as `single_particle_mzi_scaling.py` (core module), its test suite, and a corresponding interactive Streamlit page.
 
 ## ✅ Success Criteria
 
 | # | Check | Expectation | Status |
 |---|---|---|---|
-| 1 | $\partial\langle J_z\rangle/\partial\theta$ matches between analytical and numerical | Relative difference $< 10^{-6}$ | ✅ |
-| 2 | $\Delta\theta$ computed via error propagation matches $1/T_H$ | Points lie exactly on $1/T_H$ line | ✅ |
-| 3 | Scaling exponent $\alpha$ from log-log linear regression | $\alpha \in [-1.005, -0.995]$ | ✅ |
-| 4 | $R^2$ of log-log fit | $> 0.999$ | ✅ |
-| 5 | BS unitarity and state normalization preserved | Assertions pass | ✅ |
-| 6 | Log-log plot shows clean power law | Linear trend over entire $T_H$ range | ✅ |
-| 7 | Smooth transition through fringe crossings | Excluded points (near $\sin=0$) are correctly identified | ✅ |
+| 1 | $\partial\langle J_z\rangle/\partial\theta$ matches between analytical and numerical | Relative difference $< 10^{-6}$ | PASS |
+| 2 | $\Delta\theta$ computed via error propagation matches $1/T_H$ | Points lie exactly on $1/T_H$ line | PASS |
+| 3 | Scaling exponent $\alpha$ from log-log linear regression | $\alpha \in [-1.005, -0.995]$ | PASS |
+| 4 | $R^2$ of log-log fit | $> 0.999$ | PASS |
+| 5 | BS unitarity and state normalization preserved | Assertions pass | PASS |
+| 6 | Log-log plot shows clean power law | Linear trend over entire $T_H$ range | PASS |
+| 7 | Smooth transition through fringe crossings | Excluded points (near $\sin=0$) are correctly identified | PASS |
 
 All seven success criteria are satisfied. The analytical and numerical derivatives agree to within $2.64 \times 10^{-8}$ relative difference (well below the $10^{-6}$ threshold), the scaling exponent is exactly $\alpha = -1$ for all tested $\theta$ values, and the $R^2$ of the log-log fit is 1.0 across the board. The fringe-crossing exclusion logic correctly identifies potential $0/0$ singularities. Given the analytically exact nature of the result, no further numerical exploration is needed; the natural next step is to introduce decoherence or other realistic imperfections that modify the $\Delta\theta \propto T_H^{-1}$ scaling.
 

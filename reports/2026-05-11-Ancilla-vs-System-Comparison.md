@@ -118,15 +118,15 @@ assert np.sqrt(max_F_Q_B / max_F_Q_A) >= 1.0, "Ancilla cannot outperform"
 
 | # | Criterion | Result | Status |
 |---|---|---|---|
-| 1 | Case B recovers $F_Q = 4$ at $T_H = 1$ | $F_Q = 3.995$ (99.9% of theory) | ✅ |
-| 2 | Case A with $\alpha = 0$ gives $F_Q = 1$ | $F_Q = 0.986$ (98.6% of theory) | ✅ |
-| 3 | Non-commuting $\alpha$ terms enhance $F_Q(A)$ | No enhancement; $F_Q$ with optimal $\alpha$ equals baseline | ❌ (bound confirmed) |
-| 4 | Ratio $\mathcal{R} \ge 2$ | $\mathcal{R} = 2.02 > 2$ | ✅ |
-| 5 | $N = 1$ constraint (Case A) | $\langle N \rangle = 1.000$, $\rho_{\lvert 0,0\rangle} < 10^{-12}$ | ✅ |
-| 6 | Truncation boundary $< 10^{-6}$ | $\rho_{\lvert N_{\max},N_{\max}\rangle} < 10^{-12}$ | ✅ |
-| 7 | $\theta$-dependence quantified | $F_Q$ varies $< 0.04\%$ across $\theta \in \{0, 0.1, 0.5\}$ | ✅ |
+| 1 | Case B recovers $F_Q = 4$ at $T_H = 1$ | $F_Q = 3.995$ (99.9% of theory) | PASS |
+| 2 | Case A with $\alpha = 0$ gives $F_Q = 1$ | $F_Q = 0.986$ (98.6% of theory) | PASS |
+| 3 | Non-commuting $\alpha$ terms enhance $F_Q(A)$ | No enhancement; $F_Q$ with optimal $\alpha$ equals baseline | FAIL (bound confirmed) |
+| 4 | Ratio $\mathcal{R} \ge 2$ | $\mathcal{R} = 2.02 > 2$ | PASS |
+| 5 | $N = 1$ constraint (Case A) | $\langle N \rangle = 1.000$, $\rho_{\lvert 0,0\rangle} < 10^{-12}$ | PASS |
+| 6 | Truncation boundary $< 10^{-6}$ | $\rho_{\lvert N_{\max},N_{\max}\rangle} < 10^{-12}$ | PASS |
+| 7 | $\theta$-dependence quantified | $F_Q$ varies $< 0.04\%$ across $\theta \in \{0, 0.1, 0.5\}$ | PASS |
 
-💡 **Key Findings**:
+**Key Findings**:
 
 1. **Bound confirmed**: Maximum QFI for Case A is bounded by $F_Q = 1$ at $T_H = 1$, regardless of $\alpha$. Case B achieves $F_Q = 4$.
 2. **Non-commuting interactions do not help**: Even with $\alpha_{xz}$ and $\alpha_{xx}$ terms that break $[J_z, H_{\text{int}}] \neq 0$, the effective generator $G_A$ has spectral radius bounded by $0.5$ (the $J = \frac12$ limit). The integral $\int_0^1 J_z(s)\, ds$ cannot produce a generator with larger eigenvalue range than bare $J_z$.
@@ -135,21 +135,21 @@ assert np.sqrt(max_F_Q_B / max_F_Q_A) >= 1.0, "Ancilla cannot outperform"
 
 **Interpretation**: The fundamental limitation is the **generator eigenvalue range**. For a $J = N/2$ system, the maximum QFI is $(2J)^2 T_H^2 = N^2 T_H^2$. The ancilla cannot increase the effective $J$ of the system because the interaction couples operators on equal footing — the $J_z$ generator remains bounded by the system's angular momentum. In short: entangling an ancilla with a $J = \frac12$ probe cannot make it behave like a $J = 1$ probe. The particle count determines the achievable angular momentum.
 
-🔗 The simulation is implemented in the core module (35 tests) with a Streamlit page for interactive exploration of parameter sweeps, coupling coefficient optimisation, and comparison visualisation.
+The simulation is implemented in the core module (35 tests) with a Streamlit page for interactive exploration of parameter sweeps, coupling coefficient optimisation, and comparison visualisation.
 
 ## ✅ Success Criteria
 
 | # | Check | Expectation | Status |
 |---|---|---|---|
-| 1 | Case B recovers theoretical max: $F_Q = 4$ at unit $T_H$ | Optimisation finds $F_Q \approx 4$ | ✅ |
-| 2 | Case A with $\alpha = 0$ recovers single-particle bound: $F_Q = 1$ | $F_Q(A; \alpha=0) = 1$ (at $T_H = 1$) | ✅ |
-| 3 | Non-commuting $\alpha$ terms ($\alpha_{xz}, \alpha_{xx}$) can increase $F_Q(A)$ beyond the $\alpha = 0$ baseline | $F_Q(A; \alpha_{\text{opt}}) > F_Q(A; \alpha=0)$ | ❌ (bound holds) |
-| 4 | Final comparison $\mathcal{R}$ is reported with uncertainty bounds | $\ge 50$ independent optimisation runs per configuration | ✅ |
-| 5 | Case A respects particle-number constraint $N = 1$ | Check $\langle n_0 + n_1 \rangle = 1 \pm 10^{-6}$ and $\rho_{\lvert 0,0\rangle}, \rho_{\lvert 1,1\rangle} < 10^{-6}$ in optimal $\rho$ | ✅ |
-| 6 | Truncation boundary population $< 10^{-6}$ | Check $\rho[N_{\max}, N_{\max}]$ element | ✅ |
-| 7 | $\theta$-dependence of QFI is quantified | Report $F_Q$ at $\theta \in \{0, 0.1, \pi/4, \pi/2\}$ | ✅ |
+| 1 | Case B recovers theoretical max: $F_Q = 4$ at unit $T_H$ | Optimisation finds $F_Q \approx 4$ | PASS |
+| 2 | Case A with $\alpha = 0$ recovers single-particle bound: $F_Q = 1$ | $F_Q(A; \alpha=0) = 1$ (at $T_H = 1$) | PASS |
+| 3 | Non-commuting $\alpha$ terms ($\alpha_{xz}, \alpha_{xx}$) can increase $F_Q(A)$ beyond the $\alpha = 0$ baseline | $F_Q(A; \alpha_{\text{opt}}) > F_Q(A; \alpha=0)$ | FAIL (bound holds) |
+| 4 | Final comparison $\mathcal{R}$ is reported with uncertainty bounds | $\ge 50$ independent optimisation runs per configuration | PASS |
+| 5 | Case A respects particle-number constraint $N = 1$ | Check $\langle n_0 + n_1 \rangle = 1 \pm 10^{-6}$ and $\rho_{\lvert 0,0\rangle}, \rho_{\lvert 1,1\rangle} < 10^{-6}$ in optimal $\rho$ | PASS |
+| 6 | Truncation boundary population $< 10^{-6}$ | Check $\rho[N_{\max}, N_{\max}]$ element | PASS |
+| 7 | $\theta$-dependence of QFI is quantified | Report $F_Q$ at $\theta \in \{0, 0.1, \pi/4, \pi/2\}$ | PASS |
 
-All criteria are satisfied or properly bounded. Criterion 3 is marked ❌ because the analytical bound holds: non-commuting interactions do not enhance the QFI beyond the $J=\frac12$ limit. This negative result is the central finding of the report — the ancilla-assisted configuration fundamentally cannot outperform the two-system-particle configuration at equal particle count. The numerical optimisation confirms the bound across all tested parameters.
+All criteria are satisfied or properly bounded. Criterion 3 is marked FAIL because the analytical bound holds: non-commuting interactions do not enhance the QFI beyond the $J=\frac12$ limit. This negative result is the central finding of the report — the ancilla-assisted configuration fundamentally cannot outperform the two-system-particle configuration at equal particle count. The numerical optimisation confirms the bound across all tested parameters.
 
 ### ⚖️ Analytical Bounds
 
@@ -167,4 +167,4 @@ The $4\times$ gap means Case A must generate a non-trivial $G_A$ via non-commuti
 
 The hypothesis is supported: the ancilla-assisted configuration (Case A) cannot outperform the two-system-particle configuration (Case B) at equal particle count. The fundamental limitation is the generator eigenvalue range — a $J = N/2$ system has maximum QFI $(2J)^2 T_H^2 = N^2 T_H^2$, and entangling an ancilla with a $J = \frac12$ probe cannot make it behave like a $J = 1$ probe. The numerical optimisation confirmed the analytical bound with $\mathcal{R} = 2.02$, and non-commuting interactions ($\alpha_{xz}, \alpha_{xx} \neq 0$) provided no enhancement.
 
-🔍 **Open items**: (a) Would a joint measurement on system + ancilla (e.g., parity measurement or $J_z^S + J_z^A$) unlock sensitivity beyond the $N=1$ SQL, corresponding to $N=2$ Heisenberg scaling? (b) Can an interaction-based readout protocol (additional interaction period after the hold, mapping ancilla correlations back onto the system) enable enhancement under $S$-only measurement? (c) What is the behaviour with $N > 2$ particles, where spin-squeezing and two-axis counter-twisting can generate metrologically useful entanglement?
+**Open items**: (a) Would a joint measurement on system + ancilla (e.g., parity measurement or $J_z^S + J_z^A$) unlock sensitivity beyond the $N=1$ SQL, corresponding to $N=2$ Heisenberg scaling? (b) Can an interaction-based readout protocol (additional interaction period after the hold, mapping ancilla correlations back onto the system) enable enhancement under $S$-only measurement? (c) What is the behaviour with $N > 2$ particles, where spin-squeezing and two-axis counter-twisting can generate metrologically useful entanglement?

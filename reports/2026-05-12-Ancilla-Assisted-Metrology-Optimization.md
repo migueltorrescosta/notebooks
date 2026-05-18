@@ -91,14 +91,14 @@ The Nelder–Mead optimisation was run over $\theta \in \{0.1, 0.2, 0.5, 1.0, 2.
 
 | $\theta$ | Best $\Delta\theta$ | SQL ($1/T_H^*$) | vs SQL | Spread | $T_H^*$ | Purity | Entangled? |
 |----------|--------------------|-----------------|--------|--------|---------|--------|------------|
-| 0.1 | 0.200000 | 0.200000 | 0.00% | 0.915 | 5.000 | 1.000 | ❌ |
-| 0.2 | 0.200000 | 0.200000 | 0.00% | 0.831 | 5.000 | 1.000 | ❌ |
-| 0.5 | 0.200000 | 0.200000 | 0.00% | 0.391 | 5.000 | 1.000 | ❌ |
-| 1.0 | 0.200000 | 0.200000 | 0.00% | 1.145 | 5.000 | 1.000 | ❌ |
-| 2.0 | 0.200000 | 0.200000 | 0.00% | 0.158 | 5.000 | 1.000 | ❌ |
-| 5.0 | 0.200053 | 0.200000 | -0.03% | 0.806 | 5.000 | 1.000 | ❌ |
+| 0.1 | 0.200000 | 0.200000 | 0.00% | 0.915 | 5.000 | 1.000 | FAIL |
+| 0.2 | 0.200000 | 0.200000 | 0.00% | 0.831 | 5.000 | 1.000 | FAIL |
+| 0.5 | 0.200000 | 0.200000 | 0.00% | 0.391 | 5.000 | 1.000 | FAIL |
+| 1.0 | 0.200000 | 0.200000 | 0.00% | 1.145 | 5.000 | 1.000 | FAIL |
+| 2.0 | 0.200000 | 0.200000 | 0.00% | 0.158 | 5.000 | 1.000 | FAIL |
+| 5.0 | 0.200053 | 0.200000 | -0.03% | 0.806 | 5.000 | 1.000 | FAIL |
 
-💡 **Key Finding**: The central hypothesis is **falsified** for this specific setup. $T_H$ **always saturates the upper bound** (5.0). When the bound was expanded to 20.0, $T_H$ saturated at 20.0 with $\Delta\theta = 0.05 = 1/20$, confirming the optimiser simply maximises $T_H$ to minimise $\Delta\theta$. **All interaction coefficients converge to $\alpha_{ij} \approx 0$** — the optimiser finds the decoupled solution in every case. **Purity is always 1.0**, confirming no entanglement is generated between S and A. **High convergence spread** ($>15\%$) across restarts reflects the flat landscape near the SQL, not true local minima.
+**Key Finding**: The central hypothesis is **falsified** for this specific setup. $T_H$ **always saturates the upper bound** (5.0). When the bound was expanded to 20.0, $T_H$ saturated at 20.0 with $\Delta\theta = 0.05 = 1/20$, confirming the optimiser simply maximises $T_H$ to minimise $\Delta\theta$. **All interaction coefficients converge to $\alpha_{ij} \approx 0$** — the optimiser finds the decoupled solution in every case. **Purity is always 1.0**, confirming no entanglement is generated between S and A. **High convergence spread** ($>15\%$) across restarts reflects the flat landscape near the SQL, not true local minima.
 
 ### Grid Scan Over Interaction Coefficients
 
@@ -112,14 +112,14 @@ When the $T_H$ bound was expanded to 20.0, the best result was $\Delta\theta = 0
 
 | # | Check | Expectation | Status |
 |---|-------|-------------|--------|
-| 1 | Nelder–Mead converges consistently across restarts | Spread $< 10\%$ | ❌ — Spread $>15\%$, but due to landscape flatness at SQL, not local minima |
-| 2 | $\Delta\theta_{\text{opt}} \leq 1/T_H$ (decoupled SQL) | Achieves at least decoupled bound | ✅ — $\Delta\theta_{\text{opt}} = 1/T_H$ exactly for all probed $\theta$ |
-| 3 | $\Delta\theta_{\text{opt}} < 1/T_H$ for some $\theta$ (interaction helps) | At least one $\theta$ shows $> 5\%$ improvement | ❌ — **No improvement found.** Best $\Delta\theta$ is exactly $1/T_H$ for all $\theta$; grid scans confirm $\alpha_{ij} \neq 0$ always degrades sensitivity |
-| 4 | All unitaries are unitary ($U^\dagger U = I$) | Assertions pass | ✅ |
-| 5 | State normalisation preserved | $\|\vert\Psi\rangle\| = 1$ | ✅ |
-| 6 | $\Delta\theta > 0$ for all probed $\theta$ | Positive and finite | ✅ |
-| 7 | Optimal parameters vary smoothly with $\theta$ | No discontinuous jumps | ❌ — High variance across restarts, but best-per-$\theta$ always converges to $T_H=5$ (boundary), $\alpha=0$ |
-| 8 | At $\alpha=0$, recovers analytical solution | $\Delta\theta \approx 1/T_H$ | ✅ |
+| 1 | Nelder–Mead converges consistently across restarts | Spread $< 10\%$ | FAIL — Spread $>15\%$, but due to landscape flatness at SQL, not local minima |
+| 2 | $\Delta\theta_{\text{opt}} \leq 1/T_H$ (decoupled SQL) | Achieves at least decoupled bound | PASS — $\Delta\theta_{\text{opt}} = 1/T_H$ exactly for all probed $\theta$ |
+| 3 | $\Delta\theta_{\text{opt}} < 1/T_H$ for some $\theta$ (interaction helps) | At least one $\theta$ shows $> 5\%$ improvement | FAIL — **No improvement found.** Best $\Delta\theta$ is exactly $1/T_H$ for all $\theta$; grid scans confirm $\alpha_{ij} \neq 0$ always degrades sensitivity |
+| 4 | All unitaries are unitary ($U^\dagger U = I$) | Assertions pass | PASS |
+| 5 | State normalisation preserved | $\|\vert\Psi\rangle\| = 1$ | PASS |
+| 6 | $\Delta\theta > 0$ for all probed $\theta$ | Positive and finite | PASS |
+| 7 | Optimal parameters vary smoothly with $\theta$ | No discontinuous jumps | FAIL — High variance across restarts, but best-per-$\theta$ always converges to $T_H=5$ (boundary), $\alpha=0$ |
+| 8 | At $\alpha=0$, recovers analytical solution | $\Delta\theta \approx 1/T_H$ | PASS |
 
 Criteria 3 (the core hypothesis) is conclusively falsified: the interaction provides **no** sensitivity improvement for this setup. Criteria 2, 4, 5, 6, and 8 pass, confirming the implementation is correct and the negative result is physical, not numerical. The failure of Criteria 1 and 7 reflects landscape flatness rather than algorithmic deficiency.
 
@@ -131,8 +131,8 @@ The numerical result is explained by a fundamental **Quantum Fisher Information 
 
 ## 🏁 Conclusions
 
-💡 **Key Finding**: The central hypothesis is **falsified** for the specific setup of $N=1$ per subsystem with $J_z^S$-only measurement. Non-zero interaction coefficients $\alpha_{ij}$ **never improve** the sensitivity $\Delta\theta$ below the SQL of $1/T_H$. Instead, any non-zero interaction strictly degrades performance. The root cause is a fundamental QFI bound: for any measurement performed solely on the system qubit (partial trace over ancilla), the Quantum Fisher Information cannot exceed $T_H^2$, giving $\Delta\theta \geq 1/T_H$ — independent of the interaction Hamiltonian, the ancilla state, or the beam-splitter settings.
+**Key Finding**: The central hypothesis is **falsified** for the specific setup of $N=1$ per subsystem with $J_z^S$-only measurement. Non-zero interaction coefficients $\alpha_{ij}$ **never improve** the sensitivity $\Delta\theta$ below the SQL of $1/T_H$. Instead, any non-zero interaction strictly degrades performance. The root cause is a fundamental QFI bound: for any measurement performed solely on the system qubit (partial trace over ancilla), the Quantum Fisher Information cannot exceed $T_H^2$, giving $\Delta\theta \geq 1/T_H$ — independent of the interaction Hamiltonian, the ancilla state, or the beam-splitter settings.
 
 **What the optimiser does find**: It correctly identifies that longer holding times $T_H$ give better sensitivity ($\Delta\theta_{\text{SQL}} = 1/T_H$), that $\alpha_{ij} = 0$ is optimal (any interaction is detrimental), and converges to the SQL exactly, validating the correctness of the implementation. **What the optimiser cannot find** (because it does not exist within this model): any configuration achieving $\Delta\theta < 1/T_H$ or any configuration where entanglement improves the $S$-only measurement.
 
-🔍 **Open items**: (a) Does a **joint measurement** on S+A (e.g., $J_z^S + J_z^A$, parity measurement) unlock sensitivity enhancement beyond the $N=1$ SQL, corresponding to $N=2$ Heisenberg scaling? (b) Can **interaction-based readout** (an additional interaction period after the hold, before the second BS) map ancilla correlations back onto S, enabling enhancement? (c) What happens with **multiple particles** ($N > 1$ per subsystem), where spin-squeezing and two-axis counter-twisting can generate metrologically useful entanglement? (d) Would a **different estimation strategy** (e.g., Bayesian estimation or maximum-likelihood) recover sensitivity when operating at fringe extrema, where the error-propagation formula diverges?
+**Open items**: (a) Does a **joint measurement** on S+A (e.g., $J_z^S + J_z^A$, parity measurement) unlock sensitivity enhancement beyond the $N=1$ SQL, corresponding to $N=2$ Heisenberg scaling? (b) Can **interaction-based readout** (an additional interaction period after the hold, before the second BS) map ancilla correlations back onto S, enabling enhancement? (c) What happens with **multiple particles** ($N > 1$ per subsystem), where spin-squeezing and two-axis counter-twisting can generate metrologically useful entanglement? (d) Would a **different estimation strategy** (e.g., Bayesian estimation or maximum-likelihood) recover sensitivity when operating at fringe extrema, where the error-propagation formula diverges?

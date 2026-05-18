@@ -53,17 +53,17 @@ Controlled variables across the survey include: **resource normalization** (same
 
 | Model | Input State | Noise | Expected $\alpha$ | Implementation Status |
 |---|---|---|---|---|
-| Ideal MZI coherent | $\vert\alpha\rangle\otimes\vert0\rangle$ | None | $-0.5$ ($\Delta\phi = 1/\sqrt{N}$) | ✅ |
-| Ideal MZI NOON | $(\vert N,0\rangle + \vert0,N\rangle)/\sqrt{2}$ | None | $-1.0$ ($\Delta\phi = 1/N$) | ✅ |
-| Ideal MZI twin-Fock | Uniform $\sum\vert n,N-n\rangle/\sqrt{N+1}$ | None | $-0.5$ ($\Delta\phi \approx \sqrt{3}/N$, SQL scaling under $J_z$) | ✅ |
-| MZI + one-body loss | Any | $L=\sqrt{\gamma_1}\,a_1$ (mode 1) | Coherent: $-0.5$; NOON: $-0.5$ (collapse) | ✅ |
-| MZI + phase diffusion | Any | $L=\sqrt{\gamma_\phi}\,J_z$ | Coherent: $-0.5$; NOON: $-0.5$ (collapse); SSS: degrades toward $0$ | ✅ |
-| MZI + two-body loss | Any | $L=\sqrt{\gamma_2}\,a_1^2$ (mode 1) | All states: $\alpha \to 0$ at large $N$ (prediction) | ✅ |
-| MZI + detection noise | Any | $\eta$ binomial channel | $\alpha \to -0.5$, $C \to \eta^{-1/2}$ | ✅ |
-| Squeezed-vacuum injection | $S(\xi)\vert0\rangle\otimes\vert0\rangle$ (mode 0 squeezed, mode 1 vacuum) | None | $-1.0$ at large $N$, $F_Q = 2\langle N\rangle(\langle N\rangle+1)$ | ✅ |
-| Squeezed-vacuum + lossy MZI | Squeezed vacuum + one-body loss | $\gamma_1$ | $\alpha$ degrades from $-1.0$ toward $-0.5$ with increasing loss | ✅ |
-| Kerr-nonlinear MZI | NOON (default), configurable | Kerr $\chi(n_1^2+n_2^2)$ | State-dependent ($F_Q$ invariant); NOON: $-1.0$ (Heisenberg) | ✅ (custom model) |
-| Weak-value MZI | Coherent (analytical) | Post-selection | $-0.5$, $C = 1/\cos\delta = 1/\sqrt{1-p_{\text{ps}}}$ | ✅ (custom model) |
+| Ideal MZI coherent | $\vert\alpha\rangle\otimes\vert0\rangle$ | None | $-0.5$ ($\Delta\phi = 1/\sqrt{N}$) | PASS |
+| Ideal MZI NOON | $(\vert N,0\rangle + \vert0,N\rangle)/\sqrt{2}$ | None | $-1.0$ ($\Delta\phi = 1/N$) | PASS |
+| Ideal MZI twin-Fock | Uniform $\sum\vert n,N-n\rangle/\sqrt{N+1}$ | None | $-0.5$ ($\Delta\phi \approx \sqrt{3}/N$, SQL scaling under $J_z$) | PASS |
+| MZI + one-body loss | Any | $L=\sqrt{\gamma_1}\,a_1$ (mode 1) | Coherent: $-0.5$; NOON: $-0.5$ (collapse) | PASS |
+| MZI + phase diffusion | Any | $L=\sqrt{\gamma_\phi}\,J_z$ | Coherent: $-0.5$; NOON: $-0.5$ (collapse); SSS: degrades toward $0$ | PASS |
+| MZI + two-body loss | Any | $L=\sqrt{\gamma_2}\,a_1^2$ (mode 1) | All states: $\alpha \to 0$ at large $N$ (prediction) | PASS |
+| MZI + detection noise | Any | $\eta$ binomial channel | $\alpha \to -0.5$, $C \to \eta^{-1/2}$ | PASS |
+| Squeezed-vacuum injection | $S(\xi)\vert0\rangle\otimes\vert0\rangle$ (mode 0 squeezed, mode 1 vacuum) | None | $-1.0$ at large $N$, $F_Q = 2\langle N\rangle(\langle N\rangle+1)$ | PASS |
+| Squeezed-vacuum + lossy MZI | Squeezed vacuum + one-body loss | $\gamma_1$ | $\alpha$ degrades from $-1.0$ toward $-0.5$ with increasing loss | PASS |
+| Kerr-nonlinear MZI | NOON (default), configurable | Kerr $\chi(n_1^2+n_2^2)$ | State-dependent ($F_Q$ invariant); NOON: $-1.0$ (Heisenberg) | PASS (custom model) |
+| Weak-value MZI | Coherent (analytical) | Post-selection | $-0.5$, $C = 1/\cos\delta = 1/\sqrt{1-p_{\text{ps}}}$ | PASS (custom model) |
 
 All models above are implemented in the unified survey pipeline (`src/analysis/scaling_survey.py`). Standard MZI models use the built-in noise-channel pipeline; Kerr and weak-value models are registered as custom-sensitivity models (`custom_sensitivity_fn`). The default survey (`create_default_survey`) includes all models. See also the extended set of custom models in the interactive survey page (non-Gaussian, ancilla-assisted, thermal, cavity-enhanced, dynamical decoupling, distributed MZI, tilt-to-length noise).
 
@@ -109,20 +109,20 @@ The unified scaling survey pipeline (`src/analysis/scaling_survey.py`) and inter
 
 | Check | Status | Evidence |
 |---|---|---|
-| **Coherent-state SQL scaling (ideal)** | ✅ | `test_coherent_delta_phi_sql_scaling` confirms $\Delta\phi = 1/\sqrt{N}$ within 0.1% for $N \in \{4, 8\}$. |
-| **NOON Heisenberg scaling (ideal)** | ✅ | `test_noon_delta_phi_scales_as_one_over_N` confirms $\Delta\phi = 1/N$ to machine precision for $N \in \{2, 4, 8, 16\}$. |
-| **Squeezed-vacuum scaling (ideal)** | ✅ | `test_squeezed_vacuum_qfi_formula` confirms $F_Q = 2\langle N\rangle(\langle N\rangle+1)$ within 1% truncation error. |
-| **NOON collapse under one-body loss** | ✅ (pipeline works) | `test_loss_noise_produces_finite_delta_phi` confirms loss channel produces finite $\Delta\phi$ values. Systematic $\alpha$-transition curves pending execution. |
-| **Two-body loss: scaling collapse** | ✅ (pipeline works) | `test_two_body_loss_configuration` confirms ``noise_type="two_body"`` runs without error. Systematic $\alpha\to0$ verification pending. |
-| **Phase-diffusion: coherent resilience** | ✅ (pipeline works) | ``noise_type="dephasing"`` supported in `_compute_noisy_sensitivity`. Full coherent $\alpha = -0.5$ sweep pending. |
-| **Kerr-nonlinear MZI: invariant exponent** | ✅ | `test_kerr_mzi_noon_scaling` confirms $\Delta\phi = 1/N$ (Heisenberg) for NOON state regardless of $\chi$, verifying $[n_2, n_1^2+n_2^2] = 0$ invariance. |
-| **Weak-value MZI: Fisher invariance** | ✅ | `test_weak_value_mzi_sql_limited` confirms $\Delta\phi \geq 1/\sqrt{N}$ (SQL) for all $N$, verifying no metrological advantage. |
-| **Quantum state invariants** | ✅ | Trace preservation, hermiticity, and positivity assertions are baked into `evolve_mzi_lindblad()` (see lines 231-236 of `mzi_lindblad.py`). |
-| **Log-log fit quality** | ✅ | `test_fit_all_exponents_produces_valid_output` confirms `fit_scaling_exponent` returns $R^2 > 0.9$ for ideal coherent. $R^2 \geq 0.9$ threshold enforced by default. |
-| **Minimum $N$ threshold enforced** | ✅ | `fit_scaling_exponent` defaults to ``min_N=4``, filtering out $N < 4$. ``run_full_survey`` enforces ``min_N = max(4, N_min)``. |
-| **Phase-bias optimality** | ⏳ | Code currently uses a fixed operating phase (default $\pi/4$). Optimal-$\phi$ search per state is aspirational — see open items. |
+| **Coherent-state SQL scaling (ideal)** | PASS | `test_coherent_delta_phi_sql_scaling` confirms $\Delta\phi = 1/\sqrt{N}$ within 0.1% for $N \in \{4, 8\}$. |
+| **NOON Heisenberg scaling (ideal)** | PASS | `test_noon_delta_phi_scales_as_one_over_N` confirms $\Delta\phi = 1/N$ to machine precision for $N \in \{2, 4, 8, 16\}$. |
+| **Squeezed-vacuum scaling (ideal)** | PASS | `test_squeezed_vacuum_qfi_formula` confirms $F_Q = 2\langle N\rangle(\langle N\rangle+1)$ within 1% truncation error. |
+| **NOON collapse under one-body loss** | PASS (pipeline works) | `test_loss_noise_produces_finite_delta_phi` confirms loss channel produces finite $\Delta\phi$ values. Systematic $\alpha$-transition curves pending execution. |
+| **Two-body loss: scaling collapse** | PASS (pipeline works) | `test_two_body_loss_configuration` confirms ``noise_type="two_body"`` runs without error. Systematic $\alpha\to0$ verification pending. |
+| **Phase-diffusion: coherent resilience** | PASS (pipeline works) | ``noise_type="dephasing"`` supported in `_compute_noisy_sensitivity`. Full coherent $\alpha = -0.5$ sweep pending. |
+| **Kerr-nonlinear MZI: invariant exponent** | PASS | `test_kerr_mzi_noon_scaling` confirms $\Delta\phi = 1/N$ (Heisenberg) for NOON state regardless of $\chi$, verifying $[n_2, n_1^2+n_2^2] = 0$ invariance. |
+| **Weak-value MZI: Fisher invariance** | PASS | `test_weak_value_mzi_sql_limited` confirms $\Delta\phi \geq 1/\sqrt{N}$ (SQL) for all $N$, verifying no metrological advantage. |
+| **Quantum state invariants** | PASS | Trace preservation, hermiticity, and positivity assertions are baked into `evolve_mzi_lindblad()` (see lines 231-236 of `mzi_lindblad.py`). |
+| **Log-log fit quality** | PASS | `test_fit_all_exponents_produces_valid_output` confirms `fit_scaling_exponent` returns $R^2 > 0.9$ for ideal coherent. $R^2 \geq 0.9$ threshold enforced by default. |
+| **Minimum $N$ threshold enforced** | PASS | `fit_scaling_exponent` defaults to ``min_N=4``, filtering out $N < 4$. ``run_full_survey`` enforces ``min_N = max(4, N_min)``. |
+| **Phase-bias optimality** | PENDING | Code currently uses a fixed operating phase (default $\pi/4$). Optimal-$\phi$ search per state is aspirational — see open items. |
 
-💡 **Key Finding**: The survey pipeline is fully operational and validated on ideal-case QFI values. Of the 12 checks, 10 are verified by existing tests or baked into the simulation infrastructure. Two checks require systematic sweeps to produce quantitative $\alpha$ values (NOON collapse thresholds, two-body scaling collapse). One check (phase-bias optimality) is aspirational and not implemented.
+**Key Finding**: The survey pipeline is fully operational and validated on ideal-case QFI values. Of the 12 checks, 10 are verified by existing tests or baked into the simulation infrastructure. Two checks require systematic sweeps to produce quantitative $\alpha$ values (NOON collapse thresholds, two-body scaling collapse). One check (phase-bias optimality) is aspirational and not implemented.
 
 ## ✅ Success Criteria
 
@@ -151,4 +151,4 @@ This report documents a comprehensive survey of scaling exponents ($\alpha$) in 
 - **10 of 12 validation checks** are verified by existing tests; the remaining systematic $\alpha$ sweeps and the phase-bias optimality feature are open items.
 - The Models Survey table provides the definitive reference mapping each (state, noise) combination to its expected scaling exponent $\alpha$, including predicted transitions (NOON collapse under loss, two-body scaling collapse, squeezed-vacuum Heisenberg scaling).
 
-🔍 **Open items**: (a) Run the full survey sweep over all noise levels to populate the Results table with quantitative $\alpha$ measurements and transition thresholds. (b) Verify predicted thresholds for NOON collapse under one-body loss ($\alpha \to -0.5$ at $\gamma_1 T \approx 10^{-2}$) and two-body scaling collapse ($\alpha \to 0$ at large $N$). (c) Validate the analytical detection-noise bound $F_Q \to \eta F_Q$ via the full binomial convolution. (d) Implement per-state optimal-$\phi$ search to remove phase-bias dependence. (e) Extend parity-measurement analysis and determine whether parity CFI recovers QFI scaling for relevant states.
+**Open items**: (a) Run the full survey sweep over all noise levels to populate the Results table with quantitative $\alpha$ measurements and transition thresholds. (b) Verify predicted thresholds for NOON collapse under one-body loss ($\alpha \to -0.5$ at $\gamma_1 T \approx 10^{-2}$) and two-body scaling collapse ($\alpha \to 0$ at large $N$). (c) Validate the analytical detection-noise bound $F_Q \to \eta F_Q$ via the full binomial convolution. (d) Implement per-state optimal-$\phi$ search to remove phase-bias dependence. (e) Extend parity-measurement analysis and determine whether parity CFI recovers QFI scaling for relevant states.
