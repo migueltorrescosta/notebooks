@@ -14,7 +14,6 @@ Features:
 """
 
 import numpy as np
-import scipy
 import streamlit as st
 from plotly import graph_objects as go
 
@@ -24,8 +23,8 @@ from src.physics.hybrid_mzi import (
 )
 from src.physics.hybrid_system import (
     adaptive_truncation,
+    evolve_hybrid_state,
     hybrid_coherent_state,
-    hybrid_hamiltonian_n,
     hybrid_mean_photon,
     hybrid_vacuum_state,
     validate_hybrid_state,
@@ -38,20 +37,6 @@ st.set_page_config(
     page_icon="🔬",
     layout="wide",
 )
-
-
-def evolve_hybrid_unitary(
-    initial_state: np.ndarray,
-    N: int,
-    n: int,
-    omega_n: float,
-    theta_n: float,
-    t: float,
-) -> np.ndarray:
-    """Evolve hybrid state under n-th order squeezing Hamiltonian."""
-    H = hybrid_hamiltonian_n(N, n=n, omega_n=omega_n, theta_n=theta_n)
-    U = scipy.linalg.expm(-1j * H * t)
-    return U @ initial_state
 
 
 # =============================================================================
@@ -180,13 +165,13 @@ else:
 
 # Apply squeezing Hamiltonian
 with st.spinner("Evolving under squeezing Hamiltonian..."):
-    squeezed = evolve_hybrid_unitary(
-        initial_state=initial,
+    squeezed = evolve_hybrid_state(
         N=N,
         n=n_order,
         omega_n=omega_n,
         theta_n=theta_n,
         t=t_sqz,
+        initial_state=initial,
     )
 
 # Validate output state

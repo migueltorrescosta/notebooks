@@ -336,6 +336,7 @@ def run_full_survey(
     N_max: int,
     N_points: int,
     phi: float,
+    seed: int = 42,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Run the scaling survey with given parameters.
 
@@ -352,6 +353,7 @@ def run_full_survey(
         N_max: Maximum N for sweep.
         N_points: Number of log-spaced N values.
         phi: Operating phase.
+        seed: Random seed for reproducibility.
 
     Returns:
         Tuple of (raw_results_df, fitted_exponents_df).
@@ -385,7 +387,7 @@ def run_full_survey(
         noise_levels=noise_levels,
         phi=phi,
         method="qfi",
-        seed=42,
+        seed=seed,
     )
 
     # Run unified survey (handles both standard and custom models)
@@ -723,6 +725,16 @@ def main() -> None:
 
         phi = phase_selector()
 
+        st.divider()
+        st.subheader("Reproducibility", divider="gray")
+        seed = st.number_input(
+            "Random seed",
+            min_value=0,
+            max_value=999999,
+            value=42,
+            help="For reproducible random sampling.",
+        )
+
     # Initialize or use cached results
     if "survey_results" not in st.session_state:
         st.session_state.survey_results = None
@@ -744,6 +756,7 @@ def main() -> None:
                     N_max=N_max,
                     N_points=N_points,
                     phi=phi,
+                    seed=int(seed),
                 )
 
                 st.session_state.survey_results = raw_df

@@ -86,6 +86,7 @@ def build_1d_hamiltonian(
     potential_function: Callable[[float], float],
     boundary_condition: BoundaryCondition,
     mass: float = 1.0,
+    x_grid: np.ndarray | None = None,
 ) -> scipy.sparse.csc_matrix:
     """Build 1D Hamiltonian using finite differences.
 
@@ -102,6 +103,9 @@ def build_1d_hamiltonian(
         potential_function: V(x) function.
         boundary_condition: Dirichlet or Cyclic.
         mass: Particle mass (default 1.0).
+        x_grid: Optional array of spatial positions for potential evaluation.
+            If provided, V(x) is evaluated at these points instead of
+            arange(spatial_points) * dx. Must have length spatial_points.
 
     Returns:
         Hamiltonian as sparse matrix.
@@ -127,7 +131,13 @@ def build_1d_hamiltonian(
     T = scipy.sparse.csc_matrix(T / (2 * mass * dx**2))
 
     # Potential term V(x) as diagonal matrix
-    x_vals = np.arange(n, dtype=float) * dx
+    if x_grid is not None:
+        assert len(x_grid) == n, (
+            f"x_grid length {len(x_grid)} must match spatial_points {n}"
+        )
+        x_vals = x_grid
+    else:
+        x_vals = np.arange(n, dtype=float) * dx
     V_diag = np.array([potential_function(float(x)) for x in x_vals])
     V = scipy.sparse.diags(V_diag, 0, shape=(n, n), format="csc")
 
@@ -273,6 +283,9 @@ def prepare_initial_state(
     norm = np.sqrt(np.sum(np.abs(wf) ** 2))
     if norm > 0:
         wf = wf / norm
+    assert np.isclose(np.linalg.norm(wf), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Initial state '{state_type}' not normalized: norm={np.linalg.norm(wf)}"
+    )
     return wf
 
 
@@ -289,6 +302,7 @@ class TimeEvolver:
         wave_functions: np.ndarray,
         components: np.ndarray,
         energies: np.ndarray,
+        dt: float = 1.0,
     ):
         """Initialize evolver with precomputed data.
 
@@ -296,11 +310,14 @@ class TimeEvolver:
             wave_functions: Matrix of shape (n_levels, n_points).
             components: Overlap with initial state (n_levels,).
             energies: Eigenvalues (n_levels,).
+            dt: Time step scaling factor applied in the phase evolution
+                as exp(-i * dt * E_k * t). Default 1.0.
 
         """
         self.wave_functions = wave_functions
         self.components = components
         self.energies = energies
+        self.dt = dt
 
     def evolve(self, t: float) -> np.ndarray:
         """Evolve to time t.
@@ -316,8 +333,8 @@ class TimeEvolver:
             Evolved wavefunction.
 
         """
-        # Phase factors: c_k * exp(-i E_k t)
-        phases = self.components * np.exp(-1.0j * t * self.energies)
+        # Phase factors: c_k * exp(-i * dt * E_k * t)
+        phases = self.components * np.exp(-1.0j * self.dt * t * self.energies)
 
         # Weighted sum of wavefunctions
         wf = np.einsum("k,kx->x", phases, self.wave_functions)
@@ -326,6 +343,9 @@ class TimeEvolver:
         norm = np.linalg.norm(wf)
         if norm > 0:
             wf = wf / norm
+        assert np.isclose(np.linalg.norm(wf), 1.0, rtol=1e-5, atol=1e-8), (
+            f"Evolved state at t={t} not normalized: norm={np.linalg.norm(wf)}"
+        )
         return wf
 
     def evolve_trajectory(
@@ -390,6 +410,9 @@ def run_simulation(
     # Initial state
     psi0 = initial_state_fn(x_grid)
     psi0 = psi0 / np.sqrt(np.sum(np.abs(psi0) ** 2))
+    assert np.isclose(np.linalg.norm(psi0), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Initial state not normalized after normalization: norm={np.linalg.norm(psi0)}"
+    )
 
     # Hamiltonian
     bc = (
@@ -407,6 +430,13 @@ def run_simulation(
 
     # Orthonormality check
     ortho_error = validate_orthonormality(wf_matrix.T)
+
+    # Invariant check: total probability must be ≤ 1 (truncation may reduce it)
+    total_prob = np.sum(components**2)
+    assert total_prob <= 1.0 + 1e-12, f"Total probability exceeds 1: {total_prob}"
+    assert np.isclose(total_prob, 1.0, rtol=1e-2, atol=5e-3), (
+        f"Total probability not close to 1 (truncation artifact with {num_levels} levels): {total_prob}"
+    )
 
     return {
         "x_grid": x_grid,

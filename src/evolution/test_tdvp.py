@@ -40,7 +40,7 @@ def _make_tensor(state: np.ndarray) -> qtn.Tensor:
     )
 
 
-def _flat(t: qtn.Tensor) -> np.ndarray:
+def _make_flat(t: qtn.Tensor) -> np.ndarray:
     """Return the flat state vector stored in *t*."""
     return t.data.flatten()
 
@@ -77,7 +77,7 @@ class TestTDPVSingleSite:
         H_z = SIGMA_Z
         dt = 0.1
         updated = tdvp_single_site(tensor, site_idx=0, H_eff=H_z, dt=dt)
-        sv = _flat(updated)
+        sv = _make_flat(updated)
         assert sv is not None
         assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)
 
@@ -87,8 +87,8 @@ class TestTDPVSingleSite:
         H_z = SIGMA_Z
         dt = 0.05
         updated = tdvp_single_site(tensor, site_idx=0, H_eff=H_z, dt=dt)
-        norm_before = np.linalg.norm(_flat(tensor))
-        norm_after = np.linalg.norm(_flat(updated))
+        norm_before = np.linalg.norm(_make_flat(tensor))
+        norm_after = np.linalg.norm(_make_flat(updated))
         assert norm_before == pytest.approx(norm_after, rel=1e-6)
 
     def test_any_hermitian_hamiltonian_works(self) -> None:
@@ -97,7 +97,7 @@ class TestTDPVSingleSite:
         H_x = SIGMA_X
         dt = 0.1
         updated = tdvp_single_site(tensor, site_idx=0, H_eff=H_x, dt=dt)
-        assert _flat(updated) is not None
+        assert _make_flat(updated) is not None
 
     def test_rejects_non_hermitian_hamiltonian(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
@@ -124,7 +124,7 @@ class TestApplyTrotterStep:
         H_terms = [SIGMA_Z]
         dt = 0.1
         result = apply_trotter_step(tensor, H_terms, dt, order=order)
-        sv = _flat(result)
+        sv = _make_flat(result)
         assert sv is not None
         assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)
 
@@ -135,9 +135,9 @@ class TestApplyTrotterStep:
         dt = 0.01
         exact = evolve_exact(state, H_z, dt, np.random.default_rng(42))
         result_1 = apply_trotter_step(tensor, [SIGMA_Z], dt, order=1)
-        fidelity_1 = compute_state_fidelity(_flat(result_1), exact)
+        fidelity_1 = compute_state_fidelity(_make_flat(result_1), exact)
         result_2 = apply_trotter_step(tensor, [SIGMA_Z], dt, order=2)
-        fidelity_2 = compute_state_fidelity(_flat(result_2), exact)
+        fidelity_2 = compute_state_fidelity(_make_flat(result_2), exact)
         assert fidelity_2 >= fidelity_1 - 1e-6
 
     def test_invalid_trotter_order_raises_error(self) -> None:
@@ -299,7 +299,7 @@ class TestExactEvolution:
             n_sites=1,
             config=TDVPConfig(dt=0.01, trotter_order=2),
         )
-        sv = _flat(result.final_tensor)
+        sv = _make_flat(result.final_tensor)
         fidelity = compute_state_fidelity(sv, psi_exact)
         assert fidelity > 0.99
 
@@ -310,12 +310,12 @@ class TestProjectToManifold:
     def test_projected_state_normalized(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = project_to_manifold(state, n_sites=1, local_dim=2)
-        assert np.linalg.norm(_flat(tensor)) == pytest.approx(1.0, rel=1e-6)
+        assert np.linalg.norm(_make_flat(tensor)) == pytest.approx(1.0, rel=1e-6)
 
     def test_product_state_projects_exactly(self) -> None:
         state = np.array([1, 0, 0, 0], dtype=complex)
         tensor = project_to_manifold(state, n_sites=1, local_dim=2)
-        reconstructed = _flat(tensor)
+        reconstructed = _make_flat(tensor)
         fidelity = compute_state_fidelity(state, reconstructed)
         assert fidelity > 1 - 1e-10
 
@@ -327,7 +327,7 @@ class TestProjectToManifold:
             local_dim=2,
             epsilon=1e-8,
         )
-        reconstructed = _flat(tensor)
+        reconstructed = _make_flat(tensor)
         fidelity = compute_state_fidelity(state, reconstructed)
         assert fidelity > 0.99
 
@@ -403,7 +403,7 @@ class TestTDVPAgainstExact:
             n_sites=1,
             config=TDVPConfig(dt=0.005, trotter_order=2),
         )
-        sv = _flat(result.final_tensor)
+        sv = _make_flat(result.final_tensor)
         fidelity = compute_state_fidelity(sv, psi_exact)
         assert fidelity > 1 - 1e-4
 
@@ -429,7 +429,7 @@ class TestTDVPAgainstExact:
         )
         psi_exact = evolve_exact(state, H, t=0.05, rng=rng)
         fidelity = compute_state_fidelity(
-            _flat(result.final_tensor),
+            _make_flat(result.final_tensor),
             psi_exact,
         )
         relative_error = 1 - fidelity
@@ -461,7 +461,7 @@ class TestTDVPSmallSystemComparison:
         )
         psi_exact = evolve_exact(state, H, t=0.02, rng=rng)
         fidelity = compute_state_fidelity(
-            _flat(result.final_tensor),
+            _make_flat(result.final_tensor),
             psi_exact,
         )
         assert fidelity > 0.5
@@ -537,6 +537,6 @@ class TestTrotterStepSimple:
         tensor = _make_tensor(state)
         H_local = SIGMA_Z
         result = apply_trotter_step_simple(tensor, H_local, dt=0.1)
-        sv = _flat(result)
+        sv = _make_flat(result)
         assert sv is not None
         assert np.linalg.norm(sv) == pytest.approx(1.0, rel=1e-6)

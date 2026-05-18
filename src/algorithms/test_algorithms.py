@@ -28,8 +28,8 @@ class TestGaussianMetropolisHastings:
     def test_given_gaussian_generator_then_samples_are_normally_distributed(
         self,
     ) -> None:
-        sampler = GaussianMetropolisHastings(initial_configuration=0.0)
-        np.random.seed(42)
+        rng = np.random.default_rng(42)
+        sampler = GaussianMetropolisHastings(initial_configuration=0.0, rng=rng)
         samples = [sampler.generator_function() for _ in range(1000)]
 
         mean = np.mean(samples)
@@ -38,13 +38,13 @@ class TestGaussianMetropolisHastings:
         assert std == pytest.approx(1.0, abs=0.3)
 
     def test_given_higher_likelihood_then_acceptance_is_more_likely(self) -> None:
-        np.random.seed(42)
+        rng = np.random.default_rng(42)
 
         current_likelihood = 1.0
         accepted_count = sum(
             1
             for _ in range(100)
-            if GaussianMetropolisHastings(initial_configuration=0.0).approval_function(
+            if GaussianMetropolisHastings(initial_configuration=0.0, rng=rng).approval_function(
                 -0.1,
                 current_likelihood,
             )
@@ -52,12 +52,12 @@ class TestGaussianMetropolisHastings:
         assert accepted_count > 50
 
     def test_given_lower_likelihood_then_acceptance_is_less_likely(self) -> None:
-        np.random.seed(42)
+        rng = np.random.default_rng(42)
         current_likelihood = 1.0
         accepted_count = sum(
             1
             for _ in range(100)
-            if GaussianMetropolisHastings(initial_configuration=0.0).approval_function(
+            if GaussianMetropolisHastings(initial_configuration=0.0, rng=rng).approval_function(
                 5.0,
                 current_likelihood,
             )
@@ -65,8 +65,8 @@ class TestGaussianMetropolisHastings:
         assert accepted_count < 30
 
     def test_given_iterations_then_configuration_evolves(self) -> None:
-        sampler = GaussianMetropolisHastings(initial_configuration=0.0)
-        np.random.seed(123)
+        rng = np.random.default_rng(123)
+        sampler = GaussianMetropolisHastings(initial_configuration=0.0, rng=rng)
 
         for _ in range(100):
             sampler.run_single_iteration()
@@ -114,7 +114,7 @@ class TestGaussianMetropolisHastings:
 
 class TestEdgeCases:
     def test_given_low_temperature_then_acceptance_is_deterministic(self) -> None:
-        np.random.seed(42)
+        """Placeholder: acceptance becomes deterministic in low-temperature limit."""
 
     def test_given_high_likelihood_move_then_acceptance_eventually_succeeds(
         self,
@@ -133,8 +133,8 @@ class TestStatisticalProperties:
     def test_given_symmetric_proposal_then_detailed_balance_holds_approximately(
         self,
     ) -> None:
-        sampler = GaussianMetropolisHastings(initial_configuration=0.0)
-        np.random.seed(42)
+        rng = np.random.default_rng(42)
+        sampler = GaussianMetropolisHastings(initial_configuration=0.0, rng=rng)
         sampler.run_iterations(1000)
 
         neg_count = sum(1 for x in sampler.configuration_history if x < 0)
@@ -144,8 +144,8 @@ class TestStatisticalProperties:
         assert 0.3 < ratio < 3.0
 
     def test_given_gaussian_target_then_variance_is_reasonable(self) -> None:
-        sampler = GaussianMetropolisHastings(initial_configuration=0.0)
-        np.random.seed(42)
+        rng = np.random.default_rng(42)
+        sampler = GaussianMetropolisHastings(initial_configuration=0.0, rng=rng)
         sampler.run_iterations(2000)
 
         samples = np.array(sampler.configuration_history[100:])
@@ -154,8 +154,8 @@ class TestStatisticalProperties:
         assert 0.1 < variance < 2.0
 
     def test_given_many_samples_then_both_signs_appear(self) -> None:
-        sampler = GaussianMetropolisHastings(initial_configuration=0.0)
-        np.random.seed(42)
+        rng = np.random.default_rng(42)
+        sampler = GaussianMetropolisHastings(initial_configuration=0.0, rng=rng)
         sampler.run_iterations(1000)
 
         has_positive = any(x > 0 for x in sampler.configuration_history)
@@ -167,12 +167,12 @@ class TestStatisticalProperties:
 
 class TestReproducibility:
     def test_given_same_seed_then_results_are_identical(self) -> None:
-        np.random.seed(42)
-        sampler1 = GaussianMetropolisHastings(initial_configuration=0.0)
+        rng1 = np.random.default_rng(42)
+        sampler1 = GaussianMetropolisHastings(initial_configuration=0.0, rng=rng1)
         sampler1.run_iterations(100)
 
-        np.random.seed(42)
-        sampler2 = GaussianMetropolisHastings(initial_configuration=0.0)
+        rng2 = np.random.default_rng(42)
+        sampler2 = GaussianMetropolisHastings(initial_configuration=0.0, rng=rng2)
         sampler2.run_iterations(100)
 
         assert sampler1.configuration_history == pytest.approx(
@@ -180,12 +180,12 @@ class TestReproducibility:
         )
 
     def test_given_different_seeds_then_results_differ(self) -> None:
-        np.random.seed(42)
-        sampler1 = GaussianMetropolisHastings(initial_configuration=0.0)
+        rng1 = np.random.default_rng(42)
+        sampler1 = GaussianMetropolisHastings(initial_configuration=0.0, rng=rng1)
         sampler1.run_iterations(100)
 
-        np.random.seed(123)
-        sampler2 = GaussianMetropolisHastings(initial_configuration=0.0)
+        rng2 = np.random.default_rng(123)
+        sampler2 = GaussianMetropolisHastings(initial_configuration=0.0, rng=rng2)
         sampler2.run_iterations(100)
 
         assert sampler1.configuration_history != pytest.approx(

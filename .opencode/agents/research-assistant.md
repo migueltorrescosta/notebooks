@@ -20,38 +20,20 @@ You create simulations to improve knowledge around these quantum concepts:
 Follow these steps **in order** for every task that requires planning a simulation.
 
 ## 1. Before writing a plan
-1. **Challenge assumptions**: Highlight likely mistakes present in the users' request.
 
-Follow the standard pre-work steps outlined in [Coding Workflow §1](#1-before-starting-work).
+1. **Survey existing reports** — Read `reports/` to identify gaps not yet covered by prior simulations.
+2. **Clarify the research question** — Distill the physics claim into a specific, testable hypothesis with a clear null and alternative.
+3. **Identify the minimum Hilbert space** — Determine the dimension, basis, and operators needed to answer the question without unnecessary overhead.
+4. **Challenge assumptions** — Highlight likely mistakes present in the user's request before drafting the plan.
 
 ## 2. During implementation
 
 1. Write the document in `reports/` using the format `YYYY-MM-DD-{title}.md` (e.g., `2026-05-07-example.md`).
-2. Include the following sections:
-   1. Hypothesis: Describe succintly what is the goal of this research avenue.
-   2. Theoretical model: describe what is the system to be simulated.
-   3. Numerical simulation: describe implementation considerations. Do NOT include filepaths nor considerations specific to this repo
-3. Highlight likely failure conditions for the simulation, answering the question "What are the most likely failure modes?"
-4. Avoid breaklines in prose unless necessary. Use paragraphs with inline equations as much as possible.
+2. Follow the **Report Format** below: include all mandatory sections listed in the Section Order table, in the prescribed order, with the prescribed emoji headers.
 
 # 📝 Report Format
 
 Every report in `reports/` uses `YYYY-MM-DD-{title}.md` and MUST follow the emoji system below.
-
-## Section Header Emojis
-
-| Section | Purpose |
-|---------|---------|
-| `## 🧪 Hypothesis` | Core claim being tested |
-| `## ⚛️ Theoretical Model` | Hilbert space, Hamiltonian, protocol description |
-| `## 💻 Numerical Simulation` | Implementation strategy, parameters, methods |
-| `## ⚠️ Expected Failure Conditions` | Failure modes and mitigations |
-| `## 🔬 Results` | Quantitative findings and key results |
-| `## ✅ Success Criteria` | Criteria table verifying success |
-| `## 📊 Models Survey` | Central model-to-exponent mapping table |
-| `## 📐 Physical Invariants` | Known bounds, invariants, conservation laws |
-| `## 📝 Quick Reference` | Reference / cheat-sheet sections |
-| `## 🏁 Conclusions` | Summary of findings and next steps |
 
 ## Inline Emojis
 
@@ -73,6 +55,8 @@ Every report in `reports/` uses `YYYY-MM-DD-{title}.md` and MUST follow the emoj
 
 ## Section Order
 
+Reference documents (files whose primary title is 📝 Quick Reference or similar) are exempt from the mandatory-section requirement.
+
 | Section | Emoji | Mandatory? | When |
 |---------|-------|------------|------|
 | Hypothesis | 🧪 | ✅ | Always |
@@ -82,6 +66,7 @@ Every report in `reports/` uses `YYYY-MM-DD-{title}.md` and MUST follow the emoj
 | Expected Failure Conditions | ⚠️ | ✅ | Always |
 | Results | 🔬 | ✅ | Always |
 | Success Criteria | ✅ | ✅ | Always |
+| Physical Invariants / Analytical Bounds | ⚖️ | 🔲 | When needed for conservation-law analysis or analytical bound derivation. Use `###` heading level. |
 | Conclusions | 🏁 | ✅ | Always |
 
 ## Per-Section Patterns
@@ -108,10 +93,11 @@ Table mapping components to descriptions (e.g., operator construction, state pre
 Each entry includes: failure condition name, description (1-2 sentences), and mitigation strategy. Table format is required: `| Failure | Description | Mitigation |`.
 
 ### 🔬 Results
-**Required in every report.** Use a `⏳`-only table before experiments and a `✅/❌` table after.
-- **Pre-experiment**: table with `⏳` (pending) status — marks what hasn't been run yet
-- **Post-experiment**: table with actual status, plus a **Key Finding** paragraph starting with `💡`
-- Completed reports include quantitative summary table and `🔗` links to code modules
+**Required in every report.** Organise results as subsections, one per experiment. Each subsection ends with a 💡 Key Finding paragraph. A summary table may conclude the section.
+
+- **Pre-experiment**: a table with `⏳` (pending) status — marks what hasn't been run yet
+- **Post-experiment**: a table with actual status (✅/❌), plus a **Key Finding** paragraph starting with `💡`
+- Completed reports include a quantitative summary table and `🔗` links to code modules
 - If no simulation was needed (pure analytical), state that clearly
 
 ### ✅ Success Criteria
@@ -119,32 +105,28 @@ Each entry includes: failure condition name, description (1-2 sentences), and mi
 - **Post-experiment**: add a `Status` column with emoji (✅/❌/🔄)
 - Follow the criteria table with a short prose paragraph that summarizes what passed and what failed, provides brief reasoning, and suggests possible next steps to test.
 
-#### 📐 Analytical Bounds
-Optional subsection containing known analytical bounds, invariants, or conservation laws relevant to the success criteria. Include explicit mathematical expressions and their domain of validity.
+### ⚖️ Physical Invariants / Analytical Bounds
+Optional section documenting known analytical bounds, conservation laws, and invariants relevant to the simulation. Include explicit mathematical expressions and their domain of validity. This section appears only when conservation-law analysis is central to the report (e.g., when verifying that a noisy channel respects Pauli constraints or that a metrological bound is tight). When used, it serves as a reference for the assertions in the Validation block of the Numerical Simulation section. May be titled either **Physical Invariants** or **Analytical Bounds** depending on the nature of the content.
 
 ### 🏁 Conclusions
 Final wrap-up section. Summarize what was learned, whether the hypothesis was supported, and the broader implications. Reference specific Results and any Open Questions that remain. This section must always appear last in the document.
 
-#### 🔍 Open Questions
-Optional unsolved issues and future directions. Use the `🔍` inline emoji to start key open-item paragraphs.
+Optional unsolved issues and future directions. Start the paragraph with the 🔍 inline emoji — do not use a heading.
 
 ## Rules
 
 1. **Section header emoji** goes after `## ` and before the title text: `## 🧪 Hypothesis` (not `## Hypothesis 🧪`).
 2. **Inline callouts** get the emoji at the **start of the paragraph**, followed by a space.
 3. **Status columns** use emojis only (✅/❌/⏳/🔄) — never literal words like `**PASS**` or `**PENDING**`.
-4. **No emoji inflation** — each emoji has one distinct meaning; don't add decorative emojis to every bullet.
+4. **No emoji inflation** — each emoji has one distinct meaning; don't add decorative emojis to every bullet or use emojis beyond the defined set.
 5. **First occurrence only** — section emojis appear once per document, not on every sub-subsection.
 6. For **reference documents** (e.g., `Physics-Reference.md`), apply emojis to numbered sections where they fit semantically.
 7. **Don't** include repo-specific filepaths in the Numerical Simulation section (theoretical model should be implementation-agnostic).
 8. **Don't** use breaklines in prose when inline equations suffice.
-9. **Don't** use decorative emojis beyond the defined set.
-10. **Don't** write `**PASS**`/`**FAIL**` in tables — use emoji only.
-11. **Don't** use the `|` character inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.
-12. **Don't** use the `\ket` as it is not recognised by the used Markdown engine.
-13. **Use** `\mathbb{1}_n` to signify an $n$ dimensional identity operator.
-14. **Use** existing external implementation (`qutip`, `scipy`, etc) whenever possible. Do not re-implement existing functionality.
-15. **Bold font for first mentions** — use **bold font** whenever a concept is first mentioned and when it is defined in the text.
+9. **Don't** use the `|` character inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.
+10. **Don't** use the `\ket` as it is not recognised by the used Markdown engine.
+11. **Use** `\mathbb{1}_n` to signify an $n$ dimensional identity operator.
+12. **Use** existing external implementation (`qutip`, `scipy`, etc) whenever possible. Do not re-implement existing functionality.
 
 # Coding Workflow
 Follow these steps **in order** for every task that requires writing code.
@@ -159,8 +141,7 @@ Follow these steps **in order** for every task that requires writing code.
 1. Add **tests first** (TDD approach) — unit tests co-located with modules in `src/`, integration/E2E tests in `tests/`
 2. Match existing patterns in the codebase
 3. Choose the simpler approach; avoid large refactors or unrelated changes
-4. **UI (`pages/`) MUST NOT contain physics logic** — keep layers strictly separated
-5. Use **type hints** for all function signatures
+4. Use **type hints** for all function signatures
 
 ## 3. At the end
 
@@ -169,53 +150,64 @@ Before completing any task, verify:
 1. **Tests pass**: Run `uv run pytest . --testmon --quiet --tb=short`
 2. **Linter passes**: Run `uv run ruff check . --fix && uv run ruff format .`
 3. **Type checks pass**: Run `uv run mypy .`
-4. **Reused existing code** where possible — no duplicated logic
-5. **No silent physics errors** — explicit assertions in place (trace conservation, unitarity, positivity)
-6. **Performance within 100 ms** constraint per individual simulation
-7. **Randomness handled** via `seed` parameter (deterministic by default)
-8. If a new experiment was run based on a report, add a "Conclusions" section to the paper detailing the results.
+4. If a new experiment was run based on a report, add a "Conclusions" section to the paper detailing the results.
 
 > When in doubt, prefer **simplicity, explicitness, and reuse**.
 
 # Project Structure
 
 ```
-notebooks/                   # Root folder (streamlit app)
+This repository root contains:
+├── .streamlit/             # Streamlit configuration directory
+├── jupyter/                # Jupyter notebooks for exploration
+├── mathematica/            # Mathematica notebooks
+├── pages/                  # Streamlit UI (one page per simulation)
 ├── reports/                # Markdown files describing WIP and completed research
 │                           # Format: YYYY-MM-DD-{title}.md (e.g., 2026-05-07-example.md)
-├── pages/                   # Streamlit UI (20+ pages, one per simulation)
-├── src/                     # Core modules organized by domain
+├── revise/                 # Revision files
+├── src/                    # Core modules organized by domain
 │   ├── algorithms/         # Algorithm implementations (*.py)
 │   ├── analysis/           # Analysis and estimation methods (*.py)
 │   ├── evolution/          # Time evolution solvers (*.py)
 │   ├── physics/            # Physics models and operators (*.py)
 │   ├── utils/              # Utilities and shared code (*.py)
 │   └── visualization/      # Plotting and visualization (*.py)
-├── tests/                   # All tests (unit, integration, E2E)
+├── tests/                  # Integration & E2E tests
 │   ├── test_*.py           # Test files (pytest discovers from pyproject.toml)
 │   └── ...                 # Additional test files
-├── jupyter/                 # Jupyter notebooks for exploration
-├── mathematica/             # Mathematica notebooks
-├── Home.py                  # Main streamlit entrypoint
-├── conftest.py              # Root conftest adds notebooks/ to sys.path
-├── pyproject.toml           # Project configuration (pytest, mypy, ruff settings)
-└── uv.lock                  # Dependency lock file
+├── _config.yml             # Jupyter Book configuration
+├── _toc.yml                # Jupyter Book table of contents
+├── compare_plan_vs_simulation.py  # Plan-simulation comparison script
+├── conftest.py             # Root conftest adds project root to sys.path
+├── Home.py                 # Main streamlit entrypoint
+├── intro.md                # Introduction page
+├── LICENSE                 # License file
+├── opencode.json           # OpenCode agent configuration
+├── pyproject.toml          # Project configuration (pytest, mypy, ruff settings)
+├── README.md               # Repository documentation
+└── uv.lock                 # Dependency lock file
 ```
+
+> **Note**: Unit tests live alongside source modules in `src/` subdirectories. Integration and E2E tests live in `tests/`. Both paths are in `testpaths` in `pyproject.toml`.
+>
+> **Tip**: The root `conftest.py` inserts the project root into `sys.path`, enabling absolute imports like `from src.physics.mzi_states import two_mode_jz_operator` in both `pages/` and `tests/`. This is why step 1.2 in the Coding Workflow ("Read relevant code") works without any special import setup.
+>
+> **Capability overview**: The `src/__init__.py` package docstring lists the simulation capabilities. Consult it for a quick capability overview.
 
 # Quick Reference
 
 ```bash
 uv run mypy .                      # Type checks
-uv run radon mi . -n B             # Code complexity analysis (requires: uv tool install radon)
+uv run radon mi . -n B             # Code complexity analysis
 uv run streamlit run Home.py       # Start streamlit app
 uv sync                            # Update dependencies
 ```
 
 **Configuration**: `pyproject.toml` defines pytest (testpaths, warnings), mypy (strict typing), and ruff settings.
 
-# 🌌 Physics Scope (MANDATORY)
+## 🌌 Physics Scope Checklist
 
-Each simulation MUST document:
+This is a checklist of items that MUST appear in the **`## ⚛️ Theoretical Model`** section's prose — it is **not** a standalone section to write.
 
 | Item | Description |
 |------|-------------|
@@ -264,6 +256,21 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 - **No public interface changes** — preserve existing function signatures
 - **Package management**: `uv` only
 
+## Streamlit Page Conventions
+
+Each page in `pages/` follows:
+
+- **Colour scheme** — use semantic dividers as documented in README.md (blue=primary, gray=setup, green=results, orange=data, red=summary, violet=special).
+
+1. **No physics logic** — all computation lives in `src/` modules; pages import from `src.*` and only orchestrate UI rendering
+2. **Imports** — use `from src.physics.module import ...` (the project root is on `sys.path` via `conftest.py`)
+3. **Error handling** — wrap simulation calls in `try/except` and display errors via `st.error`; never let exceptions propagate unhandled
+4. **State** — use `st.session_state` for persistent UI state (widget values, cached results); use function return values for transient simulation results
+5. **Seeds** — accept an optional user-provided seed; fall back to a deterministic default when none is given
+6. **Page naming** — use Snake_Case.py; Streamlit converts underscores to spaces in the sidebar navigation.
+7. **Page config** — every page calls `st.set_page_config(page_title=..., page_icon=..., layout="wide")` as its first Streamlit call.
+8. **Subpackage docstring** — `pages/__init__.py` contains the subpackage docstring; refer to it for an overview of available simulation pages.
+
 # 🧪 Testing Strategy
 
 | Test Type | Purpose | Tools |
@@ -277,7 +284,7 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 
 ## Conventions
 
-- **Naming**: Use domain descriptions, not implementation steps — `test_tracing_both_subsystems_preserves_trace`, not `test_tr_a_tr_b_tr`. Drop `should_` — `test_evolved_state_remains_normalized`, not `test_evolved_state_should_remain_normalized`. Use `given_`/`then_` as delimiters: `test_given_zero_time_then_returns_initial_state`.
+- **Naming**: Use domain descriptions, not implementation steps — `test_twin_fock_normalized`, not `test_normalized_twin_fock`. Drop `should_` — `test_evolved_state_remains_normalized`, not `test_evolved_state_should_remain_normalized`. The `given_`/`then_` delimiters are optional; prefer flat descriptive names.
 - **Helpers**: Prefix fixtures with `_make_`, preconditions with `_given_`.
 - **Noise reduction**: Drop docstrings when class/method names are self-documenting. Drop redundant assertion messages — `assert X`, not `assert X, "Expected X"` (pytest prints the failing expression). Remove `if __name__ == "__main__": pytest.main(...)` guards and module-level section comment blocks (test classes are section boundaries in pytest output).
 - **Error testing**: Use the 2-line `with pytest.raises(ValueError):` form, never `try`/`except`.

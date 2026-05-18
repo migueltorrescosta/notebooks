@@ -2,9 +2,9 @@
 
 ## 🧪 Hypothesis
 
-Given a fixed resource of **2 particles** in a Mach–Zehnder interferometer:
+Given a fixed resource of **2 particles** in a **Mach–Zehnder interferometer**:
 
-1. **Configuration A (ancilla-assisted)**: 1 particle in the two-mode interferometer system + 1 ancilla spin-½ particle coupled via an optimized $J_z/J_x \otimes J_z/J_x$ interaction during the holding time — achieves QFI no larger than $T_H^2$ at holding strength $T_H$, regardless of the coupling coefficients $\alpha$.
+1. **Configuration A (ancilla-assisted)**: 1 particle in the two-mode interferometer system + 1 ancilla spin-½ particle coupled via an optimized $J_z/J_x \otimes J_z/J_x$ interaction during the holding time — achieves **QFI** no larger than $T_H^2$ at holding strength $T_H$, regardless of the coupling coefficients $\alpha$.
 
 2. **Configuration B (two-system-particle)**: 2 particles in the two-mode interferometer system, no ancilla — achieves QFI up to $4 T_H^2$ (the standard quantum limit for 2 particles).
 
@@ -12,7 +12,7 @@ Given a fixed resource of **2 particles** in a Mach–Zehnder interferometer:
 
 ## ⚛️ Theoretical Model
 
-Both configurations share a **two-mode bosonic system** (the MZI) with mode labels 0 and 1 and basis states $\vert n_0, n_1\rangle$. Configuration A uses a **two-mode Fock system** with $N_{\max}=1$ (dimension 4) and a **spin-$\frac12$ ancilla** (dimension 2), for a total Hilbert space dimension of $4 \times 2 = 8$. Configuration B uses a **two-mode Fock system** with $N_{\max}=2$ (dimension 9) and no ancilla. Both consume **2 total particles**: Configuration A has 1 particle in the interferometer system + 1 ancillary spin, while Configuration B has 2 particles in the interferometer system. Although the truncated Hilbert space includes $\vert 0,0\rangle$ (0 particles) and $\vert N_{\max}, N_{\max}\rangle$ (2 particles), Configuration A is physically constrained to exactly 1 particle in the interferometer system, so the optimisation must be restricted to the subspace with $\langle n_0 + n_1 \rangle = 1$. The **basis ordering** follows $\text{Index} = n_0 \times (N_{\max} + 1) + n_1$, for $n_0, n_1 \in \{0, \dots, N_{\max}\}$.
+Both configurations share a **two-mode bosonic system** (the **MZI**) with mode labels 0 and 1 and basis states $\vert n_0, n_1\rangle$. Configuration A uses a **two-mode Fock system** with $N_{\max}=1$ (dimension 4) and a **spin-$\frac12$ ancilla** (dimension 2), for a total Hilbert space dimension of $4 \times 2 = 8$. Configuration B uses a **two-mode Fock system** with $N_{\max}=2$ (dimension 9) and no ancilla. Both consume **2 total particles**: Configuration A has 1 particle in the interferometer system + 1 ancillary spin, while Configuration B has 2 particles in the interferometer system. Although the truncated Hilbert space includes $\vert 0,0\rangle$ (0 particles) and $\vert N_{\max}, N_{\max}\rangle$ (2 particles), Configuration A is physically constrained to exactly 1 particle in the interferometer system, so the optimisation must be restricted to the subspace with $\langle n_0 + n_1 \rangle = 1$. The **basis ordering** follows $\text{Index} = n_0 \times (N_{\max} + 1) + n_1$, for $n_0, n_1 \in \{0, \dots, N_{\max}\}$.
 
 The **collective-spin operators** are $J_z = (n_0 - n_1)/2$ and $J_x = (a_0^\dagger a_1 + a_1^\dagger a_0)/2$, satisfying $[J_z, J_x] = i J_y$, where $J_z$ is diagonal and $J_x$ couples $\vert n_0, n_1\rangle \leftrightarrow \vert n_0\pm 1, n_1\mp 1\rangle$. For the ancilla (spin-$\frac12$): $J_z^{\text{anc}} = \sigma_z/2$, $J_x^{\text{anc}} = \sigma_x/2$.
 
@@ -151,7 +151,7 @@ assert np.sqrt(max_F_Q_B / max_F_Q_A) >= 1.0, "Ancilla cannot outperform"
 
 All criteria are satisfied or properly bounded. Criterion 3 is marked ❌ because the analytical bound holds: non-commuting interactions do not enhance the QFI beyond the $J=\frac12$ limit. This negative result is the central finding of the report — the ancilla-assisted configuration fundamentally cannot outperform the two-system-particle configuration at equal particle count. The numerical optimisation confirms the bound across all tested parameters.
 
-### 📐 Analytical Bounds
+### ⚖️ Analytical Bounds
 
 The following bounds are known analytically before numerics:
 

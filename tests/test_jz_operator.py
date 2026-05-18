@@ -22,16 +22,14 @@ from src.physics.dicke_basis import jz_operator
 from src.physics.noise_channels import NoiseConfig, build_lindblad_operators
 from src.utils.enums import OperatorBasis
 
-# =============================================================================
 # Basis Conventions
-# =============================================================================
 
 
 class TestJzBasisConventions:
     """Verify jz_operator basis conventions are consistent."""
 
     @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_dicke_basis_explicit_vs_default_should_match_default_basis(
+    def test_given_dicke_basis_explicit_vs_default_then_match_default_basis(
         self, N: int
     ) -> None:
         mat_default = jz_operator(N)
@@ -44,7 +42,7 @@ class TestJzBasisConventions:
         )
 
     @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_fock_basis_is_reversed_dicke_should_have_reversed_eigenvalues(
+    def test_given_fock_basis_is_reversed_dicke_then_have_reversed_eigenvalues(
         self, N: int
     ) -> None:
         mat_dicke = jz_operator(N, basis=OperatorBasis.DICKE)
@@ -61,16 +59,14 @@ class TestJzBasisConventions:
         )
 
 
-# =============================================================================
 # Phase diffusion off-diagonal decay ∝ (m₁ - m₂)²
-# =============================================================================
 
 
 class TestPhaseDiffusionOffDiagonalDecay:
     """Verify phase diffusion causes off-diagonal decay proportional to (m₁ - m₂)²."""
 
     @pytest.mark.parametrize("N", [4, 6])
-    def test_decay_rate_scales_with_m_difference_squared_should_scale_with_m1_minus_m2_squared(
+    def test_given_decay_rate_scales_with_m_difference_squared_then_scale_with_m1_minus_m2_squared(
         self, N: int
     ) -> None:
         gamma_phi = 0.1
@@ -127,7 +123,7 @@ class TestPhaseDiffusionOffDiagonalDecay:
             )
 
     @pytest.mark.parametrize("N", [4, 6])
-    def test_same_m_no_decay_should_not_decay_diagonal_elements(self, N: int) -> None:
+    def test_given_same_m_no_decay_then_not_decay_diagonal_elements(self, N: int) -> None:
         gamma_phi = 0.5
         config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=gamma_phi)
 
@@ -144,16 +140,14 @@ class TestPhaseDiffusionOffDiagonalDecay:
         np.testing.assert_allclose(pops, 1.0, atol=1e-4)
 
 
-# =============================================================================
 # Unitary evolution (gamma=0) unchanged
-# =============================================================================
 
 
 class TestUnitaryEvolutionUnchanged:
     """Verify unitary evolution is unaffected by the J_z fix."""
 
     @pytest.mark.parametrize("N", [3, 5, 8])
-    def test_gamma_zero_preserves_fock_state_should_only_acquire_a_phase(
+    def test_given_gamma_zero_preserves_fock_state_then_only_acquire_a_phase(
         self, N: int
     ) -> None:
         config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=0.0)
@@ -172,7 +166,7 @@ class TestUnitaryEvolutionUnchanged:
             np.testing.assert_allclose(populations, expected, atol=1e-6)
 
     @pytest.mark.parametrize("N", [4, 6])
-    def test_gamma_zero_matches_analytical_should_match_exact_unitary(
+    def test_given_gamma_zero_matches_analytical_then_match_exact_unitary(
         self, N: int
     ) -> None:
         import qutip
@@ -196,9 +190,7 @@ class TestUnitaryEvolutionUnchanged:
         np.testing.assert_allclose(final_rho, expected, atol=1e-5)
 
 
-# =============================================================================
 # Trace preservation under phase diffusion
-# =============================================================================
 
 
 class TestTracePreservationUnderPhaseDiffusion:
@@ -206,7 +198,7 @@ class TestTracePreservationUnderPhaseDiffusion:
 
     @pytest.mark.parametrize("N", [3, 5, 8])
     @pytest.mark.parametrize("gamma_phi", [0.1, 0.5, 1.0])
-    def test_trace_preserved_should_remain_exactly_1_under_phase_diffusion(
+    def test_given_trace_preserved_then_remain_exactly_1_under_phase_diffusion(
         self, N: int, gamma_phi: float
     ) -> None:
         config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=gamma_phi)
@@ -228,7 +220,7 @@ class TestTracePreservationUnderPhaseDiffusion:
         )
 
     @pytest.mark.parametrize("N", [4, 6])
-    def test_trace_preserved_coherent_state_should_remain_1_for_coherent_states(
+    def test_given_trace_preserved_coherent_state_then_remain_1_for_coherent_states(
         self, N: int
     ) -> None:
         import scipy.special
@@ -251,34 +243,32 @@ class TestTracePreservationUnderPhaseDiffusion:
         np.testing.assert_allclose(np.real(traces), 1.0, atol=1e-5)
 
 
-# =============================================================================
 # NoiseConfig build_lindblad_operators uses J_z correctly
-# =============================================================================
 
 
 class TestNoiseConfigJzUsage:
     """Verify build_lindblad_operators uses J_z (Dicke basis)."""
 
     @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_phase_diffusion_uses_jz_should_use_sqrt_gamma_phi_times_jz_lindblad_operator(
+    def test_given_phase_diffusion_uses_jz_then_use_sqrt_gamma_phi_times_jz_lindblad_operator(
         self, N: int
     ) -> None:
         gamma_phi = 0.05
         config = NoiseConfig(gamma_phi=gamma_phi)
         L_ops = build_lindblad_operators(N, config)
 
-        assert len(L_ops) == 1, "Expected len(L_ops) == 1"
+        assert len(L_ops) == 1
         expected = np.sqrt(gamma_phi) * jz_operator(N)
         np.testing.assert_allclose(L_ops[0], expected, rtol=1e-12)
 
     @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_combined_channels_all_correct_should_use_correct_operators_simultaneously(
+    def test_given_combined_channels_all_correct_then_use_correct_operators_simultaneously(
         self, N: int
     ) -> None:
         config = NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02)
         L_ops = build_lindblad_operators(N, config)
 
-        assert len(L_ops) == 3, "Expected len(L_ops) == 3"
+        assert len(L_ops) == 3
         # Each operator should be non-zero
         for L in L_ops:
-            assert np.max(np.abs(L)) > 0, "Expected np.max(np.abs(L)) > 0"
+            assert np.max(np.abs(L)) > 0

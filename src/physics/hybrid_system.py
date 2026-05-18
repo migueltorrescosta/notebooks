@@ -381,6 +381,41 @@ def hybrid_mean_photon(state: np.ndarray, N: int) -> float:
 
 
 # =============================================================================
+# Evolution
+# =============================================================================
+
+
+def evolve_hybrid_state(
+    N: int,
+    n: int,
+    omega_n: float,
+    theta_n: float,
+    t: float,
+    initial_state: np.ndarray,
+) -> np.ndarray:
+    """Evolve hybrid state under unitary H for time t.
+
+    Constructs the n-th order squeezing Hamiltonian H_n and evolves the
+    initial state via U = exp(-i H_n t).
+
+    Args:
+        N: Maximum photon number (truncation).
+        n: Squeezing order (2, 3, or 4).
+        omega_n: Squeezing rate Ω_n.
+        theta_n: Squeezing phase θ_n.
+        t: Evolution time.
+        initial_state: State vector of shape (2(N+1),).
+
+    Returns:
+        Evolved state vector of shape (2(N+1),), normalised.
+
+    """
+    H = hybrid_hamiltonian_n(N, n=n, omega_n=omega_n, theta_n=theta_n)
+    U = scipy.linalg.expm(-1j * H * t)
+    return U @ initial_state
+
+
+# =============================================================================
 # Validation
 # =============================================================================
 

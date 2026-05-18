@@ -206,7 +206,36 @@ class GaussianMetropolisHastings(AbstractMetropolisHastings[float]):
         >>> np.mean(samples)  # should be close to 0
         >>> np.std(samples)   # should be close to 1
 
+    Args:
+        initial_configuration: Starting point for the Markov chain.
+        rng: Optional numpy Generator for reproducible randomness. If None,
+            a fresh default Generator is created.
+
     """
+
+    def __init__(
+        self,
+        initial_configuration: float,
+        rng: np.random.Generator | None = None,
+    ) -> None:
+        super().__init__(initial_configuration)
+        self._rng = rng if rng is not None else np.random.default_rng()
+
+    def approval_function(
+        self,
+        new_configuration: float,
+        current_likelihood: float,
+    ) -> bool:
+        """Determine whether to accept a proposed configuration.
+
+        Uses the standard Metropolis acceptance ratio: min(1, P_new/P_curr).
+        For symmetric proposal distributions, this simplifies to comparing
+        likelihoods directly.
+        """
+        return (
+            self.state_likelihood(new_configuration)
+            >= current_likelihood * self._rng.random()
+        )
 
     def generator_function(self) -> float:
         """Propose a new sample using Gaussian random walk.
@@ -214,7 +243,7 @@ class GaussianMetropolisHastings(AbstractMetropolisHastings[float]):
         Adds a standard normal perturbation to the current configuration.
         This symmetric proposal simplifies the acceptance criterion.
         """
-        return self.current_configuration + np.random.normal(0, 1)
+        return self.current_configuration + self._rng.normal(0, 1)
 
     def state_likelihood(self, configuration: float) -> float:
         """Compute unnormalized probability under N(0, 1).

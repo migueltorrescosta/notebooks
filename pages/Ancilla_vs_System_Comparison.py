@@ -185,10 +185,10 @@ if run_button:
             st.markdown("**Best interaction coefficients:**")
             ac = result.best_alphas_A
             st.latex(
-                rf"\alpha_{{zz}}={ac[0]:.4f},\; "
-                rf"\alpha_{{zx}}={ac[1]:.4f},\; "
-                rf"\alpha_{{xz}}={ac[2]:.4f},\; "
-                rf"\alpha_{{xx}}={ac[3]:.4f}",
+                rf"\alpha_{{xx}}={ac[0]:.4f},\; "
+                rf"\alpha_{{xz}}={ac[1]:.4f},\; "
+                rf"\alpha_{{zx}}={ac[2]:.4f},\; "
+                rf"\alpha_{{zz}}={ac[3]:.4f}",
             )
 
         if result.fq_A_theta:

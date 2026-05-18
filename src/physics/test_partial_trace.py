@@ -8,6 +8,7 @@ from .partial_trace import (
     build_bipartite_hamiltonian,
     build_bipartite_hamiltonian_components,
     compute_reduced_densities,
+    evolve_bipartite,
     evolve_density_matrix,
     evolve_state,
     local_hamiltonian,
@@ -68,6 +69,61 @@ class TestEvolution:
         rho0 = np.array([[1, 0], [0, 0]], dtype=complex)
         rho_t = evolve_density_matrix(H, rho0, time=1.0)
         assert np.trace(rho_t) == pytest.approx(1.0)
+
+
+class TestEvolveBipartite:
+    def test_evolve_bipartite_zero_time_returns_initial_state(self) -> None:
+        n = 4
+        H = np.eye(n, dtype=complex)
+        psi0 = np.zeros(n, dtype=float)
+        psi0[0] = 1.0
+        result = evolve_bipartite(H, psi0, time=0.0)
+        assert np.allclose(result, psi0)
+
+    def test_evolve_bipartite_matches_row_vector_convention(self) -> None:
+        """Verify evolve_bipartite matches psi0 @ expm(-iHt)."""
+        import scipy.linalg
+
+        n = 4
+        H = np.array(
+            [
+                [1.0, 0.5, 0.0, 0.0],
+                [0.5, 0.0, 0.3, 0.0],
+                [0.0, 0.3, -1.0, 0.2],
+                [0.0, 0.0, 0.2, -0.5],
+            ],
+            dtype=complex,
+        )
+        psi0 = np.zeros(n, dtype=float)
+        psi0[0] = 1.0
+        t = 1.5
+        expected = psi0 @ scipy.linalg.expm(-1j * t * H)
+        result = evolve_bipartite(H, psi0, t)
+        assert np.allclose(result, expected)
+
+    def test_evolve_bipartite_preserves_norm(self) -> None:
+        n = 4
+        H = np.array(
+            [
+                [1.0, 0.5, 0.0, 0.0],
+                [0.5, 0.0, 0.3, 0.0],
+                [0.0, 0.3, -1.0, 0.2],
+                [0.0, 0.0, 0.2, -0.5],
+            ],
+            dtype=complex,
+        )
+        psi0 = np.zeros(n, dtype=float)
+        psi0[2] = 1.0
+        result = evolve_bipartite(H, psi0, time=0.7)
+        norm = np.linalg.norm(result)
+        assert norm == pytest.approx(1.0)
+
+    def test_evolve_bipartite_raises_on_norm_loss(self) -> None:
+        n = 2
+        H = np.array([[1.0, 0.0], [0.0, 0.5]], dtype=complex)
+        psi0 = np.array([1.0, 0.0])
+        with pytest.raises(AssertionError):
+            evolve_bipartite(H * (1.0 + 0.1j), psi0, time=1.0)
 
 
 class TestPartialTrace:

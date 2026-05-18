@@ -308,3 +308,40 @@ def compare_exponents(
         df = df.sort_values("alpha", ascending=True).reset_index(drop=True)
 
     return df
+
+
+# =============================================================================
+# Lightweight Convenience Wrapper
+# =============================================================================
+
+
+def compute_scaling_exponent(
+    N: np.typing.ArrayLike,
+    delta_phi: np.typing.ArrayLike,
+) -> float:
+    """Fit scaling exponent from log-log linear regression.
+
+    Thin wrapper around :func:`fit_scaling_exponent` returning only the
+    exponent α = ∂(log Δφ) / ∂(log N). Returns NaN if the fit is invalid.
+
+    Δφ ∝ N^α  =>  log(Δφ) = α*log(N) + const
+
+    Args:
+        N: Atom/particle numbers (array-like).
+        delta_phi: Phase uncertainties (array-like).
+
+    Returns:
+        Scaling exponent α, or NaN if the fit failed.
+
+    Example:
+        >>> N = np.array([4, 8, 16, 32, 64])
+        >>> # SQL scaling: Δφ = 1/√N
+        >>> alpha = compute_scaling_exponent(N, 1.0 / np.sqrt(N))
+        >>> np.isclose(alpha, -0.5, atol=0.01)
+        True
+
+    """
+    result = fit_scaling_exponent(np.asarray(N), np.asarray(delta_phi))
+    if not result.valid:
+        return float("nan")
+    return result.alpha

@@ -9,15 +9,11 @@ from __future__ import annotations
 
 import numpy as np
 
-# =============================================================================
-# BEC_Sensitivity_Scaling physics
-# =============================================================================
-
 
 class TestBECSensitivityScaling:
     """Tests for BEC sensitivity scaling physics."""
 
-    def test_twa_simulation_completes_quickly_should_complete_within_timeout_for_small_n(
+    def test_given_twa_simulation_completes_quickly_then_complete_within_timeout_for_small_n(
         self,
     ) -> None:
         import time
@@ -43,15 +39,10 @@ class TestBECSensitivityScaling:
         assert "delta_phi_hl" in result, 'Expected "delta_phi_hl" in result'
 
 
-# =============================================================================
-# BEC_Ancilla physics
-# =============================================================================
-
-
 class TestBECAncilla:
     """Tests for BEC ancilla physics."""
 
-    def test_ancilla_evolution_produces_finite_expectations_should_produce_finite_jz_expectation(
+    def test_given_ancilla_evolution_produces_finite_expectations_then_produce_finite_jz_expectation(
         self,
     ) -> None:
         from src.algorithms.spin_squeezing import coherent_spin_state

@@ -74,7 +74,11 @@ def noon_state(N: int, max_photons: int) -> np.ndarray:
         .full()
         .ravel()
     )
-    return state / np.sqrt(2)
+    state = state / np.sqrt(2)
+    assert np.isclose(np.linalg.norm(state), 1.0, rtol=1e-5, atol=1e-8), (
+        f"NOON state not normalized: norm={np.linalg.norm(state)}"
+    )
+    return state
 
 
 # =============================================================================
@@ -213,7 +217,12 @@ def beam_splitter_unitary(theta: float, phi: float, max_photons: int) -> np.ndar
     H_bs = np.exp(1j * phi) * (a0_dag @ a1) + np.exp(-1j * phi) * (a1_dag @ a0)
 
     # Unitary: U = exp(-iθH)
-    return scipy.linalg.expm(-1.0j * theta * H_bs)
+    U = scipy.linalg.expm(-1.0j * theta * H_bs)
+    _eye = np.eye(U.shape[0], dtype=U.dtype)
+    assert np.allclose(U @ U.conj().T, _eye, atol=1e-10), (
+        f"Beam splitter not unitary: max_dev={np.max(np.abs(U @ U.conj().T - _eye))}"
+    )
+    return U
 
 
 def phase_shift_unitary(phi: float, max_photons: int) -> np.ndarray:
@@ -242,6 +251,10 @@ def phase_shift_unitary(phi: float, max_photons: int) -> np.ndarray:
             idx = n1 * (max_photons + 1) + n2
             phase_op[idx, idx] = np.exp(1j * phi * n2)
 
+    _eye = np.eye(phase_op.shape[0], dtype=phase_op.dtype)
+    assert np.allclose(phase_op @ phase_op.conj().T, _eye, atol=1e-10), (
+        f"Phase shift not unitary: max_dev={np.max(np.abs(phase_op @ phase_op.conj().T - _eye))}"
+    )
     return phase_op
 
 
@@ -289,7 +302,12 @@ def system_ancilla_interaction_unitary(
         case _:
             H_int = g * np.kron(n_photon, jz)
 
-    return scipy.linalg.expm(-1j * interaction_time * H_int)
+    U = scipy.linalg.expm(-1j * interaction_time * H_int)
+    _eye = np.eye(U.shape[0], dtype=U.dtype)
+    assert np.allclose(U @ U.conj().T, _eye, atol=1e-10), (
+        f"Interaction not unitary: max_dev={np.max(np.abs(U @ U.conj().T - _eye))}"
+    )
+    return U
 
 
 # =============================================================================
@@ -381,7 +399,13 @@ def evolve_mzi(
     state = U_int @ state
 
     # BS2
-    return bs_full @ state
+    final_state = bs_full @ state
+
+    # Invariant checks at API boundary
+    assert np.isclose(np.linalg.norm(final_state), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Final state not normalized: norm={np.linalg.norm(final_state)}"
+    )
+    return final_state
 
 
 def get_reduced_density_matrix(
@@ -424,7 +448,14 @@ def get_reduced_density_matrix(
     if trace_out_ancilla:
         # Reshape and trace
         rho_reshaped = rho.reshape(sys_dim, ancilla_dim, sys_dim, ancilla_dim)
-        return np.trace(rho_reshaped, axis1=1, axis2=3)
+        rho_sys = np.trace(rho_reshaped, axis1=1, axis2=3)
+        assert np.isclose(np.trace(rho_sys), 1.0, rtol=1e-5, atol=1e-8), (
+            f"Reduced density matrix trace not preserved: {np.trace(rho_sys)}"
+        )
+        return rho_sys
+    assert np.isclose(np.trace(rho), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Full density matrix trace not preserved: {np.trace(rho)}"
+    )
     return rho
 
 
@@ -461,6 +492,12 @@ def compute_output_probabilities(
         max_photons,
         ancilla_dim,
         trace_out_ancilla=True,
+    )
+
+    # Positivity check: density matrix must be positive semidefinite
+    eigvals = np.linalg.eigvalsh(rho_sys)
+    assert np.all(eigvals >= -1e-12), (
+        f"Negative eigenvalues in reduced density matrix: {eigvals[eigvals < 0]}"
     )
 
     # Probability = sum over diagonal elements * photon number in that mode
@@ -608,6 +645,18 @@ def compute_all_stage_states(
     # After BS2 (final)
     state_final = bs_full @ state_int
 
+    # Invariant checks at API boundary: all states must be normalized
+    for stage_name, stage_state in [
+        ("initial", full_initial),
+        ("after_bs1", state_bs1),
+        ("after_phase", state_phase),
+        ("after_interaction", state_int),
+        ("final", state_final),
+    ]:
+        assert np.isclose(np.linalg.norm(stage_state), 1.0, rtol=1e-5, atol=1e-8), (
+            f"State at '{stage_name}' not normalized: norm={np.linalg.norm(stage_state)}"
+        )
+
     return {
         "initial": full_initial,
         "after_bs1": state_bs1,
@@ -672,25 +721,26 @@ def prepare_input_state(
     dim_single = max_photons + 1
     match state_type:
         case "vacuum":
-            return (
+            state = (
                 qutip.tensor(qutip.fock(dim_single, 0), qutip.fock(dim_single, 0))
                 .full()
                 .ravel()
             )
         case "single_photon":
             if mode == 0:
-                return (
+                state = (
                     qutip.tensor(qutip.fock(dim_single, 1), qutip.fock(dim_single, 0))
                     .full()
                     .ravel()
                 )
-            return (
-                qutip.tensor(qutip.fock(dim_single, 0), qutip.fock(dim_single, 1))
-                .full()
-                .ravel()
-            )
+            else:
+                state = (
+                    qutip.tensor(qutip.fock(dim_single, 0), qutip.fock(dim_single, 1))
+                    .full()
+                    .ravel()
+                )
         case "coherent":
-            return (
+            state = (
                 qutip.tensor(
                     qutip.coherent(dim_single, alpha), qutip.fock(dim_single, 0)
                 )
@@ -698,7 +748,7 @@ def prepare_input_state(
                 .ravel()
             )
         case "fock":
-            return (
+            state = (
                 qutip.tensor(
                     qutip.fock(dim_single, n_particles), qutip.fock(dim_single, 0)
                 )
@@ -708,13 +758,19 @@ def prepare_input_state(
         case "noon":
             # Ensure max_photons >= n_particles
             effective_max = max(n_particles, max_photons)
-            return noon_state(n_particles, effective_max)
+            state = noon_state(n_particles, effective_max)
         case _:
-            return (
+            state = (
                 qutip.tensor(qutip.fock(dim_single, 0), qutip.fock(dim_single, 0))
                 .full()
                 .ravel()
             )
+
+    # Invariant check: all prepared states must be normalized
+    assert np.isclose(np.linalg.norm(state), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Prepared state '{state_type}' not normalized: norm={np.linalg.norm(state)}"
+    )
+    return state
 
 
 # =============================================================================
@@ -799,6 +855,15 @@ def evolve_mzi_with_noise(
 
     # For ancilla-free case, reduced = full
     reduced_system_rho = final_rho.copy()
+
+    # Invariant checks at API boundary
+    assert np.isclose(np.trace(final_rho), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Noisy output density matrix trace not preserved: {np.trace(final_rho)}"
+    )
+    eigvals = np.linalg.eigvalsh(final_rho)
+    assert np.all(eigvals >= -1e-12), (
+        f"Negative eigenvalues in noisy output: {eigvals[eigvals < 0]}"
+    )
 
     return final_rho, reduced_system_rho
 

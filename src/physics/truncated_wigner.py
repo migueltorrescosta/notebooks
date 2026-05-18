@@ -330,7 +330,7 @@ def compute_twa_expectations(
     params: dict,
     T: float,
     N_traj: int = 5000,
-    rng_seed: int = 42,
+    seed: int | None = None,
     dt: float = 0.01,
     store_trajectories: bool = False,
 ) -> dict:
@@ -350,7 +350,7 @@ def compute_twa_expectations(
             - gamma_phi: phase diffusion rate
         T: Evolution time.
         N_traj: Number of trajectories to average.
-        rng_seed: Random seed for reproducibility.
+        seed: Random seed for reproducibility (None = fresh entropy).
         dt: Timestep for SDE integration.
         store_trajectories: Whether to store all trajectories.
 
@@ -375,7 +375,7 @@ def compute_twa_expectations(
         )
 
     # Initialize random generator
-    rng = np.random.default_rng(rng_seed)
+    rng = np.random.default_rng(seed)
 
     # Build params with N
     full_params = {"N": N, **params}
@@ -443,7 +443,7 @@ def compute_phase_sensitivity(
     params: dict,
     T: float,
     N_traj: int = 5000,
-    rng_seed: int = 42,
+    seed: int | None = None,
 ) -> dict:
     """Compute phase estimation sensitivity via TWA.
 
@@ -459,7 +459,7 @@ def compute_phase_sensitivity(
         params: Evolution parameters.
         T: Evolution time.
         N_traj: Number of trajectories.
-        rng_seed: Random seed.
+        seed: Random seed (None = fresh entropy).
 
     Returns:
         Dictionary with phase sensitivity metrics.
@@ -471,7 +471,7 @@ def compute_phase_sensitivity(
         params=params,
         T=T,
         N_traj=N_traj,
-        rng_seed=rng_seed,
+        seed=seed,
     )
 
     J = N / 2.0
@@ -539,7 +539,7 @@ def run_twa_simulation(
     gamma_phi: float = 0.0,
     T: float = 1.0,
     N_traj: int = 5000,
-    rng_seed: int = 42,
+    seed: int | None = None,
 ) -> dict:
     """Run complete TWA simulation.
 
@@ -554,7 +554,7 @@ def run_twa_simulation(
         gamma_phi: Phase diffusion rate.
         T: Evolution time.
         N_traj: Number of trajectories.
-        rng_seed: Random seed.
+        seed: Random seed (None = fresh entropy).
 
     Returns:
         Dictionary with simulation results.
@@ -574,17 +574,18 @@ def run_twa_simulation(
         params=params,
         T=T,
         N_traj=N_traj,
-        rng_seed=rng_seed,
+        seed=seed,
     )
 
-    # Compute phase sensitivity
+    # Compute phase sensitivity (use different stream for independence)
+    sens_seed = (seed + 1) if seed is not None else None
     sens_result = compute_phase_sensitivity(
         N=N,
         state_type=state_type,
         params=params,
         T=T,
         N_traj=N_traj,
-        rng_seed=rng_seed + 1,
+        seed=sens_seed,
     )
 
     return {
@@ -614,7 +615,7 @@ def compare_with_lindblad(
     params: dict,
     T: float,
     N_traj: int = 5000,
-    rng_seed: int = 42,
+    seed: int | None = None,
     tolerance: float = 0.05,
 ) -> dict:
     """Compare TWA results with full quantum (Lindblad) simulation.
@@ -628,7 +629,7 @@ def compare_with_lindblad(
         params: Dissipation parameters.
         T: Evolution time.
         N_traj: Number of TWA trajectories.
-        rng_seed: Random seed.
+        seed: Random seed (None = fresh entropy).
         tolerance: Acceptable relative difference (default 5%).
 
     Returns:
@@ -661,7 +662,7 @@ def compare_with_lindblad(
         params=params,
         T=T,
         N_traj=N_traj,
-        rng_seed=rng_seed,
+        seed=seed,
     )
 
     # Get Lindblad result (full quantum)

@@ -2,7 +2,7 @@
 
 ## 🧪 Hypothesis
 
-Non-Gaussian squeezed states generated via high-order spin-dependent forces (n ≥ 3) can outperform Gaussian squeezed states (n = 2) for phase estimation in Mach-Zehnder interferometers **at fixed mean oscillator photon number ⟨a†a⟩ at the input to the MZI**, provided decoherence rates are below a critical threshold. There exists a critical decoherence rate γ_c such that:
+Non-Gaussian squeezed states generated via high-order spin-dependent forces (n ≥ 3) can outperform Gaussian squeezed states (n = 2) for phase estimation in **Mach-Zehnder interferometers** **at fixed mean oscillator photon number ⟨a†a⟩ at the input to the MZI**, provided decoherence rates are below a critical threshold. There exists a critical decoherence rate γ_c such that:
 - For γ < γ_c: F_Q(n=3 or 4) > F_Q(n=2) at fixed ⟨a†a⟩
 - For γ > γ_c: F_Q(n=2) ≥ F_Q(n=4) (Gaussian states more robust)
 

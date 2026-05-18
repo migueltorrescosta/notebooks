@@ -1,12 +1,12 @@
 """Visualize Partial Trace UI page - imports physics from src.partial_trace."""
 
 import numpy as np
-import scipy.linalg
 import streamlit as st
 
 from src.physics.partial_trace import (
     BipartiteConfig,
     build_bipartite_hamiltonian_components,
+    evolve_bipartite,
     partial_trace_a,
     partial_trace_b,
 )
@@ -99,7 +99,7 @@ traced_b = partial_trace_b(full_hamiltonian.reshape(n_a, n_b, n_a, n_b), n_a, n_
 # Initial state and evolution
 phi_zero = np.zeros(n_a * n_b)
 phi_zero[0] = 1  # state |0_A⟩ |0_B⟩
-evolved_state = phi_zero @ scipy.linalg.expm(-1j * time * full_hamiltonian)
+evolved_state = evolve_bipartite(full_hamiltonian, phi_zero, time)
 
 # Reduced densities
 traced_evolved_state_a = partial_trace_a(

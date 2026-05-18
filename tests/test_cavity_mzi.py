@@ -22,7 +22,7 @@ from src.physics.cavity_mzi import (
 )
 
 
-def _fock_10(max_photons: int) -> np.ndarray:
+def _make_fock_10(max_photons: int) -> np.ndarray:
     """Construct |1,0⟩ state via QuTiP."""
     dim = max_photons + 1
     return qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
@@ -31,25 +31,23 @@ def _fock_10(max_photons: int) -> np.ndarray:
 class TestCavityMziConfig:
     """Test CavityMziConfig validation."""
 
-    def test_default_values_should_be_reasonable(self) -> None:
+    def test_given_default_values_then_be_reasonable(self) -> None:
         config = CavityMziConfig()
-        assert config.F == 10.0, "Expected config.F == 10.0"
-        assert config.theta == pytest.approx(np.pi / 4), (
-            "Expected config.theta == pytest.approx(np.pi / 4)"
-        )
+        assert config.F == 10.0
+        assert config.theta == pytest.approx(np.pi / 4)
 
 
 class TestCavityEnhancedMzi:
     """Test cavity-enhanced MZI unitary evolution."""
 
-    def test_norm_preservation_should_normalize_output_state(self) -> None:
+    def test_given_norm_preservation_then_normalize_output_state(self) -> None:
         config = CavityMziConfig(F=5.0)
-        state = _fock_10(max_photons=5)
+        state = _make_fock_10(max_photons=5)
         out = cavity_enhanced_mzi(state, np.pi / 4, config, max_photons=5)
         norm = np.sum(np.abs(out) ** 2)
         assert norm == pytest.approx(1.0, abs=1e-10), f"Norm = {norm}"
 
-    def test_finesse_one_matches_standard_should_match_single_pass_mzi(self) -> None:
+    def test_given_finesse_one_matches_standard_then_match_single_pass_mzi(self) -> None:
         from src.physics.mzi_simulation import (
             beam_splitter_unitary,
             phase_shift_unitary,
@@ -60,7 +58,7 @@ class TestCavityEnhancedMzi:
         max_photons = 5
 
         # Cavity-enhanced with F=1
-        state = _fock_10(max_photons)
+        state = _make_fock_10(max_photons)
         cavity_out = cavity_enhanced_mzi(state, phi, config, max_photons)
 
         # Standard MZI: BS -> Phase(phi) -> BS
@@ -72,9 +70,9 @@ class TestCavityEnhancedMzi:
             "F=1 cavity should match standard MZI"
         )
 
-    def test_finesse_lt_one_raises_should_raise_valueerror(self) -> None:
+    def test_given_finesse_lt_one_raises_then_raise_valueerror(self) -> None:
         config = CavityMziConfig(F=0.5)
-        state = _fock_10(max_photons=3)
+        state = _make_fock_10(max_photons=3)
         with pytest.raises(ValueError, match="Cavity finesse must be >= 1"):
             cavity_enhanced_mzi(state, 0.0, config, max_photons=3)
 
@@ -82,13 +80,13 @@ class TestCavityEnhancedMzi:
 class TestCavityEnhancedSensitivity:
     """Test sensitivity computation."""
 
-    def test_sensitivity_positive_should_be_positive_and_finite(self) -> None:
+    def test_given_sensitivity_positive_then_be_positive_and_finite(self) -> None:
         config = CavityMziConfig(F=10.0)
         delta = cavity_enhanced_sensitivity(4, np.pi / 4, config)
         assert np.isfinite(delta), f"Delta should be finite, got {delta}"
         assert delta > 0, f"Delta should be positive, got {delta}"
 
-    def test_sensitivity_improves_with_finesse_should_improve_with_higher_finesse(
+    def test_given_sensitivity_improves_with_finesse_then_improve_with_higher_finesse(
         self,
     ) -> None:
         """Higher finesse should give better (lower) sensitivity.
@@ -106,7 +104,7 @@ class TestCavityEnhancedSensitivity:
             f"F=2 → {delta_low:.6e}, F=10 → {delta_high:.6e}"
         )
 
-    def test_noon_state_better_than_coherent_should_give_lower_delta_phi_than_coherent(
+    def test_given_noon_state_better_than_coherent_then_give_lower_delta_phi_than_coherent(
         self,
     ) -> None:
         config = CavityMziConfig(F=5.0)
@@ -127,12 +125,12 @@ class TestCavityEnhancedSensitivity:
             f"coherent Δφ={delta_coherent:.6e}"
         )
 
-    def test_invalid_state_type_raises_should_raise_valueerror(self) -> None:
+    def test_given_invalid_state_type_raises_then_raise_valueerror(self) -> None:
         config = CavityMziConfig()
         with pytest.raises(ValueError, match="Unknown state_type"):
             cavity_enhanced_sensitivity(10, 0.0, config, state_type="invalid")
 
-    def test_non_positive_n_raises_should_raise_valueerror(self) -> None:
+    def test_given_non_positive_n_raises_then_raise_valueerror(self) -> None:
         config = CavityMziConfig()
         with pytest.raises(ValueError, match="positive"):
             cavity_enhanced_sensitivity(0, 0.0, config)
@@ -141,11 +139,11 @@ class TestCavityEnhancedSensitivity:
 class TestCavityEnhancedMziWithNoise:
     """Test noisy cavity-enhanced MZI."""
 
-    def test_trace_preservation_should_preserve_trace_under_noisy_evolution(
+    def test_given_trace_preservation_then_preserve_trace_under_noisy_evolution(
         self,
     ) -> None:
         config = CavityMziConfig(F=3.0)
-        state = _fock_10(max_photons=5)
+        state = _make_fock_10(max_photons=5)
         rho = cavity_enhanced_mzi_with_noise(
             state,
             phi=np.pi / 4,
@@ -159,9 +157,9 @@ class TestCavityEnhancedMziWithNoise:
             f"Trace should be 1, got {np.trace(rho)}"
         )
 
-    def test_no_noise_matches_unitary_should_match_unitary_evolution(self) -> None:
+    def test_given_no_noise_matches_unitary_then_match_unitary_evolution(self) -> None:
         config = CavityMziConfig(F=3.0)
-        state = _fock_10(max_photons=5)
+        state = _make_fock_10(max_photons=5)
 
         rho_noisy = cavity_enhanced_mzi_with_noise(
             state,

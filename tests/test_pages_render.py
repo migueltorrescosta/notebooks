@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 # Add project root to path for src imports
@@ -51,16 +50,6 @@ def _run_and_check(page_file: Path) -> AppTest:
 
     try:
         at.run(timeout=timeout)
-    except st.errors.StreamlitDuplicateElementId as e:
-        pytest.fail(
-            f"Page {page_file.name} has duplicate element IDs: {e}. "
-            "Add unique 'key' arguments to widgets with the same label.",
-        )
-    except st.errors.StreamlitDuplicateElementKey as e:
-        pytest.fail(
-            f"Page {page_file.name} has duplicate element keys: {e}. "
-            "Make sure each widget has a unique key.",
-        )
     except RuntimeError as e:
         if "timed out" in str(e).lower() and page_file.name in SLOW_PAGES:
             pytest.skip(

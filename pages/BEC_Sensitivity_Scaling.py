@@ -32,20 +32,11 @@ import pandas as pd
 import streamlit as st
 from plotly import graph_objects as go
 
-from src.algorithms.spin_squeezing import (
-    coherent_spin_state,
-    generate_squeezed_state,
-    optimal_squeezing_time,
+from src.analysis.bec_sensitivity import (
+    compute_sensitivity_vs_n as _compute_sensitivity_vn,
 )
-from src.evolution.lindblad_solver import (
-    LindbladConfig,
-    evolve_lindblad,
-)
-from src.physics.dicke_basis import jz_operator
+from src.analysis.scaling_fit import compute_scaling_exponent
 from src.physics.noise_channels import NoiseConfig
-from src.physics.truncated_wigner import (
-    run_twa_simulation,
-)
 
 # Page configuration
 st.set_page_config(
@@ -56,113 +47,7 @@ st.set_page_config(
 
 
 # =============================================================================
-# State Definitions
-# =============================================================================
-
-
-def generate_twin_fock_state(N: int) -> np.ndarray:
-    """Generate Twin-Fock state |N/2, 0⟩ (maximum entanglement).
-
-    The Twin-Fock state has equal population in both modes with minimal
-    variance in the perpendicular direction, achieving near-Heisenberg
-    scaling.
-
-    Args:
-        N: Total atom number (must be even).
-
-    Returns:
-        State vector in Dicke basis.
-
-    Raises:
-        ValueError: If N is odd.
-
-    """
-    if N % 2 != 0:
-        raise ValueError(f"N must be even for Twin-Fock state, got N={N}")
-
-    dim = N + 1
-    # Twin-Fock: m = 0 (index = N/2)
-    state = np.zeros(dim, dtype=complex)
-    state[N // 2] = 1.0
-    return state
-
-
-def generate_noon_state(N: int) -> np.ndarray:
-    """Generate NOON state (|N,0⟩ + |0,N⟩)/√2.
-
-    Achieves Heisenberg limit: Δφ = 1/N.
-
-    Args:
-        N: Total atom number.
-
-    Returns:
-        State vector in Dicke basis.
-
-    """
-    dim = N + 1
-    # All in mode a: |J, J⟩ = index 0
-    # All in mode b: |J, -J⟩ = index N
-    state = np.zeros(dim, dtype=complex)
-    state[0] = 1.0 / np.sqrt(2)  # |N,0⟩
-    state[N] = 1.0 / np.sqrt(2)  # |0,N⟩
-    return state
-
-
-# =============================================================================
-# Phase Sensitivity Calculation (Lindblad Method)
-# =============================================================================
-
-
-def compute_phase_uncertainty_lindblad(
-    N: int,
-    state: np.ndarray,
-    chi: float,
-    T: float,
-    noise_config: NoiseConfig,
-) -> float:
-    """Compute phase uncertainty via Lindblad evolution.
-
-    Evolves the initial state under OAT + noise and computes
-    the variance in J_z to estimate phase sensitivity.
-
-    Args:
-        N: Atom number.
-        state: Initial state vector.
-        chi: OAT strength.
-        T: Evolution time.
-        noise_config: Noise configuration.
-
-    Returns:
-        Phase uncertainty Δφ.
-
-    """
-    rho0 = np.outer(state, state.conj())
-
-    # Lindblad evolution
-    config = LindbladConfig(
-        N=N,
-        chi=chi,
-        gamma_1=noise_config.gamma_1,
-        gamma_2=noise_config.gamma_2,
-        gamma_phi=noise_config.gamma_phi,
-    )
-
-    dt = 0.01
-    rho_final = evolve_lindblad(rho0, config, T, dt)
-
-    # Compute J_z variance
-    J_z = jz_operator(N)
-    Jz_mean = np.real(np.trace(rho_final @ J_z))
-    Jz2_mean = np.real(np.trace(rho_final @ J_z @ J_z))
-    Jz_var = Jz2_mean - Jz_mean**2
-
-    # Phase sensitivity: Δφ = √(Var(J_z)) / |d⟨J_z⟩/dφ|
-    # For linear phase accumulation: d⟨J_z⟩/dφ ≈ N/2
-    return np.sqrt(Jz_var) / (N / 2) if Jz_var > 0 else 1.0 / np.sqrt(N)  # SQL fallback
-
-
-# =============================================================================
-# Master Function: Compute Sensitivity vs N
+# Cached wrapper for compute_sensitivity_vs_n
 # =============================================================================
 
 
@@ -176,97 +61,21 @@ def compute_sensitivity_vs_n(
     method: str,
     seed: int = 42,
 ) -> pd.DataFrame:
-    """Compute phase sensitivity Δφ vs atom number N.
+    """Cached wrapper around :func:`src.analysis.bec_sensitivity.compute_sensitivity_vs_n`.
 
-    Args:
-        state_type: One of 'CSS', 'SSS', 'Twin-Fock', 'NOON'.
-        N_range: Tuple (min_N, max_N).
-        N_points: Number of N values to sample.
-        chi: OAT strength.
-        noise_config: Noise configuration.
-        method: 'Lindblad' or 'TWA'.
-        seed: Random seed.
-
-    Returns:
-        DataFrame with columns: N, delta_phi.
+    See :func:`src.analysis.bec_sensitivity.compute_sensitivity_vs_n` for
+    full documentation.
 
     """
-    N_values = np.linspace(N_range[0], N_range[1], N_points, dtype=int)
-    N_values = np.unique(N_values)  # Remove duplicates
-
-    results = []
-
-    for N in N_values:
-        try:
-            if method == "Lindblad" and N <= 20:
-                # Use Lindblad for small N
-                if state_type == "CSS":
-                    state = coherent_spin_state(N)
-                elif state_type == "SSS":
-                    t_opt = optimal_squeezing_time(N, chi)
-                    state = generate_squeezed_state(N, chi, t_opt)
-                elif state_type == "Twin-Fock":
-                    state = generate_twin_fock_state(N)
-                elif state_type == "NOON":
-                    state = generate_noon_state(N)
-                else:
-                    raise ValueError(f"Unknown state type: {state_type}")
-
-                T = 1.0  # Evolution time
-                delta_phi = compute_phase_uncertainty_lindblad(
-                    N,
-                    state,
-                    chi,
-                    T,
-                    noise_config,
-                )
-
-            else:
-                # Use TWA for larger N
-                # Compute optimal time for SSS
-                t_opt = optimal_squeezing_time(N, chi) if state_type == "SSS" else 1.0
-
-                result = run_twa_simulation(
-                    N=N,
-                    state_type=state_type,
-                    chi=chi,
-                    gamma_1=noise_config.gamma_1,
-                    gamma_2=noise_config.gamma_2,
-                    gamma_phi=noise_config.gamma_phi,
-                    T=t_opt,
-                    N_traj=200,
-                    rng_seed=seed,
-                )
-
-                delta_phi = result["delta_phi"]
-
-            results.append({"N": N, "delta_phi": delta_phi})
-
-        except Exception:
-            # Skip failed computations
-            continue
-
-    return pd.DataFrame(results)
-
-
-def compute_scaling_exponent(N: np.ndarray, delta_phi: np.ndarray) -> float:
-    """Fit scaling exponent from log-log linear regression.
-
-    Δφ ∝ N^α  =>  log(Δφ) = α*log(N) + const
-
-    Args:
-        N: Atom numbers.
-        delta_phi: Phase uncertainties.
-
-    Returns:
-        Scaling exponent α.
-
-    """
-    log_N = np.log(N)
-    log_dphi = np.log(delta_phi)
-
-    # Linear regression: log_dphi = α * log_N + c
-    return np.polyfit(log_N, log_dphi, 1)[0]
+    return _compute_sensitivity_vn(
+        state_type=state_type,
+        N_range=N_range,
+        N_points=N_points,
+        chi=chi,
+        noise_config=noise_config,
+        method=method,
+        seed=seed,
+    )
 
 
 # =============================================================================
@@ -355,6 +164,16 @@ with st.sidebar:
     st.subheader("OAT Parameters", divider="green")
     chi = st.number_input("χ (OAT strength)", value=1.0, min_value=0.0)
 
+    # Random seed
+    st.subheader("Reproducibility", divider="gray")
+    seed = st.number_input(
+        "Random seed",
+        min_value=0,
+        max_value=999999,
+        value=42,
+        help="For reproducible random sampling in TWA/Lindblad simulations.",
+    )
+
     # Export
     st.subheader("Export", divider="red")
     export_csv = st.button("Export CSV", type="secondary")
@@ -408,6 +227,7 @@ for idx, state_type in enumerate(states_to_analyze):
         chi=chi,
         noise_config=noise_config,
         method=method,
+        seed=int(seed),
     )
 
     if len(df) > 1:

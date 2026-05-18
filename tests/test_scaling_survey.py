@@ -42,14 +42,9 @@ except ImportError:
 class TestScalingSurveyMiniIntegration:
     """Mini-survey integration tests."""
 
-    def test_mini_survey_produces_expected_columns_and_rows_should_produce_expected_columns_and_rows(
+    def test_given_mini_survey_produces_expected_columns_and_rows_then_produce_expected_columns_and_rows(
         self,
     ) -> None:
-        """Test that a mini-survey produces the expected DataFrame structure.
-
-        2 models × 2 noise levels × 3 N values = 12 rows expected
-        (assuming all computations succeed).
-        """
         # 2 simple models
         models = [
             create_survey_model("ideal_coherent"),
@@ -91,7 +86,7 @@ class TestScalingSurveyMiniIntegration:
         # Check row count
         row_count = len(df)
         expected_min = len(models) * len(survey_config.noise_levels) * 2
-        assert row_count >= expected_min, "Expected row_count >= expected_min"
+        assert row_count >= expected_min
 
         # Check numeric types
         assert pd.api.types.is_numeric_dtype(df["N"]), (
@@ -104,7 +99,7 @@ class TestScalingSurveyMiniIntegration:
             'Condition failed: pd.api.types.is_numeric_dtype(df["delta_phi"])'
         )
 
-    def test_fit_all_exponents_produces_valid_output_should_produce_fitted_exponents(
+    def test_given_fit_all_exponents_produces_valid_output_then_produce_fitted_exponents(
         self,
     ) -> None:
         models = [create_survey_model("ideal_coherent")]
@@ -122,7 +117,7 @@ class TestScalingSurveyMiniIntegration:
         assert isinstance(fit_df, pd.DataFrame), (
             "Expected fit_df to be instance of pd.DataFrame"
         )
-        assert len(fit_df) > 0, "Expected len(fit_df) > 0"
+        assert len(fit_df) > 0
 
         # Check for exponent columns
         assert "alpha" in fit_df.columns, 'Expected "alpha" in fit_df.columns'
@@ -136,13 +131,13 @@ class TestScalingSurveyMiniIntegration:
             fit_df["model_id"] == "ideal_coherent",
             "alpha",
         ].iloc[0]
-        assert -0.7 < alpha_coherent < -0.3, "Expected -0.7 < alpha_coherent < -0.3"
+        assert -0.7 < alpha_coherent < -0.3
 
 
 class TestScalingSurveyNoiseChannels:
     """Tests for different noise channels in the survey."""
 
-    def test_model_config_validates_noise_type_should_reject_unknown_noise_types(
+    def test_given_model_config_validates_noise_type_then_reject_unknown_noise_types(
         self,
     ) -> None:
         with pytest.raises(ValueError):
@@ -167,10 +162,10 @@ class TestScalingSurveyNoiseChannels:
                 state_type="coherent",
                 noise_type=nt,
             )
-            assert model.noise_type == nt, "Expected model.noise_type == nt"
+            assert model.noise_type == nt
 
     @pytest.mark.slow
-    def test_loss_noise_produces_finite_delta_phi_should_produce_finite_sensitivity_values_for_one_body_loss(
+    def test_given_loss_noise_produces_finite_delta_phi_then_produce_finite_sensitivity_values_for_one_body_loss(
         self,
     ) -> None:
         # Create model with loss noise
@@ -201,7 +196,7 @@ class TestScalingSurveyNoiseChannels:
         n_finite = int(np.sum(finite_mask))
         assert n_finite > 0, "Expected at least some finite Δφ values"
 
-    def test_dephasing_noise_produces_valid_survey_should_work_in_the_survey(
+    def test_given_dephasing_noise_produces_valid_survey_then_work_in_the_survey(
         self,
     ) -> None:
         model = create_survey_model("ideal_noon")
@@ -221,7 +216,7 @@ class TestScalingSurveyNoiseChannels:
             'Expected len(df["noise_level"].unique()) == 3'
         )
 
-    def test_survey_with_detection_noise_should_handle_detection_efficiency_channel(
+    def test_given_survey_with_detection_noise_then_handle_detection_efficiency_channel(
         self,
     ) -> None:
         model = ModelConfig(
@@ -243,15 +238,15 @@ class TestScalingSurveyNoiseChannels:
 
         # Efficiency 1.0 should give same noise-free (or better) values than 0.5
         noise_levels = df["noise_level"].unique()
-        assert 1.0 in noise_levels, "Expected 1.0 in noise_levels"
+        assert 1.0 in noise_levels
 
         # At least some finite values
         finite_mask = np.isfinite(df["delta_phi"].to_numpy()) & (
             df["delta_phi"].to_numpy() > 0
         )
-        assert np.sum(finite_mask) > 0, "Expected np.sum(finite_mask) > 0"
+        assert np.sum(finite_mask) > 0
 
-    def test_two_body_loss_configuration_should_be_configurable(self) -> None:
+    def test_given_two_body_loss_configuration_then_be_configurable(self) -> None:
         model = ModelConfig(
             model_id="test_two_body",
             state_type="noon",
@@ -259,7 +254,7 @@ class TestScalingSurveyNoiseChannels:
             label="Two-body loss test",
         )
 
-        assert model.noise_type == "two_body", 'Expected model.noise_type == "two_body"'
+        assert model.noise_type == "two_body"
 
         # Just verify the model runs without crashing
         survey_config = SurveyConfig(
@@ -271,7 +266,7 @@ class TestScalingSurveyNoiseChannels:
 
         # Should not raise
         df = run_scaling_survey([model], survey_config)
-        assert len(df) > 0, "Expected len(df) > 0"
+        assert len(df) > 0
 
 
 class TestQfiValidation:
@@ -285,7 +280,7 @@ class TestQfiValidation:
         Squeezed vacuum: F_Q = 2⟨N⟩(⟨N⟩+1), Δφ = 1/√(2⟨N⟩(⟨N⟩+1))
     """
 
-    def test_noon_qfi_scales_as_n_squared_should_equal_n_squared_heisenberg_limit(
+    def test_given_noon_qfi_scales_as_n_squared_then_equal_n_squared_heisenberg_limit(
         self,
     ) -> None:
         for N in [2, 4, 8, 16]:
@@ -297,7 +292,7 @@ class TestQfiValidation:
                 f"N={N}: F_Q={F_Q}, expected {expected}"
             )
 
-    def test_noon_delta_phi_scales_as_one_over_n_should_be_1_over_n(self) -> None:
+    def test_given_noon_delta_phi_scales_as_one_over_n_then_be_1_over_n(self) -> None:
         for N in [2, 4, 8, 16]:
             state = input_state_factory("noon", N=N)
             max_photons = N
@@ -309,7 +304,7 @@ class TestQfiValidation:
             )
 
     @pytest.mark.slow
-    def test_coherent_qfi_scales_as_n_should_scale_as_n(self) -> None:
+    def test_given_coherent_qfi_scales_as_n_then_scale_as_n(self) -> None:
         """F_Q = N for coherent states (SQL).
 
         Uses generous max_photons to capture Poisson tail, and relaxed
@@ -332,7 +327,7 @@ class TestQfiValidation:
             )
 
     @pytest.mark.slow
-    def test_coherent_delta_phi_sql_scaling_should_be_1_over_sqrt_n_sql(self) -> None:
+    def test_given_coherent_delta_phi_sql_scaling_then_be_1_over_sqrt_n_sql(self) -> None:
         for N in [4, 8]:
             alpha = complex(np.sqrt(N), 0)
             max_n = max(4 * N, N + 40)
@@ -350,7 +345,7 @@ class TestQfiValidation:
                 f"N={N}: Δφ={delta}, expected {expected}"
             )
 
-    def test_squeezed_vacuum_qfi_formula_should_have_correct_analytic_form(
+    def test_given_squeezed_vacuum_qfi_formula_then_have_correct_analytic_form(
         self,
     ) -> None:
         """F_Q = 2⟨N⟩(⟨N⟩+1) for squeezed-vacuum states.
@@ -383,7 +378,7 @@ class TestQfiValidation:
                 f"r={r}, ⟨N⟩={expected_N:.6f}: F_Q={F_Q}, expected {expected_F_Q}"
             )
 
-    def test_twin_fock_qfi_scaling_should_scale_correctly(self) -> None:
+    def test_given_twin_fock_qfi_scaling_then_scale_correctly(self) -> None:
         """F_Q = N(N+2)/3 for the uniform-superposition Twin-Fock state.
 
         The code implements Twin-Fock as the uniform superposition
@@ -401,7 +396,7 @@ class TestQfiValidation:
                 f"N={N}: F_Q={F_Q}, expected {expected}"
             )
 
-    def test_sss_state_now_scales_with_n_should_scale_with_n(self) -> None:
+    def test_given_sss_state_now_scales_with_n_then_scale_with_n(self) -> None:
         """SSS state (single-photon split) scales with N after factory fix.
 
         State: (|N-1, 1⟩ + |1, N-1⟩)/√2.
@@ -423,7 +418,7 @@ class TestQfiValidation:
 class TestSurveyModelFactories:
     """Tests for the survey model factory functions."""
 
-    def test_create_survey_model_defaults_should_set_appropriate_defaults(self) -> None:
+    def test_given_create_survey_model_defaults_then_set_appropriate_defaults(self) -> None:
         # noon_loss should have noise_type="loss"
         model = create_survey_model("noon_loss")
         assert model.noise_type == "loss", 'Expected model.noise_type == "loss"'
@@ -433,7 +428,7 @@ class TestSurveyModelFactories:
         model = create_survey_model("ideal_coherent")
         assert model.noise_type == "none", 'Expected model.noise_type == "none"'
 
-    def test_create_survey_model_kwargs_override_should_override_factory_defaults(
+    def test_given_create_survey_model_kwargs_override_then_override_factory_defaults(
         self,
     ) -> None:
         model = create_survey_model(
@@ -445,22 +440,22 @@ class TestSurveyModelFactories:
         assert model.noise_type == "dephasing"  # Overridden
         assert model.label == "Custom label", 'Expected model.label == "Custom label"'
 
-    def test_create_default_survey_returns_list_should_return_a_list_of_models(
+    def test_given_create_default_survey_returns_list_then_return_a_list_of_models(
         self,
     ) -> None:
         from src.analysis.scaling_survey import create_default_survey
 
         models = create_default_survey()
 
-        assert isinstance(models, list), "Expected models to be instance of list"
-        assert len(models) > 0, "Expected len(models) > 0"
+        assert isinstance(models, list)
+        assert len(models) > 0
 
         for model in models:
             assert isinstance(model, ModelConfig), (
                 "Expected model to be instance of ModelConfig"
             )
 
-    def test_create_default_survey_now_has_twelve_models_should_include_non_gaussian_ancilla_squeezed_vacuum_loss_kerr_and_weak_value_models(
+    def test_given_create_default_survey_now_has_twelve_models_then_include_non_gaussian_ancilla_squeezed_vacuum_loss_kerr_and_weak_value_models(
         self,
     ) -> None:
         from src.analysis.scaling_survey import create_default_survey
@@ -478,9 +473,9 @@ class TestSurveyModelFactories:
         )
         assert "kerr_mzi" in model_ids, 'Expected "kerr_mzi" in model_ids'
         assert "weak_value_mzi" in model_ids, 'Expected "weak_value_mzi" in model_ids'
-        assert len(models) == 12, "Expected len(models) == 12"
+        assert len(models) == 12
 
-    def test_squeezed_vacuum_loss_model_properties_should_have_correct_noise_type(
+    def test_given_squeezed_vacuum_loss_model_properties_then_have_correct_noise_type(
         self,
     ) -> None:
         from src.analysis.scaling_survey import create_survey_model
@@ -495,7 +490,7 @@ class TestSurveyModelFactories:
         )
 
     @pytest.mark.slow
-    def test_squeezed_vacuum_loss_runs_survey_should_produce_finite_delta_phi_values(
+    def test_given_squeezed_vacuum_loss_runs_survey_then_produce_finite_delta_phi_values(
         self,
     ) -> None:
         from src.analysis.scaling_survey import (
@@ -520,7 +515,7 @@ class TestSurveyModelFactories:
         finite_mask = np.isfinite(df["delta_phi"].to_numpy()) & (
             df["delta_phi"].to_numpy() > 0
         )
-        assert int(np.sum(finite_mask)) > 0, "Expected int(np.sum(finite_mask)) > 0"
+        assert int(np.sum(finite_mask)) > 0
 
 
 class TestNewCustomModels:
@@ -531,7 +526,7 @@ class TestNewCustomModels:
     valid callables that return finite sensitivity values.
     """
 
-    def _call_sensitivity(
+    def _make_call_sensitivity(
         self,
         fn: Callable[[int, float], float] | None,
         N: int,
@@ -541,36 +536,36 @@ class TestNewCustomModels:
         assert fn is not None, "custom_sensitivity_fn must not be None"
         return fn(N, noise)
 
-    def test_non_gaussian_n3_smoke_should_return_finite_sensitivity_for_small_n(
+    def test_given_non_gaussian_n3_smoke_then_return_finite_sensitivity_for_small_n(
         self,
     ) -> None:
         model = create_survey_model("non_gaussian_n3")
-        delta = self._call_sensitivity(model.custom_sensitivity_fn, 6, 0.0)
+        delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 6, 0.0)
         assert np.isfinite(delta), f"Expected finite Δφ, got {delta}"
         assert delta > 0, f"Expected positive Δφ, got {delta}"
 
-    def test_non_gaussian_n4_smoke_should_return_finite_sensitivity_for_small_n(
+    def test_given_non_gaussian_n4_smoke_then_return_finite_sensitivity_for_small_n(
         self,
     ) -> None:
         model = create_survey_model("non_gaussian_n4")
-        delta = self._call_sensitivity(model.custom_sensitivity_fn, 6, 0.0)
+        delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 6, 0.0)
         assert np.isfinite(delta), f"Expected finite Δφ, got {delta}"
         assert delta > 0, f"Expected positive Δφ, got {delta}"
 
-    def test_ancilla_assisted_smoke_should_return_finite_sensitivity_for_small_n(
+    def test_given_ancilla_assisted_smoke_then_return_finite_sensitivity_for_small_n(
         self,
     ) -> None:
         model = create_survey_model("ancilla_assisted")
-        delta = self._call_sensitivity(model.custom_sensitivity_fn, 4, 0.0)
+        delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 4, 0.0)
         assert np.isfinite(delta), f"Expected finite Δφ, got {delta}"
         assert delta > 0, f"Expected positive Δφ, got {delta}"
 
-    def test_ancilla_assisted_noise_scales_sensitivity_should_degrade_sensitivity_with_higher_noise_level(
+    def test_given_ancilla_assisted_noise_scales_sensitivity_then_degrade_sensitivity_with_higher_noise_level(
         self,
     ) -> None:
         model = create_survey_model("ancilla_assisted")
         fn = model.custom_sensitivity_fn
-        assert fn is not None, "Expected fn to not be None"
+        assert fn is not None
         delta_clean = fn(4, 0.0)
         delta_noisy = fn(4, 1.0)
         # Noisy should be >= clean (larger Δφ = worse)
@@ -580,68 +575,68 @@ class TestNewCustomModels:
         )
 
     @pytest.mark.skipif(not HAS_HYBRID, reason="hybrid_system module not available")
-    def test_non_gaussian_ground_state_option_should_produce_a_valid_state_with_use_ground_state_true(
+    def test_given_non_gaussian_ground_state_option_then_produce_a_valid_state_with_use_ground_state_true(
         self,
     ) -> None:
         model = create_survey_model("non_gaussian_n3", use_ground_state=True)
-        delta_gs = self._call_sensitivity(model.custom_sensitivity_fn, 6, 0.0)
+        delta_gs = self._make_call_sensitivity(model.custom_sensitivity_fn, 6, 0.0)
         assert np.isfinite(delta_gs), f"Expected finite Δφ for GS, got {delta_gs}"
         assert delta_gs > 0, f"Expected positive Δφ, got {delta_gs}"
 
-    def test_non_gaussian_inf_for_small_n_should_return_inf_for_n_less_than_2(
+    def test_given_non_gaussian_inf_for_small_n_then_return_inf_for_n_less_than_2(
         self,
     ) -> None:
         model = create_survey_model("non_gaussian_n3")
-        delta = self._call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
+        delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
         assert not np.isfinite(delta), "Expected inf for N < 2"
 
-    def test_ancilla_inf_for_small_n_should_return_inf_for_n_less_than_2(self) -> None:
+    def test_given_ancilla_inf_for_small_n_then_return_inf_for_n_less_than_2(self) -> None:
         model = create_survey_model("ancilla_assisted")
-        delta = self._call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
+        delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
         assert not np.isfinite(delta), "Expected inf for N < 2"
 
-    def test_kerr_mzi_smoke_should_return_finite_sensitivity_for_small_n(self) -> None:
+    def test_given_kerr_mzi_smoke_then_return_finite_sensitivity_for_small_n(self) -> None:
         model = create_survey_model("kerr_mzi")
-        delta = self._call_sensitivity(model.custom_sensitivity_fn, 4, 0.0)
+        delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 4, 0.0)
         assert np.isfinite(delta), f"Expected finite Δφ, got {delta}"
         assert delta > 0, f"Expected positive Δφ, got {delta}"
 
-    def test_kerr_mzi_noon_scaling_should_give_heisenberg_scaling_delta_phi_equal_1_over_n(
+    def test_given_kerr_mzi_noon_scaling_then_give_heisenberg_scaling_delta_phi_equal_1_over_n(
         self,
     ) -> None:
         model = create_survey_model("kerr_mzi")
         for N in [2, 4, 8]:
-            delta = self._call_sensitivity(model.custom_sensitivity_fn, N, 0.0)
+            delta = self._make_call_sensitivity(model.custom_sensitivity_fn, N, 0.0)
             expected = 1.0 / N
             assert np.isclose(delta, expected, rtol=1e-10), (
                 f"N={N}: Δφ={delta}, expected {expected}"
             )
 
-    def test_kerr_mzi_inf_for_small_n_should_return_inf_for_n_less_than_2(self) -> None:
+    def test_given_kerr_mzi_inf_for_small_n_then_return_inf_for_n_less_than_2(self) -> None:
         model = create_survey_model("kerr_mzi")
-        delta = self._call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
+        delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
         assert not np.isfinite(delta), "Expected inf for N < 2"
 
-    def test_weak_value_mzi_smoke_should_return_finite_sensitivity_for_small_n(
+    def test_given_weak_value_mzi_smoke_then_return_finite_sensitivity_for_small_n(
         self,
     ) -> None:
         model = create_survey_model("weak_value_mzi")
-        delta = self._call_sensitivity(model.custom_sensitivity_fn, 4, 0.0)
+        delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 4, 0.0)
         assert np.isfinite(delta), f"Expected finite Δφ, got {delta}"
         assert delta > 0, f"Expected positive Δφ, got {delta}"
 
-    def test_weak_value_mzi_sql_limited_should_be_greater_than_or_equal_to_sql_1_over_sqrt_n(
+    def test_given_weak_value_mzi_sql_limited_then_be_greater_than_or_equal_to_sql_1_over_sqrt_n(
         self,
     ) -> None:
         model = create_survey_model("weak_value_mzi")
         for N in [4, 8, 16]:
-            delta = self._call_sensitivity(model.custom_sensitivity_fn, N, 0.0)
+            delta = self._make_call_sensitivity(model.custom_sensitivity_fn, N, 0.0)
             sql = 1.0 / np.sqrt(N)
             assert delta >= sql - 1e-12, f"N={N}: Δφ={delta:.6f} < SQL={sql:.6f}"
 
-    def test_weak_value_mzi_inf_for_small_n_should_return_inf_for_n_less_than_2(
+    def test_given_weak_value_mzi_inf_for_small_n_then_return_inf_for_n_less_than_2(
         self,
     ) -> None:
         model = create_survey_model("weak_value_mzi")
-        delta = self._call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
+        delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
         assert not np.isfinite(delta), "Expected inf for N < 2"

@@ -412,7 +412,7 @@ sensitivity_scaling(
     noise_config: NoiseConfig | None = None,
     phi_true: float = π/4,
     n_mc: int = 200,
-    rng_seed: int = 42
+    seed: int | None = None
 ) -> SensitivityScalingResult
 ```
 
@@ -466,7 +466,7 @@ All stochastic processes use `numpy.random.default_rng(seed)` for reproducibilit
 
 ---
 
-## 📐 10. Physical Invariants & Validation
+## ⚖️ 10. Physical Invariants & Validation
 
 ### 10.1 Conservation Laws
 

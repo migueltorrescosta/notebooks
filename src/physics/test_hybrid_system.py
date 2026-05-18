@@ -15,6 +15,7 @@ import scipy
 
 from .hybrid_system import (
     adaptive_truncation,
+    evolve_hybrid_state,
     hybrid_coherent_state,
     hybrid_ground_state_n,
     hybrid_hamiltonian_n,
@@ -33,9 +34,7 @@ from .hybrid_system import (
     validate_hybrid_unitary,
 )
 
-# =============================================================================
 # Test Spin Operators
-# =============================================================================
 
 
 class TestSpinOperators:
@@ -72,14 +71,16 @@ class TestSpinOperators:
             "Expected eigenvalues == pytest.approx([-1, 1])"
         )
 
-    def test_sigma_phi_hermitian(self) -> None:
-        for phi in [0.0, np.pi / 4, np.pi / 2]:
-            sphi = spin_operator_phi(phi)
-            assert sphi == pytest.approx(sphi.conj().T, abs=1e-10), (
-                "Expected sphi == pytest.approx(sphi.conj().T, abs=1e-10)"
-            )
+    @pytest.mark.parametrize(
+        "phi", [0.0, np.pi / 4, np.pi / 2], ids=["0", "pi/4", "pi/2"]
+    )
+    def test_sigma_phi_hermitian(self, phi: float) -> None:
+        sphi = spin_operator_phi(phi)
+        assert sphi == pytest.approx(sphi.conj().T, abs=1e-10), (
+            "Expected sphi == pytest.approx(sphi.conj().T, abs=1e-10)"
+        )
 
-    def test_should_have_eigenvalues_1(self) -> None:
+    def test_given_sigma_phi_then_eigenvalues_are_1(self) -> None:
         sphi = spin_operator_phi(np.pi / 3)
         eigenvalues = np.linalg.eigvalsh(sphi)
         assert np.abs(eigenvalues) == pytest.approx([1, 1], abs=1e-10), (
@@ -87,9 +88,7 @@ class TestSpinOperators:
         )
 
 
-# =============================================================================
 # Test Oscillator Operators
-# =============================================================================
 
 
 class TestOscillatorOperators:
@@ -97,11 +96,11 @@ class TestOscillatorOperators:
 
     def test_annihilation_dimension(self) -> None:
         a = oscillator_annihilation(N=5)
-        assert a.shape == (6, 6), "Expected a.shape == (6, 6)"
+        assert a.shape == (6, 6)
 
     def test_creation_dimension(self) -> None:
         a_dag = oscillator_creation(N=5)
-        assert a_dag.shape == (6, 6), "Expected a_dag.shape == (6, 6)"
+        assert a_dag.shape == (6, 6)
 
     def test_commutation_relation(self) -> None:
         """[a, a†] ≈ I (with truncation effect at boundary).
@@ -150,7 +149,7 @@ class TestOscillatorOperators:
             "Expected result == pytest.approx(expected)"
         )
 
-    def test_test_a_n_computation(self) -> None:
+    def test_a_n_computation(self) -> None:
         N = 5
         a = oscillator_annihilation(N)
         a2 = oscillator_power(a, 2)
@@ -164,7 +163,7 @@ class TestOscillatorOperators:
             "Expected result == pytest.approx(expected)"
         )
 
-    def test_a_0_should_be_identity(self) -> None:
+    def test_given_a_0_then_be_identity(self) -> None:
         N = 5
         a = oscillator_annihilation(N)
         a0 = oscillator_power(a, 0)
@@ -173,9 +172,7 @@ class TestOscillatorOperators:
         )
 
 
-# =============================================================================
 # Test Hybrid Operators
-# =============================================================================
 
 
 class TestHybridOperators:
@@ -203,9 +200,7 @@ class TestHybridOperators:
         )
 
 
-# =============================================================================
 # Test Hamiltonian Construction
-# =============================================================================
 
 
 class TestHybridHamiltonian:
@@ -232,15 +227,17 @@ class TestHybridHamiltonian:
             "Expected H == pytest.approx(H.conj().T, abs=1e-10)"
         )
 
-    def test_hamiltonian_dimension(self) -> None:
-        for n in [2, 3, 4]:
-            N = 5
-            H = hybrid_hamiltonian_n(N, n=n, omega_n=1.0, theta_n=0.0)
-            assert H.shape == (2 * (N + 1), 2 * (N + 1)), (
-                "Expected H.shape == (2 * (N + 1), 2 * (N + 1))"
-            )
+    @pytest.mark.parametrize(
+        "n", [2, 3, 4], ids=["2", "3", "4"]
+    )
+    def test_hamiltonian_dimension(self, n: int) -> None:
+        N = 5
+        H = hybrid_hamiltonian_n(N, n=n, omega_n=1.0, theta_n=0.0)
+        assert H.shape == (2 * (N + 1), 2 * (N + 1)), (
+            "Expected H.shape == (2 * (N + 1), 2 * (N + 1))"
+        )
 
-    def test_h_should_be_zero_when_omega_n_0(self) -> None:
+    def test_given_h_then_be_zero_when_omega_n_0(self) -> None:
         N = 5
         H = hybrid_hamiltonian_n(N, n=2, omega_n=0.0, theta_n=0.0)
         assert pytest.approx(0, abs=1e-10) == H, (
@@ -253,9 +250,7 @@ class TestHybridHamiltonian:
             hybrid_hamiltonian_n(N, n=5, omega_n=1.0, theta_n=0.0)
 
 
-# =============================================================================
 # Test State Preparation
-# =============================================================================
 
 
 class TestStatePreparation:
@@ -268,7 +263,7 @@ class TestStatePreparation:
             "Condition failed: validate_hybrid_state(state, N)"
         )
         # Should be |0,↓⟩ = index 0
-        assert state[0] == pytest.approx(1.0), "Expected state[0] == pytest.approx(1.0)"
+        assert state[0] == pytest.approx(1.0)
 
     def test_vacuum_state_up(self) -> None:
         N = 5
@@ -277,7 +272,7 @@ class TestStatePreparation:
             "Condition failed: validate_hybrid_state(state, N)"
         )
         # Should be |0,↑⟩ = index 1
-        assert state[1] == pytest.approx(1.0), "Expected state[1] == pytest.approx(1.0)"
+        assert state[1] == pytest.approx(1.0)
 
     def test_coherent_state_normalized(self) -> None:
         N = 10
@@ -302,44 +297,40 @@ class TestStatePreparation:
             hybrid_vacuum_state(N, spin_state="invalid")
 
 
-# =============================================================================
 # Test Adaptive Truncation
-# =============================================================================
 
 
 class TestAdaptiveTruncation:
     """Test adaptive truncation formula."""
 
-    def test_vacuum_alpha_0_with_small_r_n_should_give_small_n(self) -> None:
+    def test_given_vacuum_alpha_0_with_small_r_n_then_give_small_n(self) -> None:
         N = adaptive_truncation(alpha=0j, r_n=0.1, n=2, N_max=100)
-        assert N > 0, "Expected N > 0"
-        assert N <= 100, "Expected N <= 100"
+        assert N > 0
+        assert N <= 100
 
-    def test_coherent_state_with_4_should_give_n_4(self) -> None:
+    def test_given_coherent_state_with_4_then_give_n_4(self) -> None:
         N = adaptive_truncation(alpha=2.0 + 0j, r_n=0.0, n=2, N_max=100)
-        assert N >= 4, "Expected N >= 4"
+        assert N >= 4
 
-    def test_larger_r_n_should_give_larger_n(self) -> None:
+    def test_given_larger_r_n_then_give_larger_n(self) -> None:
         N1 = adaptive_truncation(alpha=0j, r_n=1.0, n=2, N_max=100)
         N2 = adaptive_truncation(alpha=0j, r_n=5.0, n=2, N_max=100)
-        assert N2 >= N1, "Expected N2 >= N1"
+        assert N2 >= N1
 
-    def test_n_should_not_exceed_n_max(self) -> None:
+    def test_given_n_then_not_exceed_n_max(self) -> None:
         N = adaptive_truncation(alpha=100j, r_n=100.0, n=4, N_max=50)
-        assert N <= 50, "Expected N <= 50"
+        assert N <= 50
 
-    def test_higher_order_n_should_give_larger_n_at_same_r_n_wider_safety_margin(
+    def test_given_higher_order_n_then_give_larger_n_at_same_r_n_wider_safety_margin(
         self,
     ) -> None:
         N2 = adaptive_truncation(alpha=0j, r_n=1.0, n=2, N_max=200)
         N3 = adaptive_truncation(alpha=0j, r_n=1.0, n=3, N_max=200)
         N4 = adaptive_truncation(alpha=0j, r_n=1.0, n=4, N_max=200)
-        assert N4 >= N3 >= N2, "Expected N4 >= N3 >= N2"
+        assert N4 >= N3 >= N2
 
 
-# =============================================================================
 # Test Expectation Values
-# =============================================================================
 
 
 class TestExpectationValues:
@@ -363,9 +354,7 @@ class TestExpectationValues:
         )
 
 
-# =============================================================================
 # Test Validation Functions
-# =============================================================================
 
 
 class TestValidation:
@@ -404,15 +393,13 @@ class TestValidation:
         )
 
 
-# =============================================================================
 # Test Unitary Evolution
-# =============================================================================
 
 
 class TestUnitaryEvolution:
     """Test time evolution under Hamiltonian."""
 
-    def test_unitary_evolution_should_preserve_norm(self) -> None:
+    def test_given_unitary_evolution_then_preserve_norm(self) -> None:
         N = 5
         H = hybrid_hamiltonian_n(N, n=2, omega_n=0.5, theta_n=0.0)
         # U = exp(-iHt)
@@ -427,7 +414,7 @@ class TestUnitaryEvolution:
             "Expected np.sum(np.abs(evolved) ** 2) == pytest.approx(1.0, abs=1e-6)"
         )
 
-    def test_test_that_evolution_works_with_scipy_linalg_expm(self) -> None:
+    def test_that_evolution_works_with_scipy_linalg_expm(self) -> None:
         N = 4
         H = hybrid_hamiltonian_n(N, n=3, omega_n=0.3, theta_n=np.pi / 4)
         T = 0.5
@@ -436,16 +423,78 @@ class TestUnitaryEvolution:
             "Expected U.shape == (2 * (N + 1), 2 * (N + 1))"
         )
 
+    # --- evolve_hybrid_state ---
 
-# =============================================================================
+    def test_given_evolve_then_preserve_norm_for_all_orders(self) -> None:
+        N = 5
+        for n_order in (2, 3, 4):
+            initial = hybrid_vacuum_state(N, spin_state="down")
+            evolved = evolve_hybrid_state(
+                N=N,
+                n=n_order,
+                omega_n=0.5,
+                theta_n=0.0,
+                t=1.0,
+                initial_state=initial,
+            )
+            norm = np.sum(np.abs(evolved) ** 2)
+            assert norm == pytest.approx(1.0, abs=1e-6), (
+                f"n={n_order}: norm {norm:.6e} != 1"
+            )
+
+    def test_given_evolve_with_zero_time_then_return_initial(self) -> None:
+        N = 5
+        initial = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
+        evolved = evolve_hybrid_state(
+            N=N,
+            n=2,
+            omega_n=0.5,
+            theta_n=0.0,
+            t=0.0,
+            initial_state=initial,
+        )
+        assert np.allclose(evolved, initial, atol=1e-10), (
+            "Evolved state should match initial at t=0"
+        )
+
+    def test_given_evolve_then_have_correct_dimension(self) -> None:
+        N = 5
+        initial = hybrid_vacuum_state(N, spin_state="down")
+        evolved = evolve_hybrid_state(
+            N=N,
+            n=2,
+            omega_n=0.5,
+            theta_n=0.0,
+            t=1.0,
+            initial_state=initial,
+        )
+        assert evolved.shape == (2 * (N + 1),), (
+            f"Expected shape {(2 * (N + 1),)}, got {evolved.shape}"
+        )
+
+    def test_given_evolve_with_zero_omega_then_not_change_state(self) -> None:
+        N = 5
+        initial = hybrid_coherent_state(N, alpha=1.5 + 0j, spin_state="down")
+        evolved = evolve_hybrid_state(
+            N=N,
+            n=2,
+            omega_n=0.0,
+            theta_n=0.0,
+            t=1.0,
+            initial_state=initial,
+        )
+        assert np.allclose(evolved, initial, atol=1e-10), (
+            "Evolved state should match initial when omega_n=0"
+        )
+
+
 # Test Ground State
-# =============================================================================
 
 
 class TestHybridGroundState:
     """Tests for hybrid_ground_state_n."""
 
-    def test_ground_state_should_have_correct_dimension(self) -> None:
+    def test_given_ground_state_then_have_correct_dimension(self) -> None:
         N = 6
         for n_order in (2, 3, 4):
             gs = hybrid_ground_state_n(N, n=n_order, omega_n=0.5, theta_n=0.0)
@@ -454,7 +503,7 @@ class TestHybridGroundState:
                 f"n={n_order}: expected dim {expected_dim}, got {gs.shape}"
             )
 
-    def test_ground_state_should_be_normalised_to_1(self) -> None:
+    def test_given_ground_state_then_be_normalised_to_1(self) -> None:
         N = 6
         for n_order in (2, 3, 4):
             gs = hybrid_ground_state_n(N, n=n_order, omega_n=0.5, theta_n=0.0)
@@ -462,7 +511,7 @@ class TestHybridGroundState:
                 f"n={n_order}: norm not preserved"
             )
 
-    def test_ground_state_should_be_the_lowest_eigenvector_of_h_n(self) -> None:
+    def test_given_ground_state_then_be_the_lowest_eigenvector_of_h_n(self) -> None:
         N = 5
         n_order = 2
         omega_n = 1.0
@@ -479,7 +528,7 @@ class TestHybridGroundState:
             f"Overlap with lowest eigenvector: {overlap:.2e}"
         )
 
-    def test_ground_state_energy_should_be_the_minimum_eigenvalue(self) -> None:
+    def test_given_ground_state_energy_then_be_the_minimum_eigenvalue(self) -> None:
         N = 5
         for n_order in (2, 3, 4):
             H = hybrid_hamiltonian_n(N, n_order, omega_n=0.5, theta_n=0.0)
@@ -490,11 +539,11 @@ class TestHybridGroundState:
                 f"n={n_order}: GS energy {gs_energy:.6e} != min eigenvalue {eigenvalues[0]:.6e}"
             )
 
-    def test_invalid_order_should_raise_valueerror(self) -> None:
+    def test_given_invalid_order_then_raise_valueerror(self) -> None:
         with pytest.raises(ValueError, match="Unsupported order"):
             hybrid_ground_state_n(N=5, n=5, omega_n=0.5, theta_n=0.0)
 
-    def test_for_non_trivial_omega_n_the_ground_state_should_differ_from_0(
+    def test_given_for_non_trivial_omega_n_the_ground_state_then_differ_from_0(
         self,
     ) -> None:
         N = 5

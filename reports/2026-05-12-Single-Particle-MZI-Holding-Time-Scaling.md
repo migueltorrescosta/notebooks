@@ -2,7 +2,7 @@
 
 ## 🧪 Hypothesis
 
-For a single-particle Mach–Zehnder interferometer (MZI) with Hamiltonian $H = \theta J_z$ applied during a holding time $T_H$, the sensitivity $\Delta\theta$ (error-propagation uncertainty in estimating the rate parameter $\theta$) scales as $\Delta\theta \propto T_H^{-1}$ in the ideal decoherence-free case. This corresponds to a scaling exponent $\alpha = -1$ on a log-log plot of $\Delta\theta$ vs $T_H$, which is the standard quantum limit (SQL) for a single probe with increasing interrogation time. The result is expected to hold independent of the true value of $\theta$ (provided $\sin(\theta T_H) \neq 0$, i.e., away from fringe extrema). The numerical simulation will confirm this exponent using both analytical derivatives and finite-difference derivatives, and the two methods must agree to within numerical precision.
+For a single-particle **Mach–Zehnder interferometer (MZI)** with Hamiltonian $H = \theta J_z$ applied during a holding time $T_H$, the sensitivity $\Delta\theta$ (**error-propagation** uncertainty in estimating the rate parameter $\theta$) scales as $\Delta\theta \propto T_H^{-1}$ in the ideal decoherence-free case. This corresponds to a scaling exponent $\alpha = -1$ on a log-log plot of $\Delta\theta$ vs $T_H$, which is the standard quantum limit (SQL) for a single probe with increasing interrogation time. The result is expected to hold independent of the true value of $\theta$ (provided $\sin(\theta T_H) \neq 0$, i.e., away from fringe extrema). The numerical simulation will confirm this exponent using both analytical derivatives and finite-difference derivatives, and the two methods must agree to within numerical precision.
 
 ## ⚛️ Theoretical Model
 

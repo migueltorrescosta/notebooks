@@ -62,9 +62,7 @@ class TestAllSensitivityMetrics:
         max_photons = 1
         state = prepare_input_state("single_photon", max_photons=max_photons)
         phi_true = np.pi / 4
-        result = all_sensitivity_metrics(
-            state, max_photons, phi_true, n_mc=50, rng_seed=42
-        )
+        result = all_sensitivity_metrics(state, max_photons, phi_true, n_mc=50, seed=42)
         assert "delta_phi_ep" in result
         assert "delta_phi_fc" in result
         assert "delta_phi_fq" in result
@@ -79,9 +77,7 @@ class TestAllSensitivityMetrics:
             n_particles=max_photons,
         )
         phi_true = np.pi / 4
-        result = all_sensitivity_metrics(
-            state, max_photons, phi_true, n_mc=50, rng_seed=42
-        )
+        result = all_sensitivity_metrics(state, max_photons, phi_true, n_mc=50, seed=42)
         assert np.isfinite(result["delta_phi_ep"])
         assert np.isfinite(result["delta_phi_fc"])
         assert np.isfinite(result["delta_phi_fq"])
@@ -104,7 +100,7 @@ class TestSensitivityScaling:
             N_range=N_range,
             noise_config=None,
             n_mc=50,
-            rng_seed=42,
+            seed=42,
         )
         assert len(result.df) > 0
 
@@ -116,7 +112,7 @@ class TestSensitivityScaling:
             N_range=N_range,
             noise_config=None,
             n_mc=50,
-            rng_seed=42,
+            seed=42,
         )
         assert len(result.df) > 0
 
@@ -158,7 +154,7 @@ class TestSensitivityValidation:
             max_photons,
             phi_true=np.pi / 4,
             n_mc=500,
-            rng_seed=42,
+            seed=42,
         )
         assert np.isfinite(result["delta_phi_ep"])
         assert np.isfinite(result["delta_phi_fq"])
@@ -176,7 +172,7 @@ class TestScalingExponents:
             state_type="noon",
             N_range=N_range,
             n_mc=100,
-            rng_seed=42,
+            seed=42,
         )
         if "delta_phi_fq" in result.exponents:
             alpha = result.exponents["delta_phi_fq"]
@@ -218,14 +214,14 @@ class TestReproducibility:
             max_photons,
             phi_true=np.pi / 4,
             n_mc=50,
-            rng_seed=123,
+            seed=123,
         )
         result2 = all_sensitivity_metrics(
             state,
             max_photons,
             phi_true=np.pi / 4,
             n_mc=50,
-            rng_seed=123,
+            seed=123,
         )
         assert result1["delta_phi_bayes"] == result2["delta_phi_bayes"]
 
@@ -242,14 +238,14 @@ class TestReproducibility:
             max_photons,
             phi_true=np.pi / 4,
             n_mc=50,
-            rng_seed=123,
+            seed=123,
         )
         result2 = all_sensitivity_metrics(
             state,
             max_photons,
             phi_true=np.pi / 4,
             n_mc=50,
-            rng_seed=456,
+            seed=456,
         )
         assert np.isfinite(result1["delta_phi_bayes"])
         assert np.isfinite(result2["delta_phi_bayes"])
@@ -268,7 +264,7 @@ class TestPhysicsInvariants:
             max_photons,
             phi_true=np.pi / 4,
             n_mc=100,
-            rng_seed=42,
+            seed=42,
         )
         assert result["fisher_quantum"] >= 0
 
@@ -284,7 +280,7 @@ class TestPhysicsInvariants:
             max_photons,
             phi_true=np.pi / 4,
             n_mc=100,
-            rng_seed=42,
+            seed=42,
         )
         assert result["delta_phi_ep"] > 0
         assert result["delta_phi_bayes"] > 0

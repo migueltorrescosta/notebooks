@@ -9,15 +9,20 @@ from scipy.linalg import expm
 from src.analysis.ancilla_optimization import (
     I_2,
     AlphaRandomSearchResult,
+    AlphaReoptScanResult,
     AlphaSingleScanResult,
+    InteractionRobustnessResult,
     OptimisationResult,
     ThetaScanResult,
     bs_unitary,
     build_hold_hamiltonian,
     build_interaction_hamiltonian,
+    build_joint_operator,
     build_two_qubit_operators,
     compute_convergence_metric,
+    compute_covariance,
     compute_expectation_and_variance,
+    compute_interaction_robustness,
     compute_reduced_purity,
     compute_sensitivity,
     evolve_full,
@@ -28,6 +33,7 @@ from src.analysis.ancilla_optimization import (
     random_search_alpha,
     run_optimisation,
     scan_alpha_single_parameter,
+    scan_alpha_with_reoptimisation,
     sensitivity_objective,
     single_qubit_state,
     two_qubit_bs_unitary,
@@ -41,7 +47,7 @@ from src.analysis.ancilla_optimization import (
 I_4 = np.eye(4, dtype=complex)
 
 
-def _default_params() -> np.ndarray:
+def _make_default_params() -> np.ndarray:
     return np.array([0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0, 0.0, 0.0, 0.0, 0.0])
 
 
@@ -98,6 +104,51 @@ class TestOperatorConstruction:
         alpha = tuple(rng.uniform(-2, 2, size=4))
         H = build_interaction_hamiltonian(alpha)
         assert pytest.approx(H.conj().T, abs=1e-12) == H
+
+
+class TestJointOperator:
+    def test_joint_operator_is_hermitian(self, make_ops: dict[str, np.ndarray]) -> None:
+        M = build_joint_operator(make_ops)
+        assert pytest.approx(M.conj().T, abs=1e-12) == M
+
+    def test_joint_operator_eigenvalues(self, make_ops: dict[str, np.ndarray]) -> None:
+        M = build_joint_operator(make_ops)
+        assert sorted(np.linalg.eigvalsh(M)) == pytest.approx(
+            [-1.0, 0.0, 0.0, 1.0], abs=1e-12
+        )
+
+    def test_joint_operator_equals_sum(self, make_ops: dict[str, np.ndarray]) -> None:
+        M = build_joint_operator(make_ops)
+        assert pytest.approx(make_ops["Jz_S"] + make_ops["Jz_A"], abs=1e-12) == M
+
+
+class TestCovariance:
+    def test_product_state_zero_covariance(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        psi = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)
+        cov = compute_covariance(psi, make_ops)
+        assert cov == pytest.approx(0.0, abs=1e-12)
+
+    def test_bell_state_nonzero_covariance(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        psi = np.array([0.0, 1.0, 1.0, 0.0], dtype=complex) / np.sqrt(2)
+        cov = compute_covariance(psi, make_ops)
+        assert cov == pytest.approx(-0.25, abs=1e-12)
+
+    def test_variance_identity(self, make_ops: dict[str, np.ndarray]) -> None:
+        rng = np.random.default_rng(42)
+        psi = rng.standard_normal(4) + 1j * rng.standard_normal(4)
+        psi /= np.linalg.norm(psi)
+
+        M = build_joint_operator(make_ops)
+        _, var_M = compute_expectation_and_variance(psi, M)
+        _, var_S = compute_expectation_and_variance(psi, make_ops["Jz_S"])
+        _, var_A = compute_expectation_and_variance(psi, make_ops["Jz_A"])
+        cov = compute_covariance(psi, make_ops)
+
+        assert var_M == pytest.approx(var_S + var_A + 2.0 * cov, abs=1e-12)
 
 
 class TestStatePreparation:
@@ -375,24 +426,44 @@ class TestSensitivity:
             is True
         )
 
+    @pytest.mark.parametrize("T_H", [0.5, 1.0, 2.0])
+    def test_joint_measurement_sensitivity_sql(
+        self, T_H: float, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        """Joint measurement must achieve Δθ = 1/T_H at α=0, matching SQL."""
+        M_op = build_joint_operator(make_ops)
+        psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
+        T_BS = np.pi / 2.0
+        theta_true = 1.0
+        alpha = (0.0, 0.0, 0.0, 0.0)
+        dtheta = compute_sensitivity(
+            psi0, T_BS, T_BS, T_H, theta_true, alpha, make_ops, meas_op=M_op
+        )
+        assert dtheta == pytest.approx(1.0 / T_H, rel=0.05), (
+            f"Joint measurement Δθ={dtheta:.6f} for T_H={T_H},"
+            f" expected SQL={1.0 / T_H:.6f}"
+        )
+
 
 class TestObjective:
     def test_valid_params_finite(self, make_ops: dict[str, np.ndarray]) -> None:
-        val = sensitivity_objective(_default_params(), theta_true=1.0, ops=make_ops)
+        val = sensitivity_objective(
+            _make_default_params(), theta_true=1.0, ops=make_ops
+        )
         assert np.isfinite(val) and val > 0
 
     def test_matches_sql(self, make_ops: dict[str, np.ndarray]) -> None:
         assert sensitivity_objective(
-            _default_params(), theta_true=1.0, ops=make_ops
+            _make_default_params(), theta_true=1.0, ops=make_ops
         ) == pytest.approx(1.0, rel=0.05)
 
     def test_penalty_out_of_bounds_theta(self, make_ops: dict[str, np.ndarray]) -> None:
-        params = _default_params().copy()
+        params = _make_default_params().copy()
         params[0] = 4.0
         assert sensitivity_objective(params, theta_true=1.0, ops=make_ops) > 1e9
 
     def test_penalty_out_of_bounds_alpha(self, make_ops: dict[str, np.ndarray]) -> None:
-        params = _default_params().copy()
+        params = _make_default_params().copy()
         params[7] = 5.0
         assert sensitivity_objective(params, theta_true=1.0, ops=make_ops) > 1e9
 
@@ -400,7 +471,7 @@ class TestObjective:
     def test_given_small_perturbation_then_objective_changes_smoothly(
         self, idx: int, make_ops: dict[str, np.ndarray]
     ) -> None:
-        base = _default_params()
+        base = _make_default_params()
         val_base = sensitivity_objective(base, theta_true=1.0, ops=make_ops)
         perturbed = base.copy()
         perturbed[idx] += 1e-6
@@ -416,21 +487,23 @@ class TestObjective:
 class TestOptimisation:
     def test_run_returns_result_type(self, make_ops: dict[str, np.ndarray]) -> None:
         result = run_optimisation(
-            theta_true=1.0, ops=make_ops, x0=_default_params(), maxiter=10
+            theta_true=1.0, ops=make_ops, x0=_make_default_params(), maxiter=10
         )
         assert isinstance(result, OptimisationResult)
         assert result.theta_true == 1.0
 
     def test_run_returns_valid_params(self, make_ops: dict[str, np.ndarray]) -> None:
         result = run_optimisation(
-            theta_true=1.0, ops=make_ops, x0=_default_params(), maxiter=10
+            theta_true=1.0, ops=make_ops, x0=_make_default_params(), maxiter=10
         )
         assert result.params_opt.shape == (11,)
         assert not np.isnan(result.delta_theta_opt)
         assert 0.5 <= result.purity_S <= 1.0
 
     def test_result_dataclass(self) -> None:
-        r = OptimisationResult(0.5, np.zeros(11), 1.0, True, 100, "OK")
+        r = OptimisationResult(
+            0.5, np.zeros(11), 1.0, True, 100, "OK", meas_label="S-only"
+        )
         assert r.delta_theta_opt == 0.5
         assert r.success is True
         r2 = OptimisationResult(
@@ -443,6 +516,7 @@ class TestOptimisation:
             expectation_Jz=0.25,
             variance_Jz=0.01,
             purity_S=0.75,
+            meas_label="S-only",
         )
         assert r2.expectation_Jz == pytest.approx(0.25)
         assert r2.purity_S == pytest.approx(0.75)
@@ -460,26 +534,32 @@ class TestOptimisation:
     @pytest.mark.slow
     def test_explores_t_h(self, make_ops: dict[str, np.ndarray]) -> None:
         result = run_optimisation(
-            theta_true=1.0, ops=make_ops, x0=_default_params(), maxiter=200
+            theta_true=1.0, ops=make_ops, x0=_make_default_params(), maxiter=200
         )
         T_H_opt = result.params_opt[6]
         assert T_H_opt > 1.5
         assert result.delta_theta_opt == pytest.approx(1.0 / T_H_opt, rel=0.15)
 
     def test_convergence_fewer_than_two(self) -> None:
-        r = OptimisationResult(0.5, np.zeros(11), 1.0, True, 10, "ok")
+        r = OptimisationResult(
+            0.5, np.zeros(11), 1.0, True, 10, "ok", meas_label="S-only"
+        )
         assert compute_convergence_metric([r]) == 0.0
 
     def test_convergence_all_inf(self) -> None:
         results = [
-            OptimisationResult(float("inf"), np.zeros(11), 1.0, True, 10, "ok")
+            OptimisationResult(
+                float("inf"), np.zeros(11), 1.0, True, 10, "ok", meas_label="S-only"
+            )
             for _ in range(2)
         ]
         assert compute_convergence_metric(results) == 0.0
 
     def test_convergence_small_spread(self) -> None:
         results = [
-            OptimisationResult(v, np.zeros(11), 1.0, True, 10, "ok")
+            OptimisationResult(
+                v, np.zeros(11), 1.0, True, 10, "ok", meas_label="S-only"
+            )
             for v in [0.51, 0.52, 0.50, 0.53]
         ]
         metric = compute_convergence_metric(results)
@@ -530,13 +610,22 @@ class TestBounds:
             assert 0.0 <= params[6] <= 20.0
 
     def test_optimisation_result_history(self) -> None:
-        r = OptimisationResult(0.5, np.zeros(11), 1.0, True, 100, "OK")
+        r = OptimisationResult(
+            0.5, np.zeros(11), 1.0, True, 100, "OK", meas_label="S-only"
+        )
         assert hasattr(r, "history")
         assert r.history == []
 
     def test_optimisation_result_history_settable(self) -> None:
         r = OptimisationResult(
-            0.5, np.zeros(11), 1.0, True, 100, "OK", history=[1.0, 0.8, 0.6, 0.5]
+            0.5,
+            np.zeros(11),
+            1.0,
+            True,
+            100,
+            "OK",
+            meas_label="S-only",
+            history=[1.0, 0.8, 0.6, 0.5],
         )
         assert r.history == [1.0, 0.8, 0.6, 0.5]
 
@@ -544,7 +633,7 @@ class TestBounds:
         result_no_track = run_optimisation(
             theta_true=1.0,
             ops=make_ops,
-            x0=_default_params(),
+            x0=_make_default_params(),
             maxiter=20,
             track_history=False,
         )
@@ -552,7 +641,7 @@ class TestBounds:
         result_with_track = run_optimisation(
             theta_true=1.0,
             ops=make_ops,
-            x0=_default_params(),
+            x0=_make_default_params(),
             maxiter=20,
             track_history=True,
         )
@@ -626,3 +715,183 @@ class TestAlphaScans:
         result = random_search_alpha(n_samples=100, T_H=1.0, seed=42)
         finite = np.isfinite(result.delta_theta_values)
         assert np.min(result.delta_theta_values[finite]) >= 1.0 - 1e-8
+
+    def test_alpha_reopt_scan_result_dataclass(self) -> None:
+        r = AlphaReoptScanResult(
+            alpha_values=np.array([-1.0, 0.0, 1.0]),
+            delta_theta_joint=np.array([0.5, 0.6, 0.7]),
+            delta_theta_sonly=np.array([0.8, 0.9, 1.0]),
+            best_params_joint=[np.zeros(11), np.ones(11), np.ones(11) * 2],
+            best_params_sonly=[np.zeros(11), np.ones(11), np.ones(11) * 3],
+        )
+        assert len(r.alpha_values) == 3
+        assert r.delta_theta_joint[0] == pytest.approx(0.5)
+        assert r.delta_theta_sonly[1] == pytest.approx(0.9)
+        assert r.best_params_joint[1].shape == (11,)
+
+    def test_sensitivity_objective_with_fixed_alpha(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        params_7 = np.array([0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0])
+        fixed = (0.0, 0.0, 0.0, 0.0)
+        val = sensitivity_objective(
+            params_7, theta_true=1.0, ops=make_ops, fixed_alpha=fixed
+        )
+        assert np.isfinite(val) and val > 0
+
+    def test_optimisation_with_fixed_alpha(
+        self, make_ops: dict[str, np.ndarray]
+    ) -> None:
+        x0_7 = np.array([0.0, 0.0, 0.0, 0.0, np.pi / 2, np.pi / 2, 1.0])
+        fixed = (0.0, 0.0, 0.0, 0.0)
+        result = run_optimisation(
+            theta_true=1.0, ops=make_ops, x0=x0_7, maxiter=10, fixed_alpha=fixed
+        )
+        assert isinstance(result, OptimisationResult)
+        assert result.params_opt.shape == (11,)
+        # Alpha components should match the fixed values
+        assert result.params_opt[7:] == pytest.approx([0.0, 0.0, 0.0, 0.0])
+
+    def test_scan_alpha_with_reoptimisation_basic(self) -> None:
+        result = scan_alpha_with_reoptimisation(
+            "xx",
+            alpha_values=np.array([-0.5, 0.0, 0.5]),
+            n_restarts=2,
+            maxiter=20,
+            seed=42,
+        )
+        assert isinstance(result, AlphaReoptScanResult)
+        assert len(result.alpha_values) == 3
+        assert result.alpha_values[1] == pytest.approx(0.0)
+        assert len(result.delta_theta_joint) == 3
+        assert len(result.delta_theta_sonly) == 3
+        assert len(result.best_params_joint) == 3
+        assert len(result.best_params_sonly) == 3
+        assert np.all(np.isfinite(result.delta_theta_joint))
+        assert np.all(np.isfinite(result.delta_theta_sonly))
+
+    @pytest.mark.parametrize("name", ["xx", "xz", "zx", "zz"])
+    def test_scan_alpha_with_reoptimisation_all_names(self, name: str) -> None:
+        result = scan_alpha_with_reoptimisation(
+            name,
+            alpha_values=np.array([-0.2, 0.0, 0.2]),
+            n_restarts=2,
+            maxiter=20,
+            seed=42,
+        )
+        assert result.alpha_values.shape == (3,)
+
+    def test_scan_alpha_with_reoptimisation_invalid_name_raises(self) -> None:
+        with pytest.raises(ValueError):
+            scan_alpha_with_reoptimisation("invalid")
+
+    def test_scan_alpha_with_reoptimisation_default_alpha_values(self) -> None:
+        result = scan_alpha_with_reoptimisation("xx", n_restarts=2, maxiter=10, seed=42)
+        # Default: 21 points in [-2, 2]
+        assert result.alpha_values.shape == (21,)
+        assert result.alpha_values[0] == pytest.approx(-2.0)
+        assert result.alpha_values[-1] == pytest.approx(2.0)
+
+
+class TestInteractionRobustness:
+    def test_result_dataclass_defaults(self) -> None:
+        r = InteractionRobustnessResult()
+        assert len(r.T_H_values) == 0
+        assert len(r.alpha_values) == 0
+        assert r.delta_theta_joint.shape == (0,)
+        assert r.delta_theta_sonly.shape == (0,)
+
+    def test_result_dataclass_with_values(self) -> None:
+        T_H = np.array([0.5, 1.0])
+        alpha = np.array([-1.0, 0.0, 1.0])
+        dtheta_j = np.array([[0.8, 0.6, 0.8], [0.4, 0.3, 0.4]])
+        dtheta_s = np.array([[1.0, 0.9, 1.0], [0.5, 0.4, 0.5]])
+        r = InteractionRobustnessResult(
+            T_H_values=T_H,
+            alpha_values=alpha,
+            delta_theta_joint=dtheta_j,
+            delta_theta_sonly=dtheta_s,
+        )
+        assert r.T_H_values == pytest.approx(T_H)
+        assert r.alpha_values == pytest.approx(alpha)
+        assert r.delta_theta_joint == pytest.approx(dtheta_j)
+        assert r.delta_theta_sonly == pytest.approx(dtheta_s)
+        assert r.delta_theta_joint.shape == (2, 3)
+
+    def test_basic_smoke(self) -> None:
+        T_H_vals = np.array([0.5, 1.0])
+        alpha_vals = np.array([-0.2, 0.0, 0.2])
+        result = compute_interaction_robustness(
+            T_H_vals,
+            alpha_vals,
+            theta_true=1.0,
+            alpha_name="xx",
+        )
+        assert isinstance(result, InteractionRobustnessResult)
+        assert result.T_H_values == pytest.approx(T_H_vals)
+        assert result.alpha_values == pytest.approx(alpha_vals)
+        assert result.delta_theta_joint.shape == (2, 3)
+        assert result.delta_theta_sonly.shape == (2, 3)
+        assert np.all(np.isfinite(result.delta_theta_joint))
+        assert np.all(np.isfinite(result.delta_theta_sonly))
+
+    def test_sql_at_zero_alpha(self) -> None:
+        """At α=0, both joint and S-only sensitivity ≈ 1/T_H."""
+        T_H_vals = np.array([0.5, 1.0, 2.0])
+        alpha_vals = np.array([0.0])
+        result = compute_interaction_robustness(
+            T_H_vals,
+            alpha_vals,
+            theta_true=1.0,
+            alpha_name="xx",
+            theta_S=0.0,
+            phi_S=0.0,
+            theta_A=0.0,
+            phi_A=0.0,
+            T_BS=np.pi / 2,
+        )
+        for i, T_H in enumerate(T_H_vals):
+            expected = 1.0 / T_H
+            assert result.delta_theta_sonly[i, 0] == pytest.approx(expected, rel=0.05)
+            assert result.delta_theta_joint[i, 0] == pytest.approx(expected, rel=0.05)
+
+    @pytest.mark.parametrize("name", ["xx", "xz", "zx", "zz"])
+    def test_all_alpha_names(self, name: str) -> None:
+        T_H_vals = np.array([1.0])
+        alpha_vals = np.array([-0.1, 0.0, 0.1])
+        result = compute_interaction_robustness(
+            T_H_vals,
+            alpha_vals,
+            theta_true=1.0,
+            alpha_name=name,
+        )
+        assert result.delta_theta_joint.shape == (1, 3)
+
+    def test_invalid_alpha_name_raises(self) -> None:
+        T_H_vals = np.array([1.0])
+        alpha_vals = np.array([0.0])
+        with pytest.raises(ValueError):
+            compute_interaction_robustness(
+                T_H_vals,
+                alpha_vals,
+                alpha_name="invalid",
+            )
+
+    def test_larger_scan(self) -> None:
+        T_H_vals = np.linspace(0.5, 2.0, 4)
+        alpha_vals = np.linspace(-1.0, 1.0, 5)
+        result = compute_interaction_robustness(
+            T_H_vals,
+            alpha_vals,
+            theta_true=1.0,
+            alpha_name="zz",
+        )
+        assert result.delta_theta_joint.shape == (4, 5)
+        assert result.delta_theta_sonly.shape == (4, 5)
+        assert np.all(np.isfinite(result.delta_theta_joint))
+        assert np.all(np.isfinite(result.delta_theta_sonly))
+        # At α=0 (index 2), sensitivity should approximately equal 1/T_H
+        for i, T_H in enumerate(T_H_vals):
+            expected = 1.0 / T_H
+            assert result.delta_theta_sonly[i, 2] == pytest.approx(expected, rel=0.05)
+            assert result.delta_theta_joint[i, 2] == pytest.approx(expected, rel=0.05)

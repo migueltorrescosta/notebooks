@@ -218,7 +218,7 @@ def all_sensitivity_metrics(
     max_photons: int,
     phi_true: float,
     n_mc: int = 500,
-    rng_seed: int = 42,
+    seed: int | None = None,
 ) -> dict:
     """Compute all three sensitivity metrics for comparison.
 
@@ -232,7 +232,7 @@ def all_sensitivity_metrics(
         max_photons: Maximum photon number per mode.
         phi_true: True phase value for simulation.
         n_mc: Number of Monte Carlo samples for Bayesian estimation.
-        rng_seed: Random seed for reproducibility.
+        seed: Random seed for reproducibility (None = fresh entropy).
 
     Returns:
         Dictionary with all three sensitivity values and metadata.
@@ -246,7 +246,7 @@ def all_sensitivity_metrics(
     if n_mc < 1:
         raise ValueError(f"n_mc must be >= 1, got {n_mc}")
 
-    rng = np.random.default_rng(rng_seed)
+    rng = np.random.default_rng(seed)
 
     # Verify state dimension matches expected
     dim = state.shape[0]
@@ -381,7 +381,7 @@ def sensitivity_scaling(
     noise_config: NoiseConfig | None = None,
     phi_true: float = np.pi / 4,
     n_mc: int = 200,
-    rng_seed: int = 42,
+    seed: int | None = None,
 ) -> SensitivityScalingResult:
     """Compute phase sensitivity vs particle number N.
 
@@ -396,7 +396,7 @@ def sensitivity_scaling(
         noise_config: Optional noise configuration for lossy channels.
         phi_true: True phase for Bayesian estimation.
         n_mc: Number of Monte Carlo samples.
-        rng_seed: Random seed.
+        seed: Random seed (None = fresh entropy).
 
     Returns:
         SensitivityScalingResult with DataFrame and fitted exponents.
@@ -436,7 +436,7 @@ def sensitivity_scaling(
                 max_photons,
                 phi_true,
                 n_mc=n_mc,
-                rng_seed=rng_seed,
+                seed=seed,
             )
 
             results.append(

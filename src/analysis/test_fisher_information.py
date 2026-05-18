@@ -25,7 +25,7 @@ from .fisher_information import (
 )
 
 
-def _qfi_first_principles(rho: np.ndarray, G: np.ndarray) -> float:
+def _make_qfi_first_principles(rho: np.ndarray, G: np.ndarray) -> float:
     """Textbook QFI via SLD formula: 2 * sum_{i != j} (lambda_i - lambda_j)^2 / (lambda_i + lambda_j) * |<i|G|j>|^2."""
     w, v = np.linalg.eigh(rho)
     w = w[::-1]
@@ -43,7 +43,7 @@ def _qfi_first_principles(rho: np.ndarray, G: np.ndarray) -> float:
     return fq
 
 
-def _noon_state(N: int) -> np.ndarray:
+def _make_noon_state(N: int) -> np.ndarray:
     """Create (|m=-N/2> + |m=+N/2>) / sqrt(2) in J_z basis."""
     dim = N + 1
     state = np.zeros(dim, dtype=complex)
@@ -52,19 +52,19 @@ def _noon_state(N: int) -> np.ndarray:
     return state
 
 
-def _eigenstate(N: int) -> np.ndarray:
+def _make_eigenstate(N: int) -> np.ndarray:
     """Create J_z eigenstate |m=-N/2>."""
     state = np.zeros(N + 1, dtype=complex)
     state[0] = 1.0
     return state
 
 
-def _uniform_superposition(N: int) -> np.ndarray:
+def _make_uniform_superposition(N: int) -> np.ndarray:
     """Create uniform superposition of all J_z eigenstates."""
     return np.ones(N + 1, dtype=complex) / np.sqrt(N + 1)
 
 
-def _uniform_qfi(N: int) -> float:
+def _make_uniform_qfi(N: int) -> float:
     """Analytical QFI for uniform superposition with J_z generator: F_Q = N(N+2)/3."""
     return N * (N + 2) / 3.0
 
@@ -75,24 +75,24 @@ class TestQuantumFisherInformationPure:
     @pytest.mark.parametrize("N", [2, 4, 8, 10])
     def test_noon_state_qfi_equals_n_squared(self, N: int) -> None:
         fq = quantum_fisher_information(
-            _noon_state(N), generate_phase_generator(N, "Jz")
+            _make_noon_state(N), generate_phase_generator(N, "Jz")
         )
         assert fq == pytest.approx(N**2, rel=0.1)
 
     def test_noon_qfi_exceeds_eigenstate_qfi(self) -> None:
         G = generate_phase_generator(10, "Jz")
-        fq_noon = quantum_fisher_information(_noon_state(10), G)
-        fq_eigen = quantum_fisher_information(_eigenstate(10), G)
+        fq_noon = quantum_fisher_information(_make_noon_state(10), G)
+        fq_eigen = quantum_fisher_information(_make_eigenstate(10), G)
         assert fq_noon > fq_eigen + 1e-5
 
     def test_eigenstate_of_generator_has_zero_qfi(self) -> None:
         assert quantum_fisher_information(
-            _eigenstate(5), generate_phase_generator(5, "Jz")
+            _make_eigenstate(5), generate_phase_generator(5, "Jz")
         ) == pytest.approx(0.0, abs=1e-10)
 
     def test_qfi_equals_4_variance_for_pure_states(self) -> None:
         N = 5
-        state = _noon_state(N)
+        state = _make_noon_state(N)
         G = generate_phase_generator(N, "Jz")
         g_exp = np.vdot(state, G @ state).real
         g2_exp = np.vdot(state, G @ G @ state).real
@@ -103,19 +103,19 @@ class TestQuantumFisherInformationPure:
     def test_noon_delta_phi_beats_standard_quantum_limit(self) -> None:
         N = 100
         G = generate_phase_generator(N, "Jz")
-        fq = quantum_fisher_information(_noon_state(N), G)
+        fq = quantum_fisher_information(_make_noon_state(N), G)
         assert 1.0 / np.sqrt(fq) < 1.0 / np.sqrt(N)
 
     @pytest.mark.parametrize("N", [10, 50, 100], ids=["N=10", "N=50", "N=100"])
     def test_uniform_superposition_qfi_matches_analytical_formula(self, N: int) -> None:
-        state = _uniform_superposition(N)
+        state = _make_uniform_superposition(N)
         fq = quantum_fisher_information(state, generate_phase_generator(N, "Jz"))
-        assert fq == pytest.approx(_uniform_qfi(N), rel=1e-10)
+        assert fq == pytest.approx(_make_uniform_qfi(N), rel=1e-10)
 
     def test_handles_n_1000_without_overflow(self) -> None:
         assert (
             quantum_fisher_information(
-                _noon_state(1000), generate_phase_generator(1000, "Jz")
+                _make_noon_state(1000), generate_phase_generator(1000, "Jz")
             )
             > 0
         )
@@ -134,7 +134,7 @@ class TestQuantumFisherInformationMixed:
 
     def test_dm_qfi_matches_pure_state_qfi(self) -> None:
         N = 5
-        state = _noon_state(N)
+        state = _make_noon_state(N)
         G = generate_phase_generator(N, "Jz")
         fq_pure = quantum_fisher_information(state, G)
         fq_dm = quantum_fisher_information_dm(np.outer(state, state.conj()), G)
@@ -142,7 +142,7 @@ class TestQuantumFisherInformationMixed:
 
     def test_mixing_reduces_qfi(self) -> None:
         N = 5
-        state = _noon_state(N)
+        state = _make_noon_state(N)
         G = generate_phase_generator(N, "Jz")
         dim = N + 1
         rho_pure = np.outer(state, state.conj())
@@ -165,28 +165,28 @@ class TestQuantumFisherInformationMixed:
             np.diag([0.4, 0.3, 0.2, 0.1, 0.0]), np.diag(np.arange(5.0))
         ) == pytest.approx(0.0, abs=1e-12)
 
-    @pytest.mark.parametrize("seed", range(5))
+    @pytest.mark.parametrize("seed", range(5), ids=["seed_0", "seed_1", "seed_2", "seed_3", "seed_4"])
     def test_2d_mixed_qfi_matches_sld_formula(self, seed: int) -> None:
-        np.random.seed(42 + seed)
-        a = np.random.uniform(0.1, 0.9)
+        rng = np.random.default_rng(42 + seed)
+        a = rng.uniform(0.1, 0.9)
         rho = np.diag([a, 1.0 - a])
-        g11, g22 = np.random.uniform(-2, 2, 2)
-        g_off = np.random.uniform(-1, 1) + 1j * np.random.uniform(-1, 1)
+        g11, g22 = rng.uniform(-2, 2, 2)
+        g_off = rng.uniform(-1, 1) + 1j * rng.uniform(-1, 1)
         G = np.array([[g11, g_off], [np.conj(g_off), g22]], dtype=complex)
         fq = quantum_fisher_information_dm(rho, G)
-        assert fq == pytest.approx(_qfi_first_principles(rho, G), rel=1e-10)
+        assert fq == pytest.approx(_make_qfi_first_principles(rho, G), rel=1e-10)
         assert fq >= 0.0
 
     @pytest.mark.parametrize("dim", [3, 5, 8])
     def test_high_dim_mixed_qfi_matches_sld_formula(self, dim: int) -> None:
-        np.random.seed(123)
-        A = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        rng = np.random.default_rng(123)
+        A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
         rho = A @ A.conj().T
         rho = rho / np.trace(rho)
-        G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
         G = G + G.conj().T
         fq = quantum_fisher_information_dm(rho, G)
-        assert fq == pytest.approx(_qfi_first_principles(rho, G), rel=1e-10)
+        assert fq == pytest.approx(_make_qfi_first_principles(rho, G), rel=1e-10)
         assert fq >= 0.0
 
     def test_degenerate_eigenvalues_handled_correctly(self) -> None:
@@ -195,14 +195,14 @@ class TestQuantumFisherInformationMixed:
         G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
         G = G + G.conj().T
         assert quantum_fisher_information_dm(rho, G) == pytest.approx(
-            _qfi_first_principles(rho, G), rel=1e-10
+            _make_qfi_first_principles(rho, G), rel=1e-10
         )
 
-    @pytest.mark.parametrize("eps", [1e-3, 1e-6, 1e-10])
+    @pytest.mark.parametrize("eps", [1e-3, 1e-6, 1e-10], ids=["1e-3", "1e-6", "1e-10"])
     def test_qfi_approaches_pure_value_as_mixedness_decreases(self, eps: float) -> None:
         dim = 4
-        np.random.seed(7)
-        G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        rng = np.random.default_rng(7)
+        G = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
         G = G + G.conj().T
         state = np.zeros(dim, dtype=complex)
         state[0] = 1.0
@@ -271,7 +271,7 @@ class TestClassicalAndQuantumFisher:
             probs[i] = np.abs(state) ** 2
 
         G = generate_phase_generator(N, "Jz")
-        fq = quantum_fisher_information(_noon_state(N), G)
+        fq = quantum_fisher_information(_make_noon_state(N), G)
         fc = classical_fisher_information(probs, dphi=1e-3)
         assert np.max(fc) <= fq + 1e-5
 
@@ -287,7 +287,7 @@ class TestClassicalAndQuantumFisher:
             probs[i] = np.abs(state) ** 2
 
         G = generate_phase_generator(N, "Jz")
-        fq = quantum_fisher_information(_noon_state(N), G)
+        fq = quantum_fisher_information(_make_noon_state(N), G)
         fc = classical_fisher_information(probs, dphi=1e-3)
         assert np.all(fc <= fq + 1e-5)
 
@@ -419,7 +419,7 @@ class TestPhysicalInvariantsDM:
             expected, rel=1e-10
         )
 
-    @pytest.mark.parametrize("c", [-2.5, 0.0, 1.0, 10.0])
+    @pytest.mark.parametrize("c", [-2.5, 0.0, 1.0, 10.0], ids=["c_-2.5", "c_0.0", "c_1.0", "c_10.0"])
     def test_qfi_invariant_under_g_shift(self, c: float) -> None:
         rng = np.random.default_rng(42)
         dim = 4
@@ -553,7 +553,7 @@ class TestNumericalStabilityDM:
         ) == pytest.approx(0.0, abs=1e-15)
 
 
-def _phase_diffused_ghz(N: int, gamma_phi: float, t: float) -> np.ndarray:
+def _make_phase_diffused_ghz(N: int, gamma_phi: float, t: float) -> np.ndarray:
     """Phase-diffused GHZ density matrix: F_Q(t) = N^2 * exp(-gamma * t * N^2)."""
     dim = N + 1
     rho = np.zeros((dim, dim), dtype=complex)
@@ -572,7 +572,7 @@ class TestNoiseIntegrationDM:
         N = 6
         G = generate_phase_generator(N, "Jz")
         assert quantum_fisher_information_dm(
-            _phase_diffused_ghz(N, 100.0, 1.0), G
+            _make_phase_diffused_ghz(N, 100.0, 1.0), G
         ) == pytest.approx(0.0, abs=1e-10)
 
     @pytest.mark.parametrize(
@@ -583,7 +583,9 @@ class TestNoiseIntegrationDM:
     def test_qfi_bounded_by_noiseless_value(self, gamma_phi: float) -> None:
         N = 6
         G = generate_phase_generator(N, "Jz")
-        fq = quantum_fisher_information_dm(_phase_diffused_ghz(N, gamma_phi, 1.0), G)
+        fq = quantum_fisher_information_dm(
+            _make_phase_diffused_ghz(N, gamma_phi, 1.0), G
+        )
         assert fq <= N**2 + 1e-10
         assert fq >= 0.0
 
@@ -595,7 +597,9 @@ class TestNoiseIntegrationDM:
     )
     def test_qfi_matches_n_squared_exp_decay(self, N: int, gamma_phi: float) -> None:
         G = generate_phase_generator(N, "Jz")
-        fq = quantum_fisher_information_dm(_phase_diffused_ghz(N, gamma_phi, 1.0), G)
+        fq = quantum_fisher_information_dm(
+            _make_phase_diffused_ghz(N, gamma_phi, 1.0), G
+        )
         assert fq == pytest.approx(N**2 * np.exp(-gamma_phi * N**2), rel=1e-10)
 
     @pytest.mark.parametrize(
@@ -608,7 +612,9 @@ class TestNoiseIntegrationDM:
     ) -> None:
         N = 8
         G = generate_phase_generator(N, "Jz")
-        fq = quantum_fisher_information_dm(_phase_diffused_ghz(N, gamma_phi, 1.0), G)
+        fq = quantum_fisher_information_dm(
+            _make_phase_diffused_ghz(N, gamma_phi, 1.0), G
+        )
         expected = N**2 * np.exp(-gamma_phi * N**2)
         assert fq == pytest.approx(expected, rel=1e-10)
         assert fq <= N**2 + 1e-10

@@ -184,6 +184,35 @@ def build_bipartite_hamiltonian_components(
 # =============================================================================
 
 
+def evolve_bipartite(
+    hamiltonian: np.ndarray,
+    initial_state: np.ndarray,
+    time: float,
+) -> np.ndarray:
+    """Evolve bipartite state under Hamiltonian using row-vector convention.
+
+    |ψ(t)⟩^T = ⟨ψ₀| e^{-iHt}
+
+    This matches the row-vector convention used in the visualisation page,
+    where the state vector is left-multiplied by the unitary.
+
+    Args:
+        hamiltonian: Hamiltonian matrix.
+        initial_state: Initial state vector (row vector convention).
+        time: Evolution time.
+
+    Returns:
+        Evolved state vector (row vector convention).
+
+    """
+    unitary = scipy.linalg.expm(-1j * time * hamiltonian)
+    evolved = initial_state @ unitary
+    assert np.isclose(np.linalg.norm(evolved), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Evolved state not normalized: norm={np.linalg.norm(evolved)}"
+    )
+    return evolved
+
+
 def evolve_state(
     hamiltonian: np.ndarray,
     initial_state: np.ndarray,
@@ -202,7 +231,11 @@ def evolve_state(
         Evolved state vector.
 
     """
-    return scipy.linalg.expm(-1j * time * hamiltonian) @ initial_state
+    final_state = scipy.linalg.expm(-1j * time * hamiltonian) @ initial_state
+    assert np.isclose(np.linalg.norm(final_state), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Evolved state not normalized: norm={np.linalg.norm(final_state)}"
+    )
+    return final_state
 
 
 def evolve_density_matrix(
@@ -224,7 +257,19 @@ def evolve_density_matrix(
 
     """
     unitary = scipy.linalg.expm(-1j * time * hamiltonian)
-    return unitary @ initial_density @ unitary.conj().T
+    _eye = np.eye(unitary.shape[0], dtype=unitary.dtype)
+    assert np.allclose(unitary @ unitary.conj().T, _eye, atol=1e-10), (
+        f"Evolution unitary not unitary: "
+        f"max_dev={np.max(np.abs(unitary @ unitary.conj().T - _eye))}"
+    )
+    rho_out = unitary @ initial_density @ unitary.conj().T
+    assert np.isclose(
+        np.trace(rho_out), np.trace(initial_density), rtol=1e-5, atol=1e-8
+    ), (
+        f"Trace not preserved under evolution: "
+        f"initial={np.trace(initial_density)}, final={np.trace(rho_out)}"
+    )
+    return rho_out
 
 
 # =============================================================================
@@ -320,6 +365,12 @@ def compute_reduced_densities(
     # Reduced densities
     rho_a = partial_trace_a(rho_full, n_a, n_b)
     rho_b = partial_trace_b(rho_full, n_a, n_b)
+
+    # Invariant checks at API boundary
+    for name, rho in [("rho_full", rho_full), ("rho_a", rho_a), ("rho_b", rho_b)]:
+        assert np.isclose(np.trace(rho), 1.0, rtol=1e-5, atol=1e-8), (
+            f"Trace not preserved for {name}: {np.trace(rho)}"
+        )
 
     return rho_a, rho_b, rho_full
 

@@ -60,10 +60,18 @@ _MZI_PARAMS_WIDE = [
 def test_jz_eigenvalues_for_physical_states() -> None:
     jz = two_mode_jz_operator(1)
     assert jz.shape == (4, 4)
-    assert float(np.real(np.conj(fock_state(1, 0)) @ jz @ fock_state(1, 0))) == pytest.approx(0.5)
-    assert float(np.real(np.conj(fock_state(0, 1)) @ jz @ fock_state(0, 1))) == pytest.approx(-0.5)
-    assert float(np.real(np.conj(fock_state(0, 0)) @ jz @ fock_state(0, 0))) == pytest.approx(0.0)
-    assert float(np.real(np.conj(fock_state(1, 1)) @ jz @ fock_state(1, 1))) == pytest.approx(0.0)
+    assert float(
+        np.real(np.conj(fock_state(1, 0)) @ jz @ fock_state(1, 0))
+    ) == pytest.approx(0.5)
+    assert float(
+        np.real(np.conj(fock_state(0, 1)) @ jz @ fock_state(0, 1))
+    ) == pytest.approx(-0.5)
+    assert float(
+        np.real(np.conj(fock_state(0, 0)) @ jz @ fock_state(0, 0))
+    ) == pytest.approx(0.0)
+    assert float(
+        np.real(np.conj(fock_state(1, 1)) @ jz @ fock_state(1, 1))
+    ) == pytest.approx(0.0)
 
 
 def test_beam_splitter_is_unitary() -> None:
@@ -91,7 +99,9 @@ def test_holding_unitary_is_unitary() -> None:
     _MZI_PARAMS,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS],
 )
-def test_given_mzi_circuit_then_state_remains_normalized(theta: float, t_h: float) -> None:
+def test_given_mzi_circuit_then_state_remains_normalized(
+    theta: float, t_h: float
+) -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
@@ -103,12 +113,16 @@ def test_given_mzi_circuit_then_state_remains_normalized(theta: float, t_h: floa
     _MZI_PARAMS_WIDE,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS_WIDE],
 )
-def test_given_error_propagation_then_delta_theta_equals_one_over_t_h(theta: float, t_h: float) -> None:
+def test_given_error_propagation_then_delta_theta_equals_one_over_t_h(
+    theta: float, t_h: float
+) -> None:
     if abs(np.sin(theta * t_h)) < 1e-6:
         pytest.skip("Singular point at fringe extremum")
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
-    dt_a, *_ = compute_delta_theta_from_propagation(t_h, theta, u_bs, jz, use_numerical=False)
+    dt_a, *_ = compute_delta_theta_from_propagation(
+        t_h, theta, u_bs, jz, use_numerical=False
+    )
     assert dt_a == pytest.approx(1.0 / t_h, rel=1e-12)
 
 
@@ -117,7 +131,9 @@ def test_given_error_propagation_then_delta_theta_equals_one_over_t_h(theta: flo
     _MZI_PARAMS,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS],
 )
-def test_given_mzi_circuit_then_jz_expectation_matches_cos(theta: float, t_h: float) -> None:
+def test_given_mzi_circuit_then_jz_expectation_matches_cos(
+    theta: float, t_h: float
+) -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
@@ -130,7 +146,9 @@ def test_given_mzi_circuit_then_jz_expectation_matches_cos(theta: float, t_h: fl
     _MZI_PARAMS,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS],
 )
-def test_given_mzi_circuit_then_jz_variance_matches_sin_squared(theta: float, t_h: float) -> None:
+def test_given_mzi_circuit_then_jz_variance_matches_sin_squared(
+    theta: float, t_h: float
+) -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
@@ -143,7 +161,9 @@ def test_given_mzi_circuit_then_jz_variance_matches_sin_squared(theta: float, t_
     _MZI_PARAMS,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS],
 )
-def test_given_analytical_derivative_then_matches_expected_form(theta: float, t_h: float) -> None:
+def test_given_analytical_derivative_then_matches_expected_form(
+    theta: float, t_h: float
+) -> None:
     d_jz = compute_analytical_derivative(t_h, theta)
     assert d_jz == pytest.approx(0.5 * t_h * np.sin(theta * t_h), abs=1e-12)
 
@@ -190,7 +210,11 @@ def test_given_fringe_extremum_then_point_is_flagged() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
     dt_a, _, _, _, is_fringe = compute_delta_theta_from_propagation(
-        t_h, 1.0, u_bs, jz, use_numerical=False,
+        t_h,
+        1.0,
+        u_bs,
+        jz,
+        use_numerical=False,
     )
     assert is_fringe
     assert not np.isfinite(dt_a) or dt_a > 1e6
@@ -222,7 +246,8 @@ def test_given_sensitivity_sweep_then_non_fringe_points_match_theory() -> None:
     non_fringe = df[~df["is_fringe_extremum"]]
     for _, row in non_fringe.iterrows():
         assert row["delta_theta_analytical"] == pytest.approx(
-            row["delta_theta_theory"], rel=1e-12,
+            row["delta_theta_theory"],
+            rel=1e-12,
         )
 
 
@@ -241,7 +266,9 @@ def test_scaling_exponent_from_log_log_fit_is_minus_one() -> None:
     assert r_sq > 0.999
 
 
-@pytest.mark.parametrize("theta", [0.5, 1.0, 2.0, 3.0], ids=["θ=0.5", "θ=1.0", "θ=2.0", "θ=3.0"])
+@pytest.mark.parametrize(
+    "theta", [0.5, 1.0, 2.0, 3.0], ids=["θ=0.5", "θ=1.0", "θ=2.0", "θ=3.0"]
+)
 def test_scaling_exponent_is_minus_one_for_various_theta(theta: float) -> None:
     df = compute_sensitivity_sweep(theta=theta, n_points=50)
     alpha, r_sq, _ = fit_scaling_exponent(df)
@@ -268,12 +295,16 @@ def test_excluding_fringe_points_improves_fit_quality() -> None:
 def test_given_tiny_t_h_then_sensitivity_diverges() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
-    dt_a, *_ = compute_delta_theta_from_propagation(1e-10, 1.0, u_bs, jz, use_numerical=False)
+    dt_a, *_ = compute_delta_theta_from_propagation(
+        1e-10, 1.0, u_bs, jz, use_numerical=False
+    )
     assert dt_a > 1e8
 
 
 def test_given_large_t_h_then_sensitivity_approaches_zero() -> None:
     u_bs = build_beam_splitter()
     jz = two_mode_jz_operator(1)
-    dt_a, *_ = compute_delta_theta_from_propagation(100.0, 1.0, u_bs, jz, use_numerical=False)
+    dt_a, *_ = compute_delta_theta_from_propagation(
+        100.0, 1.0, u_bs, jz, use_numerical=False
+    )
     assert dt_a < 0.02

@@ -5,15 +5,14 @@ for Hamiltonians of interest in quantum metrology (Heisenberg model,
 spin systems, etc.).
 """
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import cast
 
 import numpy as np
 import pandas as pd
 import scipy
 import streamlit as st
 
+from src.evolution.quantum_time_evolution import build_1d_hamiltonian
 from src.utils.enums import BoundaryCondition, PotentialFunction
 from src.visualization.plotting import plot_array
 
@@ -128,35 +127,6 @@ with st.sidebar:
                 return a * (x**4 + 2 * x**2) + b * np.exp(-1 * c * x**2)
 
 
-# Based on https://medium.com/@natsunoyuki/quantum-mechanics-with-python-de2a7f8edd1f
-def build_1d_hamiltonian(
-    inner_n: int,
-    inner_dx: float,
-    inner_potential_function: Callable[[float], float],
-    inner_boundary_condition: BoundaryCondition,
-) -> scipy.sparse.csc_matrix:
-    # https://docs.scipy.org/doc/scipy/reference/sparse.html#sparse-array-classes
-    inner_hamiltonian = scipy.sparse.eye(inner_n, inner_n, format="lil") * 2
-    # P^2 term
-    for i in range(inner_n - 1):
-        inner_hamiltonian[i, i + 1] = -1
-        inner_hamiltonian[i + 1, i] = -1
-
-    # Making 0 and inner_n-1 "neighbours"
-    if inner_boundary_condition == BoundaryCondition.Cyclic:
-        inner_hamiltonian[0, inner_n - 1] = -1
-        inner_hamiltonian[inner_n - 1, 0] = -1
-
-    inner_hamiltonian = cast("scipy.sparse.lil_matrix", inner_hamiltonian / inner_dx**2)
-    # V(X) term
-    for i in range(inner_n):
-        inner_hamiltonian[i, i] = inner_hamiltonian[i, i] + inner_potential_function(
-            valid_x[i],
-        )
-
-    return inner_hamiltonian.tocsc()
-
-
 st.subheader("Potential $V(x)$")
 
 st.line_chart(
@@ -171,12 +141,13 @@ st.line_chart(
 )
 
 hamiltonian = build_1d_hamiltonian(
-    inner_n=resolution,
-    inner_dx=valid_x[1] - valid_x[0],
-    inner_potential_function=potential_x,
-    inner_boundary_condition=BoundaryCondition[boundary_condition],
+    spatial_points=resolution,
+    dx=valid_x[1] - valid_x[0],
+    potential_function=potential_x,
+    boundary_condition=boundary_condition,
+    mass=0.5,  # Match existing page behaviour (T = tridiag(-1,2,-1) / dx²)
+    x_grid=valid_x,  # Evaluate V(x) at the actual spatial positions
 )
-# https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.eigs.html
 eigenvalues, eigenvectors = scipy.sparse.linalg.eigs(
     hamiltonian,
     k=number_of_energy_levels,

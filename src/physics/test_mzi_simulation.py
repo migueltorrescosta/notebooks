@@ -21,12 +21,12 @@ from .mzi_simulation import (
 
 
 # Test helpers: construct two-mode states via QuTiP (not wrappers of removed functions)
-def _vacuum(max_photons: int) -> np.ndarray:
+def _make_vacuum(max_photons: int) -> np.ndarray:
     dim = max_photons + 1
     return qutip.tensor(qutip.fock(dim, 0), qutip.fock(dim, 0)).full().ravel()
 
 
-def _single_photon(mode: int, max_photons: int) -> np.ndarray:
+def _make_single_photon(mode: int, max_photons: int) -> np.ndarray:
     dim = max_photons + 1
     if mode == 0:
         return qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
@@ -37,16 +37,16 @@ class TestStateCreation:
     """Test state creation via QuTiP and noon_state."""
 
     def test_vacuum_state(self) -> None:
-        state = _vacuum(max_photons=2)
+        state = _make_vacuum(max_photons=2)
         assert validate_state(state), "Condition failed: validate_state(state)"
         assert state[0] == pytest.approx(1.0)  # |0,0> is first state
 
     def test_single_photon_state_mode0(self) -> None:
-        state = _single_photon(mode=0, max_photons=2)
+        state = _make_single_photon(mode=0, max_photons=2)
         assert validate_state(state), "Condition failed: validate_state(state)"
 
     def test_single_photon_state_mode1(self) -> None:
-        state = _single_photon(mode=1, max_photons=2)
+        state = _make_single_photon(mode=1, max_photons=2)
         assert validate_state(state), "Condition failed: validate_state(state)"
 
     def test_noon_state(self) -> None:
@@ -75,20 +75,20 @@ class TestOperators:
     def test_system_operators_dimensions(self) -> None:
         a0, a1, _a0_dag, _a1_dag = create_system_operators(max_photons=2)
         dim = (2 + 1) ** 2
-        assert a0.shape == (dim, dim), "Expected a0.shape == (dim, dim)"
-        assert a1.shape == (dim, dim), "Expected a1.shape == (dim, dim)"
+        assert a0.shape == (dim, dim)
+        assert a1.shape == (dim, dim)
 
     def test_beam_splitter_preserves_norm(self) -> None:
         # Beam splitter should preserve norm of any state
         bs = beam_splitter_unitary(theta=np.pi / 4, phi=0.0, max_photons=2)
         # Test with vacuum
-        vac = _vacuum(2)
+        vac = _make_vacuum(2)
         vac_out = bs @ vac
         assert np.sum(np.abs(vac_out) ** 2) == pytest.approx(1.0, abs=1e-6), (
             "Expected np.sum(np.abs(vac_out) ** 2) == pytest.approx(1.0, abs=1e-6)"
         )
         # Test with single photon
-        sp = _single_photon(0, 2)
+        sp = _make_single_photon(0, 2)
         sp_out = bs @ sp
         assert np.sum(np.abs(sp_out) ** 2) == pytest.approx(1.0, abs=1e-6), (
             "Expected np.sum(np.abs(sp_out) ** 2) == pytest.approx(1.0, abs=1e-6)"
@@ -118,7 +118,7 @@ class TestEvolution:
     """Test state evolution."""
 
     def test_vacuum_produces_vacuum(self) -> None:
-        state = _vacuum(max_photons=1)
+        state = _make_vacuum(max_photons=1)
         evolved = evolve_mzi(
             initial_system_state=state,
             theta=np.pi / 4,
@@ -134,7 +134,7 @@ class TestEvolution:
         assert validate_state(evolved), "Condition failed: validate_state(evolved)"
 
     def test_evolution_conserves_probability(self) -> None:
-        state = _vacuum(max_photons=2)
+        state = _make_vacuum(max_photons=2)
         evolved = evolve_mzi(
             initial_system_state=state,
             theta=np.pi / 4,
@@ -147,10 +147,10 @@ class TestEvolution:
             ancilla_dim=3,
         )
         prob = np.sum(np.abs(evolved) ** 2)
-        assert prob == pytest.approx(1.0), "Expected prob == pytest.approx(1.0)"
+        assert prob == pytest.approx(1.0)
 
     def test_output_probabilities_sum_to_one(self) -> None:
-        state = _vacuum(max_photons=2)
+        state = _make_vacuum(max_photons=2)
         evolved = evolve_mzi(
             initial_system_state=state,
             theta=np.pi / 4,
@@ -163,14 +163,14 @@ class TestEvolution:
             ancilla_dim=2,
         )
         p0, p1 = compute_output_probabilities(evolved, max_photons=2, ancilla_dim=2)
-        assert p0 + p1 == pytest.approx(1.0), "Expected p0 + p1 == pytest.approx(1.0)"
+        assert p0 + p1 == pytest.approx(1.0)
 
 
 class TestInterference:
     """Test interference pattern computation."""
 
     def test_interference_fringe_shape(self) -> None:
-        state = _vacuum(max_photons=2)
+        state = _make_vacuum(max_photons=2)
         phases = np.linspace(0, 2 * np.pi, 50)
         fringe = compute_interference_fringe(
             phase_range=phases,
@@ -183,11 +183,9 @@ class TestInterference:
             max_photons=2,
             ancilla_dim=2,
         )
-        assert len(fringe) == len(phases), "Expected len(fringe) == len(phases)"
+        assert len(fringe) == len(phases)
         # All probabilities should be in [0, 1]
-        assert np.all(fringe >= 0) and np.all(fringe <= 1), (
-            "Expected np.all(fringe >= 0) and np.all(fringe <= 1)"
-        )
+        assert np.all(fringe >= 0) and np.all(fringe <= 1)
 
     def test_interference_with_noon_state(self) -> None:
         state = noon_state(N=2, max_photons=3)
@@ -203,7 +201,7 @@ class TestInterference:
             max_photons=3,
             ancilla_dim=2,
         )
-        assert len(fringe) == 20, "Expected len(fringe) == 20"
+        assert len(fringe) == 20
 
 
 class TestInputStatePreparation:
@@ -213,7 +211,7 @@ class TestInputStatePreparation:
         state = prepare_input_state("vacuum", max_photons=2)
         assert validate_state(state), "Condition failed: validate_state(state)"
 
-    def test_prepare_single_photon(self) -> None:
+    def test_prepare_make_single_photon(self) -> None:
         state = prepare_input_state("single_photon", max_photons=2, mode=0)
         assert validate_state(state), "Condition failed: validate_state(state)"
 

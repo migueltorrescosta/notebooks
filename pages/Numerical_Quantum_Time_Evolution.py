@@ -323,33 +323,22 @@ with c2:
     )
 
 # Create evolver and compute time evolution
-evolver = TimeEvolver(wf_matrix, components, energies)
+evolver = TimeEvolver(wf_matrix, components, energies, dt=0.1)
 
 st.subheader("Evolution")
 st.caption("Green = high amplitude, Purple = low amplitude")
 
-
-def evolve(t: float) -> np.ndarray:
-    phases = components * np.exp(-0.1j * t * energies)
-    wf = np.einsum("k,kx->x", phases, wf_matrix)
-    return wf / np.linalg.norm(wf)
-
-
+times = np.linspace(0, time, trotterization_steps + 1)
 time_evolution_data = pd.DataFrame(
-    data=np.array(
-        [
-            np.abs(evolve(temp_t)) ** 2
-            for temp_t in np.linspace(0, time, trotterization_steps + 1)
-        ],
-    ).T,
-    columns=np.linspace(0, time, trotterization_steps + 1),
+    data=evolver.evolve_trajectory(times).T,
+    columns=times,
     index=valid_x,
 )
 
 plot_array(np.array(time_evolution_data.T), midpoint=None, text_auto=False)
 
 st.subheader(rf"Final state $\ket{{\psi_{{{time:g} }}$")
-phi_time = evolve(t=time)
+phi_time = evolver.evolve(time)
 phi_time_df = pd.DataFrame(
     {
         "Re": np.real(phi_time),

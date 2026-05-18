@@ -25,19 +25,17 @@ from src.physics.distributed_mzi import (
 class TestDistributedMziConfig:
     """Test DistributedMziConfig validation."""
 
-    def test_default_values_should_be_reasonable(self) -> None:
+    def test_given_default_values_then_be_reasonable(self) -> None:
         config = DistributedMziConfig()
-        assert config.M == 2, "Expected config.M == 2"
-        assert config.entangled is False, "Expected config.entangled to be False"
-        assert config.correlation_noise == 0.0, (
-            "Expected config.correlation_noise == 0.0"
-        )
+        assert config.M == 2
+        assert config.entangled is False
+        assert config.correlation_noise == 0.0
 
-    def test_negative_m_raises_should_raise_valueerror(self) -> None:
+    def test_given_negative_m_raises_then_raise_valueerror(self) -> None:
         with pytest.raises(ValueError):
             DistributedMziConfig(M=-1)
 
-    def test_invalid_correlation_raises_should_raise_valueerror_if_outside_0_1(
+    def test_given_invalid_correlation_raises_then_raise_valueerror_if_outside_0_1(
         self,
     ) -> None:
         with pytest.raises(ValueError):
@@ -49,7 +47,7 @@ class TestDistributedMziConfig:
 class TestDistributedMziSensitivity:
     """Test sensitivity computation."""
 
-    def test_classical_averaging_sql_should_be_1_over_sqrt_m_times_n(self) -> None:
+    def test_given_classical_averaging_sql_then_be_1_over_sqrt_m_times_n(self) -> None:
         config = DistributedMziConfig(M=4, entangled=False, correlation_noise=0.0)
         result = distributed_mzi_sensitivity(100, 0.0, config)
         expected = 1.0 / np.sqrt(4 * 100)
@@ -57,7 +55,7 @@ class TestDistributedMziSensitivity:
             f"Expected {expected}, got {result['delta_phi']}"
         )
 
-    def test_classical_averaging_regime_should_identify_classical_averaging(
+    def test_given_classical_averaging_regime_then_identify_classical_averaging(
         self,
     ) -> None:
         config = DistributedMziConfig(M=4, entangled=False, correlation_noise=0.0)
@@ -66,7 +64,7 @@ class TestDistributedMziSensitivity:
             f"Unexpected regime: {result['regime']}"
         )
 
-    def test_entangled_heisenberg_should_be_1_over_m_times_n(self) -> None:
+    def test_given_entangled_heisenberg_then_be_1_over_m_times_n(self) -> None:
         config = DistributedMziConfig(M=4, entangled=True, correlation_noise=0.0)
         result = distributed_mzi_sensitivity(100, 0.0, config)
         expected = 1.0 / (4 * 100)
@@ -74,14 +72,14 @@ class TestDistributedMziSensitivity:
             f"Expected {expected}, got {result['delta_phi']}"
         )
 
-    def test_entangled_regime_should_identify_heisenberg_regime(self) -> None:
+    def test_given_entangled_regime_then_identify_heisenberg_regime(self) -> None:
         config = DistributedMziConfig(M=4, entangled=True, correlation_noise=0.0)
         result = distributed_mzi_sensitivity(100, 0.0, config)
         assert "Heisenberg" in result["regime"] or "Collective" in result["regime"], (
             f"Unexpected regime: {result['regime']}"
         )
 
-    def test_fully_correlated_classical_should_remove_m_benefit_delta_phi_equal_1_over_sqrt_n(
+    def test_given_fully_correlated_classical_then_remove_m_benefit_delta_phi_equal_1_over_sqrt_n(
         self,
     ) -> None:
         config = DistributedMziConfig(M=4, entangled=False, correlation_noise=1.0)
@@ -91,12 +89,12 @@ class TestDistributedMziSensitivity:
             f"Expected {expected}, got {result['delta_phi']}"
         )
 
-    def test_positive_n_raises_should_raise_valueerror_if_non_positive(self) -> None:
+    def test_given_positive_n_raises_then_raise_valueerror_if_non_positive(self) -> None:
         config = DistributedMziConfig()
         with pytest.raises(ValueError):
             distributed_mzi_sensitivity(0, 0.0, config)
 
-    def test_single_sensor_should_give_sql_for_classical_and_hl_for_entangled(
+    def test_given_single_sensor_then_give_sql_for_classical_and_hl_for_entangled(
         self,
     ) -> None:
         config_classical = DistributedMziConfig(M=1, entangled=False)
@@ -123,19 +121,19 @@ class TestDistributedMziSensitivity:
 class TestDistributedScalingExponent:
     """Test scaling exponent predictions."""
 
-    def test_classical_exponent_should_give_alpha_equal_minus_0_5(self) -> None:
+    def test_given_classical_exponent_then_give_alpha_equal_minus_0_5(self) -> None:
         config = DistributedMziConfig(entangled=False)
         assert distributed_scaling_exponent(config) == -0.5, (
             "Expected distributed_scaling_exponent(config) == -0.5"
         )
 
-    def test_entangled_exponent_should_give_alpha_equal_minus_1_0(self) -> None:
+    def test_given_entangled_exponent_then_give_alpha_equal_minus_1_0(self) -> None:
         config = DistributedMziConfig(entangled=True)
         assert distributed_scaling_exponent(config) == -1.0, (
             "Expected distributed_scaling_exponent(config) == -1.0"
         )
 
-    def test_effective_scaling_finite_should_be_finite_and_reasonable(self) -> None:
+    def test_given_effective_scaling_finite_then_be_finite_and_reasonable(self) -> None:
         config = DistributedMziConfig(M=4, entangled=False)
         alpha = effective_scaling_at_N(100, config)
         assert np.isfinite(alpha), f"Alpha should be finite, got {alpha}"
@@ -145,7 +143,7 @@ class TestDistributedScalingExponent:
 class TestComputeDistributedScaling:
     """Test distributed scaling grid computation."""
 
-    def test_grid_shape_should_have_correct_shape(self) -> None:
+    def test_given_grid_shape_then_have_correct_shape(self) -> None:
         M_values = [1, 2, 4]
         N_values = [10, 100]
         config = DistributedMziConfig(entangled=False)
@@ -154,7 +152,7 @@ class TestComputeDistributedScaling:
             f"Expected (3, 2), got {result['delta_phi_grid'].shape}"
         )
 
-    def test_more_sensors_improves_should_always_improve_or_match_sensitivity(
+    def test_given_more_sensors_improves_then_always_improve_or_match_sensitivity(
         self,
     ) -> None:
         M_values = [1, 2, 4]

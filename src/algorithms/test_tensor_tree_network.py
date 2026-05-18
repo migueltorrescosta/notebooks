@@ -16,7 +16,7 @@ from .tensor_tree_network import (
 )
 
 
-def _split_and_contract(
+def _make_split_and_contract(
     tensor: qtn.Tensor,
     cutoff: float = 1e-14,
     max_bond: int | None = None,
@@ -32,7 +32,7 @@ def _split_and_contract(
     return contracted.data.flatten()
 
 
-def _split_bond_dim(
+def _make_split_bond_dim(
     tensor: qtn.Tensor,
     cutoff: float = 1e-14,
 ) -> int:
@@ -116,7 +116,7 @@ class TestSplitContractReconstruction:
     ) -> None:
         state = self._make_random_state(n_sites=n_sites, seed=42)
         tensor = bipartite_tensor_from_state(state, n_sites, local_dim=2)
-        reconstructed = _split_and_contract(tensor, cutoff=1e-14)
+        reconstructed = _make_split_and_contract(tensor, cutoff=1e-14)
         fidelity = float(abs(np.vdot(state, reconstructed)) ** 2)
         assert fidelity > threshold
 
@@ -127,11 +127,11 @@ class TestBondDimension:
     def test_bond_dimension_larger_for_entangled_states(self) -> None:
         product_state = np.array([1, 0, 0, 0], dtype=complex)
         t_prod = bipartite_tensor_from_state(product_state, n_sites=1, local_dim=2)
-        bond_prod = _split_bond_dim(t_prod)
+        bond_prod = _make_split_bond_dim(t_prod)
 
         entangled_state = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
         t_ent = bipartite_tensor_from_state(entangled_state, n_sites=1, local_dim=2)
-        bond_ent = _split_bond_dim(t_ent)
+        bond_ent = _make_split_bond_dim(t_ent)
 
         assert bond_ent >= bond_prod
 
@@ -142,7 +142,7 @@ class TestBondDimension:
         state = state / np.linalg.norm(state)
 
         t = bipartite_tensor_from_state(state, n_sites=5, local_dim=2)
-        bond_dim = _split_bond_dim(t)
+        bond_dim = _make_split_bond_dim(t)
         full_dim = 2**5
         assert bond_dim <= full_dim
 
@@ -153,7 +153,7 @@ class TestBondDimension:
         state = state / np.linalg.norm(state)
 
         t = bipartite_tensor_from_state(state, n_sites=5, local_dim=2)
-        bond_dim = _split_bond_dim(t)
+        bond_dim = _make_split_bond_dim(t)
 
         assert bond_dim <= 32
 
@@ -184,7 +184,7 @@ class TestTruncation:
         t = bipartite_tensor_from_state(state, n_sites=2, local_dim=2)
         cutoffs = [0.3, 0.1, 0.03, 0.01, 1e-8]
         fidelities = [
-            float(abs(np.vdot(state, _split_and_contract(t, cutoff=c))) ** 2)
+            float(abs(np.vdot(state, _make_split_and_contract(t, cutoff=c))) ** 2)
             for c in cutoffs
         ]
         for i in range(len(fidelities) - 1):
@@ -247,7 +247,7 @@ class TestInputValidation:
         state = rng.random(dim) + 1j * rng.random(dim)
         state = state / np.linalg.norm(state)
         t = bipartite_tensor_from_state(state, n_sites=2, local_dim=2)
-        reconstructed = _split_and_contract(t, cutoff=1e-14)
+        reconstructed = _make_split_and_contract(t, cutoff=1e-14)
         exact_norm = np.vdot(state, state).real
         ttn_norm = np.vdot(reconstructed, reconstructed).real
         assert exact_norm == pytest.approx(ttn_norm, rel=1e-4)
@@ -264,6 +264,6 @@ class TestPerformance:
         state = state / np.linalg.norm(state)
         t = bipartite_tensor_from_state(state, n_sites=n_sites, local_dim=2)
         start = time.perf_counter()
-        _split_and_contract(t, cutoff=1e-14)
+        _make_split_and_contract(t, cutoff=1e-14)
         elapsed = time.perf_counter() - start
         assert elapsed < 0.1

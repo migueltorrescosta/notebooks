@@ -61,6 +61,7 @@ dev = [
     "types-tqdm>=4.66.0.20240106,<5",
     "jupyter-book>=1.0.0,<2",
     "pytest-testmon>=2.2.0",
+    "radon>=6.0.0,<7",
 ]
 test = ["pytest>=8.2.0,<9", "playwright>=1.42.0,<2"]
 
@@ -157,7 +158,10 @@ disallow_untyped_calls = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 ignore_missing_imports = true
-exclude = []
+exclude = [
+    "jupyter/",
+    "mathematica/",
+]
 warn_redundant_casts = true
 show_error_codes = true
 

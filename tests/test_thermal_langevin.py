@@ -31,7 +31,7 @@ from src.physics.thermal_langevin import (
 class TestThermalLangevinBasics:
     """Basic tests for thermal Langevin noise model."""
 
-    def test_thermal_sensitivity_normalized_should_follow_the_formula(self) -> None:
+    def test_given_thermal_sensitivity_normalized_then_follow_the_formula(self) -> None:
         config = create_thermal_config(thermal_strength=0.5, thermal_exponent=0.0)
 
         # Constant thermal_exponent=0 means thermal is constant
@@ -45,7 +45,7 @@ class TestThermalLangevinBasics:
             "Expected thermal_sensitivity_normalized(100, config) == pytest.approx(0.5)"
         )
 
-    def test_thermal_sensitivity_with_exponent_should_scale_with_n(self) -> None:
+    def test_given_thermal_sensitivity_with_exponent_then_scale_with_n(self) -> None:
         config = ThermalLangevinConfig(
             thermal_strength=1.0,
             thermal_exponent=-0.25,
@@ -61,7 +61,7 @@ class TestThermalLangevinBasics:
             "Expected thermal_sensitivity_normalized(16, config) == pytest.approx(0.5)"
         )
 
-    def test_combined_sensitivity_quadrature_sum_should_be_sqrt_quantum_squared_plus_thermal_squared(
+    def test_given_combined_sensitivity_quadrature_sum_then_be_sqrt_quantum_squared_plus_thermal_squared(
         self,
     ) -> None:
         # Test: quantum=3, thermal=4 → combined=5
@@ -81,7 +81,7 @@ class TestThermalLangevinBasics:
             "Expected combined == pytest.approx(expected)"
         )
 
-    def test_mechanical_susceptibility_should_work_for_edge_cases(self) -> None:
+    def test_given_mechanical_susceptibility_then_work_for_edge_cases(self) -> None:
         # Test scalar input
         chi = mechanical_susceptibility(omega=0.0, m=1.0, omega_m=1.0, gamma=0.1)
 
@@ -94,7 +94,7 @@ class TestThermalLangevinBasics:
 class TestThermalScalingLimits:
     """Tests for scaling limits (SQL vs thermal floor)."""
 
-    def test_quantum_only_gives_sql_exponent_should_give_alpha_equal_minus_0_5_sql(
+    def test_given_quantum_only_gives_sql_exponent_then_give_alpha_equal_minus_0_5_sql(
         self,
     ) -> None:
         config = create_quantum_only_config()
@@ -108,9 +108,9 @@ class TestThermalScalingLimits:
         assert result.valid, "Condition failed: result.valid"
 
         # Should be very close to SQL (α = -0.5)
-        assert -0.55 < result.alpha < -0.45, "Expected -0.55 < result.alpha < -0.45"
+        assert -0.55 < result.alpha < -0.45
 
-    def test_thermal_dominated_gives_alpha_zero_should_give_alpha_near_0(self) -> None:
+    def test_given_thermal_dominated_gives_alpha_zero_then_give_alpha_near_0(self) -> None:
         # Thermal with very strong thermal (constant floor)
         config = create_thermal_config(thermal_strength=1000.0, thermal_exponent=0.0)
 
@@ -127,7 +127,7 @@ class TestThermalScalingLimits:
 class TestCrossoverBehavior:
     """Tests for crossover between quantum and thermal regimes."""
 
-    def test_crossover_n_analytical_should_locate_n_where_thermal_equals_quantum(
+    def test_given_crossover_n_analytical_then_locate_n_where_thermal_equals_quantum(
         self,
     ) -> None:
         # thermal_strength = 0.1 means:
@@ -142,7 +142,7 @@ class TestCrossoverBehavior:
             "Expected N_cross == pytest.approx(100.0)"
         )
 
-    def test_crossover_behavior_visible_in_sweep_should_be_visible_in_sensitivity_curves(
+    def test_given_crossover_behavior_visible_in_sweep_then_be_visible_in_sensitivity_curves(
         self,
     ) -> None:
         config = create_thermal_config(thermal_strength=0.1, thermal_exponent=0.0)
@@ -182,7 +182,7 @@ class TestCrossoverBehavior:
         result_above = fit_thermal_scaling_exponent(N_above, config, min_N=4)
 
         # Below crossover: quantum-like slope ≈ -0.5
-        assert result_below.alpha < -0.4, "Expected result_below.alpha < -0.4"
+        assert result_below.alpha < -0.4
 
         # Above crossover: flatter (closer to 0)
         # Actually, above crossover the slope might still be slightly negative
@@ -196,7 +196,7 @@ class TestCrossoverBehavior:
 class TestThermalScalingExponents:
     """Tests for scaling exponent extraction."""
 
-    def test_sweep_thermal_scaling_returns_arrays_should_return_n_and_delta_phi_arrays(
+    def test_given_sweep_thermal_scaling_returns_arrays_then_return_n_and_delta_phi_arrays(
         self,
     ) -> None:
         config = create_thermal_config(thermal_strength=0.1, thermal_exponent=0.0)
@@ -204,16 +204,14 @@ class TestThermalScalingExponents:
 
         N_arr, delta_arr = sweep_thermal_scaling(N_values, config)
 
-        assert len(N_arr) == len(N_values), "Expected len(N_arr) == len(N_values)"
-        assert len(delta_arr) == len(N_values), (
-            "Expected len(delta_arr) == len(N_values)"
-        )
+        assert len(N_arr) == len(N_values)
+        assert len(delta_arr) == len(N_values)
         assert np.all(np.isfinite(delta_arr)), (
             "All values should satisfy np.isfinite(delta_arr)"
         )
-        assert np.all(delta_arr > 0), "Expected np.all(delta_arr > 0)"
+        assert np.all(delta_arr > 0)
 
-    def test_fit_result_has_valid_metrics_should_have_error_estimates_and_r_squared(
+    def test_given_fit_result_has_valid_metrics_then_have_error_estimates_and_r_squared(
         self,
     ) -> None:
         config = create_quantum_only_config()
@@ -221,19 +219,13 @@ class TestThermalScalingExponents:
 
         result = fit_thermal_scaling_exponent(N_values, config, min_N=4)
 
-        assert isinstance(result.alpha, float), (
-            "Expected result.alpha to be instance of float"
-        )
-        assert isinstance(result.alpha_err, float), (
-            "Expected result.alpha_err to be instance of float"
-        )
-        assert isinstance(result.R_squared, float), (
-            "Expected result.R_squared to be instance of float"
-        )
-        assert 0 <= result.R_squared <= 1.001, "Expected 0 <= result.R_squared <= 1.001"
-        assert result.alpha_err >= 0, "Expected result.alpha_err >= 0"
+        assert isinstance(result.alpha, float)
+        assert isinstance(result.alpha_err, float)
+        assert isinstance(result.R_squared, float)
+        assert 0 <= result.R_squared <= 1.001
+        assert result.alpha_err >= 0
 
-    def test_monotonic_improvement_should_improve_or_stay_flat_with_increasing_n(
+    def test_given_monotonic_improvement_then_improve_or_stay_flat_with_increasing_n(
         self,
     ) -> None:
         config = create_thermal_config(thermal_strength=0.01, thermal_exponent=0.0)
@@ -251,21 +243,17 @@ class TestThermalScalingExponents:
 class TestConvenienceFunctions:
     """Tests for convenience configuration functions."""
 
-    def test_create_quantum_only_should_have_tiny_thermal_strength(self) -> None:
+    def test_given_create_quantum_only_then_have_tiny_thermal_strength(self) -> None:
         config = create_quantum_only_config()
-        assert config.thermal_strength < 1e-5, "Expected config.thermal_strength < 1e-5"
+        assert config.thermal_strength < 1e-5
         assert config.use_normalized, "Condition failed: config.use_normalized"
 
-    def test_create_thermal_dominated_should_have_large_thermal_strength(self) -> None:
+    def test_given_create_thermal_dominated_then_have_large_thermal_strength(self) -> None:
         config = create_thermal_dominated_config()
-        assert config.thermal_strength == 10.0, (
-            "Expected config.thermal_strength == 10.0"
-        )
+        assert config.thermal_strength == 10.0
 
-    def test_create_thermal_config_should_create_custom_config(self) -> None:
+    def test_given_create_thermal_config_then_create_custom_config(self) -> None:
         config = create_thermal_config(thermal_strength=0.5, thermal_exponent=-0.3)
-        assert config.thermal_strength == 0.5, "Expected config.thermal_strength == 0.5"
-        assert config.thermal_exponent == -0.3, (
-            "Expected config.thermal_exponent == -0.3"
-        )
+        assert config.thermal_strength == 0.5
+        assert config.thermal_exponent == -0.3
         assert config.use_normalized, "Condition failed: config.use_normalized"

@@ -27,7 +27,7 @@ from src.physics.tilt_to_length_noise import (
 class TestTTLPathLengthNoise:
     """Test path length noise computation."""
 
-    def test_basic_formula_should_compute_delta_l_as_theta_rms_times_x_offset(
+    def test_given_basic_formula_then_compute_delta_l_as_theta_rms_times_x_offset(
         self,
     ) -> None:
         config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3)
@@ -39,7 +39,7 @@ class TestTTLPathLengthNoise:
 class TestTTLPhaseNoise:
     """Test phase noise computation."""
 
-    def test_phase_consistency_should_be_2_pi_times_delta_l_over_lambda(self) -> None:
+    def test_given_phase_consistency_then_be_2_pi_times_delta_l_over_lambda(self) -> None:
         config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3, wavelength=1e-6)
         delta_L = ttl_path_length_noise(config)
         phi = ttl_phase_noise(config)
@@ -52,7 +52,7 @@ class TestTTLPhaseNoise:
 class TestTTLSensitivityFloor:
     """Test sensitivity floor."""
 
-    def test_floor_equals_phase_noise_should_equal_ttl_phase_noise(self) -> None:
+    def test_given_floor_equals_phase_noise_then_equal_ttl_phase_noise(self) -> None:
         config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3)
         floor = ttl_sensitivity_floor(config)
         phase = ttl_phase_noise(config)
@@ -64,7 +64,7 @@ class TestTTLSensitivityFloor:
 class TestTTLLimitedSensitivity:
     """Test combined sensitivity."""
 
-    def test_quadrature_sum_large_quantum_should_approximate_quantum_when_quantum_dominates(
+    def test_given_quadrature_sum_large_quantum_then_approximate_quantum_when_quantum_dominates(
         self,
     ) -> None:
         config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3)
@@ -74,7 +74,7 @@ class TestTTLLimitedSensitivity:
             "Large quantum noise regime failed"
         )
 
-    def test_quadrature_sum_large_ttl_should_approximate_ttl_when_ttl_dominates(
+    def test_given_quadrature_sum_large_ttl_then_approximate_ttl_when_ttl_dominates(
         self,
     ) -> None:
         config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3)
@@ -87,7 +87,7 @@ class TestTTLLimitedSensitivity:
 class TestTTLScalingSweep:
     """Test scaling sweep."""
 
-    def test_sql_low_n_should_give_alpha_approx_minus_0_5_sql_regime(self) -> None:
+    def test_given_sql_low_n_then_give_alpha_approx_minus_0_5_sql_regime(self) -> None:
         config = TTLNoiseConfig(theta_rms=1e-12, beam_offset=1e-6, wavelength=1e-6)
         N = np.logspace(0, 3, 20)
         result = ttl_scaling_sweep(N, config, quantum_scaling="sql")
@@ -98,7 +98,7 @@ class TestTTLScalingSweep:
             f"Expected α ≈ -0.5, got {result['alpha_fitted']}"
         )
 
-    def test_hl_low_n_should_give_alpha_approx_minus_1_0(self) -> None:
+    def test_given_hl_low_n_then_give_alpha_approx_minus_1_0(self) -> None:
         config = TTLNoiseConfig(theta_rms=1e-12, beam_offset=1e-6, wavelength=1e-6)
         N = np.logspace(0, 3, 20)
         result = ttl_scaling_sweep(N, config, quantum_scaling="hl")
@@ -109,7 +109,7 @@ class TestTTLScalingSweep:
             f"Expected α ≈ -1.0, got {result['alpha_fitted']}"
         )
 
-    def test_returns_expected_keys_should_return_expected_dict_structure(self) -> None:
+    def test_given_returns_expected_keys_then_return_expected_dict_structure(self) -> None:
         config = TTLNoiseConfig()
         N = np.logspace(0, 6, 10)
         result = ttl_scaling_sweep(N, config, quantum_scaling="sql")
@@ -128,16 +128,16 @@ class TestTTLScalingSweep:
 class TestTTLConfigValidation:
     """Test config validation."""
 
-    def test_zero_theta_raises_should_raise_valueerror(self) -> None:
+    def test_given_zero_theta_raises_then_raise_valueerror(self) -> None:
         config = TTLNoiseConfig(theta_rms=0.0)
         with pytest.raises(ValueError, match="positive"):
             ttl_phase_noise(config)
 
-    def test_negative_wavelength_raises_should_raise_valueerror(self) -> None:
+    def test_given_negative_wavelength_raises_then_raise_valueerror(self) -> None:
         config = TTLNoiseConfig(wavelength=-1e-6)
         with pytest.raises(ValueError, match="positive"):
             ttl_phase_noise(config)
 
-    def test_config_validation_passes_should_not_raise_for_valid_config(self) -> None:
+    def test_given_config_validation_passes_then_not_raise_for_valid_config(self) -> None:
         config = TTLNoiseConfig()
         ttl_phase_noise(config)  # Should not raise

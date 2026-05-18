@@ -218,10 +218,7 @@ class TestSteadyState:
         gammas = [1.0]
         rho_ss = steady_state(H, L_ops, gammas)
         max_off_diag = max(
-            np.abs(rho_ss[i, j])
-            for i in range(N + 1)
-            for j in range(N + 1)
-            if i != j
+            np.abs(rho_ss[i, j]) for i in range(N + 1) for j in range(N + 1) if i != j
         )
         assert max_off_diag < 1e-3
 

@@ -317,6 +317,48 @@ def evolve_full(
 # ============================================================================
 
 
+def build_joint_operator(ops: dict[str, np.ndarray]) -> np.ndarray:
+    """Build the joint measurement operator M = J_z^S + J_z^A.
+
+    Args:
+        ops: Two-qubit operators from build_two_qubit_operators().
+
+    Returns:
+        4×4 Hermitian matrix representing the joint measurement.
+
+    """
+    return ops["Jz_S"] + ops["Jz_A"]
+
+
+def compute_covariance(
+    psi: np.ndarray,
+    ops: dict[str, np.ndarray],
+) -> float:
+    """Compute Cov(J_z^S, J_z^A) = ⟨J_z^S J_z^A⟩ - ⟨J_z^S⟩⟨J_z^A⟩.
+
+    Args:
+        psi: Normalised state vector (4-component).
+        ops: Two-qubit operators (must contain 'Jz_S', 'Jz_A').
+
+    Returns:
+        Covariance between J_z^S and J_z^A measurements.
+
+    """
+    Jz_S = ops["Jz_S"]
+    Jz_A = ops["Jz_A"]
+
+    exp_S = np.real(psi.conj() @ Jz_S @ psi)
+    exp_A = np.real(psi.conj() @ Jz_A @ psi)
+    exp_SA = np.real(psi.conj() @ (Jz_S @ Jz_A) @ psi)
+
+    cov = exp_SA - exp_S * exp_A
+    # Covariance can be legitimately negative (anti-correlation).
+    # Only check for NaN/Inf and that it lies in the mathematically
+    # allowed range: |Cov(X,Y)| ≤ sqrt(Var(X) * Var(Y)).
+    assert np.isfinite(cov), f"Covariance is not finite: Cov = {cov}"
+    return float(cov)
+
+
 def compute_expectation_and_variance(
     psi: np.ndarray,
     operator: np.ndarray,
@@ -388,10 +430,13 @@ def compute_sensitivity(
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
     fd_step: float = 1e-6,
+    meas_op: np.ndarray | None = None,
 ) -> float:
     """Compute the error-propagation sensitivity Δθ.
 
-    Δθ = sqrt(Var(J_z^S)) / |∂⟨J_z^S⟩/∂θ|
+    Δθ = sqrt(Var(O)) / |∂⟨O⟩/∂θ|
+
+    where O is the measurement operator (default: J_z^S).
 
     The derivative is computed via central finite differences.
 
@@ -404,6 +449,7 @@ def compute_sensitivity(
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Two-qubit operators (must contain 'Jz_S').
         fd_step: Finite-difference step size (default 1e-6).
+        meas_op: Measurement operator. Defaults to ops['Jz_S'] (S-only).
 
     Returns:
         Sensitivity Δθ (positive float).
@@ -411,27 +457,22 @@ def compute_sensitivity(
     Raises:
         RuntimeError: If derivative is zero (operating at fringe extremum).
 
-    Constraints:
-        psi0 must be normalized (L2 norm = 1).
-        fd_step > 0 (finite difference step); too small causes numerical noise.
-        ops must contain key 'Jz_S' (the measured observable).
-        T_BS1, T_BS2, T_H > 0 (positive durations).
-
     """
-    Jz_S = ops["Jz_S"]
+    if meas_op is None:
+        meas_op = ops["Jz_S"]
 
     # Evaluate at theta_true
     psi = evolve_full(psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops)
-    _, var = compute_expectation_and_variance(psi, Jz_S)
+    _, var = compute_expectation_and_variance(psi, meas_op)
 
-    # Central finite difference for ∂⟨Jz_S⟩/∂θ
+    # Central finite difference for ∂⟨O⟩/∂θ
     psi_plus = evolve_full(psi0, T_BS1, T_BS2, T_H, theta_true + fd_step, alpha, ops)
     psi_minus = evolve_full(psi0, T_BS1, T_BS2, T_H, theta_true - fd_step, alpha, ops)
-    exp_plus = np.real(psi_plus.conj() @ Jz_S @ psi_plus)
-    exp_minus = np.real(psi_minus.conj() @ Jz_S @ psi_minus)
+    exp_plus = np.real(psi_plus.conj() @ meas_op @ psi_plus)
+    exp_minus = np.real(psi_minus.conj() @ meas_op @ psi_minus)
     d_exp = (exp_plus - exp_minus) / (2.0 * fd_step)
 
-    if abs(d_exp) < 1e-15:
+    if abs(d_exp) < 1e-12:
         # Derivative is effectively zero → fringe extremum
         return float("inf")
 
@@ -490,30 +531,36 @@ def sensitivity_objective(
     fd_step: float = 1e-6,
     bounds: dict[str, tuple[float, float]] | None = None,
     penalty_scale: float = 1e6,
+    meas_op: np.ndarray | None = None,
+    fixed_alpha: tuple[float, float, float, float] | None = None,
 ) -> float:
     """Objective function for minimising Δθ.
 
     Args:
-        params: 11-element optimisation parameter vector.
+        params: 11-element optimisation parameter vector, or 7-element
+            state-only vector when fixed_alpha is set.
         theta_true: True phase rate parameter.
         ops: Two-qubit operators.
         fd_step: Finite-difference step size.
         bounds: Dict of parameter bounds (defaults to report values).
         penalty_scale: Scale for bound-violation penalty.
+        meas_op: Measurement operator. Defaults to ops['Jz_S'].
+        fixed_alpha: If set, params is a 7-element state vector;
+            fixed_alpha is prepended to form the full 11-element vector.
+            Alpha bound checks are skipped in this mode.
 
     Returns:
         Δθ value (plus infinite penalty if bounds violated).
-
-    Constraints:
-        params must be length 11: (θ_S, φ_S, θ_A, φ_A, T_BS1, T_BS2, T_H, α_xx, α_xz, α_zx, α_zz).
-        fd_step > 0 (finite difference step).
-        theta_true real (valid phase rate).
-        penalty_scale > 0 (sensible default: 1e6).
 
     """
     # Default bounds from the report
     if bounds is None:
         bounds = get_default_bounds()
+
+    # If fixed_alpha is set, params is 7-element (state only);
+    # prepend fixed_alpha to make 11 elements.
+    if fixed_alpha is not None:
+        params = np.concatenate([params, np.asarray(fixed_alpha, dtype=float)])
 
     theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_H, alpha = _params_to_components(
         params,
@@ -535,12 +582,13 @@ def sensitivity_objective(
             penalty += penalty_scale * (lo - val) ** 2
         if val > hi:
             penalty += penalty_scale * (val - hi) ** 2
-    for i in range(4):
-        lo, hi = bounds["alpha"]
-        if alpha[i] < lo:
-            penalty += penalty_scale * (lo - alpha[i]) ** 2
-        if alpha[i] > hi:
-            penalty += penalty_scale * (alpha[i] - hi) ** 2
+    if fixed_alpha is None:
+        for i in range(4):
+            lo, hi = bounds["alpha"]
+            if alpha[i] < lo:
+                penalty += penalty_scale * (lo - alpha[i]) ** 2
+            if alpha[i] > hi:
+                penalty += penalty_scale * (alpha[i] - hi) ** 2
 
     if penalty > 0.0:
         return float(1e10 + penalty)
@@ -549,7 +597,17 @@ def sensitivity_objective(
     psi0 = two_qubit_state(theta_S, phi_S, theta_A, phi_A)
 
     # Compute sensitivity
-    return compute_sensitivity(psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops, fd_step)
+    return compute_sensitivity(
+        psi0,
+        T_BS1,
+        T_BS2,
+        T_H,
+        theta_true,
+        alpha,
+        ops,
+        fd_step,
+        meas_op=meas_op,
+    )
 
 
 # ============================================================================
@@ -563,6 +621,7 @@ class OptimisationResult:
 
     Attributes:
         delta_theta_opt: Best sensitivity Δθ found.
+        meas_label: Measurement type — "S-only" or "Joint M".
         params_opt: Optimal 11-element parameter vector.
         theta_true: True θ used for this optimisation.
         success: Whether the optimiser reported success.
@@ -572,6 +631,12 @@ class OptimisationResult:
         variance_Jz: Var(J_z^S) at the optimal operating point.
         purity_S: Tr(ρ_S²) purity of the reduced system state (1 = pure,
             0.5 = maximally entangled with ancilla).
+        expectation_M: ⟨J_z^S + J_z^A⟩ at the optimal operating point
+            (for joint measurement).
+        variance_M: Var(J_z^S + J_z^A) at the optimal operating point
+            (for joint measurement).
+        covariance_SA: Cov(J_z^S, J_z^A) at the optimal operating point
+            (for joint measurement).
         history: Objective function values at each iteration (for
             convergence analysis). Empty list if callback not enabled.
 
@@ -583,9 +648,13 @@ class OptimisationResult:
     success: bool
     nfev: int
     message: str
+    meas_label: str = "S-only"
     expectation_Jz: float = 0.0
     variance_Jz: float = 0.0
     purity_S: float = 0.0
+    expectation_M: float = 0.0
+    variance_M: float = 0.0
+    covariance_SA: float = 0.0
     history: list[float] = field(default_factory=list)
 
 
@@ -671,13 +740,16 @@ def run_optimisation(
     adaptive: bool = True,
     bounds: dict[str, tuple[float, float]] | None = None,
     track_history: bool = False,
+    meas_op: np.ndarray | None = None,
+    fixed_alpha: tuple[float, float, float, float] | None = None,
 ) -> OptimisationResult:
     """Run a single Nelder–Mead optimisation for ancilla-assisted metrology.
 
     Args:
         theta_true: True phase rate parameter.
         ops: Two-qubit operators.
-        x0: Initial parameter vector (11 elements). Random if None.
+        x0: Initial parameter vector (11 elements, or 7 when fixed_alpha is set).
+            Random if None.
         seed: Random seed (used if x0 is None).
         maxiter: Maximum Nelder–Mead iterations.
         xatol: Absolute parameter tolerance.
@@ -686,6 +758,10 @@ def run_optimisation(
         bounds: Custom parameter bounds dictionary. Uses defaults if None.
         track_history: If True, record objective function values at each
             iteration in the result's `history` field.
+        meas_op: Measurement operator for the objective.
+            Defaults to ops['Jz_S'] (S-only).
+        fixed_alpha: If set, optimisation is over state params only (7 elements)
+            with the interaction coefficients held fixed.
 
     Returns:
         OptimisationResult with the best parameters found.
@@ -702,7 +778,56 @@ def run_optimisation(
         adaptive=adaptive,
         bounds=bounds,
         track_history=track_history,
+        meas_op=meas_op,
+        fixed_alpha=fixed_alpha,
     )
+
+
+def diagnostics_from_params(
+    params: np.ndarray,
+    theta_true: float,
+    ops: dict[str, np.ndarray],
+) -> tuple[float, float, float, float, float, float]:
+    """Compute diagnostics (expectations, variances, covariance, purity) at a given parameter vector.
+
+    Args:
+        params: 11-element parameter vector (θ_S, φ_S, θ_A, φ_A, T_BS1, T_BS2, T_H, α_xx, α_xz, α_zx, α_zz).
+        theta_true: True phase rate parameter.
+        ops: Two-qubit operators from build_two_qubit_operators().
+
+    Returns:
+        Tuple (exp_Jz, var_Jz, exp_M, var_M, cov_SA, purity).
+
+    """
+    (
+        opt_theta_S,
+        opt_phi_S,
+        opt_theta_A,
+        opt_phi_A,
+        opt_T_BS1,
+        opt_T_BS2,
+        opt_T_H,
+        opt_alpha,
+    ) = _params_to_components(params)
+    opt_psi0 = two_qubit_state(opt_theta_S, opt_phi_S, opt_theta_A, opt_phi_A)
+    opt_psi = evolve_full(
+        opt_psi0,
+        opt_T_BS1,
+        opt_T_BS2,
+        opt_T_H,
+        theta_true,
+        opt_alpha,
+        ops,
+    )
+
+    # Always compute both S-only and joint measurement diagnostics
+    exp_val_s, var_val_s = compute_expectation_and_variance(opt_psi, ops["Jz_S"])
+    M_op = build_joint_operator(ops)
+    exp_val_m, var_val_m = compute_expectation_and_variance(opt_psi, M_op)
+    cov_sa = compute_covariance(opt_psi, ops)
+    purity = compute_reduced_purity(opt_psi)
+
+    return exp_val_s, var_val_s, exp_val_m, var_val_m, cov_sa, purity
 
 
 def _run_nelder_mead(
@@ -716,13 +841,16 @@ def _run_nelder_mead(
     adaptive: bool = True,
     bounds: dict[str, tuple[float, float]] | None = None,
     track_history: bool = False,
+    meas_op: np.ndarray | None = None,
+    fixed_alpha: tuple[float, float, float, float] | None = None,
 ) -> OptimisationResult:
     """Internal Nelder–Mead runner. Shared by run_optimisation and run_theta_scan.
 
     Args:
         theta_true: True phase rate parameter.
         ops: Two-qubit operators.
-        x0: Initial parameter vector (11 elements). Random if None.
+        x0: Initial parameter vector (11 elements, or 7 when fixed_alpha is set).
+            Random if None.
         seed: Random seed (used if x0 is None).
         maxiter: Maximum Nelder–Mead iterations.
         xatol: Absolute parameter tolerance.
@@ -730,6 +858,10 @@ def _run_nelder_mead(
         adaptive: Use adaptive Nelder–Mead parameters.
         bounds: Custom parameter bounds dictionary. Uses defaults if None.
         track_history: If True, record objective function values per iteration.
+        meas_op: Measurement operator for the objective.
+            Defaults to ops['Jz_S'] (S-only).
+        fixed_alpha: If set, optimisation is over state params only (7 elements)
+            with the interaction coefficients held fixed.
 
     """
     if x0 is None:
@@ -737,11 +869,20 @@ def _run_nelder_mead(
         x0 = random_initial_params(rng, bounds)
     else:
         x0 = np.asarray(x0, dtype=float)
+
+    if fixed_alpha is not None:
+        assert x0.shape in ((11,), (7,)), (
+            f"x0 must have 7 or 11 elements when fixed_alpha is set, got {x0.shape}"
+        )
+        x0 = x0[:7]  # keep only state params
+    else:
         assert x0.shape == (11,), "x0 must have 11 elements"
 
-    # Objective function (closure over theta_true, ops, bounds)
+    # Objective function (closure over theta_true, ops, bounds, meas_op, fixed_alpha)
     def objective(p: np.ndarray) -> float:
-        return sensitivity_objective(p, theta_true, ops, bounds=bounds)
+        return sensitivity_objective(
+            p, theta_true, ops, bounds=bounds, meas_op=meas_op, fixed_alpha=fixed_alpha
+        )
 
     # History tracking via callback
     history: list[float] = []
@@ -765,40 +906,44 @@ def _run_nelder_mead(
     )
 
     # Compute expectation, variance, and purity at the optimal point
+    # Use the full 11-element parameter vector for diagnostics
     opt_params = result.x.copy()
+    if fixed_alpha is not None:
+        opt_params = np.concatenate([opt_params, np.asarray(fixed_alpha, dtype=float)])
     (
-        opt_theta_S,
-        opt_phi_S,
-        opt_theta_A,
-        opt_phi_A,
-        opt_T_BS1,
-        opt_T_BS2,
-        opt_T_H,
-        opt_alpha,
-    ) = _params_to_components(opt_params)
-    opt_psi0 = two_qubit_state(opt_theta_S, opt_phi_S, opt_theta_A, opt_phi_A)
-    opt_psi = evolve_full(
-        opt_psi0,
-        opt_T_BS1,
-        opt_T_BS2,
-        opt_T_H,
-        theta_true,
-        opt_alpha,
-        ops,
-    )
-    exp_val, var_val = compute_expectation_and_variance(opt_psi, ops["Jz_S"])
-    purity = compute_reduced_purity(opt_psi)
+        exp_val_s,
+        var_val_s,
+        exp_val_m,
+        var_val_m,
+        cov_sa,
+        purity,
+    ) = diagnostics_from_params(opt_params, theta_true, ops)
+
+    # Determine measurement label by comparing meas_op to known operators
+    if meas_op is None:
+        meas_label = "S-only"
+    else:
+        # Compare against the canonical joint operator Jz_S + Jz_A
+        joint_op = build_joint_operator(ops)
+        if np.allclose(meas_op, joint_op, atol=1e-12):
+            meas_label = "Joint M"
+        else:
+            meas_label = "Custom"
 
     return OptimisationResult(
         delta_theta_opt=float(result.fun),
+        meas_label=meas_label,
         params_opt=opt_params,
         theta_true=theta_true,
         success=bool(result.success),
         nfev=int(result.nfev),
         message=str(result.message),
-        expectation_Jz=exp_val,
-        variance_Jz=var_val,
+        expectation_Jz=exp_val_s,
+        variance_Jz=var_val_s,
         purity_S=purity,
+        expectation_M=exp_val_m,
+        variance_M=var_val_m,
+        covariance_SA=cov_sa,
         history=history.copy(),
     )
 
@@ -813,6 +958,7 @@ def run_theta_scan(
     adaptive: bool = True,
     bounds: dict[str, tuple[float, float]] | None = None,
     track_history: bool = False,
+    meas_op: np.ndarray | None = None,
 ) -> ThetaScanResult:
     """Scan over θ values with multiple Nelder–Mead restarts each.
 
@@ -828,6 +974,8 @@ def run_theta_scan(
             Default: T_H ∈ [0, 5]. Use bounds={"T_H": (0, 20), ...} for
             expanded-range experiments.
         track_history: If True, record convergence history per run.
+        meas_op: Measurement operator for the objective.
+            Defaults to ops['Jz_S'] (S-only).
 
     Returns:
         ThetaScanResult with all recorded information.
@@ -856,6 +1004,7 @@ def run_theta_scan(
                 adaptive=adaptive,
                 bounds=bounds,
                 track_history=track_history,
+                meas_op=meas_op,
             )
             theta_results.append(opt_result)
             all_results_flat.append(opt_result)
@@ -870,6 +1019,140 @@ def run_theta_scan(
         theta_values=theta_arr,
         best_per_theta=np.array(best_per_theta_list),
         all_results=all_results,
+    )
+
+
+# ============================================================================
+# α-Scan with State Re-Optimisation
+# ============================================================================
+
+
+@dataclass
+class AlphaReoptScanResult:
+    """Result from scanning α with state re-optimisation at each point.
+
+    Attributes:
+        alpha_values: Array of α values scanned.
+        delta_theta_joint: Best Δθ for joint measurement at each α.
+        delta_theta_sonly: Best Δθ for S-only measurement at each α.
+        best_params_joint: Full 11-element optimal params (joint) at each α.
+        best_params_sonly: Full 11-element optimal params (S-only) at each α.
+
+    """
+
+    alpha_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    delta_theta_joint: np.ndarray = field(default_factory=lambda: np.array([]))
+    delta_theta_sonly: np.ndarray = field(default_factory=lambda: np.array([]))
+    best_params_joint: list[np.ndarray] = field(default_factory=list)
+    best_params_sonly: list[np.ndarray] = field(default_factory=list)
+
+
+def scan_alpha_with_reoptimisation(
+    alpha_name: str,
+    alpha_values: np.ndarray | None = None,
+    *,
+    theta_true: float = 1.0,
+    n_restarts: int = 5,
+    maxiter: int = 500,
+    seed: int = 42,
+) -> AlphaReoptScanResult:
+    """Scan a single α coefficient with state re-optimisation at each point.
+
+    For each α value, the state parameters (θ_S, φ_S, θ_A, φ_A, T_BS1,
+    T_BS2, T_H) are re-optimised via Nelder–Mead while the interaction
+    coefficients are held fixed.  Both joint and S-only measurement
+    operators are evaluated independently.
+
+    Args:
+        alpha_name: Which coefficient to scan: 'xx', 'xz', 'zx', or 'zz'.
+        alpha_values: Array of α values to scan.  Defaults to 21 points
+            in [-2.0, 2.0].
+        theta_true: True phase rate parameter (default 1.0).
+        n_restarts: Number of random-start Nelder–Mead runs per α.
+        maxiter: Maximum Nelder–Mead iterations per run.
+        seed: Base random seed (incremented per restart).
+
+    Returns:
+        AlphaReoptScanResult with all recorded information.
+
+    Raises:
+        ValueError: If alpha_name is not one of 'xx', 'xz', 'zx', 'zz'.
+
+    """
+    alpha_idx_map = {"xx": 0, "xz": 1, "zx": 2, "zz": 3}
+    if alpha_name not in alpha_idx_map:
+        raise ValueError(
+            f"alpha_name must be one of {list(alpha_idx_map.keys())}, got {alpha_name}",
+        )
+    scan_idx = alpha_idx_map[alpha_name]
+
+    if alpha_values is None:
+        alpha_values = np.linspace(-2.0, 2.0, 21)
+
+    ops = build_two_qubit_operators()
+    M_op = build_joint_operator(ops)
+
+    alpha_arr = np.asarray(alpha_values, dtype=float)
+    n_points = len(alpha_arr)
+
+    delta_theta_joint = np.full(n_points, np.inf, dtype=float)
+    delta_theta_sonly = np.full(n_points, np.inf, dtype=float)
+    best_params_joint: list[np.ndarray] = []
+    best_params_sonly: list[np.ndarray] = []
+
+    for i, a_val in enumerate(alpha_arr):
+        # Build the fixed α tuple: one coefficient varies, others zero
+        alpha_list = [0.0, 0.0, 0.0, 0.0]
+        alpha_list[scan_idx] = a_val
+        fixed_alpha: tuple[float, float, float, float] = (
+            alpha_list[0],
+            alpha_list[1],
+            alpha_list[2],
+            alpha_list[3],
+        )
+
+        # --- Joint measurement ---
+        joint_results: list[OptimisationResult] = []
+        for restart in range(n_restarts):
+            rng = np.random.default_rng(seed + i * 1000 + restart)
+            x0 = random_initial_params(rng)[:7]  # 7 state params
+            opt = _run_nelder_mead(
+                theta_true=theta_true,
+                ops=ops,
+                x0=x0,
+                maxiter=maxiter,
+                meas_op=M_op,
+                fixed_alpha=fixed_alpha,
+            )
+            joint_results.append(opt)
+        joint_results.sort(key=lambda r: r.delta_theta_opt)
+        delta_theta_joint[i] = joint_results[0].delta_theta_opt
+        best_params_joint.append(joint_results[0].params_opt.copy())
+
+        # --- S-only measurement ---
+        sonly_results: list[OptimisationResult] = []
+        for restart in range(n_restarts):
+            rng = np.random.default_rng(seed + i * 1000 + restart + 10000)
+            x0 = random_initial_params(rng)[:7]
+            opt = _run_nelder_mead(
+                theta_true=theta_true,
+                ops=ops,
+                x0=x0,
+                maxiter=maxiter,
+                meas_op=None,
+                fixed_alpha=fixed_alpha,
+            )
+            sonly_results.append(opt)
+        sonly_results.sort(key=lambda r: r.delta_theta_opt)
+        delta_theta_sonly[i] = sonly_results[0].delta_theta_opt
+        best_params_sonly.append(sonly_results[0].params_opt.copy())
+
+    return AlphaReoptScanResult(
+        alpha_values=alpha_arr,
+        delta_theta_joint=delta_theta_joint,
+        delta_theta_sonly=delta_theta_sonly,
+        best_params_joint=best_params_joint,
+        best_params_sonly=best_params_sonly,
     )
 
 
@@ -1217,6 +1500,7 @@ def scan_alpha_single_parameter(
     T_BS2: float = np.pi / 2,
     T_H: float = 1.0,
     theta_true: float = 1.0,
+    meas_op: np.ndarray | None = None,
 ) -> AlphaSingleScanResult:
     """Scan a single α coefficient while holding others fixed.
 
@@ -1243,6 +1527,7 @@ def scan_alpha_single_parameter(
         T_BS2: Second beam-splitter duration (default π/2).
         T_H: Holding time (default 1.0).
         theta_true: True phase rate (default 1.0).
+        meas_op: Measurement operator. Defaults to ops['Jz_S'] (S-only).
 
     Returns:
         AlphaSingleScanResult with scanned values and sensitivities.
@@ -1259,6 +1544,8 @@ def scan_alpha_single_parameter(
     scan_idx = alpha_idx_map[alpha_name]
 
     ops = build_two_qubit_operators()
+    if meas_op is None:
+        meas_op = ops["Jz_S"]
     psi0 = two_qubit_state(theta_S, phi_S, theta_A, phi_A)
 
     alpha_values = np.linspace(alpha_min, alpha_max, n_points)
@@ -1273,7 +1560,16 @@ def scan_alpha_single_parameter(
             alpha_list[2],
             alpha_list[3],
         )
-        dtheta = compute_sensitivity(psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops)
+        dtheta = compute_sensitivity(
+            psi0,
+            T_BS1,
+            T_BS2,
+            T_H,
+            theta_true,
+            alpha,
+            ops,
+            meas_op=meas_op,
+        )
         delta_theta_values[i] = dtheta
 
     fixed_params = {
@@ -1309,6 +1605,7 @@ def random_search_alpha(
     T_H: float = 1.0,
     theta_true: float = 1.0,
     seed: int | None = 42,
+    meas_op: np.ndarray | None = None,
 ) -> AlphaRandomSearchResult:
     """Random search over the 4D α = (α_xx, α_xz, α_zx, α_zz) space.
 
@@ -1329,6 +1626,7 @@ def random_search_alpha(
         T_H: Holding time (default 1.0).
         theta_true: True phase rate (default 1.0).
         seed: Random seed for reproducibility (default 42).
+        meas_op: Measurement operator. Defaults to ops['Jz_S'] (S-only).
 
     Returns:
         AlphaRandomSearchResult with all samples and the best found.
@@ -1336,6 +1634,8 @@ def random_search_alpha(
     """
     rng = np.random.default_rng(seed)
     ops = build_two_qubit_operators()
+    if meas_op is None:
+        meas_op = ops["Jz_S"]
     psi0 = two_qubit_state(theta_S, phi_S, theta_A, phi_A)
 
     # Sample uniformly in [alpha_min, alpha_max]^4
@@ -1349,7 +1649,16 @@ def random_search_alpha(
             float(alpha_samples[i, 2]),
             float(alpha_samples[i, 3]),
         )
-        dtheta = compute_sensitivity(psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops)
+        dtheta = compute_sensitivity(
+            psi0,
+            T_BS1,
+            T_BS2,
+            T_H,
+            theta_true,
+            alpha,
+            ops,
+            meas_op=meas_op,
+        )
         delta_theta_values[i] = dtheta
 
     # Find best (minimal Δθ)
@@ -1379,4 +1688,134 @@ def random_search_alpha(
         best_alpha=best_alpha,
         best_delta_theta=best_delta_theta,
         fixed_params=fixed_params,
+    )
+
+
+# ============================================================================
+# Interaction Robustness Scan (T_H × α)
+# ============================================================================
+
+
+@dataclass
+class InteractionRobustnessResult:
+    """Result from a 2D scan over T_H and α values.
+
+    Attributes:
+        T_H_values: Array of T_H holding-time values scanned.
+        alpha_values: Array of α coefficient values scanned.
+        delta_theta_joint: 2D array of Δθ (joint measurement) for each
+            (T_H, α) pair, shape (len(T_H_values), len(alpha_values)).
+        delta_theta_sonly: 2D array of Δθ (S-only measurement) for each
+            (T_H, α) pair, shape (len(T_H_values), len(alpha_values)).
+
+    """
+
+    T_H_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    alpha_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    delta_theta_joint: np.ndarray = field(default_factory=lambda: np.array([]))
+    delta_theta_sonly: np.ndarray = field(default_factory=lambda: np.array([]))
+
+
+def compute_interaction_robustness(
+    T_H_values: np.ndarray,
+    alpha_values: np.ndarray,
+    *,
+    theta_true: float = 1.0,
+    alpha_name: str = "xx",
+    theta_S: float = 0.0,
+    phi_S: float = 0.0,
+    theta_A: float = 0.0,
+    phi_A: float = 0.0,
+    T_BS: float = np.pi / 2,
+) -> InteractionRobustnessResult:
+    """Scan over T_H and a single α coefficient, recording sensitivity for
+    both S-only and joint measurements.
+
+    For each (T_H, α) pair, the state and beam-splitter parameters are
+    held fixed while the holding-time strength and interaction coefficient
+    are varied.  The sensitivity Δθ is computed via `compute_sensitivity`
+    for both measurement operators (S-only and joint).
+
+    Args:
+        T_H_values: Array of T_H holding-time strengths to scan.
+        alpha_values: Array of α coefficient values to scan (single
+            coefficient determined by `alpha_name`).
+        theta_true: True phase rate parameter (default 1.0).
+        alpha_name: Which coefficient to scan: 'xx', 'xz', 'zx', or 'zz'
+            (default 'xx').
+        theta_S: System polar angle (default 0.0).
+        phi_S: System azimuthal angle (default 0.0).
+        theta_A: Ancilla polar angle (default 0.0).
+        phi_A: Ancilla azimuthal angle (default 0.0).
+        T_BS: Beam-splitter duration for both first and second beam
+            splitters (default π/2).
+
+    Returns:
+        InteractionRobustnessResult containing the 2D sensitivity arrays.
+
+    Raises:
+        ValueError: If alpha_name is not one of 'xx', 'xz', 'zx', 'zz'.
+
+    """
+    alpha_idx_map = {"xx": 0, "xz": 1, "zx": 2, "zz": 3}
+    if alpha_name not in alpha_idx_map:
+        raise ValueError(
+            f"alpha_name must be one of {list(alpha_idx_map.keys())}, got {alpha_name}",
+        )
+    scan_idx = alpha_idx_map[alpha_name]
+
+    ops = build_two_qubit_operators()
+    M_op = build_joint_operator(ops)
+    psi0 = two_qubit_state(theta_S, phi_S, theta_A, phi_A)
+
+    T_H_arr = np.asarray(T_H_values, dtype=float)
+    alpha_arr = np.asarray(alpha_values, dtype=float)
+    n_T_H = len(T_H_arr)
+    n_alpha = len(alpha_arr)
+
+    delta_theta_joint = np.full((n_T_H, n_alpha), np.inf, dtype=float)
+    delta_theta_sonly = np.full((n_T_H, n_alpha), np.inf, dtype=float)
+
+    for i, T_H in enumerate(T_H_arr):
+        for j, a_val in enumerate(alpha_arr):
+            alpha_list = [0.0, 0.0, 0.0, 0.0]
+            alpha_list[scan_idx] = a_val
+            alpha: tuple[float, float, float, float] = (
+                alpha_list[0],
+                alpha_list[1],
+                alpha_list[2],
+                alpha_list[3],
+            )
+
+            # S-only measurement (meas_op=None defaults to Jz_S)
+            dtheta_s = compute_sensitivity(
+                psi0,
+                T_BS,
+                T_BS,
+                T_H,
+                theta_true,
+                alpha,
+                ops,
+                meas_op=None,
+            )
+            delta_theta_sonly[i, j] = dtheta_s
+
+            # Joint measurement (Jz_S + Jz_A)
+            dtheta_j = compute_sensitivity(
+                psi0,
+                T_BS,
+                T_BS,
+                T_H,
+                theta_true,
+                alpha,
+                ops,
+                meas_op=M_op,
+            )
+            delta_theta_joint[i, j] = dtheta_j
+
+    return InteractionRobustnessResult(
+        T_H_values=T_H_arr,
+        alpha_values=alpha_arr,
+        delta_theta_joint=delta_theta_joint,
+        delta_theta_sonly=delta_theta_sonly,
     )

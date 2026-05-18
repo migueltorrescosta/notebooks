@@ -83,7 +83,9 @@ class TestEigendecomposition:
         reconstructed = eigenvectors @ np.diag(eigenvalues) @ eigenvectors.conj().T
         assert pytest.approx(reconstructed, abs=1e-10) == H
 
-    @pytest.mark.parametrize("n_sites", [2, 3, 4], ids=["n=2\u21923", "n=3\u21924", "n=4\u21925"])
+    @pytest.mark.parametrize(
+        "n_sites", [2, 3, 4], ids=["n=2\u21923", "n=3\u21924", "n=4\u21925"]
+    )
     def test_hilbert_space_dimension_doubles_per_site(self, n_sites: int) -> None:
         H_n = heisenberg_hamiltonian(n_sites)
         H_n1 = heisenberg_hamiltonian(n_sites + 1)

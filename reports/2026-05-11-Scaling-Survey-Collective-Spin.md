@@ -20,15 +20,15 @@ The **entanglement Hamiltonians** for spin squeezing are **one-axis twisting (OA
 
 The **input states** considered are: the **coherent spin state (CSS)** $\vert J, -J\rangle$ rotated to the $x$-axis (used for OAT/TNT entangling); the **spin-squeezed state (SSS)** obtained by OAT evolution at $t_{\text{opt}}$; the **balanced Dicke superposition** $\sum_{n=0}^N \vert n,N-n\rangle/\sqrt{N+1}$ (implemented in the code as `twin_fock_state`, distinct from the standard $\vert N/2,N/2\rangle$ Twin-Fock — see **Note on naming** below); **non-Gaussian states** from hybrid oscillator-spin evolution under $H_n$; and **ancilla-assisted states** coupling the probe to an ancillary register.
 
-> **Note on naming**: The code's `twin_fock_state` returns the uniform superposition of all $\vert n,N-n\rangle$ Fock states (balanced Dicke superposition), *not* the single Fock state $\vert N/2,N/2\rangle$. This choice preserves $\langle J_z\rangle=0$ and achieves near-Heisenberg QFI $F_Q=N(N+2)/3$. The standard $\vert N/2,N/2\rangle$ Twin-Fock has $F_Q=N$ (SQL scaling) and is not used here.
+> 💡 **Note on naming**: The code's `twin_fock_state` returns the uniform superposition of all $\vert n,N-n\rangle$ Fock states (balanced Dicke superposition), *not* the single Fock state $\vert N/2,N/2\rangle$. This choice preserves $\langle J_z\rangle=0$ and achieves near-Heisenberg QFI $F_Q=N(N+2)/3$. The standard $\vert N/2,N/2\rangle$ Twin-Fock has $F_Q=N$ (SQL scaling) and is not used here.
 
-> **Note on CSS conventions**: In the Dicke-basis context (OAT/TNT entanglers), CSS means $\vert J,-J\rangle_x$ — the eigenstate of $J_x$ with eigenvalue $-J$, which has definite particle number $N$. In the Fock-basis scaling survey pipeline (`input_state_factory("css", ...)`), it refers to a two-mode coherent state with $\alpha=\sqrt{N}$ on mode 0, which does not have definite $N$. The two conventions give the same SQL scaling $\alpha=-0.5$ but differ in finite-$N$ prefactors. The OAT/TNT models consistently use the Dicke-basis CSS.
+> 💡 **Note on CSS conventions**: In the Dicke-basis context (OAT/TNT entanglers), CSS means $\vert J,-J\rangle_x$ — the eigenstate of $J_x$ with eigenvalue $-J$, which has definite particle number $N$. In the Fock-basis scaling survey pipeline (`input_state_factory("css", ...)`), it refers to a two-mode coherent state with $\alpha=\sqrt{N}$ on mode 0, which does not have definite $N$. The two conventions give the same SQL scaling $\alpha=-0.5$ but differ in finite-$N$ prefactors. The OAT/TNT models consistently use the Dicke-basis CSS.
 
-The interferometric **circuit protocol** follows a standard Mach-Zehnder sequence: a $\pi/2$ beam splitter, a phase imprint $e^{i\phi n_2}$ (equivalent to $e^{-i\phi J_z}$ up to a global phase), and a final $\pi/2$ beam splitter. The scaling survey computes sensitivity via the **Quantum Fisher Information** $F_Q = 4\,\text{Var}(J_z)$ for pure states, which is independent of the beam splitter convention and depends only on the probe state. This means the survey's $\alpha$ predictions hold regardless of whether the Dicke-basis rotation (about $J_y$) or Fock-basis beam-splitter Hamiltonian ($a_1^\dagger a_2 + a_2^\dagger a_1$) is used. The **sensitivity metrics** are:
+The interferometric **circuit protocol** follows a standard **Mach-Zehnder** sequence: a $\pi/2$ beam splitter, a phase imprint $e^{i\phi n_2}$ (equivalent to $e^{-i\phi J_z}$ up to a global phase), and a final $\pi/2$ beam splitter. The scaling survey computes sensitivity via the **Quantum Fisher Information** $F_Q = 4\,\text{Var}(J_z)$ for pure states, which is independent of the beam splitter convention and depends only on the probe state. This means the survey's $\alpha$ predictions hold regardless of whether the Dicke-basis rotation (about $J_y$) or Fock-basis beam-splitter Hamiltonian ($a_1^\dagger a_2 + a_2^\dagger a_1$) is used. The **sensitivity metrics** are:
 
 | Method | Formula |
 |---|---|
-| Error propagation | $\Delta\phi_{\text{EP}} = \Delta J_z / \lvert \partial\langle J_z\rangle/\partial\phi\rvert$ |
+| **Error propagation** | $\Delta\phi_{\text{EP}} = \Delta J_z / \lvert \partial\langle J_z\rangle/\partial\phi\rvert$ |
 | Quantum Fisher (pure) | $\Delta\phi_{\text{QFI}} = 1/\sqrt{F_Q}$, $F_Q = 4\,\text{Var}(J_z)$ |
 | Quantum Fisher (mixed) | $\Delta\phi_{\text{QFI}} = 1/\sqrt{F_Q}$ via SLD eigen-decomposition |
 | Classical Fisher | $\Delta\phi_{\text{CFI}} = 1/\sqrt{\sum_k (\partial_\phi p_k)^2 / p_k}$ |
@@ -136,7 +136,7 @@ The scaling survey pipeline is fully implemented and can be run interactively vi
 
 All checks are pending execution of the numerical sweeps described in Numerical Simulation. Once completed, each check will be assigned a status (✅/❌/🔄) and this section will summarize which of the five hypotheses were supported.
 
-#### 📐 Analytical Bounds
+#### ⚖️ Analytical Bounds
 
 For pure states in the symmetric Dicke subspace with generator $J_z$, the **quantum Fisher information** satisfies $F_Q \leq 4N^2$, corresponding to the Heisenberg limit $\Delta\phi_{\text{HL}} = 1/(2N)$. The **standard quantum limit** for coherent states is $\Delta\phi_{\text{SQL}} = 1/\sqrt{N}$. The **spin-squeezing parameter** $\xi^2_R = N\,\text{Var}(J_z)/\langle J_x\rangle^2$ is bounded below by $1/F_Q$ for the optimal readout direction, providing a computable witness for metrological advantage. For Twin-Fock states, the exact QFI is $F_Q = N(N+2)/3$ in the ideal case.
 

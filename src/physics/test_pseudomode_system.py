@@ -39,13 +39,11 @@ from .pseudomode_system import (
 )
 
 
-def _dim_total(N: int, K: int) -> int:
+def _make_dim_total(N: int, K: int) -> int:
     return 2 * (N + 1) * (K + 1)
 
 
-# =============================================================================
 # Configuration
-# =============================================================================
 
 
 class TestPseudomodeConfig:
@@ -124,9 +122,7 @@ class TestPseudomodeConfig:
             PseudomodeConfig(N=5, K=3, tau=-0.1)
 
 
-# =============================================================================
 # Pseudomode Operators
-# =============================================================================
 
 
 class TestPseudomodeOperators:
@@ -179,9 +175,7 @@ class TestPseudomodeOperators:
         assert bd @ b == pytest.approx(pseudomode_number_operator(K))
 
 
-# =============================================================================
 # Tripartite Operator
-# =============================================================================
 
 
 class TestTripartiteOperator:
@@ -194,12 +188,12 @@ class TestTripartiteOperator:
     def test_correct_dimensions(self) -> None:
         N, K = 5, 3
         op = tripartite_operator(np.eye(N + 1), np.eye(2), np.eye(K + 1), N, K)
-        assert op.shape == (_dim_total(N, K), _dim_total(N, K))
+        assert op.shape == (_make_dim_total(N, K), _make_dim_total(N, K))
 
     def test_identity_product(self) -> None:
         N, K = 5, 3
         op = tripartite_operator(np.eye(N + 1), np.eye(2), np.eye(K + 1), N, K)
-        assert op == pytest.approx(np.eye(_dim_total(N, K)))
+        assert op == pytest.approx(np.eye(_make_dim_total(N, K)))
 
     def test_zero_operator(self) -> None:
         N, K = 5, 3
@@ -226,9 +220,7 @@ class TestTripartiteOperator:
         assert op == pytest.approx(op.conj().T, abs=1e-10)
 
 
-# =============================================================================
 # Hamiltonian
-# =============================================================================
 
 
 class TestBuildPseudomodeHamiltonian:
@@ -241,8 +233,8 @@ class TestBuildPseudomodeHamiltonian:
     def test_shape(self, config: PseudomodeConfig) -> None:
         H = build_pseudomode_hamiltonian(config)
         assert H.shape == (
-            _dim_total(config.N, config.K),
-            _dim_total(config.N, config.K),
+            _make_dim_total(config.N, config.K),
+            _make_dim_total(config.N, config.K),
         )
 
     def test_hermiticity(self, config: PseudomodeConfig) -> None:
@@ -266,9 +258,7 @@ class TestBuildPseudomodeHamiltonian:
         )
 
 
-# =============================================================================
 # Lindblad Operators
-# =============================================================================
 
 
 class TestBuildPseudomodeLindbladOperators:
@@ -299,7 +289,10 @@ class TestBuildPseudomodeLindbladOperators:
     def test_correct_shape(self, config: PseudomodeConfig) -> None:
         cfg = PseudomodeConfig(N=config.N, K=config.K, lam=1.0)
         L, _ = build_pseudomode_lindblad_operators(cfg)
-        assert L[0].shape == (_dim_total(cfg.N, cfg.K), _dim_total(cfg.N, cfg.K))
+        assert L[0].shape == (
+            _make_dim_total(cfg.N, cfg.K),
+            _make_dim_total(cfg.N, cfg.K),
+        )
 
     def test_operator_structure(self) -> None:
         N, K, lam = 3, 2, 4.0
@@ -310,9 +303,7 @@ class TestBuildPseudomodeLindbladOperators:
         assert L[0] == pytest.approx(expected, abs=1e-10)
 
 
-# =============================================================================
 # State Preparation
-# =============================================================================
 
 
 class TestPseudomodeInitialState:
@@ -324,7 +315,7 @@ class TestPseudomodeInitialState:
 
     def test_shape(self, config: PseudomodeConfig) -> None:
         state = pseudomode_initial_state(config)
-        assert state.shape == (_dim_total(config.N, config.K),)
+        assert state.shape == (_make_dim_total(config.N, config.K),)
 
     @pytest.mark.parametrize(
         ("alpha", "N"), [(0.0, 5), (0.5, 10), (1.0, 10), (2.0, 25)]
@@ -365,9 +356,7 @@ class TestPseudomodeInitialState:
             assert state[n * 2 * dim_pm] == pytest.approx(expected, abs=1e-10)
 
 
-# =============================================================================
 # Ancilla Entanglement
-# =============================================================================
 
 
 class TestApplyAncillaEntanglement:
@@ -415,16 +404,14 @@ class TestApplyAncillaEntanglement:
             )
 
 
-# =============================================================================
 # Partial Trace
-# =============================================================================
 
 
 class TestPartialTrace:
     """Partial trace operations: dimension reduction, trace conservation."""
 
     def _make_test_density(self, N: int, K: int) -> np.ndarray:
-        dim = _dim_total(N, K)
+        dim = _make_dim_total(N, K)
         psi = np.random.randn(dim) + 1j * np.random.randn(dim)
         psi = psi / np.linalg.norm(psi)
         return np.outer(psi, psi.conj())
@@ -469,9 +456,7 @@ class TestPartialTrace:
         assert rho_reduced == pytest.approx(rho_reduced.conj().T, abs=1e-10)
 
 
-# =============================================================================
 # Lindblad Evolution
-# =============================================================================
 
 
 class TestEvolvePseudomode:
@@ -531,7 +516,7 @@ class TestEvolvePseudomode:
 
     # --- Density validation ---
     def test_valid_maximally_mixed(self) -> None:
-        dim = _dim_total(5, 3)
+        dim = _make_dim_total(5, 3)
         rho = np.eye(dim, dtype=complex) / dim
         v = validate_pseudomode_density(rho)
         assert v["is_hermitian"] and v["is_normalized"] and v["is_positive"]
@@ -554,9 +539,7 @@ class TestEvolvePseudomode:
         assert not validate_pseudomode_density(rho)["is_normalized"]
 
 
-# =============================================================================
 # QFI Computation
-# =============================================================================
 
 
 class TestQFIComputation:
@@ -608,9 +591,7 @@ class TestQFIComputation:
         assert qfi_with >= qfi_without - 1e-10
 
 
-# =============================================================================
 # Metrology Protocol
-# =============================================================================
 
 
 class TestRunMetrologyProtocol:
@@ -660,9 +641,7 @@ class TestRunMetrologyProtocol:
         assert result["ratio_with"] >= result["ratio_without"] - 1e-6
 
 
-# =============================================================================
 # Pseudomode Occupancy
-# =============================================================================
 
 
 class TestCheckPseudomodeOccupancy:
@@ -689,9 +668,7 @@ class TestCheckPseudomodeOccupancy:
 
 # ... (continued after this line to finish the file)
 
-# =============================================================================
 # QFI Preservation Ratio
-# =============================================================================
 
 
 class TestQFIPreservationRatio:
@@ -735,9 +712,7 @@ class TestQFIPreservationRatio:
         )
 
 
-# =============================================================================
 # Edge Cases
-# =============================================================================
 
 
 class TestEdgeCases:
@@ -772,7 +747,3 @@ class TestEdgeCases:
         cfg = PseudomodeConfig(N=40, K=5, alpha=3.0, g_sa=0.0, g_sp=0.0, lam=0.0)
         norm = np.sum(np.abs(pseudomode_initial_state(cfg)) ** 2)
         assert norm == pytest.approx(1.0, abs=1e-6)
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

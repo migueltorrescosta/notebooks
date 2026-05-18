@@ -24,6 +24,24 @@ PROJECT_ROOT = Path(__file__).parent.parent
 HOMEPY = PROJECT_ROOT / "Home.py"
 
 
+def _wait_for_server(
+    base_url: str,
+    process: subprocess.Popen,
+    max_retries: int = 30,
+) -> None:
+    """Poll the server URL until it responds or max_retries is exhausted."""
+    import urllib.request
+
+    for _ in range(max_retries):
+        try:
+            urllib.request.urlopen(base_url, timeout=1)
+            return
+        except Exception:
+            time.sleep(1)
+    process.terminate()
+    pytest.fail("Streamlit server failed to start")
+
+
 @pytest.fixture(scope="module")
 def streamlit_server() -> Generator[tuple[subprocess.Popen, int], None, None]:
     """Start Streamlit server in the background and yield the process and port."""
@@ -49,19 +67,8 @@ def streamlit_server() -> Generator[tuple[subprocess.Popen, int], None, None]:
     )
 
     # Wait for server to be ready
-    max_retries = 30
     base_url = f"http://localhost:{port}"
-    for _ in range(max_retries):
-        try:
-            import urllib.request
-
-            urllib.request.urlopen(base_url, timeout=1)
-            break
-        except Exception:
-            time.sleep(1)
-    else:
-        process.terminate()
-        pytest.fail("Streamlit server failed to start")
+    _wait_for_server(base_url, process)
 
     yield process, port
 
@@ -70,7 +77,7 @@ def streamlit_server() -> Generator[tuple[subprocess.Popen, int], None, None]:
     process.wait(timeout=5)
 
 
-def test_streamlit_app_launches_should_start_without_immediate_errors(
+def test_given_streamlit_app_launches_then_start_without_immediate_errors(
     streamlit_server: tuple[subprocess.Popen, int],
 ) -> None:
     process, _port = streamlit_server
@@ -78,7 +85,7 @@ def test_streamlit_app_launches_should_start_without_immediate_errors(
     assert process.poll() is None, "Streamlit process should be running"
 
 
-def test_sidebar_navigation_visible_should_be_visible(
+def test_given_sidebar_navigation_visible_then_be_visible(
     streamlit_server: tuple[subprocess.Popen, int],
 ) -> None:
     _, port = streamlit_server

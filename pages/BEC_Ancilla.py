@@ -29,16 +29,12 @@ import numpy as np
 import streamlit as st
 from plotly import graph_objects as go
 
-from src.algorithms.spin_squeezing import (
-    coherent_spin_state,
-    generate_squeezed_state,
-    optimal_squeezing_time,
+from src.algorithms.spin_squeezing import coherent_spin_state
+from src.physics.bec_ancilla_system import (
+    compute_phase_sensitivity,
+    compute_ttn_bond_growth,
+    generate_system_state,
 )
-from src.evolution.lindblad_solver import (
-    LindbladConfig,
-    evolve_lindblad,
-)
-from src.physics.dicke_basis import jz_operator
 from src.physics.noise_channels import NoiseConfig
 
 # Page configuration
@@ -47,173 +43,6 @@ st.set_page_config(
     page_icon="🔗",
     layout="wide",
 )
-
-
-# =============================================================================
-# State Generation
-# =============================================================================
-
-
-def generate_system_state(
-    N: int,
-    state_type: str,
-    chi: float,
-    T: float,
-) -> np.ndarray:
-    """Generate initial system state.
-
-    Args:
-        N: Atom number.
-        state_type: 'coherent', 'noon', 'hybrid'.
-        chi: OAT strength.
-        T: Evolution time.
-
-    Returns:
-        State vector in Dicke basis.
-
-    """
-    if state_type == "coherent":
-        return coherent_spin_state(N)
-    if state_type == "noon":
-        # Generate NOON-like state
-        dim = N + 1
-        state = np.zeros(dim, dtype=complex)
-        state[0] = 1.0 / np.sqrt(2)
-        state[N] = 1.0 / np.sqrt(2)
-        return state
-    if state_type == "hybrid":
-        # Mix of squeezed and coherent
-        t_opt = optimal_squeezing_time(N, chi)
-        squeezed = generate_squeezed_state(N, chi, t_opt)
-        coherent = coherent_spin_state(N)
-        # 50-50 superposition
-        return (squeezed + coherent) / np.sqrt(2)
-    raise ValueError(f"Unknown state type: {state_type}")
-
-
-# =============================================================================
-# Phase Sensitivity Calculation
-# =============================================================================
-
-
-def compute_phase_sensitivity(
-    N: int,
-    state: np.ndarray,
-    chi: float,
-    T: float,
-    lambda_coupling: float,
-    has_ancilla: bool,
-    noise_config: NoiseConfig,
-) -> dict:
-    """Compute phase sensitivity with/without ancilla.
-
-    Args:
-        N: Atom number.
-        state: Initial state vector.
-        chi: OAT strength.
-        T: Evolution time.
-        lambda_coupling: System-ancilla coupling strength.
-        has_ancilla: Whether to include ancilla.
-        noise_config: Noise configuration.
-
-    Returns:
-        Dictionary with phase sensitivity results.
-
-    """
-    rho0 = np.outer(state, state.conj())
-
-    # Evolution parameters
-    config = LindbladConfig(
-        N=N,
-        chi=chi,
-        gamma_1=noise_config.gamma_1,
-        gamma_2=noise_config.gamma_2,
-        gamma_phi=noise_config.gamma_phi,
-    )
-
-    dt = 0.01
-    rho_final = evolve_lindblad(rho0, config, T, dt)
-
-    # Compute J_z variance
-    J_z = jz_operator(N)
-    Jz_mean = np.real(np.trace(rho_final @ J_z))
-    Jz2_mean = np.real(np.trace(rho_final @ J_z @ J_z))
-    Jz_var = Jz2_mean - Jz_mean**2
-
-    # Phase sensitivity
-    delta_phi = np.sqrt(Jz_var) / (N / 2) if Jz_var > 0 else 1.0 / np.sqrt(N)
-
-    # Enhanced sensitivity if ancilla present
-    if has_ancilla and lambda_coupling > 0:
-        # Coupling provides extra information
-        enhancement = 1.0 + lambda_coupling * N / 2
-        delta_phi_enhanced = delta_phi / enhancement
-    else:
-        delta_phi_enhanced = delta_phi
-        enhancement = 1.0
-
-    # Theoretical bounds
-    delta_phi_sql = 1.0 / np.sqrt(N)
-    delta_phi_hl = 1.0 / N
-
-    return {
-        "delta_phi": delta_phi,
-        "delta_phi_enhanced": delta_phi_enhanced,
-        "enhancement": enhancement,
-        "Jz_mean": Jz_mean,
-        "Jz_var": Jz_var,
-        "delta_phi_sql": delta_phi_sql,
-        "delta_phi_hl": delta_phi_hl,
-    }
-
-
-# =============================================================================
-# TTN Bond Dimension Growth
-# =============================================================================
-
-
-def compute_ttn_bond_growth(
-    N: int,
-    state: np.ndarray,
-    max_epsilon: float = 1e-8,
-) -> dict:
-    """Compute TTN bond dimension for different truncations.
-
-    Note: The TTN expects a tensor product state (2^N dimensions),
-    but our Dicke basis has N+1 dimensions. We compute an effective
-    bond dimension based on the state's entanglement entropy.
-
-    Args:
-        N: Atom number.
-        state: State vector in Dicke basis.
-        max_epsilon: SVD truncation threshold.
-
-    Returns:
-        Dictionary with bond dimension data.
-
-    """
-    # For Dicke basis (N+1 dim), estimate effective bond dimension
-    # based onParticipation ratio and Schmidt decomposition ideas
-
-    probs = np.abs(state) ** 2
-    # Compute participation ratio: (∑ p_i)² / ∑ p_i²
-    participation = 1.0 / np.sum(probs**2) if np.sum(probs**2) > 0 else 1.0
-
-    # Effective entanglement rank (proxy for bond dimension)
-    # For pure CSS: rank = 1
-    # For maximal entanglement: rank ≈ N
-    max_bond_dim = min(int(np.sqrt(participation)), N)
-
-    # Scan different epsilons (simulated)
-    epsilons = [1e-4, 1e-6, 1e-8, 1e-10]
-    bond_dims = [max_bond_dim, max_bond_dim // 2, max_bond_dim // 4, max_bond_dim // 8]
-
-    return {
-        "N": N,
-        "max_bond_dim": max_bond_dim,
-        "epsilons": epsilons,
-        "bond_dims": bond_dims,
-    }
 
 
 # =============================================================================

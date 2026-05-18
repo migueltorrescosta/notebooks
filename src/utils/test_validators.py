@@ -70,12 +70,12 @@ class TestValidateOrthonormality:
         rng = np.random.default_rng(7)
         Q, _ = np.linalg.qr(rng.normal(size=(4, 4)))
         deviation = validate_orthonormality(Q)
-        assert deviation < 1e-10, "Expected deviation < 1e-10"
+        assert deviation < 1e-10
 
     def test_non_orthonormal_returns_large_deviation(self) -> None:
         vectors = np.array([[1.0, 0.0], [2.0, 1.0]])
         deviation = validate_orthonormality(vectors)
-        assert deviation > 1e-10, "Expected deviation > 1e-10"
+        assert deviation > 1e-10
 
     def test_returns_float(self) -> None:
         rng = np.random.default_rng(13)
@@ -123,31 +123,23 @@ class TestValidatePartialTrace:
 
 class TestValidateSensitivity:
     def test_sensitivity_matches_numerical_derivative(self) -> None:
-        try:
-            result = validate_sensitivity(2, 1, 1.0, 0.5, 0.3, 0.2, 1.0, tolerance=1e-3)
-            assert result, "Condition failed: result"
-        except ImportError:
-            pytest.skip("sensitivity_analysis module not available")
-        except Exception:
-            pytest.skip("sensitivity analysis prerequisites not met")
+        pytest.importorskip("src.analysis.sensitivity_analysis")
+        result = validate_sensitivity(2, 1, 0.0, 0.0, 0.3, 0.2, 1.0, tolerance=1e-3)
+        assert result, "Condition failed: result"
 
     def test_invalid_sensitivity_fails(self) -> None:
-        try:
-            result = validate_sensitivity(
-                2,
-                1,
-                1.0,
-                0.5,
-                0.3,
-                0.2,
-                1.0,
-                tolerance=1e-12,
-            )
-            assert not result, "result should be falsy"
-        except ImportError:
-            pytest.skip("sensitivity_analysis module not available")
-        except Exception:
-            pytest.skip("sensitivity analysis prerequisites not met")
+        pytest.importorskip("src.analysis.sensitivity_analysis")
+        result = validate_sensitivity(
+            2,
+            1,
+            1.0,
+            0.5,
+            0.3,
+            0.2,
+            1.0,
+            tolerance=1e-12,
+        )
+        assert not result, "result should be falsy"
 
 
 class TestValidateStateDeltaEstimation:
