@@ -327,7 +327,9 @@ class TestQfiValidation:
             )
 
     @pytest.mark.slow
-    def test_given_coherent_delta_phi_sql_scaling_then_be_1_over_sqrt_n_sql(self) -> None:
+    def test_given_coherent_delta_phi_sql_scaling_then_be_1_over_sqrt_n_sql(
+        self,
+    ) -> None:
         for N in [4, 8]:
             alpha = complex(np.sqrt(N), 0)
             max_n = max(4 * N, N + 40)
@@ -418,7 +420,9 @@ class TestQfiValidation:
 class TestSurveyModelFactories:
     """Tests for the survey model factory functions."""
 
-    def test_given_create_survey_model_defaults_then_set_appropriate_defaults(self) -> None:
+    def test_given_create_survey_model_defaults_then_set_appropriate_defaults(
+        self,
+    ) -> None:
         # noon_loss should have noise_type="loss"
         model = create_survey_model("noon_loss")
         assert model.noise_type == "loss", 'Expected model.noise_type == "loss"'
@@ -590,12 +594,16 @@ class TestNewCustomModels:
         delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
         assert not np.isfinite(delta), "Expected inf for N < 2"
 
-    def test_given_ancilla_inf_for_small_n_then_return_inf_for_n_less_than_2(self) -> None:
+    def test_given_ancilla_inf_for_small_n_then_return_inf_for_n_less_than_2(
+        self,
+    ) -> None:
         model = create_survey_model("ancilla_assisted")
         delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
         assert not np.isfinite(delta), "Expected inf for N < 2"
 
-    def test_given_kerr_mzi_smoke_then_return_finite_sensitivity_for_small_n(self) -> None:
+    def test_given_kerr_mzi_smoke_then_return_finite_sensitivity_for_small_n(
+        self,
+    ) -> None:
         model = create_survey_model("kerr_mzi")
         delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 4, 0.0)
         assert np.isfinite(delta), f"Expected finite Δφ, got {delta}"
@@ -612,7 +620,9 @@ class TestNewCustomModels:
                 f"N={N}: Δφ={delta}, expected {expected}"
             )
 
-    def test_given_kerr_mzi_inf_for_small_n_then_return_inf_for_n_less_than_2(self) -> None:
+    def test_given_kerr_mzi_inf_for_small_n_then_return_inf_for_n_less_than_2(
+        self,
+    ) -> None:
         model = create_survey_model("kerr_mzi")
         delta = self._make_call_sensitivity(model.custom_sensitivity_fn, 1, 0.0)
         assert not np.isfinite(delta), "Expected inf for N < 2"

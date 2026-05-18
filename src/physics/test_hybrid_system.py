@@ -227,9 +227,7 @@ class TestHybridHamiltonian:
             "Expected H == pytest.approx(H.conj().T, abs=1e-10)"
         )
 
-    @pytest.mark.parametrize(
-        "n", [2, 3, 4], ids=["2", "3", "4"]
-    )
+    @pytest.mark.parametrize("n", [2, 3, 4], ids=["2", "3", "4"])
     def test_hamiltonian_dimension(self, n: int) -> None:
         N = 5
         H = hybrid_hamiltonian_n(N, n=n, omega_n=1.0, theta_n=0.0)

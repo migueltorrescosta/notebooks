@@ -89,7 +89,9 @@ class TestDistributedMziSensitivity:
             f"Expected {expected}, got {result['delta_phi']}"
         )
 
-    def test_given_positive_n_raises_then_raise_valueerror_if_non_positive(self) -> None:
+    def test_given_positive_n_raises_then_raise_valueerror_if_non_positive(
+        self,
+    ) -> None:
         config = DistributedMziConfig()
         with pytest.raises(ValueError):
             distributed_mzi_sensitivity(0, 0.0, config)

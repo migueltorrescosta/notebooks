@@ -74,7 +74,9 @@ class TestOperatorConstruction:
             "J_x must be symmetric"
         )
 
-    def test_given_ancilla_operators_then_they_are_pauli_matrices_divided_by_2(self) -> None:
+    def test_given_ancilla_operators_then_they_are_pauli_matrices_divided_by_2(
+        self,
+    ) -> None:
         J_z_anc, J_x_anc = build_ancilla_operators()
 
         assert J_z_anc.shape == (2, 2)

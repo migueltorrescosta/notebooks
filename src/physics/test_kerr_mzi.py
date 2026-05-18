@@ -128,7 +128,7 @@ class TestKerrMzi:
         assert pytest.approx(0.5, abs=1e-10) == P0
 
     @pytest.mark.parametrize(
-        "phi, chi, T",
+        ("phi", "chi", "T"),
         [(0.0, 0.0, 0.0), (0.5, 0.1, 1.0), (np.pi, 2.0, 0.5)],
         ids=["zero", "moderate", "large_kerr"],
     )

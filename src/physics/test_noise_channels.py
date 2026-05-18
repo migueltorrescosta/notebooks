@@ -189,7 +189,9 @@ class TestBuildLindbladOperators:
         expected = np.sqrt(0.3) * J_z
         assert_allclose(L_ops[0], expected)
 
-    def test_given_combined_channels_then_give_list_of_all_operators(self, N: int) -> None:
+    def test_given_combined_channels_then_give_list_of_all_operators(
+        self, N: int
+    ) -> None:
         config = NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02)
         L_ops = build_lindblad_operators(N, config)
 
@@ -224,7 +226,9 @@ class TestLindbladValidation:
 
         assert result["is_bounded"]
 
-    def test_given_all_channels_combined_then_satisfy_completeness(self, N: int) -> None:
+    def test_given_all_channels_combined_then_satisfy_completeness(
+        self, N: int
+    ) -> None:
         config = NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02)
         L_ops = build_lindblad_operators(N, config)
         result = validate_lindblad_completeness(L_ops)
@@ -411,9 +415,7 @@ class TestEdgeCases:
         assert a.shape == (1, 1)
         assert_allclose(a, np.array([[0.0]]))
 
-    @pytest.mark.parametrize(
-        "N", [0, 1, 2], ids=["0", "1", "2"]
-    )
+    @pytest.mark.parametrize("N", [0, 1, 2], ids=["0", "1", "2"])
     def test_given_small_n_values_then_work(self, N: int) -> None:
         a = annihilation_operator(N)
         assert a.shape == (N + 1, N + 1)

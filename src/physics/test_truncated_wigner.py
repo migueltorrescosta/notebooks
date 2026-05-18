@@ -43,9 +43,7 @@ def rng() -> Generator:
 class TestWignerSampling:
     """Test Wigner function sampling."""
 
-    @pytest.mark.parametrize(
-        "N", [2, 10, 20, 100], ids=["2", "10", "20", "100"]
-    )
+    @pytest.mark.parametrize("N", [2, 10, 20, 100], ids=["2", "10", "20", "100"])
     def test_given_css_samples_then_be_normalized(
         self, N: int, rng: np.random.Generator
     ) -> None:
@@ -53,9 +51,7 @@ class TestWignerSampling:
         validation = validate_bloch_vector(J)
         assert validation["is_normalized"]
 
-    @pytest.mark.parametrize(
-        "N", [2, 10, 20], ids=["2", "10", "20"]
-    )
+    @pytest.mark.parametrize("N", [2, 10, 20], ids=["2", "10", "20"])
     def test_given_sss_samples_then_be_normalized(
         self, N: int, rng: np.random.Generator
     ) -> None:
@@ -63,9 +59,7 @@ class TestWignerSampling:
         validation = validate_bloch_vector(J)
         assert validation["is_normalized"]
 
-    @pytest.mark.parametrize(
-        "N", [2, 10, 20], ids=["2", "10", "20"]
-    )
+    @pytest.mark.parametrize("N", [2, 10, 20], ids=["2", "10", "20"])
     def test_given_noon_samples_then_be_normalized(
         self, N: int, rng: np.random.Generator
     ) -> None:
@@ -151,7 +145,9 @@ class TestSDETrajectory:
         norm = np.linalg.norm(J_final)
         assert norm * J == pytest.approx(J, abs=0.1)
 
-    def test_given_phase_diffusion_then_add_noise(self, rng: np.random.Generator) -> None:
+    def test_given_phase_diffusion_then_add_noise(
+        self, rng: np.random.Generator
+    ) -> None:
         rng1 = np.random.default_rng(42)
         rng2 = np.random.default_rng(99)
 
@@ -221,9 +217,7 @@ class TestTWAExpectations:
             "Std should converge"
         )
 
-    @pytest.mark.parametrize(
-        "N", [10, 20, 50], ids=["10", "20", "50"]
-    )
+    @pytest.mark.parametrize("N", [10, 20, 50], ids=["10", "20", "50"])
     def test_given_jz_mean_then_scale_correctly_with_n(self, N: int) -> None:
         params = {"chi": 0.0, "gamma_1": 0.0, "gamma_2": 0.0, "gamma_phi": 0.0}
 
@@ -495,9 +489,7 @@ class TestPhysicalValidation:
 class TestEdgeCases:
     """Test edge cases."""
 
-    @pytest.mark.parametrize(
-        "N", [2, 4], ids=["2", "4"]
-    )
+    @pytest.mark.parametrize("N", [2, 4], ids=["2", "4"])
     def test_given_small_n_then_work(self, N: int) -> None:
         params = {"chi": 0.0, "gamma_1": 0.0, "gamma_2": 0.0, "gamma_phi": 0.0}
 

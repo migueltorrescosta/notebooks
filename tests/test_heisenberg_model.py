@@ -201,7 +201,9 @@ class TestHeisenbergModelExpectationValues:
 class TestHeisenbergModelPhysicalConstraints:
     """Tests for physical constraints of the Heisenberg model."""
 
-    def test_given_energy_levels_are_bounded_then_be_within_reasonable_bounds(self) -> None:
+    def test_given_energy_levels_are_bounded_then_be_within_reasonable_bounds(
+        self,
+    ) -> None:
         for n_sites in [2, 3, 4, 5]:
             H = _make_build_hamiltonian(n_sites)
             eigenvalues = np.linalg.eigvalsh(H)
@@ -252,7 +254,9 @@ class TestHeisenbergModelPhysicalConstraints:
 class TestHeisenbergModelScaling:
     """Tests for scaling behavior of the Heisenberg model."""
 
-    def test_given_hilbert_space_grows_exponentially_then_grow_as_2_to_the_n(self) -> None:
+    def test_given_hilbert_space_grows_exponentially_then_grow_as_2_to_the_n(
+        self,
+    ) -> None:
         dimensions = []
         # Start from n_sites=2 since n_sites=1 has no coupling terms
         for n_sites in [2, 3, 4, 5, 6]:

@@ -119,7 +119,6 @@ class TestEvolveBipartite:
         assert norm == pytest.approx(1.0)
 
     def test_evolve_bipartite_raises_on_norm_loss(self) -> None:
-        n = 2
         H = np.array([[1.0, 0.0], [0.0, 0.5]], dtype=complex)
         psi0 = np.array([1.0, 0.0])
         with pytest.raises(AssertionError):

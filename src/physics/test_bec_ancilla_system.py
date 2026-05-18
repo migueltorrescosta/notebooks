@@ -26,43 +26,33 @@ from src.physics.noise_channels import NoiseConfig
 class TestGenerateSystemState:
     """Tests for generate_system_state."""
 
-    @pytest.mark.parametrize(
-        "N", [1, 5, 10, 20], ids=["1", "5", "10", "20"]
-    )
+    @pytest.mark.parametrize("N", [1, 5, 10, 20], ids=["1", "5", "10", "20"])
     def test_given_coherent_then_have_correct_dimension(self, N: int) -> None:
         state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
         assert state.shape == (N + 1,), (
             f"N={N}: expected dim {N + 1}, got {state.shape}"
         )
 
-    @pytest.mark.parametrize(
-        "N", [1, 5, 10], ids=["1", "5", "10"]
-    )
+    @pytest.mark.parametrize("N", [1, 5, 10], ids=["1", "5", "10"])
     def test_given_coherent_then_be_normalised(self, N: int) -> None:
         state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
         norm = np.sum(np.abs(state) ** 2)
         assert np.isclose(norm, 1.0, atol=1e-10), f"N={N}: norm={norm:.2e}"
 
-    @pytest.mark.parametrize(
-        "N", [2, 5, 10], ids=["2", "5", "10"]
-    )
+    @pytest.mark.parametrize("N", [2, 5, 10], ids=["2", "5", "10"])
     def test_given_noon_then_have_correct_dimension(self, N: int) -> None:
         state = generate_system_state(N, "noon", chi=1.0, T=1.0)
         assert state.shape == (N + 1,), (
             f"N={N}: expected dim {N + 1}, got {state.shape}"
         )
 
-    @pytest.mark.parametrize(
-        "N", [2, 5, 10], ids=["2", "5", "10"]
-    )
+    @pytest.mark.parametrize("N", [2, 5, 10], ids=["2", "5", "10"])
     def test_given_noon_then_be_normalised(self, N: int) -> None:
         state = generate_system_state(N, "noon", chi=1.0, T=1.0)
         norm = np.sum(np.abs(state) ** 2)
         assert np.isclose(norm, 1.0, atol=1e-10), f"N={N}: norm={norm:.2e}"
 
-    @pytest.mark.parametrize(
-        "N", [2, 5, 10], ids=["2", "5", "10"]
-    )
+    @pytest.mark.parametrize("N", [2, 5, 10], ids=["2", "5", "10"])
     def test_given_noon_then_have_equal_amplitudes_at_extremes(self, N: int) -> None:
         state = generate_system_state(N, "noon", chi=1.0, T=1.0)
         expected = 1.0 / np.sqrt(2)
@@ -81,18 +71,14 @@ class TestGenerateSystemState:
                 f"index {i} should be zero, got {np.abs(state[i]):.2e}"
             )
 
-    @pytest.mark.parametrize(
-        "N", [2, 5, 10], ids=["2", "5", "10"]
-    )
+    @pytest.mark.parametrize("N", [2, 5, 10], ids=["2", "5", "10"])
     def test_given_hybrid_then_have_correct_dimension(self, N: int) -> None:
         state = generate_system_state(N, "hybrid", chi=1.0, T=1.0)
         assert state.shape == (N + 1,), (
             f"N={N}: expected dim {N + 1}, got {state.shape}"
         )
 
-    @pytest.mark.parametrize(
-        "N", [2, 5, 10], ids=["2", "5", "10"]
-    )
+    @pytest.mark.parametrize("N", [2, 5, 10], ids=["2", "5", "10"])
     def test_given_hybrid_then_have_nonzero_norm(self, N: int) -> None:
         # Note: (squeezed + coherent)/√2 is not exactly normalized because
         # the squeezed and CSS states are not orthogonal. This matches the
@@ -101,9 +87,7 @@ class TestGenerateSystemState:
         norm = np.sum(np.abs(state) ** 2)
         assert norm > 0.5, f"N={N}: norm={norm:.2e} (should be nonzero)"
 
-    @pytest.mark.parametrize(
-        "N", [2, 3, 5, 8, 15], ids=["2", "3", "5", "8", "15"]
-    )
+    @pytest.mark.parametrize("N", [2, 3, 5, 8, 15], ids=["2", "3", "5", "8", "15"])
     def test_given_hybrid_then_succeed_for_all_valid_n(self, N: int) -> None:
         # Just verify no crash for various N values. Note: the hybrid
         # state (squeezed + coherent)/√2 is not exactly normalized
@@ -404,9 +388,7 @@ class TestComputeTtnBondGrowth:
                 f"bond_dims not monotonic at index {i}: {result['bond_dims']}"
             )
 
-    @pytest.mark.parametrize(
-        "N", [1, 5, 10, 20], ids=["1", "5", "10", "20"]
-    )
+    @pytest.mark.parametrize("N", [1, 5, 10, 20], ids=["1", "5", "10", "20"])
     def test_given_max_bond_dim_then_not_exceed_n(self, N: int) -> None:
         state = generate_system_state(N, "noon", chi=1.0, T=1.0)
         result = compute_ttn_bond_growth(N, state)
@@ -414,9 +396,7 @@ class TestComputeTtnBondGrowth:
             f"N={N}: max_bond_dim {result['max_bond_dim']} > N"
         )
 
-    @pytest.mark.parametrize(
-        "N", [1, 5, 10], ids=["1", "5", "10"]
-    )
+    @pytest.mark.parametrize("N", [1, 5, 10], ids=["1", "5", "10"])
     def test_given_max_bond_dim_then_be_at_least_1(self, N: int) -> None:
         state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
         result = compute_ttn_bond_growth(N, state)

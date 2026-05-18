@@ -123,7 +123,9 @@ class TestPhaseDiffusionOffDiagonalDecay:
             )
 
     @pytest.mark.parametrize("N", [4, 6])
-    def test_given_same_m_no_decay_then_not_decay_diagonal_elements(self, N: int) -> None:
+    def test_given_same_m_no_decay_then_not_decay_diagonal_elements(
+        self, N: int
+    ) -> None:
         gamma_phi = 0.5
         config = LindbladConfig(N=N, gamma_1=0.0, gamma_2=0.0, gamma_phi=gamma_phi)
 

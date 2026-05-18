@@ -95,7 +95,7 @@ def test_holding_unitary_is_unitary() -> None:
 
 
 @pytest.mark.parametrize(
-    "theta, t_h",
+    ("theta", "t_h"),
     _MZI_PARAMS,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS],
 )
@@ -109,7 +109,7 @@ def test_given_mzi_circuit_then_state_remains_normalized(
 
 
 @pytest.mark.parametrize(
-    "theta, t_h",
+    ("theta", "t_h"),
     _MZI_PARAMS_WIDE,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS_WIDE],
 )
@@ -127,7 +127,7 @@ def test_given_error_propagation_then_delta_theta_equals_one_over_t_h(
 
 
 @pytest.mark.parametrize(
-    "theta, t_h",
+    ("theta", "t_h"),
     _MZI_PARAMS,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS],
 )
@@ -142,7 +142,7 @@ def test_given_mzi_circuit_then_jz_expectation_matches_cos(
 
 
 @pytest.mark.parametrize(
-    "theta, t_h",
+    ("theta", "t_h"),
     _MZI_PARAMS,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS],
 )
@@ -157,7 +157,7 @@ def test_given_mzi_circuit_then_jz_variance_matches_sin_squared(
 
 
 @pytest.mark.parametrize(
-    "theta, t_h",
+    ("theta", "t_h"),
     _MZI_PARAMS,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS],
 )
@@ -169,7 +169,7 @@ def test_given_analytical_derivative_then_matches_expected_form(
 
 
 @pytest.mark.parametrize(
-    "theta, t_h",
+    ("theta", "t_h"),
     _MZI_PARAMS_WIDE,
     ids=[f"θ={t}, T_H={h}" for t, h in _MZI_PARAMS_WIDE],
 )

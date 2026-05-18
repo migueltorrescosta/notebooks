@@ -39,7 +39,9 @@ class TestTTLPathLengthNoise:
 class TestTTLPhaseNoise:
     """Test phase noise computation."""
 
-    def test_given_phase_consistency_then_be_2_pi_times_delta_l_over_lambda(self) -> None:
+    def test_given_phase_consistency_then_be_2_pi_times_delta_l_over_lambda(
+        self,
+    ) -> None:
         config = TTLNoiseConfig(theta_rms=1e-6, beam_offset=1e-3, wavelength=1e-6)
         delta_L = ttl_path_length_noise(config)
         phi = ttl_phase_noise(config)
@@ -109,7 +111,9 @@ class TestTTLScalingSweep:
             f"Expected α ≈ -1.0, got {result['alpha_fitted']}"
         )
 
-    def test_given_returns_expected_keys_then_return_expected_dict_structure(self) -> None:
+    def test_given_returns_expected_keys_then_return_expected_dict_structure(
+        self,
+    ) -> None:
         config = TTLNoiseConfig()
         N = np.logspace(0, 6, 10)
         result = ttl_scaling_sweep(N, config, quantum_scaling="sql")
@@ -138,6 +142,8 @@ class TestTTLConfigValidation:
         with pytest.raises(ValueError, match="positive"):
             ttl_phase_noise(config)
 
-    def test_given_config_validation_passes_then_not_raise_for_valid_config(self) -> None:
+    def test_given_config_validation_passes_then_not_raise_for_valid_config(
+        self,
+    ) -> None:
         config = TTLNoiseConfig()
         ttl_phase_noise(config)  # Should not raise

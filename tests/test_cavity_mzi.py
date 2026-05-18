@@ -47,7 +47,9 @@ class TestCavityEnhancedMzi:
         norm = np.sum(np.abs(out) ** 2)
         assert norm == pytest.approx(1.0, abs=1e-10), f"Norm = {norm}"
 
-    def test_given_finesse_one_matches_standard_then_match_single_pass_mzi(self) -> None:
+    def test_given_finesse_one_matches_standard_then_match_single_pass_mzi(
+        self,
+    ) -> None:
         from src.physics.mzi_simulation import (
             beam_splitter_unitary,
             phase_shift_unitary,

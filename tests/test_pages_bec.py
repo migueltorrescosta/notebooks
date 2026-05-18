@@ -28,7 +28,7 @@ class TestBECSensitivityScaling:
             chi=1.0,
             T=0.1,
             N_traj=50,
-            rng_seed=42,
+            seed=42,
         )
 
         elapsed = time.perf_counter() - start

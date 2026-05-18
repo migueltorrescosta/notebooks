@@ -44,7 +44,9 @@ class TestGaussianMetropolisHastings:
         accepted_count = sum(
             1
             for _ in range(100)
-            if GaussianMetropolisHastings(initial_configuration=0.0, rng=rng).approval_function(
+            if GaussianMetropolisHastings(
+                initial_configuration=0.0, rng=rng
+            ).approval_function(
                 -0.1,
                 current_likelihood,
             )
@@ -57,7 +59,9 @@ class TestGaussianMetropolisHastings:
         accepted_count = sum(
             1
             for _ in range(100)
-            if GaussianMetropolisHastings(initial_configuration=0.0, rng=rng).approval_function(
+            if GaussianMetropolisHastings(
+                initial_configuration=0.0, rng=rng
+            ).approval_function(
                 5.0,
                 current_likelihood,
             )

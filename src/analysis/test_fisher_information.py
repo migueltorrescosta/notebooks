@@ -165,7 +165,9 @@ class TestQuantumFisherInformationMixed:
             np.diag([0.4, 0.3, 0.2, 0.1, 0.0]), np.diag(np.arange(5.0))
         ) == pytest.approx(0.0, abs=1e-12)
 
-    @pytest.mark.parametrize("seed", range(5), ids=["seed_0", "seed_1", "seed_2", "seed_3", "seed_4"])
+    @pytest.mark.parametrize(
+        "seed", range(5), ids=["seed_0", "seed_1", "seed_2", "seed_3", "seed_4"]
+    )
     def test_2d_mixed_qfi_matches_sld_formula(self, seed: int) -> None:
         rng = np.random.default_rng(42 + seed)
         a = rng.uniform(0.1, 0.9)
@@ -419,7 +421,9 @@ class TestPhysicalInvariantsDM:
             expected, rel=1e-10
         )
 
-    @pytest.mark.parametrize("c", [-2.5, 0.0, 1.0, 10.0], ids=["c_-2.5", "c_0.0", "c_1.0", "c_10.0"])
+    @pytest.mark.parametrize(
+        "c", [-2.5, 0.0, 1.0, 10.0], ids=["c_-2.5", "c_0.0", "c_1.0", "c_10.0"]
+    )
     def test_qfi_invariant_under_g_shift(self, c: float) -> None:
         rng = np.random.default_rng(42)
         dim = 4

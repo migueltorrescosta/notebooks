@@ -21,6 +21,11 @@ from src.analysis.ancilla_optimization import (
     InteractionRobustnessResult,
     ThetaScanResult,
 )
+from src.analysis.weighted_joint_measurement import (
+    AlphaReoptResultNM,
+    MScalingResult,
+    NScalingResult,
+)
 
 sns.set_theme(style="whitegrid")
 
@@ -321,6 +326,309 @@ def plot_covariance_analysis(
     ax.set_ylim(0, max(result.max_covariances) * 1.25)
 
     fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ──────────────────────────────────────────────
+# 6. N-scaling (N,M-general system)
+# ──────────────────────────────────────────────
+
+
+def plot_n_scaling(
+    result: NScalingResult | str | Path,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (7, 5),
+) -> Path:
+    """Log-log plot of Δθ vs N with weighted fit, SQL, and Heisenberg limits.
+
+    Shows:
+    - Mean Δθ per N with error bars (std across seeds)
+    - Weighted log-log linear fit line with shaded 95% bootstrap CI
+    - SQL reference: Δθ_SQL = 1/(√N · T_H)
+    - Heisenberg limit reference: Δθ_HL = 1/(N · T_H)
+    """
+    if isinstance(result, (str, Path)):
+        result = NScalingResult.from_csv(result)
+
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Use an effective T_H for reference lines. Since T_H is optimised
+    # per N and varies, show the SQL/HL lines using the maximum T_H
+    # from the bounds (20.0), giving the most optimistic reference.
+    T_H_ref = 20.0
+
+    # Data points with error bars
+    ax.errorbar(
+        result.N_values,
+        result.delta_theta_values,
+        yerr=result.delta_theta_std,
+        fmt="o",
+        color="C0",
+        capsize=4,
+        markersize=6,
+        label=r"$\Delta\theta$ (mean $\pm$ std)",
+    )
+
+    # Best Δθ per N (minimum across seeds)
+    best_per_N = (
+        np.min(result.delta_theta_seeds, axis=1)
+        if result.delta_theta_seeds is not None
+        else result.delta_theta_values
+    )
+    ax.scatter(
+        result.N_values,
+        best_per_N,
+        marker="*",
+        color="C3",
+        s=80,
+        zorder=5,
+        label="Best per N",
+    )
+
+    # Weighted fit line (over the N range)
+    N_fit = np.logspace(
+        np.log10(max(result.N_values.min(), 1)),
+        np.log10(result.N_values.max()),
+        100,
+    )
+    log_N_fit = np.log(N_fit)
+    nu = result.scaling_exponent
+    c_fit = np.mean(
+        np.log(result.delta_theta_values) + nu * np.log(result.N_values.astype(float))
+    )
+    dt_fit = np.exp(-nu * log_N_fit + c_fit)
+    ax.loglog(
+        N_fit,
+        dt_fit,
+        "--",
+        color="C0",
+        alpha=0.7,
+        label=rf"Fit: $\nu = {nu:.3f}$",
+    )
+
+    # Shaded 95% CI for the fit (from bootstrap)
+    if not np.isnan(result.scaling_exponent_ci[0]):
+        nu_lo, nu_hi = result.scaling_exponent_ci
+        dt_lo = np.exp(-nu_lo * log_N_fit + c_fit)
+        dt_hi = np.exp(-nu_hi * log_N_fit + c_fit)
+        ax.fill_between(
+            N_fit,
+            dt_lo,
+            dt_hi,
+            alpha=0.15,
+            color="C0",
+            label=rf"95% CI: $[{nu_lo:.3f}, {nu_hi:.3f}]$",
+        )
+
+    # SQL and HL reference lines (using T_H_ref)
+    N_range = np.logspace(
+        np.log10(max(result.N_values.min(), 1)),
+        np.log10(result.N_values.max()),
+        100,
+    )
+    ax.loglog(
+        N_range,
+        1.0 / (np.sqrt(N_range) * T_H_ref),
+        ":",
+        color="C2",
+        alpha=0.6,
+        label=r"SQL: $1/(\sqrt{N}\,T_H)$",
+    )
+    ax.loglog(
+        N_range,
+        1.0 / (N_range * T_H_ref),
+        ":",
+        color="C4",
+        alpha=0.6,
+        label=r"HL: $1/(N\,T_H)$",
+    )
+
+    ax.set_xlabel(r"$N$ (system particles)")
+    ax.set_ylabel(r"$\Delta\theta$")
+    ax.set_title(rf"N-scaling: $\Delta\theta$ vs $N$ (M={result.M_value})")
+    ax.legend(fontsize="small")
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ──────────────────────────────────────────────
+# 7. M-scaling (diminishing returns)
+# ──────────────────────────────────────────────
+
+
+def plot_m_scaling(
+    result: MScalingResult | str | Path,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (7, 5),
+) -> Path:
+    """Plot Δθ vs M showing diminishing returns from ancilla size.
+
+    Shows:
+    - Best Δθ per M
+    - Optimal weight a* and b* per M (twin axis)
+    - SQL reference for N=4
+    """
+    if isinstance(result, (str, Path)):
+        result = MScalingResult.from_csv(result)
+
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, ax1 = plt.subplots(figsize=figsize)
+    fig.subplots_adjust(right=0.85)
+
+    # Δθ vs M
+    ax1.semilogy(
+        result.M_values,
+        result.delta_theta_values,
+        marker="o",
+        linestyle="-",
+        color="C0",
+        linewidth=2,
+        markersize=6,
+        label=r"$\Delta\theta$ (best)",
+    )
+
+    # SQL reference for N=4
+    T_H_ref = 20.0
+    sql = 1.0 / (np.sqrt(result.N_value) * T_H_ref)
+    ax1.axhline(
+        y=sql,
+        color="C2",
+        linestyle=":",
+        alpha=0.6,
+        label=rf"SQL: $1/(\sqrt{{{result.N_value}}}\,T_H)$",
+    )
+
+    # Ensure all data points are within the plotted y-range
+    y_min = 0.99 * min(result.delta_theta_values)
+    y_max = 1.01 * max(result.delta_theta_values)
+    ax1.set_ylim(y_min, y_max)
+
+    ax1.set_xlabel(r"$M$ (ancilla particles)")
+    ax1.set_ylabel(r"$\Delta\theta$")
+    ax1.set_title(
+        rf"M-scaling: $\Delta\theta$ vs ancilla size $M$ (N={result.N_value})"
+    )
+
+    # Annotate improvement from M=0 to M=1
+    if result.improvement_01 > 0:
+        improvement_pct = result.improvement_01 * 100
+        ax1.annotate(
+            rf"$\Delta\theta$ improvement: {improvement_pct:.1f}\%",
+            xy=(1, result.delta_theta_values[1]),
+            xytext=(4, result.delta_theta_values[1] * 0.7),
+            arrowprops={"arrowstyle": "->", "color": "gray"},
+            fontsize=10,
+        )
+
+    ax1.legend(fontsize="small")
+
+    # Twin axis for optimal weights
+    ax2 = ax1.twinx()
+    ax2.plot(
+        result.M_values,
+        result.a_opt_values,
+        marker="s",
+        linestyle="--",
+        color="C3",
+        alpha=0.6,
+        markersize=4,
+        label=r"$a^*$",
+    )
+    ax2.plot(
+        result.M_values,
+        result.b_opt_values,
+        marker="^",
+        linestyle="--",
+        color="C4",
+        alpha=0.6,
+        markersize=4,
+        label=r"$b^*$",
+    )
+    ax2.set_ylabel(r"Optimal weight $a^*, b^*$")
+    ax2.legend(fontsize="small", loc="lower right")
+
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ──────────────────────────────────────────────
+# 8. α-scan with weight re-optimisation (N,M-general)
+# ──────────────────────────────────────────────
+
+
+def plot_weighted_alpha_scan(
+    result: AlphaReoptResultNM | str | Path,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (7, 5),
+) -> Path:
+    """Plot Δθ vs α for weighted joint and S-only measurements.
+
+    Shows:
+    - Weighted joint measurement Δθ vs α
+    - S-only measurement Δθ vs α at same optimised parameters
+    - Optimal weight angle (secondary axis)
+    """
+    if isinstance(result, (str, Path)):
+        result = AlphaReoptResultNM.from_csv(result)
+
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, ax1 = plt.subplots(figsize=figsize)
+
+    # Weighted joint measurement
+    ax1.plot(
+        result.alpha_values,
+        result.delta_theta_weighted,
+        marker="o",
+        linestyle="-",
+        color="C0",
+        linewidth=2,
+        markersize=6,
+        label=r"Weighted joint: $\Delta\theta$",
+    )
+
+    # S-only measurement
+    ax1.plot(
+        result.alpha_values,
+        result.delta_theta_sonly,
+        marker="s",
+        linestyle="--",
+        color="C1",
+        linewidth=2,
+        markersize=6,
+        label=r"S-only: $\Delta\theta$",
+    )
+
+    ax1.set_xlabel(rf"$\alpha_{{{result.alpha_name}}}$")
+    ax1.set_ylabel(r"$\Delta\theta$")
+    ax1.set_title(rf"$\alpha_{{{result.alpha_name}}}$ scan: N={result.N}, M={result.M}")
+    ax1.legend(fontsize="small")
+
+    # Twin axis for weight angle
+    ax2 = ax1.twinx()
+    ax2.plot(
+        result.alpha_values,
+        result.phi_opt_values,
+        marker=".",
+        linestyle=":",
+        color="gray",
+        alpha=0.5,
+        markersize=3,
+        label=r"$\phi^*$",
+    )
+    ax2.set_ylabel(r"Optimal $\phi$ (rad)")
+    ax2.legend(fontsize="small", loc="lower right")
+
     fig.savefig(save_path, format="svg", bbox_inches="tight")
     plt.close(fig)
     return save_path

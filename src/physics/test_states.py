@@ -7,17 +7,13 @@ from src.physics.states import generate_noon_state, generate_twin_fock_state
 
 
 class TestGenerateTwinFockState:
-    @pytest.mark.parametrize(
-        "N", [2, 4, 6, 8, 10], ids=["2", "4", "6", "8", "10"]
-    )
+    @pytest.mark.parametrize("N", [2, 4, 6, 8, 10], ids=["2", "4", "6", "8", "10"])
     def test_twin_fock_normalized(self, N: int) -> None:
         state = generate_twin_fock_state(N)
         norm = np.sum(np.abs(state) ** 2)
         assert norm == pytest.approx(1.0)
 
-    @pytest.mark.parametrize(
-        "N", [2, 4, 6, 8, 10], ids=["2", "4", "6", "8", "10"]
-    )
+    @pytest.mark.parametrize("N", [2, 4, 6, 8, 10], ids=["2", "4", "6", "8", "10"])
     def test_twin_fock_dimension_n_plus_one(self, N: int) -> None:
         state = generate_twin_fock_state(N)
         assert state.shape == (N + 1,)

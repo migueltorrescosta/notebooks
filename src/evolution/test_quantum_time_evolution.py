@@ -105,7 +105,9 @@ class TestTimeEvolution:
 
     @pytest.mark.parametrize("t", [0.0, 0.5, 1.0, 2.0])
     def test_evolved_state_normalized(
-        self, _make_evolver: TimeEvolver, t: float
+        self,
+        _make_evolver: TimeEvolver,
+        t: float,
     ) -> None:
         wf = _make_evolver.evolve(t)
         assert np.isclose(np.sum(np.abs(wf) ** 2), 1.0, rtol=1e-8)

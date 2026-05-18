@@ -110,7 +110,9 @@ class TestThermalScalingLimits:
         # Should be very close to SQL (α = -0.5)
         assert -0.55 < result.alpha < -0.45
 
-    def test_given_thermal_dominated_gives_alpha_zero_then_give_alpha_near_0(self) -> None:
+    def test_given_thermal_dominated_gives_alpha_zero_then_give_alpha_near_0(
+        self,
+    ) -> None:
         # Thermal with very strong thermal (constant floor)
         config = create_thermal_config(thermal_strength=1000.0, thermal_exponent=0.0)
 
@@ -248,7 +250,9 @@ class TestConvenienceFunctions:
         assert config.thermal_strength < 1e-5
         assert config.use_normalized, "Condition failed: config.use_normalized"
 
-    def test_given_create_thermal_dominated_then_have_large_thermal_strength(self) -> None:
+    def test_given_create_thermal_dominated_then_have_large_thermal_strength(
+        self,
+    ) -> None:
         config = create_thermal_dominated_config()
         assert config.thermal_strength == 10.0
 
