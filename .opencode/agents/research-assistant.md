@@ -80,7 +80,7 @@ Reference documents (files whose primary title is 📝 Quick Reference or simila
 ## Per-Section Patterns
 
 ### 🧪 Hypothesis
-Numbered list of specific, testable claims (or paragraph form for a single claim). Each claim maps to a row in the Success Criteria table (e.g., "State X achieves scaling α = -0.5 regardless of noise").
+Numbered list of specific, testable claims (or paragraph form for a single claim). Each claim maps to an item in the Success Criteria list (e.g., "State X achieves scaling α = -0.5 regardless of noise").
 
 ### ⚛️ Theoretical Model
 Write the section as a continuous prose narrative that covers the **Hilbert space** (basis vectors, dimension formula, index ordering convention), **operators** (explicit matrix elements or generator definitions in the chosen basis), the **circuit protocol** as a step-by-step unitary sequence (BS → phase → hold → BS), the **measurement** observable and sensitivity formula used, and any **tables** for states, operators, or noise channels. Avoid subsection headings — the entire section must read as a single flowing exposition. Use **bold font** when introducing and defining each concept for the first time.
@@ -91,14 +91,14 @@ Central table mapping models to expected scaling exponents. Columns: `| Model | 
 ### 💻 Numerical Simulation
 Three subsections:
 1. **Implementation strategy** — ordered list describing the high-level approach (composable pipeline, key function signatures, dimension management, solvers)
-2. **Parameter sweep** — table of swept values, ranges, step sizes
-3. **Validation** — code block of `assert` statements for invariant checks (trace, unitarity, positivity, fit quality)
+2. **Parameter sweep** — table with single "Parameter" column (name and symbol combined), single "Range" column (range, step size, and point count combined), and "Purpose" column.
+3. **Validation** — prose paragraph with inline equations enumerating physical invariants (state normalisation, unitarity, variance positivity, sensitivity positivity, baseline recovery, commutation relations, Hermiticity).
 
 #### 🔧 Implementation Status
-Table mapping components to descriptions (e.g., operator construction, state preparation, unitary evolution, sensitivity computation). Test count summary. Only for completed implementations.
+Bullet-point list with **bold** component names followed by an em-dash and description (e.g., operator construction, state preparation, unitary evolution, sensitivity computation). Include a test count summary line after the list. Only for completed implementations.
 
 ### ⚠️ Expected Failure Conditions
-Each entry includes: failure condition name, description (1-2 sentences), and mitigation strategy. Table format is required: `| Failure | Description | Mitigation |`.
+Each entry includes: failure condition name and description combined via em-dash, and mitigation strategy. Table format is required: `| Failure | Mitigation |` (failure name and description merged into a single "Failure" column with an em-dash separator).
 
 ### 🔬 Results
 **Required in every report.** Organise results as subsections, one per experiment. Each subsection ends with a **Key Finding** paragraph. A summary table may conclude the section.
@@ -109,9 +109,8 @@ Each entry includes: failure condition name, description (1-2 sentences), and mi
 - If no simulation was needed (pure analytical), state that clearly
 
 ### ✅ Success Criteria
-- **Pre-experiment**: `| Check | Expectation |`
-- **Post-experiment**: add a `Status` column with text status (PASS/FAIL/PARTIAL)
-- Follow the criteria table with a short prose paragraph that summarizes what passed and what failed, provides brief reasoning, and suggests possible next steps to test.
+- **Pre-experiment and Post-experiment**: bullet-point list with **bold** criterion name followed by em-dash and expectation (e.g., `- **Decoupled baseline** — $\Delta\theta = 1/T_H$ exactly when $a_{xx}=0$ and $H_A=0$`). Post-experiment lists add `— PASS/FAIL` at the end of each item.
+- Follow the criteria list with a short prose paragraph that summarizes what passed and what failed, provides brief reasoning, and suggests possible next steps to test.
 
 ### ⚖️ Physical Invariants / Analytical Bounds
 Optional section documenting known analytical bounds, conservation laws, and invariants relevant to the simulation. Include explicit mathematical expressions and their domain of validity. This section appears only when conservation-law analysis is central to the report (e.g., when verifying that a noisy channel respects Pauli constraints or that a metrological bound is tight). When used, it serves as a reference for the assertions in the Validation block of the Numerical Simulation section. May be titled either **Physical Invariants** or **Analytical Bounds** depending on the nature of the content.
