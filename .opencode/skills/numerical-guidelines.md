@@ -20,8 +20,7 @@ Ensure numerical correctness, stability, and reproducibility across all physics 
 - Numerical arrays: `numpy.ndarray`.
 - Structured data: `@dataclass` (avoid raw dictionaries).
 - Tolerance-based comparisons: `np.isclose(a, b, rtol=1e-5, atol=1e-8)`.
-- **Serialization completeness**: Every `to_dataframe()` method must include all input parameters alongside computed results, making each CSV self-describing. Omitted metadata is permanently lost.
-- **Deserialization strictness**: Every `from_csv()` method must require all expected columns. Do not use `.get()` or conditional fallbacks for required metadata fields — fail fast with a clear error message listing the missing columns.
+- **Serialization**: Follow the conventions in `code-architecture.md` (§Code Style) for `to_dataframe()` completeness and `from_csv()` fail-fast deserialization.
 
 ## Invariance Checks
 
@@ -35,7 +34,7 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 ## Error Handling
 
 - Physics/simulation code must raise exceptions or use `assert` — never silently fail.
-- **CSV deserialization**: In `from_csv()` methods, require every expected column. No silent fallbacks to defaults for metadata. Raise a `ValueError` listing the missing columns and pointing to regeneration as the fix.
+- **Legacy CSV failures**: When encountering a legacy CSV missing required columns, raise a `ValueError` listing every missing column and directing the user to re-run the simulation that generated it. Never attempt to infer or fill in missing metadata.
 - **Fail-fast principle**: A silent default today is a subtle data corruption tomorrow. When restoring data from a file, defaulting `theta_value` to `1.0` or `sql` to `0.1` masks the actual data loss. Always raise instead.
 - UI (`pages/`) code must catch and display exceptions gracefully to the user via `st.error`.
 
@@ -60,9 +59,8 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 - [ ] Error handling separates physics (assert/raise) from UI (try/except/st.error).
 - [ ] Simulations run within 100 ms performance budget.
 - [ ] `@dataclass` used for structured results, not raw dictionaries.
-- [ ] `to_dataframe()` includes all input parameters, not just computed results.
-- [ ] `from_csv()` requires all expected columns — no silent fallback defaults for metadata.
-- [ ] Legacy CSV handling: fail fast guiding regeneration, not silently serving wrong data.
+- [ ] Serialization follows `code-architecture.md` conventions (completeness + fail-fast).
+- [ ] Legacy CSV failures raise clear `ValueError` guiding regeneration, never infer missing metadata.
 
 # Anti-patterns
 
@@ -73,6 +71,5 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 - Using explicit loops instead of vectorized operations where possible.
 - Forgetting to check unitarity of constructed operators.
 - Using implicit random state instead of `numpy.random.default_rng(seed)`.
-- Adding silent fallback defaults in `from_csv()` for metadata columns (theta_value, sql, T_H, slice_type).
-- Omitting input parameters from `to_dataframe()` — the CSV should be self-describing.
+- Violating serialization conventions defined in `code-architecture.md` (§Code Style) — omitting input parameters from `to_dataframe()` or adding silent fallback defaults in `from_csv()`.
 - Writing a migration script for legacy CSVs instead of failing fast and guiding regeneration.

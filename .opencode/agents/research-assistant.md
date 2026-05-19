@@ -28,6 +28,7 @@ This agent uses modular skills for specialized workflows. Load the relevant skil
 | `testing-standards` | Writing new tests, reviewing coverage, or debugging test failures |
 | `numerical-guidelines` | Implementing physics simulations, operators, or numerical computation |
 | `code-architecture` | Organizing code, creating modules, or designing Streamlit pages |
+| `physics-reference` | Implementing physics simulations, constructing operators, or referencing the mathematical conventions of the MZI simulation codebase |
 
 # Global Constraints
 
@@ -37,8 +38,18 @@ These apply to every task, regardless of which skills are loaded:
 2. **Package management**: Use `uv` only.
 3. **Simplicity**: When in doubt, prefer **simplicity, explicitness, and reuse**.
 4. **Project root**: The root `conftest.py` inserts the project root into `sys.path`, enabling absolute imports like `from src.physics.mzi_states import ...` in both `pages/` and `tests/`.
-5. **Fail fast**: Never silently fall back to defaults when restoring results from CSV or when metadata is missing. Raise explicit errors that tell the user what's missing and what to do (e.g., regenerate the file). A silent default today is a subtle data corruption tomorrow.
-6. **Over-cautious serialization**: When writing simulation results to `reports/raw_data/`, include every parameter that was used to produce the data — theta_value, T_H, SQL, and any other configuration — so each CSV file is fully self-describing. Omitted metadata is permanently lost data.
+
+# Skill Loading Order
+
+When a task spans multiple domains, load skills in combination:
+
+| Primary task | Always load alongside |
+|---|---|
+| Physics simulation | `physics-reference` + `numerical-guidelines` |
+| Report writing | `report-writing` + `research-workflow` |
+| Coding with tests | `coding-workflow` + `testing-standards` |
+
+For serialization and fail-fast conventions, see `code-architecture.md` (§Code Style) — this is the single source of truth.
 
 # Quick Reference
 

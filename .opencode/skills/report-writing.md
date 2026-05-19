@@ -15,7 +15,7 @@ Define the precise format and structure for all simulation reports in `reports/`
 4. Section header emoji goes after `## ` and before the title text: `## 🧪 Hypothesis` (not `## Hypothesis 🧪`).
 5. Section-title emojis are the only emojis allowed in reports — never add decorative or ad-hoc emojis outside section headers.
 6. Section emojis appear once per document, not on sub-subsections.
-7. For reference documents (e.g., `Physics-Reference.md`), apply emojis only to section titles where they fit semantically; all body text and tables follow the same emoji-free rules.
+7. For reference documents (e.g., `.opencode/skills/physics-reference.md`), apply emojis only to section titles where they fit semantically; all body text and tables follow the same emoji-free rules.
 8. Don't include repo-specific filepaths in the Numerical Simulation section (theoretical model should be implementation-agnostic).
 9. Don't use breaklines in prose when inline equations suffice.
 10. Don't use `|` inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.

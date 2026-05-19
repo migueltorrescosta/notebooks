@@ -42,7 +42,7 @@ Before considering a task complete, verify:
 1. **Tests pass**: Run `uv run pytest . --testmon --quiet --tb=short`
 2. **Linter passes**: Run `uv run ruff check . --fix && uv run ruff format .`
 3. **Type checks pass**: Run `uv run mypy .`
-4. **Conclusions**: If a new experiment was run based on a report, add a "Conclusions" section to the paper detailing the results
+4. **Conclusions**: If a new experiment was run based on a report, add a "Conclusions" section to the report detailing the results
 5. **Generate revision cards**: If the task produced new physics concepts, key findings, or clarified definitions, create GoCard-format Markdown cards in `revise/`. The ideal moment is right after a report's Conclusions are finalised. Card-worthy content includes new operators, Hilbert space conventions, scaling exponents, sensitivity formulas, noise channel parameters, or experimental verdicts. Follow the GoCard format (YAML frontmatter with `tags`, `created`, `last_reviewed`, `review_interval`, `difficulty`; body with `# Title`, `## Question`, `## Answer`). The **Answer must be at most 5 words** — force yourself to distil each concept to its essence. Place all cards directly in `revise/` (no subdirectories). Do not create cards that merely restate trivial or obvious information — each card must test a specific retrievable concept that aids long-term memory.
 
 # Verification

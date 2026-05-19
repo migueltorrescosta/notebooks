@@ -49,6 +49,12 @@ Establish consistent, maintainable testing conventions across the project, ensur
 - Use the 2-line `with pytest.raises(ValueError):` form.
 - Never use `try`/`except` in tests.
 
+## Property-Based Testing
+
+- Use `@given` from the `hypothesis` library for testing physical invariants over ranges of parameters (e.g., unitarity for any beam-splitter angle, normalisation for any input state, trace preservation for any Lindblad evolution).
+- Combine with `numpy.random.default_rng(seed)` for seeded stochastic property tests.
+- Keep property-based tests in dedicated test classes or files, separate from example-based unit tests.
+
 ## Parametrization
 
 - Use `@pytest.mark.parametrize` instead of manual `for` loops (enables per-value failure reporting).
