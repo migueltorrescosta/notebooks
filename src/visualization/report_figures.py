@@ -349,8 +349,8 @@ def _run_drive_2d_slice(
         result = drive_2d_slice(
             theta=theta,
             slice_type=slice_type,
-            n_drive=11,
-            n_azz=11,
+            n_drive=501,
+            n_azz=501,
         )
         result.save_csv(csv_p)
         print(f"  [save] {csv_p}")
