@@ -26,6 +26,16 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.analysis.ancilla_drive_metrology import (  # noqa: E402
+    Drive2DSliceResult,
+    DriveDecoupledBaselineResult,
+    DriveRandomSearchResult,
+    DriveThetaScanResult,
+    compute_drive_decoupled_baseline,
+    drive_2d_slice,
+    drive_random_search,
+    run_drive_theta_scan,
+)
 from src.analysis.ancilla_optimization import (  # noqa: E402
     AlphaReoptScanResult,
     CovarianceAnalysisResult,
@@ -47,6 +57,13 @@ from src.analysis.weighted_joint_measurement import (  # noqa: E402
     run_alpha_scan_with_reoptimisation,
     run_m_scaling,
     run_n_scaling,
+)
+from src.visualization.ancilla_drive_plots import (  # noqa: E402
+    plot_drive_2d_slice_heatmap,
+    plot_drive_decoupled_baseline,
+    plot_drive_optimal_params,
+    plot_drive_random_search_histogram,
+    plot_drive_theta_scan,
 )
 from src.visualization.ancilla_plots import (  # noqa: E402
     plot_alpha_reoptimisation,
@@ -221,8 +238,16 @@ def generate_m_scaling(force: bool = False) -> None:
         result.save_csv(csv_p)
         meta_path = csv_p.with_suffix(".meta.json")
         import json as _json
-        _json.dumps({"N_value": result.N_value, "improvement_01": result.improvement_01})
-        meta_path.write_text(_json.dumps({"N_value": result.N_value, "improvement_01": result.improvement_01}, indent=2))
+
+        _json.dumps(
+            {"N_value": result.N_value, "improvement_01": result.improvement_01}
+        )
+        meta_path.write_text(
+            _json.dumps(
+                {"N_value": result.N_value, "improvement_01": result.improvement_01},
+                indent=2,
+            )
+        )
         print(f"[save] {csv_p}")
 
     result = MScalingResult.from_csv(csv_p)
@@ -278,6 +303,133 @@ def generate_covariance_analysis(force: bool = False) -> None:
     print(f"[fig]  {fig_p}")
 
 
+# ──────────────────────────────────────────────
+# Driven-Ancilla Experiments (2026-05-18 report)
+# ──────────────────────────────────────────────
+
+DRIVE_DATE = "2026-05-18"
+DRIVE_THETA_VALS = [0.1, 0.5, 1.0, 2.0, 5.0]
+
+
+def generate_drive_decoupled_baseline(force: bool = False) -> None:
+    """Experiment 1: Decoupled baseline verification."""
+    csv_p = _csv_path("drive-decoupled-baseline", date=DRIVE_DATE)
+    fig_p = _fig_path("drive-decoupled-baseline", date=DRIVE_DATE)
+
+    if csv_p.exists() and not force:
+        print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
+        result = DriveDecoupledBaselineResult.from_csv(csv_p)
+    else:
+        print("[run]  Computing drive decoupled baseline...")
+        result = compute_drive_decoupled_baseline()
+        result.save_csv(csv_p)
+        print(f"[save] {csv_p}")
+
+    plot_drive_decoupled_baseline(result, fig_p)
+    print(f"[fig]  {fig_p}")
+
+
+def _run_drive_2d_slice(
+    theta: float,
+    slice_type: str,
+    force: bool,
+) -> None:
+    """Run a 2D slice scan for a single θ value and generate CSV + SVG."""
+    tag = f"drive-2d-slice-{slice_type}-azz-theta{theta}"
+    csv_p = _csv_path(tag, date=DRIVE_DATE)
+    fig_p = _fig_path(tag, date=DRIVE_DATE)
+
+    if csv_p.exists() and not force:
+        print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
+        result = Drive2DSliceResult.from_csv(csv_p)
+    else:
+        print(f"  [run]  Computing ({slice_type}, a_zz) slice at θ={theta}...")
+        result = drive_2d_slice(
+            theta=theta,
+            slice_type=slice_type,
+            n_drive=11,
+            n_azz=11,
+        )
+        result.save_csv(csv_p)
+        print(f"  [save] {csv_p}")
+
+    plot_drive_2d_slice_heatmap(result, fig_p)
+    print(f"  [fig]  {fig_p}")
+
+
+def generate_drive_2d_slice_ax_azz(force: bool = False) -> None:
+    """Experiment 2a: 2D slice scans over (a_x, a_zz) at all θ values."""
+    print(f"[run]  (a_x, a_zz) slice at {DRIVE_THETA_VALS}")
+    for theta in DRIVE_THETA_VALS:
+        _run_drive_2d_slice(theta, slice_type="ax", force=force)
+
+
+def generate_drive_2d_slice_ay_azz(force: bool = False) -> None:
+    """Experiment 2b: 2D slice scans over (a_y, a_zz) at all θ values."""
+    print(f"[run]  (a_y, a_zz) slice at {DRIVE_THETA_VALS}")
+    for theta in DRIVE_THETA_VALS:
+        _run_drive_2d_slice(theta, slice_type="ay", force=force)
+
+
+def generate_drive_random_search(force: bool = False) -> None:
+    """Experiment 3: 4D random search at all θ values."""
+    print(f"[run]  4D random search at {DRIVE_THETA_VALS}")
+    for theta in DRIVE_THETA_VALS:
+        tag = f"drive-random-search-theta{theta}"
+        csv_p = _csv_path(tag, date=DRIVE_DATE)
+        fig_p = _fig_path(tag, date=DRIVE_DATE)
+
+        if csv_p.exists() and not force:
+            print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
+            result = DriveRandomSearchResult.from_csv(csv_p)
+        else:
+            print(f"  [run]  Running 4D random search at θ={theta} (500 samples)...")
+            result = drive_random_search(
+                theta=theta,
+                n_samples=500,
+                seed=42,
+            )
+            result.save_csv(csv_p)
+            print(f"  [save] {csv_p}")
+
+        plot_drive_random_search_histogram(result, fig_p)
+        print(f"  [fig]  {fig_p}")
+
+
+def generate_drive_theta_scan(force: bool = False) -> None:
+    """Experiments 4 & 5: θ-scan with Nelder-Mead refinement."""
+    csv_p = _csv_path("drive-theta-scan", date=DRIVE_DATE)
+    fig_p = _fig_path("drive-theta-scan", date=DRIVE_DATE)
+
+    if csv_p.exists() and not force:
+        print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
+        result = DriveThetaScanResult.from_csv(csv_p)
+    else:
+        print("[run]  Computing drive θ-scan (may be slow)...")
+        result = run_drive_theta_scan(
+            theta_values=DRIVE_THETA_VALS,
+            n_random=500,
+            n_nm_refine=50,
+            seed=42,
+            maxiter=5000,
+        )
+        result.save_csv(csv_p)
+        print(f"[save] {csv_p}")
+
+    plot_drive_theta_scan(result, fig_p)
+    print(f"[fig]  {fig_p}")
+
+
+def generate_drive_optimal_params(force: bool = False) -> None:
+    """Optimal parameter evolution vs θ."""
+    csv_p = _csv_path("drive-theta-scan", date=DRIVE_DATE)
+    fig_p = _fig_path("drive-optimal-params", date=DRIVE_DATE)
+
+    result = DriveThetaScanResult.from_csv(csv_p)
+    plot_drive_optimal_params(result, fig_p)
+    print(f"[fig]  {fig_p}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate report figures and CSVs",
@@ -307,6 +459,12 @@ def main() -> None:
         "n-scaling": generate_n_scaling,
         "m-scaling": generate_m_scaling,
         "alpha-scan-nm": generate_weighted_alpha_scan,
+        "drive-decoupled-baseline": generate_drive_decoupled_baseline,
+        "drive-2d-slice-ax-azz": generate_drive_2d_slice_ax_azz,
+        "drive-2d-slice-ay-azz": generate_drive_2d_slice_ay_azz,
+        "drive-random-search": generate_drive_random_search,
+        "drive-theta-scan": generate_drive_theta_scan,
+        "drive-optimal-params": generate_drive_optimal_params,
     }
 
     if args.only:
