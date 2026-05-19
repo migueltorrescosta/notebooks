@@ -80,19 +80,21 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 RAW_DATA_DIR = REPORTS_DIR / "raw_data"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
+BASE_DATE = "2026-05-15"
 
-def _csv_path(name: str, date: str = "2026-05-15") -> Path:
+
+def _csv_path(name: str, date: str) -> Path:
     return RAW_DATA_DIR / f"{date}-{name}.csv"
 
 
-def _fig_path(name: str, date: str = "2026-05-15") -> Path:
+def _fig_path(name: str, date: str) -> Path:
     return FIGURES_DIR / f"{date}-{name}.svg"
 
 
 def generate_decoupled_baseline(force: bool = False) -> None:
     """Sections 1 & 2: Decoupled baseline and expanded T_H bound."""
-    csv_p = _csv_path("decoupled-baseline")
-    fig_p = _fig_path("decoupled-baseline")
+    csv_p = _csv_path("decoupled-baseline", date=BASE_DATE)
+    fig_p = _fig_path("decoupled-baseline", date=BASE_DATE)
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
@@ -110,8 +112,8 @@ def generate_decoupled_baseline(force: bool = False) -> None:
 
 def generate_theta_scan(force: bool = False) -> None:
     """Sections 3 & 9: θ-scan with Nelder-Mead optimisation."""
-    csv_p = _csv_path("theta-scan")
-    fig_p = _fig_path("theta-scan")
+    csv_p = _csv_path("theta-scan", date=BASE_DATE)
+    fig_p = _fig_path("theta-scan", date=BASE_DATE)
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
@@ -137,8 +139,8 @@ def generate_theta_scan(force: bool = False) -> None:
 
 def generate_interaction_robustness(force: bool = False) -> None:
     """Section 8: T_H × α interaction robustness."""
-    csv_p = _csv_path("interaction-robustness")
-    fig_p = _fig_path("interaction-robustness")
+    csv_p = _csv_path("interaction-robustness", date=BASE_DATE)
+    fig_p = _fig_path("interaction-robustness", date=BASE_DATE)
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
@@ -162,8 +164,8 @@ def generate_interaction_robustness(force: bool = False) -> None:
 
 def generate_alpha_reoptimisation(force: bool = False) -> None:
     """Section 7: α-scan with state re-optimisation."""
-    csv_p = _csv_path("alpha-reoptimisation")
-    fig_p = _fig_path("alpha-reoptimisation")
+    csv_p = _csv_path("alpha-reoptimisation", date=BASE_DATE)
+    fig_p = _fig_path("alpha-reoptimisation", date=BASE_DATE)
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
@@ -287,8 +289,8 @@ def generate_weighted_alpha_scan(force: bool = False) -> None:
 
 def generate_covariance_analysis(force: bool = False) -> None:
     """Section 5: Covariance analysis."""
-    csv_p = _csv_path("covariance-analysis")
-    fig_p = _fig_path("covariance-analysis")
+    csv_p = _csv_path("covariance-analysis", date=BASE_DATE)
+    fig_p = _fig_path("covariance-analysis", date=BASE_DATE)
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")

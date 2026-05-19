@@ -217,14 +217,19 @@ def plot_drive_theta_scan(
         gridspec_kw={"width_ratios": [2, 1]},
     )
 
-    # SQL reference
+    # SQL reference — fail fast if no SQL data is available
     sql_vals = result.sql_values
+    if len(sql_vals) == 0:
+        raise ValueError(
+            "sql_values is empty; cannot draw SQL reference line. "
+            "Ensure the data has a populated 'sql' column."
+        )
     ax.axhline(
-        y=sql_vals[0] if len(sql_vals) > 0 else 0.1,
+        y=sql_vals[0],
         color="C1",
         linestyle="--",
         alpha=0.6,
-        label=r"SQL $= 1/T_H$",
+        label=f"SQL = {sql_vals[0]:.4f}",
     )
 
     # Δθ vs θ

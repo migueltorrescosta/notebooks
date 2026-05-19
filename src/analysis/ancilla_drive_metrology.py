@@ -419,13 +419,14 @@ class Drive2DSliceResult:
             i = drive_unique.index(row["drive"])
             j = azz_unique.index(row["azz"])
             grid[i, j] = row["delta_theta"]
-        # Restore metadata from CSV; default to 0.0 / "ax" for legacy files
-        theta_value = (
-            float(df["theta_value"].iloc[0]) if "theta_value" in df.columns else 0.0
-        )
-        slice_type = (
-            str(df["slice_type"].iloc[0]) if "slice_type" in df.columns else "ax"
-        )
+        # Restore metadata from CSV; fail fast if columns are missing
+        if "theta_value" not in df.columns or "slice_type" not in df.columns:
+            raise ValueError(
+                f"CSV at {path} is missing required columns 'theta_value' and/or 'slice_type'. "
+                "Regenerate the file with the current code."
+            )
+        theta_value = float(df["theta_value"].iloc[0])
+        slice_type = str(df["slice_type"].iloc[0])
         return cls(
             drive_values=np.array(drive_unique, dtype=float),
             azz_values=np.array(azz_unique, dtype=float),
@@ -454,8 +455,10 @@ class DriveRandomSearchResult:
     best_delta_theta: float
     theta_value: float = 1.0
     sql: float = 0.1
+    T_H: float = 10.0
 
     def to_dataframe(self) -> pd.DataFrame:
+        n = len(self.samples)
         return pd.DataFrame(
             {
                 "a_x": self.samples[:, 0],
@@ -463,6 +466,9 @@ class DriveRandomSearchResult:
                 "a_z": self.samples[:, 2],
                 "a_zz": self.samples[:, 3],
                 "delta_theta": self.delta_theta_values,
+                "theta_value": [self.theta_value] * n,
+                "sql": [self.sql] * n,
+                "T_H": [self.T_H] * n,
             },
         )
 
@@ -475,6 +481,22 @@ class DriveRandomSearchResult:
     @classmethod
     def from_csv(cls, path: str | Path) -> DriveRandomSearchResult:
         df = pd.read_csv(path)
+        required = {
+            "a_x",
+            "a_y",
+            "a_z",
+            "a_zz",
+            "delta_theta",
+            "theta_value",
+            "sql",
+            "T_H",
+        }
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"CSV at {path} is missing required columns: {sorted(missing)}. "
+                "Regenerate the file with the current code."
+            )
         samples = df[["a_x", "a_y", "a_z", "a_zz"]].to_numpy(dtype=float)
         deltas = df["delta_theta"].to_numpy(dtype=float)
         best_idx = int(np.argmin(deltas))
@@ -488,6 +510,9 @@ class DriveRandomSearchResult:
                 float(samples[best_idx, 3]),
             ),
             best_delta_theta=float(deltas[best_idx]),
+            theta_value=float(df["theta_value"].iloc[0]),
+            sql=float(df["sql"].iloc[0]),
+            T_H=float(df["T_H"].iloc[0]),
         )
 
 
@@ -637,11 +662,12 @@ class DriveThetaScanResult:
         df = pd.read_csv(path)
         thetas = df["theta"].to_numpy(dtype=float)
         best = df["best_delta_theta"].to_numpy(dtype=float)
-        sql = (
-            df["sql"].to_numpy(dtype=float)
-            if "sql" in df.columns
-            else np.full_like(thetas, 0.1)
-        )
+        if "sql" not in df.columns:
+            raise ValueError(
+                f"CSV at {path} is missing required column 'sql'. "
+                "Regenerate the file with the current code."
+            )
+        sql = df["sql"].to_numpy(dtype=float)
         exps = (
             df["expectation_Jz"].to_numpy(dtype=float)
             if "expectation_Jz" in df.columns
@@ -862,6 +888,7 @@ def drive_random_search(
         best_delta_theta=float(deltas[best_idx]),
         theta_value=theta,
         sql=1.0 / T_H,
+        T_H=T_H,
     )
 
 
