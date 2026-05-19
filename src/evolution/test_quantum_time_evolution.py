@@ -88,7 +88,7 @@ class TestEigendecomposition:
 
 class TestTimeEvolution:
     @pytest.fixture
-    def _make_evolver(self) -> TimeEvolver:
+    def evolver(self) -> TimeEvolver:
         def pot(x: float) -> float:
             return 0.1 * x**2
 
@@ -106,10 +106,10 @@ class TestTimeEvolution:
     @pytest.mark.parametrize("t", [0.0, 0.5, 1.0, 2.0])
     def test_evolved_state_normalized(
         self,
-        _make_evolver: TimeEvolver,
+        evolver: TimeEvolver,
         t: float,
     ) -> None:
-        wf = _make_evolver.evolve(t)
+        wf = evolver.evolve(t)
         assert np.isclose(np.sum(np.abs(wf) ** 2), 1.0, rtol=1e-8)
 
 
