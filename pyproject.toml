@@ -165,6 +165,10 @@ exclude = [
 warn_redundant_casts = true
 show_error_codes = true
 
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
