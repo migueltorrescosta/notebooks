@@ -210,9 +210,7 @@ def plot_drive_theta_scan(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig, (ax1, ax2) = plt.subplots(
-        2, 1, figsize=figsize, sharex=True
-    )
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
 
     # ── Upper panel: Δθ vs θ ──────────────────────────────────────────
     sql_vals = result.sql_values
@@ -344,84 +342,12 @@ def plot_drive_optimal_params(
 
 
 # ──────────────────────────────────────────────
-# 6. Combined sensitivity: 2D slices + random search + NM vs θ
+# 6–9. Combined sensitivity, NM expectation/variance,
+#       cross-experiment comparison, fraction below SQL
 # ──────────────────────────────────────────────
-
-
-def plot_drive_combined_sensitivity(
-    theta_values: np.ndarray,
-    best_ax_slice: np.ndarray,
-    best_ay_slice: np.ndarray,
-    best_random: np.ndarray,
-    best_nm: np.ndarray,
-    sql_values: np.ndarray,
-    save_path: str | Path,
-    figsize: tuple[float, float] = (8, 5),
-) -> Path:
-    """Line plot comparing Δθ from 2D slices, 4D random search, NM refinement, and SQL.
-
-    Args:
-        theta_values: Array of θ values.
-        best_ax_slice: Best Δθ from (a_x, a_zz) slice at each θ.
-        best_ay_slice: Best Δθ from (a_y, a_zz) slice at each θ.
-        best_random: Best Δθ from 4D random search at each θ.
-        best_nm: Best Δθ from Nelder–Mead refinement at each θ.
-        sql_values: SQL reference at each θ (constant).
-        save_path: Output SVG path.
-        figsize: Figure size (width, height).
-
-    Returns:
-        Path to saved SVG.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig, ax = plt.subplots(figsize=figsize)
-
-    # SQL reference line
-    sql = float(sql_values[0]) if len(sql_values) > 0 else 0.1
-    ax.axhline(
-        y=sql,
-        color="gray",
-        linestyle="--",
-        alpha=0.7,
-        linewidth=1.5,
-        label=rf"SQL = {sql:.4f}",
-    )
-
-    methods: list[tuple[np.ndarray, str, str, str]] = [
-        (best_ax_slice, "o-", "C0", r"2D slice $(a_x, a_{zz})$"),
-        (best_ay_slice, "s-", "C1", r"2D slice $(a_y, a_{zz})$"),
-        (best_random, "^-", "C2", "4D random search"),
-        (best_nm, "D-", "C3", "4D Nelder–Mead"),
-    ]
-
-    for data, fmt, colour, label in methods:
-        valid = np.isfinite(data)
-        if np.any(valid):
-            ax.plot(
-                theta_values[valid],
-                data[valid],
-                fmt,
-                color=colour,
-                label=label,
-                markersize=6,
-                linewidth=1.5,
-                markerfacecolor=colour,
-            )
-
-    ax.set_xlabel(r"$\theta$")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(
-        "Sensitivity vs $\\theta$: "
-        "2D slices, 4D random search, Nelder–Mead refinement"
-    )
-    ax.legend(fontsize=9)
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
+#
+# These plot functions have been moved to ``reports/2026-05-19/local.py``
+# as they are used exclusively by the 2026-05-19 report.
 
 
 # ──────────────────────────────────────────────
@@ -528,9 +454,7 @@ def plot_drive_cross_experiment_comparison(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig, (ax1, ax2) = plt.subplots(
-        2, 1, figsize=figsize, sharex=True
-    )
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
 
     # ── Upper panel: Δθ vs θ ──────────────────────────────────────────
     sql_ref = float(sql_values[0]) if len(sql_values) > 0 else 0.1
@@ -545,22 +469,28 @@ def plot_drive_cross_experiment_comparison(
     )
 
     ax1.plot(
-        theta_values, best_delta_18,
-        marker="s", linestyle="-", color="C0",
-        markersize=5, linewidth=1.8,
+        theta_values,
+        best_delta_18,
+        marker="s",
+        linestyle="-",
+        color="C0",
+        markersize=5,
+        linewidth=1.8,
         label=r"Fixed drive (2026-05-18)",
     )
     ax1.plot(
-        theta_values, best_delta_19,
-        marker="o", linestyle="-", color="C3",
-        markersize=5, linewidth=1.8,
+        theta_values,
+        best_delta_19,
+        marker="o",
+        linestyle="-",
+        color="C3",
+        markersize=5,
+        linewidth=1.8,
         label=r"Modulated drive (2026-05-19)",
     )
 
     ax1.set_ylabel(r"$\Delta\theta$")
-    ax1.set_title(
-        "Cross-experiment comparison: fixed vs modulated drive"
-    )
+    ax1.set_title("Cross-experiment comparison: fixed vs modulated drive")
     ax1.legend(fontsize=9)
 
     # ── Lower panel: ratio Δθ_19 / Δθ_18 ──────────────────────────────
@@ -573,13 +503,16 @@ def plot_drive_cross_experiment_comparison(
         )
 
     ax2.plot(
-        theta_values, ratio,
-        marker="o", linestyle="-", color="C3",
-        markersize=4, linewidth=1.5,
+        theta_values,
+        ratio,
+        marker="o",
+        linestyle="-",
+        color="C3",
+        markersize=4,
+        linewidth=1.5,
     )
     ax2.axhline(
-        y=1.0, color="gray", linestyle="--",
-        linewidth=1.2, alpha=0.7, label="y = 1"
+        y=1.0, color="gray", linestyle="--", linewidth=1.2, alpha=0.7, label="y = 1"
     )
 
     # Annotate the minimum ratio
@@ -594,9 +527,7 @@ def plot_drive_cross_experiment_comparison(
             xytext=(min_theta + 0.6, min_ratio + 0.15),
             arrowprops=dict(arrowstyle="->", color="black", lw=1.2),
             fontsize=10,
-            bbox=dict(
-                boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray"
-            ),
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray"),
         )
 
     ax2.set_xlabel(r"$\theta$")
@@ -674,9 +605,7 @@ def plot_drive_fraction_below_sql(
 
     ax.set_xlabel(r"$\theta$")
     ax.set_ylabel("Fraction below SQL")
-    ax.set_title(
-        "Robustness of SQL violation: fraction of parameter space below SQL"
-    )
+    ax.set_title("Robustness of SQL violation: fraction of parameter space below SQL")
     ax.set_ylim(0, 1)
     ax.legend()
 

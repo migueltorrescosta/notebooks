@@ -20,31 +20,60 @@ any physics logic itself.
 
 from __future__ import annotations
 
+import importlib.util
 import io
+import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 from plotly import graph_objects as go
 
-from src.analysis.scaling_survey import (
-    ModelConfig,
-    SurveyConfig,
-    create_default_survey,
-    fit_all_exponents,
-    run_scaling_survey,
+# Load exclusive functions from reports/2026-05-11/local.py via importlib.
+# Try multiple resolution strategies to handle both normal execution
+# and AppTest (which copies the script to a temp directory).
+_local_candidates = [
+    Path(__file__).resolve().parent.parent / "reports" / "2026-05-11" / "local.py",
+    Path(sys.path[0]) / "reports" / "2026-05-11" / "local.py",
+    Path.cwd() / "reports" / "2026-05-11" / "local.py",
+]
+_local_path = None
+for _candidate in _local_candidates:
+    if _candidate.exists():
+        _local_path = _candidate
+        break
+if _local_path is None:
+    raise ImportError(
+        "Cannot find reports/2026-05-11/local.py. "
+        "Run 'uv run python reports/2026-05-11/local.py --force' from the project root."
+    )
+_spec = importlib.util.spec_from_file_location(
+    "report_scaling_survey_local", str(_local_path)
 )
-from src.physics.cavity_mzi import CavityMziConfig, cavity_enhanced_sensitivity
-from src.physics.distributed_mzi import (
-    DistributedMziConfig,
-    distributed_mzi_sensitivity,
-)
-from src.physics.dynamical_decoupling import dd_phase_sensitivity
-from src.physics.thermal_langevin import (
-    combined_sensitivity,
-    create_thermal_config,
-)
-from src.physics.tilt_to_length_noise import TTLNoiseConfig, ttl_limited_sensitivity
+if _spec is None or _spec.loader is None:
+    raise ImportError(
+        f"Cannot load reports/2026-05-11/local.py at {_local_path}. "
+        "Run 'uv run python reports/2026-05-11/local.py --force' first."
+    )
+_report_local = importlib.util.module_from_spec(_spec)
+sys.modules["report_scaling_survey_local"] = _report_local
+_spec.loader.exec_module(_report_local)
+
+ModelConfig = _report_local.ModelConfig
+SurveyConfig = _report_local.SurveyConfig
+create_default_survey = _report_local.create_default_survey
+fit_all_exponents = _report_local.fit_all_exponents
+run_scaling_survey = _report_local.run_scaling_survey
+CavityMziConfig = _report_local.CavityMziConfig
+cavity_enhanced_sensitivity = _report_local.cavity_enhanced_sensitivity
+DistributedMziConfig = _report_local.DistributedMziConfig
+distributed_mzi_sensitivity = _report_local.distributed_mzi_sensitivity
+dd_phase_sensitivity = _report_local.dd_phase_sensitivity
+combined_sensitivity = _report_local.combined_sensitivity
+create_thermal_config = _report_local.create_thermal_config
+TTLNoiseConfig = _report_local.TTLNoiseConfig
+ttl_limited_sensitivity = _report_local.ttl_limited_sensitivity
 
 # Page configuration
 st.set_page_config(

@@ -1,7 +1,8 @@
-"""Tests for the θ-modulated ancilla drive metrology module.
+"""Tests for the θ-modulated ancilla drive metrology protocol.
 
 This is the companion test module for
-``src/analysis/ancilla_drive_phase_modulated.py``.
+``reports/2026-05-19/local.py`` (which replaces the former
+``src/analysis/ancilla_drive_phase_modulated.py``).
 It mirrors the structure of ``test_ancilla_drive_metrology.py`` (fixed-drive)
 but tests the θ-modulated Hamiltonian H_A = θ (a_x J_x^A + a_y J_y^A + a_z J_z^A).
 
@@ -15,19 +16,22 @@ Key new tests (not in the fixed-drive test suite):
 
 from __future__ import annotations
 
+# Add the report directory to sys.path so we can import ``local``.
+# (The directory name contains hyphens so a dotted-package import is not
+# possible.)
+import sys as _sys
 from pathlib import Path  # noqa: TC003 — used at runtime via tmp_path fixture
+from pathlib import Path as _Path
 
 import numpy as np
 import pytest
 
-from src.analysis.ancilla_drive_metrology import (
-    Drive2DSliceResult,
-    DriveDecoupledBaselineResult,
-    DriveNelderMeadResult,
-    DriveRandomSearchResult,
-    DriveThetaScanResult,
-)
-from src.analysis.ancilla_drive_phase_modulated import (
+_report_dir = str(_Path(__file__).resolve().parent.parent / "reports" / "2026-05-19")
+if _report_dir not in _sys.path:
+    _sys.path.insert(0, _report_dir)
+del _sys, _Path, _report_dir
+
+from local import (  # type: ignore[import-untyped]  # noqa: E402
     DEFAULT_PSI0,
     DEFAULT_T_BS,
     DEFAULT_T_H,
@@ -44,6 +48,14 @@ from src.analysis.ancilla_drive_phase_modulated import (
     run_phase_modulated_nelder_mead,
     run_phase_modulated_theta_scan,
     system_only_bs_unitary,
+)
+
+from src.analysis.ancilla_drive_metrology import (
+    Drive2DSliceResult,
+    DriveDecoupledBaselineResult,
+    DriveNelderMeadResult,
+    DriveRandomSearchResult,
+    DriveThetaScanResult,
 )
 from src.analysis.ancilla_optimization import (
     I_2,
@@ -118,9 +130,7 @@ class TestPhaseModulatedDriveHamiltonian:
         H_full = build_phase_modulated_drive_hamiltonian(1.0, 2.0, 0.0, 0.0, make_ops)
         assert np.allclose(2.0 * H_half, H_full, atol=1e-12)
 
-    def test_given_theta_factor_extra_versus_fixed_drive(
-        self, make_ops: dict
-    ) -> None:
+    def test_given_theta_factor_extra_versus_fixed_drive(self, make_ops: dict) -> None:
         """At θ=1.0, the phase-modulated drive equals the fixed drive.
 
         This is the crossover point. At θ=2.0, it should be 2× the fixed drive.
@@ -151,22 +161,16 @@ class TestIszzInteraction:
 
 class TestPhaseModulatedHoldHamiltonian:
     def test_given_zero_params_then_only_Jz_S(self, make_ops: dict) -> None:
-        H = build_phase_modulated_hold_hamiltonian(
-            1.0, 0.0, 0.0, 0.0, 0.0, make_ops
-        )
+        H = build_phase_modulated_hold_hamiltonian(1.0, 0.0, 0.0, 0.0, 0.0, make_ops)
         assert np.allclose(H, 1.0 * make_ops["Jz_S"], atol=1e-12)
 
     def test_given_all_params_then_hermitian(self, make_ops: dict) -> None:
-        H = build_phase_modulated_hold_hamiltonian(
-            1.0, 2.0, 3.0, 4.0, 5.0, make_ops
-        )
+        H = build_phase_modulated_hold_hamiltonian(1.0, 2.0, 3.0, 4.0, 5.0, make_ops)
         assert np.allclose(H, H.conj().T, atol=1e-12)
 
     def test_given_zero_theta_then_only_interaction(self, make_ops: dict) -> None:
         """When θ = 0, H = H_int only (no system phase, no ancilla drive)."""
-        H = build_phase_modulated_hold_hamiltonian(
-            0.0, 2.0, 3.0, 4.0, 5.0, make_ops
-        )
+        H = build_phase_modulated_hold_hamiltonian(0.0, 2.0, 3.0, 4.0, 5.0, make_ops)
         expected = build_iszz_interaction(5.0, make_ops)
         assert np.allclose(H, expected, atol=1e-12)
 
@@ -174,9 +178,7 @@ class TestPhaseModulatedHoldHamiltonian:
         self, make_ops: dict
     ) -> None:
         """Verify the θ factor on the drive: H contains θ*a_x*J_x^A."""
-        H = build_phase_modulated_hold_hamiltonian(
-            2.0, 3.0, 0.0, 0.0, 0.0, make_ops
-        )
+        H = build_phase_modulated_hold_hamiltonian(2.0, 3.0, 0.0, 0.0, 0.0, make_ops)
         # H = θ*J_z^S + θ*a_x*J_x^A = 2*J_z^S + 6*J_x^A
         expected = 2.0 * make_ops["Jz_S"] + 6.0 * make_ops["Jx_A"]
         assert np.allclose(H, expected, atol=1e-12)
@@ -184,22 +186,16 @@ class TestPhaseModulatedHoldHamiltonian:
 
 class TestPhaseModulatedHoldUnitary:
     def test_given_zero_params_then_is_unitary(self, make_ops: dict) -> None:
-        U = phase_modulated_hold_unitary(
-            1.0, 1.0, 0.0, 0.0, 0.0, 0.0, make_ops
-        )
+        U = phase_modulated_hold_unitary(1.0, 1.0, 0.0, 0.0, 0.0, 0.0, make_ops)
         assert np.allclose(U @ U.conj().T, I_4, atol=1e-12)
 
     def test_given_nonzero_params_then_is_unitary(self, make_ops: dict) -> None:
-        U = phase_modulated_hold_unitary(
-            10.0, 1.0, 2.0, 0.5, -1.0, 3.0, make_ops
-        )
+        U = phase_modulated_hold_unitary(10.0, 1.0, 2.0, 0.5, -1.0, 3.0, make_ops)
         assert np.allclose(U @ U.conj().T, I_4, atol=1e-12)
 
     def test_given_zero_theta_then_is_unitary(self, make_ops: dict) -> None:
         """At θ = 0, the hold unitary should still be unitary (H_int only)."""
-        U = phase_modulated_hold_unitary(
-            10.0, 0.0, 2.0, 3.0, 4.0, 5.0, make_ops
-        )
+        U = phase_modulated_hold_unitary(10.0, 0.0, 2.0, 3.0, 4.0, 5.0, make_ops)
         assert np.allclose(U @ U.conj().T, I_4, atol=1e-12)
 
 
@@ -364,7 +360,9 @@ class TestPhaseModulated2DSlice:
             phase_modulated_2d_slice(theta=1.0, slice_type="invalid")
 
     def test_slice_csv_roundtrip(self, tmp_path: Path) -> None:
-        result = phase_modulated_2d_slice(theta=1.0, slice_type="ax", n_drive=3, n_azz=3)
+        result = phase_modulated_2d_slice(
+            theta=1.0, slice_type="ax", n_drive=3, n_azz=3
+        )
         csv_p = tmp_path / "slice.csv"
         result.save_csv(csv_p)
         loaded = Drive2DSliceResult.from_csv(csv_p)
@@ -587,8 +585,7 @@ class TestPhaseModulatedValidation:
         # The two sensitivities should differ because the effective drive
         # strength θ * a_x differs (θ=1 vs θ=2)
         assert abs(dt_1 - dt_2) > 1e-6, (
-            f"θ-modulation not active: Δθ(θ=1) = {dt_1:.10f}, "
-            f"Δθ(θ=2) = {dt_2:.10f}"
+            f"θ-modulation not active: Δθ(θ=1) = {dt_1:.10f}, Δθ(θ=2) = {dt_2:.10f}"
         )
 
     def test_given_fixed_vs_phase_modulated_differ_at_large_theta(
@@ -606,12 +603,26 @@ class TestPhaseModulatedValidation:
         theta_val = 2.0
 
         dt_fixed = fixed_drive_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, theta_val,
-            params["a_x"], params["a_y"], params["a_z"], params["a_zz"], ops,
+            DEFAULT_PSI0,
+            DEFAULT_T_BS,
+            DEFAULT_T_H,
+            theta_val,
+            params["a_x"],
+            params["a_y"],
+            params["a_z"],
+            params["a_zz"],
+            ops,
         )
         dt_phase = compute_phase_modulated_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, theta_val,
-            params["a_x"], params["a_y"], params["a_z"], params["a_zz"], ops,
+            DEFAULT_PSI0,
+            DEFAULT_T_BS,
+            DEFAULT_T_H,
+            theta_val,
+            params["a_x"],
+            params["a_y"],
+            params["a_z"],
+            params["a_zz"],
+            ops,
         )
 
         # The phase-modulated drive at θ=2 is twice as strong as the fixed

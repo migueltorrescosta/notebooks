@@ -2,17 +2,55 @@
 
 This page simulates a single-particle Mach-Zehnder interferometer and
 verifies the Δθ ∝ 1/T_H scaling (exponent α = -1) via log-log analysis.
+
+Imports the core simulation functions from reports/2026-05-12/local.py
+via importlib because the directory name contains hyphens.
 """
+
+import importlib.util
+import sys
+from pathlib import Path
 
 import numpy as np
 import streamlit as st
 from plotly import graph_objects as go
 
-from src.physics.single_particle_mzi_scaling import (
-    compute_sensitivity_sweep,
-    fit_scaling_exponent,
-    run_validation,
+# Load exclusive functions from reports/2026-05-12/local.py via importlib.
+# Try multiple resolution strategies to handle both normal execution
+# and AppTest (which copies the script to a temp directory).
+_local_candidates = [
+    # Strategy 1: relative to this file's location
+    Path(__file__).resolve().parent.parent / "reports" / "2026-05-12" / "local.py",
+    # Strategy 2: relative to the project root (sys.path[0] set by conftest.py)
+    Path(sys.path[0]) / "reports" / "2026-05-12" / "local.py",
+    # Strategy 3: relative to current working directory
+    Path.cwd() / "reports" / "2026-05-12" / "local.py",
+]
+_local_path = None
+for _candidate in _local_candidates:
+    if _candidate.exists():
+        _local_path = _candidate
+        break
+
+if _local_path is None:
+    raise ImportError(
+        "Cannot find reports/2026-05-12/local.py. "
+        "Run 'uv run python reports/2026-05-12/local.py --force' from the project root."
+    )
+_spec = importlib.util.spec_from_file_location(
+    "report_single_particle_local", str(_local_path)
 )
+if _spec is None or _spec.loader is None:
+    raise ImportError(
+        f"Cannot load reports/2026-05-12/local.py at {_local_path}. "
+        "Run 'uv run python reports/2026-05-12/local.py --force' first."
+    )
+_report_local = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_report_local)
+
+compute_sensitivity_sweep = _report_local.compute_sensitivity_sweep
+fit_scaling_exponent = _report_local.fit_scaling_exponent
+run_validation = _report_local.run_validation
 
 st.set_page_config(
     page_title="MZI | Single-Particle Scaling",

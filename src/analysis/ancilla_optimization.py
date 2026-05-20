@@ -1555,29 +1555,6 @@ def validate_two_qubit_bs_unitarity(T: float = np.pi / 4) -> bool:
     return True
 
 
-def validate_hold_unitarity(
-    T_H: float = 1.0,
-    theta: float = 1.0,
-    alpha: tuple[float, float, float, float] = (0.1, 0.0, 0.0, 0.0),
-) -> bool:
-    """Validate the hold unitary.
-
-    Args:
-        T_H: Holding time.
-        theta: Phase rate.
-        alpha: Interaction coefficients.
-
-    Returns:
-        True if unitary.
-
-    """
-    ops = build_two_qubit_operators()
-    U = hold_unitary(T_H, theta, alpha, ops)
-    I_4 = np.eye(4, dtype=complex)
-    assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), "Hold must be unitary"
-    return True
-
-
 def validate_sensitivity_reasonable(
     T_H_vals: list[float] | None = None,
 ) -> bool:
