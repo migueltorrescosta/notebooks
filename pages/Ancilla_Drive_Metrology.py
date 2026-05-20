@@ -280,7 +280,7 @@ with tab_2d:
         )
         n_grid = st.select_slider(
             "Grid points per axis",
-            options=[5, 7, 11, 15, 21, 51, 101, 201, 501],
+            options=[5, 7, 11, 15, 21, 51, 101, 201],
             value=11,
         )
 

@@ -201,30 +201,29 @@ def plot_drive_random_search_histogram(
 def plot_drive_theta_scan(
     result: DriveThetaScanResult | str | Path,
     save_path: str | Path,
-    figsize: tuple[float, float] = (8, 5),
+    figsize: tuple[float, float] = (8, 7),
 ) -> Path:
-    """Line plot of Δθ vs θ with SQL reference and optimal parameters table."""
+    """Two-panel figure: Δθ vs θ (top) and Δθ/SQL ratio (bottom)."""
     if isinstance(result, (str, Path)):
         result = DriveThetaScanResult.from_csv(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig, (ax, ax_table) = plt.subplots(
-        1,
-        2,
-        figsize=figsize,
-        gridspec_kw={"width_ratios": [2, 1]},
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1, figsize=figsize, sharex=True
     )
 
-    # SQL reference — fail fast if no SQL data is available
+    # ── Upper panel: Δθ vs θ ──────────────────────────────────────────
     sql_vals = result.sql_values
     if len(sql_vals) == 0:
         raise ValueError(
             "sql_values is empty; cannot draw SQL reference line. "
             "Ensure the data has a populated 'sql' column."
         )
-    ax.axhline(
+
+    # SQL reference line (use the first SQL value as reference)
+    ax1.axhline(
         y=sql_vals[0],
         color="C1",
         linestyle="--",
@@ -232,8 +231,7 @@ def plot_drive_theta_scan(
         label=f"SQL = {sql_vals[0]:.4f}",
     )
 
-    # Δθ vs θ
-    ax.plot(
+    ax1.plot(
         result.theta_values,
         result.best_delta_theta_per_theta,
         marker="o",
@@ -247,7 +245,7 @@ def plot_drive_theta_scan(
     # Highlight points below SQL
     below_sql = result.best_delta_theta_per_theta < sql_vals
     if np.any(below_sql):
-        ax.scatter(
+        ax1.scatter(
             result.theta_values[below_sql],
             result.best_delta_theta_per_theta[below_sql],
             marker="*",
@@ -257,53 +255,39 @@ def plot_drive_theta_scan(
             label="Below SQL",
         )
 
-    ax.set_xlabel(r"$\theta$")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(r"$\theta$-scan: driven-ancilla sensitivity")
-    ax.legend()
+    ax1.set_ylabel(r"$\Delta\theta$")
+    ax1.set_title(r"$\theta$-scan: driven-ancilla sensitivity")
+    ax1.legend()
 
-    # Table of optimal parameters
-    col_labels = [
-        r"$\theta$",
-        r"$a_x^*$",
-        r"$a_y^*$",
-        r"$a_z^*$",
-        r"$a_{zz}^*$",
-        r"$\Delta\theta$",
-    ]
-    cell_data: list[list[str]] = []
-    for i, theta in enumerate(result.theta_values):
-        params = (
-            result.best_params_per_theta[i]
-            if i < len(result.best_params_per_theta)
-            else (0, 0, 0, 0)
-        )
-        dt = (
-            result.best_delta_theta_per_theta[i]
-            if i < len(result.best_delta_theta_per_theta)
-            else float("inf")
-        )
-        cell_data.append(
-            [
-                f"{theta:.1f}",
-                f"{params[0]:.3f}",
-                f"{params[1]:.3f}",
-                f"{params[2]:.3f}",
-                f"{params[3]:.3f}",
-                f"{dt:.4f}" if np.isfinite(dt) else "inf",
-            ]
-        )
+    # ── Lower panel: Δθ / SQL ratio ───────────────────────────────────
+    ratio = result.best_delta_theta_per_theta / sql_vals
 
-    ax_table.axis("off")
-    table = ax_table.table(
-        cellText=cell_data,
-        colLabels=col_labels,
-        loc="center",
-        cellLoc="center",
+    ax2.plot(
+        result.theta_values,
+        ratio,
+        marker="o",
+        linestyle="-",
+        color="C0",
+        markersize=8,
+        linewidth=2,
     )
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    table.scale(1.0, 1.5)
+    ax2.axhline(y=1.0, color="C1", linestyle="--", alpha=0.6, label="SQL")
+    ax2.set_xlabel(r"$\theta$")
+    ax2.set_ylabel(r"$\Delta\theta \;/\; \mathrm{SQL}$")
+    ax2.legend()
+
+    # Annotate the minimum ratio
+    min_idx = np.argmin(ratio)
+    min_ratio = ratio[min_idx]
+    min_theta = result.theta_values[min_idx]
+    ax2.annotate(
+        f"Best = {min_ratio:.3f}$\\times$ at $\\theta$={min_theta:.1f}",
+        xy=(min_theta, min_ratio),
+        xytext=(min_theta + 0.6, min_ratio + 0.15),
+        arrowprops=dict(arrowstyle="->", color="black", lw=1.2),
+        fontsize=10,
+        bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray"),
+    )
 
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
@@ -351,6 +335,349 @@ def plot_drive_optimal_params(
     ax.set_xlabel(r"$\theta$")
     ax.set_ylabel("Optimal parameter value")
     ax.set_title("Optimal drive and interaction parameters vs $\\theta$")
+    ax.legend()
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ──────────────────────────────────────────────
+# 6. Combined sensitivity: 2D slices + random search + NM vs θ
+# ──────────────────────────────────────────────
+
+
+def plot_drive_combined_sensitivity(
+    theta_values: np.ndarray,
+    best_ax_slice: np.ndarray,
+    best_ay_slice: np.ndarray,
+    best_random: np.ndarray,
+    best_nm: np.ndarray,
+    sql_values: np.ndarray,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 5),
+) -> Path:
+    """Line plot comparing Δθ from 2D slices, 4D random search, NM refinement, and SQL.
+
+    Args:
+        theta_values: Array of θ values.
+        best_ax_slice: Best Δθ from (a_x, a_zz) slice at each θ.
+        best_ay_slice: Best Δθ from (a_y, a_zz) slice at each θ.
+        best_random: Best Δθ from 4D random search at each θ.
+        best_nm: Best Δθ from Nelder–Mead refinement at each θ.
+        sql_values: SQL reference at each θ (constant).
+        save_path: Output SVG path.
+        figsize: Figure size (width, height).
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # SQL reference line
+    sql = float(sql_values[0]) if len(sql_values) > 0 else 0.1
+    ax.axhline(
+        y=sql,
+        color="gray",
+        linestyle="--",
+        alpha=0.7,
+        linewidth=1.5,
+        label=rf"SQL = {sql:.4f}",
+    )
+
+    methods: list[tuple[np.ndarray, str, str, str]] = [
+        (best_ax_slice, "o-", "C0", r"2D slice $(a_x, a_{zz})$"),
+        (best_ay_slice, "s-", "C1", r"2D slice $(a_y, a_{zz})$"),
+        (best_random, "^-", "C2", "4D random search"),
+        (best_nm, "D-", "C3", "4D Nelder–Mead"),
+    ]
+
+    for data, fmt, colour, label in methods:
+        valid = np.isfinite(data)
+        if np.any(valid):
+            ax.plot(
+                theta_values[valid],
+                data[valid],
+                fmt,
+                color=colour,
+                label=label,
+                markersize=6,
+                linewidth=1.5,
+                markerfacecolor=colour,
+            )
+
+    ax.set_xlabel(r"$\theta$")
+    ax.set_ylabel(r"$\Delta\theta$")
+    ax.set_title(
+        "Sensitivity vs $\\theta$: "
+        "2D slices, 4D random search, Nelder–Mead refinement"
+    )
+    ax.legend(fontsize=9)
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ──────────────────────────────────────────────
+# 7. NM expectation and variance of J_z vs θ
+# ──────────────────────────────────────────────
+
+
+def plot_drive_nm_expectation_variance(
+    theta_values: np.ndarray,
+    expectation_Jz: np.ndarray,
+    variance_Jz: np.ndarray,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 4),
+) -> Path:
+    """Side-by-side plot of ⟨J_z^S⟩ and Var(J_z^S) at the NM optimum vs θ.
+
+    Args:
+        theta_values: Array of θ values.
+        expectation_Jz: ⟨J_z^S⟩ at NM optimum for each θ.
+        variance_Jz: Var(J_z^S) at NM optimum for each θ.
+        save_path: Output SVG path.
+        figsize: Figure size (width, height).
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+
+    # Left panel: expectation
+    valid_exp = np.isfinite(expectation_Jz)
+    if np.any(valid_exp):
+        ax1.plot(
+            theta_values[valid_exp],
+            expectation_Jz[valid_exp],
+            "o-",
+            color="C0",
+            markersize=7,
+            linewidth=1.5,
+        )
+    ax1.axhline(y=0, color="gray", linestyle=":", alpha=0.5)
+    ax1.set_xlabel(r"$\theta$")
+    ax1.set_ylabel(r"$\langle J_z^S \rangle$")
+    ax1.set_title(r"Expectation $\langle J_z^S\rangle$ at NM optimum")
+
+    # Right panel: variance
+    valid_var = np.isfinite(variance_Jz)
+    if np.any(valid_var):
+        ax2.plot(
+            theta_values[valid_var],
+            variance_Jz[valid_var],
+            "s-",
+            color="C1",
+            markersize=7,
+            linewidth=1.5,
+        )
+    ax2.set_xlabel(r"$\theta$")
+    ax2.set_ylabel(r"$\mathrm{Var}(J_z^S)$")
+    ax2.set_title(r"Variance $\mathrm{Var}(J_z^S)$ at NM optimum")
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ──────────────────────────────────────────────
+# 8. Cross-experiment comparison (fixed vs modulated drive)
+# ──────────────────────────────────────────────
+
+
+def plot_drive_cross_experiment_comparison(
+    theta_values: np.ndarray,
+    best_delta_19: np.ndarray,
+    best_delta_18: np.ndarray,
+    sql_values: np.ndarray,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 5),
+) -> Path:
+    """Compare Δθ from the fixed-drive (2026-05-18) and modulated-drive
+    (2026-05-19) experiments in a 2×1 vertically stacked figure.
+
+    Upper panel: Overlaid line plots of Δθ vs θ for both experiments,
+    with the SQL shown as a dashed reference line.
+
+    Lower panel: Ratio Δθ_19 / Δθ_18 vs θ. A horizontal line at y=1
+    separates regimes where the fixed drive (above 1) or modulated drive
+    (below 1) performs better.
+
+    Args:
+        theta_values: Common θ grid (50 points from the modulated-drive scan).
+        best_delta_19: Δθ from the modulated-drive scan (2026-05-19).
+        best_delta_18: Δθ from the fixed-drive scan (2026-05-18),
+            interpolated to the same θ grid.
+        sql_values: SQL reference values (constant, 0.1) at each θ.
+        save_path: Output SVG path.
+        figsize: Figure size (width, height).
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1, figsize=figsize, sharex=True
+    )
+
+    # ── Upper panel: Δθ vs θ ──────────────────────────────────────────
+    sql_ref = float(sql_values[0]) if len(sql_values) > 0 else 0.1
+
+    ax1.axhline(
+        y=sql_ref,
+        color="gray",
+        linestyle="--",
+        linewidth=1.5,
+        alpha=0.7,
+        label=rf"SQL = {sql_ref:.4f}",
+    )
+
+    ax1.plot(
+        theta_values, best_delta_18,
+        marker="s", linestyle="-", color="C0",
+        markersize=5, linewidth=1.8,
+        label=r"Fixed drive (2026-05-18)",
+    )
+    ax1.plot(
+        theta_values, best_delta_19,
+        marker="o", linestyle="-", color="C3",
+        markersize=5, linewidth=1.8,
+        label=r"Modulated drive (2026-05-19)",
+    )
+
+    ax1.set_ylabel(r"$\Delta\theta$")
+    ax1.set_title(
+        "Cross-experiment comparison: fixed vs modulated drive"
+    )
+    ax1.legend(fontsize=9)
+
+    # ── Lower panel: ratio Δθ_19 / Δθ_18 ──────────────────────────────
+    # Guard against division by zero
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(
+            np.isfinite(best_delta_18) & (best_delta_18 > 0),
+            best_delta_19 / best_delta_18,
+            np.nan,
+        )
+
+    ax2.plot(
+        theta_values, ratio,
+        marker="o", linestyle="-", color="C3",
+        markersize=4, linewidth=1.5,
+    )
+    ax2.axhline(
+        y=1.0, color="gray", linestyle="--",
+        linewidth=1.2, alpha=0.7, label="y = 1"
+    )
+
+    # Annotate the minimum ratio
+    valid = np.isfinite(ratio)
+    if np.any(valid):
+        min_idx = np.argmin(ratio[valid])
+        min_ratio = float(ratio[valid][min_idx])
+        min_theta = float(theta_values[valid][min_idx])
+        ax2.annotate(
+            f"Best = {min_ratio:.3f}$\\times$ at $\\theta$={min_theta:.1f}",
+            xy=(min_theta, min_ratio),
+            xytext=(min_theta + 0.6, min_ratio + 0.15),
+            arrowprops=dict(arrowstyle="->", color="black", lw=1.2),
+            fontsize=10,
+            bbox=dict(
+                boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray"
+            ),
+        )
+
+    ax2.set_xlabel(r"$\theta$")
+    ax2.set_ylabel(r"$\Delta\theta_{19} \;/\; \Delta\theta_{18}$")
+    ax2.legend(fontsize=9)
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ──────────────────────────────────────────────
+# 9. Fraction below SQL vs θ
+# ──────────────────────────────────────────────
+
+
+def plot_drive_fraction_below_sql(
+    theta_values: np.ndarray,
+    fractions_2d_ax: np.ndarray,
+    fractions_2d_ay: np.ndarray,
+    fractions_random: np.ndarray,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 5),
+) -> Path:
+    """Line plot of the fraction of parameter space below SQL as a function of θ.
+
+    Args:
+        theta_values: Array of θ values.
+        fractions_2d_ax: Fraction below SQL from (a_x, a_zz) slices at each θ.
+        fractions_2d_ay: Fraction below SQL from (a_y, a_zz) slices at each θ.
+        fractions_random: Fraction below SQL from 4D random search at each θ.
+        save_path: Output SVG path.
+        figsize: Figure size (width, height).
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    ax.plot(
+        theta_values,
+        fractions_2d_ax,
+        "o-",
+        color="C0",
+        label=r"2D slice $(a_x, a_{zz})$",
+        markersize=6,
+        linewidth=1.5,
+    )
+    ax.plot(
+        theta_values,
+        fractions_2d_ay,
+        "s-",
+        color="C1",
+        label=r"2D slice $(a_y, a_{zz})$",
+        markersize=6,
+        linewidth=1.5,
+    )
+    ax.plot(
+        theta_values,
+        fractions_random,
+        "^-",
+        color="C2",
+        label="4D random search",
+        markersize=6,
+        linewidth=1.5,
+    )
+
+    # Reference lines at y=0 and y=1
+    ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5, linewidth=1)
+    ax.axhline(y=1, color="gray", linestyle="--", alpha=0.5, linewidth=1)
+
+    ax.set_xlabel(r"$\theta$")
+    ax.set_ylabel("Fraction below SQL")
+    ax.set_title(
+        "Robustness of SQL violation: fraction of parameter space below SQL"
+    )
+    ax.set_ylim(0, 1)
     ax.legend()
 
     fig.tight_layout()

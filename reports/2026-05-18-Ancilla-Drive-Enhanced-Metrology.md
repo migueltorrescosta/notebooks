@@ -14,7 +14,7 @@ The central hypothesis decomposes into three specific, testable claims:
 
 **Null hypothesis**: No combination of $(a_x, a_y, a_z, a_{zz})$ can produce $\Delta\theta < 1/T_H$. The ancilla drive, even when optimized, cannot overcome the fundamental $J=1/2$ spectral radius bound on the system.
 
-**Experimental verdict**: The null hypothesis is **supported**. Across 2500 4D random-search evaluations, 5 Nelder--Mead-refined $\theta$-scan values, and 10 full 501×501 2D-slice grids, no configuration produced a genuine SQL violation. The minimum observed $\Delta\theta$ is $0.100000$ to within numerical precision ($\sim 10^{-10}$). The actively driven ancilla — even with optimal non-commuting drive and strong Ising interaction — cannot improve the sensitivity beyond the $N=1$ SQL.
+**Experimental verdict**: The null hypothesis is **supported**. Across 2500 4D random-search evaluations, 5 Nelder--Mead-refined $\theta$-scan values, and 10 full 201×201 2D-slice grids, no configuration produced a genuine SQL violation. The minimum observed $\Delta\theta$ is $0.100000$ to within numerical precision ($\sim 10^{-10}$). The actively driven ancilla — even with optimal non-commuting drive and strong Ising interaction — cannot improve the sensitivity beyond the $N=1$ SQL.
 
 ## ⚛️ Theoretical Model
 
@@ -73,15 +73,15 @@ This non-commuting structure, mediated by the ancilla drive, creates an effectiv
 |-----------|-------|---------|
 | $\theta$ (phase rate) | $\{0.1, 0.5, 1.0, 2.0, 5.0\}$ (5 points) | Test $\theta$-dependence of any SQL violation |
 | $T_H$ (holding time) | **10 (fixed)** | SQL reference $\Delta\theta_{\text{SQL}} = 0.1$ |
-| $a_x$ (ancilla $J_x$ coeff.) | $[-5, 5]$ (grid: 501 pts per slice axis) | Primary drive component; generates non-commuting dynamics |
-| $a_y$ (ancilla $J_y$ coeff.) | $[-5, 5]$ (grid: 501 pts per slice axis) | Secondary drive component |
+| $a_x$ (ancilla $J_x$ coeff.) | $[-5, 5]$ (grid: 201 pts per slice axis) | Primary drive component; generates non-commuting dynamics |
+| $a_y$ (ancilla $J_y$ coeff.) | $[-5, 5]$ (grid: 201 pts per slice axis) | Secondary drive component |
 | $a_z$ (ancilla $J_z$ coeff.) | $[-5, 5]$ (used only in 4D random search) | Commuting drive component (control) |
-| $a_{zz}$ (interaction coeff.) | $[-5, 5]$ (grid: 501 pts per slice axis) | Ising coupling strength |
+| $a_{zz}$ (interaction coeff.) | $[-5, 5]$ (grid: 201 pts per slice axis) | Ising coupling strength |
 | $\delta$ (finite-diff. step) | $10^{-6}$ (fixed) | Derivative computation |
 | Nelder--Mead refinements per $\theta$ | 50 (from top random-search points) | Local optimisation from best candidates |
 
 The primary scan strategy uses:
-- **2D slices**: Vary $(a_x, a_{zz})$ and $(a_y, a_{zz})$ on 501×501 grids with $\theta$ fixed at each of the 5 values. Per-$\theta$ CSV/SVG pairs are generated via `generate_drive_2d_slice_ax_azz` and `generate_drive_2d_slice_ay_azz` in `src.visualization.report_figures`.
+- **2D slices**: Vary $(a_x, a_{zz})$ and $(a_y, a_{zz})$ on 201×201 grids with $\theta$ fixed at each of the 5 values. Per-$\theta$ CSV/SVG pairs are generated via `generate_drive_2d_slice_ax_azz` and `generate_drive_2d_slice_ay_azz` in `src.visualization.report_figures`.
 - **Random search in 4D**: 500 random points in $[-5, 5]^4$ for each of the 5 $\theta$ values (2500 evaluations). Per-$\theta$ histograms are generated via `generate_drive_random_search`.
 - **Local refinement**: Nelder--Mead from the best 50 random-search points per $\theta$ value.
 - **Record keeping**: For each $\theta$, the optimal parameters $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$ and resulting $\Delta\theta$ are stored to characterise the $\theta$-dependence of the optimal drive.
@@ -150,15 +150,15 @@ The baseline matches the SQL to within $5 \times 10^{-11}$ relative error, confi
 
 ### 2D Slice: $(a_x, a_{zz})$
 
-A 501×501 grid over $a_x \in [-5, 5]$ and $a_{zz} \in [-5, 5]$ at each of the 5 $\theta$ values. All points have $\Delta\theta \geq 0.1$ (SQL), with best values at exactly the SQL.
+A 201×201 grid over $a_x \in [-5, 5]$ and $a_{zz} \in [-5, 5]$ at each of the 5 $\theta$ values. All points have $\Delta\theta \geq 0.1$ (SQL), with best values at exactly the SQL.
 
 | $\theta$ | Min $\Delta\theta$ | Points at SQL | Points Worse |
 |----------|-------------------|---------------|--------------|
-| 0.1 | 0.100000 | 2666 / 251001 | 248335 / 251001 |
-| 0.5 | 0.100000 | 2795 / 251001 | 248206 / 251001 |
-| 1.0 | 0.100000 | 2342 / 251001 | 248659 / 251001 |
-| 2.0 | 0.100000 | 2762 / 251001 | 248239 / 251001 |
-| 5.0 | 0.100000 | 1938 / 251001 | 249063 / 251001 |
+| 0.1 | 0.100000 | 632 / 40401 | 39769 / 40401 |
+| 0.5 | 0.100000 | 667 / 40401 | 39734 / 40401 |
+| 1.0 | 0.100000 | 569 / 40401 | 39832 / 40401 |
+| 2.0 | 0.100000 | 651 / 40401 | 39750 / 40401 |
+| 5.0 | 0.100000 | 516 / 40401 | 39885 / 40401 |
 
 The SQL is achieved only when $a_{zz} = 0$ (no interaction, ancilla irrelevant) or when the specific $a_x$ and $a_{zz}$ combination leaves the $J_z^S$ measurement unaffected. When $a_{zz} \neq 0$ and $a_x \neq 0$, the sensitivity degrades, often substantially (e.g., $\Delta\theta$ up to $\infty$ at fringe extrema and values as high as $0.4$ for typical configurations).
 
@@ -172,11 +172,11 @@ The $(a_y, a_{zz})$ slice gives qualitatively identical behaviour to the $(a_x, 
 
 | $\theta$ | Min $\Delta\theta$ | Points at SQL | Points Worse |
 |----------|-------------------|---------------|--------------|
-| 0.1 | 0.100000 | 2662 / 251001 | 248339 / 251001 |
-| 0.5 | 0.100000 | 2798 / 251001 | 248203 / 251001 |
-| 1.0 | 0.100000 | 2334 / 251001 | 248667 / 251001 |
-| 2.0 | 0.100000 | 2751 / 251001 | 248250 / 251001 |
-| 5.0 | 0.100000 | 1916 / 251001 | 249085 / 251001 |
+| 0.1 | 0.100000 | 632 / 40401 | 39769 / 40401 |
+| 0.5 | 0.100000 | 666 / 40401 | 39735 / 40401 |
+| 1.0 | 0.100000 | 569 / 40401 | 39832 / 40401 |
+| 2.0 | 0.100000 | 654 / 40401 | 39747 / 40401 |
+| 5.0 | 0.100000 | 511 / 40401 | 39890 / 40401 |
 
 The SQL-achieving points occur at $a_{zz} = 0$ (ancilla decoupled) or when $a_y$ and $a_{zz}$ together make the effective Hamiltonian commute with the measurement. Because $J_y^A$ and $J_x^A$ are unitarily equivalent (both are non-commuting with $J_z^A$), the results are symmetric under the replacement $a_x \leftrightarrow a_y$.
 
@@ -248,7 +248,7 @@ The degeneracy arises because any $H_A$, $H_{\text{int}}$ combination that does 
 | Experiment | Status | Key Result |
 |------------|--------|------------|
 | Decoupled baseline | PASS | $\Delta\theta = 0.100000 = \text{SQL}$, verified to $5\times10^{-11}$ |
-| 2D slice: $(a_x, a_{zz})$ | PASS | No SQL violation; max points at SQL = 2795/251001 ($\theta=0.5$) |
+| 2D slice: $(a_x, a_{zz})$ | PASS | No SQL violation; max points at SQL = 667/40401 ($\theta=0.5$) |
 | 2D slice: $(a_y, a_{zz})$ | PASS | No SQL violation; symmetric to $(a_x, a_{zz})$ |
 | 4D random search (2500 pts) | PASS | Best $\Delta\theta \approx 0.1$, min ratio = 1.0000 |
 | Nelder--Mead refinement (250 runs) | PASS | Best $\Delta\theta = 0.1$ for all $\theta$ |
@@ -288,7 +288,7 @@ The SQL bound $\Delta\theta \geq 1/T_H$ is derived from the QFI for a single qub
 
 ## 🏁 Conclusions
 
-The central hypothesis of this report — that an actively driven ancilla particle can beat the $N=1$ standard quantum limit $\Delta\theta = 1/T_H$ — is **not supported** by the numerical evidence. Across 2500 4D random-search evaluations, 10 complete 501×501 2D slice grids, and 250 Nelder--Mead refinements, no configuration produced a genuine SQL violation. The minimum observed $\Delta\theta$ is $0.100000$ exactly (the SQL) to within numerical precision $\sim 10^{-10}$.
+The central hypothesis of this report — that an actively driven ancilla particle can beat the $N=1$ standard quantum limit $\Delta\theta = 1/T_H$ — is **not supported** by the numerical evidence. Across 2500 4D random-search evaluations, 10 complete 201×201 2D slice grids, and 250 Nelder--Mead refinements, no configuration produced a genuine SQL violation. The minimum observed $\Delta\theta$ is $0.100000$ exactly (the SQL) to within numerical precision $\sim 10^{-10}$.
 
 The three specific claims of the hypothesis are addressed as follows:
 
