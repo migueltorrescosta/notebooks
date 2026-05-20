@@ -2,7 +2,7 @@
 Weighted Joint Measurement for Ancilla-Assisted Metrology with N, M Generalization.
 
 Implements the full numerical simulation pipeline described in
-``reports/2026-05-18-Weighted-Joint-Measurement-NM-Generalization.md``.
+``reports/2026-05-18/2026-05-18-Weighted-Joint-Measurement-NM-Generalization.md``.
 
 Physical Model:
 - System S of N particles, Ancilla A of M particles.

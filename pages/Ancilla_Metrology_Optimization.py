@@ -6,8 +6,8 @@ Mach–Zehnder interferometer for estimating an unknown phase rate θ.
 Supports both S-only (J_z^S) and joint (J_z^S + J_z^A) measurement operators.
 
 References:
-- `reports/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md`
-- `reports/2026-05-15-Ancilla-Assisted-Metrology-Joint-Measurement.md`
+- `reports/2026-05-12/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md`
+- `reports/2026-05-15/2026-05-15-Ancilla-Assisted-Metrology-Joint-Measurement.md`
 
 """
 
@@ -737,8 +737,8 @@ with tab1:
         **Model**: $\mathcal{{H}} = \mathbb{{C}}^2 \otimes \mathbb{{C}}^2$ |
         **Method**: Nelder–Mead (11 parameters) |
         **Objective**: ${obj_label}$ |
-        🔗 See `reports/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md` and
-        `reports/2026-05-15-Ancilla-Assisted-Metrology-Joint-Measurement.md`.
+        🔗 See `reports/2026-05-12/2026-05-12-Ancilla-Assisted-Metrology-Optimization.md` and
+        `reports/2026-05-15/2026-05-15-Ancilla-Assisted-Metrology-Joint-Measurement.md`.
         """,
     )
 

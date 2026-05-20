@@ -2,7 +2,7 @@
 Ancilla-Drive-Enhanced Metrology: Beating the SQL with an Actively Driven Ancilla.
 
 Implements the driven-ancilla metrology protocol described in
-``reports/2026-05-18-Ancilla-Drive-Enhanced-Metrology.md``.
+``reports/2026-05-18/2026-05-18-Ancilla-Drive-Enhanced-Metrology.md``.
 
 Physical Model:
 - Two qubits (system S + ancilla A), each a spin-1/2 (single-particle subspace).
@@ -22,7 +22,7 @@ Units:
 - a_x, a_y, a_z, a_zz: real coefficients.
 
 References:
-- Report 2026-05-18-Ancilla-Drive-Enhanced-Metrology.md
+- Report ``reports/2026-05-18/2026-05-18-Ancilla-Drive-Enhanced-Metrology.md``
 - Giovannetti, Lloyd, Maccone, Nat. Photonics 5, 222 (2011)
 """
 

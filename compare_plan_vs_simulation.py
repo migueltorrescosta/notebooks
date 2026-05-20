@@ -1,5 +1,5 @@
 """
-Compare the expectations set by reports/2026-05-07-High-Order-Squeezing-Plan.md
+Compare the expectations set by reports/2026-05-07/2026-05-07-High-Order-Squeezing-Plan.md
 against the results of running the numerical simulations.
 
 This script tests:
@@ -490,7 +490,7 @@ def run_all_tests() -> None:
     print("\n" + "=" * 60)
     print("COMPARISON: PLAN vs SIMULATION")
     print("=" * 60)
-    print("\nPlan: reports/2026-05-07-High-Order-Squeezing-Plan.md")
+    print("\nPlan: reports/2026-05-07/2026-05-07-High-Order-Squeezing-Plan.md")
     print("Simulation: src/physics/hybrid_system.py + pages/High_Order_Squeezing.py")
 
     try:

@@ -99,18 +99,16 @@ from src.visualization.ancilla_plots import (  # noqa: E402
 )
 
 REPORTS_DIR = PROJECT_ROOT / "reports"
-RAW_DATA_DIR = REPORTS_DIR / "raw_data"
-FIGURES_DIR = REPORTS_DIR / "figures"
 
 BASE_DATE = "2026-05-15"
 
 
 def _csv_path(name: str, date: str) -> Path:
-    return RAW_DATA_DIR / f"{date}-{name}.csv"
+    return REPORTS_DIR / date / "raw_data" / f"{date}-{name}.csv"
 
 
 def _fig_path(name: str, date: str) -> Path:
-    return FIGURES_DIR / f"{date}-{name}.svg"
+    return REPORTS_DIR / date / "figures" / f"{date}-{name}.svg"
 
 
 def generate_decoupled_baseline(force: bool = False) -> None:
@@ -951,8 +949,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    FIGURES_DIR.mkdir(parents=True, exist_ok=True)
+    # Ensure per-date directories exist (individual generate functions also
+    # create them via save_csv / plot helpers, but a top-level mkdir avoids
+    # race conditions in concurrent runs).
+    for date_str in [BASE_DATE, "2026-05-18", "2026-05-19"]:
+        (REPORTS_DIR / date_str / "raw_data").mkdir(parents=True, exist_ok=True)
+        (REPORTS_DIR / date_str / "figures").mkdir(parents=True, exist_ok=True)
 
     tasks = {
         "decoupled-baseline": generate_decoupled_baseline,

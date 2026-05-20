@@ -30,7 +30,7 @@ Units:
 
 References:
 - Report 2026-05-19-Ancilla-Drive-Phase-Modulated-Metrology.md
-- Report 2026-05-18-Ancilla-Drive-Enhanced-Metrology.md (fixed-drive precursor)
+- Report ``reports/2026-05-18/2026-05-18-Ancilla-Drive-Enhanced-Metrology.md`` (fixed-drive precursor)
 """
 
 from __future__ import annotations
