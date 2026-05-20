@@ -171,12 +171,12 @@ The best result across both $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices was:
 
 | Best $\Delta\theta$ | $\times$ SQL | Optimal parameters |
 |-------------------|-------------|-------------------|
-| 0.0293 | 0.293× | $|a_x| = 5.00$, $a_{zz} = 0.75$ (at $\theta = 0.1$) |
+| 0.0293 | 0.293× | $\vert a_x\vert = 5.00$, $a_{zz} = 0.75$ (at $\theta = 0.1$) |
 
 **Key observations:**
 - SQL violation ($\Delta\theta < 0.1$) is observed at **all** 50 $\theta$ values across large regions of parameter space (33–45% of points below SQL).
 - The optimal $a_{zz}$ tends toward the upper bound (5.0) for $\theta \geq 1.0$, confirming that **strong coupling** is beneficial.
-- The optimal $a_x$ is always at a large magnitude ($|a_x| \approx 4\text{--}5$), confirming the **non-commuting drive is essential** — $a_y = a_z = 0$ in these scans, so $[H_A, J_z^A] \neq 0$ is sufficient.
+- The optimal $a_x$ is always at a large magnitude ($\vert a_x\vert \approx 4\text{--}5$), confirming the **non-commuting drive is essential** — $a_y = a_z = 0$ in these scans, so $[H_A, J_z^A] \neq 0$ is sufficient.
 - The enhancement is **strongest at small $\theta$**: at $\theta = 0.1$, the best $\Delta\theta$ is nearly $5\times$ below SQL. The full 50-$\theta$ scan confirms this trend continues monotonically from $\theta=0.1$ to $\theta=5.0$, with the best $\Delta\theta$ increasing (worsening) as $\theta$ increases.
 
 ### 2D Slice: $(a_y, a_{zz})$
@@ -262,15 +262,15 @@ $\frac{\partial}{\partial\theta} e^{-i T_H H} \neq \text{(simple expression)},$
 but importantly, at lowest order in $T_H$,
 $\frac{\partial U_{\text{hold}}}{\partial\theta} \approx -i T_H (J_z^S + H_A^{\text{norm}}) U_{\text{hold}}$.
 
-This extra $H_A^{\text{norm}}$ contribution to $\partial U_{\text{hold}}/\partial\theta$ means the derivative $\partial\langle J_z^S\rangle/\partial\theta$ gains a term proportional to $\langle\Psi_{\text{final}}| [J_z^S, \text{ancilla-driven terms}] |\Psi_{\text{final}}\rangle$, which was identically zero in the original formulation where $H_A$ was $\theta$-independent.
+This extra $H_A^{\text{norm}}$ contribution to $\partial U_{\text{hold}}/\partial\theta$ means the derivative $\partial\langle J_z^S\rangle/\partial\theta$ gains a term proportional to $\langle\Psi_{\text{final}}\vert [J_z^S, \text{ancilla-driven terms}] \vert\Psi_{\text{final}}\rangle$, which was identically zero in the original formulation where $H_A$ was $\theta$-independent.
 
 **Key analytical insight**: In the prior report (2026-05-18), $H_A$ was independent of $\theta$, so $\partial H/\partial\theta = J_z^S$ only — the same as a single-qubit MZI. The only way to enhance sensitivity was through non-commuting dynamics redistributing information, which proved insufficient. Now $\partial H/\partial\theta = J_z^S + H_A^{\text{norm}}$, which includes additional ancilla operators. Since $H_A^{\text{norm}}$ acts on the ancilla, its effect on $\langle J_z^S\rangle$ must be mediated by $H_{\text{int}}$ (which couples the subsystems). When $a_{zz} \neq 0$, the $H_A^{\text{norm}}$ term can affect $\langle J_z^S\rangle$ through the S-A entanglement, potentially increasing the derivative magnitude and reducing $\Delta\theta$.
 
-A rough dimensional analysis: the sensitivity improvement (if any) should scale with the magnitude of $H_A^{\text{norm}}$ relative to $J_z^S$. Since $H_A^{\text{norm}}$ can have eigenvalues up to $\frac12\sqrt{a_x^2 + a_y^2 + a_z^2}$ (the Bloch vector magnitude), while $J_z^S$ has eigenvalues $\pm 1/2$, the enhancement factor could be as large as $\sqrt{a_x^2 + a_y^2 + a_z^2}$ in the best case. With $|a_k| \leq 5$, this suggests up to $\sim 5\times$ improvement in the derivative, potentially yielding $\Delta\theta$ as low as $0.02$ (well below the SQL of $0.1$).
+A rough dimensional analysis: the sensitivity improvement (if any) should scale with the magnitude of $H_A^{\text{norm}}$ relative to $J_z^S$. Since $H_A^{\text{norm}}$ can have eigenvalues up to $\frac12\sqrt{a_x^2 + a_y^2 + a_z^2}$ (the Bloch vector magnitude), while $J_z^S$ has eigenvalues $\pm 1/2$, the enhancement factor could be as large as $\sqrt{a_x^2 + a_y^2 + a_z^2}$ in the best case. With $\vert a_k\vert \leq 5$, this suggests up to $\sim 5\times$ improvement in the derivative, potentially yielding $\Delta\theta$ as low as $0.02$ (well below the SQL of $0.1$).
 
 However, this is a crude estimate — the actual sensitivity depends on how $H_{\text{int}}$ mediates the ancilla dynamics back onto the $J_z^S$ measurement, the interplay of time-ordering, and whether the variance $\text{Var}(J_z^S)$ grows alongside the derivative.
 
-**Numerical prediction vs. actual outcome**: We predicted $\Delta\theta < 0.1$ for some region of the $(a_x, a_y, a_z, a_{zz})$ parameter space — **confirmed**. The prediction of strongest enhancement at large $|a_{zz}|$ and large $|a_x|, |a_y|$ — **confirmed**. The $\theta$-dependence prediction was **partially incorrect**: we expected minimal enhancement at small $\theta$ and maximal at large $\theta$, but the actual result is the **opposite** — the best enhancement (ratio 0.209) occurs at the smallest $\theta = 0.1$, and the weakest enhancement (ratio 0.668) at the largest $\theta = 5.0$. The predicted optimal $\theta$ range $\theta \sim 1\text{--}5$ was too high; the true optimum is at $\theta \lesssim 0.1$ (and may be even better at smaller $\theta$ not yet tested). The predicted $\Delta\theta$ value of $\sim 0.02$ at optimal parameters was **remarkably accurate**: the actual best is $0.0209$.
+**Numerical prediction vs. actual outcome**: We predicted $\Delta\theta < 0.1$ for some region of the $(a_x, a_y, a_z, a_{zz})$ parameter space — **confirmed**. The prediction of strongest enhancement at large $\vert a_{zz}\vert$ and large $\vert a_x\vert, \vert a_y\vert$ — **confirmed**. The $\theta$-dependence prediction was **partially incorrect**: we expected minimal enhancement at small $\theta$ and maximal at large $\theta$, but the actual result is the **opposite** — the best enhancement (ratio 0.209) occurs at the smallest $\theta = 0.1$, and the weakest enhancement (ratio 0.668) at the largest $\theta = 5.0$. The predicted optimal $\theta$ range $\theta \sim 1\text{--}5$ was too high; the true optimum is at $\theta \lesssim 0.1$ (and may be even better at smaller $\theta$ not yet tested). The predicted $\Delta\theta$ value of $\sim 0.02$ at optimal parameters was **remarkably accurate**: the actual best is $0.0209$.
 
 ## 🏁 Conclusions
 
@@ -290,7 +290,7 @@ The $\theta$-modulated ancilla drive protocol **unequivocally beats the standard
 
 ### Comparison with theoretical prediction
 
-The analytical bound predicted a maximum improvement of $\sim 5\times$ (based on the eigenvalue magnitude $\sqrt{a_x^2 + a_y^2 + a_z^2}$). The observed best improvement of $4.91\times$ at $\theta=0.2$ is remarkably close to this bound, suggesting the system nearly achieves the theoretical maximum for the $|a_k| \leq 5$ constraint.
+The analytical bound predicted a maximum improvement of $\sim 5\times$ (based on the eigenvalue magnitude $\sqrt{a_x^2 + a_y^2 + a_z^2}$). The observed best improvement of $4.91\times$ at $\theta=0.2$ is remarkably close to this bound, suggesting the system nearly achieves the theoretical maximum for the $\vert a_k\vert \leq 5$ constraint.
 
 ### Open items
 
