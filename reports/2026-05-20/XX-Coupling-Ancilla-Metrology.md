@@ -123,7 +123,7 @@ The following physical invariants are verified throughout every simulation run:
 - **Hermiticity**: $H_{\text{int}}$ and the total $H$ satisfy $H^\dagger = H$ to machine precision.
 - **Commutation relation**: $[J_z^S, J_x^S] = i J_y^S$ is verified, and the equivalent for A.
 
-#### 🔧 Implementation Status (Planned)
+#### 🔧 Implementation Status (All Complete ✅)
 
 - **Operator construction** — Pauli matrices, $J_z$, $J_x$, $J_y$ as $4\times4$ Kronecker products (reuses existing `build_two_qubit_operators()`).
 - **XX Interaction Hamiltonian** — $H_{\text{int}} = \alpha_{xx} J_x^S \otimes J_x^A$.
@@ -132,34 +132,38 @@ The following physical invariants are verified throughout every simulation run:
 - **Holding unitary** — $\exp(-i T_H [\theta(J_z^S + J_z^A) + \alpha_{xx} J_x^S \otimes J_x^A])$ via `scipy.linalg.expm`.
 - **Ancilla trace-out** — Explicit $2\times2$ reduced density matrix construction.
 - **Full circuit evolution** — BS$_S$ $\to$ Hold $\to$ BS$_S$ $\to$ Tr$_A$ $\to$ measurement.
-- **Sensitivity** — $\Delta\theta = \sqrt{\text{Var}(J_z^S)} / \vert\partial\langle J_z^S\rangle/\partial\theta\vert$ via central finite differences.
+- **Sensitivity** — $\Delta\theta = \sqrt{\text{Var}(J_z^S)} / \vert\partial\langle J_z^S\rangle/\partial\theta\vert$ via central finite differences ($\delta = 10^{-6}$).
 - **Grid scan** — 1D $\alpha_{xx}$ scan (2001 pts) $\times$ 50 $\theta$ values.
 - **Decoupled baseline** — $\alpha_{xx} = 0$ verification at all 50 $\theta$ values.
 - **Validation helpers** — Hermiticity, unitarity, trace preservation, SQL baseline recovery.
 
-## ⚠️ Failure Conditions
+**Tests**: The companion test module `test_local.py` contains **54 test functions** covering operators, Hamiltonians, unitarity, circuit evolution, sensitivity computation, reduced variance, grid scan, $\theta$ scan, CSV roundtrip (including fail-fast deserialisation), and physical invariants. All tests pass.
 
-| Failure | Expected Outcome | Interpretation |
+## ⚠️ Failure Conditions — Actual Outcomes
+
+| Failure | Expected Outcome | Actual Outcome |
 |---------|------------------|----------------|
-| **SQL bound holds for all $\alpha_{xx}$** | **Uncertain** — the XX coupling mechanism may or may not suffice | Null hypothesis supported; the simplest ancilla phase encoding with XX coupling is insufficient |
-| **SQL violation requires large $\alpha_{xx}$** | **Possible** — strong coupling may be needed for appreciable entanglement | Enhancement exists but requires strong coupling; the optimal $\alpha_{xx}^*$ will be near the upper bound of 20 |
-| **Sensitivity oscillates with $\alpha_{xx}$** | **Expected** — the XX coupling creates Rabi-like oscillations | The $\alpha_{xx}$ grid must be dense enough to resolve oscillations; $\Delta\alpha = 0.01$ (2001 pts) should suffice |
-| **Enhancement strongest at small $\theta$** | **Possible** — parallels the 2026-05-19 finding where $\theta \approx 0.2$ was optimal | Similar small-$\theta$ regime may emerge; if so, the $\theta$ grid spacing of 0.1 adequately resolves it |
-| **Fringe extremum** | **Expected** — some $\alpha_{xx}$ values may yield vanishing $\partial\langle J_z^S\rangle/\partial\theta$ | Points with $\Delta\theta = \infty$ are flagged in data; finiteness of the derivative at the reported optimum is verified |
-| **Decoupled baseline violated** | **Not expected** — independent evolution must recover SQL | If violated, indicates a bug in the reduced density matrix or variance computation |
+| **SQL bound holds for all $\alpha_{xx}$** | **Uncertain** — the XX coupling mechanism may or may not suffice | **Observed** — null hypothesis supported; $\Delta\theta \geq 0.1$ for all $\alpha_{xx} \in [0, 20]$ at all 50 $\theta$ values. The simplest ancilla phase encoding with XX coupling is insufficient to beat the SQL. |
+| **SQL violation requires large $\alpha_{xx}$** | **Possible** — strong coupling may be needed for appreciable entanglement | **Avoided** — the optimal $\alpha_{xx}^*$ is always $0.0$ (the decoupled limit). Any non-zero $\alpha_{xx}$ degrades sensitivity, with $\Delta\theta$ worsening by $1.5\times$ to $5.1\times$ SQL as $\alpha_{xx}$ increases. |
+| **Sensitivity oscillates with $\alpha_{xx}$** | **Expected** — the XX coupling creates Rabi-like oscillations | **Observed** — $\Delta\theta(\alpha_{xx})$ oscillates with $\alpha_{xx}$ at fixed $\theta$, but the minimum is always at $\alpha_{xx} = 0$. The grid spacing $\Delta\alpha_{xx} = 0.01$ adequately resolves the oscillations. |
+| **Enhancement strongest at small $\theta$** | **Possible** — parallels the 2026-05-19 finding | **Not applicable** — no enhancement at any $\theta$. The sensitivity is uniformly SQL-limited for all $\theta$. |
+| **Fringe extremum** | **Expected** — some $\alpha_{xx}$ values may yield vanishing $\partial\langle J_z^S\rangle/\partial\theta$ | **Observed** — some $\alpha_{xx}$ values produce $\Delta\theta = \infty$ (flagged in data). The derivative at $\alpha_{xx}=0$ is always finite and yields $\Delta\theta = \text{SQL}$. |
+| **Decoupled baseline violated** | **Not expected** — independent evolution must recover SQL | **Avoided** — $\Delta\theta = 0.1$ exactly at $\alpha_{xx} = 0$ for all 50 $\theta$ values, confirming the numerical implementation is correct. |
 
-## ✅ Success Criteria
+## ✅ Success Criteria — Actual Outcomes
 
-| Criterion | Expected Outcome |
-|-----------|-----------------|
-| **Decoupled baseline** | $\Delta\theta = 1/T_H = 0.1$ for all 50 $\theta$ values at $\alpha_{xx} = 0$ |
-| **SQL violation** | $\exists\ \alpha_{xx} > 0$ and $\theta$ such that $\Delta\theta < 0.1$ |
-| **SQL violation (null)** | If null hypothesis holds: $\Delta\theta \geq 0.1$ for all $\alpha_{xx} \in [0, 20]$ and all $\theta \in [0.1, 5.0]$ |
-| **State normalisation** | All intermediate and final state norms equal 1 to machine precision |
-| **Trace preservation** | $\text{Tr}(\rho_S) = 1$ after partial trace |
-| **Numerical validity** | Unitarity, Hermiticity, variance positivity, derivative stability checks pass |
-| **Finite derivative** | $\vert\partial\langle J_z^S\rangle/\partial\theta\vert > 10^{-12}$ at all reported optima |
-| **Optimal params recorded** | Full $\alpha_{xx}^*(\theta)$ and $\Delta\theta_{\text{opt}}(\theta)$ recorded per $\theta$ |
+| Criterion | Expected Outcome | Actual Outcome | Verdict |
+|-----------|-----------------|----------------|---------|
+| **Decoupled baseline** | $\Delta\theta = 1/T_H = 0.1$ for all 50 $\theta$ values at $\alpha_{xx} = 0$ | $\Delta\theta = 0.100000$ (ratio = 1.0000) at all 50 $\theta$ values | **PASS** |
+| **SQL violation** | $\exists\ \alpha_{xx} > 0$ and $\theta$ such that $\Delta\theta < 0.1$ | No $\alpha_{xx} > 0$ yields $\Delta\theta < 0.1$ at any $\theta$. Best $\Delta\theta = 0.100000$ at $\alpha_{xx}=0$ | **FAIL** |
+| **SQL violation (null)** | If null hypothesis holds: $\Delta\theta \geq 0.1$ for all $\alpha_{xx} \in [0, 20]$ and all $\theta \in [0.1, 5.0]$ | $\Delta\theta \geq 0.1$ for all $\alpha_{xx}$ and $\theta$. Null hypothesis supported | **PASS** (null hypothesis) |
+| **State normalisation** | All intermediate and final state norms equal 1 to machine precision | All norms $= 1$ to $10^{-12}$ | **PASS** |
+| **Trace preservation** | $\text{Tr}(\rho_S) = 1$ after partial trace | $\text{Tr}(\rho_S) = 1$ to $10^{-12}$ | **PASS** |
+| **Numerical validity** | Unitarity, Hermiticity, variance positivity, derivative stability checks pass | All 54 automated tests pass | **PASS** |
+| **Finite derivative** | $\vert\partial\langle J_z^S\rangle/\partial\theta\vert > 10^{-12}$ at all reported optima | Derivative at $\alpha_{xx}=0$ is finite for all $\theta$ | **PASS** |
+| **Optimal params recorded** | Full $\alpha_{xx}^*(\theta)$ and $\Delta\theta_{\text{opt}}(\theta)$ recorded per $\theta$ | $\alpha_{xx}^*(\theta) = 0$ and $\Delta\theta_{\text{opt}}(\theta) = 0.1$ recorded for all 50 $\theta$ values in CSV | **PASS** |
+
+**Summary**: 7 criteria PASS, 1 FAIL. The sole failure is the central hypothesis criterion (SQL violation). All validation, numerical, and record-keeping criteria pass. The null hypothesis is supported: the simplest symmetric-phase-encoding with XX coupling is insufficient to beat the $N=1$ SQL.
 
 ## ⚖️ Analytical Bounds
 
@@ -181,3 +185,95 @@ For $\alpha_{xx} > 0$, the analysis is more involved. In the interaction picture
 A rough estimate of the enhancement: the derivative $\partial\langle J_z^S \rangle/\partial\theta$ gains an additional contribution from the $\theta$-dependence of $\cos(\theta t/2)$ and $\sin(\theta t/2)$ in $H_{\text{int}}^I(t)$. For small $\theta T_H$, expanding to first order, the sensitivity might improve by a factor that depends on $\alpha_{xx} T_H$. Since $\alpha_{xx} \in [0, 20]$ and $T_H = 10$, the dimensionless coupling $\alpha_{xx} T_H / 4$ can be as large as 50, which is well into the strong-coupling regime and could produce significant enhancement — or, conversely, wash out the signal if the oscillations are too rapid.
 
 **Key distinction from 2026-05-19**: In the phase-modulated drive report, the enhancement came from the *tunable direction* of the ancilla drive ($a_x J_x^A + a_y J_y^A + a_z J_z^A$) combined with Ising coupling. Here, the ancilla drive direction is fixed ($J_z^A$), and the enhancement (if any) must come entirely from the XX coupling's $\theta$-dependent rotation in the interaction picture, plus the fact that $H_A = \theta J_z^A$ shares the same unknown parameter as $H_S$. This is a stricter test of whether the simplest possible symmetric phase encoding suffices.
+
+## 🔬 Results
+
+All experiments used a holding time $T_H = 10$, giving an SQL reference of $\Delta\theta_{\text{SQL}} = 1/T_H = 0.1$. The grid scan evaluated $\Delta\theta(\alpha_{xx}, \theta)$ on a $2001 \times 50 = 100{,}050$ point grid (2001 $\alpha_{xx}$ values in $[0, 20]$ at each of 50 $\theta$ values in $[0.1, 5.0]$).
+
+### Decoupled Baseline
+
+The decoupled configuration $(\alpha_{xx} = 0)$ gives $\Delta\theta = 0.100000$, which matches the SQL exactly:
+
+| $T_H$ | $\Delta\theta$ | SQL | Ratio |
+|-------|---------------|-----|-------|
+| 10 | 0.1000000000 | 0.1 | 1.000 |
+
+**Status: PASS** — The decoupled baseline recovers the standard single-qubit MZI, confirming the simulation infrastructure works correctly.
+
+### 1D $\alpha_{xx}$ Grid Scan
+
+The dense 1D $\alpha_{xx}$ scan (2001 points in $[0, 20]$) at each of the 50 $\theta$ values reveals a clear and consistent pattern: **$\alpha_{xx} = 0$ always gives the best sensitivity**, and any non-zero $\alpha_{xx}$ degrades it. Table 1 shows representative values at $\theta = 1.0$.
+
+| $\alpha_{xx}$ | $\Delta\theta$ | Ratio to SQL |
+|---------------|---------------|--------------|
+| 0.0 | 0.100000 | 1.000 |
+| 1.0 | 0.150288 | 1.503 |
+| 2.0 | 0.262808 | 2.628 |
+| 4.0 | 0.160864 | 1.609 |
+| 10.0 | 0.268385 | 2.684 |
+| 20.0 | 0.509457 | 5.095 |
+
+The $\Delta\theta(\alpha_{xx})$ curve oscillates due to the Rabi-like dynamics induced by the XX coupling, but the minimum is always at $\alpha_{xx} = 0$. The XX coupling creates entanglement between S and A, but the information carried by that entanglement is lost when the ancilla is traced out prior to the $J_z^S$ measurement.
+
+### $\theta$ Scan: Optimal Sensitivity Across $\theta$
+
+The $\theta$ scan collects the optimal sensitivity (over $\alpha_{xx}$) for each of the 50 $\theta$ values:
+
+![XX-coupling sensitivity vs $\theta$](figures/2026-05-20-xx-theta-scan.svg)
+
+The optimal $\alpha_{xx}^*$ is **zero for all 50 $\theta$ values** — no non-zero XX coupling improves the sensitivity at any $\theta$ value tested. The achieved $\Delta\theta$ is uniformly $0.100000$ (the SQL) across the entire $\theta$ range.
+
+![Optimal parameters and fraction below SQL](figures/2026-05-20-xx-optimal-params.svg)
+
+**Key Finding**: The XX coupling with symmetric $J_z$ phase encoding on both qubits **does not beat the SQL**. The optimal $\alpha_{xx}^*$ is zero for all $\theta$, confirming that any non-zero XX coupling degrades the sensitivity. The $J_z^S$ measurement on the system, after tracing out the ancilla, is fundamentally limited by the single-qubit SQL $\Delta\theta = 1/T_H$.
+
+### Comparison with Prior Reports
+
+| Report | Year-Month-Day | Interaction | $H_A$ | SQL Violation? |
+|--------|---------------|-------------|-------|---------------|
+| Fixed-drive | 2026-05-18 | $J_z^S \otimes J_z^A$ | $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$ (fixed) | **No** |
+| Phase-modulated | 2026-05-19 | $J_z^S \otimes J_z^A$ | $H_A = \theta (a_x J_x^A + a_y J_y^A + a_z J_z^A)$ | **Yes** (4.91$\times$ below SQL) |
+| XX-coupling (this report) | 2026-05-20 | $J_x^S \otimes J_x^A$ | $H_A = \theta J_z^A$ (fixed $J_z$-only) | **No** |
+
+The key difference between the successful phase-modulated protocol (2026-05-19) and the present report is twofold: (i) the phase-modulated protocol used a **tunable ancilla drive** with non-commuting components ($a_x J_x^A + a_y J_y^A$) combined with Ising coupling, while this report uses a fixed $J_z^A$ ancilla phase encoding, and (ii) the phase-modulated protocol used Ising coupling ($J_z^S \otimes J_z^A$) which commutes with the $J_z$ measurement and preserves the signal, while the XX coupling ($J_x^S \otimes J_x^A$) is transverse to the measurement axis and generates S-A entanglement that is lost upon tracing.
+
+### Summary
+
+| Experiment | Status | Key Result |
+|------------|--------|-----------|
+| Decoupled baseline | **Completed** | $\Delta\theta = 0.100000$ (exactly SQL) |
+| 1D $\alpha_{xx}$ grid scan (50 $\theta$ values) | **Completed** | $\alpha_{xx}^* = 0$ for all $\theta$; any $\alpha_{xx} > 0$ degrades sensitivity |
+| $\theta$ scan (50 values) | **Completed** | $\Delta\theta = 0.100000$ (SQL) for all 50 $\theta$ values |
+
+## 🏁 Conclusions
+
+The central hypothesis of this report — that symmetric $J_z$ phase encoding on both system and ancilla with XX coupling can beat the $N=1$ standard quantum limit $\Delta\theta = 1/T_H$ — is **not supported** by the numerical evidence. Across 100,050 grid evaluations at 50 $\theta$ values, no configuration produced a genuine SQL violation. The minimum observed $\Delta\theta$ is $0.100000$ exactly (the SQL) to within numerical precision $\sim 3 \times 10^{-11}$.
+
+### Key findings
+
+1. **SQL violation not achieved**: The best sensitivity at every $\theta$ is $\Delta\theta = 0.1$, achieved only at $\alpha_{xx} = 0$ (the decoupled limit). Any non-zero $\alpha_{xx}$ degrades the sensitivity, with $\Delta\theta$ rising by factors of 1.5$\times$ to 5.1$\times$ SQL depending on $\alpha_{xx}$ and $\theta$.
+
+2. **Optimal coupling is always zero**: The optimal $\alpha_{xx}^*$ is identically zero for all 50 $\theta$ values tested ($\theta = 0.1$ to $5.0$). The grid resolution (2001 points, $\Delta\alpha_{xx} = 0.01$) is sufficient to rule out narrow windows of enhancement.
+
+3. **XX coupling degrades sensitivity**: The transverse interaction $J_x^S \otimes J_x^A$ generates S-A entanglement, but the $J_z^S$ measurement on the system after tracing out the ancilla cannot access the information carried by the entanglement. The net effect is to reduce the signal derivative $\partial\langle J_z^S\rangle/\partial\theta$ relative to the variance, worsening $\Delta\theta$.
+
+4. **Physical mechanism limitation**: Unlike the phase-modulated drive report (2026-05-19), where $H_A = \theta(a_x J_x^A + a_y J_y^A + a_z J_z^A)$ with non-commuting drive and Ising coupling provided an additional $\partial H_A/\partial\theta$ channel that enhanced the derivative, the symmetric $J_z$ encoding with XX coupling does not provide such a benefit. In the present model, $H_A = \theta J_z^A$ is proportional to the same generator as $H_S = \theta J_z^S$, but the ancilla's $\theta$-dependent phase is lost upon tracing, and the XX coupling merely scrambles the information without creating a usable feedback channel.
+
+### Comparison with theoretical prediction
+
+The analytical bound predicted a possible enhancement for large $\alpha_{xx} T_H / 4$ (up to 50), but the numerical results show the opposite: large $\alpha_{xx} T_H$ drives rapid oscillations that wash out the signal. The interaction-picture analysis correctly identified the $\theta$-dependence of $\cos(\theta t/2)$ and $\sin(\theta t/2)$ in $H_{\text{int}}^I(t)$, but this $\theta$-dependence, while real, does not increase the $\theta$-sensitivity of the $J_z^S$ measurement after tracing out the ancilla — the derivative gain is offset by a proportionally larger variance increase.
+
+### Comparison with prior reports
+
+- **2026-05-18** (fixed-drive, Ising coupling): Also found no SQL violation. The present result extends this negative finding to a different interaction type (XX vs Ising) and a different ancilla phase encoding scheme.
+- **2026-05-19** (phase-modulated drive, Ising coupling): Found SQL violation, with the enhancement coming from the *tunable direction* of the ancilla drive ($a_x J_x^A + a_y J_y^A$) combined with Ising coupling. The present result shows that simply making the ancilla "feel" $\theta$ via $H_A = \theta J_z^A$ is insufficient — non-commuting drive components (at least one of $a_x$ or $a_y$) and an interaction that preserves the signal (Ising-type rather than XX) are both necessary.
+
+### Open items
+
+(a) Could a **joint measurement** $M = J_z^S + J_z^A$ (rather than tracing out the ancilla) extract useful information from the ancilla's $\theta$-dependent phase and beat the SQL? The weighted measurement approach from the 2026-05-18 report could be applied here.
+
+(b) Would a **different initial state** — such as an entangled S-A Bell state or a CSS on both qubits — change the result? The current result uses the product state $|00\rangle$ (both particles in mode 0). An initial state where the ancilla is in a superposition might allow the $J_z^A$ phase encoding to be read out more effectively.
+
+(c) Could a **non-commuting ancilla drive** (e.g., $H_A = a_x J_x^A$ with the XX coupling) produce a different outcome? The present report fixes $H_A = \theta J_z^A$ (the simplest symmetric encoding); adding drive components that create non-commuting ancilla dynamics, combined with the transverse XX interaction, might create the parametric amplification channel that is missing in the current setup.
+
+(d) Would **multiple ancilla particles** (spin-$J$ with $J > 1/2$) provide sufficient spectral radius to overcome the $N=1$ system SQL? The ancilla in this report is a single qubit; a multi-particle ancilla could carry more $\theta$-information even after tracing.
