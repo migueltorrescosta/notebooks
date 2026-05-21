@@ -300,7 +300,7 @@ All reports MUST include sections in the following order:
 5. Section-title emojis are the only emojis allowed in reports — never add decorative or ad-hoc emojis outside section headers.
 6. Section emojis appear once per document, not on sub-subsections.
 7. Don't include repo-specific filepaths in the Numerical Simulation section (theoretical model should be implementation-agnostic).
-8. Don't use breaklines in prose when inline equations suffice.
+8. Don't use breaklines in prose when inline equations suffice (`$...$`). Never use display math (`$$...$$`).
 9. Don't use `|` inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.
 10. Don't use `\ket` — it is not recognised by the Markdown engine.
 11. Use `\mathbb{1}_n` to signify an $n$ dimensional identity operator.
