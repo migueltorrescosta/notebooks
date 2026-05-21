@@ -347,15 +347,15 @@ class DriveDecoupledBaselineResult:
             },
         )
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> DriveDecoupledBaselineResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> DriveDecoupledBaselineResult:
+        df = pd.read_parquet(path)
         return cls(
             T_H_value=float(df["T_H"].iloc[0]),
             delta_theta=float(df["delta_theta"].iloc[0]),
@@ -401,15 +401,15 @@ class Drive2DSliceResult:
         ]
         return pd.DataFrame(rows)
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> Drive2DSliceResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> Drive2DSliceResult:
+        df = pd.read_parquet(path)
         drive_unique = sorted(df["drive"].unique())
         azz_unique = sorted(df["azz"].unique())
         n_d = len(drive_unique)
@@ -472,15 +472,15 @@ class DriveRandomSearchResult:
             },
         )
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> DriveRandomSearchResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> DriveRandomSearchResult:
+        df = pd.read_parquet(path)
         required = {
             "a_x",
             "a_y",
@@ -558,15 +558,15 @@ class DriveNelderMeadResult:
             },
         )
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> DriveNelderMeadResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> DriveNelderMeadResult:
+        df = pd.read_parquet(path)
         return cls(
             delta_theta_opt=float(df["delta_theta"].iloc[0]),
             params_opt=np.array(
@@ -651,15 +651,15 @@ class DriveThetaScanResult:
             )
         return pd.DataFrame(rows)
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> DriveThetaScanResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> DriveThetaScanResult:
+        df = pd.read_parquet(path)
         thetas = df["theta"].to_numpy(dtype=float)
         best = df["best_delta_theta"].to_numpy(dtype=float)
         if "sql" not in df.columns:
@@ -1018,7 +1018,7 @@ def run_drive_nelder_mead(
         objective,
         x0=x0,
         method="Nelder-Mead",
-        callback=callback if track_history else None,
+        callback=callback if track_history else None,  # type: ignore[arg-type]
         options={  # type: ignore[call-overload]
             "maxiter": maxiter,
             "xatol": xatol,

@@ -1,2 +1,0 @@
-theta_value,alpha_xx_opt,alpha_xz_opt,alpha_zx_opt,alpha_zz_opt,delta_theta_opt,sql,ratio,expectation_Jz,variance_Jz,d_exp_d_theta,n_starts,n_converged
-3.2,-4.759964,-3.670466298,10.9429468,5.459619522,0.08314255129,0.1,0.8314255129,-0.0538640875,0.2470986601,-5.978770021,100,26

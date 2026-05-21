@@ -9,12 +9,19 @@ Run with:
 from __future__ import annotations
 
 import sys as _sys
-from pathlib import Path
 from pathlib import Path as _Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 from scipy.linalg import expm
+
+from src.analysis.ancilla_optimization import (
+    build_two_qubit_operators,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _report_dir = str(
     _Path(__file__).resolve().parent.parent.parent / "reports" / "2026-05-21"
@@ -42,10 +49,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     general_hold_unitary,
     run_general_bfgs_optimization,
     run_general_theta_scan,
-)
-
-from src.analysis.ancilla_optimization import (
-    build_two_qubit_operators,
 )
 
 # ============================================================================
@@ -496,11 +499,11 @@ class TestThetaScan:
 
 
 # ============================================================================
-# Test: CSV Roundtrip
+# Test: Parquet Roundtrip
 # ============================================================================
 
 
-class TestCsvRoundtrip:
+class TestParquetRoundtrip:
     def test_bfgs_optimization_roundtrip(self, tmp_path: Path) -> None:
         original = GeneralBFGSOptimizationResult(
             theta_value=1.0,
@@ -513,9 +516,9 @@ class TestCsvRoundtrip:
             n_starts=100,
             n_converged=95,
         )
-        csv_path = tmp_path / "test_bfgs.csv"
-        original.save_csv(csv_path)
-        loaded = GeneralBFGSOptimizationResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test_bfgs.parquet"
+        original.save_parquet(parquet_path)
+        loaded = GeneralBFGSOptimizationResult.from_parquet(parquet_path)
         assert loaded.theta_value == pytest.approx(original.theta_value)
         assert loaded.alpha_opt == pytest.approx(original.alpha_opt)
         assert loaded.delta_theta_opt == pytest.approx(original.delta_theta_opt)
@@ -534,9 +537,9 @@ class TestCsvRoundtrip:
             n_starts=50,
             n_converged=48,
         )
-        csv_path = tmp_path / "test_bfgs_meta.csv"
-        original.save_csv(csv_path)
-        loaded = GeneralBFGSOptimizationResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test_bfgs_meta.parquet"
+        original.save_parquet(parquet_path)
+        loaded = GeneralBFGSOptimizationResult.from_parquet(parquet_path)
         assert loaded.theta_value == pytest.approx(0.5)
         assert np.allclose(loaded.alpha_opt, (10.0, -5.0, 0.0, -10.0))
         assert loaded.delta_theta_opt == pytest.approx(0.03)
@@ -558,9 +561,9 @@ class TestCsvRoundtrip:
             d_exp_d_theta_per_theta=np.array([-0.5, 1.0, -1.5]),
             n_converged_per_theta=np.array([95, 90, 85]),
         )
-        csv_path = tmp_path / "test_theta.csv"
-        original.save_csv(csv_path)
-        loaded = GeneralThetaScanResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test_theta.parquet"
+        original.save_parquet(parquet_path)
+        loaded = GeneralThetaScanResult.from_parquet(parquet_path)
         assert np.allclose(loaded.theta_values, original.theta_values)
         assert np.allclose(
             loaded.alpha_xx_opt_per_theta, original.alpha_xx_opt_per_theta
@@ -588,9 +591,9 @@ class TestCsvRoundtrip:
             d_exp_d_theta_per_theta=np.array([2.0, -1.0]),
             n_converged_per_theta=np.array([80, 90]),
         )
-        csv_path = tmp_path / "test_theta_meta.csv"
-        original.save_csv(csv_path)
-        loaded = GeneralThetaScanResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test_theta_meta.parquet"
+        original.save_parquet(parquet_path)
+        loaded = GeneralThetaScanResult.from_parquet(parquet_path)
         assert loaded.theta_values[0] == pytest.approx(0.1)
         assert loaded.alpha_xx_opt_per_theta[1] == pytest.approx(7.0)
         assert loaded.alpha_xz_opt_per_theta[0] == pytest.approx(-1.0)
@@ -598,8 +601,8 @@ class TestCsvRoundtrip:
         assert loaded.expectation_Jz_per_theta[0] == pytest.approx(0.15)
         assert loaded.n_converged_per_theta[1] == pytest.approx(90.0)
 
-    def test_bfgs_from_csv_missing_columns(self, tmp_path: Path) -> None:
-        """from_csv should fail fast when required columns are missing."""
+    def test_bfgs_from_parquet_missing_columns(self, tmp_path: Path) -> None:
+        """from_parquet should fail fast when required columns are missing."""
         import pandas as pd
 
         df_bad = pd.DataFrame(
@@ -609,13 +612,13 @@ class TestCsvRoundtrip:
                 "delta_theta_opt": [0.05],
             }
         )
-        csv_path = tmp_path / "bad_bfgs.csv"
-        df_bad.to_csv(csv_path, index=False)
+        parquet_path = tmp_path / "bad_bfgs.parquet"
+        df_bad.to_parquet(parquet_path, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
-            GeneralBFGSOptimizationResult.from_csv(csv_path)
+            GeneralBFGSOptimizationResult.from_parquet(parquet_path)
 
-    def test_theta_scan_from_csv_missing_columns(self, tmp_path: Path) -> None:
-        """from_csv should fail fast when required columns are missing."""
+    def test_theta_scan_from_parquet_missing_columns(self, tmp_path: Path) -> None:
+        """from_parquet should fail fast when required columns are missing."""
         import pandas as pd
 
         df_bad = pd.DataFrame(
@@ -624,10 +627,10 @@ class TestCsvRoundtrip:
                 "best_delta_theta": [0.05, 0.06],
             }
         )
-        csv_path = tmp_path / "bad_theta.csv"
-        df_bad.to_csv(csv_path, index=False)
+        parquet_path = tmp_path / "bad_theta.parquet"
+        df_bad.to_parquet(parquet_path, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
-            GeneralThetaScanResult.from_csv(csv_path)
+            GeneralThetaScanResult.from_parquet(parquet_path)
 
 
 # ============================================================================

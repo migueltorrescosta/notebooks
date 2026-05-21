@@ -126,7 +126,7 @@ def classical_fisher_information_single(
     if not np.any(mask):
         return 0.0
 
-    return np.sum(deriv[mask] ** 2 / p_avg[mask])
+    return float(np.sum(deriv[mask] ** 2 / p_avg[mask]))
 
 
 def quantum_fisher_information(state: np.ndarray, generator: np.ndarray) -> float:
@@ -197,7 +197,7 @@ def quantum_fisher_information(state: np.ndarray, generator: np.ndarray) -> floa
     # Ensure non-negative (numerical precision)
     var_g = max(0.0, var_g)
 
-    return 4.0 * var_g
+    return float(4.0 * var_g)
 
 
 def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> float:

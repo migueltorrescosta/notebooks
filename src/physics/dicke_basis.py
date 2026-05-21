@@ -265,7 +265,7 @@ def jx_operator(N: int) -> np.ndarray:
 
     from qutip import jmat
 
-    return jmat(N / 2.0, "x").full().real.astype(float)
+    return np.real(jmat(N / 2.0, "x").full()).astype(float)
 
 
 def jy_operator(N: int) -> np.ndarray:

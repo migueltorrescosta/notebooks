@@ -244,7 +244,7 @@ def evolve_lindblad(
     c_ops_qobj = [qutip.Qobj(L) for L in c_ops]
 
     # Call mesolve — QuTiP handles all integration
-    result = qutip.mesolve(H_qobj, rho0_qobj, [0, T], c_ops_qobj, [])
+    result = qutip.mesolve(H_qobj, rho0_qobj, [0, T], c_ops_qobj, e_ops=[])
 
     return result.states[-1].full()
 
@@ -286,7 +286,7 @@ def simulate_trajectory(
     c_ops_qobj = [qutip.Qobj(L) for L in c_ops]
 
     # Single call to mesolve returns states at every time point
-    result = qutip.mesolve(H_qobj, rho0_qobj, times, c_ops_qobj, [])
+    result = qutip.mesolve(H_qobj, rho0_qobj, times, c_ops_qobj, e_ops=[])
 
     rhos = np.array([state.full() for state in result.states])
     return times, rhos

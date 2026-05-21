@@ -383,9 +383,7 @@ def compute_twa_expectations(
     # Sample initial conditions and propagate trajectories
     Jz_samples = []
     J_total_samples = []
-
-    if store_trajectories:
-        all_trajectories = []
+    all_trajectories = []
 
     for _traj_idx in range(N_traj):
         # Sample initial Bloch vector
@@ -427,7 +425,7 @@ def compute_twa_expectations(
     }
 
     if store_trajectories:
-        result_dict["trajectories"] = np.array(all_trajectories)
+        result_dict["trajectories"] = np.array(all_trajectories)  # type: ignore[assignment]
 
     return result_dict
 

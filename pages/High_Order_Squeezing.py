@@ -38,14 +38,57 @@ for _candidate in _local_candidates:
         _local_path = _candidate
         break
 
-_migrated_functions_ok = False
+
+# Define stub functions unconditionally (safe fallback when local.py is unavailable)
+def _stub_adaptive_truncation(
+    alpha: complex, r_n: float, n: int, N_max: int = 200
+) -> int:
+    return max(N_max // 2, 10)
+
+
+def _stub_compute_wigner(
+    *a: object, **kw: object
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    return (np.linspace(-5, 5, 50), np.linspace(-5, 5, 50), np.zeros((50, 50)))
+
+
+def _stub_evolve(*a: object, **kw: object) -> np.ndarray:
+    return np.ones(2)
+
+
+def _stub_coherent(*a: object, **kw: object) -> np.ndarray:
+    return np.ones(2)
+
+
+def _stub_mean_photon(*a: object, **kw: object) -> float:
+    return 0.0
+
+
+def _stub_validate(*a: object, **kw: object) -> bool:
+    return True
+
+
+def _stub_wigner_neg(W: np.ndarray, tol: float = 1e-10) -> bool:
+    return False
+
+
+# Initialise with stub defaults — will be overridden when local.py loads
+adaptive_truncation = _stub_adaptive_truncation
+compute_wigner_for_state = _stub_compute_wigner
+evolve_hybrid_state = _stub_evolve
+hybrid_coherent_state = _stub_coherent
+hybrid_mean_photon = _stub_mean_photon
+validate_hybrid_state = _stub_validate
+wigner_is_negative = _stub_wigner_neg
+
+# Attempt to load the real functions from the report module
 if _local_path is not None:
     _spec = importlib.util.spec_from_file_location("report_local", str(_local_path))
     if _spec is not None and _spec.loader is not None:
         _report_local = importlib.util.module_from_spec(_spec)
         sys.modules[_spec.name] = _report_local
         _spec.loader.exec_module(_report_local)
-        # Migrated functions — loaded from local module
+        # Override stubs with real implementations
         adaptive_truncation = _report_local.adaptive_truncation
         compute_wigner_for_state = _report_local.compute_wigner_for_state
         evolve_hybrid_state = _report_local.evolve_hybrid_state
@@ -53,39 +96,6 @@ if _local_path is not None:
         hybrid_mean_photon = _report_local.hybrid_mean_photon
         validate_hybrid_state = _report_local.validate_hybrid_state
         wigner_is_negative = _report_local.wigner_is_negative
-        _migrated_functions_ok = True
-
-if not _migrated_functions_ok:
-    # Fallback stubs so the page loads gracefully when local.py is unavailable
-
-    def _stub_adaptive_truncation(alpha, r_n, n, N_max=200):  # type: ignore[misc]
-        return max(N_max // 2, 10)
-
-    def _stub_compute_wigner(*a, **kw):  # type: ignore[misc]
-        return (np.linspace(-5, 5, 50), np.linspace(-5, 5, 50), np.zeros((50, 50)))
-
-    def _stub_evolve(*a, **kw):  # type: ignore[misc]
-        return np.ones(2)
-
-    def _stub_coherent(*a, **kw):  # type: ignore[misc]
-        return np.ones(2)
-
-    def _stub_mean_photon(*a, **kw):  # type: ignore[misc]
-        return 0.0
-
-    def _stub_validate(*a, **kw):  # type: ignore[misc]
-        return True
-
-    def _stub_wigner_neg(W, tol=1e-10):  # type: ignore[misc]
-        return False
-
-    adaptive_truncation = _stub_adaptive_truncation
-    compute_wigner_for_state = _stub_compute_wigner
-    evolve_hybrid_state = _stub_evolve
-    hybrid_coherent_state = _stub_coherent
-    hybrid_mean_photon = _stub_mean_photon
-    validate_hybrid_state = _stub_validate
-    wigner_is_negative = _stub_wigner_neg
 
 # Non-exclusive helpers that remain in src/
 from src.physics.hybrid_mzi import qfi_hybrid_mzi  # noqa: E402
@@ -260,6 +270,9 @@ if show_wigner:
 else:
     w_min = 0.0
     is_neg = False
+    x = np.array([])
+    p = np.array([])
+    W = np.array([[0.0]])
 
 with col3:
     if show_wigner:
@@ -297,6 +310,7 @@ if show_wigner:
         st.info("Wigner function is non-negative (Gaussian-like state)")
 
 # MZI QFI computation
+fq = 0.0
 if show_qfi:
     st.subheader("MZI Phase Estimation - QFI")
 

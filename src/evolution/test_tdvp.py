@@ -34,8 +34,8 @@ EYE = np.array([[1, 0], [0, 1]], dtype=complex)
 
 def _make_tensor(state: np.ndarray) -> qtn.Tensor:
     """Shortcut: build a quimb Tensor from a 2-qubit (4-dim) state vector."""
-    return qtn.Tensor(
-        data=state.reshape(2, 2).astype(complex),
+    return qtn.Tensor(  # type: ignore[arg-type]
+        data=np.asarray(state.reshape(2, 2).astype(complex)),
         inds=("main", "ancilla"),
     )
 

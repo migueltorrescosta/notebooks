@@ -247,7 +247,7 @@ def input_state_factory(
             phi_sv = kwargs.get("phi_sv", 0.0)
             effective_max = max(N, max_photons or N)
             dim = effective_max + 1
-            squeezed = qutip.squeeze(dim, r * np.exp(1j * phi_sv)) * qutip.fock(dim, 0)
+            squeezed = qutip.squeeze(dim, r * np.exp(1j * phi_sv)) @ qutip.fock(dim, 0)
             sv_state: np.ndarray = (
                 qutip.tensor(squeezed, qutip.fock(dim, 0)).full().ravel()
             )
@@ -304,7 +304,7 @@ def compute_jz_expectation(state: np.ndarray, max_photons: int) -> complex:
     """
     jz = two_mode_jz_operator(max_photons)
     # Ensure state is in the right dimension
-    return np.conj(state) @ jz @ state
+    return complex(np.conj(state) @ jz @ state)
 
 
 def compute_jz_variance(state: np.ndarray, max_photons: int) -> float:
@@ -326,7 +326,7 @@ def compute_jz_variance(state: np.ndarray, max_photons: int) -> float:
     mean = np.conj(state) @ jz @ state
     mean_sq = np.conj(state) @ jz_sq @ state
 
-    return np.real(mean_sq - mean**2)
+    return float(np.real(mean_sq - mean**2))
 
 
 def compute_fisher_information(state: np.ndarray, max_photons: int) -> float:

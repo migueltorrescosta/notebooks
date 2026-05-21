@@ -445,4 +445,5 @@ if st.sidebar.toggle("Show history", value=False):
             height=200,
         )
     with c2:
-        plot_array(st.session_state.experiment_history_df.T, midpoint=None)
+        df_transposed = st.session_state.experiment_history_df.T
+        plot_array(np.asarray(df_transposed), midpoint=None)

@@ -216,7 +216,7 @@ def compute_variance_jz(state: np.ndarray, jz: np.ndarray) -> float:
     mean_sq = np.conj(state) @ jz_sq @ state
     var = np.real(mean_sq - mean**2)
     # Guard against tiny negative values from numerical error
-    return max(0.0, var)
+    return float(max(0.0, var))
 
 
 def compute_analytical_derivative(t_h: float, theta: float) -> float:
@@ -540,7 +540,7 @@ def validate_hold_unitarity(
 
 
 def generate_single_particle_raw_data(force: bool = False) -> Path:
-    """Run the single-particle sensitivity sweep and save raw data CSV.
+    """Run the single-particle sensitivity sweep and save raw data Parquet.
 
     Uses the report's standard parameters:
         theta = 1.0
@@ -548,26 +548,26 @@ def generate_single_particle_raw_data(force: bool = False) -> Path:
         Also runs multi-theta sweep at [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 
     Args:
-        force: Re-run even if CSV exists.
+        force: Re-run even if Parquet exists.
 
     Returns:
-        Path to the saved CSV directory.
+        Path to the saved data directory.
 
     """
     raw_dir = REPORTS_DIR / REPORT_DATE / "raw_data"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     # Standard sweep at theta = 1.0
-    csv_path = raw_dir / f"{REPORT_DATE}-single-particle-sweep.csv"
+    csv_path = raw_dir / f"{REPORT_DATE}-single-particle-sweep.parquet"
     if not csv_path.exists() or force:
         print(f"  Generating {csv_path.name} ...")
         df = compute_sensitivity_sweep(theta=1.0, n_points=500)
-        df.to_csv(csv_path, index=False, float_format="%.10g")
+        df.to_parquet(csv_path, index=False)
     else:
         print(f"  {csv_path.name} exists (use --force to regenerate)")
 
     # Multi-theta sweep
-    multi_csv = raw_dir / f"{REPORT_DATE}-single-particle-multi-theta-sweep.csv"
+    multi_csv = raw_dir / f"{REPORT_DATE}-single-particle-multi-theta-sweep.parquet"
     if not multi_csv.exists() or force:
         print(f"  Generating {multi_csv.name} ...")
         theta_values = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
@@ -576,7 +576,7 @@ def generate_single_particle_raw_data(force: bool = False) -> Path:
             df_t = compute_sensitivity_sweep(theta=theta, n_points=500)
             rows.append(df_t)
         multi_df = pd.concat(rows, ignore_index=True)
-        multi_df.to_csv(multi_csv, index=False, float_format="%.10g")
+        multi_df.to_parquet(multi_csv, index=False)
     else:
         print(f"  {multi_csv.name} exists (use --force to regenerate)")
 
@@ -584,7 +584,7 @@ def generate_single_particle_raw_data(force: bool = False) -> Path:
 
 
 def generate_ancilla_raw_data(force: bool = False) -> Path:
-    """Run ancilla-metrology experiments and save raw data CSVs.
+    """Run ancilla-metrology experiments and save raw data Parquet.
 
     Generates:
         1. Theta-scan with Nelder–Mead optimisation
@@ -592,10 +592,10 @@ def generate_ancilla_raw_data(force: bool = False) -> Path:
         3. Alpha 4D random search
 
     Args:
-        force: Re-run even if CSVs exist.
+        force: Re-run even if Parquets exist.
 
     Returns:
-        Path to the saved CSV directory.
+        Path to the saved data directory.
 
     """
     raw_dir = REPORTS_DIR / REPORT_DATE / "raw_data"
@@ -603,7 +603,7 @@ def generate_ancilla_raw_data(force: bool = False) -> Path:
 
     # 1. Theta scan (moderate settings for automated generation;
     #    use higher n_restarts/maxiter for report-quality results)
-    theta_csv = raw_dir / f"{REPORT_DATE}-ancilla-theta-scan.csv"
+    theta_csv = raw_dir / f"{REPORT_DATE}-ancilla-theta-scan.parquet"
     if not theta_csv.exists() or force:
         print(f"  Generating {theta_csv.name} (this may take several minutes) ...")
         theta_values = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
@@ -612,12 +612,12 @@ def generate_ancilla_raw_data(force: bool = False) -> Path:
             n_restarts=3,
             maxiter=500,
         )
-        scan_result.save_csv(theta_csv)
+        scan_result.save_parquet(theta_csv)
     else:
         print(f"  {theta_csv.name} exists (use --force to regenerate)")
 
     # 2. Alpha single-coefficient scan
-    alpha_csv = raw_dir / f"{REPORT_DATE}-ancilla-alpha-scan.csv"
+    alpha_csv = raw_dir / f"{REPORT_DATE}-ancilla-alpha-scan.parquet"
     if not alpha_csv.exists() or force:
         print(f"  Generating {alpha_csv.name} ...")
         alpha_names = ["xx", "xz", "zx", "zz"]
@@ -632,18 +632,16 @@ def generate_ancilla_raw_data(force: bool = False) -> Path:
             df = result.to_dataframe()
             df["coefficient"] = name
             scan_rows.append(df)
-        pd.concat(scan_rows, ignore_index=True).to_csv(
-            alpha_csv, index=False, float_format="%.10g"
-        )
+        pd.concat(scan_rows, ignore_index=True).to_parquet(alpha_csv, index=False)
     else:
         print(f"  {alpha_csv.name} exists (use --force to regenerate)")
 
     # 3. Alpha 4D random search
-    random_csv = raw_dir / f"{REPORT_DATE}-ancilla-random-search.csv"
+    random_csv = raw_dir / f"{REPORT_DATE}-ancilla-random-search.parquet"
     if not random_csv.exists() or force:
         print(f"  Generating {random_csv.name} ...")
         result = random_search_alpha(n_samples=200)
-        result.save_csv(random_csv)
+        result.save_parquet(random_csv)
     else:
         print(f"  {random_csv.name} exists (use --force to regenerate)")
 
@@ -675,7 +673,7 @@ def generate_single_particle_figures(force: bool = False) -> Path:
 
     # Run the standard sweep
     df = compute_sensitivity_sweep(theta=1.0, n_points=500)
-    _, _, df_fit = fit_scaling_exponent(df)
+    _, _, _ = fit_scaling_exponent(df)
 
     t_h_min = float(df["T_H"].min())
     t_h_max = float(df["T_H"].max())

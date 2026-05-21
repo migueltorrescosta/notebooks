@@ -162,17 +162,17 @@ class TestRunNoisyMzi:
         eye = qutip.qeye(dim)
         a0 = qutip.tensor(a, eye)
         a1 = qutip.tensor(eye, a)
-        H_bs = np.exp(1j * phi_bs) * (a0.dag() * a1) + np.exp(-1j * phi_bs) * (
-            a1.dag() * a0
+        H_bs = np.exp(1j * phi_bs) * (a0.dag() @ a1) + np.exp(-1j * phi_bs) * (
+            a1.dag() @ a0
         )
         U_bs = (-1j * theta * H_bs).expm()
-        U_phase = (1j * phi_phase * a1.dag() * a1).expm()
+        U_phase = (1j * phi_phase * a1.dag() @ a1).expm()
 
         psi_q = qutip.Qobj(state.reshape(-1, 1), dims=[[dim, dim], [1, 1]])
-        psi_q = U_bs * psi_q
-        psi_q = U_phase * psi_q
-        psi_q = U_bs * psi_q
-        rho_unitary = (psi_q * psi_q.dag()).full()
+        psi_q = U_bs @ psi_q
+        psi_q = U_phase @ psi_q
+        psi_q = U_bs @ psi_q
+        rho_unitary = (psi_q @ psi_q.dag()).full()
 
         assert np.allclose(rho_noiseless, rho_unitary, atol=1e-10), (
             "Noiseless noisy MZI should match unitary evolution"

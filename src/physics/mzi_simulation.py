@@ -742,7 +742,8 @@ def prepare_input_state(
         case "coherent":
             state = (
                 qutip.tensor(
-                    qutip.coherent(dim_single, alpha), qutip.fock(dim_single, 0)
+                    qutip.coherent(dim_single, float(alpha.real)),
+                    qutip.fock(dim_single, 0),
                 )
                 .full()
                 .ravel()

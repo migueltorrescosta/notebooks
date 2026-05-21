@@ -24,11 +24,13 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, cast, overload
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -2077,45 +2079,45 @@ class NScalingResult:
     hl_scaling: float = -1.0
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Flatten into a DataFrame (mean per N + std)."""
+        """Flatten into a DataFrame (mean per N + std + scalar metadata)."""
+        n = len(self.N_values)
         data: dict[str, np.ndarray] = {
             "N": self.N_values,
             "delta_theta": self.delta_theta_values,
             "delta_theta_std": self.delta_theta_std
-            if len(self.delta_theta_std) == len(self.N_values)
-            else np.full_like(self.N_values, float("nan")),
+            if len(self.delta_theta_std) == n
+            else np.full(n, float("nan")),
             "phi_opt": self.phi_opt_values,
             "a_opt": self.a_opt_values,
             "b_opt": self.b_opt_values,
+            "M_value": np.full(n, self.M_value, dtype=int),
+            "scaling_exponent": np.full(n, self.scaling_exponent),
+            "scaling_exponent_err": np.full(n, self.scaling_exponent_err),
+            "scaling_exponent_ci_lower": np.full(n, self.scaling_exponent_ci[0]),
+            "scaling_exponent_ci_upper": np.full(n, self.scaling_exponent_ci[1]),
+            "curvature": np.full(n, self.curvature),
+            "curvature_err": np.full(n, self.curvature_err),
+            "curvature_ci_lower": np.full(n, self.curvature_ci[0]),
+            "curvature_ci_upper": np.full(n, self.curvature_ci[1]),
+            "R_squared": np.full(n, self.R_squared),
+            "num_seeds": np.full(n, self.num_seeds, dtype=int),
+            "n_bootstrap": np.full(n, self.n_bootstrap, dtype=int),
+            "sql_scaling": np.full(n, self.sql_scaling),
+            "hl_scaling": np.full(n, self.hl_scaling),
         }
         return pd.DataFrame(data)
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> NScalingResult:
-        """Load from a CSV saved by save_csv().
-
-        The CSV stores per-N rows. Scalar metadata (scaling_exponent,
-        M_value, etc.) must be stored in a companion JSON file alongside
-        the CSV (``{stem}_meta.json``). Raises FileNotFoundError if the
-        metadata file is absent.
-        """
+    def from_parquet(cls, path: str | Path) -> NScalingResult:
+        """Load from a Parquet file saved by save_parquet()."""
         path = Path(path)
-        df = pd.read_csv(path)
-        meta_path = path.with_suffix(".meta.json")
-        if not meta_path.exists():
-            raise FileNotFoundError(
-                f"Metadata file {meta_path} not found. "
-                f"NScalingResult.save_csv stores metadata separately.",
-            )
-        import json as _json
-
-        meta: dict[str, Any] = _json.loads(meta_path.read_text())
+        df = pd.read_parquet(path)
 
         # Reconstruct arrays from the DataFrame
         N_values = df["N"].to_numpy(dtype=int)
@@ -2127,58 +2129,56 @@ class NScalingResult:
         a_opt_values = df["a_opt"].to_numpy(dtype=float)
         b_opt_values = df["b_opt"].to_numpy(dtype=float)
 
+        # Read scalar metadata from the first row
+        required_scalar_cols = [
+            "M_value",
+            "scaling_exponent",
+            "scaling_exponent_err",
+            "scaling_exponent_ci_lower",
+            "scaling_exponent_ci_upper",
+            "curvature",
+            "curvature_err",
+            "curvature_ci_lower",
+            "curvature_ci_upper",
+            "R_squared",
+            "num_seeds",
+            "n_bootstrap",
+            "sql_scaling",
+            "hl_scaling",
+        ]
+        missing = [c for c in required_scalar_cols if c not in df.columns]
+        if missing:
+            raise ValueError(
+                f"Missing required scalar columns in {path}: {missing}. "
+                f"Re-run the simulation that generated this file."
+            )
+
         return cls(
             N_values=N_values,
-            M_value=int(meta.get("M_value", 0)),
+            M_value=int(df["M_value"].iloc[0]),
             delta_theta_values=delta_theta_values,
             phi_opt_values=phi_opt_values,
             a_opt_values=a_opt_values,
             b_opt_values=b_opt_values,
-            scaling_exponent=float(meta.get("scaling_exponent", float("nan"))),
-            scaling_exponent_err=float(meta.get("scaling_exponent_err", float("nan"))),
-            curvature=float(meta.get("curvature", float("nan"))),
-            curvature_err=float(meta.get("curvature_err", float("nan"))),
-            R_squared=float(meta.get("R_squared", float("nan"))),
-            num_seeds=int(meta.get("num_seeds", 0)),
+            scaling_exponent=float(df["scaling_exponent"].iloc[0]),
+            scaling_exponent_err=float(df["scaling_exponent_err"].iloc[0]),
+            curvature=float(df["curvature"].iloc[0]),
+            curvature_err=float(df["curvature_err"].iloc[0]),
+            R_squared=float(df["R_squared"].iloc[0]),
+            num_seeds=int(df["num_seeds"].iloc[0]),
             delta_theta_std=delta_theta_std,
             scaling_exponent_ci=(
-                float(meta.get("scaling_exponent_ci_lower", float("nan"))),
-                float(meta.get("scaling_exponent_ci_upper", float("nan"))),
+                float(df["scaling_exponent_ci_lower"].iloc[0]),
+                float(df["scaling_exponent_ci_upper"].iloc[0]),
             ),
             curvature_ci=(
-                float(meta.get("curvature_ci_lower", float("nan"))),
-                float(meta.get("curvature_ci_upper", float("nan"))),
+                float(df["curvature_ci_lower"].iloc[0]),
+                float(df["curvature_ci_upper"].iloc[0]),
             ),
-            n_bootstrap=int(meta.get("n_bootstrap", 10000)),
+            n_bootstrap=int(df["n_bootstrap"].iloc[0]),
+            sql_scaling=float(df["sql_scaling"].iloc[0]),
+            hl_scaling=float(df["hl_scaling"].iloc[0]),
         )
-
-    def save_metadata_json(self, path: str | Path) -> Path:
-        """Save scalar metadata to a JSON companion file.
-
-        The CSV-only representation cannot store scalar fields (exponent,
-        CI, etc.). This method writes them to ``{path.stem}_meta.json``
-        alongside the CSV at ``path``.
-        """
-        path = Path(path)
-        meta_path = path.with_suffix(".meta.json")
-        import json as _json
-
-        meta: dict[str, object] = {
-            "M_value": self.M_value,
-            "scaling_exponent": self.scaling_exponent,
-            "scaling_exponent_err": self.scaling_exponent_err,
-            "scaling_exponent_ci_lower": self.scaling_exponent_ci[0],
-            "scaling_exponent_ci_upper": self.scaling_exponent_ci[1],
-            "curvature": self.curvature,
-            "curvature_err": self.curvature_err,
-            "curvature_ci_lower": self.curvature_ci[0],
-            "curvature_ci_upper": self.curvature_ci[1],
-            "R_squared": self.R_squared,
-            "num_seeds": self.num_seeds,
-            "n_bootstrap": self.n_bootstrap,
-        }
-        meta_path.write_text(_json.dumps(meta, indent=2))
-        return meta_path
 
 
 @dataclass
@@ -2206,49 +2206,48 @@ class MScalingResult:
     diminishing_threshold: float = 0.5
 
     def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "M": self.M_values,
-                "delta_theta": self.delta_theta_values,
-                "phi_opt": self.phi_opt_values,
-                "a_opt": self.a_opt_values,
-                "b_opt": self.b_opt_values,
-            }
-        )
+        n = len(self.M_values)
+        data = {
+            "M": self.M_values,
+            "delta_theta": self.delta_theta_values,
+            "phi_opt": self.phi_opt_values,
+            "a_opt": self.a_opt_values,
+            "b_opt": self.b_opt_values,
+            "N_value": np.full(n, self.N_value, dtype=int),
+            "improvement_01": np.full(n, self.improvement_01),
+            "diminishing_threshold": np.full(n, self.diminishing_threshold),
+        }
+        return pd.DataFrame(data)
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> MScalingResult:
-        """Load from a CSV saved by save_csv().
-
-        Scalar metadata (N_value, improvement_01) is loaded from a
-        companion JSON file (``{stem}_meta.json``).
-        """
+    def from_parquet(cls, path: str | Path) -> MScalingResult:
+        """Load from a Parquet file saved by save_parquet()."""
         path = Path(path)
-        df = pd.read_csv(path)
-        meta_path = path.with_suffix(".meta.json")
-        if not meta_path.exists():
-            raise FileNotFoundError(
-                f"Metadata file {meta_path} not found. "
-                f"MScalingResult.save_csv stores metadata separately.",
-            )
-        import json as _json
+        df = pd.read_parquet(path)
 
-        meta: dict[str, Any] = _json.loads(meta_path.read_text())
+        required_scalar_cols = ["N_value", "improvement_01", "diminishing_threshold"]
+        missing = [c for c in required_scalar_cols if c not in df.columns]
+        if missing:
+            raise ValueError(
+                f"Missing required scalar columns in {path}: {missing}. "
+                f"Re-run the simulation that generated this file."
+            )
 
         return cls(
             M_values=df["M"].to_numpy(dtype=int),
-            N_value=int(meta.get("N_value", 0)),
+            N_value=int(df["N_value"].iloc[0]),
             delta_theta_values=df["delta_theta"].to_numpy(dtype=float),
             phi_opt_values=df["phi_opt"].to_numpy(dtype=float),
             a_opt_values=df["a_opt"].to_numpy(dtype=float),
             b_opt_values=df["b_opt"].to_numpy(dtype=float),
-            improvement_01=float(meta.get("improvement_01", 0.0)),
+            improvement_01=float(df["improvement_01"].iloc[0]),
+            diminishing_threshold=float(df["diminishing_threshold"].iloc[0]),
         )
 
 
@@ -2292,7 +2291,7 @@ def _weighted_loglog_linear(
     ss_tot = np.sum(weights * (log_dt - y_bar) ** 2)
     R_sq = 1.0 - ss_res / ss_tot if ss_tot > 0 else float("nan")
 
-    return nu, c, R_sq, residuals
+    return nu, c, float(R_sq), residuals
 
 
 def _weighted_loglog_quadratic(
@@ -2321,7 +2320,7 @@ def _weighted_loglog_quadratic(
     ss_tot = np.sum(weights * (log_dt - y_bar) ** 2)
     R_sq = 1.0 - ss_res / ss_tot if ss_tot > 0 else float("nan")
 
-    return nu, beta, c, R_sq
+    return nu, beta, c, float(R_sq)
 
 
 def _bootstrap_scaling(
@@ -2671,66 +2670,50 @@ class AlphaReoptResultNM:
     M: int
 
     def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "alpha": self.alpha_values,
-                "delta_theta_weighted": self.delta_theta_weighted,
-                "delta_theta_sonly": self.delta_theta_sonly,
-                "a_opt": self.a_opt_values,
-                "b_opt": self.b_opt_values,
-                "phi_opt": self.phi_opt_values,
-            }
-        )
+        n = len(self.alpha_values)
+        data = {
+            "alpha": self.alpha_values,
+            "delta_theta_weighted": self.delta_theta_weighted,
+            "delta_theta_sonly": self.delta_theta_sonly,
+            "a_opt": self.a_opt_values,
+            "b_opt": self.b_opt_values,
+            "phi_opt": self.phi_opt_values,
+            "alpha_name": np.full(n, self.alpha_name, dtype=object),
+            "N": np.full(n, self.N, dtype=int),
+            "M": np.full(n, self.M, dtype=int),
+        }
+        return pd.DataFrame(data)
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
-    def save_metadata_json(self, path: str | Path) -> Path:
-        """Save scalar metadata to a JSON companion file."""
-        path = Path(path)
-        meta_path = path.with_suffix(".meta.json")
-        import json as _json
-
-        meta: dict[str, object] = {
-            "alpha_name": self.alpha_name,
-            "N": self.N,
-            "M": self.M,
-        }
-        meta_path.write_text(_json.dumps(meta, indent=2))
-        return meta_path
-
     @classmethod
-    def from_csv(cls, path: str | Path) -> AlphaReoptResultNM:
-        """Load from a CSV saved by save_csv().
-
-        Scalar metadata (alpha_name, N, M) is loaded from a
-        companion JSON file (``{stem}_meta.json``).
-        """
+    def from_parquet(cls, path: str | Path) -> AlphaReoptResultNM:
+        """Load from a Parquet file saved by save_parquet()."""
         path = Path(path)
-        df = pd.read_csv(path)
-        meta_path = path.with_suffix(".meta.json")
-        if not meta_path.exists():
-            raise FileNotFoundError(
-                f"Metadata file {meta_path} not found. "
-                f"AlphaReoptResultNM.save_csv stores metadata separately.",
-            )
-        import json as _json
+        df = pd.read_parquet(path)
 
-        meta: dict[str, Any] = _json.loads(meta_path.read_text())
+        required_scalar_cols = ["alpha_name", "N", "M"]
+        missing = [c for c in required_scalar_cols if c not in df.columns]
+        if missing:
+            raise ValueError(
+                f"Missing required scalar columns in {path}: {missing}. "
+                f"Re-run the simulation that generated this file."
+            )
 
         return cls(
-            alpha_name=str(meta.get("alpha_name", "")),
+            alpha_name=str(df["alpha_name"].iloc[0]),
             alpha_values=df["alpha"].to_numpy(dtype=float),
             delta_theta_weighted=df["delta_theta_weighted"].to_numpy(dtype=float),
             delta_theta_sonly=df["delta_theta_sonly"].to_numpy(dtype=float),
             a_opt_values=df["a_opt"].to_numpy(dtype=float),
             b_opt_values=df["b_opt"].to_numpy(dtype=float),
             phi_opt_values=df["phi_opt"].to_numpy(dtype=float),
-            N=int(meta.get("N", 0)),
-            M=int(meta.get("M", 0)),
+            N=int(df["N"].iloc[0]),
+            M=int(df["M"].iloc[0]),
         )
 
 
@@ -2991,7 +2974,7 @@ def plot_n_scaling(
     - Heisenberg limit reference: Δθ_HL = 1/(N · T_H)
     """
     if isinstance(result, (str, Path)):
-        result = NScalingResult.from_csv(result)
+        result = NScalingResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3116,7 +3099,7 @@ def plot_m_scaling(
     - SQL reference for N=4
     """
     if isinstance(result, (str, Path)):
-        result = MScalingResult.from_csv(result)
+        result = MScalingResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3219,7 +3202,7 @@ def plot_weighted_alpha_scan(
     - Optimal weight angle (secondary axis)
     """
     if isinstance(result, (str, Path)):
-        result = AlphaReoptResultNM.from_csv(result)
+        result = AlphaReoptResultNM.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3284,8 +3267,8 @@ REPORT_DATE = "2026-05-18"
 DRIVE_THETA_VALS = [0.1, 0.5, 1.0, 2.0, 5.0]
 
 
-def _csv_path(name: str) -> Path:
-    return REPORTS_DIR / REPORT_DATE / "raw_data" / f"{REPORT_DATE}-{name}.csv"
+def _parquet_path(name: str) -> Path:
+    return REPORTS_DIR / REPORT_DATE / "raw_data" / f"{REPORT_DATE}-{name}.parquet"
 
 
 def _fig_path(name: str) -> Path:
@@ -3294,12 +3277,12 @@ def _fig_path(name: str) -> Path:
 
 def generate_n_scaling(force: bool = False) -> None:
     """N-scaling with optimal weights, M=N."""
-    csv_p = _csv_path("n-scaling")
+    csv_p = _parquet_path("n-scaling")
     fig_p = _fig_path("n-scaling")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = NScalingResult.from_csv(csv_p)
+        result = NScalingResult.from_parquet(csv_p)
     else:
         print("[run]  Computing N-scaling (may be slow)...")
         N_vals = [1, 2, 3, 4, 6, 8, 12, 16]
@@ -3312,23 +3295,22 @@ def generate_n_scaling(force: bool = False) -> None:
             seed=42,
             n_bootstrap=10000,
         )
-        result.save_csv(csv_p)
-        result.save_metadata_json(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    result = NScalingResult.from_csv(csv_p)
+    result = NScalingResult.from_parquet(csv_p)
     plot_n_scaling(result, fig_p)
     print(f"[fig]  {fig_p}")
 
 
 def generate_m_scaling(force: bool = False) -> None:
     """M-scaling at fixed N=4."""
-    csv_p = _csv_path("m-scaling")
+    csv_p = _parquet_path("m-scaling")
     fig_p = _fig_path("m-scaling")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = MScalingResult.from_csv(csv_p)
+        result = MScalingResult.from_parquet(csv_p)
     else:
         print("[run]  Computing M-scaling (may be slow)...")
         M_vals = [0, 1, 2, 3, 4, 6, 8, 12]
@@ -3340,31 +3322,22 @@ def generate_m_scaling(force: bool = False) -> None:
             maxiter=200,
             seed=42,
         )
-        result.save_csv(csv_p)
-        import json as _json
-
-        meta_path = csv_p.with_suffix(".meta.json")
-        meta_path.write_text(
-            _json.dumps(
-                {"N_value": result.N_value, "improvement_01": result.improvement_01},
-                indent=2,
-            )
-        )
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    result = MScalingResult.from_csv(csv_p)
+    result = MScalingResult.from_parquet(csv_p)
     plot_m_scaling(result, fig_p)
     print(f"[fig]  {fig_p}")
 
 
 def generate_weighted_alpha_scan(force: bool = False) -> None:
     r"""\alpha_{xx} scan with weight re-optimisation, N=M=4."""
-    csv_p = _csv_path("alpha-scan-nm")
+    csv_p = _parquet_path("alpha-scan-nm")
     fig_p = _fig_path("alpha-scan-nm")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = AlphaReoptResultNM.from_csv(csv_p)
+        result = AlphaReoptResultNM.from_parquet(csv_p)
     else:
         print("[run]  Computing \u03b1_{xx} scan with re-optimisation...")
         alpha_vals = np.linspace(-2.0, 2.0, 21)
@@ -3377,27 +3350,26 @@ def generate_weighted_alpha_scan(force: bool = False) -> None:
             num_seeds=3,
             maxiter=100,
         )
-        result.save_csv(csv_p)
-        result.save_metadata_json(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    result = AlphaReoptResultNM.from_csv(csv_p)
+    result = AlphaReoptResultNM.from_parquet(csv_p)
     plot_weighted_alpha_scan(result, fig_p)
     print(f"[fig]  {fig_p}")
 
 
 def generate_drive_decoupled_baseline(force: bool = False) -> None:
     """Experiment 1: Decoupled baseline verification."""
-    csv_p = _csv_path("drive-decoupled-baseline")
+    csv_p = _parquet_path("drive-decoupled-baseline")
     fig_p = _fig_path("drive-decoupled-baseline")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveDecoupledBaselineResult.from_csv(csv_p)
+        result = DriveDecoupledBaselineResult.from_parquet(csv_p)
     else:
         print("[run]  Computing drive decoupled baseline...")
         result = compute_drive_decoupled_baseline()
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
     plot_drive_decoupled_baseline(result, fig_p)
@@ -3411,12 +3383,12 @@ def _run_drive_2d_slice(
 ) -> None:
     """Run a 2D slice scan for a single \u03b8 value and generate CSV + SVG."""
     tag = f"drive-2d-slice-{slice_type}-azz-theta{theta}"
-    csv_p = _csv_path(tag)
+    csv_p = _parquet_path(tag)
     fig_p = _fig_path(tag)
 
     if csv_p.exists() and not force:
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
-        result = Drive2DSliceResult.from_csv(csv_p)
+        result = Drive2DSliceResult.from_parquet(csv_p)
     else:
         print(f"  [run]  Computing ({slice_type}, a_zz) slice at \u03b8={theta}...")
         result = drive_2d_slice(
@@ -3425,7 +3397,7 @@ def _run_drive_2d_slice(
             n_drive=201,
             n_azz=201,
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"  [save] {csv_p}")
 
     plot_drive_2d_slice_heatmap(result, fig_p)
@@ -3451,12 +3423,12 @@ def generate_drive_random_search(force: bool = False) -> None:
     print(f"[run]  4D random search at {DRIVE_THETA_VALS}")
     for theta in DRIVE_THETA_VALS:
         tag = f"drive-random-search-theta{theta}"
-        csv_p = _csv_path(tag)
+        csv_p = _parquet_path(tag)
         fig_p = _fig_path(tag)
 
         if csv_p.exists() and not force:
             print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
-            result = DriveRandomSearchResult.from_csv(csv_p)
+            result = DriveRandomSearchResult.from_parquet(csv_p)
         else:
             print(
                 f"  [run]  Running 4D random search at \u03b8={theta} (500 samples)..."
@@ -3466,7 +3438,7 @@ def generate_drive_random_search(force: bool = False) -> None:
                 n_samples=500,
                 seed=42,
             )
-            result.save_csv(csv_p)
+            result.save_parquet(csv_p)
             print(f"  [save] {csv_p}")
 
         plot_drive_random_search_histogram(result, fig_p)
@@ -3475,12 +3447,12 @@ def generate_drive_random_search(force: bool = False) -> None:
 
 def generate_drive_theta_scan(force: bool = False) -> None:
     """Experiments 4 & 5: \u03b8-scan with Nelder-Mead refinement."""
-    csv_p = _csv_path("drive-theta-scan")
+    csv_p = _parquet_path("drive-theta-scan")
     fig_p = _fig_path("drive-theta-scan")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveThetaScanResult.from_csv(csv_p)
+        result = DriveThetaScanResult.from_parquet(csv_p)
     else:
         print("[run]  Computing drive \u03b8-scan (may be slow)...")
         result = run_drive_theta_scan(
@@ -3490,7 +3462,7 @@ def generate_drive_theta_scan(force: bool = False) -> None:
             seed=42,
             maxiter=5000,
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
     plot_drive_theta_scan(result, fig_p)
@@ -3499,10 +3471,10 @@ def generate_drive_theta_scan(force: bool = False) -> None:
 
 def generate_drive_optimal_params(force: bool = False) -> None:
     """Optimal parameter evolution vs \u03b8."""
-    csv_p = _csv_path("drive-theta-scan")
+    csv_p = _parquet_path("drive-theta-scan")
     fig_p = _fig_path("drive-optimal-params")
 
-    result = DriveThetaScanResult.from_csv(csv_p)
+    result = DriveThetaScanResult.from_parquet(csv_p)
     plot_drive_optimal_params(result, fig_p)
     print(f"[fig]  {fig_p}")
 
@@ -3549,11 +3521,11 @@ def main() -> None:
         if args.only not in tasks:
             print(f"Unknown dataset '{args.only}'. Options: {list(tasks.keys())}")
             sys.exit(1)
-        tasks[args.only](force=args.force)
+        tasks[args.only](args.force)
     else:
         for name, func in tasks.items():
             print(f"\n=== {name} ===")
-            func(force=args.force)
+            func(args.force)
 
     print("\nDone.")
 

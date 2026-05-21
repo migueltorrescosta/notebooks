@@ -40,6 +40,10 @@ with st.sidebar:
     st.header("Fisher Information", divider="gray")
     distribution = st.selectbox("Function", [dist.value for dist in Distributions])
 
+    # Initialise with default values (overridden by match branch below)
+    n = 3
+    theta_sample_size = 100
+
     match distribution:
         case Distributions.Binomial.value:
             c1, c2 = st.columns(2)

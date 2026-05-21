@@ -29,6 +29,7 @@ def _make_split_and_contract(
         max_bond=max_bond,
     )
     contracted = tn.contract()
+    assert contracted is not None
     return contracted.data.flatten()
 
 
@@ -45,18 +46,18 @@ class TestQuimbTensor:
 
     def test_qtn_tensor_created_with_data_and_indices(self) -> None:
         tensor = np.array([[1, 0], [0, 1]], dtype=complex)
-        t = qtn.Tensor(tensor, inds=("main", "ancilla"))
+        t = qtn.Tensor(np.asarray(tensor), inds=("main", "ancilla"))  # type: ignore[arg-type]
         assert t.data is not None
         assert t.shape == (2, 2)
         assert t.ndim == 2
         assert t.inds == ("main", "ancilla")
 
     def test_tensornetwork_supports_connected_tensors(self) -> None:
-        left = qtn.Tensor(
+        left = qtn.Tensor(  # type: ignore[arg-type]
             np.array([[1, 0], [0, 0]], dtype=complex),
             inds=("main", "bond"),
         )
-        right = qtn.Tensor(
+        right = qtn.Tensor(  # type: ignore[arg-type]
             np.array([[0, 0], [0, 1]], dtype=complex),
             inds=("bond", "ancilla"),
         )
@@ -176,6 +177,7 @@ class TestTruncation:
         t = bipartite_tensor_from_state(state, n_sites=2, local_dim=2)
         tn = t.split("main", bond_ind="bond", cutoff=0.2, cutoff_mode="rel")
         contracted = tn.contract()
+        assert contracted is not None
         norm = np.linalg.norm(contracted.data.flatten())
         assert norm == pytest.approx(1.0, abs=1e-2)
 

@@ -52,7 +52,6 @@ from src.analysis.ancilla_optimization import (  # noqa: E402
     I_2,
     bs_unitary,
     build_two_qubit_operators,
-    compute_expectation_and_variance,
 )
 
 sns.set_theme(style="whitegrid")
@@ -241,7 +240,6 @@ def compute_reduced_variance(psi: np.ndarray, meas_op: np.ndarray) -> float:
     assert np.isclose(trace, 1.0, atol=1e-12), f"Reduced trace = {trace} != 1"
 
     # J_z^S = σ_z/2
-    Jz_S = meas_op  # This is 4x4. Extract the 2x2 system part.
     Jz_S_sys = np.array([[0.5, 0.0], [0.0, -0.5]], dtype=complex)
 
     exp_val = float(np.real(np.trace(rho_S @ Jz_S_sys)))
@@ -291,12 +289,8 @@ def compute_xx_sensitivity(
     var = compute_reduced_variance(psi, meas_op)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂θ
-    psi_plus = evolve_xx_circuit(
-        psi0, T_BS, T_H, theta_true + fd_step, alpha_xx, ops
-    )
-    psi_minus = evolve_xx_circuit(
-        psi0, T_BS, T_H, theta_true - fd_step, alpha_xx, ops
-    )
+    psi_plus = evolve_xx_circuit(psi0, T_BS, T_H, theta_true + fd_step, alpha_xx, ops)
+    psi_minus = evolve_xx_circuit(psi0, T_BS, T_H, theta_true - fd_step, alpha_xx, ops)
 
     # Expectation from reduced state
     def _reduced_exp(psi_state: np.ndarray) -> float:
@@ -358,15 +352,15 @@ class XXGridScanResult:
             }
         )
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> XXGridScanResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> XXGridScanResult:
+        df = pd.read_parquet(path)
         required = {
             "alpha_xx",
             "delta_theta",
@@ -378,7 +372,7 @@ class XXGridScanResult:
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
-                f"CSV at {path} is missing required columns: {sorted(missing)}. "
+                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
                 "Regenerate the file with the current code."
             )
         alpha_xx_vals = df["alpha_xx"].to_numpy(dtype=float)
@@ -477,15 +471,15 @@ class XXThetaScanResult:
             )
         return pd.DataFrame(rows)
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> XXThetaScanResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> XXThetaScanResult:
+        df = pd.read_parquet(path)
         required = {
             "theta",
             "alpha_xx_opt",
@@ -495,7 +489,7 @@ class XXThetaScanResult:
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
-                f"CSV at {path} is missing required columns: {sorted(missing)}. "
+                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
                 "Regenerate the file with the current code."
             )
         thetas = df["theta"].to_numpy(dtype=float)
@@ -631,9 +625,7 @@ def xx_grid_scan(
     exp_val = 0.0
     var_val = 0.0
     if np.isfinite(alpha_opt):
-        psi = evolve_xx_circuit(
-            DEFAULT_PSI0, T_BS, T_H, theta, alpha_opt, ops
-        )
+        psi = evolve_xx_circuit(DEFAULT_PSI0, T_BS, T_H, theta, alpha_opt, ops)
         meas_op = ops["Jz_S"]
         var_val = compute_reduced_variance(psi, meas_op)
         # Also compute expectation using the reduced state
@@ -782,11 +774,13 @@ def plot_xx_theta_scan(
             rf" at $\theta$={best_theta:.2f}",
             xy=(best_theta, best_val),
             xytext=(best_theta + 0.8, best_val + 0.02),
-            arrowprops=dict(arrowstyle="->", color="black", lw=1.2),
+            arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
             fontsize=10,
-            bbox=dict(
-                boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray"
-            ),
+            bbox={
+                "boxstyle": "round,pad=0.3",
+                "facecolor": "white",
+                "edgecolor": "gray",
+            },
         )
 
     ax1.set_xlabel(r"$\theta$")
@@ -846,7 +840,6 @@ def plot_xx_optimal_params(
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
     theta = result.theta_values
-    sql_ref = float(result.sql_values[0]) if len(result.sql_values) > 0 else 0.1
 
     # Left panel: optimal α_xx vs θ
     valid_alpha = np.isfinite(result.alpha_xx_opt_per_theta)
@@ -866,9 +859,7 @@ def plot_xx_optimal_params(
     # Right panel: fraction below SQL vs θ
     valid_frac = result.total_points_per_theta > 0
     if np.any(valid_frac):
-        fractions = (
-            result.count_below_sql_per_theta / result.total_points_per_theta
-        )
+        fractions = result.count_below_sql_per_theta / result.total_points_per_theta
         ax2.plot(
             theta[valid_frac],
             fractions[valid_frac],
@@ -950,9 +941,7 @@ def plot_xx_grid_scan_example(
 
     ax.set_xlabel(r"$\alpha_{xx}$")
     ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(
-        rf"$\Delta\theta$ vs $\alpha_{{xx}}$ at $\theta={result.theta_value}$"
-    )
+    ax.set_title(rf"$\Delta\theta$ vs $\alpha_{{xx}}$ at $\theta={result.theta_value}$")
     ax.legend(fontsize=9)
 
     fig.tight_layout()
@@ -971,8 +960,8 @@ XX_THETA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
 XX_N_GRID = 2001
 
 
-def _csv_path(name: str) -> Path:
-    return REPORTS_DIR / XX_DATE / "raw_data" / f"{XX_DATE}-{name}.csv"
+def _parquet_path(name: str) -> Path:
+    return REPORTS_DIR / XX_DATE / "raw_data" / f"{XX_DATE}-{name}.parquet"
 
 
 def _fig_path(name: str) -> Path:
@@ -1024,16 +1013,16 @@ def _parallel_map(
 
 def generate_xx_decoupled_baseline(force: bool = False) -> None:
     """XX-coupling decoupled baseline verification."""
-    csv_p = _csv_path("xx-decoupled-baseline")
+    csv_p = _parquet_path("xx-decoupled-baseline")
     fig_p = _fig_path("xx-decoupled-baseline")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveDecoupledBaselineResult.from_csv(csv_p)
+        result = DriveDecoupledBaselineResult.from_parquet(csv_p)
     else:
         print("[run]  Computing XX-coupling decoupled baseline...")
         result = compute_xx_decoupled_baseline()
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
     # Use the shared plot function from the main codebase
@@ -1062,19 +1051,19 @@ def generate_xx_decoupled_baseline(force: bool = False) -> None:
 def _run_xx_grid_scan(theta: float, force: bool) -> None:
     """Run an XX-coupling grid scan for a single θ value."""
     tag = f"xx-grid-scan-theta{theta}"
-    csv_p = _csv_path(tag)
+    csv_p = _parquet_path(tag)
     fig_p = _fig_path(tag)
 
     if csv_p.exists() and not force:
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
-        result = XXGridScanResult.from_csv(csv_p)
+        result = XXGridScanResult.from_parquet(csv_p)
     else:
         print(f"  [run]  Computing XX grid scan at θ={theta} ({XX_N_GRID} points)...")
         result = xx_grid_scan(
             theta=theta,
             n_points=XX_N_GRID,
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"  [save] {csv_p}")
 
     plot_xx_grid_scan_example(result, fig_p)
@@ -1091,12 +1080,12 @@ def generate_xx_grid_scans(force: bool = False) -> None:
 
 def generate_xx_theta_scan(force: bool = False) -> None:
     """XX-coupling θ-scan with α_xx optimisation at each θ."""
-    csv_p = _csv_path("xx-theta-scan")
+    csv_p = _parquet_path("xx-theta-scan")
     fig_p = _fig_path("xx-theta-scan")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = XXThetaScanResult.from_csv(csv_p)
+        result = XXThetaScanResult.from_parquet(csv_p)
     else:
         n = len(XX_THETA_VALS)
         print(f"[run]  Computing XX θ-scan for {n} θ values ({XX_N_GRID} pts each)...")
@@ -1104,7 +1093,7 @@ def generate_xx_theta_scan(force: bool = False) -> None:
             theta_values=XX_THETA_VALS,
             n_points=XX_N_GRID,
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
     plot_xx_theta_scan(result, fig_p)
@@ -1113,16 +1102,14 @@ def generate_xx_theta_scan(force: bool = False) -> None:
 
 def generate_xx_optimal_params(force: bool = False) -> None:
     """Optimal parameter evolution (α_xx and fraction below SQL) vs θ."""
-    csv_p = _csv_path("xx-theta-scan")
+    csv_p = _parquet_path("xx-theta-scan")
     fig_p = _fig_path("xx-optimal-params")
 
     if not csv_p.exists():
-        print(
-            "[skip] xx-theta-scan.csv does not exist; run 'xx-theta-scan' first"
-        )
+        print("[skip] xx-theta-scan.parquet does not exist; run 'xx-theta-scan' first")
         return
 
-    result = XXThetaScanResult.from_csv(csv_p)
+    result = XXThetaScanResult.from_parquet(csv_p)
     plot_xx_optimal_params(result, fig_p)
     print(f"[fig]  {fig_p}")
 
@@ -1134,12 +1121,12 @@ def generate_xx_optimal_params(force: bool = False) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate 2026-05-20 report figures and CSVs",
+        description="Generate 2026-05-20 report figures and Parquet data",
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Re-run all simulations (overwrite existing CSVs)",
+        help="Re-run all simulations (overwrite existing Parquets)",
     )
     parser.add_argument(
         "--only",

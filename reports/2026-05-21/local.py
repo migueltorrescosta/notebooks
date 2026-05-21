@@ -446,15 +446,15 @@ class GeneralBFGSOptimizationResult:
             },
         )
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> GeneralBFGSOptimizationResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> GeneralBFGSOptimizationResult:
+        df = pd.read_parquet(path)
         required = {
             "theta_value",
             "alpha_xx_opt",
@@ -467,7 +467,7 @@ class GeneralBFGSOptimizationResult:
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
-                f"CSV at {path} is missing required columns: {sorted(missing)}. "
+                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
                 "Regenerate the file with the current code."
             )
         return cls(
@@ -598,15 +598,15 @@ class GeneralThetaScanResult:
             )
         return pd.DataFrame(rows)
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> GeneralThetaScanResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> GeneralThetaScanResult:
+        df = pd.read_parquet(path)
         required = {
             "theta",
             "alpha_xx_opt",
@@ -619,7 +619,7 @@ class GeneralThetaScanResult:
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
-                f"CSV at {path} is missing required columns: {sorted(missing)}. "
+                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
                 "Regenerate the file with the current code."
             )
         thetas = df["theta"].to_numpy(dtype=float)
@@ -1088,8 +1088,8 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 DATE_TAG = "2026-05-21"
 
 
-def _csv_path(name: str) -> Path:
-    return REPORTS_DIR / DATE_TAG / "raw_data" / f"{DATE_TAG}-{name}.csv"
+def _parquet_path(name: str) -> Path:
+    return REPORTS_DIR / DATE_TAG / "raw_data" / f"{DATE_TAG}-{name}.parquet"
 
 
 def _fig_path(name: str) -> Path:
@@ -1141,15 +1141,15 @@ def _parallel_map(
 
 def generate_decoupled_baseline(force: bool = False) -> None:
     """Decoupled baseline verification."""
-    csv_p = _csv_path("decoupled-baseline")
+    csv_p = _parquet_path("decoupled-baseline")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveDecoupledBaselineResult.from_csv(csv_p)
+        result = DriveDecoupledBaselineResult.from_parquet(csv_p)
     else:
         print("[run]  Computing decoupled baseline...")
         result = compute_general_decoupled_baseline()
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
     # No text-only figure — see theta-scan and convergence plots for visual results.
@@ -1158,15 +1158,15 @@ def generate_decoupled_baseline(force: bool = False) -> None:
 def _run_single_bfgs(theta: float, force: bool) -> None:
     """Run L-BFGS-B optimisation for a single θ value."""
     tag = f"bfgs-theta{theta}"
-    csv_p = _csv_path(tag)
+    csv_p = _parquet_path(tag)
 
     if csv_p.exists() and not force:
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
-        result = GeneralBFGSOptimizationResult.from_csv(csv_p)
+        result = GeneralBFGSOptimizationResult.from_parquet(csv_p)
     else:
         print(f"  [run]  Computing L-BFGS-B at θ={theta} ({N_BFGS_STARTS} starts)...")
         result = run_general_bfgs_optimization(theta_true=theta)
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"  [save] {csv_p}")
 
     # No text-only figure — see theta-scan and convergence plots for visual results.
@@ -1183,12 +1183,12 @@ def generate_bfgs_theta_scan(force: bool = False) -> None:
     _worker = _partial(_run_single_bfgs, force=force)
     _parallel_map(_worker, THETA_VALS, desc="L-BFGS-B optimisation per θ")
 
-    # Aggregate results into a single θ-scan CSV
-    agg_csv_p = _csv_path("theta-scan")
+    # Aggregate results into a single θ-scan Parquet
+    agg_csv_p = _parquet_path("theta-scan")
     agg_fig_p = _fig_path("theta-scan")
     conv_fig_p = _fig_path("convergence")
 
-    # Check that all per-θ CSVs exist
+    # Check that all per-θ Parquets exist
     theta_arr = np.array(THETA_VALS, dtype=float)
     n_theta = len(theta_arr)
 
@@ -1205,9 +1205,9 @@ def generate_bfgs_theta_scan(force: bool = False) -> None:
 
     for i, theta in enumerate(theta_arr):
         tag = f"bfgs-theta{theta}"
-        csv_p = _csv_path(tag)
+        csv_p = _parquet_path(tag)
         if csv_p.exists():
-            result = GeneralBFGSOptimizationResult.from_csv(csv_p)
+            result = GeneralBFGSOptimizationResult.from_parquet(csv_p)
             a_xx_opts[i] = result.alpha_opt[0]
             a_xz_opts[i] = result.alpha_opt[1]
             a_zx_opts[i] = result.alpha_opt[2]
@@ -1231,7 +1231,7 @@ def generate_bfgs_theta_scan(force: bool = False) -> None:
         d_exp_d_theta_per_theta=d_exp_vals,
         n_converged_per_theta=n_conv,
     )
-    agg_result.save_csv(agg_csv_p)
+    agg_result.save_parquet(agg_csv_p)
     print(f"[save] {agg_csv_p}")
 
     plot_general_theta_scan(agg_result, agg_fig_p)
@@ -1242,11 +1242,11 @@ def generate_bfgs_theta_scan(force: bool = False) -> None:
 
 
 def generate_figures(force: bool = False) -> None:
-    """Generate all figures from existing CSVs."""
+    """Generate all figures from existing Parquets."""
     # θ-scan figure
-    agg_csv_p = _csv_path("theta-scan")
+    agg_csv_p = _parquet_path("theta-scan")
     if agg_csv_p.exists():
-        agg_result = GeneralThetaScanResult.from_csv(agg_csv_p)
+        agg_result = GeneralThetaScanResult.from_parquet(agg_csv_p)
         plot_general_theta_scan(agg_result, _fig_path("theta-scan"))
         print(f"[fig]  {_fig_path('theta-scan')}")
         plot_general_convergence(agg_result, _fig_path("convergence"))
@@ -1260,12 +1260,12 @@ def generate_figures(force: bool = False) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate 2026-05-21 report figures and CSVs",
+        description="Generate 2026-05-21 report figures and Parquet data",
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Re-run all simulations (overwrite existing CSVs)",
+        help="Re-run all simulations (overwrite existing Parquets)",
     )
     parser.add_argument(
         "--only",

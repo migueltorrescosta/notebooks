@@ -213,7 +213,7 @@ def evolve_mzi_lindblad(
         if not c_ops_qobj:
             # Unitary evolution only (no Lindblad terms)
             U_qobj = (-1.0j * config.T * H_qobj).expm()
-            rho_qobj = U_qobj * rho_qobj * U_qobj.dag()
+            rho_qobj = U_qobj @ rho_qobj @ U_qobj.dag()
             rho = rho_qobj.full()
         else:
             # Full Lindblad evolution via QuTiP mesolve
@@ -222,7 +222,7 @@ def evolve_mzi_lindblad(
                 rho_qobj,
                 [0, config.T],
                 c_ops_qobj,
-                [],
+                e_ops=[],
             )
             rho = result.states[-1].full()
 
@@ -322,12 +322,12 @@ def run_noisy_mzi(
 
     a0 = qutip.tensor(a, eye)  # a ⊗ I  — mode 0
     a1 = qutip.tensor(eye, a)  # I ⊗ a  — mode 1
-    n1 = a1.dag() * a1  # number operator on mode 1
+    n1 = a1.dag() @ a1  # number operator on mode 1
 
     # Beam splitter unitary: U_BS = exp(-iθ H_BS)
     # H_BS = e^{iφ} a₀† a₁ + e^{-iφ} a₁† a₀
-    H_bs = np.exp(1j * phi_bs) * (a0.dag() * a1) + np.exp(-1j * phi_bs) * (
-        a1.dag() * a0
+    H_bs = np.exp(1j * phi_bs) * (a0.dag() @ a1) + np.exp(-1j * phi_bs) * (
+        a1.dag() @ a0
     )
     U_bs = (-1j * theta * H_bs).expm()
 
@@ -344,7 +344,7 @@ def run_noisy_mzi(
     rho_qobj = U_bs * rho_qobj * U_bs.dag()
 
     # Apply phase shift: ρ → U_phase ρ U_phase†
-    rho_qobj = U_phase * rho_qobj * U_phase.dag()
+    rho_qobj = U_phase @ rho_qobj @ U_phase.dag()
 
     # Apply Lindblad decoherence
     has_noise = (
@@ -358,6 +358,6 @@ def run_noisy_mzi(
         rho_qobj = qutip.Qobj(rho, dims=dims)
 
     # Apply BS2: ρ → U_BS ρ U_BS†
-    rho_qobj = U_bs * rho_qobj * U_bs.dag()
+    rho_qobj = U_bs @ rho_qobj @ U_bs.dag()
 
     return rho_qobj.full()

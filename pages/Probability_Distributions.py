@@ -65,11 +65,15 @@ with st.sidebar:
         initial_wave_packet_str,
     )
 
+    # Default values (overridden by match branches below)
+    n_particles: int = 1
+    t_max = 1.0
+
     match initial_wave_packet:
         case ProbabilityDistribution.ParticleDecay.value:
             c1, c2, c3 = st.columns(3)
             with c1:
-                n_particles: int = st.number_input(
+                n_particles = st.number_input(
                     "$N$ particles",
                     min_value=1,
                     value=50,

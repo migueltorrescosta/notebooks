@@ -23,10 +23,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import qutip
 import scipy
 import scipy.linalg
+from scipy.linalg import expm
+from scipy.optimize import curve_fit
 
 from src.analysis.fisher_information import quantum_fisher_information_dm
 from src.analysis.scaling_fit import ScalingFitResult, fit_scaling_exponent
@@ -52,6 +55,8 @@ from src.physics.noise_channels import NoiseConfig
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from numpy.typing import NDArray
 
 REPORT_DATE = "2026-05-11"
 REPORTS_DIR = Path(__file__).resolve().parent.parent
@@ -352,7 +357,7 @@ def weak_value_mzi(
     # When post_select_angle ≈ π/2, this overlap is small, giving
     # large |A_w| = |⟨f|n₁|i⟩ / ⟨f|i⟩|.
     # ------------------------------------------------------------------
-    overlap_fi: complex = np.vdot(post_selected_state, pre_selected_state)
+    overlap_fi: complex = complex(np.vdot(post_selected_state, pre_selected_state))
 
     # Guard against division by zero (exactly orthogonal case)
     if np.isclose(abs(overlap_fi), 0.0, atol=1e-15):
@@ -377,9 +382,8 @@ def weak_value_mzi(
     # The weak value A_w represents the effective amplification of the
     # phase shift φ in the post-selected outcome.
     # ------------------------------------------------------------------
-    weak_val: complex = (
-        np.vdot(post_selected_state, n1 @ pre_selected_state) / overlap_fi
-    )
+    weak_val_np = np.vdot(post_selected_state, n1 @ pre_selected_state) / overlap_fi
+    weak_val: complex = complex(weak_val_np.item())
 
     # Physics assertion: the weak value should be predominantly real
     # for the standard MZI configuration. The imaginary part arises
@@ -654,10 +658,6 @@ def weak_value_mzi_sensitivity(
 # =============================================================================
 # Section: thermal_langevin
 # =============================================================================
-import numpy.typing as npt
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 # =============================================================================
 # Configuration
@@ -1386,7 +1386,6 @@ def dd_sensitivity_scaling(
 # =============================================================================
 # Section: tilt_to_length_noise
 # =============================================================================
-from scipy.optimize import curve_fit
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -3033,7 +3032,7 @@ def _compute_noisy_sensitivity(
             c_ops = [np.sqrt(noise_level) * a1]
         elif noise_type == "two_body":
             a1 = qutip.tensor(qutip.qeye(dim), qutip.destroy(dim))
-            c_ops = [np.sqrt(noise_level) * (a1 * a1)]
+            c_ops = [np.sqrt(noise_level) * (a1 @ a1)]
         elif noise_type == "detection":
             return _compute_detection_noise_sensitivity(state, max_photons, noise_level)
         else:
@@ -3460,12 +3459,12 @@ def fit_all_exponents(
 # =============================================================================
 
 
-def survey_to_csv(survey_df: pd.DataFrame, path: str) -> None:
-    """Export survey results to CSV.
+def survey_to_parquet(survey_df: pd.DataFrame, path: str) -> None:
+    """Export survey results to Parquet.
 
     Args:
         survey_df: DataFrame from run_scaling_survey or fit_all_exponents.
-        path: File path to write the CSV.
+        path: File path to write the Parquet.
 
     Raises:
         ValueError: If survey_df is empty.
@@ -3474,7 +3473,7 @@ def survey_to_csv(survey_df: pd.DataFrame, path: str) -> None:
     if survey_df.empty:
         raise ValueError("Cannot export empty DataFrame")
 
-    survey_df.to_csv(path, index=False)
+    survey_df.to_parquet(path, index=False)
 
 
 def survey_to_json(survey_df: pd.DataFrame, path: str) -> None:
@@ -3505,16 +3504,16 @@ def survey_to_json(survey_df: pd.DataFrame, path: str) -> None:
 
     # Handle numpy types for JSON serialization
     class NumpyEncoder(json.JSONEncoder):
-        def default(self, obj: object) -> object:
-            if isinstance(obj, (np.integer,)):
-                return int(obj)
-            if isinstance(obj, (np.floating,)):
-                return float(obj)
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-            if isinstance(obj, (np.bool_,)):
-                return bool(obj)
-            return super().default(obj)
+        def default(self, o: object) -> object:
+            if isinstance(o, (np.integer,)):
+                return int(o)
+            if isinstance(o, (np.floating,)):
+                return float(o)
+            if isinstance(o, np.ndarray):
+                return o.tolist()
+            if isinstance(o, (np.bool_,)):
+                return bool(o)
+            return super().default(o)
 
     Path(path).write_text(json.dumps(output, indent=2, cls=NumpyEncoder))
 
@@ -3769,7 +3768,6 @@ def create_default_survey() -> list[ModelConfig]:
 # =============================================================================
 # Section: ancilla_comparison
 # =============================================================================
-from scipy.linalg import expm
 
 # =============================================================================
 # Operator Construction

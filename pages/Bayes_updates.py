@@ -64,6 +64,19 @@ prior_vector = np.array([0.0])
 likelihood_vector = np.array([0.0])
 
 
+# Default functions (overridden by match branches below)
+def _unit_prior(x: float) -> float:
+    return 1.0
+
+
+def _unit_likelihood(x: float) -> float:
+    return 1.0
+
+
+prior_fn = _unit_prior
+likelihood_fn = _unit_likelihood
+
+
 with st.sidebar:
     st.header("Setup", divider="gray")
     c1, c2 = st.columns(2)
@@ -92,9 +105,9 @@ with st.sidebar:
                 mu = st.number_input(r"$\mu_2$", value=0.0)
                 prior_fn = partial(prior_gaussian, a=a, mu=mu)
 
-        prior_vals = np.array([prior_fn(x) for x in domain])
-        prior_vector = np.maximum(prior_vals, 0)
-        prior_vector = prior_vector / np.sum(prior_vector)
+    prior_vals = np.array([prior_fn(x) for x in domain])
+    prior_vector = np.maximum(prior_vals, 0)
+    prior_vector = prior_vector / np.sum(prior_vector)
 
     with c2:
         likelihood_distribution = st.selectbox(

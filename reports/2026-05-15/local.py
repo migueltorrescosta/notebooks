@@ -72,7 +72,7 @@ def plot_decoupled_baseline(
     confirming SQL saturation.
     """
     if isinstance(result, (str, Path)):
-        result = DecoupledBaselineResult.from_csv(result)
+        result = DecoupledBaselineResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -120,7 +120,7 @@ def plot_theta_scan(
     Fringe-extremum points are highlighted in red.
     """
     if isinstance(result, (str, Path)):
-        result = ThetaScanResult.from_csv(result)
+        result = ThetaScanResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -192,7 +192,7 @@ def plot_interaction_robustness(
     Lines are grouped by α value with distinct colours.
     """
     if isinstance(result, (str, Path)):
-        result = InteractionRobustnessResult.from_csv(result)
+        result = InteractionRobustnessResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -255,7 +255,7 @@ def plot_alpha_reoptimisation(
     Includes a horizontal SQL reference line.
     """
     if isinstance(result, (str, Path)):
-        result = AlphaReoptScanResult.from_csv(result)
+        result = AlphaReoptScanResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -314,7 +314,7 @@ def plot_covariance_analysis(
     Bars are colour-coded by the sign of the covariance.
     """
     if isinstance(result, (str, Path)):
-        result = CovarianceAnalysisResult.from_csv(result)
+        result = CovarianceAnalysisResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -366,8 +366,8 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 REPORT_DATE = "2026-05-15"
 
 
-def _csv_path(name: str, date: str) -> Path:
-    return REPORTS_DIR / date / "raw_data" / f"{date}-{name}.csv"
+def _parquet_path(name: str, date: str) -> Path:
+    return REPORTS_DIR / date / "raw_data" / f"{date}-{name}.parquet"
 
 
 def _fig_path(name: str, date: str) -> Path:
@@ -381,17 +381,17 @@ def _fig_path(name: str, date: str) -> Path:
 
 def generate_decoupled_baseline(force: bool = False) -> None:
     """Sections 1 & 2: Decoupled baseline and expanded T_H bound."""
-    csv_p = _csv_path("decoupled-baseline", date=REPORT_DATE)
+    csv_p = _parquet_path("decoupled-baseline", date=REPORT_DATE)
     fig_p = _fig_path("decoupled-baseline", date=REPORT_DATE)
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DecoupledBaselineResult.from_csv(csv_p)
+        result = DecoupledBaselineResult.from_parquet(csv_p)
     else:
         print("[run]  Computing decoupled baseline...")
         T_H_vals = np.array([0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0])
         result = compute_decoupled_baseline(T_H_vals)
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
     plot_decoupled_baseline(result, fig_p)
@@ -400,7 +400,7 @@ def generate_decoupled_baseline(force: bool = False) -> None:
 
 def generate_theta_scan(force: bool = False) -> None:
     """Sections 3 & 9: θ-scan with Nelder-Mead optimisation."""
-    csv_p = _csv_path("theta-scan", date=REPORT_DATE)
+    csv_p = _parquet_path("theta-scan", date=REPORT_DATE)
     fig_p = _fig_path("theta-scan", date=REPORT_DATE)
 
     if csv_p.exists() and not force:
@@ -417,17 +417,17 @@ def generate_theta_scan(force: bool = False) -> None:
             maxiter=2000,
             meas_op=M_op,
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    result = ThetaScanResult.from_csv(csv_p)
+    result = ThetaScanResult.from_parquet(csv_p)
     plot_theta_scan(result, fig_p)
     print(f"[fig]  {fig_p}")
 
 
 def generate_interaction_robustness(force: bool = False) -> None:
     """Section 8: T_H × α interaction robustness."""
-    csv_p = _csv_path("interaction-robustness", date=REPORT_DATE)
+    csv_p = _parquet_path("interaction-robustness", date=REPORT_DATE)
     fig_p = _fig_path("interaction-robustness", date=REPORT_DATE)
 
     if csv_p.exists() and not force:
@@ -442,17 +442,17 @@ def generate_interaction_robustness(force: bool = False) -> None:
             theta_true=1.0,
             alpha_name="xx",
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    result = InteractionRobustnessResult.from_csv(csv_p)
+    result = InteractionRobustnessResult.from_parquet(csv_p)
     plot_interaction_robustness(result, fig_p)
     print(f"[fig]  {fig_p}")
 
 
 def generate_alpha_reoptimisation(force: bool = False) -> None:
     """Section 7: α-scan with state re-optimisation."""
-    csv_p = _csv_path("alpha-reoptimisation", date=REPORT_DATE)
+    csv_p = _parquet_path("alpha-reoptimisation", date=REPORT_DATE)
     fig_p = _fig_path("alpha-reoptimisation", date=REPORT_DATE)
 
     if csv_p.exists() and not force:
@@ -467,17 +467,17 @@ def generate_alpha_reoptimisation(force: bool = False) -> None:
             maxiter=500,
             seed=42,
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    result = AlphaReoptScanResult.from_csv(csv_p)
+    result = AlphaReoptScanResult.from_parquet(csv_p)
     plot_alpha_reoptimisation(result, fig_p)
     print(f"[fig]  {fig_p}")
 
 
 def generate_covariance_analysis(force: bool = False) -> None:
     """Section 5: Covariance analysis."""
-    csv_p = _csv_path("covariance-analysis", date=REPORT_DATE)
+    csv_p = _parquet_path("covariance-analysis", date=REPORT_DATE)
     fig_p = _fig_path("covariance-analysis", date=REPORT_DATE)
 
     if csv_p.exists() and not force:
@@ -485,10 +485,10 @@ def generate_covariance_analysis(force: bool = False) -> None:
     else:
         print("[run]  Computing covariance analysis...")
         result = compute_covariance_analysis()
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    result = CovarianceAnalysisResult.from_csv(csv_p)
+    result = CovarianceAnalysisResult.from_parquet(csv_p)
     plot_covariance_analysis(result, fig_p)
     print(f"[fig]  {fig_p}")
 
@@ -500,12 +500,12 @@ def generate_covariance_analysis(force: bool = False) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate report figures and CSVs",
+        description="Generate report figures and Parquet data",
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Re-run all simulations (overwrite existing CSVs)",
+        help="Re-run all simulations (overwrite existing Parquets)",
     )
     parser.add_argument(
         "--only",

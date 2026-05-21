@@ -900,8 +900,8 @@ class TestInteractionRobustness:
             assert result.delta_theta_joint[i, 2] == pytest.approx(expected, rel=0.05)
 
 
-class TestCsvRoundtrip:
-    """Verify that each plottable dataclass can roundtrip through CSV."""
+class TestParquetRoundtrip:
+    """Verify that each plottable dataclass can roundtrip through Parquet."""
 
     def test_decoupled_baseline_roundtrip(self, tmp_path: Path) -> None:
         T_H = np.array([0.5, 1.0, 2.0, 5.0])
@@ -911,9 +911,9 @@ class TestCsvRoundtrip:
             delta_theta_values=sql.copy(),
             sql_values=sql.copy(),
         )
-        csv_path = tmp_path / "test.csv"
-        original.save_csv(csv_path)
-        loaded = DecoupledBaselineResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test.parquet"
+        original.save_parquet(parquet_path)
+        loaded = DecoupledBaselineResult.from_parquet(parquet_path)
         assert loaded.T_H_values == pytest.approx(original.T_H_values)
         assert loaded.delta_theta_values == pytest.approx(original.delta_theta_values)
         assert loaded.sql_values == pytest.approx(original.sql_values)
@@ -924,9 +924,9 @@ class TestCsvRoundtrip:
             best_per_theta=np.array([0.2, 0.3, 0.4]),
             all_results={},
         )
-        csv_path = tmp_path / "test.csv"
-        original.save_csv(csv_path)
-        loaded = ThetaScanResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test.parquet"
+        original.save_parquet(parquet_path)
+        loaded = ThetaScanResult.from_parquet(parquet_path)
         assert loaded.theta_values == pytest.approx(original.theta_values)
         assert loaded.best_per_theta == pytest.approx(original.best_per_theta)
 
@@ -936,9 +936,9 @@ class TestCsvRoundtrip:
             delta_theta_joint=np.array([0.5, 0.6, 0.7]),
             delta_theta_sonly=np.array([0.8, 0.9, 1.0]),
         )
-        csv_path = tmp_path / "test.csv"
-        original.save_csv(csv_path)
-        loaded = AlphaReoptScanResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test.parquet"
+        original.save_parquet(parquet_path)
+        loaded = AlphaReoptScanResult.from_parquet(parquet_path)
         assert loaded.alpha_values == pytest.approx(original.alpha_values)
         assert loaded.delta_theta_joint == pytest.approx(original.delta_theta_joint)
         assert loaded.delta_theta_sonly == pytest.approx(original.delta_theta_sonly)
@@ -949,9 +949,9 @@ class TestCsvRoundtrip:
             alpha_values=np.linspace(-1.0, 1.0, 5),
             delta_theta_values=np.ones(5),
         )
-        csv_path = tmp_path / "test.csv"
-        original.save_csv(csv_path)
-        loaded = AlphaSingleScanResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test.parquet"
+        original.save_parquet(parquet_path)
+        loaded = AlphaSingleScanResult.from_parquet(parquet_path)
         # alpha_name is not preserved — must be set manually
         assert loaded.alpha_values == pytest.approx(original.alpha_values)
         assert loaded.delta_theta_values == pytest.approx(original.delta_theta_values)
@@ -963,9 +963,9 @@ class TestCsvRoundtrip:
             best_alpha=(1.0, 0.0, 0.0, 0.0),
             best_delta_theta=0.5,
         )
-        csv_path = tmp_path / "test.csv"
-        original.save_csv(csv_path)
-        loaded = AlphaRandomSearchResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test.parquet"
+        original.save_parquet(parquet_path)
+        loaded = AlphaRandomSearchResult.from_parquet(parquet_path)
         assert loaded.alpha_samples == pytest.approx(original.alpha_samples)
         assert loaded.delta_theta_values == pytest.approx(original.delta_theta_values)
         assert loaded.best_delta_theta == pytest.approx(original.best_delta_theta)
@@ -977,9 +977,9 @@ class TestCsvRoundtrip:
             delta_theta_joint=np.array([[0.8, 0.6, 0.8], [0.4, 0.3, 0.4]]),
             delta_theta_sonly=np.array([[1.0, 0.9, 1.0], [0.5, 0.4, 0.5]]),
         )
-        csv_path = tmp_path / "test.csv"
-        original.save_csv(csv_path)
-        loaded = InteractionRobustnessResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test.parquet"
+        original.save_parquet(parquet_path)
+        loaded = InteractionRobustnessResult.from_parquet(parquet_path)
         assert loaded.T_H_values == pytest.approx(original.T_H_values)
         assert loaded.alpha_values == pytest.approx(original.alpha_values)
         assert loaded.delta_theta_joint == pytest.approx(original.delta_theta_joint)
@@ -991,9 +991,9 @@ class TestCsvRoundtrip:
             max_covariances=np.array([0.12, 0.12, 0.10, 0.10]),
             covariance_signs=np.array([1.0, 1.0, 1.0, -1.0]),
         )
-        csv_path = tmp_path / "test.csv"
-        original.save_csv(csv_path)
-        loaded = CovarianceAnalysisResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test.parquet"
+        original.save_parquet(parquet_path)
+        loaded = CovarianceAnalysisResult.from_parquet(parquet_path)
         assert loaded.coefficient_names == original.coefficient_names
         assert loaded.max_covariances == pytest.approx(original.max_covariances)
         assert loaded.covariance_signs == pytest.approx(original.covariance_signs)

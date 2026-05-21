@@ -102,11 +102,11 @@ Key notes:
 
 ### Serialization
 
-- **Completeness**: Every result dataclass with `to_dataframe()` / `save_csv()` must serialize all input parameters alongside computed results — theta_value, T_H, SQL, bounds, and any other configuration. The CSV file must be fully self-describing.
-- **Fail-fast deserialization**: Every `from_csv()` must require all expected columns. No silent fallback defaults for metadata fields. Raise a `ValueError` listing every missing column.
-- **Legacy CSV failures**: When encountering a legacy CSV missing required columns, raise a `ValueError` listing every missing column and directing the user to re-run the simulation that generated it. Never attempt to infer or fill in missing metadata.
-- **Roundtrip testing**: Every result dataclass with CSV roundtrip must have a test verifying that all metadata fields survive the roundtrip (theta_value, T_H, sql, slice_type, etc.). Do not restrict roundtrip tests to computed arrays only.
-- **Fail-fast testing**: When `from_csv` is changed to fail fast (removing silent defaults), add a test that loading a CSV missing required metadata columns raises the expected error.
+- **Completeness**: Every result dataclass with `to_dataframe()` / `save_parquet()` must serialize all input parameters alongside computed results — theta_value, T_H, SQL, bounds, and any other configuration. The Parquet file must be fully self-describing.
+- **Fail-fast deserialization**: Every `from_parquet()` must require all expected columns. No silent fallback defaults for metadata fields. Raise a `ValueError` listing every missing column.
+- **Legacy Parquet failures**: When encountering a Parquet file missing required columns, raise a `ValueError` listing every missing column and directing the user to re-run the simulation that generated it. Never attempt to infer or fill in missing metadata.
+- **Roundtrip testing**: Every result dataclass with Parquet roundtrip must have a test verifying that all metadata fields survive the roundtrip (theta_value, T_H, sql, slice_type, etc.). Do not restrict roundtrip tests to computed arrays only.
+- **Fail-fast testing**: When `from_parquet` is changed to fail fast (removing silent defaults), add a test that loading a Parquet file missing required metadata columns raises the expected error.
 
 ### Streamlit Page Conventions
 
@@ -148,7 +148,7 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 ### Error Handling
 
 - Physics/simulation code must raise exceptions or use `assert` — never silently fail.
-- **Fail-fast principle**: A silent default today is a subtle data corruption tomorrow. See Code Architecture §Serialization for CSV deserialization conventions.
+- **Fail-fast principle**: A silent default today is a subtle data corruption tomorrow. See Code Architecture §Serialization for Parquet deserialization conventions.
 - UI (`pages/`) code must catch and display exceptions gracefully to the user via `st.error`.
 
 ### Performance
@@ -326,7 +326,7 @@ Central table mapping models to expected scaling exponents. Columns: `| Model | 
 #### 💻 Numerical Simulation
 Three subsections:
 
-1. **Implementation strategy** — ordered list describing the high-level approach (composable pipeline, key function signatures, dimension management, solvers). Every dataclass must store all input parameters alongside computed results and serialize them in `to_dataframe()` — CSVs must be self-describing.
+1. **Implementation strategy** — ordered list describing the high-level approach (composable pipeline, key function signatures, dimension management, solvers). Every dataclass must store all input parameters alongside computed results and serialize them in `to_dataframe()` — Parquet files must be self-describing.
 2. **Parameter sweep** — table with single "Parameter" column (name and symbol combined), single "Range" column (range, step size, and point count combined), and "Purpose" column
 3. **Validation** — prose paragraph with inline equations enumerating physical invariants (state normalisation, unitarity, variance positivity, sensitivity positivity, baseline recovery, commutation relations, Hermiticity)
 
@@ -361,10 +361,11 @@ Optional unsolved issues and future directions. Start the paragraph with `**Open
 ```bash
 uv run pytest . --testmon --quiet --tb=short   # Run tests
 uv run ruff check . --fix && uv run ruff format .   # Lint + format
-uv run mypy .                                  # Type checks
+uv run mypy .                                  # Type checks (static analysis)
+uvx pyright .                                  # Type checks (live analysis)
 uv run streamlit run Home.py                   # Start app
 uv sync                                        # Update dependencies
 gocard -dir ~/Git/notebooks/revise             # Study revision cards
 ```
 
-**Configuration**: `pyproject.toml` defines pytest (testpaths, warnings), mypy (strict typing), and ruff settings.
+**Configuration**: `pyproject.toml` defines pytest (testpaths, warnings), mypy (strict typing), pyright (live analysis), and ruff settings.

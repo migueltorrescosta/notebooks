@@ -16,12 +16,18 @@ from __future__ import annotations
 # (The directory name contains hyphens so a dotted-package import is not
 # possible.)
 import sys as _sys
-from pathlib import Path  # noqa: TC003
 from pathlib import Path as _Path
+from typing import TYPE_CHECKING
 
 import numpy as np
+import pandas as pd
 import pytest
 from scipy.linalg import expm
+
+from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _report_dir = str(
     _Path(__file__).resolve().parent.parent.parent / "reports" / "2026-05-18"
@@ -68,8 +74,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     validate_hl_bound,
     validate_operators_nm,
 )
-
-from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 
 # ============================================================================
 # Fixtures
@@ -983,6 +987,7 @@ class TestGradientAD:
         ops_np = build_collective_operators(N, M)
 
         rel_errs: list[float] = []
+        params = None  # initialised inside the loop below
         for seed in range(10):
             rng = np.random.default_rng(seed * 7 + 13)
             params = random_params_nm(rng, N, M)
@@ -1009,6 +1014,7 @@ class TestGradientAD:
 
         # Verify the AD function returns a valid gradient (use
         # the first parameter set, which always has non-zero params)
+        assert params is not None, "loop must have executed"
         f_check, g_check = _objective_and_gradient_ad(
             params,
             N,
@@ -1221,11 +1227,11 @@ class TestN1M1Regression:
 
 
 # ============================================================================
-# Test: CSV Roundtrip
+# Test: Parquet Roundtrip
 # ============================================================================
 
 
-class TestCsvRoundtrip:
+class TestParquetRoundtrip:
     def test_n_scaling_roundtrip(self, tmp_path: Path) -> None:
         original = NScalingResult(
             N_values=np.array([1, 2, 4]),
@@ -1245,10 +1251,9 @@ class TestCsvRoundtrip:
             num_seeds=5,
             n_bootstrap=5000,
         )
-        csv_path = tmp_path / "test_n.csv"
-        original.save_csv(csv_path)
-        original.save_metadata_json(csv_path)
-        loaded = NScalingResult.from_csv(csv_path)
+        csv_path = tmp_path / "test_n.parquet"
+        original.save_parquet(csv_path)
+        loaded = NScalingResult.from_parquet(csv_path)
         assert np.allclose(loaded.N_values, original.N_values)
         assert np.allclose(loaded.delta_theta_values, original.delta_theta_values)
         assert np.allclose(loaded.delta_theta_std, original.delta_theta_std)
@@ -1258,9 +1263,11 @@ class TestCsvRoundtrip:
         assert loaded.n_bootstrap == original.n_bootstrap
         assert loaded.num_seeds == original.num_seeds
         assert loaded.M_value == original.M_value
+        assert loaded.sql_scaling == original.sql_scaling
+        assert loaded.hl_scaling == original.hl_scaling
 
-    def test_n_scaling_from_csv_missing_meta(self, tmp_path: Path) -> None:
-        """from_csv should raise FileNotFoundError when metadata is absent."""
+    def test_n_scaling_from_parquet_missing_scalars(self, tmp_path: Path) -> None:
+        """from_parquet should raise ValueError when scalar columns are missing."""
         original = NScalingResult(
             N_values=np.array([1, 2]),
             M_value=1,
@@ -1275,11 +1282,22 @@ class TestCsvRoundtrip:
             R_squared=0.99,
             num_seeds=5,
         )
-        csv_path = tmp_path / "test_n_no_meta.csv"
-        original.save_csv(csv_path)
-        # No save_metadata_json call -> from_csv should raise
-        with pytest.raises(FileNotFoundError):
-            NScalingResult.from_csv(csv_path)
+        # Write a Parquet with array columns but without the scalar metadata columns
+        n = len(original.N_values)
+        df_bare = pd.DataFrame(
+            {
+                "N": original.N_values,
+                "delta_theta": original.delta_theta_values,
+                "delta_theta_std": np.full(n, float("nan")),
+                "phi_opt": original.phi_opt_values,
+                "a_opt": original.a_opt_values,
+                "b_opt": original.b_opt_values,
+            }
+        )
+        csv_path = tmp_path / "test_n_bare.parquet"
+        df_bare.to_parquet(csv_path, index=False)
+        with pytest.raises(ValueError, match="Missing required scalar columns"):
+            NScalingResult.from_parquet(csv_path)
 
     def test_m_scaling_roundtrip(self, tmp_path: Path) -> None:
         original = MScalingResult(
@@ -1291,24 +1309,18 @@ class TestCsvRoundtrip:
             b_opt_values=np.zeros(3),
             improvement_01=0.2,
         )
-        csv_path = tmp_path / "test_m.csv"
-        original.save_csv(csv_path)
-        # Write companion metadata by hand for from_csv
-        import json as _json
-
-        meta_path = csv_path.with_suffix(".meta.json")
-        meta_path.write_text(
-            _json.dumps(
-                {"N_value": original.N_value, "improvement_01": original.improvement_01}
-            )
-        )
-        loaded = MScalingResult.from_csv(csv_path)
+        csv_path = tmp_path / "test_m.parquet"
+        original.save_parquet(csv_path)
+        loaded = MScalingResult.from_parquet(csv_path)
         assert np.allclose(loaded.M_values, original.M_values)
         assert loaded.N_value == original.N_value
         assert loaded.improvement_01 == pytest.approx(original.improvement_01)
+        assert loaded.diminishing_threshold == pytest.approx(
+            original.diminishing_threshold
+        )
 
-    def test_m_scaling_from_csv_missing_meta(self, tmp_path: Path) -> None:
-        """from_csv should raise FileNotFoundError when metadata is absent."""
+    def test_m_scaling_from_parquet_missing_scalars(self, tmp_path: Path) -> None:
+        """from_parquet should raise ValueError when scalar columns are missing."""
         original = MScalingResult(
             M_values=np.array([0, 1]),
             N_value=2,
@@ -1317,10 +1329,19 @@ class TestCsvRoundtrip:
             a_opt_values=np.ones(2),
             b_opt_values=np.zeros(2),
         )
-        csv_path = tmp_path / "test_m_no_meta.csv"
-        original.save_csv(csv_path)
-        with pytest.raises(FileNotFoundError):
-            MScalingResult.from_csv(csv_path)
+        df_bare = pd.DataFrame(
+            {
+                "M": original.M_values,
+                "delta_theta": original.delta_theta_values,
+                "phi_opt": original.phi_opt_values,
+                "a_opt": original.a_opt_values,
+                "b_opt": original.b_opt_values,
+            }
+        )
+        csv_path = tmp_path / "test_m_bare.parquet"
+        df_bare.to_parquet(csv_path, index=False)
+        with pytest.raises(ValueError, match="Missing required scalar columns"):
+            MScalingResult.from_parquet(csv_path)
 
     def test_alpha_reopt_roundtrip(self, tmp_path: Path) -> None:
         original = AlphaReoptResultNM(
@@ -1334,11 +1355,14 @@ class TestCsvRoundtrip:
             N=2,
             M=2,
         )
-        csv_path = tmp_path / "test_alpha.csv"
-        original.save_csv(csv_path)
-        loaded_df = pd.read_csv(csv_path)
-        assert "alpha" in loaded_df.columns
-        assert "delta_theta_weighted" in loaded_df.columns
+        csv_path = tmp_path / "test_alpha.parquet"
+        original.save_parquet(csv_path)
+        loaded = AlphaReoptResultNM.from_parquet(csv_path)
+        assert np.allclose(loaded.alpha_values, original.alpha_values)
+        assert np.allclose(loaded.delta_theta_weighted, original.delta_theta_weighted)
+        assert loaded.alpha_name == original.alpha_name
+        assert loaded.N == original.N
+        assert loaded.M == original.M
 
 
 # ============================================================================
@@ -1371,4 +1395,3 @@ class TestDickeBasisConsistency:
 
 
 # Need to import pandas here for the CSV roundtrip tests
-import pandas as pd  # noqa: E402

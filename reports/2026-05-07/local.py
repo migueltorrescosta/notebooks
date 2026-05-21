@@ -139,7 +139,7 @@ def hybrid_mean_photon(state: np.ndarray, N: int) -> float:
     """
     n_op = oscillator_number(N)
     n_hybrid = hybrid_operator(n_op, np.eye(2, dtype=complex), N)
-    return np.real(np.vdot(state, n_hybrid @ state))
+    return float(np.real(np.vdot(state, n_hybrid @ state)))
 
 
 def evolve_hybrid_state(
@@ -191,7 +191,7 @@ def validate_hybrid_state(state: np.ndarray, N: int) -> bool:
     if state.shape != (expected_dim,):
         return False
     norm = np.sum(np.abs(state) ** 2)
-    return np.isclose(norm, 1.0, atol=1e-6)
+    return bool(np.isclose(norm, 1.0, atol=1e-6))
 
 
 def validate_hybrid_unitary(U: np.ndarray, tol: float = 1e-8) -> bool:
@@ -906,7 +906,9 @@ def wigner_function_single(
 
     rho_qobj = qutip.Qobj(rho_osc)
     # qutip.wigner returns (len(p), len(x)); transpose to (len(x), len(p))
-    return qutip.wigner(rho_qobj, x_range, p_range, g=2).T
+    wigner_result = qutip.wigner(rho_qobj, x_range, p_range, g=2)
+    assert wigner_result is not None
+    return wigner_result.T
 
 
 def wigner_from_hybrid_state(
@@ -953,7 +955,9 @@ def wigner_from_hybrid_state(
     rho_qobj = qutip.Qobj(rho_osc)
 
     # qutip.wigner returns (len(p), len(x)); transpose to (len(x), len(p))
-    return qutip.wigner(rho_qobj, x_range, p_range, g=2).T
+    wigner_result = qutip.wigner(rho_qobj, x_range, p_range, g=2)
+    assert wigner_result is not None
+    return wigner_result.T
 
 
 def wigner_is_negative(W: np.ndarray, tol: float = 1e-10) -> bool:
@@ -1525,11 +1529,11 @@ def generate_qfi_comparison_data(
         target_ns = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
 
     _RAW_DIR.mkdir(parents=True, exist_ok=True)
-    csv_path = _RAW_DIR / "qfi_comparison.csv"
+    parquet_path = _RAW_DIR / "qfi_comparison.parquet"
 
-    if csv_path.exists() and not force:
-        print(f"Data file already exists at {csv_path}. Use --force to regenerate.")
-        return csv_path
+    if parquet_path.exists() and not force:
+        print(f"Data file already exists at {parquet_path}. Use --force to regenerate.")
+        return parquet_path
 
     rows = []
     for target_n in target_ns:
@@ -1559,9 +1563,9 @@ def generate_qfi_comparison_data(
             print(f"    n={n}: ⟨n⟩={mean_n:.3f}, QFI={qfi:.3f}, t={t_final:.3f}")
 
     df = pd.DataFrame(rows)
-    df.to_csv(csv_path, index=False)
-    print(f"\nSaved QFI comparison data to {csv_path}")
-    return csv_path
+    df.to_parquet(parquet_path, index=False)
+    print(f"\nSaved QFI comparison data to {parquet_path}")
+    return parquet_path
 
 
 def plot_qfi_comparison(
@@ -1574,7 +1578,7 @@ def plot_qfi_comparison(
     versus mean photon number.
 
     Args:
-        data_path: Path to the CSV file. If None, looks in raw_data/.
+        data_path: Path to the Parquet file. If None, looks in raw_data/.
         force: If True, regenerate figure even if SVG exists.
 
     Returns:
@@ -1582,7 +1586,7 @@ def plot_qfi_comparison(
 
     """
     if data_path is None:
-        data_path = _RAW_DIR / "qfi_comparison.csv"
+        data_path = _RAW_DIR / "qfi_comparison.parquet"
 
     _FIG_DIR.mkdir(parents=True, exist_ok=True)
     svg_path = _FIG_DIR / "qfi_comparison.svg"
@@ -1591,7 +1595,7 @@ def plot_qfi_comparison(
         print(f"Figure already exists at {svg_path}. Use --force to regenerate.")
         return svg_path
 
-    df = pd.read_csv(data_path)
+    df = pd.read_parquet(data_path)
 
     import matplotlib as mpl
 

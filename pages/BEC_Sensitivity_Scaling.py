@@ -381,15 +381,15 @@ if export_csv and all_results:
 
     combined_df = pd.concat(export_dfs, ignore_index=True)
 
-    # Save to CSV
-    csv_path = Path("bec_sensitivity_scaling.csv")
-    combined_df.to_csv(csv_path, index=False)
+    # Save to Parquet
+    data_path = Path("bec_sensitivity_scaling.parquet")
+    combined_df.to_parquet(data_path, index=False)
 
     st.download_button(
-        label="Download CSV",
-        data=csv_path.read_bytes(),
-        file_name="bec_sensitivity_scaling.csv",
-        mime="text/csv",
+        label="Download Parquet",
+        data=data_path.read_bytes(),
+        file_name="bec_sensitivity_scaling.parquet",
+        mime="application/octet-stream",
     )
 
 

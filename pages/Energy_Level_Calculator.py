@@ -83,6 +83,11 @@ with st.sidebar:
 
     # Create widgets FIRST, then define pure functions that use those values
     # This avoids the duplicate key issue when the function is called multiple times
+
+    # Default potential (overridden by match branches below)
+    def potential_x(x: float) -> float:
+        return 0.0
+
     match potential_function:
         case PotentialFunction.Quadratic.value:
             st.latex(r"a(x-c)^2")

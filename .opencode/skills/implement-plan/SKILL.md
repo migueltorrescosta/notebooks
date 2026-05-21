@@ -21,7 +21,7 @@ Define a disciplined, repeatable process for implementing physics simulations fr
 ## 1. Before starting work
 
 1. **Read the report** — Open the target report in `reports/` and extract: Hilbert space dimensions, basis ordering, operator definitions, circuit protocol, measurement observable, and sensitivity formula.
-2. **Run tests**: Ensure nothing is broken before starting changes (`uv run pytest . --testmon --quiet --tb=short`).
+2. **Run checks**: Ensure nothing is broken before starting changes — tests (`uv run pytest . --testmon --quiet --tb=short`), linter (`uv run ruff check . --fix && uv run ruff format .`), and type checks (`uv run mypy .` and `uvx pyright src/ pages/`).
 3. **Read relevant code**: Understand existing patterns in `pages/`, `src/`, and the target report's `local.py` that match the report's requirements.
 4. **Plan the physical model**: Determine the Hilbert space, basis, operators, and any new dataclasses needed.
 5. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
@@ -40,5 +40,6 @@ Before considering implementation complete, verify:
 
 1. **Tests pass**: Run `uv run pytest . --testmon --quiet --tb=short`
 2. **Linter passes**: Run `uv run ruff check . --fix && uv run ruff format .`
-3. **Type checks pass**: Run `uv run mypy .`
-4. **No existing function signatures changed**
+3. **Type checks pass (mypy)**: Run `uv run mypy .`
+4. **Type checks pass (pyright)**: Run `uvx pyright src/ pages/`
+5. **No existing function signatures changed**

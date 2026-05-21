@@ -67,6 +67,7 @@ After the full audit, provide:
 - [ ] Report read and understood
 - [ ] Report's `local.py` and `test_local.py` inspected
 - [ ] All modified/added source files in `src/`, `pages/`, `tests/` inspected
+- [ ] Checked for **pyright violations** in `src/` and `pages/` (run `pyright src/ pages/`)
 - [ ] Checked for **module-level constants** in `src/` code (violation of Global Constraints §6)
 - [ ] Checked for **imports from `local.py`** coming from outside the report directory (violation of Global Constraints §7)
 - [ ] Checked that new report-specific code was added to `local.py`, not directly to `src/` (violation of Global Constraints §5)

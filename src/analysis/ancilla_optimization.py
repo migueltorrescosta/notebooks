@@ -693,16 +693,24 @@ class ThetaScanResult:
             restarts = self.all_results.get(float(theta), [])
             if restarts:
                 best = restarts[0]
+                best_delta_theta = float(best.delta_theta_opt)
                 spread = compute_convergence_metric(restarts)
                 T_H_star = float(best.params_opt[6])
                 cov_val = float(best.covariance_SA)
                 exp_m = float(best.expectation_M)
+                vs_sql = (
+                    float(best.delta_theta_opt / T_H_star)
+                    if T_H_star > 0 and np.isfinite(1.0 / T_H_star)
+                    else float("inf")
+                )
             else:
                 # Summary-only mode (loaded from CSV)
+                best_delta_theta = float(self.best_per_theta[i])
                 spread = 0.0
                 T_H_star = 0.0
                 cov_val = 0.0
                 exp_m = 0.0
+                vs_sql = float("inf")
 
             sql = 1.0 / T_H_star if T_H_star > 0 else float("inf")
             flag = "fringe" if abs(exp_m) < 1e-10 else "ok"
@@ -710,15 +718,9 @@ class ThetaScanResult:
             rows.append(
                 {
                     "theta": float(theta),
-                    "best_delta_theta": float(best.delta_theta_opt)
-                    if restarts
-                    else float(self.best_per_theta[i]),
+                    "best_delta_theta": best_delta_theta,
                     "sql": sql,
-                    "vs_sql": (
-                        float(best.delta_theta_opt / sql)
-                        if restarts and np.isfinite(sql)
-                        else float("inf")
-                    ),
+                    "vs_sql": vs_sql,
                     "spread": spread,
                     "T_H_star": T_H_star,
                     "covariance": cov_val,
@@ -728,8 +730,8 @@ class ThetaScanResult:
             )
         return pd.DataFrame(rows)
 
-    def save_csv(self, path: str | Path) -> Path:
-        """Save the θ-scan summary to a CSV file.
+    def save_parquet(self, path: str | Path) -> Path:
+        """Save the θ-scan summary to a Parquet file.
 
         Args:
             path: File path to write to.
@@ -739,24 +741,24 @@ class ThetaScanResult:
         """
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> ThetaScanResult:
-        """Reconstruct a ThetaScanResult from a CSV file written by ``save_csv``.
+    def from_parquet(cls, path: str | Path) -> ThetaScanResult:
+        """Reconstruct a ThetaScanResult from a Parquet file written by ``save_parquet``.
 
         Note: The reconstructed result contains only the summary per θ value
         (one row = one θ), not the full per-restart details.
 
         Args:
-            path: Path to the CSV file.
+            path: Path to the Parquet file.
 
         Returns:
             A ThetaScanResult with the summary data.
         """
         path = Path(path)
-        df = pd.read_csv(path)
+        df = pd.read_parquet(path)
         theta_values = df["theta"].to_numpy(dtype=float)
         best_per_theta = df["best_delta_theta"].to_numpy(dtype=float)
         return cls(
@@ -987,7 +989,7 @@ def _run_nelder_mead(
         objective,
         x0=x0,
         method="Nelder-Mead",
-        callback=callback if track_history else None,
+        callback=callback if track_history else None,  # type: ignore[arg-type]
         options={  # type: ignore[call-overload]
             "maxiter": maxiter,
             "xatol": xatol,
@@ -1151,8 +1153,8 @@ class AlphaReoptScanResult:
             },
         )
 
-    def save_csv(self, path: str | Path) -> Path:
-        """Save to a CSV file.
+    def save_parquet(self, path: str | Path) -> Path:
+        """Save to a Parquet file.
 
         Args:
             path: File path to write to.
@@ -1162,20 +1164,20 @@ class AlphaReoptScanResult:
         """
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> AlphaReoptScanResult:
-        """Reconstruct from a CSV file.
+    def from_parquet(cls, path: str | Path) -> AlphaReoptScanResult:
+        """Reconstruct from a Parquet file.
 
         Args:
-            path: Path to the CSV file.
+            path: Path to the Parquet file.
 
         Returns:
             Reconstructed AlphaReoptScanResult.
         """
-        df = pd.read_csv(path)
+        df = pd.read_parquet(path)
         return cls(
             alpha_values=df["alpha"].to_numpy(dtype=float),
             delta_theta_joint=df["delta_theta_joint"].to_numpy(dtype=float),
@@ -1332,15 +1334,15 @@ class DecoupledBaselineResult:
             },
         )
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> DecoupledBaselineResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> DecoupledBaselineResult:
+        df = pd.read_parquet(path)
         return cls(
             T_H_values=df["T_H"].to_numpy(dtype=float),
             delta_theta_values=df["delta_theta"].to_numpy(dtype=float),
@@ -1413,15 +1415,15 @@ class CovarianceAnalysisResult:
             },
         )
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> CovarianceAnalysisResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> CovarianceAnalysisResult:
+        df = pd.read_parquet(path)
         return cls(
             coefficient_names=list(df["coefficient"]),
             max_covariances=df["max_covariance"].to_numpy(dtype=float),
@@ -1783,15 +1785,15 @@ class AlphaSingleScanResult:
             },
         )
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> AlphaSingleScanResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> AlphaSingleScanResult:
+        df = pd.read_parquet(path)
         return cls(
             alpha_name="",  # must be set manually
             alpha_values=df["alpha"].to_numpy(dtype=float),
@@ -1835,15 +1837,15 @@ class AlphaRandomSearchResult:
             },
         )
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> AlphaRandomSearchResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> AlphaRandomSearchResult:
+        df = pd.read_parquet(path)
         alphas = df[["alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz"]].to_numpy(
             dtype=float
         )
@@ -2120,15 +2122,15 @@ class InteractionRobustnessResult:
                 )
         return pd.DataFrame(rows)
 
-    def save_csv(self, path: str | Path) -> Path:
+    def save_parquet(self, path: str | Path) -> Path:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_csv(path, index=False, float_format="%.10g")
+        self.to_dataframe().to_parquet(path, index=False)
         return path
 
     @classmethod
-    def from_csv(cls, path: str | Path) -> InteractionRobustnessResult:
-        df = pd.read_csv(path)
+    def from_parquet(cls, path: str | Path) -> InteractionRobustnessResult:
+        df = pd.read_parquet(path)
         T_H_unique = sorted(df["T_H"].unique())
         alpha_unique = sorted(df["alpha"].unique())
         n_T = len(T_H_unique)

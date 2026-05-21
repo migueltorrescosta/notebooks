@@ -24,11 +24,62 @@ import importlib.util
 import io
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 from plotly import graph_objects as go
+
+# Define stub classes for mypy static analysis. These match the interface
+# of the dynamically-imported dataclasses from local.py. The TYPE_CHECKING
+# block is only seen by type checkers (mypy, pyright). At runtime, the
+# names are overwritten by the actual dataclasses from importlib.
+if TYPE_CHECKING:
+
+    class ModelConfig:
+        """Stub matching the dataclass in reports/2026-05-11/local.py."""
+
+        model_id: str
+        state_type: str
+        noise_type: str
+        entangler: str
+        label: str
+        custom_sensitivity_fn: Callable[[int, float], float] | None
+
+        def __init__(
+            self,
+            model_id: str,
+            state_type: str = "",
+            noise_type: str = "none",
+            entangler: str = "none",
+            label: str = "",
+            custom_sensitivity_fn: Callable[[int, float], float] | None = None,
+        ) -> None: ...
+
+    class SurveyConfig:
+        """Stub matching the dataclass in reports/2026-05-11/local.py."""
+
+        N_range: tuple[int, int]
+        N_points: int
+        noise_levels: list[float]
+        phi: float
+        method: str
+        seed: int
+
+        def __init__(
+            self,
+            N_range: tuple[int, int] = (2, 64),
+            N_points: int = 8,
+            noise_levels: list[float] | None = None,
+            phi: float = np.pi / 4,
+            method: str = "qfi",
+            seed: int = 42,
+        ) -> None: ...
+
 
 # Load exclusive functions from reports/2026-05-11/local.py via importlib.
 # Try multiple resolution strategies to handle both normal execution
@@ -60,8 +111,8 @@ _report_local = importlib.util.module_from_spec(_spec)
 sys.modules["report_scaling_survey_local"] = _report_local
 _spec.loader.exec_module(_report_local)
 
-ModelConfig = _report_local.ModelConfig
-SurveyConfig = _report_local.SurveyConfig
+ModelConfig = _report_local.ModelConfig  # type: ignore[misc]
+SurveyConfig = _report_local.SurveyConfig  # type: ignore[misc]
 create_default_survey = _report_local.create_default_survey
 fit_all_exponents = _report_local.fit_all_exponents
 run_scaling_survey = _report_local.run_scaling_survey
@@ -592,12 +643,17 @@ def plot_alpha_heatmap(fit_df: pd.DataFrame) -> None:
         for _j, col_idx in enumerate(pivot.columns):
             val = pivot.loc[row_idx, col_idx]
             if not pd.isna(val):
+                val_numeric = (
+                    float(val)
+                    if isinstance(val, (int, float, np.floating, np.integer))
+                    else 0.0
+                )
                 fig.add_annotation(
                     x=str(col_idx),
                     y=row_idx,
-                    text=f"{val:.2f}",
+                    text=f"{val_numeric:.2f}",
                     showarrow=False,
-                    font={"color": "white" if abs(val) > 0.5 else "black"},
+                    font={"color": "white" if abs(val_numeric) > 0.5 else "black"},
                 )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -680,31 +736,29 @@ def export_controls(raw_df: pd.DataFrame, fit_df: pd.DataFrame) -> None:
 
     with col1:
         if not raw_df.empty:
-            # CSV export for raw data
-            csv_buffer = io.StringIO()
-            raw_df.to_csv(csv_buffer, index=False)
-            csv_str = csv_buffer.getvalue()
+            # Parquet export for raw data
+            buffer = io.BytesIO()
+            raw_df.to_parquet(buffer, index=False)
 
             st.download_button(
-                label="📥 Download Raw Data (CSV)",
-                data=csv_str,
-                file_name="scaling_survey_raw.csv",
-                mime="text/csv",
+                label="📥 Download Raw Data (Parquet)",
+                data=buffer.getvalue(),
+                file_name="scaling_survey_raw.parquet",
+                mime="application/octet-stream",
                 help="Download raw (N, Δφ) values for all survey points",
             )
 
     with col2:
         if not fit_df.empty:
-            # CSV export for fit results
-            csv_buffer = io.StringIO()
-            fit_df.to_csv(csv_buffer, index=False)
-            csv_str = csv_buffer.getvalue()
+            # Parquet export for fit results
+            buffer = io.BytesIO()
+            fit_df.to_parquet(buffer, index=False)
 
             st.download_button(
-                label="📥 Download Fit Results (CSV)",
-                data=csv_str,
-                file_name="scaling_survey_fit.csv",
-                mime="text/csv",
+                label="📥 Download Fit Results (Parquet)",
+                data=buffer.getvalue(),
+                file_name="scaling_survey_fit.parquet",
+                mime="application/octet-stream",
                 help="Download fitted exponents (α, C, R²) for each (state, noise) combination",
             )
 
@@ -797,6 +851,7 @@ def main() -> None:
     if st.session_state.survey_results is not None:
         raw_df = st.session_state.survey_results
         fit_df = st.session_state.fit_results
+        assert fit_df is not None
 
         # Summary metrics
         st.header("Summary", divider="blue")

@@ -128,9 +128,9 @@ def generate_initial_state(ancillary_dimension: int, initial_state: int) -> np.n
             f"initial_state={initial_state} must be < ancillary_dimension={ancillary_dimension}",
         )
     rho0 = np.array([[1, 0], [0, 0]], dtype=complex)  # |0���⟨0|
-    rho_aux_0 = np.zeros(ancillary_dimension, dtype=complex)
-    rho_aux_0[initial_state] = 1.0
-    rho_aux_0 = np.outer(rho_aux_0, rho_aux_0.conj())
+    rho_aux_0_diag = np.zeros(ancillary_dimension, dtype=complex)
+    rho_aux_0_diag[initial_state] = 1.0
+    rho_aux_0 = np.outer(rho_aux_0_diag, rho_aux_0_diag.conj())
     return np.kron(rho0, rho_aux_0)
 
 

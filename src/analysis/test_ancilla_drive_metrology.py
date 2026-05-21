@@ -195,11 +195,11 @@ class TestDriveDecoupledBaseline:
         result = compute_drive_decoupled_baseline()
         assert np.isclose(result.delta_theta, result.sql, rtol=0.05)
 
-    def test_baseline_csv_roundtrip(self, tmp_path: Path) -> None:
+    def test_baseline_parquet_roundtrip(self, tmp_path: Path) -> None:
         result = compute_drive_decoupled_baseline()
-        csv_p = tmp_path / "baseline.csv"
-        result.save_csv(csv_p)
-        loaded = DriveDecoupledBaselineResult.from_csv(csv_p)
+        parquet_p = tmp_path / "baseline.parquet"
+        result.save_parquet(parquet_p)
+        loaded = DriveDecoupledBaselineResult.from_parquet(parquet_p)
         assert loaded.T_H_value == result.T_H_value
         assert np.isclose(loaded.delta_theta, result.delta_theta)
 
@@ -242,11 +242,11 @@ class TestDrive2DSlice:
         with pytest.raises(ValueError, match="slice_type"):
             drive_2d_slice(theta=1.0, slice_type="invalid")
 
-    def test_slice_csv_roundtrip(self, tmp_path: Path) -> None:
+    def test_slice_parquet_roundtrip(self, tmp_path: Path) -> None:
         result = drive_2d_slice(theta=1.0, slice_type="ax", n_drive=3, n_azz=3)
-        csv_p = tmp_path / "slice.csv"
-        result.save_csv(csv_p)
-        loaded = Drive2DSliceResult.from_csv(csv_p)
+        parquet_p = tmp_path / "slice.parquet"
+        result.save_parquet(parquet_p)
+        loaded = Drive2DSliceResult.from_parquet(parquet_p)
         assert loaded.drive_values == pytest.approx(result.drive_values)
         assert loaded.azz_values == pytest.approx(result.azz_values)
         assert loaded.delta_theta_grid == pytest.approx(
@@ -278,11 +278,11 @@ class TestDriveRandomSearch:
             float(np.min(result.delta_theta_values)),
         )
 
-    def test_random_search_csv_roundtrip(self, tmp_path: Path) -> None:
+    def test_random_search_parquet_roundtrip(self, tmp_path: Path) -> None:
         result = drive_random_search(theta=1.0, n_samples=50, seed=42)
-        csv_p = tmp_path / "random.csv"
-        result.save_csv(csv_p)
-        loaded = DriveRandomSearchResult.from_csv(csv_p)
+        parquet_p = tmp_path / "random.parquet"
+        result.save_parquet(parquet_p)
+        loaded = DriveRandomSearchResult.from_parquet(parquet_p)
         assert loaded.samples.shape == result.samples.shape
         assert np.allclose(loaded.best_params, result.best_params)
         assert np.isclose(loaded.best_delta_theta, result.best_delta_theta)
@@ -335,15 +335,15 @@ class TestDriveNelderMead:
             f"NM did not improve: start={start_val:.4f}, opt={result.delta_theta_opt:.4f}"
         )
 
-    def test_nelder_mead_csv_roundtrip(self, tmp_path: Path) -> None:
+    def test_nelder_mead_parquet_roundtrip(self, tmp_path: Path) -> None:
         result = run_drive_nelder_mead(
             theta_true=1.0,
             x0=np.array([1.0, 0.0, 0.0, 1.0]),
             maxiter=100,
         )
-        csv_p = tmp_path / "nm.csv"
-        result.save_csv(csv_p)
-        loaded = DriveNelderMeadResult.from_csv(csv_p)
+        parquet_p = tmp_path / "nm.parquet"
+        result.save_parquet(parquet_p)
+        loaded = DriveNelderMeadResult.from_parquet(parquet_p)
         assert np.isclose(loaded.delta_theta_opt, result.delta_theta_opt)
         assert np.allclose(loaded.params_opt, result.params_opt)
         assert loaded.theta_true == result.theta_true
@@ -378,7 +378,7 @@ class TestDriveThetaScan:
         for dt in result.best_delta_theta_per_theta:
             assert np.isfinite(dt), f"Non-finite Δθ: {dt}"
 
-    def test_theta_scan_csv_roundtrip(self, tmp_path: Path) -> None:
+    def test_theta_scan_parquet_roundtrip(self, tmp_path: Path) -> None:
         result = run_drive_theta_scan(
             theta_values=[0.5],
             n_random=20,
@@ -386,9 +386,9 @@ class TestDriveThetaScan:
             seed=42,
             maxiter=50,
         )
-        csv_p = tmp_path / "theta-scan.csv"
-        result.save_csv(csv_p)
-        loaded = DriveThetaScanResult.from_csv(csv_p)
+        parquet_p = tmp_path / "theta-scan.parquet"
+        result.save_parquet(parquet_p)
+        loaded = DriveThetaScanResult.from_parquet(parquet_p)
         assert np.allclose(loaded.theta_values, result.theta_values)
         assert np.allclose(
             loaded.best_delta_theta_per_theta,

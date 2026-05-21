@@ -209,7 +209,8 @@ N_range = np.arange(1, N + 1)
 delta_no_ancilla = []
 delta_with_ancilla = []
 
-for n_atoms in N_range:
+for n_atoms_raw in N_range:
+    n_atoms = int(n_atoms_raw)
     state_n = coherent_spin_state(n_atoms)
 
     # No ancilla
@@ -297,6 +298,9 @@ st.plotly_chart(fig, use_container_width=True)
 # TTN Bond Dimension Growth
 # =============================================================================
 
+
+# Initialize ttn_data unconditionally (used in summary section below)
+ttn_data = {}
 
 if show_ttn:
     st.subheader("TTN Bond Dimension")

@@ -1,6 +1,6 @@
 ---
 name: generate-results
-description: MUST be used when running simulations to generate raw data and figures based on a report in reports/. Explores the implemented code, runs parameter sweeps, saves CSVs and SVGs, and updates code if needed. Does NOT write reports or implement new features.
+description: MUST be used when running simulations to generate raw data and figures based on a report in reports/. Explores the implemented code, runs parameter sweeps, saves Parquet files and SVGs, and updates code if needed. Does NOT write reports or implement new features.
 ---
 
 # Purpose
@@ -11,7 +11,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
 
 1. Read the report thoroughly before running any simulations.
 2. Explore existing implemented code in `src/` **and** the report's own `local.py` to understand available functions. Functions for the report's simulation may live in either location.
-3. Generate all figures through the standard pipeline (dataclass → CSV → plot → embed).
+3. Generate all figures through the standard pipeline (dataclass → Parquet → plot → embed).
 4. Respect the 100 ms per-simulation performance budget.
 5. Save results with the correct naming convention and directory structure.
 6. If code needs minor fixes to run correctly, make the minimum changes needed — do not implement new features.
@@ -26,7 +26,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
    - The expected output quantities (sensitivity vs N, QFI values, etc.)
    - The success criteria and expected physical invariants
 2. **Explore existing code** — Read relevant modules in `src/` **and** the report's `local.py` to find:
-   - Result dataclasses and their `to_dataframe()` / `from_csv()` methods
+   - Result dataclasses and their `to_dataframe()` / `from_parquet()` methods
    - Simulation functions that implement the report's protocol
    - Existing figure generation functions in `src/visualization/`
 3. **Check for figure generation infrastructure** — Look in `src/visualization/report_figures.py` or create a `generate_<name>()` function there if one does not exist.
@@ -34,14 +34,14 @@ Execute the simulation experiments defined in a report, produce all raw data and
 ## 2. Running simulations
 
 1. Execute parameter sweeps defined in the report's Numerical Simulation section.
-2. Save raw data as CSV in `reports/raw_data/{date}-{name}.csv`.
-3. Use `to_dataframe()` / `save_csv()` on result dataclasses (see Code Architecture §Serialization for completeness requirements).
+2. Save raw data as Parquet in `reports/raw_data/{date}-{name}.parquet`.
+3. Use `to_dataframe()` / `save_parquet()` on result dataclasses (see Code Architecture §Serialization for completeness requirements).
 4. If a simulation function is missing or incorrect, fix it minimally. If the fix is substantial, flag it for implement-plan.
 
 ## 3. Generating figures
 
-1. Add a `plot_<description>()` function in `src/visualization/ancilla_plots.py` (or create a new module there) that reads the dataclass or CSV and saves SVG.
-2. Add a `generate_<name>()` function in `src/visualization/report_figures.py` that runs the simulation, saves CSV, and renders SVG.
+1. Add a `plot_<description>()` function in `src/visualization/ancilla_plots.py` (or create a new module there) that reads the dataclass or Parquet file and saves SVG.
+2. Add a `generate_<name>()` function in `src/visualization/report_figures.py` that runs the simulation, saves Parquet, and renders SVG.
 3. SVGs go to `reports/figures/{date}-{name}.svg`.
 4. Embed in the report with `![alt](reports/figures/{date}-{name}.svg)`.
 
@@ -50,7 +50,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
 - If minor fixes are needed (e.g., missing parameter in `to_dataframe()`, incorrect default), make the minimal change.
 - If the code needs substantial changes (new operator, new state type, new solver), flag it for implement-plan rather than building it here.
 - After any code change, run `uv run pytest . --testmon --quiet --tb=short` to verify nothing is broken.
-- After any code change, run `uv run ruff check . --fix && uv run ruff format .` and `uv run mypy .`.
+- After any code change, run `uv run ruff check . --fix && uv run ruff format .`, `uv run mypy .`, and `uvx pyright src/ pages/`.
 
 # Standard Pipeline Instructions
 
@@ -60,9 +60,9 @@ Every simulation run follows a strict four-step sequence. Execute these in order
 
 2. **Run the simulation** – Call the simulation functions (found in `src/` modules or the report's own `local.py`) for each point in the parameter sweep. Respect the 100 ms per-simulation budget.
 
-3. **Save raw data** – Use the result dataclass's `save_csv()` method to write to `reports/raw_data/{date}-{name}.csv`.
+3. **Save raw data** – Use the result dataclass's `save_parquet()` method to write to `reports/raw_data/{date}-{name}.parquet`.
 
-4. **Generate and embed figures** – Create a `plot_<name>()` function in `src/visualization/` that reads the CSV and saves an SVG to `reports/figures/{date}-{name}.svg`. Embed the SVG in the report with `![alt](reports/figures/{date}-{name}.svg)`.
+4. **Generate and embed figures** – Create a `plot_<name>()` function in `src/visualization/` that reads the Parquet file and saves an SVG to `reports/figures/{date}-{name}.svg`. Embed the SVG in the report with `![alt](reports/figures/{date}-{name}.svg)`.
 
 # Figure Aesthetics Guidelines
 
@@ -77,5 +77,5 @@ Every simulation run follows a strict four-step sequence. Execute these in order
 # Verification
 
 - [ ] Report's parameter sweeps have been fully executed
-- [ ] All raw data saved as CSV in `reports/raw_data/`
+- [ ] All raw data saved as Parquet in `reports/raw_data/`
 - [ ] All figures saved as SVG in `reports/figures/`

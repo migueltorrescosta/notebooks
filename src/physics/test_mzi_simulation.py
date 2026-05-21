@@ -57,9 +57,7 @@ class TestStateCreation:
     def test_coherent_state(self) -> None:
         dim = 5 + 1
         state = (
-            qutip.tensor(qutip.coherent(dim, 0.5 + 0.5j), qutip.fock(dim, 0))
-            .full()
-            .ravel()
+            qutip.tensor(qutip.coherent(dim, 0.5), qutip.fock(dim, 0)).full().ravel()
         )
         assert validate_state(state), "Condition failed: validate_state(state)"
 

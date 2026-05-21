@@ -192,7 +192,7 @@ def compute_energy_levels(
         strict=False,
     ):
         # Store complex overlap - normalize_energy_levels will make it real
-        component = np.vdot(initial_state, wf)
+        component = complex(np.vdot(initial_state, wf))
         levels.append(
             EnergyLevel(
                 level=level,

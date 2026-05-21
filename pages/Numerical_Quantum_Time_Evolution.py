@@ -57,6 +57,16 @@ with st.expander("📖 Methodology", expanded=False):
     **Note:** The algorithm uses $\hbar = 1$ units and $\Delta t = 0.1$ in the phase evolution.
     """)
 
+
+# Default potential (overridden by match branches in sidebar below)
+def potential_x(x: float) -> float:
+    return 0.0
+
+
+# Default initial state (overridden by match branches below)
+phi_zero: Any = None
+
+
 # START
 with st.sidebar:
     st.header("Setup", divider="gray")
@@ -86,6 +96,7 @@ with st.sidebar:
             r"$\psi_0(x)$",
             [psi.value for psi in WavePacket],
         )
+
         match initial_wave_packet:
             case WavePacket.Gaussian.value:
                 st.latex(r"e^{{-d(x-x_0)^2 + ipx }}")
@@ -114,6 +125,7 @@ with st.sidebar:
             r"$V(x)$",
             [f.value for f in PotentialFunction],
         )
+
         match potential_function:
             case PotentialFunction.Quadratic.value:
                 st.latex(r"a(x-c)^2")

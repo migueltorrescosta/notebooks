@@ -81,8 +81,8 @@ with st.sidebar:
 
     resolution = st.number_input("Resolution", value=20)
 
-    wave_a = partial(wave_a, wavelength_a, angle_a)
-    wave_b = partial(wave_b, wavelength_b, angle_b)
+    wave_a_fn = partial(wave_a, wavelength=wavelength_a, angle=angle_a)
+    wave_b_fn = partial(wave_b, wavelength=wavelength_b, angle=angle_b)
 
 st.subheader("Setup")
 st.caption("""
@@ -98,9 +98,9 @@ df = pd.DataFrame(
         {
             "x": x,
             "y": y,
-            "wave_a": wave_a(x, y),
-            "wave_b": wave_b(x, y),
-            "f": wave_a(x, y) + wave_b(x, y),
+            "wave_a": wave_a_fn(x, y),
+            "wave_b": wave_b_fn(x, y),
+            "f": wave_a_fn(x, y) + wave_b_fn(x, y),
         }
         for x, y in tqdm(grid, total=resolution**2)
     ],
@@ -160,8 +160,8 @@ with st.expander("Show vector field"):
         -width : width : np.divide(width, 10),
         -width : width : np.divide(width, 10),
     ]
-    wave_a_grid = np.array([wave_a(x, y) for (x, y) in zip(X, Y, strict=False)])
-    wave_b_grid = np.array([wave_b(x, y) for (x, y) in zip(X, Y, strict=False)])
+    wave_a_grid = np.array([wave_a_fn(x, y) for (x, y) in zip(X, Y, strict=False)])
+    wave_b_grid = np.array([wave_b_fn(x, y) for (x, y) in zip(X, Y, strict=False)])
 
     fig, ax = plt.subplots(figsize=(5, 5))
     ax.quiver(X, Y, np.real(wave_a_grid), np.imag(wave_a_grid), color="orange")

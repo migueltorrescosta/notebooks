@@ -29,6 +29,7 @@ import os
 import sys
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -663,16 +664,16 @@ def run_phase_modulated_nelder_mead(
 
     history: list[float] = []
 
-    def callback(_x: np.ndarray) -> None:
+    def callback(intermediate_result: Any) -> None:
         if track_history:
-            val = objective(_x)
+            val = objective(intermediate_result.x)
             history.append(val)
 
     result = minimize(
         objective,
         x0=x0,
         method="Nelder-Mead",
-        callback=callback if track_history else None,
+        callback=callback,
         options={
             "maxiter": maxiter,
             "xatol": xatol,
@@ -1061,9 +1062,13 @@ def plot_drive_cross_experiment_comparison(
             f"Best = {min_ratio:.3f}$\\times$ at $\\theta$={min_theta:.1f}",
             xy=(min_theta, min_ratio),
             xytext=(min_theta + 0.6, min_ratio + 0.15),
-            arrowprops=dict(arrowstyle="->", color="black", lw=1.2),
+            arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
             fontsize=10,
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray"),
+            bbox={
+                "boxstyle": "round,pad=0.3",
+                "facecolor": "white",
+                "edgecolor": "gray",
+            },
         )
 
     ax2.set_xlabel(r"$\theta$")
@@ -1157,8 +1162,8 @@ PHASE_THETA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
 PHASE_N_GRID = 201
 
 
-def _csv_path(name: str) -> Path:
-    return REPORTS_DIR / PHASE_DATE / "raw_data" / f"{PHASE_DATE}-{name}.csv"
+def _parquet_path(name: str) -> Path:
+    return REPORTS_DIR / PHASE_DATE / "raw_data" / f"{PHASE_DATE}-{name}.parquet"
 
 
 def _fig_path(name: str) -> Path:
@@ -1212,16 +1217,16 @@ def _parallel_map(
 
 def generate_phase_decoupled_baseline(force: bool = False) -> None:
     """Phase-modulated decoupled baseline verification."""
-    csv_p = _csv_path("phase-decoupled-baseline")
+    csv_p = _parquet_path("phase-decoupled-baseline")
     fig_p = _fig_path("phase-decoupled-baseline")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveDecoupledBaselineResult.from_csv(csv_p)
+        result = DriveDecoupledBaselineResult.from_parquet(csv_p)
     else:
         print("[run]  Computing phase-modulated decoupled baseline...")
         result = compute_phase_modulated_decoupled_baseline()
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
     # Use the shared plot function from the main codebase
@@ -1238,12 +1243,12 @@ def _run_phase_2d_slice(
 ) -> None:
     """Run a phase-modulated 2D slice scan for a single θ value."""
     tag = f"phase-2d-slice-{slice_type}-azz-theta{theta}"
-    csv_p = _csv_path(tag)
+    csv_p = _parquet_path(tag)
     fig_p = _fig_path(tag)
 
     if csv_p.exists() and not force:
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
-        result = Drive2DSliceResult.from_csv(csv_p)
+        result = Drive2DSliceResult.from_parquet(csv_p)
     else:
         print(f"  [run]  Computing phase ({slice_type}, a_zz) slice at θ={theta}...")
         result = phase_modulated_2d_slice(
@@ -1252,7 +1257,7 @@ def _run_phase_2d_slice(
             n_drive=PHASE_N_GRID,
             n_azz=PHASE_N_GRID,
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"  [save] {csv_p}")
 
     from src.visualization.ancilla_drive_plots import plot_drive_2d_slice_heatmap
@@ -1280,12 +1285,12 @@ def generate_phase_2d_slice_ay_azz(force: bool = False) -> None:
 def _run_phase_random_search(theta: float, force: bool) -> None:
     """Run a phase-modulated 4D random search for a single θ value."""
     tag = f"phase-random-search-theta{theta}"
-    csv_p = _csv_path(tag)
+    csv_p = _parquet_path(tag)
     fig_p = _fig_path(tag)
 
     if csv_p.exists() and not force:
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveRandomSearchResult.from_csv(csv_p)
+        result = DriveRandomSearchResult.from_parquet(csv_p)
     else:
         print(f"  [run]  Running phase 4D random search at θ={theta} (500 samples)...")
         result = phase_modulated_random_search(
@@ -1293,7 +1298,7 @@ def _run_phase_random_search(theta: float, force: bool) -> None:
             n_samples=500,
             seed=42,
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"  [save] {csv_p}")
 
     from src.visualization.ancilla_drive_plots import plot_drive_random_search_histogram
@@ -1365,12 +1370,12 @@ def _run_phase_theta_scan_single(theta: float) -> dict[str, float | np.ndarray]:
 
 def generate_phase_theta_scan(force: bool = False) -> None:
     """Phase-modulated θ-scan with Nelder-Mead refinement (parallel)."""
-    csv_p = _csv_path("phase-theta-scan")
+    csv_p = _parquet_path("phase-theta-scan")
     fig_p = _fig_path("phase-theta-scan")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveThetaScanResult.from_csv(csv_p)
+        result = DriveThetaScanResult.from_parquet(csv_p)
     else:
         n = len(PHASE_THETA_VALS)
         print(f"[run]  Computing phase θ-scan for {n} θ values (parallel)...")
@@ -1423,7 +1428,7 @@ def generate_phase_theta_scan(force: bool = False) -> None:
             expectation_Jz_per_theta=np.array(exp_vals, dtype=float),
             variance_Jz_per_theta=np.array(var_vals, dtype=float),
         )
-        result.save_csv(csv_p)
+        result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
     from src.visualization.ancilla_drive_plots import plot_drive_theta_scan
@@ -1434,10 +1439,10 @@ def generate_phase_theta_scan(force: bool = False) -> None:
 
 def generate_phase_optimal_params(force: bool = False) -> None:
     """Phase-modulated optimal parameter evolution vs θ."""
-    csv_p = _csv_path("phase-theta-scan")
+    csv_p = _parquet_path("phase-theta-scan")
     fig_p = _fig_path("phase-optimal-params")
 
-    result = DriveThetaScanResult.from_csv(csv_p)
+    result = DriveThetaScanResult.from_parquet(csv_p)
     from src.visualization.ancilla_drive_plots import plot_drive_optimal_params
 
     plot_drive_optimal_params(result, fig_p)
@@ -1447,7 +1452,7 @@ def generate_phase_optimal_params(force: bool = False) -> None:
 def generate_phase_combined_sensitivity(force: bool = False) -> None:
     """Combined sensitivity plot + NM expectation/variance plot.
 
-    Reads existing per-θ CSVs (2D slices, random search) and the theta-scan
+    Reads existing per-θ Parquets (2D slices, random search) and the theta-scan
     result to produce two figures:
         - phase-combined-sensitivity.svg : Δθ vs θ for all methods + SQL
         - phase-nm-expectation-variance.svg : ⟨J_z^S⟩ and Var(J_z^S) at NM optimum
@@ -1459,13 +1464,13 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
     fig_p2 = _fig_path("phase-nm-expectation-variance")
 
     # Load NM result
-    theta_scan_csv = _csv_path("phase-theta-scan")
-    if not theta_scan_csv.exists():
+    theta_scan_pq = _parquet_path("phase-theta-scan")
+    if not theta_scan_pq.exists():
         print(
-            "[skip] phase-theta-scan.csv does not exist; run 'phase-theta-scan' first"
+            "[skip] phase-theta-scan.parquet does not exist; run 'phase-theta-scan' first"
         )
         return
-    nm_result = DriveThetaScanResult.from_csv(theta_scan_csv)
+    nm_result = DriveThetaScanResult.from_parquet(theta_scan_pq)
 
     theta_vals = np.array(PHASE_THETA_VALS, dtype=float)
     n_theta = len(theta_vals)
@@ -1481,7 +1486,7 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
             exp_vals[i] = float(nm_result.expectation_Jz_per_theta[i])
             var_vals[i] = float(nm_result.variance_Jz_per_theta[i])
 
-    # Collect per-θ minima from 2D slice and random search CSVs
+    # Collect per-θ minima from 2D slice and random search Parquets
     best_ax = np.full(n_theta, np.nan)
     best_ay = np.full(n_theta, np.nan)
     best_rs = np.full(n_theta, np.nan)
@@ -1495,15 +1500,15 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
     for i, theta in enumerate(theta_vals):
         for slice_type, best_arr in [("ax", best_ax), ("ay", best_ay)]:
             tag = f"phase-2d-slice-{slice_type}-azz-theta{theta}"
-            csv_p = _csv_path(tag)
+            csv_p = _parquet_path(tag)
             if csv_p.exists():
-                result_slice = Drive2DSliceResult.from_csv(csv_p)
+                result_slice = Drive2DSliceResult.from_parquet(csv_p)
                 best_arr[i] = _safe_grid_min(result_slice.delta_theta_grid)
 
         tag_rs = f"phase-random-search-theta{theta}"
-        csv_p_rs = _csv_path(tag_rs)
+        csv_p_rs = _parquet_path(tag_rs)
         if csv_p_rs.exists():
-            result_rs = DriveRandomSearchResult.from_csv(csv_p_rs)
+            result_rs = DriveRandomSearchResult.from_parquet(csv_p_rs)
             best_rs[i] = result_rs.best_delta_theta
 
     print(f"  [debug] best_ax finite: {np.sum(np.isfinite(best_ax))} / {n_theta}")
@@ -1538,7 +1543,7 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
 def generate_phase_fraction_below_sql(force: bool = False) -> None:
     """Fraction of parameter space below SQL vs θ for all methods.
 
-    Reads existing per-θ CSVs (2D slices, random search) and computes
+    Reads existing per-θ Parquets (2D slices, random search) and computes
     the fraction of points whose Δθ falls below the SQL for each θ.
     """
     fig_p = _fig_path("phase-fraction-below-sql")
@@ -1552,27 +1557,27 @@ def generate_phase_fraction_below_sql(force: bool = False) -> None:
 
     for i, theta in enumerate(theta_vals):
         tag_ax = f"phase-2d-slice-ax-azz-theta{theta}"
-        csv_ax = _csv_path(tag_ax)
+        csv_ax = _parquet_path(tag_ax)
         if csv_ax.exists():
-            result = Drive2DSliceResult.from_csv(csv_ax)
+            result = Drive2DSliceResult.from_parquet(csv_ax)
             fractions_ax[i] = (
                 np.sum(result.delta_theta_grid < result.sql)
                 / result.delta_theta_grid.size
             )
 
         tag_ay = f"phase-2d-slice-ay-azz-theta{theta}"
-        csv_ay = _csv_path(tag_ay)
+        csv_ay = _parquet_path(tag_ay)
         if csv_ay.exists():
-            result = Drive2DSliceResult.from_csv(csv_ay)
+            result = Drive2DSliceResult.from_parquet(csv_ay)
             fractions_ay[i] = (
                 np.sum(result.delta_theta_grid < result.sql)
                 / result.delta_theta_grid.size
             )
 
         tag_rs = f"phase-random-search-theta{theta}"
-        csv_rs = _csv_path(tag_rs)
+        csv_rs = _parquet_path(tag_rs)
         if csv_rs.exists():
-            result = DriveRandomSearchResult.from_csv(csv_rs)
+            result = DriveRandomSearchResult.from_parquet(csv_rs)
             fractions_rs[i] = np.sum(result.delta_theta_values < result.sql) / len(
                 result.delta_theta_values
             )
@@ -1591,21 +1596,21 @@ def generate_phase_cross_experiment_comparison(force: bool = False) -> None:
     """Comparison of fixed-drive (2026-05-18) vs modulated-drive (2026-05-19)
     θ-scan results.
 
-    Loads both CSVs, interpolates the sparse 2026-05-18 data to the fine
+    Loads both Parquets, interpolates the sparse 2026-05-18 data to the fine
     50-point θ grid of the 2026-05-19 scan, and produces a 2×1 figure
     showing Δθ vs θ (upper) and the ratio Δθ_19/Δθ_18 (lower).
     """
     fig_p = _fig_path("phase-cross-experiment-comparison")
 
     # Load modulated-drive result (2026-05-19, 50 points)
-    csv_19 = _csv_path("phase-theta-scan")
-    if not csv_19.exists():
+    pq_19 = _parquet_path("phase-theta-scan")
+    if not pq_19.exists():
         print(
-            "[skip] 2026-05-19-phase-theta-scan.csv does not exist; "
+            "[skip] 2026-05-19-phase-theta-scan.parquet does not exist; "
             "run 'phase-theta-scan' first"
         )
         return
-    result_19 = DriveThetaScanResult.from_csv(csv_19)
+    result_19 = DriveThetaScanResult.from_parquet(pq_19)
 
     # Load fixed-drive result (2026-05-18, 5 points)
     csv_18 = REPORTS_DIR / "2026-05-18" / "raw_data" / "2026-05-18-drive-theta-scan.csv"
@@ -1615,7 +1620,7 @@ def generate_phase_cross_experiment_comparison(force: bool = False) -> None:
             "run 'drive-theta-scan' first"
         )
         return
-    result_18 = DriveThetaScanResult.from_csv(csv_18)
+    result_18 = DriveThetaScanResult.from_parquet(csv_18)
 
     theta_fine = result_19.theta_values
     theta_coarse = result_18.theta_values
@@ -1641,12 +1646,12 @@ def generate_phase_cross_experiment_comparison(force: bool = False) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate 2026-05-19 report figures and CSVs",
+        description="Generate 2026-05-19 report figures and Parquet data",
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Re-run all simulations (overwrite existing CSVs)",
+        help="Re-run all simulations (overwrite existing Parquets)",
     )
     parser.add_argument(
         "--only",

@@ -9,12 +9,19 @@ Run with:
 from __future__ import annotations
 
 import sys as _sys
-from pathlib import Path
 from pathlib import Path as _Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 from scipy.linalg import expm
+
+from src.analysis.ancilla_optimization import (
+    build_two_qubit_operators,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _report_dir = str(
     _Path(__file__).resolve().parent.parent.parent / "reports" / "2026-05-20"
@@ -34,17 +41,13 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     XXThetaScanResult,
     build_xx_hold_hamiltonian,
     build_xx_interaction,
+    compute_reduced_variance,
     compute_xx_decoupled_baseline,
     compute_xx_sensitivity,
-    compute_reduced_variance,
     evolve_xx_circuit,
     run_xx_theta_scan,
     xx_grid_scan,
     xx_hold_unitary,
-)
-
-from src.analysis.ancilla_optimization import (
-    build_two_qubit_operators,
 )
 
 # ============================================================================
@@ -89,13 +92,11 @@ class TestOperatorConstruction:
 
     def test_commutation_jz_jx(self, make_ops: dict) -> None:
         comm_S = (
-            make_ops["Jz_S"] @ make_ops["Jx_S"]
-            - make_ops["Jx_S"] @ make_ops["Jz_S"]
+            make_ops["Jz_S"] @ make_ops["Jx_S"] - make_ops["Jx_S"] @ make_ops["Jz_S"]
         )
         assert np.allclose(comm_S, 1j * make_ops["Jy_S"], atol=1e-12)
         comm_A = (
-            make_ops["Jz_A"] @ make_ops["Jx_A"]
-            - make_ops["Jx_A"] @ make_ops["Jz_A"]
+            make_ops["Jz_A"] @ make_ops["Jx_A"] - make_ops["Jx_A"] @ make_ops["Jz_A"]
         )
         assert np.allclose(comm_A, 1j * make_ops["Jy_A"], atol=1e-12)
 
@@ -126,15 +127,11 @@ class TestOperatorConstruction:
 
 class TestCircuitEvolution:
     def test_normalisation_preserved(self, make_ops: dict) -> None:
-        psi = evolve_xx_circuit(
-            DEFAULT_PSI0, DEFAULT_T_BS, 5.0, 0.5, 0.0, make_ops
-        )
+        psi = evolve_xx_circuit(DEFAULT_PSI0, DEFAULT_T_BS, 5.0, 0.5, 0.0, make_ops)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
     def test_normalisation_with_coupling(self, make_ops: dict) -> None:
-        psi = evolve_xx_circuit(
-            DEFAULT_PSI0, DEFAULT_T_BS, 10.0, 1.0, 5.0, make_ops
-        )
+        psi = evolve_xx_circuit(DEFAULT_PSI0, DEFAULT_T_BS, 10.0, 1.0, 5.0, make_ops)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
     @pytest.mark.parametrize("alpha_xx", [0.0, 1.0, 10.0, 20.0])
@@ -148,9 +145,7 @@ class TestCircuitEvolution:
 
     def test_no_op_identity(self, make_ops: dict) -> None:
         """T_BS=0, T_H=0 should give the initial state back."""
-        psi = evolve_xx_circuit(
-            DEFAULT_PSI0, 0.0, 0.0, 0.0, 0.0, make_ops
-        )
+        psi = evolve_xx_circuit(DEFAULT_PSI0, 0.0, 0.0, 0.0, 0.0, make_ops)
         assert np.allclose(psi, DEFAULT_PSI0, atol=1e-12)
 
 
@@ -220,9 +215,7 @@ class TestSensitivity:
             dtheta = compute_xx_sensitivity(
                 DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 1.0, alpha_xx, make_ops
             )
-            assert np.isfinite(dtheta), (
-                f"Non-finite Δθ={dtheta} at α_xx={alpha_xx}"
-            )
+            assert np.isfinite(dtheta), f"Non-finite Δθ={dtheta} at α_xx={alpha_xx}"
 
     def test_sensitivity_positive(self, make_ops: dict) -> None:
         """Sensitivity should always be positive."""
@@ -368,11 +361,11 @@ class TestThetaScan:
 
 
 # ============================================================================
-# Test: CSV Roundtrip
+# Test: Parquet Roundtrip
 # ============================================================================
 
 
-class TestCsvRoundtrip:
+class TestParquetRoundtrip:
     def test_grid_scan_roundtrip(self, tmp_path: Path) -> None:
         original = XXGridScanResult(
             alpha_xx_values=np.linspace(0, 20, 11),
@@ -386,9 +379,9 @@ class TestCsvRoundtrip:
             expectation_Jz=0.25,
             variance_Jz=0.05,
         )
-        csv_path = tmp_path / "test_grid.csv"
-        original.save_csv(csv_path)
-        loaded = XXGridScanResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test_grid.parquet"
+        original.save_parquet(parquet_path)
+        loaded = XXGridScanResult.from_parquet(parquet_path)
         assert np.allclose(loaded.alpha_xx_values, original.alpha_xx_values)
         assert loaded.theta_value == pytest.approx(original.theta_value)
         assert loaded.alpha_xx_opt == pytest.approx(original.alpha_xx_opt)
@@ -406,9 +399,9 @@ class TestCsvRoundtrip:
             expectation_Jz=-0.1,
             variance_Jz=0.2,
         )
-        csv_path = tmp_path / "test_grid_meta.csv"
-        original.save_csv(csv_path)
-        loaded = XXGridScanResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test_grid_meta.parquet"
+        original.save_parquet(parquet_path)
+        loaded = XXGridScanResult.from_parquet(parquet_path)
         assert loaded.theta_value == pytest.approx(1.0)
         assert loaded.alpha_xx_opt == pytest.approx(15.0)
         assert loaded.delta_theta_opt == pytest.approx(0.06)
@@ -427,9 +420,9 @@ class TestCsvRoundtrip:
             count_below_sql_per_theta=np.array([100, 50, 25]),
             total_points_per_theta=np.array([2001, 2001, 2001]),
         )
-        csv_path = tmp_path / "test_theta.csv"
-        original.save_csv(csv_path)
-        loaded = XXThetaScanResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test_theta.parquet"
+        original.save_parquet(parquet_path)
+        loaded = XXThetaScanResult.from_parquet(parquet_path)
         assert np.allclose(loaded.theta_values, original.theta_values)
         assert np.allclose(
             loaded.alpha_xx_opt_per_theta, original.alpha_xx_opt_per_theta
@@ -451,34 +444,34 @@ class TestCsvRoundtrip:
             count_below_sql_per_theta=np.array([500, 200]),
             total_points_per_theta=np.array([2001, 2001]),
         )
-        csv_path = tmp_path / "test_theta_meta.csv"
-        original.save_csv(csv_path)
-        loaded = XXThetaScanResult.from_csv(csv_path)
+        parquet_path = tmp_path / "test_theta_meta.parquet"
+        original.save_parquet(parquet_path)
+        loaded = XXThetaScanResult.from_parquet(parquet_path)
         assert loaded.theta_values[0] == pytest.approx(0.1)
         assert loaded.alpha_xx_opt_per_theta[1] == pytest.approx(7.0)
         assert loaded.sql_values[0] == pytest.approx(0.1)
         assert loaded.expectation_Jz_per_theta[0] == pytest.approx(0.15)
         assert loaded.count_below_sql_per_theta[0] == pytest.approx(500.0)
 
-    def test_grid_scan_from_csv_missing_columns(self, tmp_path: Path) -> None:
-        """from_csv should fail fast when required columns are missing."""
+    def test_grid_scan_from_parquet_missing_columns(self, tmp_path: Path) -> None:
+        """from_parquet should fail fast when required columns are missing."""
         import pandas as pd
 
         df_bad = pd.DataFrame({"alpha_xx": [0.0, 1.0], "delta_theta": [0.1, 0.08]})
-        csv_path = tmp_path / "bad_grid.csv"
-        df_bad.to_csv(csv_path, index=False)
+        parquet_path = tmp_path / "bad_grid.parquet"
+        df_bad.to_parquet(parquet_path, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
-            XXGridScanResult.from_csv(csv_path)
+            XXGridScanResult.from_parquet(parquet_path)
 
-    def test_theta_scan_from_csv_missing_columns(self, tmp_path: Path) -> None:
-        """from_csv should fail fast when required columns are missing."""
+    def test_theta_scan_from_parquet_missing_columns(self, tmp_path: Path) -> None:
+        """from_parquet should fail fast when required columns are missing."""
         import pandas as pd
 
         df_bad = pd.DataFrame({"theta": [0.1, 0.5], "best_delta_theta": [0.05, 0.06]})
-        csv_path = tmp_path / "bad_theta.csv"
-        df_bad.to_csv(csv_path, index=False)
+        parquet_path = tmp_path / "bad_theta.parquet"
+        df_bad.to_parquet(parquet_path, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
-            XXThetaScanResult.from_csv(csv_path)
+            XXThetaScanResult.from_parquet(parquet_path)
 
 
 # ============================================================================
@@ -495,9 +488,7 @@ class TestPhysicalInvariants:
                 DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 1.0, alpha_xx, ops
             )
             var = compute_reduced_variance(psi, ops["Jz_S"])
-            assert var >= -1e-12, (
-                f"Negative Var(J_z^S)={var:.2e} at α_xx={alpha_xx}"
-            )
+            assert var >= -1e-12, f"Negative Var(J_z^S)={var:.2e} at α_xx={alpha_xx}"
 
     def test_hold_hermiticity(self) -> None:
         """Total H must be Hermitian for all parameters."""
@@ -517,7 +508,7 @@ class TestPhysicalInvariants:
 
 class TestConstants:
     def test_sql_reference_correct(self) -> None:
-        assert SQL_REFERENCE == pytest.approx(1.0 / DEFAULT_T_H)
+        assert pytest.approx(1.0 / DEFAULT_T_H) == SQL_REFERENCE
 
     def test_axx_bounds(self) -> None:
         lo, hi = AXX_BOUNDS

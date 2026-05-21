@@ -1,7 +1,7 @@
 """
 Plotting functions for driven-ancilla metrology results.
 
-Each function accepts a result dataclass (or a path to a CSV file),
+Each function accepts a result dataclass (or a path to a Parquet file),
 generates a publication-quality figure using matplotlib + seaborn,
 and saves it as SVG.
 """
@@ -36,7 +36,7 @@ def plot_drive_decoupled_baseline(
 ) -> Path:
     """Bar chart comparing Δθ to SQL for the decoupled (all-zero) configuration."""
     if isinstance(result, (str, Path)):
-        result = DriveDecoupledBaselineResult.from_csv(result)
+        result = DriveDecoupledBaselineResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -79,7 +79,7 @@ def plot_drive_2d_slice_heatmap(
 ) -> Path:
     """Heatmap of Δθ over (a_drive, a_zz) with SQL contour."""
     if isinstance(result, (str, Path)):
-        result = Drive2DSliceResult.from_csv(result)
+        result = Drive2DSliceResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -142,7 +142,7 @@ def plot_drive_random_search_histogram(
 ) -> Path:
     """Histogram of Δθ values from 4D random search with SQL and best marked."""
     if isinstance(result, (str, Path)):
-        result = DriveRandomSearchResult.from_csv(result)
+        result = DriveRandomSearchResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -205,7 +205,7 @@ def plot_drive_theta_scan(
 ) -> Path:
     """Two-panel figure: Δθ vs θ (top) and Δθ/SQL ratio (bottom)."""
     if isinstance(result, (str, Path)):
-        result = DriveThetaScanResult.from_csv(result)
+        result = DriveThetaScanResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -282,9 +282,9 @@ def plot_drive_theta_scan(
         f"Best = {min_ratio:.3f}$\\times$ at $\\theta$={min_theta:.1f}",
         xy=(min_theta, min_ratio),
         xytext=(min_theta + 0.6, min_ratio + 0.15),
-        arrowprops=dict(arrowstyle="->", color="black", lw=1.2),
+        arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
         fontsize=10,
-        bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray"),
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "gray"},
     )
 
     fig.tight_layout()
@@ -305,7 +305,7 @@ def plot_drive_optimal_params(
 ) -> Path:
     """Plot optimal drive parameters (a_x*, a_y*, a_z*, a_zz*) vs θ."""
     if isinstance(result, (str, Path)):
-        result = DriveThetaScanResult.from_csv(result)
+        result = DriveThetaScanResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -525,9 +525,13 @@ def plot_drive_cross_experiment_comparison(
             f"Best = {min_ratio:.3f}$\\times$ at $\\theta$={min_theta:.1f}",
             xy=(min_theta, min_ratio),
             xytext=(min_theta + 0.6, min_ratio + 0.15),
-            arrowprops=dict(arrowstyle="->", color="black", lw=1.2),
+            arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
             fontsize=10,
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="white", edgecolor="gray"),
+            bbox={
+                "boxstyle": "round,pad=0.3",
+                "facecolor": "white",
+                "edgecolor": "gray",
+            },
         )
 
     ax2.set_xlabel(r"$\theta$")

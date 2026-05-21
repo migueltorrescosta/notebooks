@@ -277,4 +277,4 @@ def validate_state_mzi(state: np.ndarray) -> bool:
         as `validate_state = validate_state_delta_estimation` (different function!).
 
     """
-    return np.isclose(np.linalg.norm(state), 1.0, atol=1e-10)
+    return bool(np.isclose(np.linalg.norm(state), 1.0, atol=1e-10))

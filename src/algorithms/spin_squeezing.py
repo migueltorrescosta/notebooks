@@ -218,9 +218,9 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
     J_z = Qobj(jz_operator(N))
 
     # Mean values using qutip.expect
-    jx_mean = float(expect(J_x, rho))
-    jy_mean = float(expect(J_y, rho))
-    jz_mean = float(expect(J_z, rho))
+    jx_mean = float(expect(J_x, rho).real)
+    jy_mean = float(expect(J_y, rho).real)
+    jz_mean = float(expect(J_z, rho).real)
 
     # Normalize mean spin direction
     r = np.array([jx_mean, jy_mean, jz_mean])
@@ -252,7 +252,7 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
     for k in range(n_angles):
         angle = k * np.pi / n_angles
         J_theta = np.cos(angle) * J_n1 + np.sin(angle) * J_n2
-        perp_var = float(variance(J_theta, rho))
+        perp_var = float(variance(J_theta, rho).real)
         min_perp_var = min(min_perp_var, perp_var)
 
     # SQL variance

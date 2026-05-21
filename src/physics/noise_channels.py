@@ -409,7 +409,7 @@ def compute_mean_particle_number(
 
     """
     n_values = np.arange(len(probabilities))
-    return np.sum(n_values * probabilities)
+    return float(np.sum(n_values * probabilities))
 
 
 def compute_particle_variance(
@@ -429,4 +429,4 @@ def compute_particle_variance(
     n_values = np.arange(len(probabilities))
     mean_n = compute_mean_particle_number(probabilities)
     mean_n2 = np.sum(n_values**2 * probabilities)
-    return mean_n2 - mean_n**2
+    return float(mean_n2 - mean_n**2)
