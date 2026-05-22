@@ -29,22 +29,30 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# Force single-threaded BLAS before any heavy numerical imports.
+# This avoids in-process deadlocks when forking and keeps thread contention low.
+for _env_key in (
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "VECLIB_MAXIMUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+    "MPLBACKEND",
+):
+    if _env_key not in os.environ:
+        os.environ[_env_key] = "1" if _env_key != "MPLBACKEND" else "Agg"
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from deltalake import DeltaTable, write_deltalake
 from scipy.linalg import expm
 from scipy.optimize import minimize
 
 # Ensure project root is on sys.path for shared-module imports.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-
-# Force non-interactive matplotlib backend before any plotting.
-if "MPLBACKEND" not in os.environ:
-    os.environ["MPLBACKEND"] = "Agg"
-if "OMP_NUM_THREADS" not in os.environ:
-    os.environ["OMP_NUM_THREADS"] = "1"
 
 # Shared primitives
 from src.analysis.ancilla_drive_metrology import (  # noqa: E402
@@ -1086,6 +1094,7 @@ def plot_general_convergence(
 
 REPORTS_DIR = PROJECT_ROOT / "reports"
 DATE_TAG = "2026-05-21"
+BFGS_TABLE_DIR = str(REPORTS_DIR / DATE_TAG / "raw_data" / "bfgs-results")
 
 
 def _parquet_path(name: str) -> Path:
@@ -1094,6 +1103,23 @@ def _parquet_path(name: str) -> Path:
 
 def _fig_path(name: str) -> Path:
     return REPORTS_DIR / DATE_TAG / "figures" / f"{DATE_TAG}-{name}.svg"
+
+
+def _upsert_bfgs_result(result: GeneralBFGSOptimizationResult) -> None:
+    """Append one row to the Delta table (concurrent-writer safe)."""
+    row = result.to_dataframe()
+    Path(BFGS_TABLE_DIR).parent.mkdir(parents=True, exist_ok=True)
+    for attempt in range(5):
+        try:
+            write_deltalake(BFGS_TABLE_DIR, row, mode="append")
+            return
+        except Exception:
+            if attempt < 4:
+                import time
+
+                time.sleep(0.05 * (attempt + 1))
+            else:
+                raise
 
 
 # ── Parallel dispatch helper ──────────────────────────────────────────────
@@ -1117,7 +1143,7 @@ def _parallel_map(
         max_workers: Number of subprocess workers (default: CPU count).
     """
     if max_workers is None:
-        max_workers = min(32, os.cpu_count() or 1)
+        max_workers = min(8, os.cpu_count() or 1)
     item_list = list(items)
     print(f"  [parallel] {desc}: {len(item_list)} items, {max_workers} workers")
 
@@ -1156,24 +1182,19 @@ def generate_decoupled_baseline(force: bool = False) -> None:
 
 
 def _run_single_bfgs(theta: float, force: bool) -> None:
-    """Run L-BFGS-B optimisation for a single θ value."""
-    tag = f"bfgs-theta{theta}"
-    csv_p = _parquet_path(tag)
-
-    if csv_p.exists() and not force:
-        print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
-        result = GeneralBFGSOptimizationResult.from_parquet(csv_p)
-    else:
-        print(f"  [run]  Computing L-BFGS-B at θ={theta} ({N_BFGS_STARTS} starts)...")
-        result = run_general_bfgs_optimization(theta_true=theta)
-        result.save_parquet(csv_p)
-        print(f"  [save] {csv_p}")
-
-    # No text-only figure — see theta-scan and convergence plots for visual results.
+    """Run L-BFGS-B optimisation for a single θ value, upserting to Delta table."""
+    print(f"  [run]  Computing L-BFGS-B at θ={theta} ({N_BFGS_STARTS} starts)...")
+    result = run_general_bfgs_optimization(theta_true=theta)
+    _upsert_bfgs_result(result)
 
 
 def generate_bfgs_theta_scan(force: bool = False) -> None:
-    """L-BFGS-B optimisation at all θ values (parallel)."""
+    """L-BFGS-B optimisation at all θ values (parallel) with Delta Lake storage."""
+    if force:
+        import shutil
+
+        shutil.rmtree(BFGS_TABLE_DIR, ignore_errors=True)
+
     n = len(THETA_VALS)
     print(f"[run]  L-BFGS-B scans at {n} θ values (parallel)")
 
@@ -1183,60 +1204,50 @@ def generate_bfgs_theta_scan(force: bool = False) -> None:
     _worker = _partial(_run_single_bfgs, force=force)
     _parallel_map(_worker, THETA_VALS, desc="L-BFGS-B optimisation per θ")
 
-    # Aggregate results into a single θ-scan Parquet
-    agg_csv_p = _parquet_path("theta-scan")
-    agg_fig_p = _fig_path("theta-scan")
-    conv_fig_p = _fig_path("convergence")
+    # Compact small files into fewer larger ones for efficient reads
+    compact_info = DeltaTable(BFGS_TABLE_DIR).optimize.compact()
+    print(f"  [compact] {compact_info['numFilesRemoved']} files → "
+          f"{compact_info['numFilesAdded']} file")
 
-    # Check that all per-θ Parquets exist
-    theta_arr = np.array(THETA_VALS, dtype=float)
-    n_theta = len(theta_arr)
+    # Vacuum tombstoned files from disk
+    dt = DeltaTable(BFGS_TABLE_DIR)
+    dt.alter.set_table_properties(
+        {"delta.deletedFileRetentionDuration": "interval 0 days"}
+    )
+    n_vacuumed = len(dt.vacuum(retention_hours=0, dry_run=False))
+    print(f"  [vacuum] {n_vacuumed} tombstoned files removed")
 
-    a_xx_opts = np.full(n_theta, np.nan, dtype=float)
-    a_xz_opts = np.full(n_theta, np.nan, dtype=float)
-    a_zx_opts = np.full(n_theta, np.nan, dtype=float)
-    a_zz_opts = np.full(n_theta, np.nan, dtype=float)
-    best_deltas = np.full(n_theta, np.inf, dtype=float)
-    sql_vals = np.full(n_theta, 0.1, dtype=float)
-    exp_vals = np.zeros(n_theta, dtype=float)
-    var_vals = np.zeros(n_theta, dtype=float)
-    d_exp_vals = np.zeros(n_theta, dtype=float)
-    n_conv = np.zeros(n_theta, dtype=float)
-
-    for i, theta in enumerate(theta_arr):
-        tag = f"bfgs-theta{theta}"
-        csv_p = _parquet_path(tag)
-        if csv_p.exists():
-            result = GeneralBFGSOptimizationResult.from_parquet(csv_p)
-            a_xx_opts[i] = result.alpha_opt[0]
-            a_xz_opts[i] = result.alpha_opt[1]
-            a_zx_opts[i] = result.alpha_opt[2]
-            a_zz_opts[i] = result.alpha_opt[3]
-            best_deltas[i] = result.delta_theta_opt
-            exp_vals[i] = result.expectation_Jz
-            var_vals[i] = result.variance_Jz
-            d_exp_vals[i] = result.d_exp_d_theta
-            n_conv[i] = result.n_converged
+    # Single read for all rows, sorted by theta_value
+    df = (
+        DeltaTable(BFGS_TABLE_DIR)
+        .to_pandas()
+        .sort_values("theta_value")
+        .reset_index(drop=True)
+    )
 
     agg_result = GeneralThetaScanResult(
-        theta_values=theta_arr,
-        alpha_xx_opt_per_theta=a_xx_opts,
-        alpha_xz_opt_per_theta=a_xz_opts,
-        alpha_zx_opt_per_theta=a_zx_opts,
-        alpha_zz_opt_per_theta=a_zz_opts,
-        delta_theta_opt_per_theta=best_deltas,
-        sql_values=sql_vals,
-        expectation_Jz_per_theta=exp_vals,
-        variance_Jz_per_theta=var_vals,
-        d_exp_d_theta_per_theta=d_exp_vals,
-        n_converged_per_theta=n_conv,
+        theta_values=df["theta_value"].to_numpy(dtype=float),
+        alpha_xx_opt_per_theta=df["alpha_xx_opt"].to_numpy(dtype=float),
+        alpha_xz_opt_per_theta=df["alpha_xz_opt"].to_numpy(dtype=float),
+        alpha_zx_opt_per_theta=df["alpha_zx_opt"].to_numpy(dtype=float),
+        alpha_zz_opt_per_theta=df["alpha_zz_opt"].to_numpy(dtype=float),
+        delta_theta_opt_per_theta=df["delta_theta_opt"].to_numpy(dtype=float),
+        sql_values=df["sql"].to_numpy(dtype=float),
+        expectation_Jz_per_theta=df["expectation_Jz"].to_numpy(dtype=float),
+        variance_Jz_per_theta=df["variance_Jz"].to_numpy(dtype=float),
+        d_exp_d_theta_per_theta=df["d_exp_d_theta"].to_numpy(dtype=float),
+        n_converged_per_theta=df["n_converged"].to_numpy(dtype=float),
     )
+
+    agg_csv_p = _parquet_path("theta-scan")
     agg_result.save_parquet(agg_csv_p)
     print(f"[save] {agg_csv_p}")
 
+    agg_fig_p = _fig_path("theta-scan")
     plot_general_theta_scan(agg_result, agg_fig_p)
     print(f"[fig]  {agg_fig_p}")
 
+    conv_fig_p = _fig_path("convergence")
     plot_general_convergence(agg_result, conv_fig_p)
     print(f"[fig]  {conv_fig_p}")
 

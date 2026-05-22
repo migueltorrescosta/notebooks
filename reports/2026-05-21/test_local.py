@@ -8,12 +8,16 @@ Run with:
 
 from __future__ import annotations
 
+import concurrent.futures
+import shutil
 import sys as _sys
 from pathlib import Path as _Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import numpy as np
 import pytest
+from deltalake import DeltaTable
 from scipy.linalg import expm
 
 from src.analysis.ancilla_optimization import (
@@ -32,6 +36,7 @@ del _sys, _Path, _report_dir
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     ALPHA_BOUNDS,
+    BFGS_TABLE_DIR,
     DEFAULT_PSI0,
     DEFAULT_T_BS,
     DEFAULT_T_H,
@@ -39,6 +44,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     SQL_REFERENCE,
     GeneralBFGSOptimizationResult,
     GeneralThetaScanResult,
+    _upsert_bfgs_result,
     build_general_hold_hamiltonian,
     compute_general_decoupled_baseline,
     compute_general_sensitivity,
@@ -769,3 +775,174 @@ class TestConstants:
     def test_initial_state_is_00(self) -> None:
         expected = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)
         assert np.allclose(DEFAULT_PSI0, expected, atol=1e-12)
+
+
+# ============================================================================
+# Test: Delta Lake Storage
+# ============================================================================
+
+
+class TestDeltaLake:
+    """Tests for Delta Lake-based BFGS result storage."""
+
+    def test_delta_append_single_row(self, tmp_path_factory: pytest.TempPathFactory) -> None:
+        """Insert 1 row via _upsert_bfgs_result; DeltaTable reads 1 row."""
+        import tempfile
+
+        tmp_dir = tmp_path_factory.mktemp("delta_single")
+        table_dir = str(tmp_dir / "bfgs-results")
+
+        result = GeneralBFGSOptimizationResult(
+            theta_value=1.0,
+            alpha_opt=(1.0, 2.0, 3.0, 4.0),
+            delta_theta_opt=0.05,
+            sql=0.1,
+            expectation_Jz=0.25,
+            variance_Jz=0.0625,
+            d_exp_d_theta=-0.5,
+            n_starts=100,
+            n_converged=90,
+        )
+        with patch("local.BFGS_TABLE_DIR", table_dir):
+            _upsert_bfgs_result(result)
+
+        dt = DeltaTable(table_dir)
+        df = dt.to_pandas()
+        assert len(df) == 1
+        assert df["theta_value"].iloc[0] == pytest.approx(1.0)
+        assert df["alpha_xx_opt"].iloc[0] == pytest.approx(1.0)
+        assert df["alpha_zz_opt"].iloc[0] == pytest.approx(4.0)
+        assert df["delta_theta_opt"].iloc[0] == pytest.approx(0.05)
+        assert df["n_converged"].iloc[0] == 90
+
+    def test_delta_concurrent_append(self, tmp_path_factory: pytest.TempPathFactory) -> None:
+        """ThreadPoolExecutor (10 workers) writes 10 rows; table has exactly 10 rows."""
+        import tempfile
+
+        tmp_dir = tmp_path_factory.mktemp("delta_concurrent")
+        table_dir = str(tmp_dir / "bfgs-results")
+
+        def _worker(theta: float) -> None:
+            result = GeneralBFGSOptimizationResult(
+                theta_value=theta,
+                alpha_opt=(theta, 0.0, 0.0, 0.0),
+                delta_theta_opt=0.05,
+                sql=0.1,
+                expectation_Jz=0.0,
+                variance_Jz=0.0625,
+                d_exp_d_theta=0.0,
+                n_starts=10,
+                n_converged=10,
+            )
+            with patch("local.BFGS_TABLE_DIR", table_dir):
+                _upsert_bfgs_result(result)
+
+        thetas = [0.1 * i for i in range(10)]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as exe:
+            list(exe.map(_worker, thetas))
+
+        dt = DeltaTable(table_dir)
+        df = dt.to_pandas()
+        assert len(df) == 10
+        assert sorted(df["theta_value"].tolist()) == pytest.approx(thetas)
+
+    def test_delta_force_recreates_table(
+        self, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        """Write 3 rows; shutil.rmtree + re-run; table has exactly the new rows."""
+        import tempfile
+
+        tmp_dir = tmp_path_factory.mktemp("delta_force")
+        table_dir = str(tmp_dir / "bfgs-results")
+
+        def _write_n_rows(n: int) -> None:
+            for i in range(n):
+                result = GeneralBFGSOptimizationResult(
+                    theta_value=float(i),
+                    alpha_opt=(0.0, 0.0, 0.0, 0.0),
+                    delta_theta_opt=0.1,
+                    sql=0.1,
+                    expectation_Jz=0.0,
+                    variance_Jz=0.0,
+                    d_exp_d_theta=0.0,
+                    n_starts=10,
+                    n_converged=10,
+                )
+                with patch("local.BFGS_TABLE_DIR", table_dir):
+                    _upsert_bfgs_result(result)
+
+        # Write 3 rows
+        _write_n_rows(3)
+        dt = DeltaTable(table_dir)
+        assert len(dt.to_pandas()) == 3
+
+        # Force recreate
+        shutil.rmtree(table_dir, ignore_errors=True)
+        _write_n_rows(2)
+
+        dt = DeltaTable(table_dir)
+        df = dt.to_pandas()
+        assert len(df) == 2
+        assert sorted(df["theta_value"].tolist()) == [0.0, 1.0]
+
+    def test_delta_to_theta_scan_roundtrip(
+        self, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
+        """Write 5 rows; construct GeneralThetaScanResult; verify data matches."""
+        import tempfile
+
+        tmp_dir = tmp_path_factory.mktemp("delta_roundtrip")
+        table_dir = str(tmp_dir / "bfgs-results")
+
+        theta_vals = [0.1, 0.5, 1.0, 2.0, 5.0]
+        for theta in theta_vals:
+            result = GeneralBFGSOptimizationResult(
+                theta_value=theta,
+                alpha_opt=(theta * 2, theta, -theta, theta * 3),
+                delta_theta_opt=0.1 / theta if theta > 0 else 0.1,
+                sql=0.1,
+                expectation_Jz=0.25 / theta if theta > 0 else 0.0,
+                variance_Jz=0.0625,
+                d_exp_d_theta=-0.5 * theta,
+                n_starts=100,
+                n_converged=int(100 - theta * 10),
+            )
+            with patch("local.BFGS_TABLE_DIR", table_dir):
+                _upsert_bfgs_result(result)
+
+        # Read back via DeltaTable
+        dt = DeltaTable(table_dir)
+        df = dt.to_pandas().sort_values("theta_value").reset_index(drop=True)
+
+        # Construct GeneralThetaScanResult from Delta data
+        scan_result = GeneralThetaScanResult(
+            theta_values=df["theta_value"].to_numpy(dtype=float),
+            alpha_xx_opt_per_theta=df["alpha_xx_opt"].to_numpy(dtype=float),
+            alpha_xz_opt_per_theta=df["alpha_xz_opt"].to_numpy(dtype=float),
+            alpha_zx_opt_per_theta=df["alpha_zx_opt"].to_numpy(dtype=float),
+            alpha_zz_opt_per_theta=df["alpha_zz_opt"].to_numpy(dtype=float),
+            delta_theta_opt_per_theta=df["delta_theta_opt"].to_numpy(dtype=float),
+            sql_values=df["sql"].to_numpy(dtype=float),
+            expectation_Jz_per_theta=df["expectation_Jz"].to_numpy(dtype=float),
+            variance_Jz_per_theta=df["variance_Jz"].to_numpy(dtype=float),
+            d_exp_d_theta_per_theta=df["d_exp_d_theta"].to_numpy(dtype=float),
+            n_converged_per_theta=df["n_converged"].to_numpy(dtype=float),
+        )
+
+        assert len(scan_result.theta_values) == 5
+        assert np.allclose(
+            scan_result.theta_values, sorted(theta_vals)
+        )
+        assert np.allclose(
+            scan_result.alpha_xx_opt_per_theta,
+            [t * 2 for t in sorted(theta_vals)],
+        )
+        assert np.allclose(
+            scan_result.delta_theta_opt_per_theta,
+            [0.1 / t if t > 0 else 0.1 for t in sorted(theta_vals)],
+        )
+        assert np.allclose(scan_result.sql_values, [0.1] * 5)
+        assert np.allclose(
+            scan_result.n_converged_per_theta,
+            [100.0 - t * 10 for t in sorted(theta_vals)],
+        )

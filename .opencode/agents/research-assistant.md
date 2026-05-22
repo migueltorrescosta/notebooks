@@ -108,6 +108,16 @@ Key notes:
 - **Roundtrip testing**: Every result dataclass with Parquet roundtrip must have a test verifying that all metadata fields survive the roundtrip (theta_value, T_H, sql, slice_type, etc.). Do not restrict roundtrip tests to computed arrays only.
 - **Fail-fast testing**: When `from_parquet` is changed to fail fast (removing silent defaults), add a test that loading a Parquet file missing required metadata columns raises the expected error.
 
+### Delta Lake
+
+Multi-worker parallel pipelines (e.g., BFGS theta scans) use Delta Lake for results storage via the `deltalake` Python library. The Delta table stores one row per optimisation run, built from a `@dataclass.to_dataframe()` call.
+
+- **Append**: Each worker appends its row via `write_deltalake(table_dir, row, mode="append")`. A retry wrapper (`_upsert_bfgs_result`) handles concurrent-writer conflicts with up to 5 attempts and exponential backoff.
+- **Compact**: After all workers finish, call `DeltaTable(table_dir).optimize.compact()` to merge many tiny parquet files (one per row) into a single compact file. This reduces read overhead for downstream aggregation.
+- **Vacuum**: After compaction, tombstoned files remain on disk. Physically delete them via `DeltaTable(table_dir).vacuum(retention_hours=0, dry_run=False)`. The table's `delta.deletedFileRetentionDuration` must be set to `"interval 0 days"` for immediate cleanup (done via `dt.alter.set_table_properties(...)`).
+- **Aggregation**: The aggregated result is constructed by reading the Delta table into a sorted DataFrame and passing each column into the appropriate `@dataclass` field. A secondary static Parquet file (`{date}-theta-scan.parquet`) is written for backward compatibility with report-loading code.
+- **Force re-creation**: Pass `--force` to delete the entire Delta table directory with `shutil.rmtree` before re-running, ensuring a clean slate.
+
 ### Streamlit Page Conventions
 
 Each page in `pages/` follows:
