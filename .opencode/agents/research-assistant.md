@@ -379,3 +379,37 @@ gocard -dir ~/Git/notebooks/revise             # Study revision cards
 ```
 
 **Configuration**: `pyproject.toml` defines pytest (testpaths, warnings), mypy (strict typing), pyright (live analysis), and ruff settings.
+
+# Memory Policy
+
+AgentMemory provides persistent across-session recall via an MCP backend (agentmemory). Use it to carry context, decisions, and conventions between sessions and to retrieve prior work before acting.
+
+## Before planning or coding
+
+1. **Search agentmemory** for relevant prior work, decisions, or discussions
+2. **Recall architecture decisions** that may constrain the current task
+3. **Recall coding conventions** and patterns established in earlier sessions
+4. **Save important new decisions, findings, or conventions** after completing a task
+
+## Always use these tools
+
+- `memory_smart_search` — semantic + BM25 hybrid search when you need to find something by meaning
+- `memory_recall` — keyword-based recall when you know what you're looking for
+- `memory_save` — save observations, decisions, findings, and conventions after completing work
+
+## Additional tools
+
+- `memory_consolidate` — manually trigger the 4-tier consolidation pipeline when you have accumulated several new memories
+- `memory_reflect` — periodically synthesize higher-order insights from recent memories
+- `memory_lesson_save` — persist a lesson learned (strengthens on duplicate saves, decays when unused)
+- `memory_sessions` — list recent sessions to review what was done
+
+## Workflow
+
+1. At the start of a task: `memory_recall` or `memory_smart_search` for relevant context
+2. During the task: consult recalled decisions and conventions
+3. After completing a significant step or task: `memory_save` with the key decisions, findings, and any conventions established
+4. Periodically: `memory_consolidate` to promote working memories into semantic and procedural tiers
+5. When a pattern emerges: `memory_lesson_save` to crystallize the lesson
+
+Search memory before answering implementation questions — prior context may already contain the answer.

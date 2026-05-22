@@ -1,6 +1,13 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "research-assistant",
+  "mcp": {
+    "agentmemory": {
+      "type": "local",
+      "command": ["/home/miguel/.agentmemory/mcp-lazy.sh"],
+      "enabled": true
+    }
+  },
   "lsp": {
     "pyright": {
       "command": ["pyright-langserver", "--stdio"],
