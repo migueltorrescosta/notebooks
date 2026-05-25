@@ -21,9 +21,6 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from src.analysis.ancilla_drive_metrology import (
-    DEFAULT_PSI0,
-    DEFAULT_T_BS,
-    DEFAULT_T_H,
     build_drive_hold_hamiltonian,
     compute_drive_decoupled_baseline,
     compute_drive_sensitivity,
@@ -99,7 +96,7 @@ with st.sidebar:
         r"$T_H$ (holding time)",
         min_value=0.1,
         max_value=50.0,
-        value=float(DEFAULT_T_H),
+        value=10.0,
         step=1.0,
         format="%.1f",
         help="Holding time: SQL reference Δθ_SQL = 1/T_H.",
@@ -108,7 +105,7 @@ with st.sidebar:
         r"$T_{\mathrm{BS}}$ (BS duration)",
         min_value=0.0,
         max_value=np.pi,
-        value=float(DEFAULT_T_BS),
+        value=float(np.pi / 2.0),
         step=0.01,
         format="%.3f",
         help="Beam-splitter duration: π/2 for 50/50.",
@@ -181,7 +178,7 @@ with tab_single:
             t0 = time.time()
             ops_local = build_two_qubit_operators()
             dtheta = compute_drive_sensitivity(
-                DEFAULT_PSI0,
+                np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
                 T_BS,
                 T_H,
                 theta,
@@ -195,7 +192,7 @@ with tab_single:
 
             # Compute diagnostics
             psi_final = evolve_drive_circuit(
-                DEFAULT_PSI0,
+                np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
                 T_BS,
                 T_H,
                 theta,

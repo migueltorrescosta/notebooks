@@ -8,9 +8,6 @@ import numpy as np
 import pytest
 
 from src.analysis.ancilla_drive_metrology import (
-    DEFAULT_PSI0,
-    DEFAULT_T_BS,
-    DEFAULT_T_H,
     Drive2DSliceResult,
     DriveDecoupledBaselineResult,
     DriveNelderMeadResult,
@@ -139,9 +136,9 @@ class TestEvolveDriveCircuit:
         self, make_ops: dict
     ) -> None:
         psi = evolve_drive_circuit(
-            DEFAULT_PSI0,
-            DEFAULT_T_BS,
-            DEFAULT_T_H,
+            np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+            np.pi / 2.0,
+            10.0,
             1.0,
             0.0,
             0.0,
@@ -154,9 +151,9 @@ class TestEvolveDriveCircuit:
     def test_given_zero_drive_then_sql_sensitivity(self, make_ops: dict) -> None:
         """At zero drive and zero interaction, Δθ should equal 1/T_H."""
         dtheta = compute_drive_sensitivity(
-            DEFAULT_PSI0,
-            DEFAULT_T_BS,
-            DEFAULT_T_H,
+            np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+            np.pi / 2.0,
+            10.0,
             1.0,
             0.0,
             0.0,
@@ -164,16 +161,16 @@ class TestEvolveDriveCircuit:
             0.0,
             make_ops,
         )
-        expected = 1.0 / DEFAULT_T_H
+        expected = 1.0 / 10.0
         assert np.isclose(dtheta, expected, rtol=0.05), (
             f"Δθ = {dtheta:.6f}, expected ≈ {expected:.6f}"
         )
 
     def test_given_nonzero_params_then_finite_sensitivity(self, make_ops: dict) -> None:
         dtheta = compute_drive_sensitivity(
-            DEFAULT_PSI0,
-            DEFAULT_T_BS,
-            DEFAULT_T_H,
+            np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+            np.pi / 2.0,
+            10.0,
             1.0,
             2.0,
             0.0,

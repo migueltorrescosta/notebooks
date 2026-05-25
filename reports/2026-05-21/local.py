@@ -1206,8 +1206,10 @@ def generate_bfgs_theta_scan(force: bool = False) -> None:
 
     # Compact small files into fewer larger ones for efficient reads
     compact_info = DeltaTable(BFGS_TABLE_DIR).optimize.compact()
-    print(f"  [compact] {compact_info['numFilesRemoved']} files → "
-          f"{compact_info['numFilesAdded']} file")
+    print(
+        f"  [compact] {compact_info['numFilesRemoved']} files → "
+        f"{compact_info['numFilesAdded']} file"
+    )
 
     # Vacuum tombstoned files from disk
     dt = DeltaTable(BFGS_TABLE_DIR)

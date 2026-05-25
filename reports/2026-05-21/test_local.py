@@ -36,7 +36,6 @@ del _sys, _Path, _report_dir
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     ALPHA_BOUNDS,
-    BFGS_TABLE_DIR,
     DEFAULT_PSI0,
     DEFAULT_T_BS,
     DEFAULT_T_H,
@@ -785,9 +784,10 @@ class TestConstants:
 class TestDeltaLake:
     """Tests for Delta Lake-based BFGS result storage."""
 
-    def test_delta_append_single_row(self, tmp_path_factory: pytest.TempPathFactory) -> None:
+    def test_delta_append_single_row(
+        self, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
         """Insert 1 row via _upsert_bfgs_result; DeltaTable reads 1 row."""
-        import tempfile
 
         tmp_dir = tmp_path_factory.mktemp("delta_single")
         table_dir = str(tmp_dir / "bfgs-results")
@@ -815,9 +815,10 @@ class TestDeltaLake:
         assert df["delta_theta_opt"].iloc[0] == pytest.approx(0.05)
         assert df["n_converged"].iloc[0] == 90
 
-    def test_delta_concurrent_append(self, tmp_path_factory: pytest.TempPathFactory) -> None:
+    def test_delta_concurrent_append(
+        self, tmp_path_factory: pytest.TempPathFactory
+    ) -> None:
         """ThreadPoolExecutor (10 workers) writes 10 rows; table has exactly 10 rows."""
-        import tempfile
 
         tmp_dir = tmp_path_factory.mktemp("delta_concurrent")
         table_dir = str(tmp_dir / "bfgs-results")
@@ -850,7 +851,6 @@ class TestDeltaLake:
         self, tmp_path_factory: pytest.TempPathFactory
     ) -> None:
         """Write 3 rows; shutil.rmtree + re-run; table has exactly the new rows."""
-        import tempfile
 
         tmp_dir = tmp_path_factory.mktemp("delta_force")
         table_dir = str(tmp_dir / "bfgs-results")
@@ -889,7 +889,6 @@ class TestDeltaLake:
         self, tmp_path_factory: pytest.TempPathFactory
     ) -> None:
         """Write 5 rows; construct GeneralThetaScanResult; verify data matches."""
-        import tempfile
 
         tmp_dir = tmp_path_factory.mktemp("delta_roundtrip")
         table_dir = str(tmp_dir / "bfgs-results")
@@ -930,9 +929,7 @@ class TestDeltaLake:
         )
 
         assert len(scan_result.theta_values) == 5
-        assert np.allclose(
-            scan_result.theta_values, sorted(theta_vals)
-        )
+        assert np.allclose(scan_result.theta_values, sorted(theta_vals))
         assert np.allclose(
             scan_result.alpha_xx_opt_per_theta,
             [t * 2 for t in sorted(theta_vals)],

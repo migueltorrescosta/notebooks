@@ -702,11 +702,8 @@ class DriveThetaScanResult:
 # Default configuration
 # ============================================================================
 
-DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_H: float = 10.0  # Holding time (SQL = 0.1)
-DEFAULT_PSI0: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)  # |00⟩
-SQL_REFERENCE: float = 1.0 / DEFAULT_T_H  # Δθ_SQL = 0.1
-DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Range for all coefficients
+# Note: Default parameters are inlined in function signatures below.
+# See Global Constraints §6 — no module-level constants for defaults.
 
 
 # ============================================================================
@@ -715,7 +712,7 @@ DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Range for all coefficients
 
 
 def compute_drive_decoupled_baseline(
-    T_H: float = DEFAULT_T_H,
+    T_H: float = 10.0,
     theta_true: float = 1.0,
 ) -> DriveDecoupledBaselineResult:
     """Compute the decoupled baseline sensitivity Δθ.
@@ -733,8 +730,8 @@ def compute_drive_decoupled_baseline(
     """
     ops = build_two_qubit_operators()
     dtheta = compute_drive_sensitivity(
-        DEFAULT_PSI0,
-        DEFAULT_T_BS,
+        np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+        np.pi / 2.0,
         T_H,
         theta_true,
         0.0,
@@ -757,13 +754,13 @@ def compute_drive_decoupled_baseline(
 
 def drive_2d_slice(
     theta: float,
-    drive_range: tuple[float, float] = DRIVE_BOUNDS,
-    azz_range: tuple[float, float] = DRIVE_BOUNDS,
+    drive_range: tuple[float, float] = (-5.0, 5.0),
+    azz_range: tuple[float, float] = (-5.0, 5.0),
     n_drive: int = 201,
     n_azz: int = 201,
     slice_type: str = "ax",
-    T_H: float = DEFAULT_T_H,
-    T_BS: float = DEFAULT_T_BS,
+    T_H: float = 10.0,
+    T_BS: float = np.pi / 2.0,
 ) -> Drive2DSliceResult:
     """Run a 2D slice scan over (a_drive, a_zz).
 
@@ -799,7 +796,7 @@ def drive_2d_slice(
                 ax, ay, az = 0.0, d_val, 0.0
 
             dtheta = compute_drive_sensitivity(
-                DEFAULT_PSI0,
+                np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
                 T_BS,
                 T_H,
                 theta,
@@ -829,9 +826,9 @@ def drive_2d_slice(
 def drive_random_search(
     theta: float,
     n_samples: int = 500,
-    bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_H: float = DEFAULT_T_H,
-    T_BS: float = DEFAULT_T_BS,
+    bounds: tuple[float, float] = (-5.0, 5.0),
+    T_H: float = 10.0,
+    T_BS: float = np.pi / 2.0,
     seed: int | None = 42,
 ) -> DriveRandomSearchResult:
     """Random search over the 4D parameter space (a_x, a_y, a_z, a_zz).
@@ -861,7 +858,7 @@ def drive_random_search(
         azz = float(samples[i, 3])
 
         dtheta = compute_drive_sensitivity(
-            DEFAULT_PSI0,
+            np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
             T_BS,
             T_H,
             theta,
@@ -901,10 +898,10 @@ def drive_sensitivity_objective(
     params: np.ndarray,
     theta_true: float,
     ops: dict[str, np.ndarray],
-    T_H: float = DEFAULT_T_H,
-    T_BS: float = DEFAULT_T_BS,
+    T_H: float = 10.0,
+    T_BS: float = np.pi / 2.0,
     fd_step: float = 1e-6,
-    bounds: tuple[float, float] = DRIVE_BOUNDS,
+    bounds: tuple[float, float] = (-5.0, 5.0),
     penalty_scale: float = 1e6,
 ) -> float:
     """Objective function for minimising Δθ in the driven-ancilla protocol.
@@ -943,7 +940,7 @@ def drive_sensitivity_objective(
         return float(1e10 + penalty)
 
     return compute_drive_sensitivity(
-        DEFAULT_PSI0,
+        np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
         T_BS,
         T_H,
         theta_true,
@@ -964,9 +961,9 @@ def run_drive_nelder_mead(
     xatol: float = 1e-8,
     fatol: float = 1e-8,
     adaptive: bool = True,
-    bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_H: float = DEFAULT_T_H,
-    T_BS: float = DEFAULT_T_BS,
+    bounds: tuple[float, float] = (-5.0, 5.0),
+    T_H: float = 10.0,
+    T_BS: float = np.pi / 2.0,
     track_history: bool = False,
 ) -> DriveNelderMeadResult:
     """Run Nelder--Mead optimisation for the driven-ancilla protocol.
@@ -1031,7 +1028,7 @@ def run_drive_nelder_mead(
 
     # Compute diagnostics at the optimal point
     psi_final = evolve_drive_circuit(
-        DEFAULT_PSI0,
+        np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
         T_BS,
         T_H,
         theta_true,
@@ -1067,9 +1064,9 @@ def run_drive_theta_scan(
     n_nm_refine: int = 50,
     seed: int | None = 42,
     maxiter: int = 5000,
-    bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_H: float = DEFAULT_T_H,
-    T_BS: float = DEFAULT_T_BS,
+    bounds: tuple[float, float] = (-5.0, 5.0),
+    T_H: float = 10.0,
+    T_BS: float = np.pi / 2.0,
 ) -> DriveThetaScanResult:
     """Scan over θ values with 4D random search and Nelder--Mead refinement.
 
