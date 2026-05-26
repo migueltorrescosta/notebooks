@@ -16,24 +16,19 @@ This survey covers six models spanning **modified topologies** and **non-Markovi
 
 **Non-Markovian bath with ancilla (Lorentzian pseudomode):** The system is tripartite: a **single-mode oscillator** (probe) coupled to a **spin-½ ancilla** and a **pseudomode** representing the Lorentzian reservoir. The total Hamiltonian is
 
-$$H = H_{\text{SA}} + H_{\text{SP}} + H_{\text{PM}},\quad
-H_{\text{SA}} = g_{\text{sa}}\,(a^\dagger a) \otimes \sigma_x \otimes \mathbb{1}_{\text{PM}},\quad
-H_{\text{SP}} = g_{\text{sp}}\,(a + a^\dagger) \otimes \mathbb{1}_{\text{spin}} \otimes (b + b^\dagger),\quad
-H_{\text{PM}} = \omega_0\, \mathbb{1}_{\text{osc}} \otimes \mathbb{1}_{\text{spin}} \otimes (b^\dagger b)$$
+$H = H_{\text{SA}} + H_{\text{SP}} + H_{\text{PM}},\quad H_{\text{SA}} = g_{\text{sa}}\,(a^\dagger a) \otimes \sigma_x \otimes \mathbb{1}_{\text{PM}},\quad H_{\text{SP}} = g_{\text{sp}}\,(a + a^\dagger) \otimes \mathbb{1}_{\text{spin}} \otimes (b + b^\dagger),\quad H_{\text{PM}} = \omega_0\, \mathbb{1}_{\text{osc}} \otimes \mathbb{1}_{\text{spin}} \otimes (b^\dagger b)$
 
 where $a$, $\sigma_x$, and $b$ act on the oscillator, spin ancilla, and pseudomode respectively. The **ancilla entanglement step** uses $U_{\text{ent}} = e^{-i H_{\text{SA}} \tau}$ (dispersive coupling); during the decoherence step $H_{\text{SA}}$ is turned off, leaving $H_{\text{dec}} = H_{\text{SP}} + H_{\text{PM}}$. The **Lindblad operator** for the pseudomode is $L_{\text{PM}} = \sqrt{\lambda}\,(\mathbb{1}_{\text{osc}} \otimes \mathbb{1}_{\text{spin}} \otimes b)$ where $\lambda$ is the bath correlation decay rate. The **Markovian limit** is recovered as $\lambda \to \infty$ with effective rate $\gamma_{\text{eff}} = g_{\text{sp}}^2/\lambda$; the **deeply non-Markovian regime** arises as $\lambda \to 0$, producing coherent QFI oscillations. The signature quantity is the QFI preservation ratio $\mathcal{R}(T) = F_Q(T)/F_Q(0)$, converted to sensitivity via $\Delta\phi = 1/\sqrt{F_Q}$ for scaling analysis.
 
 **Thermal noise (Langevin):** A **mechanical oscillator** in the interferometer arm is subject to a **thermal Langevin force**. The production model uses **normalized dimensionless parameters**:
 
-$$\Delta\phi_{\text{th}} = S \cdot N^{\alpha_{\text{th}}},\quad
-\Delta\phi_{\text{SQL}} = \frac{1}{\sqrt{N}},\quad
-\Delta\phi_{\text{total}} = \sqrt{\Delta\phi_{\text{SQL}}^2 + \Delta\phi_{\text{th}}^2}$$
+$\Delta\phi_{\text{th}} = S \cdot N^{\alpha_{\text{th}}},\quad \Delta\phi_{\text{SQL}} = \frac{1}{\sqrt{N}},\quad \Delta\phi_{\text{total}} = \sqrt{\Delta\phi_{\text{SQL}}^2 + \Delta\phi_{\text{th}}^2}$
 
 where $S$ is the relative thermal strength and $\alpha_{\text{th}}$ is the thermal scaling exponent (typically $0$ for a constant floor). The crossover photon number is $N_{\text{co}} = S^{-2}$ when $\alpha_{\text{th}}=0$. A **physical susceptibility model** (dormant) gives $\Delta\phi_{\text{th}} = \sqrt{2k_B T \Gamma / (m\omega_m^2 N)}$ and $\Delta\phi_{\text{SQL}} = \sqrt{\hbar/(2m\omega_m N)}$, available but not wired into the production pipeline. Scaling behavior: $\alpha = 0$ when the thermal floor dominates; $\alpha = -0.5$ when SQL dominates.
 
 **Cavity-enhanced MZI:** **Optical cavities** in each arm multiply the effective interaction time by the **cavity finesse** $\mathcal{F}$, giving $T_{\text{eff}} = \mathcal{F} \cdot T_{\text{single}}$. The sensitivity becomes $\Delta\phi = 1/\sqrt{\mathcal{F} N}$, with scaling $\alpha = -0.5$ and **prefactor** $C = 1/\sqrt{\mathcal{F}}$. Per-pass noise rates $(\gamma_1, \gamma_2, \gamma_\phi)$ are amplified by $\mathcal{F}$ via a **Trotter-style approximation**:
 
-$$\text{Noise}(\gamma, \mathcal{F}) \approx \mathcal{F} \times \text{Noise}(\gamma, 1)$$
+$\text{Noise}(\gamma, \mathcal{F}) \approx \mathcal{F} \times \text{Noise}(\gamma, 1)$
 
 valid when $\gamma_i \ll \phi$ per pass.
 
@@ -43,7 +38,7 @@ valid when $\gamma_i \ll \phi$ per pass.
 
 **Tilt-to-length coupling noise:** **Angular jitter** $\theta$ in interferometer optics causes **apparent path-length noise** $\delta L \propto \theta x$, producing a constant sensitivity floor
 
-$$\delta\phi_{\text{ttl}} = 2\pi \cdot (\theta_{\text{rms}} \cdot x_{\text{offset}}) / \lambda$$
+$\delta\phi_{\text{ttl}} = 2\pi \cdot (\theta_{\text{rms}} \cdot x_{\text{offset}}) / \lambda$
 
 independent of $N$, giving $\alpha \to 0$ in the TTL-dominated regime. The quantum contribution $\Delta\phi_Q(N)$ (e.g., $1/\sqrt{N}$ for SQL) is added in quadrature: $\Delta\phi_{\text{total}}^2 = \Delta\phi_Q^2 + \Delta\phi_{\text{ttl}}^2$.
 
