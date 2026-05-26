@@ -6,8 +6,8 @@ Mach–Zehnder interferometer for estimating an unknown phase rate θ.
 Supports both S-only (J_z^S) and joint (J_z^S + J_z^A) measurement operators.
 
 References:
-- `reports/2026-05-12/Ancilla-Assisted-Metrology-Optimization.md`
-- `reports/2026-05-15/Ancilla-Assisted-Metrology-Joint-Measurement.md`
+- `reports/20260512/Ancilla-Assisted-Metrology-Optimization.md`
+- `reports/20260515/Ancilla-Assisted-Metrology-Joint-Measurement.md`
 
 """
 
@@ -43,16 +43,16 @@ from src.analysis.ancilla_optimization import (
     validate_sensitivity_reasonable,
 )
 
-# Load exclusive function from reports/2026-05-12/local.py via importlib.
+# Load exclusive function from reports/20260512/local.py via importlib.
 # Try multiple resolution strategies to handle both normal execution
 # and AppTest (which copies the script to a temp directory).
 _local_candidates = [
     # Strategy 1: relative to this file's location
-    Path(__file__).resolve().parent.parent / "reports" / "2026-05-12" / "local.py",
+    Path(__file__).resolve().parent.parent / "reports" / "20260512" / "local.py",
     # Strategy 2: relative to the project root (sys.path[0] set by conftest.py)
-    Path(sys.path[0]) / "reports" / "2026-05-12" / "local.py",
+    Path(sys.path[0]) / "reports" / "20260512" / "local.py",
     # Strategy 3: relative to current working directory
-    Path.cwd() / "reports" / "2026-05-12" / "local.py",
+    Path.cwd() / "reports" / "20260512" / "local.py",
 ]
 _local_path = None
 for _candidate in _local_candidates:
@@ -774,8 +774,8 @@ with tab1:
         **Model**: $\mathcal{{H}} = \mathbb{{C}}^2 \otimes \mathbb{{C}}^2$ |
         **Method**: Nelder–Mead (11 parameters) |
         **Objective**: ${obj_label}$ |
-        🔗 See `reports/2026-05-12/Ancilla-Assisted-Metrology-Optimization.md` and
-        `reports/2026-05-15/Ancilla-Assisted-Metrology-Joint-Measurement.md`.
+        🔗 See `reports/20260512/Ancilla-Assisted-Metrology-Optimization.md` and
+        `reports/20260515/Ancilla-Assisted-Metrology-Joint-Measurement.md`.
         """,
     )
 

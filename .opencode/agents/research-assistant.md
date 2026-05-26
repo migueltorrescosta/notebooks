@@ -42,7 +42,7 @@ These apply to every task, regardless of which skills are loaded:
 2. **Package management**: Use `uv` only.
 3. **Simplicity**: When in doubt, prefer **simplicity, explicitness, and reuse**.
 4. **Project root**: The root `conftest.py` inserts the project root into `sys.path`, enabling absolute imports like `from src.physics.mzi_states import ...` in both `pages/` and `tests/`.
-5. **New code in `local.py`**: All new report-specific simulation code must be added to the report's `reports/YYYY-MM-DD/local.py`. Only promote code to `src/` when it is demonstrably reusable across multiple reports.
+5. **New code in `local.py`**: All new report-specific simulation code must be added to the report's `reports/YYYYMMDD/local.py`. Only promote code to `src/` when it is demonstrably reusable across multiple reports.
 6. **No module-level constants in `src/`**: Shared modules under `src/` must not define module-level constants for default parameters, bounds, or reference values. Use function-level defaults or `@dataclass` config objects instead.
 7. **No imports from `local.py`**: Code inside `local.py` must never be imported by modules outside its own report directory — including `src/`, `tests/`, and `pages/`. If a function in `local.py` is needed externally, promote it to a `src/` module first.
 
@@ -68,7 +68,7 @@ Load skills based on the current stage of work:
 ├── .streamlit/             # Streamlit configuration directory
 ├── pages/                  # Streamlit UI (one page per simulation)
 ├── reports/                # Report directories: markdown + local.py + test_local.py
-│   └── YYYY-MM-DD/           # Dated report directory
+│   └── YYYYMMDD/           # Dated report directory (no dashes)
 │       ├── {title}.md          # Report write-up (10-section template)
 │       ├── local.py            # All report-specific simulation code
 │       └── test_local.py       # Tests for local.py code

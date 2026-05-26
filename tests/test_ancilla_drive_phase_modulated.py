@@ -1,7 +1,7 @@
 """Tests for the θ-modulated ancilla drive metrology protocol.
 
 This is the companion test module for
-``reports/2026-05-19/local.py`` (which replaces the former
+``reports/20260519/local.py`` (which replaces the former
 ``src/analysis/ancilla_drive_phase_modulated.py``).
 It mirrors the structure of ``test_ancilla_drive_metrology.py`` (fixed-drive)
 but tests the θ-modulated Hamiltonian H_A = θ (a_x J_x^A + a_y J_y^A + a_z J_z^A).
@@ -17,8 +17,6 @@ Key new tests (not in the fixed-drive test suite):
 from __future__ import annotations
 
 # Add the report directory to sys.path so we can import ``local``.
-# (The directory name contains hyphens so a dotted-package import is not
-# possible.)
 import sys as _sys
 from pathlib import Path as _Path
 from typing import TYPE_CHECKING
@@ -43,7 +41,7 @@ from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
 
-_report_dir = str(_Path(__file__).resolve().parent.parent / "reports" / "2026-05-19")
+_report_dir = str(_Path(__file__).resolve().parent.parent / "reports" / "20260519")
 if _report_dir not in _sys.path:
     _sys.path.insert(0, _report_dir)
 del _sys, _Path, _report_dir

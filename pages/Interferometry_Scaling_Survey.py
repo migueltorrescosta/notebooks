@@ -41,7 +41,7 @@ from plotly import graph_objects as go
 if TYPE_CHECKING:
 
     class ModelConfig:
-        """Stub matching the dataclass in reports/2026-05-11/local.py."""
+        """Stub matching the dataclass in reports/20260511/local.py."""
 
         model_id: str
         state_type: str
@@ -61,7 +61,7 @@ if TYPE_CHECKING:
         ) -> None: ...
 
     class SurveyConfig:
-        """Stub matching the dataclass in reports/2026-05-11/local.py."""
+        """Stub matching the dataclass in reports/20260511/local.py."""
 
         N_range: tuple[int, int]
         N_points: int
@@ -81,13 +81,13 @@ if TYPE_CHECKING:
         ) -> None: ...
 
 
-# Load exclusive functions from reports/2026-05-11/local.py via importlib.
+# Load exclusive functions from reports/20260511/local.py via importlib.
 # Try multiple resolution strategies to handle both normal execution
 # and AppTest (which copies the script to a temp directory).
 _local_candidates = [
-    Path(__file__).resolve().parent.parent / "reports" / "2026-05-11" / "local.py",
-    Path(sys.path[0]) / "reports" / "2026-05-11" / "local.py",
-    Path.cwd() / "reports" / "2026-05-11" / "local.py",
+    Path(__file__).resolve().parent.parent / "reports" / "20260511" / "local.py",
+    Path(sys.path[0]) / "reports" / "20260511" / "local.py",
+    Path.cwd() / "reports" / "20260511" / "local.py",
 ]
 _local_path = None
 for _candidate in _local_candidates:
@@ -96,16 +96,16 @@ for _candidate in _local_candidates:
         break
 if _local_path is None:
     raise ImportError(
-        "Cannot find reports/2026-05-11/local.py. "
-        "Run 'uv run python reports/2026-05-11/local.py --force' from the project root."
+        "Cannot find reports/20260511/local.py. "
+        "Run 'uv run python reports/20260511/local.py --force' from the project root."
     )
 _spec = importlib.util.spec_from_file_location(
     "report_scaling_survey_local", str(_local_path)
 )
 if _spec is None or _spec.loader is None:
     raise ImportError(
-        f"Cannot load reports/2026-05-11/local.py at {_local_path}. "
-        "Run 'uv run python reports/2026-05-11/local.py --force' first."
+        f"Cannot load reports/20260511/local.py at {_local_path}. "
+        "Run 'uv run python reports/20260511/local.py --force' first."
     )
 _report_local = importlib.util.module_from_spec(_spec)
 sys.modules["report_scaling_survey_local"] = _report_local

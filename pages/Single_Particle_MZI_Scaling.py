@@ -3,8 +3,8 @@
 This page simulates a single-particle Mach-Zehnder interferometer and
 verifies the Δθ ∝ 1/T_H scaling (exponent α = -1) via log-log analysis.
 
-Imports the core simulation functions from reports/2026-05-12/local.py
-via importlib because the directory name contains hyphens.
+Imports the core simulation functions from reports/20260512/local.py
+via importlib.
 """
 
 import importlib.util
@@ -15,16 +15,16 @@ import numpy as np
 import streamlit as st
 from plotly import graph_objects as go
 
-# Load exclusive functions from reports/2026-05-12/local.py via importlib.
+# Load exclusive functions from reports/20260512/local.py via importlib.
 # Try multiple resolution strategies to handle both normal execution
 # and AppTest (which copies the script to a temp directory).
 _local_candidates = [
     # Strategy 1: relative to this file's location
-    Path(__file__).resolve().parent.parent / "reports" / "2026-05-12" / "local.py",
+    Path(__file__).resolve().parent.parent / "reports" / "20260512" / "local.py",
     # Strategy 2: relative to the project root (sys.path[0] set by conftest.py)
-    Path(sys.path[0]) / "reports" / "2026-05-12" / "local.py",
+    Path(sys.path[0]) / "reports" / "20260512" / "local.py",
     # Strategy 3: relative to current working directory
-    Path.cwd() / "reports" / "2026-05-12" / "local.py",
+    Path.cwd() / "reports" / "20260512" / "local.py",
 ]
 _local_path = None
 for _candidate in _local_candidates:
@@ -34,16 +34,16 @@ for _candidate in _local_candidates:
 
 if _local_path is None:
     raise ImportError(
-        "Cannot find reports/2026-05-12/local.py. "
-        "Run 'uv run python reports/2026-05-12/local.py --force' from the project root."
+        "Cannot find reports/20260512/local.py. "
+        "Run 'uv run python reports/20260512/local.py --force' from the project root."
     )
 _spec = importlib.util.spec_from_file_location(
     "report_single_particle_local", str(_local_path)
 )
 if _spec is None or _spec.loader is None:
     raise ImportError(
-        f"Cannot load reports/2026-05-12/local.py at {_local_path}. "
-        "Run 'uv run python reports/2026-05-12/local.py --force' first."
+        f"Cannot load reports/20260512/local.py at {_local_path}. "
+        "Run 'uv run python reports/20260512/local.py --force' first."
     )
 _report_local = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_report_local)

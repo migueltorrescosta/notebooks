@@ -25,7 +25,7 @@ Audit the codebase implementation related to a specific report against all proje
    - The simulation functions and dataclasses used
    - The expected outputs and success criteria
 2. **Read the relevant code** — Open all source files related to this report:
-   - The report's own `local.py` and `test_local.py` in `reports/YYYY-MM-DD/`
+   - The report's own `local.py` and `test_local.py` in `reports/YYYYMMDD/`
    - Physics modules (`src/physics/`)
    - Evolution modules (`src/evolution/`)
    - Analysis modules (`src/analysis/`)

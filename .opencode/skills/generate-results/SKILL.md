@@ -34,7 +34,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
 ## 2. Running simulations
 
 1. Execute parameter sweeps defined in the report's Numerical Simulation section.
-2. Save raw data as Parquet in `reports/raw_data/{date}-{name}.parquet`.
+2. Save raw data as Parquet in `reports/{date}/raw_data/{date}-{name}.parquet` (where `{date}` is the YYYYMMDD report directory).
 3. Use `to_dataframe()` / `save_parquet()` on result dataclasses (see Code Architecture §Serialization for completeness requirements).
 4. If a simulation function is missing or incorrect, fix it minimally. If the fix is substantial, flag it for implement-plan.
 
@@ -42,8 +42,8 @@ Execute the simulation experiments defined in a report, produce all raw data and
 
 1. Add a `plot_<description>()` function in `src/visualization/ancilla_plots.py` (or create a new module there) that reads the dataclass or Parquet file and saves SVG.
 2. Add a `generate_<name>()` function in `src/visualization/report_figures.py` that runs the simulation, saves Parquet, and renders SVG.
-3. SVGs go to `reports/figures/{date}-{name}.svg`.
-4. Embed in the report with `![alt](reports/figures/{date}-{name}.svg)`.
+3. SVGs go to `reports/{date}/figures/{date}-{name}.svg` (where `{date}` is the YYYYMMDD report directory).
+4. Embed in the report with `![alt](figures/{date}-{name}.svg)` (relative path from within the report directory).
 
 ## 4. Code updates
 
@@ -60,9 +60,9 @@ Every simulation run follows a strict four-step sequence. Execute these in order
 
 2. **Run the simulation** – Call the simulation functions (found in `src/` modules or the report's own `local.py`) for each point in the parameter sweep. Respect the 100 ms per-simulation budget.
 
-3. **Save raw data** – Use the result dataclass's `save_parquet()` method to write to `reports/raw_data/{date}-{name}.parquet`.
+3. **Save raw data** – Use the result dataclass's `save_parquet()` method to write to `reports/{date}/raw_data/{date}-{name}.parquet`.
 
-4. **Generate and embed figures** – Create a `plot_<name>()` function in `src/visualization/` that reads the Parquet file and saves an SVG to `reports/figures/{date}-{name}.svg`. Embed the SVG in the report with `![alt](reports/figures/{date}-{name}.svg)`.
+4. **Generate and embed figures** – Create a `plot_<name>()` function in `src/visualization/` that reads the Parquet file and saves an SVG to `reports/{date}/figures/{date}-{name}.svg`. Embed the SVG in the report with `![alt](figures/{date}-{name}.svg)`.
 
 # Figure Aesthetics Guidelines
 
@@ -77,5 +77,5 @@ Every simulation run follows a strict four-step sequence. Execute these in order
 # Verification
 
 - [ ] Report's parameter sweeps have been fully executed
-- [ ] All raw data saved as Parquet in `reports/raw_data/`
-- [ ] All figures saved as SVG in `reports/figures/`
+- [ ] All raw data saved as Parquet in `reports/{date}/raw_data/`
+- [ ] All figures saved as SVG in `reports/{date}/figures/`

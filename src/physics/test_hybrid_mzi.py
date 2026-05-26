@@ -4,7 +4,7 @@ Tests for MZI Embedding for Hybrid Oscillator-Spin System.
 Note: Tests for embed_hybrid_in_mzi, mzi_beam_splitter, mzi_phase_shift,
 mzi_phase_generator, evolve_hybrid_mzi, mzi_output_probabilities,
 mzi_marginal_photon_probs, compute_wigner_for_state have been migrated to
-reports/2026-05-07/test_local.py.
+reports/20260507/test_local.py.
 """
 
 import importlib.util
@@ -18,11 +18,11 @@ import pytest
 _local_path = (
     Path(__file__).resolve().parent.parent.parent
     / "reports"
-    / "2026-05-07"
+    / "20260507"
     / "local.py"
 )
 _spec = importlib.util.spec_from_file_location("report_local", str(_local_path))
-assert _spec is not None, "Could not find reports/2026-05-07/local.py"
+assert _spec is not None, "Could not find reports/20260507/local.py"
 _report_local = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 sys.modules[_spec.name] = _report_local

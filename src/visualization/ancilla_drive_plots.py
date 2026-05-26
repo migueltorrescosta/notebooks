@@ -346,8 +346,8 @@ def plot_drive_optimal_params(
 #       cross-experiment comparison, fraction below SQL
 # ──────────────────────────────────────────────
 #
-# These plot functions have been moved to ``reports/2026-05-19/local.py``
-# as they are used exclusively by the 2026-05-19 report.
+# These plot functions have been moved to ``reports/20260519/local.py``
+# as they are used exclusively by the 20260519 report.
 
 
 # ──────────────────────────────────────────────
@@ -429,8 +429,8 @@ def plot_drive_cross_experiment_comparison(
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
 ) -> Path:
-    """Compare Δθ from the fixed-drive (2026-05-18) and modulated-drive
-    (2026-05-19) experiments in a 2×1 vertically stacked figure.
+    """Compare Δθ from the fixed-drive (20260518) and modulated-drive
+    (20260519) experiments in a 2×1 vertically stacked figure.
 
     Upper panel: Overlaid line plots of Δθ vs θ for both experiments,
     with the SQL shown as a dashed reference line.
@@ -441,8 +441,8 @@ def plot_drive_cross_experiment_comparison(
 
     Args:
         theta_values: Common θ grid (50 points from the modulated-drive scan).
-        best_delta_19: Δθ from the modulated-drive scan (2026-05-19).
-        best_delta_18: Δθ from the fixed-drive scan (2026-05-18),
+        best_delta_19: Δθ from the modulated-drive scan (20260519).
+        best_delta_18: Δθ from the fixed-drive scan (20260518),
             interpolated to the same θ grid.
         sql_values: SQL reference values (constant, 0.1) at each θ.
         save_path: Output SVG path.
@@ -476,7 +476,7 @@ def plot_drive_cross_experiment_comparison(
         color="C0",
         markersize=5,
         linewidth=1.8,
-        label=r"Fixed drive (2026-05-18)",
+        label=r"Fixed drive (20260518)",
     )
     ax1.plot(
         theta_values,
@@ -486,7 +486,7 @@ def plot_drive_cross_experiment_comparison(
         color="C3",
         markersize=5,
         linewidth=1.8,
-        label=r"Modulated drive (2026-05-19)",
+        label=r"Modulated drive (20260519)",
     )
 
     ax1.set_ylabel(r"$\Delta\theta$")

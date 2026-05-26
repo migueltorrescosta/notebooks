@@ -24,7 +24,7 @@ Functions:
 - ``hybrid_ground_state_n`` — lowest-energy eigenstate via exact diagonalisation
 - ``hybrid_vacuum_state`` — state preparation
 
-Note: The following functions have been migrated to reports/2026-05-07/local.py:
+Note: The following functions have been migrated to reports/20260507/local.py:
 hybrid_coherent_state, adaptive_truncation, hybrid_mean_photon,
 evolve_hybrid_state, validate_hybrid_state, validate_hybrid_unitary.
 """

@@ -21,6 +21,9 @@ from .lindblad_solver import (
     create_coherent_state,
     create_fock_state,
     evolve_lindblad,
+    evolve_lindblad_rk4,
+    evolve_lindblad_scipy,
+    lindblad_rhs,
     simulate_trajectory,
     steady_state,
     validate_density_matrix,
@@ -190,6 +193,109 @@ class TestUnitaryEvolution:
         U = scipy.linalg.expm(-1.0j * H * T)
         expected_rho = U @ rho0 @ U.conj().T
         assert final_rho == pytest.approx(expected_rho, abs=1e-4)
+
+
+class TestLindbladRhs:
+    """lindblad_rhs — RHS of Lindblad master equation."""
+
+    def test_given_no_dissipation_then_rhs_is_minus_i_commutator(self) -> None:
+        d = 4
+        H = np.diag([0.0, 1.0, 2.0, 3.0])
+        L_ops: list[np.ndarray] = []
+        gammas: list[float] = []
+        rho = np.eye(d, dtype=complex) / d
+
+        drho = lindblad_rhs(rho, H, L_ops, gammas)
+        expected = -1.0j * (H @ rho - rho @ H)
+        assert drho == pytest.approx(expected)
+
+    def test_given_dissipation_then_drho_is_nonzero(self) -> None:
+        d = 3
+        H = np.zeros((d, d), dtype=complex)
+        L = np.array([[0, 1, 0], [0, 0, np.sqrt(2)], [0, 0, 0]], dtype=complex)
+        rho = np.diag([0.0, 1.0, 0.0])
+        drho = lindblad_rhs(rho, H, [L], [1.0])
+        assert np.max(np.abs(drho)) > 0, "Dissipation should produce non-zero drift"
+
+    def test_given_zero_gamma_then_operator_is_skipped(self) -> None:
+        d = 2
+        H = np.zeros((d, d), dtype=complex)
+        L = np.array([[0, 1], [0, 0]], dtype=complex)
+        rho = np.eye(d, dtype=complex) / d
+        drho = lindblad_rhs(rho, H, [L], [0.0])
+        assert drho == pytest.approx(np.zeros((d, d), dtype=complex))
+
+
+class TestEvolveLindbladRk4:
+    """evolve_lindblad_rk4 — RK4 integration of Lindblad equation."""
+
+    def test_given_zero_time_then_returns_initial_state(self) -> None:
+        d = 4
+        rho0 = np.eye(d, dtype=complex) / d
+        H = np.diag([0.0, 1.0, 2.0, 3.0])
+        result = evolve_lindblad_rk4(rho0, H, [], [], T=0.0, dt=0.01)
+        assert result == pytest.approx(rho0)
+
+    def test_given_no_dissipation_then_trace_preserved(self) -> None:
+        d = 4
+        rho0 = np.eye(d, dtype=complex) / d
+        H = np.diag([0.0, 1.0, 2.0, 3.0])
+        result = evolve_lindblad_rk4(rho0, H, [], [], T=1.0, dt=0.01)
+        assert np.trace(result) == pytest.approx(1.0, abs=1e-6)
+
+    def test_given_no_dissipation_then_hermitian(self) -> None:
+        d = 4
+        rho0 = np.eye(d, dtype=complex) / d
+        H = np.diag([0.0, 1.0, 2.0, 3.0])
+        result = evolve_lindblad_rk4(rho0, H, [], [], T=1.0, dt=0.01)
+        assert result == pytest.approx(result.conj().T, abs=1e-6)
+
+    def test_given_dissipation_then_hermitian(self) -> None:
+        d = 3
+        rho0 = np.diag([1.0, 0.0, 0.0])
+        H = np.zeros((d, d), dtype=complex)
+        L = np.array([[0, 1, 0], [0, 0, np.sqrt(2)], [0, 0, 0]], dtype=complex)
+        result = evolve_lindblad_rk4(rho0, H, [L], [1.0], T=0.5, dt=0.01)
+        assert result == pytest.approx(result.conj().T, abs=1e-6)
+        assert np.trace(result) == pytest.approx(1.0, abs=1e-6)
+
+    def test_given_positive_initial_then_positive_final(self) -> None:
+        d = 3
+        rho0 = np.diag([1.0, 0.0, 0.0])
+        H = np.zeros((d, d), dtype=complex)
+        L = np.array([[0, 1, 0], [0, 0, np.sqrt(2)], [0, 0, 0]], dtype=complex)
+        result = evolve_lindblad_rk4(rho0, H, [L], [1.0], T=0.5, dt=0.01)
+        eigenvalues = np.linalg.eigvalsh(result)
+        assert np.min(eigenvalues) >= -1e-6
+
+
+class TestEvolveLindbladScipy:
+    """evolve_lindblad_scipy — scipy ODE integration of Lindblad equation."""
+
+    def test_given_no_dissipation_then_trace_preserved(self) -> None:
+        d = 3
+        rho0 = np.eye(d, dtype=complex) / d
+        H = np.diag([0.0, 1.0, 2.0])
+        result = evolve_lindblad_scipy(rho0, H, [], [], T=1.0)
+        assert np.trace(result) == pytest.approx(1.0, abs=1e-6)
+
+    def test_given_no_dissipation_then_hermitian(self) -> None:
+        d = 3
+        rho0 = np.eye(d, dtype=complex) / d
+        H = np.diag([0.0, 1.0, 2.0])
+        result = evolve_lindblad_scipy(rho0, H, [], [], T=1.0)
+        assert result == pytest.approx(result.conj().T, abs=1e-6)
+
+    def test_given_dissipation_then_density_matrix_valid(self) -> None:
+        d = 3
+        rho0 = np.diag([1.0, 0.0, 0.0])
+        H = np.zeros((d, d), dtype=complex)
+        L = np.array([[0, 1, 0], [0, 0, np.sqrt(2)], [0, 0, 0]], dtype=complex)
+        result = evolve_lindblad_scipy(rho0, H, [L], [1.0], T=0.5)
+        assert result == pytest.approx(result.conj().T, abs=1e-6)
+        assert np.trace(result) == pytest.approx(1.0, abs=1e-6)
+        eigenvalues = np.linalg.eigvalsh(result)
+        assert np.min(eigenvalues) >= -1e-6
 
 
 class TestSteadyState:

@@ -28,7 +28,7 @@ Guide the creation of a new simulation report from initial research question thr
 
 ## 2. Writing the report
 
-1. Write the document in `reports/` using the format `YYYY-MM-DD-{title}.md`.
+1. Write the document in `reports/YYYYMMDD/` using the format `YYYY-MM-DD-{title}.md`.
 2. Follow the prescribed **section order**, **per-section patterns**, and **formatting rules**.
 3. When the report requires a multi-model comparison, include a **Models Survey** section.
 4. When conservation-law analysis or analytical bound derivation is central, include a **Physical Invariants / Analytical Bounds** section.

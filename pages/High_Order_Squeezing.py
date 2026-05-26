@@ -26,11 +26,11 @@ from plotly import graph_objects as go
 # and AppTest (which copies the script to a temp directory).
 _local_candidates = [
     # Strategy 1: relative to this file's location
-    Path(__file__).resolve().parent.parent / "reports" / "2026-05-07" / "local.py",
+    Path(__file__).resolve().parent.parent / "reports" / "20260507" / "local.py",
     # Strategy 2: relative to the project root (sys.path[0] set by conftest.py)
-    Path(sys.path[0]) / "reports" / "2026-05-07" / "local.py",
+    Path(sys.path[0]) / "reports" / "20260507" / "local.py",
     # Strategy 3: relative to current working directory
-    Path.cwd() / "reports" / "2026-05-07" / "local.py",
+    Path.cwd() / "reports" / "20260507" / "local.py",
 ]
 _local_path = None
 for _candidate in _local_candidates:

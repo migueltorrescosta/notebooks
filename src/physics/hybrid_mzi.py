@@ -30,7 +30,7 @@ Conventions:
 - QFI convention: F_Q = 4 · Var(G) for pure states
   (see src.analysis.fisher_information)
 
-Note: The following functions have been migrated to reports/2026-05-07/local.py:
+Note: The following functions have been migrated to reports/20260507/local.py:
 embed_hybrid_in_mzi, mzi_beam_splitter, mzi_phase_shift, mzi_phase_generator,
 evolve_hybrid_mzi, mzi_output_probabilities, mzi_marginal_photon_probs,
 compute_wigner_for_state.

@@ -400,6 +400,140 @@ def compute_phase_variance(rho: np.ndarray, N: int) -> float:
 # =============================================================================
 
 
+def lindblad_rhs(
+    rho: np.ndarray,
+    H: np.ndarray,
+    L_ops: list[np.ndarray],
+    gammas: list[float],
+) -> np.ndarray:
+    """Compute dρ/dt from Lindblad master equation.
+
+    dρ/dt = -i[H, ρ] + Σ_k γ_k (L_k ρ L_k† - ½{L_k†L_k, ρ})
+
+    Dimension-agnostic: works for any Hilbert space dimension determined by
+    ``rho.shape[0]``.
+
+    Args:
+        rho: Density matrix of shape (d, d).
+        H: Hamiltonian of shape (d, d).
+        L_ops: List of Lindblad jump operators.
+        gammas: List of decay rates for each operator.
+
+    Returns:
+        Time derivative dρ/dt of shape (d, d).
+
+    """
+    drho = -1.0j * (H @ rho - rho @ H)
+
+    for L, gamma in zip(L_ops, gammas, strict=False):
+        if gamma == 0:
+            continue
+        L_dag = L.conj().T
+        LdL = L_dag @ L
+        L_rho_Ld = L @ rho @ L_dag
+        anticomm = LdL @ rho + rho @ LdL
+        drho += gamma * (L_rho_Ld - 0.5 * anticomm)
+
+    return drho
+
+
+def evolve_lindblad_rk4(
+    rho0: np.ndarray,
+    H: np.ndarray,
+    L_ops: list[np.ndarray],
+    gammas: list[float],
+    T: float,
+    dt: float,
+) -> np.ndarray:
+    """4th-order Runge-Kutta integration of the Lindblad master equation.
+
+    Dimension-agnostic: works for any Hilbert space dimension determined by
+    ``rho0.shape[0]``. Enforces Hermiticity and trace normalisation at each
+    step.
+
+    Args:
+        rho0: Initial density matrix of shape (d, d).
+        H: Hamiltonian of shape (d, d).
+        L_ops: List of Lindblad jump operators.
+        gammas: List of decay rates.
+        T: Total evolution time.
+        dt: Time step.
+
+    Returns:
+        Final density matrix of shape (d, d).
+
+    """
+    if T <= 0:
+        return rho0.copy()
+
+    rho = rho0.copy()
+    num_steps = max(1, int(np.ceil(T / dt)))
+    dt_eff = T / num_steps
+
+    for _ in range(num_steps):
+        k1 = lindblad_rhs(rho, H, L_ops, gammas)
+        k2 = lindblad_rhs(rho + 0.5 * dt_eff * k1, H, L_ops, gammas)
+        k3 = lindblad_rhs(rho + 0.5 * dt_eff * k2, H, L_ops, gammas)
+        k4 = lindblad_rhs(rho + dt_eff * k3, H, L_ops, gammas)
+
+        rho = rho + (dt_eff / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+        rho = 0.5 * (rho + rho.conj().T)
+        trace = np.trace(rho)
+        if trace > 0:
+            rho = rho / trace
+
+    return rho
+
+
+def evolve_lindblad_scipy(
+    rho0: np.ndarray,
+    H: np.ndarray,
+    L_ops: list[np.ndarray],
+    gammas: list[float],
+    T: float,
+) -> np.ndarray:
+    """Evolve Lindblad master equation using scipy.integrate.solve_ivp.
+
+    Fortran-order vectorisation with RK45 and tight tolerances
+    (rtol=1e-8, atol=1e-10).
+
+    Args:
+        rho0: Initial density matrix of shape (d, d).
+        H: Hamiltonian of shape (d, d).
+        L_ops: List of Lindblad jump operators.
+        gammas: List of decay rates.
+        T: Total evolution time.
+
+    Returns:
+        Final density matrix of shape (d, d).
+
+    """
+    d = rho0.shape[0]
+    rho0_vec = rho0.flatten(order="F")
+
+    def _rhs(t: float, rho_vec: np.ndarray) -> np.ndarray:
+        rho = rho_vec.reshape((d, d), order="F")
+        drho = lindblad_rhs(rho, H, L_ops, gammas)
+        return drho.flatten(order="F")
+
+    sol = scipy.integrate.solve_ivp(
+        _rhs,
+        (0, T),
+        rho0_vec,
+        method="RK45",
+        rtol=1e-8,
+        atol=1e-10,
+    )
+
+    rho_final = sol.y[:, -1].reshape((d, d), order="F")
+    rho_final = 0.5 * (rho_final + rho_final.conj().T)
+    trace = np.trace(rho_final)
+    if trace > 0:
+        rho_final = rho_final / trace
+
+    return rho_final
+
+
 def validate_density_matrix(
     rho: np.ndarray,
     tolerance: float = 1e-8,
