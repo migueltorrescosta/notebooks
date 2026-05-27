@@ -35,10 +35,6 @@ import pandas as pd
 import seaborn as sns
 from scipy.optimize import minimize_scalar
 
-# Ensure project root is on sys.path for shared-module imports.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
     os.environ["MPLBACKEND"] = "Agg"
@@ -894,7 +890,7 @@ def plot_scaling_exponents(
 # Data / Figure Generation Pipeline
 # ============================================================================
 
-REPORTS_DIR = PROJECT_ROOT / "reports"
+REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260522"
 THETA_VALS: list[float] = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
 N_VALS: list[int] = list(range(1, 21))

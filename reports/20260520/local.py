@@ -34,10 +34,6 @@ import pandas as pd
 import seaborn as sns
 from scipy.linalg import expm
 
-# Ensure project root is on sys.path for shared-module imports.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
     os.environ["MPLBACKEND"] = "Agg"
@@ -932,7 +928,7 @@ def plot_xx_grid_scan_example(
 # Data / Figure Generation Pipeline
 # ============================================================================
 
-REPORTS_DIR = PROJECT_ROOT / "reports"
+REPORTS_DIR = Path(__file__).resolve().parent.parent
 XX_DATE = "20260520"
 XX_THETA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
 XX_N_GRID = 2001

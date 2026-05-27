@@ -18,9 +18,7 @@ from pathlib import Path
 
 import numpy as np
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-# Also add report dir to path for module-level import in workers
+# Add report dir to path for module-level import in workers
 _report_dir = str(Path(__file__).resolve().parent)
 sys.path.insert(0, _report_dir)
 del _report_dir

@@ -25,10 +25,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-# Ensure project root is on sys.path for shared-module imports.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 # Force non-interactive matplotlib backend before any plotting imports.
 if "MPLBACKEND" not in os.environ:
     os.environ["MPLBACKEND"] = "Agg"
@@ -361,7 +357,7 @@ def plot_covariance_analysis(
 # Constants and helpers
 # ============================================================================
 
-REPORTS_DIR = PROJECT_ROOT / "reports"
+REPORTS_DIR = Path(__file__).resolve().parent.parent
 
 REPORT_DATE = "20260515"
 

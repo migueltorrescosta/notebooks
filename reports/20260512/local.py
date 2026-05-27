@@ -25,10 +25,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Ensure project root is on sys.path for shared-module imports.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 # Force non-interactive matplotlib backend before any plotting imports.
 if "MPLBACKEND" not in os.environ:
     os.environ["MPLBACKEND"] = "Agg"
@@ -51,7 +47,7 @@ from src.physics.mzi_states import two_mode_jz_operator  # noqa: E402
 sns.set_theme(style="whitegrid")
 
 REPORT_DATE = "20260512"
-REPORTS_DIR = PROJECT_ROOT / "reports"
+REPORTS_DIR = Path(__file__).resolve().parent.parent
 
 # =============================================================================
 # Single-Particle MZI: Sensitivity Scaling with Holding Time

@@ -19,9 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
-# Ensure project root and report dir are on sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+# Ensure report dir is on sys.path (project root is available via editable install)
 sys.path.insert(0, str(Path(__file__).parent))
 
 # Must happen before importing local (for matplotlib backend)

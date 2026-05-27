@@ -39,9 +39,7 @@ import seaborn as sns
 import torch
 from scipy.optimize import minimize
 
-# Ensure project root is on sys.path for shared-module imports.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+
 
 # Force non-interactive matplotlib backend before any plotting imports.
 if "MPLBACKEND" not in os.environ:
@@ -3262,7 +3260,7 @@ def plot_weighted_alpha_scan(
 # (C) Report Generation Pipeline
 # ============================================================================
 
-REPORTS_DIR = PROJECT_ROOT / "reports"
+REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260518"
 DRIVE_THETA_VALS = [0.1, 0.5, 1.0, 2.0, 5.0]
 

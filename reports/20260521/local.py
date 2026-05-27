@@ -50,10 +50,6 @@ from deltalake import DeltaTable, write_deltalake
 from scipy.linalg import expm
 from scipy.optimize import minimize
 
-# Ensure project root is on sys.path for shared-module imports.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 # Shared primitives
 from src.analysis.ancilla_drive_metrology import (  # noqa: E402
     DriveDecoupledBaselineResult,
@@ -1092,7 +1088,7 @@ def plot_general_convergence(
 # Data / Figure Generation Pipeline
 # ============================================================================
 
-REPORTS_DIR = PROJECT_ROOT / "reports"
+REPORTS_DIR = Path(__file__).resolve().parent.parent
 DATE_TAG = "20260521"
 BFGS_TABLE_DIR = str(REPORTS_DIR / DATE_TAG / "raw_data" / "bfgs-results")
 

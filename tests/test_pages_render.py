@@ -8,18 +8,13 @@ These tests verify that:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
 
-# Add project root to path for src imports
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 # Get all page files in the pages directory
-PAGES_DIR = PROJECT_ROOT / "pages"
+PAGES_DIR = Path(__file__).parent.parent / "pages"
 PAGE_FILES = sorted(p for p in PAGES_DIR.glob("*.py") if p.name != "__init__.py")
 
 

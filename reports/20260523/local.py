@@ -39,10 +39,6 @@ import seaborn as sns
 from scipy.linalg import expm
 from scipy.optimize import minimize
 
-# Ensure project root is on sys.path for shared-module imports.
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
     os.environ["MPLBACKEND"] = "Agg"
@@ -1506,7 +1502,7 @@ def plot_theta_scan(
 # Data / Figure Generation Pipeline
 # ============================================================================
 
-REPORTS_DIR = PROJECT_ROOT / "reports"
+REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260523"
 
 

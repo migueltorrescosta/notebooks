@@ -9,16 +9,11 @@ These tests verify that visualization functions:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-
-# Add project root to path for src imports
-PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 
 class TestFourierTransform:
