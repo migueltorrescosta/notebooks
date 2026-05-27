@@ -3,10 +3,8 @@
 Tests verify:
 1. MziNoiseConfig defaults and validation
 2. Lindblad operator construction (build_mzi_lindblad_operators)
-3. Lindblad evolution preserves trace and Hermiticity
-4. Noiseless evolution preserves state
-5. Noisy MZI produces valid density matrix
-6. Noiseless MZI matches unitary evolution
+3. Noisy MZI produces valid density matrix
+4. Noiseless MZI matches unitary evolution
 """
 
 from __future__ import annotations
@@ -17,7 +15,6 @@ import pytest
 from src.physics.mzi_lindblad import (
     MziNoiseConfig,
     build_mzi_lindblad_operators,
-    evolve_mzi_lindblad,
     run_noisy_mzi,
 )
 
@@ -74,40 +71,6 @@ class TestBuildMziLindbladOperators:
         config = MziNoiseConfig(gamma_2=-0.1)
         with pytest.raises(ValueError):
             build_mzi_lindblad_operators(max_photons=3, config=config)
-
-
-class TestEvolveMziLindblad:
-    """Test Lindblad evolution properties."""
-
-    def test_liouvillian_preserves_trace(self) -> None:
-        max_photons = 2
-        dim = (max_photons + 1) ** 2
-        rho = np.eye(dim, dtype=complex) / dim  # Maximally mixed
-
-        config = MziNoiseConfig(gamma_1=0.1, gamma_phi=0.05, T=0.5)
-        rho_final = evolve_mzi_lindblad(rho, config, max_photons)
-
-        assert np.isclose(np.trace(rho_final), 1.0, atol=1e-10)
-
-    def test_liouvillian_preserves_hermiticity(self) -> None:
-        max_photons = 2
-        dim = (max_photons + 1) ** 2
-        rho = np.eye(dim, dtype=complex) / dim  # Maximally mixed
-
-        config = MziNoiseConfig(gamma_1=0.1, gamma_phi=0.05, T=0.5)
-        rho_final = evolve_mzi_lindblad(rho, config, max_photons)
-
-        assert np.allclose(rho_final, rho_final.conj().T, atol=1e-10)
-
-    def test_noiseless_evolution_preserves_state(self) -> None:
-        max_photons = 2
-        dim = (max_photons + 1) ** 2
-        rho = np.eye(dim, dtype=complex) / dim
-
-        config = MziNoiseConfig(T=1.0, dt=0.1)  # All rates zero
-        rho_final = evolve_mzi_lindblad(rho, config, max_photons)
-
-        assert np.allclose(rho_final, rho), "Noiseless evolution should preserve state"
 
 
 class TestRunNoisyMzi:

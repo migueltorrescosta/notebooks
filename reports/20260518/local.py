@@ -58,6 +58,7 @@ from src.analysis.ancilla_drive_metrology import (  # noqa: E402
     run_drive_theta_scan,
 )
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator  # noqa: E402
+from src.physics.multi_mzi import single_bs_unitary  # noqa: E402
 from src.visualization.ancilla_drive_plots import (  # noqa: E402
     plot_drive_2d_slice_heatmap,
     plot_drive_decoupled_baseline,
@@ -321,32 +322,7 @@ def product_css_state_torch(
 # ============================================================================
 
 
-def bs_unitary_np(J: float, T: float) -> np.ndarray:
-    """Single-subsystem beam-splitter unitary: exp(-i T J_x).
-
-    Args:
-        J: Total spin (N/2 or M/2).
-        T: Beam-splitter duration.
-
-    Returns:
-        (2J+1) × (2J+1) unitary matrix (complex).
-    """
-    dim = int(2 * J + 1)
-    if dim == 1:
-        return np.array([[1.0]], dtype=complex)
-    if abs(T) < 1e-15:
-        return np.eye(dim, dtype=complex)
-
-    N = int(2 * J)
-    Jx = jx_operator(N)
-    from scipy.linalg import expm
-
-    U = expm(-1j * float(T) * Jx)
-
-    assert np.allclose(U @ U.conj().T, np.eye(dim), atol=1e-12), (
-        f"BS unitary not unitary for J={J}, T={T}"
-    )
-    return U
+# bs_unitary_np replaced by single_bs_unitary from src.physics.multi_mzi
 
 
 def full_bs_unitary_np(N: int, M: int, T: float) -> np.ndarray:
@@ -360,8 +336,8 @@ def full_bs_unitary_np(N: int, M: int, T: float) -> np.ndarray:
     Returns:
         (N+1)(M+1) × (N+1)(M+1) unitary matrix.
     """
-    U_S = bs_unitary_np(N / 2.0, T)
-    U_A = bs_unitary_np(M / 2.0, T)
+    U_S = single_bs_unitary(N, T)
+    U_A = single_bs_unitary(M, T)
     return np.kron(U_S, U_A)
 
 

@@ -25,7 +25,6 @@ assert _spec.loader is not None
 _spec.loader.exec_module(_report_local)
 
 # Bind functions to local names for ergonomic access
-build_beam_splitter = _report_local.build_beam_splitter
 build_holding_unitary = _report_local.build_holding_unitary
 compute_analytical_derivative = _report_local.compute_analytical_derivative
 compute_delta_theta_from_propagation = (
@@ -33,15 +32,21 @@ compute_delta_theta_from_propagation = (
 )
 compute_numerical_derivative = _report_local.compute_numerical_derivative
 compute_sensitivity_sweep = _report_local.compute_sensitivity_sweep
-compute_variance_jz = _report_local.compute_variance_jz
 evolve_single_particle_mzi = _report_local.evolve_single_particle_mzi
-fit_scaling_exponent = _report_local.fit_scaling_exponent
-fock_state = _report_local.fock_state
 run_validation = _report_local.run_validation
 validate_hold_unitarity = _report_local.validate_hold_unitarity
 
-# Shared utility from src/ (not migrated)
-from src.physics.mzi_states import two_mode_jz_operator  # noqa: E402
+# Functions migrated to src/ — imported directly
+from src.analysis.scaling_fit import fit_scaling_exponent  # noqa: E402
+from src.physics.mzi_simulation import beam_splitter_unitary  # noqa: E402
+from src.physics.mzi_states import compute_jz_variance, two_mode_jz_operator  # noqa: E402
+
+
+def _fock_state(n0: int, n1: int) -> np.ndarray:
+    """Test helper: create a Fock basis state in the 4D (max_photons=1) space."""
+    s = np.zeros(4, dtype=complex)
+    s[n0 * 2 + n1] = 1.0
+    return s
 
 # Shared parameter combinations reused across multiple tests
 _MZI_PARAMS = [
@@ -76,27 +81,27 @@ def test_jz_eigenvalues_for_physical_states() -> None:
     jz = two_mode_jz_operator(1)
     assert jz.shape == (4, 4)
     assert float(
-        np.real(np.conj(fock_state(1, 0)) @ jz @ fock_state(1, 0))
+        np.real(np.conj(_fock_state(1, 0)) @ jz @ _fock_state(1, 0))
     ) == pytest.approx(0.5)
     assert float(
-        np.real(np.conj(fock_state(0, 1)) @ jz @ fock_state(0, 1))
+        np.real(np.conj(_fock_state(0, 1)) @ jz @ _fock_state(0, 1))
     ) == pytest.approx(-0.5)
     assert float(
-        np.real(np.conj(fock_state(0, 0)) @ jz @ fock_state(0, 0))
+        np.real(np.conj(_fock_state(0, 0)) @ jz @ _fock_state(0, 0))
     ) == pytest.approx(0.0)
     assert float(
-        np.real(np.conj(fock_state(1, 1)) @ jz @ fock_state(1, 1))
+        np.real(np.conj(_fock_state(1, 1)) @ jz @ _fock_state(1, 1))
     ) == pytest.approx(0.0)
 
 
 def test_beam_splitter_is_unitary() -> None:
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     assert u_bs @ u_bs.conj().T == pytest.approx(np.eye(4), abs=1e-12)
 
 
 def test_given_fock_10_then_bs_produces_balanced_superposition() -> None:
-    u_bs = build_beam_splitter()
-    psi = u_bs @ fock_state(1, 0)
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
+    psi = u_bs @ _fock_state(1, 0)
     expected = np.zeros(4, dtype=complex)
     expected[2] = 1.0 / np.sqrt(2)
     expected[1] = -1j / np.sqrt(2)
@@ -117,7 +122,7 @@ def test_holding_unitary_is_unitary() -> None:
 def test_given_mzi_circuit_then_state_remains_normalized(
     theta: float, t_h: float
 ) -> None:
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
     assert np.linalg.norm(psi) == pytest.approx(1.0)
@@ -133,7 +138,7 @@ def test_given_error_propagation_then_delta_theta_equals_one_over_t_h(
 ) -> None:
     if abs(np.sin(theta * t_h)) < 1e-6:
         pytest.skip("Singular point at fringe extremum")
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
     dt_a, *_ = compute_delta_theta_from_propagation(
         t_h, theta, u_bs, jz, use_numerical=False
@@ -149,7 +154,7 @@ def test_given_error_propagation_then_delta_theta_equals_one_over_t_h(
 def test_given_mzi_circuit_then_jz_expectation_matches_cos(
     theta: float, t_h: float
 ) -> None:
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
     jz_mean = float(np.real(np.conj(psi) @ jz @ psi))
@@ -164,10 +169,10 @@ def test_given_mzi_circuit_then_jz_expectation_matches_cos(
 def test_given_mzi_circuit_then_jz_variance_matches_sin_squared(
     theta: float, t_h: float
 ) -> None:
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
-    jz_var = compute_variance_jz(psi, jz)
+    jz_var = compute_jz_variance(psi, max_photons=1)
     assert jz_var == pytest.approx(0.25 * (np.sin(theta * t_h) ** 2), abs=1e-12)
 
 
@@ -191,7 +196,7 @@ def test_given_analytical_derivative_then_matches_expected_form(
 def test_given_numerical_and_analytical_derivatives_then_agree_within_tolerance(
     theta: float, t_h: float
 ) -> None:
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
     d_a = compute_analytical_derivative(t_h, theta)
     d_n = compute_numerical_derivative(theta, t_h, u_bs, jz, delta=1e-6)
@@ -222,7 +227,7 @@ def test_given_fringe_extremum_then_point_is_flagged() -> None:
     is expected to be False at exactly the singular point.
     """
     t_h = np.pi
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
     dt_a, _, _, _, is_fringe = compute_delta_theta_from_propagation(
         t_h,
@@ -275,10 +280,13 @@ def test_given_sensitivity_sweep_then_fringe_points_detected() -> None:
 
 def test_scaling_exponent_from_log_log_fit_is_minus_one() -> None:
     df = compute_sensitivity_sweep(theta=1.0, n_points=50)
-    alpha, r_sq, _fit_df = fit_scaling_exponent(df)
-    assert np.isfinite(alpha)
-    assert -1.005 <= alpha <= -0.995
-    assert r_sq > 0.999
+    clean = df[~df["is_fringe_extremum"]]
+    result = fit_scaling_exponent(
+        np.asarray(clean["T_H"]), np.asarray(clean["delta_theta_analytical"])
+    )
+    assert result.valid
+    assert -1.005 <= result.alpha <= -0.995
+    assert result.R_squared > 0.999
 
 
 @pytest.mark.parametrize(
@@ -286,29 +294,42 @@ def test_scaling_exponent_from_log_log_fit_is_minus_one() -> None:
 )
 def test_scaling_exponent_is_minus_one_for_various_theta(theta: float) -> None:
     df = compute_sensitivity_sweep(theta=theta, n_points=50)
-    alpha, r_sq, _ = fit_scaling_exponent(df)
-    assert np.isfinite(alpha)
-    assert -1.005 <= alpha <= -0.995
-    assert r_sq > 0.999
+    clean = df[~df["is_fringe_extremum"]]
+    result = fit_scaling_exponent(
+        np.asarray(clean["T_H"]), np.asarray(clean["delta_theta_analytical"])
+    )
+    assert result.valid
+    assert -1.005 <= result.alpha <= -0.995
+    assert result.R_squared > 0.999
 
 
 def test_scaling_exponent_using_numerical_derivatives_is_minus_one() -> None:
     df = compute_sensitivity_sweep(theta=1.0, n_points=50)
-    alpha, _r_sq, _ = fit_scaling_exponent(df, column="delta_theta_numerical")
-    assert np.isfinite(alpha)
-    assert -1.01 <= alpha <= -0.99
+    clean = df[~df["is_fringe_extremum"]]
+    result = fit_scaling_exponent(
+        np.asarray(clean["T_H"]), np.asarray(clean["delta_theta_numerical"])
+    )
+    assert result.valid
+    assert -1.01 <= result.alpha <= -0.99
 
 
 def test_excluding_fringe_points_improves_fit_quality() -> None:
     df = compute_sensitivity_sweep(theta=1.0, n_points=100)
-    _alpha_all, r_sq_all, _ = fit_scaling_exponent(df, exclude_fringe=False)
-    alpha_excl, r_sq_excl, _ = fit_scaling_exponent(df, exclude_fringe=True)
-    assert np.isfinite(alpha_excl)
-    assert r_sq_excl >= r_sq_all - 0.001
+    # Fit with all points (including fringe extrema)
+    result_all = fit_scaling_exponent(
+        np.asarray(df["T_H"]), np.asarray(df["delta_theta_analytical"])
+    )
+    # Fit excluding fringe points
+    clean = df[~df["is_fringe_extremum"]]
+    result_excl = fit_scaling_exponent(
+        np.asarray(clean["T_H"]), np.asarray(clean["delta_theta_analytical"])
+    )
+    assert result_excl.valid
+    assert result_excl.R_squared >= result_all.R_squared - 0.001
 
 
 def test_given_tiny_t_h_then_sensitivity_diverges() -> None:
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
     dt_a, *_ = compute_delta_theta_from_propagation(
         1e-10, 1.0, u_bs, jz, use_numerical=False
@@ -317,7 +338,7 @@ def test_given_tiny_t_h_then_sensitivity_diverges() -> None:
 
 
 def test_given_large_t_h_then_sensitivity_approaches_zero() -> None:
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
     dt_a, *_ = compute_delta_theta_from_propagation(
         100.0, 1.0, u_bs, jz, use_numerical=False

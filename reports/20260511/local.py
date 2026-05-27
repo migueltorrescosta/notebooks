@@ -31,6 +31,7 @@ import scipy.linalg
 from scipy.linalg import expm
 from scipy.optimize import curve_fit
 
+from src.analysis.ancilla_optimization import J_X, J_Z
 from src.analysis.fisher_information import quantum_fisher_information_dm
 from src.analysis.scaling_fit import ScalingFitResult, fit_scaling_exponent
 from src.physics.dicke_basis import from_dicke_basis, to_dicke_basis
@@ -3788,14 +3789,7 @@ def build_system_jz_jx(N_max: int) -> tuple[np.ndarray, np.ndarray]:
         Tuple (J_z, J_x) of Hermitian operators of dimension (N_max+1)².
 
     """
-    dim = (N_max + 1) ** 2
-
-    # J_z: diagonal
-    J_z = np.zeros((dim, dim), dtype=complex)
-    for n0 in range(N_max + 1):
-        for n1 in range(N_max + 1):
-            idx = n0 * (N_max + 1) + n1
-            J_z[idx, idx] = (n0 - n1) / 2.0
+    J_z = two_mode_jz_operator(N_max)
 
     # J_x = (a₀† a₁ + a₁† a₀) / 2
     a0, a1, a0_dag, a1_dag = create_system_operators(N_max)
@@ -3804,18 +3798,7 @@ def build_system_jz_jx(N_max: int) -> tuple[np.ndarray, np.ndarray]:
     return J_z, J_x
 
 
-def build_ancilla_operators() -> tuple[np.ndarray, np.ndarray]:
-    """Build J_z and J_x for spin-½ ancilla.
-
-    J_z = σ_z / 2,  J_x = σ_x / 2
-
-    Returns:
-        Tuple (J_z_anc, J_x_anc) of 2×2 Hermitian operators.
-
-    """
-    sigma_z = np.array([[1, 0], [0, -1]], dtype=complex)
-    sigma_x = np.array([[0, 1], [1, 0]], dtype=complex)
-    return sigma_z / 2.0, sigma_x / 2.0
+# build_ancilla_operators replaced by J_Z, J_X from src.analysis.ancilla_optimization
 
 
 def build_interaction_hamiltonian(
@@ -3913,7 +3896,7 @@ def compute_generator_A(
 
     """
     J_z_sys, J_x_sys = build_system_jz_jx(N_max)
-    J_z_anc, J_x_anc = build_ancilla_operators()
+    J_z_anc, J_x_anc = J_Z, J_X
 
     dim_sys = (N_max + 1) ** 2
     dim_full = dim_sys * 2
@@ -3977,7 +3960,7 @@ def compute_generator_A_at_theta(
 
     """
     J_z_sys, J_x_sys = build_system_jz_jx(N_max)
-    J_z_anc, J_x_anc = build_ancilla_operators()
+    J_z_anc, J_x_anc = J_Z, J_X
 
     dim_sys = (N_max + 1) ** 2
     dim_full = dim_sys * 2
@@ -4337,7 +4320,7 @@ def optimize_qfi_case_A(
     all_fq = []
 
     J_z_sys, J_x_sys = build_system_jz_jx(N_max)
-    J_z_anc, J_x_anc = build_ancilla_operators()
+    J_z_anc, J_x_anc = J_Z, J_X
 
     # Pre-compute the BS unitary
     BS = beam_splitter_unitary(np.pi / 4, 0.0, N_max)

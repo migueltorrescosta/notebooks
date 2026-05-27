@@ -51,6 +51,7 @@ from src.analysis.ancilla_drive_metrology import (  # noqa: E402
 from src.analysis.ancilla_optimization import (  # noqa: E402
     build_two_qubit_operators,
 )
+from src.evolution.lindblad_solver import validate_density_matrix  # noqa: E402
 
 sns.set_theme(style="whitegrid")
 
@@ -295,23 +296,25 @@ def density_variance(rho: np.ndarray, op: np.ndarray) -> float:
 def validate_density(rho: np.ndarray, atol: float = 1e-8) -> None:
     """Validate basic properties of a density matrix.
 
+    Delegates to ``validate_density_matrix`` from ``src.evolution.lindblad_solver``.
+    The ``atol`` parameter is accepted for backward compatibility but not passed
+    to the source function (source uses its own default tolerance).
+
     Args:
         rho: Density matrix to validate.
-        atol: Absolute tolerance for trace and Hermiticity.
+        atol: Ignored (kept for backward compatibility).
 
     Raises:
         AssertionError: If any property fails.
     """
-    d = rho.shape[0]
-    assert rho.shape == (d, d), f"Density matrix must be square, got {rho.shape}"
-    trace = float(np.real(np.trace(rho)))
-    assert np.isclose(trace, 1.0, atol=atol), (
-        f"Trace not preserved: Tr(ρ) = {trace:.2e}"
+    result = validate_density_matrix(rho)
+    assert result["is_normalized"], (
+        f"Trace not preserved: Tr(ρ) = {result['trace']:.2e}"
     )
-    assert np.allclose(rho, rho.conj().T, atol=atol), "Density matrix not Hermitian"
-    evals = np.linalg.eigvalsh(rho)
-    assert np.all(evals >= -atol), (
-        f"Density matrix has negative eigenvalues: min={float(np.min(evals)):.2e}"
+    assert result["is_hermitian"], "Density matrix not Hermitian"
+    assert result["is_positive"], (
+        f"Density matrix has negative eigenvalues: "
+        f"min={result['min_eigenvalue']:.2e}"
     )
 
 

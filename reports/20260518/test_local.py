@@ -23,6 +23,7 @@ import pytest
 from scipy.linalg import expm
 
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
+from src.physics.multi_mzi import single_bs_unitary
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -44,7 +45,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     _weighted_loglog_quadratic,
     analytical_benchmark_alpha_zz_only,
     analytical_benchmark_zero_interaction,
-    bs_unitary_np,
     build_collective_operators,
     build_interaction_hamiltonian_np,
     build_weighted_operator_np,
@@ -261,7 +261,7 @@ class TestBeamSplitter:
     @pytest.mark.parametrize("N", [1, 2, 3, 4])
     @pytest.mark.parametrize("T", [0.0, 0.5, np.pi / 4, np.pi / 2, np.pi])
     def test_subsystem_bs_unitary(self, N: int, T: float) -> None:
-        U = bs_unitary_np(N / 2.0, T)
+        U = single_bs_unitary(N, T)
         dim = N + 1
         assert U.shape == (dim, dim)
         assert np.allclose(U @ U.conj().T, np.eye(dim), atol=1e-12)
@@ -279,8 +279,8 @@ class TestBeamSplitter:
         T = 0.7
         N, M = 2, 3
         U = full_bs_unitary_np(N, M, T)
-        U_S = bs_unitary_np(N / 2.0, T)
-        U_A = bs_unitary_np(M / 2.0, T)
+        U_S = single_bs_unitary(N, T)
+        U_A = single_bs_unitary(M, T)
         expected = np.kron(U_S, U_A)
         assert np.allclose(U, expected, atol=1e-12)
 

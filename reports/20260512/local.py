@@ -42,7 +42,12 @@ from src.analysis.ancilla_optimization import (  # noqa: E402
     run_theta_scan,
     scan_alpha_single_parameter,
 )
-from src.physics.mzi_states import two_mode_jz_operator  # noqa: E402
+from src.analysis.scaling_fit import fit_scaling_exponent  # noqa: E402
+from src.physics.mzi_simulation import beam_splitter_unitary, prepare_input_state  # noqa: E402
+from src.physics.mzi_states import (  # noqa: E402
+    compute_jz_variance,
+    two_mode_jz_operator,
+)
 
 sns.set_theme(style="whitegrid")
 
@@ -78,39 +83,7 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent
 # =============================================================================
 
 
-def build_beam_splitter() -> np.ndarray:
-    """Build the 50:50 beam-splitter unitary.
-
-    Uses the generator H_BS = a₀†a₁ + a₁†a₀ so that
-
-        U_BS = exp(-i(π/4)(a₀†a₁ + a₁†a₀)).
-
-    In the {|1,0⟩, |0,1⟩} subspace this evaluates to
-
-        U_BS = (1/√2) [[1, -i], [-i, 1]].
-
-    Returns:
-        4×4 unitary matrix (acts on the full 4D space, but only the
-        2D |1,0⟩/|0,1⟩ subspace is physically relevant).
-
-    """
-    dim = 4  # (max_photons + 1)^2 = 4
-    # Build H_BS = a0†a1 + a1†a0
-    h_bs = np.zeros((dim, dim), dtype=complex)
-    # a0†a1: a0†a1 |n0, n1⟩ = √(n0+1)√(n1) |n0+1, n1-1⟩
-    for n1 in range(2):
-        for n2 in range(2):
-            idx = n1 * 2 + n2
-            # a0†a1: n0+1, n1-1
-            if n1 < 1 and n2 > 0:
-                idx_target = (n1 + 1) * 2 + (n2 - 1)
-                h_bs[idx_target, idx] = np.sqrt(n1 + 1) * np.sqrt(n2)
-            # a1†a0: n0-1, n1+1
-            if n1 > 0 and n2 < 1:
-                idx_target = (n1 - 1) * 2 + (n2 + 1)
-                h_bs[idx_target, idx] = np.sqrt(n1) * np.sqrt(n2 + 1)
-
-    return scipy.linalg.expm(-1j * (np.pi / 4.0) * h_bs)
+# build_beam_splitter replaced by beam_splitter_unitary(np.pi/4, 0, 1) from src
 
 
 def build_holding_unitary(theta: float, t_h: float, jz: np.ndarray) -> np.ndarray:
@@ -133,26 +106,7 @@ def build_holding_unitary(theta: float, t_h: float, jz: np.ndarray) -> np.ndarra
 # =============================================================================
 
 
-def fock_state(n0: int, n1: int) -> np.ndarray:
-    """Create a Fock state |n₀, n₁⟩ for the 2-mode space (max_photons=1).
-
-    Args:
-        n0: Photons in mode 0 (0 or 1).
-        n1: Photons in mode 1 (0 or 1).
-
-    Returns:
-        4-element state vector.
-
-    Raises:
-        ValueError: If n0 or n1 is not 0 or 1.
-
-    """
-    if n0 not in (0, 1) or n1 not in (0, 1):
-        raise ValueError(f"Photon numbers must be 0 or 1, got ({n0}, {n1})")
-    state = np.zeros(4, dtype=complex)
-    idx = n0 * 2 + n1
-    state[idx] = 1.0
-    return state
+# fock_state replaced by prepare_input_state from src.src.physics.mzi_simulation
 
 
 # =============================================================================
@@ -183,7 +137,7 @@ def evolve_single_particle_mzi(
 
     """
     if input_state is None:
-        input_state = fock_state(1, 0)
+        input_state = prepare_input_state("single_photon", max_photons=1, mode=0)
 
     u_hold = build_holding_unitary(theta, t_h, jz)
     psi = u_bs @ input_state
@@ -196,23 +150,7 @@ def evolve_single_particle_mzi(
 # =============================================================================
 
 
-def compute_variance_jz(state: np.ndarray, jz: np.ndarray) -> float:
-    """Compute Var(J_z) = ⟨J_z²⟩ - ⟨J_z⟩².
-
-    Args:
-        state: Pure state vector.
-        jz: J_z operator.
-
-    Returns:
-        Variance (non-negative real).
-
-    """
-    mean = np.conj(state) @ jz @ state
-    jz_sq = jz @ jz
-    mean_sq = np.conj(state) @ jz_sq @ state
-    var = np.real(mean_sq - mean**2)
-    # Guard against tiny negative values from numerical error
-    return float(max(0.0, var))
+# compute_variance_jz replaced by compute_jz_variance from src
 
 
 def compute_analytical_derivative(t_h: float, theta: float) -> float:
@@ -288,7 +226,7 @@ def compute_delta_theta_from_propagation(
     """
     psi = evolve_single_particle_mzi(theta, t_h, u_bs, jz)
     jz_mean = float(np.real(np.conj(psi) @ jz @ psi))
-    jz_var = compute_variance_jz(psi, jz)
+    jz_var = compute_jz_variance(psi, max_photons=1)
 
     if use_numerical:
         d_jz = compute_numerical_derivative(theta, t_h, u_bs, jz, delta)
@@ -336,7 +274,7 @@ def compute_sensitivity_sweep(
 
     """
     # Build operators once
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
 
     t_h_values = np.logspace(np.log10(t_h_min), np.log10(t_h_max), n_points)
@@ -388,54 +326,7 @@ def compute_sensitivity_sweep(
 # =============================================================================
 
 
-def fit_scaling_exponent(
-    df: pd.DataFrame,
-    column: str = "delta_theta_analytical",
-    exclude_fringe: bool = True,
-) -> tuple[float, float, pd.DataFrame]:
-    """Fit scaling exponent α from log-log linear regression.
-
-    Fits log(Δθ) = α · log(T_H) + const via least squares.
-
-    Args:
-        df: DataFrame with columns "T_H" and column (default delta_theta).
-        column: Column name for Δθ values to fit.
-        exclude_fringe: If True, exclude points near fringe extrema.
-
-    Returns:
-        Tuple (alpha, r_squared, fit_df) where fit_df is a copy of df
-        with a "valid_for_fit" column added.
-
-    """
-    fit_df = df.copy()
-    fit_df["valid_for_fit"] = True
-
-    if exclude_fringe:
-        fit_df["valid_for_fit"] = ~fit_df["is_fringe_extremum"]
-
-    valid = fit_df[fit_df["valid_for_fit"]].copy()
-    # Also exclude any infinite values
-    valid = valid[np.isfinite(valid[column])]
-
-    if len(valid) < 3:
-        return np.nan, np.nan, fit_df
-
-    log_t = np.log10(valid["T_H"].values)
-    log_dt = np.log10(valid[column].values)
-
-    # Linear fit: log10(Δθ) = α · log10(T_H) + c
-    coeffs = np.polyfit(log_t, log_dt, 1)
-    alpha = coeffs[0]
-
-    # R²
-    log_dt_pred = np.polyval(coeffs, log_t)
-    residuals = log_dt - log_dt_pred
-    ss_res = np.sum(residuals**2)
-    ss_tot = np.sum((log_dt - np.mean(log_dt)) ** 2)
-    r_squared = 1.0 - ss_res / ss_tot if ss_tot > 0 else np.nan
-
-    return float(alpha), float(r_squared), fit_df
-
+# fit_scaling_exponent replaced by import from src.analysis.scaling_fit
 
 # =============================================================================
 # Validation
@@ -458,7 +349,7 @@ def run_validation(theta: float = 1.0, t_h: float = 1.0) -> dict:
             - derivative_relative_diff: float
 
     """
-    u_bs = build_beam_splitter()
+    u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
 
     # State normalization
@@ -669,7 +560,10 @@ def generate_single_particle_figures(force: bool = False) -> Path:
 
     # Run the standard sweep
     df = compute_sensitivity_sweep(theta=1.0, n_points=500)
-    _, _, _ = fit_scaling_exponent(df)
+    fit_scaling_exponent(
+        np.asarray(df["T_H"]).astype(float),
+        np.asarray(df["delta_theta_analytical"]).astype(float),
+    )
 
     t_h_min = float(df["T_H"].min())
     t_h_max = float(df["T_H"].max())

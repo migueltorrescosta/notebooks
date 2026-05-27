@@ -5,6 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from src.utils.enums import OperatorBasis
+
 from .dicke_basis import (
     basis_transformation_matrix,
     dicke_states,
@@ -169,6 +171,37 @@ class TestJzOperator:
     def test_jz_dimension_is_n_plus_one(self, N: int) -> None:
         J_z = jz_operator(N)
         assert J_z.shape == (N + 1, N + 1)
+
+
+class TestJzBasisConventions:
+    """Verify jz_operator basis conventions are consistent."""
+
+    @pytest.mark.parametrize("N", [2, 4, 10])
+    def test_given_dicke_basis_explicit_vs_default_then_match(self, N: int) -> None:
+        mat_default = jz_operator(N)
+        mat_explicit = jz_operator(N, basis=OperatorBasis.DICKE)
+        np.testing.assert_allclose(
+            mat_default,
+            mat_explicit,
+            rtol=1e-12,
+            err_msg=f"Default basis does not match explicit DICKE for N={N}",
+        )
+
+    @pytest.mark.parametrize("N", [2, 4, 10])
+    def test_given_fock_basis_is_reversed_dicke_then_have_reversed_eigenvalues(
+        self, N: int
+    ) -> None:
+        mat_dicke = jz_operator(N, basis=OperatorBasis.DICKE)
+        mat_fock = jz_operator(N, basis=OperatorBasis.FOCK)
+
+        dicke_diag = np.diag(mat_dicke)
+        fock_diag = np.diag(mat_fock)
+        np.testing.assert_allclose(
+            fock_diag,
+            dicke_diag[::-1],
+            rtol=1e-12,
+            err_msg=f"FOCK J_z eigenvalues are not reversed DICKE for N={N}",
+        )
 
 
 class TestJxOperator:

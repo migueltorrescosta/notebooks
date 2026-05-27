@@ -9,11 +9,14 @@ import pytest
 
 from .delta_estimation import (
     DeltaEstimationConfig,
+    compute_observables,
     evolve_density_matrix,
     full_calculation,
     generate_hamiltonian,
     generate_initial_state,
     partial_trace_b,
+    validate_hamiltonian,
+    validate_state,
 )
 
 RunOptions = DeltaEstimationConfig
@@ -57,6 +60,10 @@ class TestInitialStateGeneration:
     def test_has_correct_dimension(self, dim_a: int) -> None:
         rho0 = generate_initial_state(dim_a, 0)
         assert rho0.shape == (2 * dim_a, 2 * dim_a)
+
+    def test_given_invalid_ancilla_state_then_raises_value_error(self) -> None:
+        with pytest.raises(ValueError):
+            generate_initial_state(5, 10)
 
 
 class TestHamiltonianGeneration:
@@ -222,6 +229,28 @@ class TestNumericalStability:
         assert all(np.isfinite(v) for v in result.values()), (
             f"Non-finite at t={t}: {result}"
         )
+
+
+class TestObservables:
+    def test_populations_sum_to_one(self) -> None:
+        rho = np.array([[0.8, 0.1], [0.1, 0.2]], dtype=complex)
+        obs = compute_observables(rho)
+        assert obs["pop_0"] + obs["pop_1"] == pytest.approx(1.0)
+
+
+class TestValidation:
+    def test_given_valid_density_matrix_then_passes(self) -> None:
+        rho = np.array([[1, 0], [0, 0]], dtype=complex)
+        assert validate_state(rho, (2, 2))
+
+    def test_given_wrong_trace_then_fails(self) -> None:
+        rho = np.array([[0.5, 0], [0, 0]], dtype=complex)
+        assert not validate_state(rho, (2, 2))
+
+    def test_given_valid_hamiltonian_then_passes(self) -> None:
+        config = DeltaEstimationConfig()
+        H = generate_hamiltonian(config)
+        assert validate_hamiltonian(H)
 
 
 class TestPerformance:

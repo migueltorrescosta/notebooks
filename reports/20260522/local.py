@@ -106,20 +106,7 @@ def initial_state(N: int) -> np.ndarray:
 # ============================================================================
 
 
-def _reduced_expectation(psi_state: np.ndarray, N: int, Jz: np.ndarray) -> float:
-    """Compute ⟨J_z⟩ from the reduced density matrix of the system.
-
-    Args:
-        psi_state: Pure state vector in S⊗A space (length (N+1)²).
-        N: Particle number per subsystem.
-        Jz: (N+1)×(N+1) single-subsystem J_z operator.
-
-    Returns:
-        Expectation value ⟨J_z^S⟩.
-    """
-    psi_m = psi_state.reshape(N + 1, N + 1)
-    rho = psi_m @ psi_m.conj().T
-    return float(np.real(np.trace(rho @ Jz)))
+# _reduced_expectation replaced by compute_reduced_expectation_and_variance from src
 
 
 # ============================================================================
@@ -172,8 +159,8 @@ def compute_sensitivity(
     psi_plus = evolve_circuit(N, psi0, theta_true + fd_step, alpha_xx, ops, T_BS, T_H)
     psi_minus = evolve_circuit(N, psi0, theta_true - fd_step, alpha_xx, ops, T_BS, T_H)
 
-    exp_plus = _reduced_expectation(psi_plus, N, Jz_single)
-    exp_minus = _reduced_expectation(psi_minus, N, Jz_single)
+    exp_plus, _ = compute_reduced_expectation_and_variance(psi_plus, N, Jz_single)
+    exp_minus, _ = compute_reduced_expectation_and_variance(psi_minus, N, Jz_single)
     d_exp = (exp_plus - exp_minus) / (2.0 * fd_step)
 
     if abs(d_exp) < 1e-12:
