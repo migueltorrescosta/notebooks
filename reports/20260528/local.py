@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import json
 import os
 import sys
 from dataclasses import dataclass, field
@@ -478,9 +479,15 @@ class FreeAncillaSearchResult:
             dtype=float
         )
         deltas = df["delta_theta"].to_numpy(dtype=float)
-        exps = df["expectation"].to_numpy(dtype=float, na_value=0.0)
-        vars_ = df["variance"].to_numpy(dtype=float, na_value=0.0)
-        derivs = df["derivative"].to_numpy(dtype=float, na_value=0.0)
+        exps = df["expectation"].to_numpy(dtype=float)
+        vars_ = df["variance"].to_numpy(dtype=float)
+        derivs = df["derivative"].to_numpy(dtype=float)
+
+        for name, arr in [("expectation", exps), ("variance", vars_), ("derivative", derivs)]:
+            if np.any(np.isnan(arr)):
+                raise ValueError(
+                    f"Parquet at {path} contains NaN in '{name}' column"
+                )
         fringes = df["is_fringe"].to_numpy(dtype=bool)
         best_idx = int(np.nanargmin(deltas))
         return cls(
@@ -552,6 +559,7 @@ class FreeAncillaNelderMeadResult:
                 "scenario": [self.scenario],
                 "success": [int(self.success)],
                 "nfev": [self.nfev],
+                "message": [self.message],
                 "expectation_Jz": [self.expectation_Jz],
                 "variance_Jz": [self.variance_Jz],
                 "theta_A": [self.full_params_opt[0]],
@@ -560,6 +568,7 @@ class FreeAncillaNelderMeadResult:
                 "a_y": [self.full_params_opt[3]],
                 "a_z": [self.full_params_opt[4]],
                 "a_zz": [self.full_params_opt[5]],
+                "history_json": [json.dumps(self.history)],
             },
         )
 
@@ -567,10 +576,16 @@ class FreeAncillaNelderMeadResult:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         self.to_dataframe().to_parquet(path, index=False)
+        # Sidecar file for history
+        history_path = path.with_stem(path.stem + "-history")
+        pd.DataFrame({"history": [json.dumps(self.history)]}).to_parquet(
+            history_path, index=False
+        )
         return path
 
     @classmethod
     def from_parquet(cls, path: str | Path) -> FreeAncillaNelderMeadResult:
+        path = Path(path)
         df = pd.read_parquet(path)
         required = {
             "delta_theta",
@@ -578,6 +593,7 @@ class FreeAncillaNelderMeadResult:
             "scenario",
             "success",
             "nfev",
+            "message",
             "expectation_Jz",
             "variance_Jz",
             "theta_A",
@@ -586,6 +602,7 @@ class FreeAncillaNelderMeadResult:
             "a_y",
             "a_z",
             "a_zz",
+            "history_json",
         }
         missing = required - set(df.columns)
         if missing:
@@ -593,6 +610,12 @@ class FreeAncillaNelderMeadResult:
                 f"Parquet at {path} is missing required columns: "
                 f"{sorted(missing)}. Regenerate the file with the current code."
             )
+        history_path = path.with_stem(path.stem + "-history")
+        if history_path.exists():
+            history_df = pd.read_parquet(history_path)
+            history = json.loads(history_df["history"].iloc[0])
+        else:
+            history = []
         return cls(
             delta_theta_opt=float(df["delta_theta"].iloc[0]),
             params_opt=np.array(
@@ -617,8 +640,10 @@ class FreeAncillaNelderMeadResult:
             scenario=str(df["scenario"].iloc[0]),
             success=bool(int(df["success"].iloc[0])),
             nfev=int(df["nfev"].iloc[0]),
+            message=str(df["message"].iloc[0]),
             expectation_Jz=float(df["expectation_Jz"].iloc[0]),
             variance_Jz=float(df["variance_Jz"].iloc[0]),
+            history=history,
         )
 
 

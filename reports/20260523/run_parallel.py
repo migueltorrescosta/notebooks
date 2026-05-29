@@ -47,7 +47,9 @@ from local import (
 )
 
 
-def _run_N_batch(N_val: int, theta_arr: np.ndarray, protocol: str) -> FourParamSweepResult:
+def _run_N_batch(
+    N_val: int, theta_arr: np.ndarray, protocol: str
+) -> FourParamSweepResult:
     """Run all theta values for a single N."""
     ops = embed_combined_operators(N_val)
     psi0 = initial_state(N_val)
@@ -108,7 +110,7 @@ def _run_N_batch(N_val: int, theta_arr: np.ndarray, protocol: str) -> FourParamS
             f"Δθ={opt_result.delta_theta_opt:.6f}, "
             f"ratio={ratios[i]:.4f}, "
             f"conv={opt_result.n_converged}/{n_starts}, "
-            f"t={t1-t0:.0f}s"
+            f"t={t1 - t0:.0f}s"
         )
 
     return FourParamSweepResult(
@@ -135,8 +137,6 @@ def _run_N_batch(N_val: int, theta_arr: np.ndarray, protocol: str) -> FourParamS
 def run_dual_sweep_parallel(force: bool = False, workers: int = 8) -> None:
     """Run dual MZI sweep in parallel across N values."""
     csv_p = parquet_path("dual-mzi-sweep")
-    fig_ratio = parquet_path("..") / "figures" / "20260523-dual-mzi-ratio-heatmap.svg"
-    fig_theta_scan = parquet_path("..") / "figures" / "20260523-dual-mzi-theta-scan-N5.svg"
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
@@ -148,7 +148,9 @@ def run_dual_sweep_parallel(force: bool = False, workers: int = 8) -> None:
     print(f"Running dual MZI sweep with {workers} workers...")
     print(f"  N values: {N_vals}")
     print(f"  θ values: {THETA_VALS}")
-    print(f"  Total: {len(N_vals)} N × {len(theta_arr)} θ = {len(N_vals) * len(theta_arr)} points")
+    print(
+        f"  Total: {len(N_vals)} N × {len(theta_arr)} θ = {len(N_vals) * len(theta_arr)} points"
+    )
 
     # Run in parallel across N values
     futures = {}
@@ -236,11 +238,16 @@ def run_dual_sweep_parallel(force: bool = False, workers: int = 8) -> None:
 
     # Generate figures from the sweep data
     from local import plot_ratio_heatmap, plot_theta_scan
-    fig_ratio_p = parquet_path("..").parent / "figures" / "20260523-dual-mzi-ratio-heatmap.svg"
+
+    fig_ratio_p = (
+        parquet_path("..").parent / "figures" / "20260523-dual-mzi-ratio-heatmap.svg"
+    )
     plot_ratio_heatmap(combined, fig_ratio_p, title_suffix="Dual MZI")
     print(f"[fig]  {fig_ratio_p}")
 
-    fig_scan_p = parquet_path("..").parent / "figures" / "20260523-dual-mzi-theta-scan-N5.svg"
+    fig_scan_p = (
+        parquet_path("..").parent / "figures" / "20260523-dual-mzi-theta-scan-N5.svg"
+    )
     plot_theta_scan(combined, fig_scan_p, N_fixed=5)
     print(f"[fig]  {fig_scan_p}")
 
@@ -263,8 +270,6 @@ def main() -> None:
         help="Run only one task",
     )
     args = parser.parse_args()
-
-    tasks = {}
 
     # Quick tasks (already completed or fast)
     if args.only is None:
@@ -308,7 +313,11 @@ def _run_single_sweep(protocol: str, force: bool = False) -> None:
 
     name = f"{protocol.lower().replace('-', '')}-mzi-sweep"
     csv_p = parquet_path(name)
-    fig_ratio = parquet_path("..") / "figures" / f"20260523-{protocol.lower().replace('-', '')}-mzi-ratio-heatmap.svg"
+    fig_ratio = (
+        parquet_path("..")
+        / "figures"
+        / f"20260523-{protocol.lower().replace('-', '')}-mzi-ratio-heatmap.svg"
+    )
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists")
@@ -320,14 +329,15 @@ def _run_single_sweep(protocol: str, force: bool = False) -> None:
     print(f"Running {protocol} MZI sweep...")
     print(f"  N: {N_arr.tolist()}")
     print(f"  θ: {THETA_VALS}")
-    print(f"  Points: {len(N_arr)} N × {len(theta_arr)} θ = {len(N_arr) * len(theta_arr)}")
+    print(
+        f"  Points: {len(N_arr)} N × {len(theta_arr)} θ = {len(N_arr) * len(theta_arr)}"
+    )
 
     total_points = len(N_arr) * len(theta_arr)
     point_count = 0
     all_results = []
 
     for N_val in N_arr:
-        t0 = time.time()
         ops = embed_combined_operators(N_val)
         psi0 = initial_state(N_val)
         n_starts = _n_starts_for_N(N_val)
@@ -335,8 +345,13 @@ def _run_single_sweep(protocol: str, force: bool = False) -> None:
         for theta_val in theta_arr:
             t_start = time.time()
             opt = optimise_four_params(
-                N=N_val, theta=theta_val, ops=ops, psi0=psi0,
-                protocol=protocol, n_starts=n_starts, T_H=DEFAULT_T_H,
+                N=N_val,
+                theta=theta_val,
+                ops=ops,
+                psi0=psi0,
+                protocol=protocol,
+                n_starts=n_starts,
+                T_H=DEFAULT_T_H,
             )
             t_elapsed = time.time() - t_start
             point_count += 1
@@ -355,27 +370,30 @@ def _run_single_sweep(protocol: str, force: bool = False) -> None:
             )
 
             # Accumulate
-            all_results.append({
-                "theta": theta_val,
-                "N": N_val,
-                "protocol": protocol,
-                "alpha_xx_opt": opt.alpha_opt[0],
-                "alpha_xz_opt": opt.alpha_opt[1],
-                "alpha_zx_opt": opt.alpha_opt[2],
-                "alpha_zz_opt": opt.alpha_opt[3],
-                "delta_theta_opt": opt.delta_theta_opt,
-                "sql": opt.sql,
-                "ratio": ratio,
-                "expectation_Jz": opt.expectation_Jz,
-                "variance_Jz": opt.variance_Jz,
-                "d_expectation": opt.d_expectation,
-                "n_starts": n_starts,
-                "n_converged": opt.n_converged,
-                "gradient_norm": opt.gradient_norm,
-            })
+            all_results.append(
+                {
+                    "theta": theta_val,
+                    "N": N_val,
+                    "protocol": protocol,
+                    "alpha_xx_opt": opt.alpha_opt[0],
+                    "alpha_xz_opt": opt.alpha_opt[1],
+                    "alpha_zx_opt": opt.alpha_opt[2],
+                    "alpha_zz_opt": opt.alpha_opt[3],
+                    "delta_theta_opt": opt.delta_theta_opt,
+                    "sql": opt.sql,
+                    "ratio": ratio,
+                    "expectation_Jz": opt.expectation_Jz,
+                    "variance_Jz": opt.variance_Jz,
+                    "d_expectation": opt.d_expectation,
+                    "n_starts": n_starts,
+                    "n_converged": opt.n_converged,
+                    "gradient_norm": opt.gradient_norm,
+                }
+            )
 
     # Build sweep result
     import pandas as pd
+
     df = pd.DataFrame(all_results)
     result = FourParamSweepResult(
         theta_values=df["theta"].to_numpy(dtype=float),

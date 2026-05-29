@@ -12,29 +12,10 @@ validate_hybrid_state, validate_hybrid_unitary, hybrid_coherent_state have been
 migrated to reports/20260507/test_local.py.
 """
 
-import importlib.util
-import sys
-from pathlib import Path
-
 import numpy as np
 import pytest
 
-# ── Load local.py via importlib for validate_hybrid_state ────────────────────
-_local_path = (
-    Path(__file__).resolve().parent.parent.parent
-    / "reports"
-    / "20260507"
-    / "local.py"
-)
-_spec = importlib.util.spec_from_file_location("report_local", str(_local_path))
-assert _spec is not None, "Could not find reports/20260507/local.py"
-_report_local = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-sys.modules[_spec.name] = _report_local
-_spec.loader.exec_module(_report_local)
-validate_hybrid_state = _report_local.validate_hybrid_state
-
-from .hybrid_system import (  # noqa: E402
+from .hybrid_system import (
     hybrid_ground_state_n,
     hybrid_hamiltonian_n,
     hybrid_operator,
@@ -47,6 +28,7 @@ from .hybrid_system import (  # noqa: E402
     spin_operator_x,
     spin_operator_y,
     spin_operator_z,
+    validate_hybrid_state,
 )
 
 # Test Spin Operators

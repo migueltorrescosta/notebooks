@@ -29,6 +29,7 @@ References:
 from __future__ import annotations
 
 import concurrent.futures
+import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -45,9 +46,7 @@ from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
     compute_expectation_and_variance,
 )
-
-I_4 = np.eye(4, dtype=complex)
-
+from src.utils.constants import I_4
 
 # ============================================================================
 # Operator Construction
@@ -576,6 +575,8 @@ class DriveNelderMeadResult:
                 "nfev": [self.nfev],
                 "expectation_Jz": [self.expectation_Jz],
                 "variance_Jz": [self.variance_Jz],
+                "message": [self.message],
+                "history_json": [json.dumps(self.history)],
             },
         )
 
@@ -583,6 +584,8 @@ class DriveNelderMeadResult:
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         self.to_dataframe().to_parquet(path, index=False)
+        history_path = path.with_stem(path.stem + "-history")
+        pd.DataFrame({"history": [self.history]}).to_parquet(history_path, index=False)
         return path
 
     @classmethod
@@ -599,6 +602,8 @@ class DriveNelderMeadResult:
             "nfev",
             "expectation_Jz",
             "variance_Jz",
+            "message",
+            "history_json",
         }
         missing = required - set(df.columns)
         if missing:
@@ -606,6 +611,11 @@ class DriveNelderMeadResult:
                 f"Parquet at {path} is missing required columns: "
                 f"{sorted(missing)}. Regenerate the file with the current code."
             )
+        history_path = Path(path).with_stem(Path(path).stem + "-history")
+        if history_path.exists():
+            history = list(pd.read_parquet(history_path)["history"].iloc[0])
+        else:
+            history = []
         return cls(
             delta_theta_opt=float(df["delta_theta"].iloc[0]),
             params_opt=np.array(
@@ -619,8 +629,10 @@ class DriveNelderMeadResult:
             theta_true=float(df["theta_true"].iloc[0]),
             success=bool(int(df["success"].iloc[0])),
             nfev=int(df["nfev"].iloc[0]),
+            message=str(df["message"].iloc[0]),
             expectation_Jz=float(df["expectation_Jz"].iloc[0]),
             variance_Jz=float(df["variance_Jz"].iloc[0]),
+            history=history,
         )
 
 

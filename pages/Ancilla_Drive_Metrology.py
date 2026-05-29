@@ -33,6 +33,7 @@ from src.analysis.ancilla_drive_metrology import (
 )
 from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
+    compute_expectation_and_variance,
     validate_bs_unitarity,
     validate_operators,
 )
@@ -202,10 +203,6 @@ with tab_single:
                 a_zz,
                 ops_local,
             )
-            from src.analysis.ancilla_optimization import (
-                compute_expectation_and_variance,
-            )
-
             exp_val, var_val = compute_expectation_and_variance(
                 psi_final, ops_local["Jz_S"]
             )

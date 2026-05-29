@@ -1,3 +1,5 @@
+"""Tests for bayesian_phase_estimation module."""
+
 from __future__ import annotations
 
 import numpy as np

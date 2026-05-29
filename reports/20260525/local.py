@@ -403,7 +403,7 @@ def optimise_joint(
                 best_result["variance_M"] = var_opt
                 best_result["d_expectation"] = d_exp_opt
 
-        except Exception:
+        except (ValueError, np.linalg.LinAlgError):
             continue
 
     best_result["n_starts_converged"] = n_converged
@@ -1399,7 +1399,7 @@ def plot_comparison_traced_out(
                 ratio=df_traced["ratio"].to_numpy(dtype=float),
                 theta_values=df_traced["theta"].to_numpy(dtype=float),
             )
-        except Exception:
+        except (FileNotFoundError, ValueError):
             pass
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -1703,7 +1703,7 @@ def generate_landscapes(force: bool = False) -> None:
     if csv_p.exists():
         try:
             sweep = DualMZIOptimisedResult.from_parquet(csv_p)
-        except Exception:
+        except (FileNotFoundError, ValueError):
             pass
 
     for N, theta, suffix in rep_points:

@@ -65,7 +65,6 @@ SQL_REFERENCE: float = 1.0 / DEFAULT_T_H  # Δθ_SQL = 0.1
 DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Range for all coefficients
 FD_STEP: float = 1e-6  # Finite-difference step for theta derivative
 
-I_4 = np.eye(4, dtype=complex)
 
 # Initial state: |00⟩ (pure, density matrix form)
 DEFAULT_RHO0: np.ndarray = np.zeros((4, 4), dtype=complex)
@@ -672,19 +671,19 @@ class DriveNoiseScanResult:
 
         for i, t in enumerate(theta_vals):
             for j, g in enumerate(gamma_vals):
-                entry = lookup.get((t, g), {})
+                entry = lookup[(t, g)]
                 params_list.append(
                     (
-                        entry.get("a_x", 0.0),
-                        entry.get("a_y", 0.0),
-                        entry.get("a_z", 0.0),
-                        entry.get("a_zz", 0.0),
+                        entry["a_x"],
+                        entry["a_y"],
+                        entry["a_z"],
+                        entry["a_zz"],
                     )
                 )
-                dt_arr[i, j] = entry.get("delta_theta", float("inf"))
-                exp_arr[i, j] = entry.get("expectation_Jz", 0.0)
-                var_arr[i, j] = entry.get("variance_Jz", 0.0)
-                d_exp_arr[i, j] = entry.get("d_exp_d_theta", 0.0)
+                dt_arr[i, j] = entry["delta_theta"]
+                exp_arr[i, j] = entry["expectation_Jz"]
+                var_arr[i, j] = entry["variance_Jz"]
+                d_exp_arr[i, j] = entry["d_exp_d_theta"]
 
         return cls(
             theta_values=np.array(theta_vals, dtype=float),

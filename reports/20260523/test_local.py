@@ -679,7 +679,9 @@ class TestScalingAnalysis:
             protocol="dual",
         )
         scaling = fit_scaling_exponents(
-            sweep.theta_values, sweep.N_values, sweep.delta_theta_opt,
+            sweep.theta_values,
+            sweep.N_values,
+            sweep.delta_theta_opt,
         )
         valid = np.isfinite(scaling.exponents)
         if np.any(valid):
@@ -697,8 +699,10 @@ class TestScalingAnalysis:
             N_values=N_vals,
             protocol="dual",
         )
-        scaling = fit_scaling_exponents(
-            sweep.theta_values, sweep.N_values, sweep.delta_theta_opt,
+        fit_scaling_exponents(
+            sweep.theta_values,
+            sweep.N_values,
+            sweep.delta_theta_opt,
         )
 
     def test_scaling_r_squared_high(self) -> None:
@@ -710,7 +714,9 @@ class TestScalingAnalysis:
             protocol="dual",
         )
         scaling = fit_scaling_exponents(
-            sweep.theta_values, sweep.N_values, sweep.delta_theta_opt,
+            sweep.theta_values,
+            sweep.N_values,
+            sweep.delta_theta_opt,
         )
         valid = np.isfinite(scaling.r_squared)
         if np.any(valid):

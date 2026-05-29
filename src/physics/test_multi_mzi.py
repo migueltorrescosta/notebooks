@@ -145,10 +145,10 @@ class TestEmbedCombinedOperators:
         """[J_k^S, J_l^A] = 0 for any k, l."""
         ops = embed_combined_operators(N)
         for k in ["Jz", "Jx", "Jy"]:
-            for l in ["Jz", "Jx", "Jy"]:
-                comm = ops[f"{k}_S"] @ ops[f"{l}_A"] - ops[f"{l}_A"] @ ops[f"{k}_S"]
+            for label in ["Jz", "Jx", "Jy"]:
+                comm = ops[f"{k}_S"] @ ops[f"{label}_A"] - ops[f"{label}_A"] @ ops[f"{k}_S"]
                 assert np.allclose(comm, 0, atol=1e-12), (
-                    f"[{k}_S, {l}_A] != 0 for N={N}"
+                    f"[{k}_S, {label}_A] != 0 for N={N}"
                 )
 
 

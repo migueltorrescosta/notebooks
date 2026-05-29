@@ -152,9 +152,11 @@ class TestQuantumFisherInformationMixed:
             <= quantum_fisher_information_dm(rho_pure, G) + 1e-5
         )
 
-    def test_maximally_mixed_state_has_zero_qfi(self) -> None:
+    @pytest.mark.parametrize("seed", range(3), ids=["seed_0", "seed_1", "seed_2"])
+    def test_maximally_mixed_state_has_zero_qfi(self, seed: int) -> None:
+        rng = np.random.default_rng(seed)
         dim = 4
-        G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        G = rng.standard_normal((dim, dim)) + 1j * rng.standard_normal((dim, dim))
         G = G + G.conj().T
         assert quantum_fisher_information_dm(np.eye(dim) / dim, G) == pytest.approx(
             0.0, abs=1e-12
@@ -191,10 +193,12 @@ class TestQuantumFisherInformationMixed:
         assert fq == pytest.approx(_make_qfi_first_principles(rho, G), rel=1e-10)
         assert fq >= 0.0
 
-    def test_degenerate_eigenvalues_handled_correctly(self) -> None:
+    @pytest.mark.parametrize("seed", range(3), ids=["seed_0", "seed_1", "seed_2"])
+    def test_degenerate_eigenvalues_handled_correctly(self, seed: int) -> None:
+        rng = np.random.default_rng(seed)
         dim = 3
         rho = np.diag([0.4, 0.4, 0.2])
-        G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        G = rng.standard_normal((dim, dim)) + 1j * rng.standard_normal((dim, dim))
         G = G + G.conj().T
         assert quantum_fisher_information_dm(rho, G) == pytest.approx(
             _make_qfi_first_principles(rho, G), rel=1e-10
@@ -316,9 +320,11 @@ class TestInputValidation:
         with pytest.raises(ValueError):
             validate_fisher_inputs(np.nan)
 
-    def test_non_hermitian_rho_raises(self) -> None:
+    @pytest.mark.parametrize("seed", range(3), ids=["seed_0", "seed_1", "seed_2"])
+    def test_non_hermitian_rho_raises(self, seed: int) -> None:
+        rng = np.random.default_rng(seed)
         dim = 4
-        rho = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        rho = rng.standard_normal((dim, dim)) + 1j * rng.standard_normal((dim, dim))
         rho = rho @ rho.conj().T
         rho[0, 1] += 1.0j
         with pytest.raises(ValueError, match="Hermitian"):
@@ -341,9 +347,11 @@ class TestInputValidation:
         with pytest.raises(ValueError):
             quantum_fisher_information_dm(rho, G)
 
-    def test_non_hermitian_generator_raises(self) -> None:
+    @pytest.mark.parametrize("seed", range(3), ids=["seed_0", "seed_1", "seed_2"])
+    def test_non_hermitian_generator_raises(self, seed: int) -> None:
+        rng = np.random.default_rng(seed)
         dim = 4
-        G = np.random.randn(dim, dim) + 1j * np.random.randn(dim, dim)
+        G = rng.standard_normal((dim, dim)) + 1j * rng.standard_normal((dim, dim))
         with pytest.raises(ValueError, match="Hermitian"):
             quantum_fisher_information_dm(np.eye(dim, dtype=complex) / dim, G)
 

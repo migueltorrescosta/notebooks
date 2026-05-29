@@ -846,6 +846,155 @@ def plot_best_ratio_by_slice(
     return save_path
 
 
+def plot_barycentric_sensitivity_heatmap(
+    theta: float,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 6),
+) -> Path:
+    """Barycentric RGB heatmap combining all three 2D slices at given θ.
+
+    For each (a_zz, a_drive) point, the RGB colour is the barycentric
+    weight of log₁₀(Δθ/SQL) from each slice:
+      R = w_x = S_x / (S_x + S_y + S_z)
+      G = w_y = S_y / (S_x + S_y + S_z)
+      B = w_z = S_z / (S_x + S_y + S_z)
+    where S_i = log₁₀(Δθ_i / SQL).
+
+    Pure red   → (a_x, a_zz) slice dominates (most degradation).
+    Pure green → (a_y, a_zz) slice dominates.
+    Pure blue  → (a_z, a_zz) slice dominates.
+    White      → all three at SQL (log ratio ≈ 0).
+    Grey       → fringe extremum in at least one slice.
+
+    Args:
+        theta: θ value to plot.
+        save_path: Output SVG path.
+        figsize: Figure size.
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load the three slice Parquet files
+    dfs: dict[str, pd.DataFrame] = {}
+    for st in ("ax", "ay", "az"):
+        tag = f"drive-2d-slice-{st}-azz-theta{theta}"
+        csv_p = _parquet_path(tag)
+        if not csv_p.exists():
+            raise FileNotFoundError(
+                f"Required data file not found: {csv_p}. "
+                f"Run the 2D slice generation first."
+            )
+        dfs[st] = pd.read_parquet(csv_p)
+
+    sql = float(dfs["ax"]["sql"].iloc[0])
+
+    # Merge on (drive, azz) — all three share the same grid
+    merged = dfs["ax"].rename(columns={"delta_theta": "dt_ax"})
+    for st in ("ay", "az"):
+        merged = merged.merge(
+            dfs[st][["drive", "azz", "delta_theta"]].rename(
+                columns={"delta_theta": f"dt_{st}"}
+            ),
+            on=["drive", "azz"],
+        )
+
+    # Compute log₁₀(Δθ/SQL) for each slice
+    for st in ("ax", "ay", "az"):
+        col = f"dt_{st}"
+        ratio = merged[col].to_numpy(dtype=float) / sql
+        # Replace fringe (inf) and zero-variance (0) cases with NaN
+        ratio = np.where(np.isfinite(ratio) & (ratio > 0.0), ratio, np.nan)
+        merged[f"log_{st}"] = np.log10(ratio)
+
+    # Sum of logs (only where all three are finite)
+    total = merged["log_ax"] + merged["log_ay"] + merged["log_az"]
+
+    # Determine pixel status
+    all_finite = np.isfinite(total) & (total > 0.0)
+    all_zero = np.isfinite(total) & (total == 0.0)
+
+    # Barycentric weights (only where all three are finite and total > 0)
+    for st in ("ax", "ay", "az"):
+        merged[f"w_{st}"] = np.where(
+            all_finite, merged[f"log_{st}"] / total, np.nan
+        )
+
+    # Reshape to 2D grid (201 × 201)
+    drive_vals = np.sort(merged["drive"].unique())
+    azz_vals = np.sort(merged["azz"].unique())
+    n_drive = len(drive_vals)
+    n_azz = len(azz_vals)
+
+    def _gridify_float(col: pd.Series) -> np.ndarray:
+        return col.to_numpy(dtype=float).reshape(n_drive, n_azz)
+
+    def _gridify_bool(col: pd.Series) -> np.ndarray:
+        return col.to_numpy(dtype=bool).reshape(n_drive, n_azz)
+
+    w_x = _gridify_float(merged["w_ax"])
+    w_y = _gridify_float(merged["w_ay"])
+    w_z = _gridify_float(merged["w_az"])
+    zero_mask = _gridify_bool(pd.Series(all_zero, name="z"))
+    fringe_mask = ~_gridify_bool(pd.Series(all_finite, name="f"))
+
+    # Build RGB array: shape (n_drive, n_azz, 3)
+    rgb = np.stack([w_x, w_y, w_z], axis=-1)
+
+    # White for all-SQL points (all three log ratios are zero)
+    rgb[zero_mask] = 1.0
+
+    # Light grey for fringe-extremum points
+    rgb[fringe_mask] = 0.85
+
+    # Clip to [0, 1]
+    rgb = np.clip(rgb, 0.0, 1.0)
+
+    # ── Plot ────────────────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=figsize)
+
+    extent = (
+        float(azz_vals.min()),
+        float(azz_vals.max()),
+        float(drive_vals.min()),
+        float(drive_vals.max()),
+    )
+    ax.imshow(rgb, extent=extent, aspect="auto", origin="lower", interpolation="nearest")
+
+    ax.set_xlabel(r"$a_{zz}$ (Ising interaction)")
+    ax.set_ylabel("$a_{\\mathrm{drive}}$ (ancilla drive coefficient)")
+    ax.set_title(
+        rf"Barycentric sensitivity: $\theta = {theta:.1f}$, "
+        r"$\log_{10}(\Delta\theta/\mathrm{SQL})$ weights"
+    )
+
+    # Annotations / legend (manually placed)
+    legend_text = (
+        "   R = $(a_x, a_{zz})$ slice\n"
+        "   G = $(a_y, a_{zz})$ slice\n"
+        "   B = $(a_z, a_{zz})$ slice\n"
+        "   White = all at SQL\n"
+        "   Grey = fringe extremum"
+    )
+    ax.annotate(
+        legend_text,
+        xy=(0.02, 0.02),
+        xycoords="axes fraction",
+        fontsize=8,
+        family="monospace",
+        va="bottom",
+        ha="left",
+        bbox={"boxstyle": "round,pad=0.4", "facecolor": "wheat", "alpha": 0.85},
+    )
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
 def plot_normball_histogram(
     result: NormBallResult | str | Path,
     theta: float,

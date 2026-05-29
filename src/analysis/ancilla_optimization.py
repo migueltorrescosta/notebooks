@@ -29,6 +29,7 @@ References:
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -37,21 +38,7 @@ import pandas as pd
 from scipy.linalg import expm
 from scipy.optimize import minimize
 
-# ============================================================================
-# Physical Constants & Pauli Matrices
-# ============================================================================
-
-# Pauli matrices (dimensionless)
-SIGMA_X: np.ndarray = np.array([[0, 1], [1, 0]], dtype=complex)
-SIGMA_Y: np.ndarray = np.array([[0, -1j], [1j, 0]], dtype=complex)
-SIGMA_Z: np.ndarray = np.array([[1, 0], [0, -1]], dtype=complex)
-I_2: np.ndarray = np.eye(2, dtype=complex)
-
-# Angular-momentum operators for a single qubit (J = σ/2)
-J_X: np.ndarray = SIGMA_X / 2.0
-J_Y: np.ndarray = SIGMA_Y / 2.0
-J_Z: np.ndarray = SIGMA_Z / 2.0
-
+from src.utils.constants import I_2, J_X, J_Y, J_Z, SIGMA_X, SIGMA_Z
 
 # ============================================================================
 # Operator Construction
@@ -659,6 +646,145 @@ class OptimisationResult:
     covariance_SA: float = 0.0
     history: list[float] = field(default_factory=list)
 
+    _PARQUET_COLUMNS = [
+        "delta_theta_opt",
+        "meas_label",
+        "theta_true",
+        "success",
+        "nfev",
+        "message",
+        "expectation_Jz",
+        "variance_Jz",
+        "purity_S",
+        "expectation_M",
+        "variance_M",
+        "covariance_SA",
+        "theta_S",
+        "phi_S",
+        "theta_A",
+        "phi_A",
+        "T_BS1",
+        "T_BS2",
+        "T_H",
+        "alpha_xx",
+        "alpha_xz",
+        "alpha_zx",
+        "alpha_zz",
+    ]
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Single-row DataFrame with all metadata (history excluded, saved separately).
+
+        Returns:
+            DataFrame with one row containing all scalar fields and the 11
+            optimisation parameters broken into named columns.
+
+        """
+        return pd.DataFrame(
+            {
+                "delta_theta_opt": [self.delta_theta_opt],
+                "meas_label": [self.meas_label],
+                "theta_true": [self.theta_true],
+                "success": [int(self.success)],
+                "nfev": [self.nfev],
+                "message": [self.message],
+                "expectation_Jz": [self.expectation_Jz],
+                "variance_Jz": [self.variance_Jz],
+                "purity_S": [self.purity_S],
+                "expectation_M": [self.expectation_M],
+                "variance_M": [self.variance_M],
+                "covariance_SA": [self.covariance_SA],
+                "theta_S": [float(self.params_opt[0])],
+                "phi_S": [float(self.params_opt[1])],
+                "theta_A": [float(self.params_opt[2])],
+                "phi_A": [float(self.params_opt[3])],
+                "T_BS1": [float(self.params_opt[4])],
+                "T_BS2": [float(self.params_opt[5])],
+                "T_H": [float(self.params_opt[6])],
+                "alpha_xx": [float(self.params_opt[7])],
+                "alpha_xz": [float(self.params_opt[8])],
+                "alpha_zx": [float(self.params_opt[9])],
+                "alpha_zz": [float(self.params_opt[10])],
+            },
+        )
+
+    def save_parquet(self, path: str | Path) -> Path:
+        """Save to a Parquet file (scalars) with a sidecar history Parquet.
+
+        Args:
+            path: File path to write to.
+
+        Returns:
+            The path that was written to.
+
+        """
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.to_dataframe().to_parquet(path, index=False)
+        # Sidecar history file
+        history_path = path.with_stem(path.stem + "-history")
+        pd.DataFrame({"history": self.history}).to_parquet(history_path, index=False)
+        return path
+
+    @classmethod
+    def from_parquet(cls, path: str | Path) -> OptimisationResult:
+        """Reconstruct an OptimisationResult from a Parquet file.
+
+        Args:
+            path: Path to the Parquet file written by ``save_parquet``.
+
+        Returns:
+            Reconstructed OptimisationResult.
+
+        Raises:
+            ValueError: If the Parquet file is missing required columns.
+
+        """
+        path = Path(path)
+        df = pd.read_parquet(path)
+        missing = [c for c in cls._PARQUET_COLUMNS if c not in df.columns]
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
+        params_opt = np.array(
+            [
+                float(df["theta_S"].iloc[0]),
+                float(df["phi_S"].iloc[0]),
+                float(df["theta_A"].iloc[0]),
+                float(df["phi_A"].iloc[0]),
+                float(df["T_BS1"].iloc[0]),
+                float(df["T_BS2"].iloc[0]),
+                float(df["T_H"].iloc[0]),
+                float(df["alpha_xx"].iloc[0]),
+                float(df["alpha_xz"].iloc[0]),
+                float(df["alpha_zx"].iloc[0]),
+                float(df["alpha_zz"].iloc[0]),
+            ],
+        )
+        history_path = path.with_stem(path.stem + "-history")
+        history: list[float] = []
+        if history_path.exists():
+            history = pd.read_parquet(history_path)["history"].tolist()
+
+        return cls(
+            delta_theta_opt=float(df["delta_theta_opt"].iloc[0]),
+            meas_label=str(df["meas_label"].iloc[0]),
+            params_opt=params_opt,
+            theta_true=float(df["theta_true"].iloc[0]),
+            success=bool(int(df["success"].iloc[0])),
+            nfev=int(df["nfev"].iloc[0]),
+            message=str(df["message"].iloc[0]),
+            expectation_Jz=float(df["expectation_Jz"].iloc[0]),
+            variance_Jz=float(df["variance_Jz"].iloc[0]),
+            purity_S=float(df["purity_S"].iloc[0]),
+            expectation_M=float(df["expectation_M"].iloc[0]),
+            variance_M=float(df["variance_M"].iloc[0]),
+            covariance_SA=float(df["covariance_SA"].iloc[0]),
+            history=history,
+        )
+
 
 @dataclass
 class ThetaScanResult:
@@ -776,6 +902,172 @@ class ThetaScanResult:
             theta_values=theta_values,
             best_per_theta=best_per_theta,
             all_results={},
+        )
+
+    _RESTART_COLUMNS = [
+        "theta",
+        "restart_index",
+        "delta_theta_opt",
+        "meas_label",
+        "theta_true",
+        "success",
+        "nfev",
+        "message",
+        "expectation_Jz",
+        "variance_Jz",
+        "purity_S",
+        "expectation_M",
+        "variance_M",
+        "covariance_SA",
+        "theta_S",
+        "phi_S",
+        "theta_A",
+        "phi_A",
+        "T_BS1",
+        "T_BS2",
+        "T_H",
+        "alpha_xx",
+        "alpha_xz",
+        "alpha_zx",
+        "alpha_zz",
+        "history_json",
+    ]
+
+    def to_restarts_dataframe(self) -> pd.DataFrame:
+        """Flatten all per-restart results into a DataFrame.
+
+        Returns:
+            DataFrame with one row per restart, containing all optimisation
+            parameters, diagnostics, and history as a JSON string.
+
+        """
+        rows: list[dict[str, object]] = []
+        for theta in self.theta_values:
+            restarts = self.all_results.get(float(theta), [])
+            for idx, r in enumerate(restarts):
+                params = r.params_opt
+                rows.append(
+                    {
+                        "theta": float(theta),
+                        "restart_index": idx,
+                        "delta_theta_opt": r.delta_theta_opt,
+                        "meas_label": r.meas_label,
+                        "theta_true": r.theta_true,
+                        "success": int(r.success),
+                        "nfev": r.nfev,
+                        "message": r.message,
+                        "expectation_Jz": r.expectation_Jz,
+                        "variance_Jz": r.variance_Jz,
+                        "purity_S": r.purity_S,
+                        "expectation_M": r.expectation_M,
+                        "variance_M": r.variance_M,
+                        "covariance_SA": r.covariance_SA,
+                        "theta_S": float(params[0]),
+                        "phi_S": float(params[1]),
+                        "theta_A": float(params[2]),
+                        "phi_A": float(params[3]),
+                        "T_BS1": float(params[4]),
+                        "T_BS2": float(params[5]),
+                        "T_H": float(params[6]),
+                        "alpha_xx": float(params[7]),
+                        "alpha_xz": float(params[8]),
+                        "alpha_zx": float(params[9]),
+                        "alpha_zz": float(params[10]),
+                        "history_json": json.dumps(r.history),
+                    },
+                )
+        return pd.DataFrame(rows)
+
+    def save_restarts_parquet(self, path: str | Path) -> Path:
+        """Save all per-restart data to a Parquet file.
+
+        Args:
+            path: File path to write to.
+
+        Returns:
+            The path that was written to.
+
+        """
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.to_restarts_dataframe().to_parquet(path, index=False)
+        return path
+
+    @classmethod
+    def from_restarts_parquet(cls, path: str | Path) -> ThetaScanResult:
+        """Reconstruct a ThetaScanResult from a per-restart Parquet file.
+
+        Args:
+            path: Path to a Parquet file written by ``save_restarts_parquet``.
+
+        Returns:
+            A ThetaScanResult with ``all_results`` fully populated.
+
+        Raises:
+            ValueError: If the Parquet file is missing required columns.
+
+        """
+        path = Path(path)
+        df = pd.read_parquet(path)
+        missing = [c for c in cls._RESTART_COLUMNS if c not in df.columns]
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
+        theta_values = sorted(df["theta"].unique())
+        all_results: dict[float, list[OptimisationResult]] = {}
+        for theta in theta_values:
+            sub = df[df["theta"] == theta].sort_values("restart_index")
+            restarts: list[OptimisationResult] = []
+            for _, row in sub.iterrows():
+                params_opt = np.array(
+                    [
+                        float(row["theta_S"]),
+                        float(row["phi_S"]),
+                        float(row["theta_A"]),
+                        float(row["phi_A"]),
+                        float(row["T_BS1"]),
+                        float(row["T_BS2"]),
+                        float(row["T_H"]),
+                        float(row["alpha_xx"]),
+                        float(row["alpha_xz"]),
+                        float(row["alpha_zx"]),
+                        float(row["alpha_zz"]),
+                    ],
+                )
+                history: list[float] = json.loads(str(row["history_json"]))
+                restarts.append(
+                    OptimisationResult(
+                        delta_theta_opt=float(row["delta_theta_opt"]),
+                        meas_label=str(row["meas_label"]),
+                        params_opt=params_opt,
+                        theta_true=float(row["theta_true"]),
+                        success=bool(int(row["success"])),
+                        nfev=int(row["nfev"]),
+                        message=str(row["message"]),
+                        expectation_Jz=float(row["expectation_Jz"]),
+                        variance_Jz=float(row["variance_Jz"]),
+                        purity_S=float(row["purity_S"]),
+                        expectation_M=float(row["expectation_M"]),
+                        variance_M=float(row["variance_M"]),
+                        covariance_SA=float(row["covariance_SA"]),
+                        history=history,
+                    ),
+                )
+            restarts.sort(key=lambda r: r.delta_theta_opt)
+            all_results[theta] = restarts
+        theta_arr = np.array(theta_values, dtype=float)
+        best_per_theta = np.array(
+            [all_results[t][0].delta_theta_opt for t in theta_values],
+            dtype=float,
+        )
+        results_flat = [r for rr in all_results.values() for r in rr]
+        return cls(
+            results=results_flat,
+            theta_values=theta_arr,
+            best_per_theta=best_per_theta,
+            all_results=all_results,
         )
 
 
@@ -1149,19 +1441,42 @@ class AlphaReoptScanResult:
     best_params_joint: list[np.ndarray] = field(default_factory=list)
     best_params_sonly: list[np.ndarray] = field(default_factory=list)
 
+    _PARAM_COLS = [
+        "theta_S", "phi_S", "theta_A", "phi_A",
+        "T_BS1", "T_BS2", "T_H",
+        "alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         """Flatten the α re-optimisation scan into a DataFrame.
 
+        Includes all metadata: optimal parameters for both joint and S-only
+        measurements are stored in named columns alongside scalar results.
+
         Returns:
-            DataFrame with columns: alpha, delta_theta_joint, delta_theta_sonly.
+            DataFrame with columns: alpha, delta_theta_joint,
+            delta_theta_sonly, and 22 optimal-parameter columns (11 per
+            measurement type).
+
         """
-        return pd.DataFrame(
-            {
-                "alpha": self.alpha_values,
-                "delta_theta_joint": self.delta_theta_joint,
-                "delta_theta_sonly": self.delta_theta_sonly,
-            },
-        )
+        n = len(self.alpha_values)
+        data: dict[str, object] = {
+            "alpha": self.alpha_values,
+            "delta_theta_joint": self.delta_theta_joint,
+            "delta_theta_sonly": self.delta_theta_sonly,
+        }
+        # Pad or truncate params lists to match n
+        def _pad(p: list[np.ndarray], n_target: int) -> list[np.ndarray]:
+            if len(p) < n_target:
+                return p + [np.full(11, float("nan"))] * (n_target - len(p))
+            return p[:n_target]
+
+        joint_params = _pad(self.best_params_joint, n)
+        sonly_params = _pad(self.best_params_sonly, n)
+        for i, col in enumerate(self._PARAM_COLS):
+            data[f"joint_{col}"] = [float(p[i]) for p in joint_params]
+            data[f"sonly_{col}"] = [float(p[i]) for p in sonly_params]
+        return pd.DataFrame(data)
 
     def save_parquet(self, path: str | Path) -> Path:
         """Save to a Parquet file.
@@ -1191,17 +1506,33 @@ class AlphaReoptScanResult:
             ValueError: If the Parquet file is missing required columns.
         """
         df = pd.read_parquet(path)
-        required = {"alpha", "delta_theta_joint", "delta_theta_sonly"}
+        required = {
+            "alpha", "delta_theta_joint", "delta_theta_sonly",
+        }
+        for side in ("joint", "sonly"):
+            for col in cls._PARAM_COLS:
+                required.add(f"{side}_{col}")
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
                 f"Parquet at {path} is missing required columns: "
                 f"{sorted(missing)}. Regenerate the file with the current code."
             )
+        n = len(df)
+        best_params_joint: list[np.ndarray] = [
+            np.array([float(df[f"joint_{col}"].iloc[i]) for col in cls._PARAM_COLS])
+            for i in range(n)
+        ]
+        best_params_sonly: list[np.ndarray] = [
+            np.array([float(df[f"sonly_{col}"].iloc[i]) for col in cls._PARAM_COLS])
+            for i in range(n)
+        ]
         return cls(
             alpha_values=df["alpha"].to_numpy(dtype=float),
             delta_theta_joint=df["delta_theta_joint"].to_numpy(dtype=float),
             delta_theta_sonly=df["delta_theta_sonly"].to_numpy(dtype=float),
+            best_params_joint=best_params_joint,
+            best_params_sonly=best_params_sonly,
         )
 
 
@@ -1591,6 +1922,29 @@ def validate_two_qubit_bs_unitarity(T: float = np.pi / 4) -> bool:
     return True
 
 
+def validate_hold_unitarity(
+    T_H: float = 1.0,
+    theta: float = 1.0,
+    alpha: tuple[float, float, float, float] = (0.1, 0.0, 0.0, 0.0),
+) -> bool:
+    """Validate the hold unitary.
+
+    Args:
+        T_H: Holding time.
+        theta: Phase rate.
+        alpha: Interaction coefficients.
+
+    Returns:
+        True if unitary.
+
+    """
+    ops = build_two_qubit_operators()
+    U = hold_unitary(T_H, theta, alpha, ops)
+    I_4 = np.eye(4, dtype=complex)
+    assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), "Hold must be unitary"
+    return True
+
+
 def validate_sensitivity_reasonable(
     T_H_vals: list[float] | None = None,
 ) -> bool:
@@ -1810,13 +2164,17 @@ class AlphaSingleScanResult:
         """Flatten the single-α scan into a DataFrame.
 
         Returns:
-            DataFrame with columns: alpha_name, alpha, delta_theta.
+            DataFrame with columns: alpha_name, alpha, delta_theta,
+            and fixed_params serialised as JSON.
+
         """
         return pd.DataFrame(
             {
                 "alpha_name": [self.alpha_name] * len(self.alpha_values),
                 "alpha": self.alpha_values,
                 "delta_theta": self.delta_theta_values,
+                "fixed_params_json": [json.dumps(self.fixed_params)]
+                * len(self.alpha_values),
             },
         )
 
@@ -1829,7 +2187,7 @@ class AlphaSingleScanResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> AlphaSingleScanResult:
         df = pd.read_parquet(path)
-        required = {"alpha_name", "alpha", "delta_theta"}
+        required = {"alpha_name", "alpha", "delta_theta", "fixed_params_json"}
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
@@ -1840,6 +2198,7 @@ class AlphaSingleScanResult:
             alpha_name=str(df["alpha_name"].iloc[0]),
             alpha_values=df["alpha"].to_numpy(dtype=float),
             delta_theta_values=df["delta_theta"].to_numpy(dtype=float),
+            fixed_params=json.loads(str(df["fixed_params_json"].iloc[0])),
         )
 
 
@@ -1867,7 +2226,8 @@ class AlphaRandomSearchResult:
 
         Returns:
             DataFrame with columns: alpha_xx, alpha_xz, alpha_zx,
-            alpha_zz, delta_theta.
+            alpha_zz, delta_theta, fixed_params_json.
+
         """
         return pd.DataFrame(
             {
@@ -1876,6 +2236,8 @@ class AlphaRandomSearchResult:
                 "alpha_zx": self.alpha_samples[:, 2],
                 "alpha_zz": self.alpha_samples[:, 3],
                 "delta_theta": self.delta_theta_values,
+                "fixed_params_json": [json.dumps(self.fixed_params)]
+                * len(self.delta_theta_values),
             },
         )
 
@@ -1888,7 +2250,10 @@ class AlphaRandomSearchResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> AlphaRandomSearchResult:
         df = pd.read_parquet(path)
-        required = {"alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz", "delta_theta"}
+        required = {
+            "alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz",
+            "delta_theta", "fixed_params_json",
+        }
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
@@ -1910,6 +2275,7 @@ class AlphaRandomSearchResult:
                 float(alphas[best_idx, 3]),
             ),
             best_delta_theta=float(deltas[best_idx]),
+            fixed_params=json.loads(str(df["fixed_params_json"].iloc[0])),
         )
 
 

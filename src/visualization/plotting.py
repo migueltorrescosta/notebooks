@@ -35,7 +35,8 @@ def plot_array(
 
     Example:
         >>> import numpy as np
-        >>> arr = np.random.randn(5, 5)
+        >>> rng = np.random.default_rng(42)
+        >>> arr = rng.standard_normal((5, 5))
         >>> plot_array(arr, midpoint=0)  # Display in Streamlit
 
     """

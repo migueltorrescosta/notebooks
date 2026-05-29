@@ -30,13 +30,14 @@ def _wait_for_server(
     max_retries: int = 30,
 ) -> None:
     """Poll the server URL until it responds or max_retries is exhausted."""
+    import urllib.error
     import urllib.request
 
     for _ in range(max_retries):
         try:
             urllib.request.urlopen(base_url, timeout=1)
             return
-        except Exception:
+        except urllib.error.URLError:
             time.sleep(1)
     process.terminate()
     pytest.fail("Streamlit server failed to start")

@@ -112,6 +112,12 @@ All experiments have been completed. The null hypothesis is confirmed: no config
 
 The $(a_x, a_{zz})$ slices reproduce the original 2026-05-18 report results exactly. The minimum ratio is $\min \Delta\theta/\text{SQL} = 1.00000000$ (within float64 precision) for all five $\theta$ values. The sensitivity landscape shows strong degradation away from the $a_{zz}=0$ line: on average 78–87% of points have $\Delta\theta/\text{SQL} > 1.001$, with a maximum observed ratio of $16\,309\times\text{SQL}$ (at $\theta=0.1$). Only about 1.5–2.5% of points lie within $10^{-6}$ of SQL. A single fringe-extremum point ($\Delta\theta = \infty$) appears at the corner of parameter space for all $\theta < 5.0$.
 
+![$(a_x, a_{zz})$ sensitivity ratio heatmap at $\theta=0.1$](figures/20260527-drive-2d-slice-ax-azz-theta0.1.svg)
+![$(a_x, a_{zz})$ sensitivity ratio heatmap at $\theta=0.5$](figures/20260527-drive-2d-slice-ax-azz-theta0.5.svg)
+![$(a_x, a_{zz})$ sensitivity ratio heatmap at $\theta=1.0$](figures/20260527-drive-2d-slice-ax-azz-theta1.0.svg)
+![$(a_x, a_{zz})$ sensitivity ratio heatmap at $\theta=2.0$](figures/20260527-drive-2d-slice-ax-azz-theta2.0.svg)
+![$(a_x, a_{zz})$ sensitivity ratio heatmap at $\theta=5.0$](figures/20260527-drive-2d-slice-ax-azz-theta5.0.svg)
+
 **Key Finding**: The $(a_x, a_{zz})$ slice confirms the original null result: the SQL is the best achievable sensitivity, and the ancilla drive with $a_x \neq 0$ produces large degradation over most of parameter space.
 
 ### Experiment 1b: 2D Slice $(a_y, a_{zz})$ at 5 $\theta$ Values
@@ -119,6 +125,12 @@ The $(a_x, a_{zz})$ slices reproduce the original 2026-05-18 report results exac
 **Status: PASS**
 
 The $(a_y, a_{zz})$ slices are effectively identical to the $(a_x, a_{zz})$ slices: same minimum ratio $(1.00000000)$, same mean ratio (within $10^{-7}$), same percentage of degraded points (78–87%), and the same single fringe-extremum point at each $\theta$. Only 0.06% of points differ by more than $10^{-6}$ in absolute $\Delta\theta$, and the maximum relative difference ($2\times 10^{-6}$) occurs at extreme sensitivity values ($\Delta\theta \sim 10^3$), consistent with standard floating-point roundoff from different computation paths. This confirms the $x \leftrightarrow y$ symmetry of the system: the two non-commuting drive components are interchangeable.
+
+![$(a_y, a_{zz})$ sensitivity ratio heatmap at $\theta=0.1$](figures/20260527-drive-2d-slice-ay-azz-theta0.1.svg)
+![$(a_y, a_{zz})$ sensitivity ratio heatmap at $\theta=0.5$](figures/20260527-drive-2d-slice-ay-azz-theta0.5.svg)
+![$(a_y, a_{zz})$ sensitivity ratio heatmap at $\theta=1.0$](figures/20260527-drive-2d-slice-ay-azz-theta1.0.svg)
+![$(a_y, a_{zz})$ sensitivity ratio heatmap at $\theta=2.0$](figures/20260527-drive-2d-slice-ay-azz-theta2.0.svg)
+![$(a_y, a_{zz})$ sensitivity ratio heatmap at $\theta=5.0$](figures/20260527-drive-2d-slice-ay-azz-theta5.0.svg)
 
 **Key Finding**: The $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices produce identical sensitivity landscapes to machine precision, confirming the expected $SU(2)$ symmetry between the $J_x$ and $J_y$ drive directions.
 
@@ -132,7 +144,35 @@ The only non-SQL configurations are fringe-extremum points ($\Delta\theta = \inf
 
 This is consistent with the theory: $[a_z J_z^A, H] = 0$ (the $a_z$ drive commutes with the Ising interaction $a_{zz} J_z^S \otimes J_z^A$), so the commuting drive does not generate $J_z^A(t)$ dynamics and therefore never degrades the sensitivity below SQL.
 
+![$(a_z, a_{zz})$ sensitivity ratio heatmap at $\theta=0.1$](figures/20260527-drive-2d-slice-az-azz-theta0.1.svg)
+![$(a_z, a_{zz})$ sensitivity ratio heatmap at $\theta=0.5$](figures/20260527-drive-2d-slice-az-azz-theta0.5.svg)
+![$(a_z, a_{zz})$ sensitivity ratio heatmap at $\theta=1.0$](figures/20260527-drive-2d-slice-az-azz-theta1.0.svg)
+![$(a_z, a_{zz})$ sensitivity ratio heatmap at $\theta=2.0$](figures/20260527-drive-2d-slice-az-azz-theta2.0.svg)
+![$(a_z, a_{zz})$ sensitivity ratio heatmap at $\theta=5.0$](figures/20260527-drive-2d-slice-az-azz-theta5.0.svg)
+
 **Key Finding**: The commuting $(a_z, a_{zz})$ slice is qualitatively different from the non-commuting $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices. All valid configurations achieve SQL, with zero sensitivity degradation across the entire parameter grid. This contradicts the original expectation (Hypothesis 3) that all three slices would show similar degradation patterns.
+
+### Experiment 1d: Barycentric Sensitivity Heatmap (Combined Slice View)
+
+**Status: PASS**
+
+A combined RGB heatmap was constructed from the three 2D slices at each $\theta$. At each point in the $(a_{zz}, a_{\mathrm{drive}})$ plane, the colour encodes which drive component dominates the $\log_{10}(\Delta\theta/\mathrm{SQL})$ degradation:
+
+- **Red** $(a_x)$ — $\,w_x = S_x/(S_x+S_y+S_z)$ where $S_i = \log_{10}(\Delta\theta_i/\mathrm{SQL})$
+- **Green** $(a_y)$ — $w_y$ analogue
+- **Blue** $(a_z)$ — $w_z$ analogue
+- **White** — all three at SQL ($\log_{10}(1) = 0$)
+- **Grey** — fringe extremum in at least one slice
+
+The resulting maps are dominated by **yellow** (red + green) across the vast majority of parameter space, confirming two key points: the non-commuting $a_x$ and $a_y$ drive components produce near-identical degradation, and the commuting $a_z$ drive (blue channel) contributes negligibly because its $\log_{10}$ ratio is always zero (SQL-level sensitivity). A **white horizontal band** at $a_{zz} \approx 0$ marks the decoupled line where all three slices return to exactly SQL regardless of the drive amplitude. Grey pixels (fringe extrema) appear in the $a_z$ slice at large $|a_{zz}|$ with $a_{\mathrm{drive}} \approx 0$ for $\theta \leq 2.0$.
+
+![Barycentric sensitivity heatmap at $\theta=0.1$](figures/20260527-barycentric-sensitivity-theta0.1.svg)
+![Barycentric sensitivity heatmap at $\theta=0.5$](figures/20260527-barycentric-sensitivity-theta0.5.svg)
+![Barycentric sensitivity heatmap at $\theta=1.0$](figures/20260527-barycentric-sensitivity-theta1.0.svg)
+![Barycentric sensitivity heatmap at $\theta=2.0$](figures/20260527-barycentric-sensitivity-theta2.0.svg)
+![Barycentric sensitivity heatmap at $\theta=5.0$](figures/20260527-barycentric-sensitivity-theta5.0.svg)
+
+**Key Finding**: The barycentric heatmaps provide a single-panel visual summary of the slice-comparison result: the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices are effectively indistinguishable (yellow), the $(a_z, a_{zz})$ slice is invisible (zero weight, always at SQL), and the decoupled $a_{zz}=0$ line is the only region where all three components simultaneously achieve SQL.
 
 ### Experiment 2: Norm-Ball Sampling and Envelope Curve
 
@@ -182,6 +222,7 @@ All three slice types achieve a minimum $\Delta\theta/\text{SQL}$ ratio of $1.00
 | 2D slice: $(a_x, a_{zz})$ | PASS | Min ratio = 1.0, 78–87% degraded points |
 | 2D slice: $(a_y, a_{zz})$ | PASS | Identical to $(a_x, a_{zz})$ |
 | 2D slice: $(a_z, a_{zz})$ | PASS | Min ratio = 1.0, **0% degraded points** |
+| Barycentric heatmap (combined) | PASS | Yellow (R+G) dominated, white band at $a_{zz}=0$ |
 | Norm-ball envelope | PASS | Min ratio = 1.0 for all $r$, non-increasing |
 | Best-ratio-by-slice comparison | PASS | All min at 1.0, az qualitatively different |
 
@@ -212,6 +253,8 @@ The experiments completed in this report confirm the original null result (no SQ
 **Hypothesis 3** (all three slice types have identical extremal statistics) is **disproven**. While all three share the same minimum ratio ($1.0$), the commuting $a_z$ slice achieves SQL at 100% of valid points, compared to only $\sim 4.5\%$ for $a_x$ and $a_y$. The original expectation that the slices would differ only in "heatmap texture" underestimated the dramatic effect of the commutation relation.
 
 The norm-ball envelope also reveals that the best achievable sensitivity at small drive amplitudes ($\|\mathbf{a}\| \lesssim 2$) is strictly worse than SQL (ratios of 1.02–2.84), and only approaches SQL as the full $R=10$ drive budget is made available. This suggests that the interaction $a_{zz} J_z^S \otimes J_z^A$ degrades sensitivity unless the ancilla drive is strong enough to "average out" the effect — except in the commuting $a_z$ case, where the drive commutes with the interaction and never degrades sensitivity regardless of amplitude.
+
+The **barycentric sensitivity heatmaps** (Experiment 1d) provide a single-panel visual summary: the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices are effectively indistinguishable (yellow R+G dominance), while the $(a_z, a_{zz})$ slice contributes zero weight everywhere (blue channel invisible) because it never deviates from SQL. The decoupled $a_{zz}=0$ line appears as a sharp white horizontal band — the only region where all three components simultaneously achieve SQL-level sensitivity.
 
 **Key Finding**: The commuting $a_z$ drive is unique — it is the only drive component that yields SQL-level sensitivity across its entire parameter space. This has practical implications for ancilla-enhanced metrology: if an ancilla is to be used without degrading sensitivity, the $J_z$ drive direction (commuting with the Ising interaction) should be chosen.
 

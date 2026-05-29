@@ -10,46 +10,17 @@ Shows Quantum Fisher Information and phase sensitivity ratio.
 
 from __future__ import annotations
 
-import importlib.util
-import sys
 import time
-from pathlib import Path
 
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 
-# Load exclusive functions from reports/20260511/local.py via importlib.
-# Try multiple resolution strategies to handle both normal execution
-# and AppTest (which copies the script to a temp directory).
-_local_candidates = [
-    Path(__file__).resolve().parent.parent / "reports" / "20260511" / "local.py",
-    Path(sys.path[0]) / "reports" / "20260511" / "local.py",
-    Path.cwd() / "reports" / "20260511" / "local.py",
-]
-_local_path = None
-for _candidate in _local_candidates:
-    if _candidate.exists():
-        _local_path = _candidate
-        break
-if _local_path is None:
-    raise ImportError(
-        "Cannot find reports/20260511/local.py. "
-        "Run 'uv run python reports/20260511/local.py --force' from the project root."
-    )
-_spec = importlib.util.spec_from_file_location("report_ancilla_local", str(_local_path))
-if _spec is None or _spec.loader is None:
-    raise ImportError(
-        f"Cannot load reports/20260511/local.py at {_local_path}. "
-        "Run 'uv run python reports/20260511/local.py --force' first."
-    )
-_report_local = importlib.util.module_from_spec(_spec)
-sys.modules["report_ancilla_local"] = _report_local
-_spec.loader.exec_module(_report_local)
-
-analytical_fq_A_zero = _report_local.analytical_fq_A_zero
-analytical_fq_B_max = _report_local.analytical_fq_B_max
-run_comparison = _report_local.run_comparison
+from src.analysis.ancilla_comparison import (
+    analytical_fq_A_zero,
+    analytical_fq_B_max,
+    run_comparison,
+)
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(

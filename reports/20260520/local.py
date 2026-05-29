@@ -48,10 +48,9 @@ from src.analysis.ancilla_drive_metrology import (
 from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
+from src.utils.constants import I_4
 
 sns.set_theme(style="whitegrid")
-
-I_4 = np.eye(4, dtype=complex)
 
 # ============================================================================
 # Physical constants
@@ -342,6 +341,8 @@ class XXGridScanResult:
             "sql",
             "alpha_xx_opt",
             "delta_theta_opt",
+            "expectation_Jz",
+            "variance_Jz",
         }
         missing = required - set(df.columns)
         if missing:
@@ -359,12 +360,8 @@ class XXGridScanResult:
             alpha_xx_opt=float(df["alpha_xx_opt"].iloc[0]),
             delta_theta_opt=float(df["delta_theta_opt"].iloc[0]),
             sql=float(df["sql"].iloc[0]),
-            expectation_Jz=float(df["expectation_Jz"].iloc[0])
-            if "expectation_Jz" in df.columns
-            else 0.0,
-            variance_Jz=float(df["variance_Jz"].iloc[0])
-            if "variance_Jz" in df.columns
-            else 0.0,
+            expectation_Jz=float(df["expectation_Jz"].iloc[0]),
+            variance_Jz=float(df["variance_Jz"].iloc[0]),
         )
 
 
@@ -459,6 +456,10 @@ class XXThetaScanResult:
             "alpha_xx_opt",
             "best_delta_theta",
             "sql",
+            "expectation_Jz",
+            "variance_Jz",
+            "count_below_sql",
+            "total_points",
         }
         missing = required - set(df.columns)
         if missing:
@@ -470,26 +471,10 @@ class XXThetaScanResult:
         alpha_opts = df["alpha_xx_opt"].to_numpy(dtype=float)
         best = df["best_delta_theta"].to_numpy(dtype=float)
         sql = df["sql"].to_numpy(dtype=float)
-        exps = (
-            df["expectation_Jz"].to_numpy(dtype=float)
-            if "expectation_Jz" in df.columns
-            else np.zeros_like(thetas)
-        )
-        vars_ = (
-            df["variance_Jz"].to_numpy(dtype=float)
-            if "variance_Jz" in df.columns
-            else np.zeros_like(thetas)
-        )
-        count_below = (
-            df["count_below_sql"].to_numpy(dtype=float)
-            if "count_below_sql" in df.columns
-            else np.zeros_like(thetas)
-        )
-        total = (
-            df["total_points"].to_numpy(dtype=float)
-            if "total_points" in df.columns
-            else np.zeros_like(thetas)
-        )
+        exps = df["expectation_Jz"].to_numpy(dtype=float)
+        vars_ = df["variance_Jz"].to_numpy(dtype=float)
+        count_below = df["count_below_sql"].to_numpy(dtype=float)
+        total = df["total_points"].to_numpy(dtype=float)
         return cls(
             theta_values=thetas,
             alpha_xx_opt_per_theta=alpha_opts,

@@ -559,9 +559,6 @@ def compute_decoupled_baseline(
 # ============================================================================
 
 
-
-
-
 # ============================================================================
 # Plot Functions
 # ============================================================================
@@ -977,9 +974,7 @@ def generate_decoupled_baseline(force: bool = False) -> None:
         cmap="viridis",
         norm=LogNorm(vmin=max(vmin, 1e-16), vmax=vmax),
     )
-    cbar = fig.colorbar(
-        im, ax=ax, label=r"$|\Delta\theta/\Delta\theta_{\mathrm{SQL}} - 1|$"
-    )
+    fig.colorbar(im, ax=ax, label=r"$|\Delta\theta/\Delta\theta_{\mathrm{SQL}} - 1|$")
 
     max_dev = float(np.max(finite)) if len(finite) > 0 else 0.0
     ax.set_xlabel(r"$\theta$")
@@ -1051,7 +1046,9 @@ def generate_scaling_analysis(force: bool = False) -> None:
     else:
         print("[run]  Fitting scaling exponents...")
         scaling = fit_scaling_exponents(
-            result.theta_values, result.N_values, result.delta_theta_opt,
+            result.theta_values,
+            result.N_values,
+            result.delta_theta_opt,
         )
         scaling.save_parquet(scaling_csv)
         print(f"[save] {scaling_csv}")

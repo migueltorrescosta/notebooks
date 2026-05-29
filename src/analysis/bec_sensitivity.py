@@ -193,7 +193,7 @@ def compute_sensitivity_vs_n(
 
             results.append({"N": N, "delta_phi": delta_phi})
 
-        except Exception:
+        except (ValueError, np.linalg.LinAlgError, TypeError):
             # Skip failed computations (e.g. Lindblad dimension too large)
             continue
 

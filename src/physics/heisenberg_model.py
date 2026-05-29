@@ -33,6 +33,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from src.utils.constants import EYE, SIGMA_X, SIGMA_Z
 from src.utils.validators import (
     validate_eigendecomposition,
     validate_eigenvectors_orthonormal,
@@ -45,17 +46,6 @@ from src.utils.validators import (
 # update these aliases to maintain backward compatibility.
 validate_eigenvectors_orthonormal = validate_eigenvectors_orthonormal
 validate_eigendecomposition = validate_eigendecomposition
-
-
-# =============================================================================
-# Pauli Matrices
-# =============================================================================
-
-
-SIGMA_X = np.array([[0, 1], [1, 0]], dtype=complex)
-SIGMA_Z = np.array([[1, 0], [0, -1]], dtype=complex)
-EYE = np.array([[1, 0], [0, 1]], dtype=complex)
-
 
 # =============================================================================
 # Hamiltonian Construction

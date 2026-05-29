@@ -439,7 +439,9 @@ class TestOperatorConstruction:
         assert J_x == pytest.approx(J_x.conj().T)
 
     def test_ancilla_operators_pauli(self) -> None:
-        J_z_anc, J_x_anc = _report_local.build_ancilla_operators()
+        from src.utils.constants import J_X, J_Z
+
+        J_z_anc, J_x_anc = J_Z, J_X
         assert J_z_anc.shape == (2, 2)
         assert J_x_anc.shape == (2, 2)
         np.isclose(np.linalg.eigvalsh(J_z_anc), [-0.5, 0.5]).all()

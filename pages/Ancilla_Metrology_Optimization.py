@@ -13,10 +13,7 @@ References:
 
 from __future__ import annotations
 
-import importlib.util
-import sys
 import time
-from pathlib import Path
 
 import numpy as np
 import plotly.graph_objects as go
@@ -39,44 +36,10 @@ from src.analysis.ancilla_optimization import (
     two_qubit_state,
     validate_bs_unitarity,
     validate_derivative_stability,
+    validate_hold_unitarity,
     validate_operators,
     validate_sensitivity_reasonable,
 )
-
-# Load exclusive function from reports/20260512/local.py via importlib.
-# Try multiple resolution strategies to handle both normal execution
-# and AppTest (which copies the script to a temp directory).
-_local_candidates = [
-    # Strategy 1: relative to this file's location
-    Path(__file__).resolve().parent.parent / "reports" / "20260512" / "local.py",
-    # Strategy 2: relative to the project root (sys.path[0] set by conftest.py)
-    Path(sys.path[0]) / "reports" / "20260512" / "local.py",
-    # Strategy 3: relative to current working directory
-    Path.cwd() / "reports" / "20260512" / "local.py",
-]
-_local_path = None
-for _candidate in _local_candidates:
-    if _candidate.exists():
-        _local_path = _candidate
-        break
-
-if _local_path is not None:
-    _spec = importlib.util.spec_from_file_location(
-        "report_ancilla_local", str(_local_path)
-    )
-    if _spec is not None and _spec.loader is not None:
-        _report_local = importlib.util.module_from_spec(_spec)
-        _spec.loader.exec_module(_report_local)
-        validate_hold_unitarity = _report_local.validate_hold_unitarity
-    else:
-        # Fallback: define a stub so the page loads gracefully
-        def validate_hold_unitarity() -> bool:  # type: ignore[misc]
-            return False
-else:
-    # Fallback: define a stub so the page loads gracefully
-    def validate_hold_unitarity() -> bool:  # type: ignore[misc]
-        return False
-
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(

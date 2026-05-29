@@ -76,10 +76,11 @@ THETA_VALS: list[float] = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 DUAL_MZI_N_VALS: list[int] = list(range(1, 11))
 SONLY_MZI_N_VALS: list[int] = [1, 5, 10]
 
+
 # Adaptive start counts: more starts for small N, fewer for large N
 def _n_starts_for_N(N: int) -> int:
     """Return the number of L-BFGS-B starts appropriate for N.
-    
+
     The expm time scales super-linearly with (N+1)^2, and the number of
     L-BFGS-B iterations also grows with N (more rugged landscape).
     This function balances optimisation quality against computational cost.
@@ -196,8 +197,7 @@ def hold_unitary(
         (N+1)² × (N+1)² unitary matrix.
     """
     H = build_hold_hamiltonian(N, theta, alpha, ops)
-    U = expm(-1j * T_H * H)
-    return U
+    return expm(-1j * T_H * H)
 
 
 # ============================================================================
@@ -254,8 +254,7 @@ def evolve_circuit(
     U_bs = protocol_bs_unitary(N, protocol, T_BS)
     psi = U_bs @ psi0
     psi = hold_unitary(N, T_H, theta, alpha, ops) @ psi
-    psi = U_bs @ psi
-    return psi
+    return U_bs @ psi
 
 
 # ============================================================================
@@ -1688,7 +1687,7 @@ def generate_decoupled_baseline(force: bool = False) -> None:
             cmap="viridis",
             norm=LogNorm(vmin=max(vmin, 1e-16), vmax=vmax),
         )
-        cbar = fig.colorbar(
+        fig.colorbar(
             im, ax=ax, label=r"$|\Delta\theta/\Delta\theta_{\mathrm{SQL}} - 1|$"
         )
 
@@ -1756,7 +1755,9 @@ def generate_scaling_analysis(force: bool = False) -> None:
     else:
         print("[run]  Fitting scaling exponents...")
         scaling = fit_scaling_exponents(
-            result.theta_values, result.N_values, result.delta_theta_opt,
+            result.theta_values,
+            result.N_values,
+            result.delta_theta_opt,
         )
         scaling.save_parquet(scaling_csv)
         print(f"[save] {scaling_csv}")

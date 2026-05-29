@@ -18,7 +18,10 @@ from src.analysis.delta_estimation import (
 from src.physics.dicke_basis import jx_operator, jz_operator
 from src.visualization.plotting import plot_array
 
-tqdm.pandas()
+# Configure tqdm for pandas progress_apply (run once per session)
+if "tqdm_pandas_configured" not in st.session_state:
+    tqdm.pandas()
+    st.session_state["tqdm_pandas_configured"] = True
 
 # LAYOUT
 st.set_page_config(

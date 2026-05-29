@@ -29,6 +29,12 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast, overload
 
+# Force non-interactive matplotlib backend before any plotting imports.
+if "MPLBACKEND" not in os.environ:
+    os.environ["MPLBACKEND"] = "Agg"
+if "OMP_NUM_THREADS" not in os.environ:
+    os.environ["OMP_NUM_THREADS"] = "1"
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -39,15 +45,7 @@ import seaborn as sns
 import torch
 from scipy.optimize import minimize
 
-
-
-# Force non-interactive matplotlib backend before any plotting imports.
-if "MPLBACKEND" not in os.environ:
-    os.environ["MPLBACKEND"] = "Agg"
-if "OMP_NUM_THREADS" not in os.environ:
-    os.environ["OMP_NUM_THREADS"] = "1"
-
-from src.analysis.ancilla_drive_metrology import (  # noqa: E402
+from src.analysis.ancilla_drive_metrology import (
     Drive2DSliceResult,
     DriveDecoupledBaselineResult,
     DriveRandomSearchResult,
@@ -57,9 +55,9 @@ from src.analysis.ancilla_drive_metrology import (  # noqa: E402
     drive_random_search,
     run_drive_theta_scan,
 )
-from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator  # noqa: E402
-from src.physics.multi_mzi import single_bs_unitary  # noqa: E402
-from src.visualization.ancilla_drive_plots import (  # noqa: E402
+from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
+from src.physics.multi_mzi import single_bs_unitary
+from src.visualization.ancilla_drive_plots import (
     plot_drive_2d_slice_heatmap,
     plot_drive_decoupled_baseline,
     plot_drive_optimal_params,
@@ -1952,7 +1950,7 @@ def run_lbfgsb_optimisation(
             return_optimal_weights=True,
         )
         phi_opt, a_opt, b_opt, delta_theta_opt = weighted_result
-    except Exception:
+    except (ValueError, np.linalg.LinAlgError, TypeError):
         phi_opt, a_opt, b_opt = 0.0, 1.0, 0.0
         delta_theta_opt = float(result.fun)
 
@@ -2096,9 +2094,7 @@ class NScalingResult:
         # Reconstruct arrays from the DataFrame
         N_values = df["N"].to_numpy(dtype=int)
         delta_theta_values = df["delta_theta"].to_numpy(dtype=float)
-        delta_theta_std = df.get(
-            "delta_theta_std", pd.Series([float("nan")] * len(df))
-        ).to_numpy(dtype=float)
+        delta_theta_std = df["delta_theta_std"].to_numpy(dtype=float)
         phi_opt_values = df["phi_opt"].to_numpy(dtype=float)
         a_opt_values = df["a_opt"].to_numpy(dtype=float)
         b_opt_values = df["b_opt"].to_numpy(dtype=float)
@@ -2124,6 +2120,12 @@ class NScalingResult:
         if missing:
             raise ValueError(
                 f"Missing required scalar columns in {path}: {missing}. "
+                f"Re-run the simulation that generated this file."
+            )
+
+        if "delta_theta_std" not in df.columns:
+            raise ValueError(
+                f"Missing required column 'delta_theta_std' in {path}. "
                 f"Re-run the simulation that generated this file."
             )
 

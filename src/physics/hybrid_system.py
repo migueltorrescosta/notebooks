@@ -23,13 +23,16 @@ Functions:
 - ``hybrid_hamiltonian_n`` — construct n-th order squeezing Hamiltonian
 - ``hybrid_ground_state_n`` — lowest-energy eigenstate via exact diagonalisation
 - ``hybrid_vacuum_state`` — state preparation
-
-Note: The following functions have been migrated to reports/20260507/local.py:
-hybrid_coherent_state, adaptive_truncation, hybrid_mean_photon,
-evolve_hybrid_state, validate_hybrid_state, validate_hybrid_unitary.
+- ``hybrid_coherent_state`` — coherent state |α⟩ ⊗ |spin⟩
+- ``adaptive_truncation`` — compute safe Fock truncation for squeezed states
+- ``hybrid_mean_photon`` — mean photon number ⟨a†a⟩ of a hybrid state
+- ``evolve_hybrid_state`` — unitary evolution under squeezing Hamiltonian
+- ``validate_hybrid_state`` — check dimension and normalisation
+- ``validate_hybrid_unitary`` — check unitarity of a matrix
 """
 
 import numpy as np
+import scipy
 
 # =============================================================================
 # Spin Operators (Pauli matrices)
@@ -279,3 +282,158 @@ def hybrid_vacuum_state(N: int, spin_state: str = "down") -> np.ndarray:
         raise ValueError(f"Unknown spin_state: {spin_state}")
 
     return state
+
+
+def hybrid_coherent_state(
+    N: int,
+    alpha: complex,
+    spin_state: str = "down",
+) -> np.ndarray:
+    """Create hybrid coherent state |α⟩ ⊗ |spin⟩.
+
+    Args:
+        N: Maximum photon number (truncation).
+        alpha: Coherent state amplitude.
+        spin_state: Which spin state ("down" or "up").
+
+    Returns:
+        State vector of shape (2(N+1),).
+
+    """
+    dim_osc = N + 1
+    dim_hybrid = 2 * dim_osc
+
+    # Build coherent state in oscillator space
+    osc_state = np.zeros(dim_osc, dtype=complex)
+    for n in range(dim_osc):
+        osc_state[n] = (
+            alpha**n
+            / np.sqrt(scipy.special.factorial(n))
+            * np.exp(-(np.abs(alpha) ** 2) / 2)
+        )
+
+    # Embed into hybrid space
+    state = np.zeros(dim_hybrid, dtype=complex)
+    if spin_state == "down":
+        state[::2] = osc_state  # Even indices: |n,↓⟩
+    elif spin_state == "up":
+        state[1::2] = osc_state  # Odd indices: |n,↑⟩
+    else:
+        raise ValueError(f"Unknown spin_state: {spin_state}")
+
+    return state
+
+
+def adaptive_truncation(
+    alpha: complex,
+    r_n: float,
+    n: int,
+    N_max: int = 200,
+) -> int:
+    """Compute adaptive truncation for squeezed state.
+
+    Uses order-dependent safety margin to prevent boundary-induced revivals:
+    higher-order operators (a^n) have spectral norm ~N^{n/2}, requiring a
+    proportionally larger safety buffer.
+
+    N_osc = min(N_max, ceil(|α|² + n·r_n + (10·n)·sqrt(|α|² + n·r_n + 1)))
+
+    Args:
+        alpha: Coherent state amplitude (0 for vacuum).
+        r_n: Squeezing parameter.
+        n: Squeezing order.
+        N_max: Safety upper bound (default 200).
+
+    Returns:
+        Truncation N (maximum photon number).
+
+    """
+    mean_photon = np.abs(alpha) ** 2 + n * r_n
+    safety_factor = 10 * n  # Wider safety margin for higher orders
+    N_suggested = int(np.ceil(mean_photon + safety_factor * np.sqrt(mean_photon + 1)))
+    return min(N_suggested, N_max)
+
+
+def hybrid_mean_photon(state: np.ndarray, N: int) -> float:
+    """Compute mean photon number ⟨a†a⟩.
+
+    Args:
+        state: Hybrid state vector of shape (2(N+1),).
+        N: Maximum photon number.
+
+    Returns:
+        Mean photon number (real).
+
+    """
+    n_op = oscillator_number(N)
+    n_hybrid = hybrid_operator(n_op, np.eye(2, dtype=complex), N)
+    return float(np.real(np.vdot(state, n_hybrid @ state)))
+
+
+def evolve_hybrid_state(
+    N: int,
+    n: int,
+    omega_n: float,
+    theta_n: float,
+    t: float,
+    initial_state: np.ndarray,
+) -> np.ndarray:
+    """Evolve hybrid state under unitary H for time t.
+
+    Constructs the n-th order squeezing Hamiltonian H_n and evolves the
+    initial state via U = exp(-i H_n t).
+
+    Args:
+        N: Maximum photon number (truncation).
+        n: Squeezing order (2, 3, or 4).
+        omega_n: Squeezing rate Ω_n.
+        theta_n: Squeezing phase θ_n.
+        t: Evolution time.
+        initial_state: State vector of shape (2(N+1),).
+
+    Returns:
+        Evolved state vector of shape (2(N+1),), normalised.
+
+    """
+    H = hybrid_hamiltonian_n(N, n=n, omega_n=omega_n, theta_n=theta_n)
+    U = scipy.linalg.expm(-1j * H * t)
+    return U @ initial_state
+
+
+def validate_hybrid_state(state: np.ndarray, N: int) -> bool:
+    """Validate hybrid state vector.
+
+    Checks:
+    - Correct dimension: 2(N+1)
+    - Normalized: ∑|ψ|² = 1
+
+    Args:
+        state: State vector to validate.
+        N: Maximum photon number.
+
+    Returns:
+        True if valid, False otherwise.
+
+    """
+    expected_dim = 2 * (N + 1)
+    if state.shape != (expected_dim,):
+        return False
+    norm = np.sum(np.abs(state) ** 2)
+    return bool(np.isclose(norm, 1.0, atol=1e-6))
+
+
+def validate_hybrid_unitary(U: np.ndarray, tol: float = 1e-8) -> bool:
+    """Check if matrix is unitary: U†U = I.
+
+    Args:
+        U: Matrix to check.
+        tol: Numerical tolerance.
+
+    Returns:
+        True if unitary within tolerance.
+
+    """
+    if U.ndim != 2 or U.shape[0] != U.shape[1]:
+        return False
+    identity = np.eye(U.shape[0], dtype=complex)
+    return np.allclose(U.conj().T @ U, identity, atol=tol)

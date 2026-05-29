@@ -31,16 +31,18 @@ from pathlib import Path
 
 # Force single-threaded BLAS before any heavy numerical imports.
 # This avoids in-process deadlocks when forking and keeps thread contention low.
-for _env_key in (
-    "OMP_NUM_THREADS",
-    "OPENBLAS_NUM_THREADS",
-    "MKL_NUM_THREADS",
-    "VECLIB_MAXIMUM_THREADS",
-    "NUMEXPR_NUM_THREADS",
-    "MPLBACKEND",
-):
-    if _env_key not in os.environ:
-        os.environ[_env_key] = "1" if _env_key != "MPLBACKEND" else "Agg"
+if "OMP_NUM_THREADS" not in os.environ:
+    os.environ["OMP_NUM_THREADS"] = "1"
+if "OPENBLAS_NUM_THREADS" not in os.environ:
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+if "MKL_NUM_THREADS" not in os.environ:
+    os.environ["MKL_NUM_THREADS"] = "1"
+if "VECLIB_MAXIMUM_THREADS" not in os.environ:
+    os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+if "NUMEXPR_NUM_THREADS" not in os.environ:
+    os.environ["NUMEXPR_NUM_THREADS"] = "1"
+if "MPLBACKEND" not in os.environ:
+    os.environ["MPLBACKEND"] = "Agg"
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -51,18 +53,17 @@ from scipy.linalg import expm
 from scipy.optimize import minimize
 
 # Shared primitives
-from src.analysis.ancilla_drive_metrology import (  # noqa: E402
+from src.analysis.ancilla_drive_metrology import (
     DriveDecoupledBaselineResult,
     system_only_bs_unitary,
 )
-from src.analysis.ancilla_optimization import (  # noqa: E402
+from src.analysis.ancilla_optimization import (
     build_interaction_hamiltonian,
     build_two_qubit_operators,
 )
+from src.utils.constants import I_4
 
 sns.set_theme(style="whitegrid")
-
-I_4 = np.eye(4, dtype=complex)
 
 # ============================================================================
 # Physical constants
@@ -467,6 +468,11 @@ class GeneralBFGSOptimizationResult:
             "alpha_zz_opt",
             "delta_theta_opt",
             "sql",
+            "expectation_Jz",
+            "variance_Jz",
+            "d_exp_d_theta",
+            "n_starts",
+            "n_converged",
         }
         missing = required - set(df.columns)
         if missing:
@@ -484,21 +490,11 @@ class GeneralBFGSOptimizationResult:
             ),
             delta_theta_opt=float(df["delta_theta_opt"].iloc[0]),
             sql=float(df["sql"].iloc[0]),
-            expectation_Jz=float(df["expectation_Jz"].iloc[0])
-            if "expectation_Jz" in df.columns
-            else 0.0,
-            variance_Jz=float(df["variance_Jz"].iloc[0])
-            if "variance_Jz" in df.columns
-            else 0.0,
-            d_exp_d_theta=float(df["d_exp_d_theta"].iloc[0])
-            if "d_exp_d_theta" in df.columns
-            else 0.0,
-            n_starts=int(df["n_starts"].iloc[0])
-            if "n_starts" in df.columns
-            else N_BFGS_STARTS,
-            n_converged=int(df["n_converged"].iloc[0])
-            if "n_converged" in df.columns
-            else 0,
+            expectation_Jz=float(df["expectation_Jz"].iloc[0]),
+            variance_Jz=float(df["variance_Jz"].iloc[0]),
+            d_exp_d_theta=float(df["d_exp_d_theta"].iloc[0]),
+            n_starts=int(df["n_starts"].iloc[0]),
+            n_converged=int(df["n_converged"].iloc[0]),
         )
 
 
@@ -1109,7 +1105,7 @@ def _upsert_bfgs_result(result: GeneralBFGSOptimizationResult) -> None:
         try:
             write_deltalake(BFGS_TABLE_DIR, row, mode="append")
             return
-        except Exception:
+        except (OSError, ValueError):
             if attempt < 4:
                 import time
 

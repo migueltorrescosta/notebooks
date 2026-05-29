@@ -14,117 +14,35 @@ Features:
 - Show heatmap/phase diagram of α across (state, noise) grid
 - CSV/JSON export of survey results
 
-This page calls into src/analysis/scaling_survey.py and does NOT contain
+This page imports from src/analysis/scaling_survey and does NOT contain
 any physics logic itself.
 """
 
 from __future__ import annotations
 
-import importlib.util
 import io
-import sys
-from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 from plotly import graph_objects as go
 
-# Define stub classes for mypy static analysis. These match the interface
-# of the dynamically-imported dataclasses from local.py. The TYPE_CHECKING
-# block is only seen by type checkers (mypy, pyright). At runtime, the
-# names are overwritten by the actual dataclasses from importlib.
-if TYPE_CHECKING:
-
-    class ModelConfig:
-        """Stub matching the dataclass in reports/20260511/local.py."""
-
-        model_id: str
-        state_type: str
-        noise_type: str
-        entangler: str
-        label: str
-        custom_sensitivity_fn: Callable[[int, float], float] | None
-
-        def __init__(
-            self,
-            model_id: str,
-            state_type: str = "",
-            noise_type: str = "none",
-            entangler: str = "none",
-            label: str = "",
-            custom_sensitivity_fn: Callable[[int, float], float] | None = None,
-        ) -> None: ...
-
-    class SurveyConfig:
-        """Stub matching the dataclass in reports/20260511/local.py."""
-
-        N_range: tuple[int, int]
-        N_points: int
-        noise_levels: list[float]
-        phi: float
-        method: str
-        seed: int
-
-        def __init__(
-            self,
-            N_range: tuple[int, int] = (2, 64),
-            N_points: int = 8,
-            noise_levels: list[float] | None = None,
-            phi: float = np.pi / 4,
-            method: str = "qfi",
-            seed: int = 42,
-        ) -> None: ...
-
-
-# Load exclusive functions from reports/20260511/local.py via importlib.
-# Try multiple resolution strategies to handle both normal execution
-# and AppTest (which copies the script to a temp directory).
-_local_candidates = [
-    Path(__file__).resolve().parent.parent / "reports" / "20260511" / "local.py",
-    Path(sys.path[0]) / "reports" / "20260511" / "local.py",
-    Path.cwd() / "reports" / "20260511" / "local.py",
-]
-_local_path = None
-for _candidate in _local_candidates:
-    if _candidate.exists():
-        _local_path = _candidate
-        break
-if _local_path is None:
-    raise ImportError(
-        "Cannot find reports/20260511/local.py. "
-        "Run 'uv run python reports/20260511/local.py --force' from the project root."
-    )
-_spec = importlib.util.spec_from_file_location(
-    "report_scaling_survey_local", str(_local_path)
+from src.analysis.scaling_survey import (
+    CavityMziConfig,
+    DistributedMziConfig,
+    ModelConfig,
+    SurveyConfig,
+    TTLNoiseConfig,
+    cavity_enhanced_sensitivity,
+    combined_sensitivity,
+    create_default_survey,
+    create_thermal_config,
+    dd_phase_sensitivity,
+    distributed_mzi_sensitivity,
+    fit_all_exponents,
+    run_scaling_survey,
+    ttl_limited_sensitivity,
 )
-if _spec is None or _spec.loader is None:
-    raise ImportError(
-        f"Cannot load reports/20260511/local.py at {_local_path}. "
-        "Run 'uv run python reports/20260511/local.py --force' first."
-    )
-_report_local = importlib.util.module_from_spec(_spec)
-sys.modules["report_scaling_survey_local"] = _report_local
-_spec.loader.exec_module(_report_local)
-
-ModelConfig = _report_local.ModelConfig  # type: ignore[misc]
-SurveyConfig = _report_local.SurveyConfig  # type: ignore[misc]
-create_default_survey = _report_local.create_default_survey
-fit_all_exponents = _report_local.fit_all_exponents
-run_scaling_survey = _report_local.run_scaling_survey
-CavityMziConfig = _report_local.CavityMziConfig
-cavity_enhanced_sensitivity = _report_local.cavity_enhanced_sensitivity
-DistributedMziConfig = _report_local.DistributedMziConfig
-distributed_mzi_sensitivity = _report_local.distributed_mzi_sensitivity
-dd_phase_sensitivity = _report_local.dd_phase_sensitivity
-combined_sensitivity = _report_local.combined_sensitivity
-create_thermal_config = _report_local.create_thermal_config
-TTLNoiseConfig = _report_local.TTLNoiseConfig
-ttl_limited_sensitivity = _report_local.ttl_limited_sensitivity
 
 # Page configuration
 st.set_page_config(

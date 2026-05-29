@@ -57,10 +57,9 @@ from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
     compute_expectation_and_variance,
 )
+from src.utils.constants import I_4
 
 sns.set_theme(style="whitegrid")
-
-I_4 = np.eye(4, dtype=complex)
 
 # ============================================================================
 # Physical constants  (moved from ancilla_drive_phase_modulated.py)

@@ -141,6 +141,7 @@ ignore = [
     "TD",        # TODO formatting — too opinionated for research code
     "TRY",       # try/except style
     # ── Patterns handled by intentional code design ──
+    "INP001",                      # Report dirs are not packages
     "ARG001", "ARG002", "ARG005",  # Unused args (API compatibility)
     "BLE001",                      # Blind except (intentional in test setup/scripts)
     "C901",                        # Complex code (needs refactor, not bug)
@@ -153,8 +154,6 @@ ignore = [
     "PLW2901",                     # Redefined loop variable (deliberate pattern)
     "PT011",                       # Pytest raises too broad (needs per-case review)
     "PT018",                       # Composite assertion (deliberate single-message pattern)
-    # ── In-progress migrations ──
-    "NPY002",    # NumPy legacy random — migrating gradually
 ]
 
 [tool.mypy]

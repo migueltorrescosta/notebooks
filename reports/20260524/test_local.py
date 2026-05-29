@@ -1071,10 +1071,8 @@ class TestPhysicalInvariants:
         sub-SQL.  A short optimisation run (random search + Nelder-Mead)
         at θ=0.2 should find parameters achieving Δθ < 0.75 × SQL,
         confirming that the protocol still works at negligible noise."""
-        ops = build_two_qubit_operators()
-
         # Stage 1: small random search
-        _, _, best_params, best_delta = run_noisy_random_search(
+        _, _, best_params, _ = run_noisy_random_search(
             theta=0.2,
             gamma_phi=1e-4,
             n_samples=200,
