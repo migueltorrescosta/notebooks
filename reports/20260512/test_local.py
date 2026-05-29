@@ -39,7 +39,10 @@ validate_hold_unitarity = _report_local.validate_hold_unitarity
 # Functions migrated to src/ — imported directly
 from src.analysis.scaling_fit import fit_scaling_exponent  # noqa: E402
 from src.physics.mzi_simulation import beam_splitter_unitary  # noqa: E402
-from src.physics.mzi_states import compute_jz_variance, two_mode_jz_operator  # noqa: E402
+from src.physics.mzi_states import (  # noqa: E402
+    compute_jz_variance,
+    two_mode_jz_operator,
+)
 
 
 def _fock_state(n0: int, n1: int) -> np.ndarray:

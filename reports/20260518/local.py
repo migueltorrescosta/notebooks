@@ -3118,10 +3118,11 @@ def plot_m_scaling(
     # Annotate improvement from M=0 to M=1
     if result.improvement_01 > 0:
         improvement_pct = result.improvement_01 * 100
+        text_y = y_min / 1.015
         ax1.annotate(
             rf"$\Delta\theta$ improvement: {improvement_pct:.1f}\%",
             xy=(1, result.delta_theta_values[1]),
-            xytext=(4, result.delta_theta_values[1] * 0.7),
+            xytext=(4, text_y),
             arrowprops={"arrowstyle": "->", "color": "gray"},
             fontsize=10,
         )

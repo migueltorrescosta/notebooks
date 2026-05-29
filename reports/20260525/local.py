@@ -37,11 +37,11 @@ from typing import TYPE_CHECKING, Any
 # Use spawn start method to avoid fork + BLAS threading deadlock.
 mp.set_start_method("spawn", force=True)
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import seaborn as sns
-from scipy.optimize import minimize
+import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import seaborn as sns  # noqa: E402
+from scipy.optimize import minimize  # noqa: E402
 
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
@@ -268,6 +268,25 @@ def _objective_joint(
     return 1e10  # Large penalty for divergent points
 
 
+def _maxiter_for_n(N: int) -> int:
+    """Adaptive L-BFGS-B maxiter based on Hilbert space dimension.
+
+    Large N is exponentially more expensive per objective evaluation,
+    so we cap maxiter to keep runtime manageable.
+
+    Args:
+        N: Particle number per subsystem.
+
+    Returns:
+        Max iterations for L-BFGS-B.
+    """
+    if N <= 5:
+        return 200
+    if N <= 10:
+        return 100
+    return 50
+
+
 def optimise_joint(
     N: int,
     theta: float,
@@ -276,6 +295,7 @@ def optimise_joint(
     axx_bounds: tuple[float, float] = AXX_BOUNDS,
     phi_bounds: tuple[float, float] = PHI_BOUNDS,
     n_starts: int = N_RANDOM_STARTS,
+    maxiter: int | None = None,
     T_BS: float = DEFAULT_T_BS,
     T_H: float = DEFAULT_T_H,
     fd_step: float = FD_STEP,
@@ -319,6 +339,8 @@ def optimise_joint(
     sql_2n = 1.0 / (np.sqrt(2 * N) * T_H)
     rng = np.random.default_rng(rng_seed)
 
+    if maxiter is None:
+        maxiter = _maxiter_for_n(N)
     bounds = [axx_bounds, phi_bounds]
     best_result: dict[str, float] = {
         "alpha_xx_opt": 0.0,
@@ -351,7 +373,7 @@ def optimise_joint(
                 args=(N, psi0, theta, ops, T_H, fd_step),
                 method="L-BFGS-B",
                 bounds=bounds,
-                options={"ftol": 1e-12, "gtol": 1e-8, "maxiter": 200},
+                options={"ftol": 1e-12, "gtol": 1e-8, "maxiter": maxiter},
             )
 
             if not result.success:
@@ -389,7 +411,9 @@ def optimise_joint(
     best_dt = best_result["delta_theta_opt"]
     if np.isfinite(best_dt) and best_dt > 0 and _all_dt:
         best_result["n_starts_at_best"] = sum(
-            1 for dt in _all_dt if np.isfinite(dt) and abs(dt - best_dt) / best_dt < 0.01
+            1
+            for dt in _all_dt
+            if np.isfinite(dt) and abs(dt - best_dt) / best_dt < 0.01
         )
     return best_result
 
@@ -437,8 +461,12 @@ class DualMZIOptimisedResult:
     expectation_M: np.ndarray = field(default_factory=lambda: np.array([]))
     variance_M: np.ndarray = field(default_factory=lambda: np.array([]))
     d_expectation: np.ndarray = field(default_factory=lambda: np.array([]))
-    n_starts_converged: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
-    n_starts_at_best: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
+    n_starts_converged: np.ndarray = field(
+        default_factory=lambda: np.array([], dtype=int)
+    )
+    n_starts_at_best: np.ndarray = field(
+        default_factory=lambda: np.array([], dtype=int)
+    )
     T_H: float = DEFAULT_T_H
 
     def __post_init__(self) -> None:
@@ -591,8 +619,14 @@ def _optimise_one_point(
     ops = embed_combined_operators(N)
     psi0 = initial_state(N)
     result = optimise_joint(
-        N=N, theta=theta, ops=ops, psi0=psi0,
-        n_starts=n_starts, T_H=T_H, fd_step=fd_step, rng_seed=seed,
+        N=N,
+        theta=theta,
+        ops=ops,
+        psi0=psi0,
+        n_starts=n_starts,
+        T_H=T_H,
+        fd_step=fd_step,
+        rng_seed=seed,
     )
     n_best = result["n_starts_at_best"]
     if n_best <= 1 and np.isfinite(result["delta_theta_opt"]):
@@ -602,78 +636,6 @@ def _optimise_one_point(
             f"(α_xx*={result['alpha_xx_opt']:.4f}, φ*={result['phi_opt']:.4f})"
         )
     return {**result, "N": N, "theta": theta}
-
-
-def _optimise_one_n(
-    args: tuple[int, np.ndarray, float, int, float, int | None],
-) -> dict[str, Any]:
-    """Worker function for parallel sweep – processes all theta values for one N.
-
-    Args:
-        args: Tuple (N, theta_values_array, T_H, n_starts, fd_step, seed).
-
-    Returns:
-        Dict with 'N' (int), 'theta_arr', plus arrays for all optimise_joint result keys.
-    """
-    N, theta_arr, T_H, n_starts, fd_step, seed = args
-    ops = embed_combined_operators(N)
-    psi0 = initial_state(N)
-    n_theta = len(theta_arr)
-    results: dict[str, list[float]] = {
-        "alpha_xx_opt": [],
-        "phi_opt": [],
-        "ms_opt": [],
-        "ma_opt": [],
-        "delta_theta_opt": [],
-        "sql_2n": [],
-        "expectation_M": [],
-        "variance_M": [],
-        "d_expectation": [],
-    }
-    n_best_list: list[int] = []
-    n_conv_list: list[int] = []
-
-    for i, theta in enumerate(theta_arr):
-        task_seed = seed + i if seed is not None else None
-        r = optimise_joint(
-            N=N, theta=float(theta), ops=ops, psi0=psi0,
-            n_starts=n_starts, T_H=T_H, fd_step=fd_step, rng_seed=task_seed,
-        )
-        results["alpha_xx_opt"].append(float(r["alpha_xx_opt"]))
-        results["phi_opt"].append(float(r["phi_opt"]))
-        results["ms_opt"].append(float(r["ms_opt"]))
-        results["ma_opt"].append(float(r["ma_opt"]))
-        results["delta_theta_opt"].append(float(r["delta_theta_opt"]))
-        results["sql_2n"].append(float(r["sql_2n"]))
-        results["expectation_M"].append(float(r["expectation_M"]))
-        results["variance_M"].append(float(r["variance_M"]))
-        results["d_expectation"].append(float(r["d_expectation"]))
-        n_best_list.append(int(r["n_starts_at_best"]))
-        n_conv_list.append(int(r["n_starts_converged"]))
-
-        n_best = r["n_starts_at_best"]
-        if n_best <= 1 and np.isfinite(r["delta_theta_opt"]):
-            print(
-                f"  [diag] N={N}, θ={theta:.1f}: best Δθ={r['delta_theta_opt']:.6e} "
-                f"found by only {n_best}/{r['n_starts_converged']} starts "
-                f"(α_xx*={r['alpha_xx_opt']:.4f}, φ*={r['phi_opt']:.4f})"
-            )
-
-    return {
-        "N": N,
-        "theta_arr": theta_arr,
-        "alpha_xx_opt": np.array(results["alpha_xx_opt"]),
-        "phi_opt": np.array(results["phi_opt"]),
-        "ms_opt": np.array(results["ms_opt"]),
-        "ma_opt": np.array(results["ma_opt"]),
-        "delta_theta_opt": np.array(results["delta_theta_opt"]),
-        "sql_2n": np.array(results["sql_2n"]),
-        "expectation_M": np.array(results["expectation_M"]),
-        "variance_M": np.array(results["variance_M"]),
-        "d_expectation": np.array(results["d_expectation"]),
-        "n_starts_at_best": np.array(n_best_list),
-        "n_starts_converged": np.array(n_conv_list),
-    }
 
 
 def run_sweep(
@@ -730,16 +692,25 @@ def run_sweep(
         n_N = len(N_values)
 
         # Build tasks: one per (N, θ) pair with adaptive n_starts
-        tasks: list[tuple[int, float, float, int, float, int | None]] = []
-        for N_i in N_values:
-            n_starts_i = _n_starts_for_n(N_i)
-            for theta_i in theta_values:
-                tasks.append((int(N_i), float(theta_i), T_H, n_starts_i, FD_STEP, global_start_seed))
+        tasks: list[tuple[int, float, float, int, float, int | None]] = [
+            (
+                int(N_i),
+                float(theta_i),
+                T_H,
+                _n_starts_for_n(N_i),
+                FD_STEP,
+                global_start_seed,
+            )
+            for N_i in N_values
+            for theta_i in theta_values
+        ]
 
         print(f"[info] Parallel sweep: {len(tasks)} tasks, {parallel} workers")
         n_done = 0
         with ProcessPoolExecutor(max_workers=parallel) as ex:
-            futures = {ex.submit(_optimise_one_point, t): i for i, t in enumerate(tasks)}
+            futures = {
+                ex.submit(_optimise_one_point, t): i for i, t in enumerate(tasks)
+            }
             for fut in as_completed(futures):
                 i = futures[fut]
                 try:
@@ -977,9 +948,6 @@ def compute_decoupled_baseline(
         n_starts_at_best=n_best_arr,
         T_H=T_H,
     )
-
-
-
 
 
 # ============================================================================
@@ -1359,7 +1327,8 @@ def plot_landscape(
     from matplotlib.lines import Line2D
 
     proxy_line = Line2D(
-        [0], [0],
+        [0],
+        [0],
         color="red",
         linewidth=1.5,
         linestyle="--",
@@ -1485,18 +1454,22 @@ def plot_comparison_traced_out(
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260525"
+# Date prefix for filenames uses dashes (YYYY-MM-DD) for human readability.
+_REPORT_DATE_PREFIX = "2026-05-25"
 THETA_VALS: list[float] = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
 N_VALS: list[int] = list(range(1, 21))
 
 
 def parquet_path(name: str) -> Path:
     """Return path to a raw_data Parquet file for this report."""
-    return REPORTS_DIR / REPORT_DATE / "raw_data" / f"{REPORT_DATE}-{name}.parquet"
+    return (
+        REPORTS_DIR / REPORT_DATE / "raw_data" / f"{_REPORT_DATE_PREFIX}-{name}.parquet"
+    )
 
 
 def fig_path(name: str) -> Path:
     """Return path to a figures SVG file for this report."""
-    return REPORTS_DIR / REPORT_DATE / "figures" / f"{REPORT_DATE}-{name}.svg"
+    return REPORTS_DIR / REPORT_DATE / "figures" / f"{_REPORT_DATE_PREFIX}-{name}.svg"
 
 
 # Backward-compatible aliases
@@ -1649,7 +1622,9 @@ def generate_scaling_analysis(force: bool = False) -> None:
     else:
         print("[run]  Fitting scaling exponents...")
         scaling = fit_scaling_exponents(
-            result.theta_values, result.N_values, result.delta_theta_opt,
+            result.theta_values,
+            result.N_values,
+            result.delta_theta_opt,
         )
         scaling.save_parquet(scaling_csv)
         print(f"[save] {scaling_csv}")
@@ -1694,8 +1669,14 @@ def evaluate_coarse_grid(
     for i, axx in enumerate(axx_vals):
         for j, phi in enumerate(phi_vals):
             dt, _, _, _ = compute_sensitivity_full(
-                N, psi0, theta, axx, phi, ops,
-                T_H=T_H, fd_step=fd_step,
+                N,
+                psi0,
+                theta,
+                axx,
+                phi,
+                ops,
+                T_H=T_H,
+                fd_step=fd_step,
             )
             delta_map[i, j] = dt
             if np.isfinite(dt) and dt < grid_best:
@@ -1746,18 +1727,20 @@ def generate_landscapes(force: bool = False) -> None:
                 bfgs_dt = float(sweep.delta_theta_opt[mask][0])
                 bfgs_axx = float(sweep.alpha_xx_opt[mask][0])
                 bfgs_phi = float(sweep.phi_opt[mask][0])
-                rel_diff = abs(bfgs_dt - grid_best) / grid_best if grid_best > 0 else 0.0
+                rel_diff = (
+                    abs(bfgs_dt - grid_best) / grid_best if grid_best > 0 else 0.0
+                )
                 if rel_diff > 0.05 and grid_best < float("inf"):
                     print(
                         f"  [warn] N={N}, θ={theta:.1f}: BFGS Δθ={bfgs_dt:.6e} "
                         f"(α_xx={bfgs_axx:.4f}, φ={bfgs_phi:.4f}) is "
-                        f"{rel_diff*100:.1f}% above grid best Δθ={grid_best:.6e} — "
+                        f"{rel_diff * 100:.1f}% above grid best Δθ={grid_best:.6e} — "
                         "possible local minimum"
                     )
                 else:
                     print(
                         f"  [ok]   BFGS Δθ={bfgs_dt:.6e} vs grid best={grid_best:.6e} "
-                        f"(rel diff {rel_diff*100:.2f}%)"
+                        f"(rel diff {rel_diff * 100:.2f}%)"
                     )
 
 
@@ -1787,9 +1770,7 @@ def generate_comparison_traced_out(force: bool = False) -> None:
     if not traced_path.exists():
         print(f"[skip] Traced-out data not found at {traced_path}")
         print("[info] Generating joint-only comparison figure...")
-        plot_comparison_traced_out(
-            joint_result, save_path=fig_p, traced_data_path=None
-        )
+        plot_comparison_traced_out(joint_result, save_path=fig_p, traced_data_path=None)
     else:
         print("[run]  Generating joint vs traced-out comparison...")
         plot_comparison_traced_out(
@@ -1833,7 +1814,7 @@ def main() -> None:
 
     tasks: dict[str, Callable[..., None]] = {
         "decoupled-baseline": generate_decoupled_baseline,
-        "sweep": lambda: generate_sweep(force=args.force, parallel=args.parallel),  # type: ignore[dict-item]
+        "sweep": lambda **_: generate_sweep(force=args.force, parallel=args.parallel),  # type: ignore[dict-item]
         "n-scaling": generate_n_scaling,
         "scaling-analysis": generate_scaling_analysis,
         "landscapes": generate_landscapes,

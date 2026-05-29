@@ -41,12 +41,12 @@ if "MPLBACKEND" not in os.environ:
 if "OMP_NUM_THREADS" not in os.environ:
     os.environ["OMP_NUM_THREADS"] = "1"
 
-from src.analysis.multi_mzi_scaling import (  # noqa: E402
+from src.analysis.multi_mzi_scaling import (
     ScalingAnalysisResult,
     fit_scaling_exponents,
 )
-from src.physics.dicke_basis import jz_operator  # noqa: E402
-from src.physics.multi_mzi import (  # noqa: E402
+from src.physics.dicke_basis import jz_operator
+from src.physics.multi_mzi import (
     build_hold_hamiltonian,  # noqa: F401 — re-exported for tests
     compute_reduced_expectation_and_variance,
     dual_bs_unitary,  # noqa: F401 — re-exported for tests

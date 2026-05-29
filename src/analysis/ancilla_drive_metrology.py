@@ -28,6 +28,8 @@ References:
 
 from __future__ import annotations
 
+import concurrent.futures
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -313,6 +315,12 @@ def compute_drive_sensitivity(
     if abs(d_exp) < 1e-12:
         return float("inf")
 
+    # Zero-variance case: the state is an eigenstate of the measurement
+    # operator, giving a deterministic measurement outcome.  Error propagation
+    # would yield Δθ = 0 (unphysical), so flag as fringe extremum.
+    if var < 1e-15:
+        return float("inf")
+
     return float(np.sqrt(var) / abs(d_exp))
 
 
@@ -356,6 +364,13 @@ class DriveDecoupledBaselineResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> DriveDecoupledBaselineResult:
         df = pd.read_parquet(path)
+        required = {"T_H", "delta_theta", "sql"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         return cls(
             T_H_value=float(df["T_H"].iloc[0]),
             delta_theta=float(df["delta_theta"].iloc[0]),
@@ -365,15 +380,15 @@ class DriveDecoupledBaselineResult:
 
 @dataclass
 class Drive2DSliceResult:
-    """Result from a 2D parameter slice scan over (a_x, a_zz) or (a_y, a_zz).
+    """Result from a 2D parameter slice scan over (a_drive, a_zz).
 
     Attributes:
-        drive_values: Array of drive coefficient values (a_x or a_y).
+        drive_values: Array of drive coefficient values (a_x, a_y, or a_z).
         azz_values: Array of a_zz (interaction) values.
         delta_theta_grid: 2D array of Δθ values, shape
             (len(drive_values), len(azz_values)).
         theta_value: The θ value at which the scan was performed.
-        slice_type: 'ax' or 'ay'.
+        slice_type: 'ax', 'ay', or 'az'.
         sql: SQL = 1/T_H reference value.
     """
 
@@ -395,6 +410,7 @@ class Drive2DSliceResult:
                 "delta_theta": float(self.delta_theta_grid[i, j]),
                 "theta_value": float(self.theta_value),
                 "slice_type": str(self.slice_type),
+                "sql": float(self.sql),
             }
             for i in range(n_d)
             for j in range(n_a)
@@ -420,19 +436,24 @@ class Drive2DSliceResult:
             j = azz_unique.index(row["azz"])
             grid[i, j] = row["delta_theta"]
         # Restore metadata from CSV; fail fast if columns are missing
-        if "theta_value" not in df.columns or "slice_type" not in df.columns:
+        required_meta = {"theta_value", "slice_type", "sql"}
+        missing_meta = required_meta - set(df.columns)
+        if missing_meta:
             raise ValueError(
-                f"CSV at {path} is missing required columns 'theta_value' and/or 'slice_type'. "
+                f"CSV at {path} is missing required columns: "
+                f"{sorted(missing_meta)}. "
                 "Regenerate the file with the current code."
             )
         theta_value = float(df["theta_value"].iloc[0])
         slice_type = str(df["slice_type"].iloc[0])
+        sql = float(df["sql"].iloc[0])
         return cls(
             drive_values=np.array(drive_unique, dtype=float),
             azz_values=np.array(azz_unique, dtype=float),
             delta_theta_grid=grid,
             theta_value=theta_value,
             slice_type=slice_type,
+            sql=sql,
         )
 
 
@@ -567,6 +588,24 @@ class DriveNelderMeadResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> DriveNelderMeadResult:
         df = pd.read_parquet(path)
+        required = {
+            "delta_theta",
+            "a_x",
+            "a_y",
+            "a_z",
+            "a_zz",
+            "theta_true",
+            "success",
+            "nfev",
+            "expectation_Jz",
+            "variance_Jz",
+        }
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         return cls(
             delta_theta_opt=float(df["delta_theta"].iloc[0]),
             params_opt=np.array(
@@ -660,32 +699,36 @@ class DriveThetaScanResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> DriveThetaScanResult:
         df = pd.read_parquet(path)
+        required = {
+            "theta",
+            "best_delta_theta",
+            "sql",
+            "a_x",
+            "a_y",
+            "a_z",
+            "a_zz",
+            "expectation_Jz",
+            "variance_Jz",
+        }
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         thetas = df["theta"].to_numpy(dtype=float)
         best = df["best_delta_theta"].to_numpy(dtype=float)
-        if "sql" not in df.columns:
-            raise ValueError(
-                f"CSV at {path} is missing required column 'sql'. "
-                "Regenerate the file with the current code."
-            )
         sql = df["sql"].to_numpy(dtype=float)
-        exps = (
-            df["expectation_Jz"].to_numpy(dtype=float)
-            if "expectation_Jz" in df.columns
-            else np.zeros_like(thetas)
-        )
-        vars_ = (
-            df["variance_Jz"].to_numpy(dtype=float)
-            if "variance_Jz" in df.columns
-            else np.zeros_like(thetas)
-        )
+        exps = df["expectation_Jz"].to_numpy(dtype=float)
+        vars_ = df["variance_Jz"].to_numpy(dtype=float)
         params_list: list[tuple[float, float, float, float]] = []
         for _, row in df.iterrows():
             params_list.append(
                 (
-                    float(row.get("a_x", 0.0)),
-                    float(row.get("a_y", 0.0)),
-                    float(row.get("a_z", 0.0)),
-                    float(row.get("a_zz", 0.0)),
+                    float(row["a_x"]),
+                    float(row["a_y"]),
+                    float(row["a_z"]),
+                    float(row["a_zz"]),
                 )
             )
         return cls(
@@ -748,8 +791,45 @@ def compute_drive_decoupled_baseline(
 
 
 # ============================================================================
-# 2D Slice Scan
+# 2D Slice Scan (ax, ay, or az)
 # ============================================================================
+
+
+def _drive_slice_chunk_worker(args: tuple) -> tuple[int, np.ndarray]:
+    """Worker for parallel 2D slice evaluation (module-level for pickling).
+
+    Args:
+        args: Tuple (theta, drive_chunk, azz_vals, slice_type, T_H, T_BS, start_idx).
+
+    Returns:
+        Tuple (start_idx, chunk_grid) where chunk_grid has shape
+        (len(drive_chunk), len(azz_vals)).
+    """
+    theta, drive_chunk, azz_vals, slice_type, T_H, T_BS, start_idx = args
+    local_ops = build_two_qubit_operators()
+    n_d = len(drive_chunk)
+    n_a = len(azz_vals)
+    chunk_grid = np.full((n_d, n_a), np.inf, dtype=float)
+    for i, d_val in enumerate(drive_chunk):
+        if slice_type == "ax":
+            ax, ay, az = d_val, 0.0, 0.0
+        elif slice_type == "ay":
+            ax, ay, az = 0.0, d_val, 0.0
+        else:
+            ax, ay, az = 0.0, 0.0, d_val
+        for j, a_val in enumerate(azz_vals):
+            chunk_grid[i, j] = compute_drive_sensitivity(
+                np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+                T_BS,
+                T_H,
+                theta,
+                ax,
+                ay,
+                az,
+                a_val,
+                local_ops,
+            )
+    return start_idx, chunk_grid
 
 
 def drive_2d_slice(
@@ -761,11 +841,16 @@ def drive_2d_slice(
     slice_type: str = "ax",
     T_H: float = 10.0,
     T_BS: float = np.pi / 2.0,
+    n_jobs: int | None = None,
 ) -> Drive2DSliceResult:
     """Run a 2D slice scan over (a_drive, a_zz).
 
     For slice_type='ax': varies a_x (with a_y = a_z = 0).
     For slice_type='ay': varies a_y (with a_x = a_z = 0).
+    For slice_type='az': varies a_z (with a_x = a_y = 0).
+
+    When n_jobs > 1, the grid is split across ``n_jobs`` worker processes
+    for parallel evaluation.
 
     Args:
         theta: Phase rate value.
@@ -773,40 +858,78 @@ def drive_2d_slice(
         azz_range: (min, max) for the interaction coefficient.
         n_drive: Number of drive-coefficient points.
         n_azz: Number of a_zz points.
-        slice_type: 'ax' or 'ay'.
+        slice_type: 'ax', 'ay', or 'az'.
         T_H: Holding time (default 10).
         T_BS: Beam-splitter duration (default π/2).
+        n_jobs: Number of parallel workers. ``None`` (default) = sequential.
+            Pass ``-1`` to use all available CPUs.
 
     Returns:
         Drive2DSliceResult with the sensitivity grid.
     """
-    if slice_type not in ("ax", "ay"):
-        raise ValueError(f"slice_type must be 'ax' or 'ay', got {slice_type}")
+    if slice_type not in ("ax", "ay", "az"):
+        raise ValueError(f"slice_type must be 'ax', 'ay' or 'az', got {slice_type}")
 
-    ops = build_two_qubit_operators()
     drive_vals = np.linspace(drive_range[0], drive_range[1], n_drive)
     azz_vals = np.linspace(azz_range[0], azz_range[1], n_azz)
-    grid = np.full((n_drive, n_azz), np.inf, dtype=float)
 
-    for i, d_val in enumerate(drive_vals):
-        for j, a_val in enumerate(azz_vals):
-            if slice_type == "ax":
-                ax, ay, az = d_val, 0.0, 0.0
-            else:
-                ax, ay, az = 0.0, d_val, 0.0
+    if n_jobs is None or n_jobs == 1:
+        # ── Sequential path ──────────────────────────────────────────────
+        ops = build_two_qubit_operators()
+        grid = np.full((n_drive, n_azz), np.inf, dtype=float)
 
-            dtheta = compute_drive_sensitivity(
-                np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
-                T_BS,
-                T_H,
+        for i, d_val in enumerate(drive_vals):
+            for j, a_val in enumerate(azz_vals):
+                if slice_type == "ax":
+                    ax, ay, az = d_val, 0.0, 0.0
+                elif slice_type == "ay":
+                    ax, ay, az = 0.0, d_val, 0.0
+                else:
+                    ax, ay, az = 0.0, 0.0, d_val
+
+                dtheta = compute_drive_sensitivity(
+                    np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+                    T_BS,
+                    T_H,
+                    theta,
+                    ax,
+                    ay,
+                    az,
+                    a_val,
+                    ops,
+                )
+                grid[i, j] = dtheta
+    else:
+        # ── Parallel path ────────────────────────────────────────────────
+        n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
+        # Split drive indices into roughly equal chunks
+        drive_indices = np.arange(n_drive)
+        chunks = np.array_split(drive_indices, n_workers)
+        worker_args = [
+            (
                 theta,
-                ax,
-                ay,
-                az,
-                a_val,
-                ops,
+                drive_vals[chunk],
+                azz_vals,
+                slice_type,
+                T_H,
+                T_BS,
+                int(chunk[0]),
             )
-            grid[i, j] = dtheta
+            for chunk in chunks
+        ]
+
+        grid = np.full((n_drive, n_azz), np.inf, dtype=float)
+        with concurrent.futures.ProcessPoolExecutor(
+            max_workers=n_workers,
+        ) as executor:
+            futures = {
+                executor.submit(_drive_slice_chunk_worker, args): args
+                for args in worker_args
+            }
+            for future in concurrent.futures.as_completed(futures):
+                start_idx, chunk_grid = future.result()
+                n_chunk = chunk_grid.shape[0]
+                grid[start_idx : start_idx + n_chunk, :] = chunk_grid
 
     return Drive2DSliceResult(
         drive_values=drive_vals,

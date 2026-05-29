@@ -116,7 +116,12 @@ def plot_drive_2d_slice_heatmap(
     )
     ax.clabel(cs, fmt=f"SQL = {sql:.3f}", fontsize=9)
 
-    drive_label = r"$a_x$" if result.slice_type == "ax" else r"$a_y$"
+    if result.slice_type == "ax":
+        drive_label = r"$a_x$"
+    elif result.slice_type == "ay":
+        drive_label = r"$a_y$"
+    else:
+        drive_label = r"$a_z$"
     ax.set_xlabel(r"$a_{zz}$ (interaction)")
     ax.set_ylabel(drive_label + " (drive)")
     ax.set_title(

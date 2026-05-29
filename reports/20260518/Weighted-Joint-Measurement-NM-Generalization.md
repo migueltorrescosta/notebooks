@@ -199,7 +199,7 @@ The N-scaling experiment scanned $N \in \{1, 2, 3, 4, 6, 8, 12, 16\}$ with $M=N$
 
 **Key Finding (N-Scaling)**: With CSS initial states and all 4 interaction coefficients free, the L-BFGS-B optimiser consistently converges to the SQL-limited regime. The best $\Delta\theta$ per $N$ follows $\Delta\theta \approx 1/(\sqrt{N} T_H)$ (the SQL), and the optimal weights converge to $a^* \approx 1$, $b^* \approx 0$ (S-only measurement) with interaction coefficients near zero. The scaling exponent $\nu \approx 0.09$ is far below the SQL exponent $\nu = 0.5$. This negative result occurs because the **interaction coefficients are free parameters** in the optimisation: setting $\alpha_{ij} = 0$ decouples the ancilla, reducing the problem to standard SQL-limited estimation with $N$ particles. The weighted joint measurement cannot help when the interaction can be turned off.
 
-![N-scaling: Δθ vs N with fit line](reports/2026-05-18/figures/2026-05-18-n-scaling.svg)
+![N-scaling: Δθ vs N with fit line](figures/2026-05-18-n-scaling.svg)
 
 The figure shows the mean $\Delta\theta$ (circles), best per-$N$ (stars), weighted log-log regression fit (dashed line), and 95% bootstrap CI (shaded). The SQL and HL reference lines assume $T_H = 20$ (the upper bound). The best points at each $N$ lie near the SQL line.
 
@@ -220,9 +220,9 @@ The M-scaling experiment scanned $M \in \{0, 1, 2, 3, 4, 6, 8, 12\}$ with $N=4$ 
 
 **Improvement from $M=0$ to $M=1$**: 2.2%. The SQL for $N=4$ at $T_H=20$ is $1/(\sqrt{4} \cdot 20) = 0.025$; all best $\Delta\theta$ values cluster near this limit.
 
-**Key Finding (M-Scaling)**: Adding an ancilla provides negligible sensitivity improvement (at most 2.2%) when CSS initial states are used and interaction coefficients are free. The optimiser consistently finds the SQL-limited solution regardless of $M$, confirming that the ancilla cannot help when the interaction is turned off. This is entirely consistent with the theoretical prediction: with $\alpha_{ij}=0$, the ancilla contributes only noise to the weighted measurement.
+**Key Finding (M-Scaling)**: Adding an ancilla proviweekenddes negligible sensitivity improvement (at most 2.2%) when CSS initial states are used and interaction coefficients are free. The optimiser consistently finds the SQL-limited solution regardless of $M$, confirming that the ancilla cannot help when the interaction is turned off. This is entirely consistent with the theoretical prediction: with $\alpha_{ij}=0$, the ancilla contributes only noise to the weighted measurement.
 
-![M-scaling: Δθ vs M with optimal weights](reports/2026-05-18/figures/2026-05-18-m-scaling.svg)
+![M-scaling: Δθ vs M with optimal weights](figures/2026-05-18-m-scaling.svg)
 
 ### $\alpha_{xx}$-Scan Results ($N=M=4$, $K=3$ seeds per $\alpha$)
 
@@ -232,7 +232,7 @@ The $\alpha_{xx}$ scan varied $\alpha_{xx} \in [-2, 2]$ in 21 steps with $N=M=4$
 
 The improvement is largest at moderate-to-strong interaction ($\vert\alpha_{xx}\vert \ge 0.8$), where the generated correlations are most significant. At weak interaction ($|\alpha_{xx}| < 0.8$), the advantage is modest or zero, because the ancilla acquires negligible phase information.
 
-![α_{xx}-scan: Δθ vs α for weighted joint and S-only](reports/2026-05-18/figures/2026-05-18-alpha-scan-nm.svg)
+![α_{xx}-scan: Δθ vs α for weighted joint and S-only](figures/2026-05-18-alpha-scan-nm.svg)
 
 ### Summary of Experimental Findings
 

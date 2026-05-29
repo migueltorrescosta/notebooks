@@ -952,7 +952,7 @@ class TestParquetRoundtrip:
         parquet_path = tmp_path / "test.parquet"
         original.save_parquet(parquet_path)
         loaded = AlphaSingleScanResult.from_parquet(parquet_path)
-        # alpha_name is not preserved — must be set manually
+        assert loaded.alpha_name == original.alpha_name
         assert loaded.alpha_values == pytest.approx(original.alpha_values)
         assert loaded.delta_theta_values == pytest.approx(original.delta_theta_values)
 

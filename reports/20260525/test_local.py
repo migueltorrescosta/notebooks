@@ -651,6 +651,9 @@ class TestScalingAnalysis:
         scaling = fit_scaling_exponents(
             sweep.theta_values, sweep.N_values, sweep.delta_theta_opt,
         )
+        assert len(scaling.exponents) == len(theta_vals), (
+            f"Expected {len(theta_vals)} exponents, got {len(scaling.exponents)}"
+        )
 
     def test_scaling_r_squared_high(self) -> None:
         """For clean decoupled data, R² should be very high."""

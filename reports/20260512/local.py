@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -31,20 +30,23 @@ if "MPLBACKEND" not in os.environ:
 if "OMP_NUM_THREADS" not in os.environ:
     os.environ["OMP_NUM_THREADS"] = "1"
 
-import matplotlib.pyplot as plt  # noqa: E402
-import scipy  # noqa: E402
-import seaborn as sns  # noqa: E402
+import matplotlib.pyplot as plt
+import scipy
+import seaborn as sns
 
-from src.analysis.ancilla_optimization import (  # noqa: E402
+from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
     hold_unitary,
     random_search_alpha,
     run_theta_scan,
     scan_alpha_single_parameter,
 )
-from src.analysis.scaling_fit import fit_scaling_exponent  # noqa: E402
-from src.physics.mzi_simulation import beam_splitter_unitary, prepare_input_state  # noqa: E402
-from src.physics.mzi_states import (  # noqa: E402
+from src.analysis.scaling_fit import fit_scaling_exponent
+from src.physics.mzi_simulation import (
+    beam_splitter_unitary,
+    prepare_input_state,
+)
+from src.physics.mzi_states import (
     compute_jz_variance,
     two_mode_jz_operator,
 )

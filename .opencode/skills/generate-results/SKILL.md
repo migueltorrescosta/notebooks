@@ -30,6 +30,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
    - Simulation functions that implement the report's protocol
    - Existing figure generation functions in `src/visualization/`
 3. **Check for figure generation infrastructure** — Look in `src/visualization/report_figures.py` or create a `generate_<name>()` function there if one does not exist.
+4. **Record all relevant metrics**: results are often reused in the future. Record all inputs, outputs and relevant intermediate hidden variables needed to provide detailed information for post-analysis. 
 
 ## 2. Running simulations
 

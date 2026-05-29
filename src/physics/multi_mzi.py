@@ -121,9 +121,6 @@ def build_hold_hamiltonian(
     return 0.5 * (H + H.conj().T)
 
 
-DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-
-
 def hold_unitary(
     N: int,
     T_H: float,
@@ -153,7 +150,7 @@ def hold_unitary(
 
 
 @cache
-def single_bs_unitary(N: int, T: float = DEFAULT_T_BS) -> np.ndarray:
+def single_bs_unitary(N: int, T: float = np.pi / 2.0) -> np.ndarray:
     """Single-subsystem 50/50 beam-splitter unitary (cached by N and T).
 
     U_BS = exp(-i T J_x)
@@ -173,7 +170,7 @@ def single_bs_unitary(N: int, T: float = DEFAULT_T_BS) -> np.ndarray:
     return U
 
 
-def dual_bs_unitary(N: int, T: float = DEFAULT_T_BS) -> np.ndarray:
+def dual_bs_unitary(N: int, T: float = np.pi / 2.0) -> np.ndarray:
     """Dual beam-splitter unitary: BS on both S and A.
 
     U_BS = exp(-i T J_x) ⊗ exp(-i T J_x)

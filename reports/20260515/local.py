@@ -31,7 +31,7 @@ if "MPLBACKEND" not in os.environ:
 if "OMP_NUM_THREADS" not in os.environ:
     os.environ["OMP_NUM_THREADS"] = "1"
 
-from src.analysis.ancilla_optimization import (  # noqa: E402
+from src.analysis.ancilla_optimization import (
     AlphaReoptScanResult,
     CovarianceAnalysisResult,
     DecoupledBaselineResult,

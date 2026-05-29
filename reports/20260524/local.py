@@ -45,13 +45,13 @@ if "MPLBACKEND" not in os.environ:
 if "OMP_NUM_THREADS" not in os.environ:
     os.environ["OMP_NUM_THREADS"] = "1"
 
-from src.analysis.ancilla_drive_metrology import (  # noqa: E402
+from src.analysis.ancilla_drive_metrology import (
     system_only_bs_unitary,
 )
-from src.analysis.ancilla_optimization import (  # noqa: E402
+from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
-from src.evolution.lindblad_solver import validate_density_matrix  # noqa: E402
+from src.evolution.lindblad_solver import validate_density_matrix
 
 sns.set_theme(style="whitegrid")
 

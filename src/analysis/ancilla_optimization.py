@@ -756,9 +756,19 @@ class ThetaScanResult:
 
         Returns:
             A ThetaScanResult with the summary data.
+
+        Raises:
+            ValueError: If the Parquet file is missing required columns.
         """
         path = Path(path)
         df = pd.read_parquet(path)
+        required = {"theta", "best_delta_theta", "sql"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         theta_values = df["theta"].to_numpy(dtype=float)
         best_per_theta = df["best_delta_theta"].to_numpy(dtype=float)
         return cls(
@@ -1176,8 +1186,18 @@ class AlphaReoptScanResult:
 
         Returns:
             Reconstructed AlphaReoptScanResult.
+
+        Raises:
+            ValueError: If the Parquet file is missing required columns.
         """
         df = pd.read_parquet(path)
+        required = {"alpha", "delta_theta_joint", "delta_theta_sonly"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         return cls(
             alpha_values=df["alpha"].to_numpy(dtype=float),
             delta_theta_joint=df["delta_theta_joint"].to_numpy(dtype=float),
@@ -1343,6 +1363,13 @@ class DecoupledBaselineResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> DecoupledBaselineResult:
         df = pd.read_parquet(path)
+        required = {"T_H", "delta_theta", "sql"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         return cls(
             T_H_values=df["T_H"].to_numpy(dtype=float),
             delta_theta_values=df["delta_theta"].to_numpy(dtype=float),
@@ -1424,6 +1451,13 @@ class CovarianceAnalysisResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> CovarianceAnalysisResult:
         df = pd.read_parquet(path)
+        required = {"coefficient", "max_covariance", "sign"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         return cls(
             coefficient_names=list(df["coefficient"]),
             max_covariances=df["max_covariance"].to_numpy(dtype=float),
@@ -1776,10 +1810,11 @@ class AlphaSingleScanResult:
         """Flatten the single-α scan into a DataFrame.
 
         Returns:
-            DataFrame with columns: alpha, delta_theta.
+            DataFrame with columns: alpha_name, alpha, delta_theta.
         """
         return pd.DataFrame(
             {
+                "alpha_name": [self.alpha_name] * len(self.alpha_values),
                 "alpha": self.alpha_values,
                 "delta_theta": self.delta_theta_values,
             },
@@ -1794,8 +1829,15 @@ class AlphaSingleScanResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> AlphaSingleScanResult:
         df = pd.read_parquet(path)
+        required = {"alpha_name", "alpha", "delta_theta"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         return cls(
-            alpha_name="",  # must be set manually
+            alpha_name=str(df["alpha_name"].iloc[0]),
             alpha_values=df["alpha"].to_numpy(dtype=float),
             delta_theta_values=df["delta_theta"].to_numpy(dtype=float),
         )
@@ -1846,6 +1888,13 @@ class AlphaRandomSearchResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> AlphaRandomSearchResult:
         df = pd.read_parquet(path)
+        required = {"alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz", "delta_theta"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         alphas = df[["alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz"]].to_numpy(
             dtype=float
         )
@@ -2131,6 +2180,13 @@ class InteractionRobustnessResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> InteractionRobustnessResult:
         df = pd.read_parquet(path)
+        required = {"T_H", "alpha", "measurement", "delta_theta"}
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(
+                f"Parquet at {path} is missing required columns: "
+                f"{sorted(missing)}. Regenerate the file with the current code."
+            )
         T_H_unique = sorted(df["T_H"].unique())
         alpha_unique = sorted(df["alpha"].unique())
         n_T = len(T_H_unique)

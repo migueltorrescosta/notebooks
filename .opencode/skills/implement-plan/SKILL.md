@@ -21,11 +21,12 @@ Define a disciplined, repeatable process for implementing physics simulations fr
 
 ## 1. Before starting work
 
-1. **Read the report** — Open the target report in `reports/` and extract: Hilbert space dimensions, basis ordering, operator definitions, circuit protocol, measurement observable, and sensitivity formula.
-2. **Run checks**: Ensure nothing is broken before starting changes — tests (`uv run pytest . --testmon --quiet --tb=short`), linter (`uv run ruff check . --fix && uv run ruff format .`), and type checks (`uv run mypy .` and `uvx pyright src/ pages/`).
-3. **Read relevant code**: Understand existing patterns in `pages/`, `src/`, and the target report's `local.py` that match the report's requirements.
-4. **Plan the physical model**: Determine the Hilbert space, basis, operators, and any new dataclasses needed.
-5. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
+1. **Run checks**: Ensure nothing is broken before starting changes — tests (`uv run pytest . --testmon --quiet --tb=short`), linter (`uv run ruff check . --fix && uv run ruff format .`), and type checks (`uv run mypy .` and `uvx pyright src/ pages/`). Pre-existing bugs must be fixed before continuing.
+2. **Read the report** — Open the target report in `reports/` and extract: Hilbert space dimensions, basis ordering, operator definitions, circuit protocol, measurement observable, and sensitivity formula.
+3. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
+4. **Read relevant code**: Understand existing patterns in `pages/`, `src/`, and the target report's `local.py` that match the report's requirements.
+5. **Plan the physical model**: Determine the Hilbert space, basis, operators, and any new dataclasses needed.
+6. **Record all relevant metrics**: results are often reused in the future. Record all inputs, outputs and relevant intermediate hidden variables needed to provide detailed information for post-analysis. 
 
 ## 2. During implementation
 

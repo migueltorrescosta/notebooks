@@ -41,11 +41,11 @@ if "OMP_NUM_THREADS" not in os.environ:
     os.environ["OMP_NUM_THREADS"] = "1"
 
 # Shared primitives
-from src.analysis.ancilla_drive_metrology import (  # noqa: E402
+from src.analysis.ancilla_drive_metrology import (
     DriveDecoupledBaselineResult,
     system_only_bs_unitary,
 )
-from src.analysis.ancilla_optimization import (  # noqa: E402
+from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
 
