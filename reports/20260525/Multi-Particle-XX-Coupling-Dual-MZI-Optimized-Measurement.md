@@ -104,7 +104,7 @@ The commutator is non-zero for $\alpha_{xx} \neq 0$ and generic $\phi$, so the X
 
 ### Implementation Strategy
 
-1. **Operator construction** — Build $J_z$, $J_x$, $J_y$ as $(N+1) \times (N+1)$ Dicke-basis matrices using existing `dicke_basis.jz_operator(N)`, etc. Embed into the combined space via Kronecker products, as in 2026-05-22. Additionally, build the identity $\mathbb{1}_{(N+1)^2}$ for full-space operations.
+1. **Operator construction** — Build $J_z$, $J_x$, $J_y$ as $(N+1) \times (N+1)$ Dicke-basis matrices using existing `dicke_basis.jz_operator(N)`, etc. Embed into the combined space via Kronecker products, as in 20260522. Additionally, build the identity $\mathbb{1}_{(N+1)^2}$ for full-space operations.
 
 2. **State preparation** — The initial state $|J, J\rangle_S \otimes |J, J\rangle_A$ is the first computational basis vector $[1, 0, \dots, 0]^T$ of length $(N+1)^2$.
 
@@ -211,17 +211,17 @@ All experiments have been completed. The results conclusively confirm the null h
 
 | File | Description |
 |------|-------------|
-| `2026-05-25-optimised-measurement-sweep.parquet` | Full $(\theta, N, \alpha_{xx}^*, \phi^*, \Delta\theta_{\text{opt}}, \text{SQL}_{2N})$ data — 500 rows |
-| `2026-05-25-optimised-measurement-decoupled-baseline.parquet` | $\alpha_{xx}=0$, $\phi$-optimised baseline — 200 rows |
-| `2026-05-25-optimised-measurement-scaling.parquet` | Scaling exponents $\alpha(\theta)$, $R^2$ — 25 rows |
-| `2026-05-25-ratio-heatmap.svg` | $\Delta\theta_{\text{opt}} / \Delta\theta_{\text{SQL}}$ heatmap |
-| `2026-05-25-alpha-opt-heatmap.svg` | $\alpha_{xx}^*$ heatmap |
-| `2026-05-25-phi-opt-heatmap.svg` | $\phi^*$ heatmap |
-| `2026-05-25-n-scaling-theta{0.3,1.0,3.0}.svg` | N-scaling at 3 $\theta$ values |
-| `2026-05-25-scaling-exponents.svg` | Exponent $\alpha$ vs $\theta$ panel |
-| `2026-05-25-comparison-traced-out.svg` | $\Delta\theta_{\text{opt}}$ (this report, $2N$-SQL) vs 2026-05-22 traced-out ($N$-SQL) comparison |
-| `2026-05-25-landscape-N{1,5,20}-theta{0.5,2.0,4.0}.svg` | 2D contour slices |
-| `2026-05-25-decoupled-baseline.svg` | Decoupled baseline verification ($\phi$ sweep at $\alpha_{xx}=0$) |
+| `20260525-optimised-measurement-sweep.parquet` | Full $(\theta, N, \alpha_{xx}^*, \phi^*, \Delta\theta_{\text{opt}}, \text{SQL}_{2N})$ data — 500 rows |
+| `20260525-optimised-measurement-decoupled-baseline.parquet` | $\alpha_{xx}=0$, $\phi$-optimised baseline — 200 rows |
+| `20260525-optimised-measurement-scaling.parquet` | Scaling exponents $\alpha(\theta)$, $R^2$ — 25 rows |
+| `20260525-ratio-heatmap.svg` | $\Delta\theta_{\text{opt}} / \Delta\theta_{\text{SQL}}$ heatmap |
+| `20260525-alpha-opt-heatmap.svg` | $\alpha_{xx}^*$ heatmap |
+| `20260525-phi-opt-heatmap.svg` | $\phi^*$ heatmap |
+| `20260525-n-scaling-theta{0.3,1.0,3.0}.svg` | N-scaling at 3 $\theta$ values |
+| `20260525-scaling-exponents.svg` | Exponent $\alpha$ vs $\theta$ panel |
+| `20260525-comparison-traced-out.svg` | $\Delta\theta_{\text{opt}}$ (this report, $2N$-SQL) vs 2026-05-22 traced-out ($N$-SQL) comparison |
+| `20260525-landscape-N{1,5,20}-theta{0.5,2.0,4.0}.svg` | 2D contour slices |
+| `20260525-decoupled-baseline.svg` | Decoupled baseline verification ($\phi$ sweep at $\alpha_{xx}=0$) |
 
 ### 1. Decoupled Baseline Verification
 
@@ -231,7 +231,7 @@ $$\Delta\theta_{\text{opt}} = \frac{1}{\sqrt{2N} \, T_H} = \Delta\theta_{\text{S
 
 The ratio $\Delta\theta_{\text{opt}} / \Delta\theta_{\text{SQL}}$ has mean $1.0000000000$ and standard deviation $1.3\times10^{-10}$. This confirms that two independent MZIs at $\alpha_{xx}=0$ exactly saturate the $2N$-SQL with the optimal separable measurement $\phi = \pi/4$.
 
-![Decoupled baseline verification](figures/2026-05-25-decoupled-baseline.svg)
+![Decoupled baseline verification](figures/20260525-decoupled-baseline.svg)
 *Figure 1: Decoupled baseline ($\alpha_{xx}=0$) — $\Delta\theta_{\text{opt}}$ vs $\theta$ for selected $N$, compared against the $2N$-SQL. The optimal measurement at every point is $\phi^* = \pi/4$, and $\Delta\theta_{\text{opt}}$ exactly matches $\Delta\theta_{\text{SQL}}$.*
 
 **Key Finding**: The decoupled baseline is verified to machine precision. Two independent MZIs with the optimal joint measurement ($\phi = \pi/4$) exactly saturate the $2N$-SQL. There is no sub-SQL sensitivity without the XX interaction.
@@ -246,13 +246,13 @@ The full sweep across 50 $\theta$ values ($0.1 \leq \theta \leq 4.9$, step 0.1) 
 
 No point in the 500-point sweep has $\alpha_{xx}^* > 0.01$, and no point has $|\phi^* - \pi/4| > 10^{-15}$. The optimiser correctly identifies $\alpha_{xx}=0$ as the global optimum at every $(\theta, N)$ pair.
 
-![Ratio heatmap](figures/2026-05-25-ratio-heatmap.svg)
+![Ratio heatmap](figures/20260525-ratio-heatmap.svg)
 *Figure 2: Sensitivity ratio $r = \Delta\theta_{\text{opt}} / \Delta\theta_{\text{SQL}}$ across the $\theta \times N$ plane. The uniform yellow colour indicates $r = 1.0$ exactly at every point — no SQL violation is observed anywhere.*
 
-![Optimal $\alpha_{xx}^*$ heatmap](figures/2026-05-25-alpha-opt-heatmap.svg)
+![Optimal $\alpha_{xx}^*$ heatmap](figures/20260525-alpha-opt-heatmap.svg)
 *Figure 3: Optimal XX coupling $\alpha_{xx}^*$ across the $\theta \times N$ plane. The uniform dark blue colour ($\alpha_{xx}^* = 0$) confirms that the optimiser always returns to the zero-coupling point.*
 
-![Optimal $\phi^*$ heatmap](figures/2026-05-25-phi-opt-heatmap.svg)
+![Optimal $\phi^*$ heatmap](figures/20260525-phi-opt-heatmap.svg)
 *Figure 4: Optimal measurement angle $\phi^*$ across the $\theta \times N$ plane. The uniform colour corresponds to $\phi^* = \pi/4$ at every point — the equal-weighting measurement is always optimal.*
 
 **Key Finding**: Across the entire $(\theta, N)$ parameter space, the optimal configuration is always $\alpha_{xx}=0$, $\phi=\pi/4$. The XX coupling does not improve sensitivity at any tested point. The XX interaction is genuinely inactive for metrology with this dual-MZI protocol, even with optimised joint measurements.
@@ -284,16 +284,16 @@ For each $\theta$ value, a log-log fit $\log(\Delta\theta_{\text{opt}}) = \alpha
 
 The exponent $\alpha = -0.5$ is precisely the $2N$-SQL scaling exponent. There is no deviation toward the Heisenberg limit ($\alpha = -1.0$) at any $\theta$.
 
-![N-scaling at $\theta = 0.3, 1.0, 3.0$](figures/2026-05-25-n-scaling-theta0.3.svg)
+![N-scaling at $\theta = 0.3, 1.0, 3.0$](figures/20260525-n-scaling-theta0.3.svg)
 *Figure 5: N-scaling at $\theta = 0.3$ — $\Delta\theta_{\text{opt}}$ vs $N$ on log-log axes, with $2N$-SQL and $N$-SQL reference lines. The data exactly overlay the $2N$-SQL line.*
 
-![N-scaling at $\theta = 1.0$](figures/2026-05-25-n-scaling-theta1.0.svg)
+![N-scaling at $\theta = 1.0$](figures/20260525-n-scaling-theta1.0.svg)
 *Figure 6: N-scaling at $\theta = 1.0$ — identical behaviour: $\Delta\theta_{\text{opt}}$ follows the $2N$-SQL exactly.*
 
-![N-scaling at $\theta = 3.0$](figures/2026-05-25-n-scaling-theta3.0.svg)
+![N-scaling at $\theta = 3.0$](figures/20260525-n-scaling-theta3.0.svg)
 *Figure 7: N-scaling at $\theta = 3.0$ — same result; the $\theta$ value does not affect the scaling behaviour.*
 
-![Scaling exponents](figures/2026-05-25-scaling-exponents.svg)
+![Scaling exponents](figures/20260525-scaling-exponents.svg)
 *Figure 8: Scaling exponent $\alpha$ vs $\theta$ (top) and $R^2$ (bottom). Every $\theta$ gives $\alpha = -0.5$ with $R^2 = 1.0$, confirming SQL-limited scaling across the entire $\theta$ range.*
 
 **Key Finding**: The $N$-scaling exponent is $\alpha = -0.5$ at every $\theta$, matching the $2N$-SQL. There is no signature of Heisenberg-limited scaling ($\alpha = -1.0$) at any parameter point. The prefactor $C = 1/(\sqrt{2} T_H)$ confirms the sensitivity is exactly the $2N$-SQL.
@@ -308,13 +308,13 @@ Since $\Delta\theta_{\text{opt}} = \Delta\theta_{\text{SQL}}$ at all points, the
 
 2D contours of $\Delta\theta(\alpha_{xx}, \phi)$ were evaluated on $21 \times 21$ grids for three representative points: $(N=1, \theta=0.5)$, $(N=5, \theta=2.0)$, and $(N=20, \theta=4.0)$. All three landscapes show a clear global minimum at $\alpha_{xx}=0$, $\phi=\pi/4$. The landscape is relatively flat near the minimum, confirming that the L-BFGS-B optimiser correctly identifies the global optimum.
 
-![Landscape at $N=1$, $\theta=0.5$](figures/2026-05-25-landscape-N1-theta0.5.svg)
+![Landscape at $N=1$, $\theta=0.5$](figures/20260525-landscape-N1-theta0.5.svg)
 *Figure 9: 2D contour $\Delta\theta(\alpha_{xx}, \phi)$ at $N=1$, $\theta=0.5$. The global minimum is at $\alpha_{xx}=0$, $\phi=\pi/4$, and the $2N$-SQL contour (dashed line) surrounds the minimum.*
 
-![Landscape at $N=5$, $\theta=2.0$](figures/2026-05-25-landscape-N5-theta2.0.svg)
+![Landscape at $N=5$, $\theta=2.0$](figures/20260525-landscape-N5-theta2.0.svg)
 *Figure 10: 2D contour at $N=5$, $\theta=2.0$. Same structure: global minimum at $\alpha_{xx}=0$, $\phi=\pi/4$.*
 
-![Landscape at $N=20$, $\theta=4.0$](figures/2026-05-25-landscape-N20-theta4.0.svg)
+![Landscape at $N=20$, $\theta=4.0$](figures/20260525-landscape-N20-theta4.0.svg)
 *Figure 11: 2D contour at $N=20$, $\theta=4.0$. Even at the largest $N$, the minimum remains at zero coupling.*
 
 **Key Finding**: The 2D optimisation landscape consistently shows a global minimum at $\alpha_{xx}=0$, $\phi=\pi/4$ for all tested parameter combinations. The XX coupling only increases $\Delta\theta$, never decreases it. The landscape confirms that the 20-random-start L-BFGS-B optimisation correctly identifies the global optimum.
@@ -323,7 +323,7 @@ Since $\Delta\theta_{\text{opt}} = \Delta\theta_{\text{SQL}}$ at all points, the
 
 The joint measurement protocol (this report) achieves $\Delta\theta_{\text{opt}} = 1/(\sqrt{2N} T_H)$, the $2N$-SQL. The traced-out protocol (2026-05-22) achieved $\Delta\theta_{\text{trace}} = 1/(\sqrt{N} T_H)$, the $N$-SQL. The joint measurement improves over the traced-out approach by a factor of $\sqrt{2}$, purely from accessing the ancilla information (no XX coupling is active in either case).
 
-![Comparison with traced-out protocol](figures/2026-05-25-comparison-traced-out.svg)
+![Comparison with traced-out protocol](figures/20260525-comparison-traced-out.svg)
 *Figure 12: Comparison between the joint measurement protocol (this report) and the traced-out protocol (2026-05-22). Each is normalised to its respective SQL ($2N$-SQL for joint, $N$-SQL for traced-out). The joint measurement exactly saturates the $2N$-SQL, while the traced-out protocol saturates the $N$-SQL — a factor $\sqrt{2}$ worse.*
 
 **Key Finding**: The joint measurement protocol outperforms the traced-out protocol by a factor of $\sqrt{2}$, purely from accessing the full system--ancilla state. However, this improvement is exactly the SQL improvement from doubling the particle number — no genuine XX advantage is present.

@@ -118,7 +118,7 @@ def main() -> None:
     raw_dir.mkdir(parents=True, exist_ok=True)
     fig_dir.mkdir(parents=True, exist_ok=True)
 
-    sweep_path = raw_dir / "2026-05-22-dual-mzi-sweep.parquet"
+    sweep_path = raw_dir / "20260522-dual-mzi-sweep.parquet"
     if sweep_path.exists() and not args.force:
         print(f"[skip] {sweep_path.name} exists (use --force)")
         return
@@ -182,21 +182,21 @@ def main() -> None:
 
     # Generate figures
     print("\nGenerating figures...")
-    plot_ratio_heatmap(sweep, fig_dir / "2026-05-22-dual-mzi-ratio-heatmap.svg")
-    plot_alpha_opt_heatmap(sweep, fig_dir / "2026-05-22-dual-mzi-alpha-opt-heatmap.svg")
+    plot_ratio_heatmap(sweep, fig_dir / "20260522-dual-mzi-ratio-heatmap.svg")
+    plot_alpha_opt_heatmap(sweep, fig_dir / "20260522-dual-mzi-alpha-opt-heatmap.svg")
     for th, nm in [(0.3, "theta0.3"), (1.0, "theta1.0"), (3.0, "theta3.0")]:
         plot_n_scaling(
-            sweep, fig_dir / f"2026-05-22-dual-mzi-n-scaling-{nm}.svg", theta_fixed=th
+            sweep, fig_dir / f"20260522-dual-mzi-n-scaling-{nm}.svg", theta_fixed=th
         )
     for N, nm in [(1, "N1"), (5, "N5"), (20, "N20")]:
         plot_theta_dependence(
-            sweep, fig_dir / f"2026-05-22-dual-mzi-theta-{nm}.svg", N_fixed=N
+            sweep, fig_dir / f"20260522-dual-mzi-theta-{nm}.svg", N_fixed=N
         )
 
     scaling = fit_scaling_exponents(sweep)
-    scaling.save_parquet(raw_dir / "2026-05-22-dual-mzi-scaling.parquet")
+    scaling.save_parquet(raw_dir / "20260522-dual-mzi-scaling.parquet")
     plot_scaling_exponents(
-        scaling, fig_dir / "2026-05-22-dual-mzi-scaling-exponents.svg"
+        scaling, fig_dir / "20260522-dual-mzi-scaling-exponents.svg"
     )
     print("All figures generated.")
 

@@ -162,7 +162,7 @@ A 201×201 grid over $a_x \in [-5, 5]$ and $a_{zz} \in [-5, 5]$ at each of the 5
 
 The SQL is achieved only when $a_{zz} = 0$ (no interaction, ancilla irrelevant) or when the specific $a_x$ and $a_{zz}$ combination leaves the $J_z^S$ measurement unaffected. When $a_{zz} \neq 0$ and $a_x \neq 0$, the sensitivity degrades, often substantially (e.g., $\Delta\theta$ up to $\infty$ at fringe extrema and values as high as $0.4$ for typical configurations).
 
-![2D slice (a_x, a_zz) at θ=1.0](reports/2026-05-18/figures/2026-05-18-drive-2d-slice-ax-azz-theta1.0.svg)
+![2D slice (a_x, a_zz) at θ=1.0](reports/20260518/figures/20260518-drive-2d-slice-ax-azz-theta1.0.svg)
 
 **Key Finding**: The $(a_x, a_{zz})$ slice shows no SQL violation across any $\theta$ value. The non-commuting drive $a_x \neq 0$ combined with interaction $a_{zz} \neq 0$ **degrades** rather than enhances sensitivity.
 
@@ -180,7 +180,7 @@ The $(a_y, a_{zz})$ slice gives qualitatively identical behaviour to the $(a_x, 
 
 The SQL-achieving points occur at $a_{zz} = 0$ (ancilla decoupled) or when $a_y$ and $a_{zz}$ together make the effective Hamiltonian commute with the measurement. Because $J_y^A$ and $J_x^A$ are unitarily equivalent (both are non-commuting with $J_z^A$), the results are symmetric under the replacement $a_x \leftrightarrow a_y$.
 
-![2D slice (a_y, a_zz) at θ=1.0](reports/2026-05-18/figures/2026-05-18-drive-2d-slice-ay-azz-theta1.0.svg)
+![2D slice (a_y, a_zz) at θ=1.0](reports/20260518/figures/20260518-drive-2d-slice-ay-azz-theta1.0.svg)
 
 **Key Finding**: No SQL violation. The non-commuting $a_y$ drive gives results identical to $a_x$ in character. The ancillary drive degrades sensitivity when the Ising interaction is active.
 
@@ -202,7 +202,7 @@ Key observations:
 - The mean is heavily skewed by fringe-extremum configurations ($\Delta\theta \to \infty$), especially at large $\theta$ where the derivative $\partial\langle J_z^S\rangle/\partial\theta$ vanishes more frequently.
 - Not a single point out of 2500 evaluations achieves a genuinely sub-SQL sensitivity ($\Delta\theta < 0.1 - 10^{-10}$).
 
-![Random search histogram at θ=1.0](reports/2026-05-18/figures/2026-05-18-drive-random-search-theta1.0.svg)
+![Random search histogram at θ=1.0](reports/20260518/figures/20260518-drive-random-search-theta1.0.svg)
 
 **Key Finding**: The 4D random search is decisive: zero SQL violations in 2500 trials across 5 orders of magnitude of $\theta$. The best points cluster at the SQL boundary (typically with $a_{zz}=0$ or compensating parameters that nullify the net effect on $J_z^S$).
 
@@ -229,7 +229,7 @@ Examining the full set of 50 Nelder--Mead results per $\theta$:
 
 The "below SQL" counts are purely numerical artifacts from finite-differencing and floating-point arithmetic; no point is more than $5 \times 10^{-11}$ below SQL.
 
-![θ-scan: driven-ancilla sensitivity](reports/2026-05-18/figures/2026-05-18-drive-theta-scan.svg)
+![θ-scan: driven-ancilla sensitivity](reports/20260518/figures/20260518-drive-theta-scan.svg)
 
 **Key Finding**: Nelder--Mead refinement confirms the random-search results. The SQL ceiling cannot be broken. The optimiser finds SQL-limited configurations across all $\theta$, regardless of the very different optimal parameter values.
 
@@ -237,7 +237,7 @@ The "below SQL" counts are purely numerical artifacts from finite-differencing a
 
 The optimal parameters $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$ vary significantly with $\theta$, even though the achieved sensitivity is uniformly SQL-limited. This indicates many degenerate parameter families that all yield $\Delta\theta = \text{SQL}$.
 
-![Optimal parameters vs θ](reports/2026-05-18/figures/2026-05-18-drive-optimal-params.svg)
+![Optimal parameters vs θ](reports/20260518/figures/20260518-drive-optimal-params.svg)
 
 The degeneracy arises because any $H_A$, $H_{\text{int}}$ combination that does not affect the $J_z^S$ measurement's signal-to-noise ratio will yield SQL-limited sensitivity. Specifically, when the net effect of the ancilla dynamics on the $\langle J_z^S \rangle$-vs-$\theta$ response has vanishing derivative impact, the sensitivity is unchanged from the decoupled case.
 

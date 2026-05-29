@@ -190,7 +190,7 @@ def combine_dual_sweep() -> None:
     """Combine individual N parquets into full sweep result."""
     csv_p = parquet_path("dual-mzi-sweep")
     all_paths = sorted(
-        Path(csv_p).parent.glob("2026-05-23-dual-mzi-N*.parquet")
+        Path(csv_p).parent.glob("20260523-dual-mzi-N*.parquet")
     )
     if not all_paths:
         print("  [skip] No individual N files found for dual MZI")
@@ -228,11 +228,11 @@ def combine_dual_sweep() -> None:
     print(f"  [save] Combined dual sweep: {csv_p}")
 
     # Generate figures
-    fig_ratio = csv_p.parent.parent / "figures" / "2026-05-23-dual-mzi-ratio-heatmap.svg"
+    fig_ratio = csv_p.parent.parent / "figures" / "20260523-dual-mzi-ratio-heatmap.svg"
     plot_ratio_heatmap(combined, fig_ratio, title_suffix="Dual MZI")
     print(f"  [fig]  {fig_ratio}")
 
-    fig_scan = csv_p.parent.parent / "figures" / "2026-05-23-dual-mzi-theta-scan-N5.svg"
+    fig_scan = csv_p.parent.parent / "figures" / "20260523-dual-mzi-theta-scan-N5.svg"
     plot_theta_scan(combined, fig_scan, N_fixed=5)
     print(f"  [fig]  {fig_scan}")
 
@@ -243,7 +243,7 @@ def combine_sonly_sweep() -> None:
     """Combine individual N parquets into full S-only sweep result."""
     csv_p = parquet_path("sonly-mzi-sweep")
     all_paths = sorted(
-        Path(csv_p).parent.glob("2026-05-23-sonly-mzi-N*.parquet")
+        Path(csv_p).parent.glob("20260523-sonly-mzi-N*.parquet")
     )
     if not all_paths:
         print("  [skip] No individual N files found for S-only MZI")
@@ -280,7 +280,7 @@ def combine_sonly_sweep() -> None:
     combined.save_parquet(csv_p)
     print(f"  [save] Combined S-only sweep: {csv_p}")
 
-    fig_ratio = csv_p.parent.parent / "figures" / "2026-05-23-sonly-mzi-ratio-heatmap.svg"
+    fig_ratio = csv_p.parent.parent / "figures" / "20260523-sonly-mzi-ratio-heatmap.svg"
     plot_ratio_heatmap(combined, fig_ratio, title_suffix="S-only MZI")
     print(f"  [fig]  {fig_ratio}")
 

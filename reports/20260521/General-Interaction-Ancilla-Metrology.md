@@ -135,7 +135,7 @@ Each $\theta$ value receives 100 independent 4D L-BFGS-B optimisations (50 $\tim
 
 An additional **decoupled baseline** run with $\alpha = (0,0,0,0)$ at each $\theta$ verifies that the standard single-qubit MZI result $\Delta\theta = 0.1$ is recovered.
 
-All data CSVs are stored in `raw_data/2026-05-21-{tag}.csv` and figures in `figures/2026-05-21-{tag}.svg`. The full dataset comprises 50 per-$\theta$ BFGS optimisation records, one decoupled baseline record, one aggregated $\theta$-scan CSV, and two figures (theta scan and convergence).
+All data CSVs are stored in `raw_data/20260521-{tag}.csv` and figures in `figures/20260521-{tag}.svg`. The full dataset comprises 50 per-$\theta$ BFGS optimisation records, one decoupled baseline record, one aggregated $\theta$-scan CSV, and two figures (theta scan and convergence).
 
 ### Validation
 
@@ -193,7 +193,7 @@ The decoupled baseline $\alpha = (0, 0, 0, 0)$ was verified for multiple $\theta
 
 ### L-BFGS-B Optimisation (50 $\theta$ Values, 100 Starts Each)
 
-The four-parameter optimisation $(\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz})$ was performed at 50 $\theta$ values from 0.1 to 5.0 in steps of 0.1. Each $\theta$ value received 100 random-start L-BFGS-B runs with bounded optimisation $|\alpha_{ij}| \leq 20$. The aggregate results are stored in `raw_data/2026-05-21-theta-scan.csv`.
+The four-parameter optimisation $(\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz})$ was performed at 50 $\theta$ values from 0.1 to 5.0 in steps of 0.1. Each $\theta$ value received 100 random-start L-BFGS-B runs with bounded optimisation $|\alpha_{ij}| \leq 20$. The aggregate results are stored in `raw_data/20260521-theta-scan.csv`.
 
 **Key quantitative findings**:
 
@@ -219,11 +219,11 @@ The active terms $\alpha_{xx}$ and $\alpha_{xz}$ are consistently smaller but no
 
 ### $\theta$ Scan
 
-![General-interaction sensitivity vs θ](figures/2026-05-21-theta-scan.svg)
+![General-interaction sensitivity vs θ](figures/20260521-theta-scan.svg)
 
 *Figure 1: Optimal $\Delta\theta$ (blue line, left axis) and optimal coupling parameters $\alpha_{ij}^*$ (colored markers, right axis) vs $\theta$. The gray dashed line marks the SQL reference $\Delta\theta = 0.1$. The best point ($\Delta\theta = 0.0690$, $0.690\times$SQL at $\theta = 3.8$) is annotated.*
 
-![Convergence metrics vs θ](figures/2026-05-21-convergence.svg)
+![Convergence metrics vs θ](figures/20260521-convergence.svg)
 
 *Figure 2: Left panel: number of converged L-BFGS-B starts out of 100 per $\theta$ value. Right panel: $\Delta\theta / \text{SQL}$ ratio vs $\theta$, showing the best ratio of $0.690$ at $\theta = 3.8$.*
 
@@ -271,7 +271,7 @@ While the 2026-05-19 report achieved a more dramatic $4.91\times$ improvement ov
 - **Unitarity** — $U_{\text{BS}}^\dagger U_{\text{BS}} = \mathbb{1}_2$ and $U_{\text{hold}}^\dagger U_{\text{hold}} = \mathbb{1}_4$ — **PASS**: Assertion in `general_hold_unitary()`; unit tests cover 4 $\theta$ and 4 $\alpha$ combinations.
 - **Numerical validity** — Hermiticity, variance positivity, derivative stability, L-BFGS-B convergence — **PASS**: All 83 unit tests pass; Hermiticity verified for 28 parameter combinations; variance always non-negative; derivative stable to $<5\%$ across $\delta \in [10^{-7}, 10^{-5}]$.
 - **Finite derivative** — $|\partial\langle J_z^S\rangle/\partial\theta| > 10^{-12}$ at all reported optima — **PARTIAL**: All reported optima have finite derivative, but $\theta=1.2$ has $d\langle J_z^S\rangle/d\theta = 0.200$ with variance $3.85\times10^{-4}$, indicating a near-fringe-extremum configuration. At this point $\Delta\theta = 0.098$ (ratio $0.982$), very close to SQL.
-- **Optimal params recorded** — Full $\alpha^*(\theta)$ tuple and $\Delta\theta_{\text{opt}}(\theta)$ recorded for all 50 $\theta$ values in CSV — **PASS**: All 50 $\theta$ values recorded in `raw_data/2026-05-21-theta-scan.csv` with full metadata.
+- **Optimal params recorded** — Full $\alpha^*(\theta)$ tuple and $\Delta\theta_{\text{opt}}(\theta)$ recorded for all 50 $\theta$ values in CSV — **PASS**: All 50 $\theta$ values recorded in `raw_data/20260521-theta-scan.csv` with full metadata.
 - **CSV roundtrip** — All metadata fields survive serialisation/deserialisation roundtrip; fail-fast on missing columns — **PASS**: Verified via unit tests `test_bfgs_roundtrip_all_metadata`, `test_theta_scan_roundtrip_metadata`, `test_bfgs_from_csv_missing_columns`, and `test_theta_scan_from_csv_missing_columns`.
 
 The experiment **successfully rejects the null hypothesis**. The general four-parameter interaction with symmetric phase encoding on both qubits does produce sub-SQL sensitivity across almost the entire tested $\theta$ range. The best sensitivity is $\Delta\theta = 0.0690$ at $\theta=3.8$, a 31% improvement over the $N=1$ SQL. This is a more modest improvement than the 2026-05-19 report's $4.91\times$ enhancement, but it is achieved without a non-commuting ancilla drive — using only the richer interaction structure. The dominant coupling parameters are the "inactive" terms $\alpha_{zx}$ and $\alpha_{zz}$, which contribute through higher-order BCH corrections. Future work should investigate whether extending the optimisation to wider bounds or using global optimisation methods (e.g., Bayesian optimisation or basin-hopping) can find even better minima.

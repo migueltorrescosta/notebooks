@@ -1,8 +1,8 @@
 """
 Tests for the 2026-05-09 ancilla-assisted non-Markovian metrology report.
 
-Verifies all pseudomode_system functions migrated from reports/2026-05-11/
-into reports/2026-05-09/local.py.
+Verifies all pseudomode_system functions migrated from reports/20260511/
+into reports/20260509/local.py.
 """
 
 from __future__ import annotations

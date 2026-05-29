@@ -130,8 +130,8 @@ The following physical invariants are verified throughout every simulation run:
 - **Nelder--Mead refinement** — Local optimisation from best grid/random points (50 refinements per $\theta$).
 - **Optimal params storage** — Per-$\theta$ recording of $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$ and $\Delta\theta$.
 - **Validation helpers** — Hermiticity, unitarity, SQL baseline recovery, derivative stability.
-- **Data generation** — 152 CSV files (1 decoupled baseline, 1 θ-scan, 50 per-θ random search, 50 per-θ $(a_x,a_{zz})$ slices, 50 per-θ $(a_y,a_{zz})$ slices) in `raw_data/2026-05-19-*`. The θ-scan results are now presented as figures rather than inline tables.
-- **Figure generation** — 158 SVG figures in `figures/2026-05-19-*` (including combined-sensitivity, fraction-below-SQL, optimal-params, NM-expectation-variance, and cross-experiment-comparison figures).
+- **Data generation** — 152 CSV files (1 decoupled baseline, 1 θ-scan, 50 per-θ random search, 50 per-θ $(a_x,a_{zz})$ slices, 50 per-θ $(a_y,a_{zz})$ slices) in `raw_data/20260519-*`. The θ-scan results are now presented as figures rather than inline tables.
+- **Figure generation** — 158 SVG figures in `figures/20260519-*` (including combined-sensitivity, fraction-below-SQL, optimal-params, NM-expectation-variance, and cross-experiment-comparison figures).
 
 **Tests**: The companion test module `tests/test_ancilla_drive_phase_modulated.py` contains **51 tests** covering all functionality. All tests pass.
 
@@ -165,7 +165,7 @@ The decoupled configuration $(a_x, a_y, a_z, a_{zz}) = (0, 0, 0, 0)$ gives $\Del
 
 201×201 grids over $a_x \in [-5, 5]$ and $a_{zz} \in [-5, 5]$ at 50 $\theta$ values (100 slices total). All 50 $\theta$ values produced SQL violation. The full trend across $\theta$ is shown below.
 
-![Combined sensitivity across $\theta$ for 2D slices](figures/2026-05-19-phase-combined-sensitivity.svg)
+![Combined sensitivity across $\theta$ for 2D slices](figures/20260519-phase-combined-sensitivity.svg)
 
 The best result across both $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices was:
 
@@ -189,15 +189,15 @@ The symmetry between $a_x$ and $a_y$ slices confirms that any non-commuting driv
 
 500 random points in $[-5, 5]^4$ for each of the 50 $\theta$ values (25,000 total evaluations). All 50 $\theta$ values produced SQL violation. The full distribution across $\theta$ is shown below. The key trend is that the fraction of random points below SQL drops from 50.4% at $\theta = 0.1$ to 3.6% at $\theta = 5.0$, confirming that the enhancement window narrows as the effective drive strength increases.
 
-![Fraction of random search points below SQL across $\theta$](figures/2026-05-19-phase-fraction-below-sql.svg)
+![Fraction of random search points below SQL across $\theta$](figures/20260519-phase-fraction-below-sql.svg)
 
 ### Nelder--Mead Refinement and $\theta$ Scan
 
 The $\theta$ scan combines 4D random search (500 pts) with Nelder--Mead refinement (top 50 points) at each $\theta$ value. The refined results are the **best achieved across the entire parameter search**.
 
-![Optimal parameters $a_x^*, a_y^*, a_z^*, a_{zz}^*$ across $\theta$](figures/2026-05-19-phase-optimal-params.svg)
+![Optimal parameters $a_x^*, a_y^*, a_z^*, a_{zz}^*$ across $\theta$](figures/20260519-phase-optimal-params.svg)
 
-![Expectation $\langle J_z^S \rangle$ and variance $\text{Var}(J_z^S)$ across $\theta$](figures/2026-05-19-phase-nm-expectation-variance.svg)
+![Expectation $\langle J_z^S \rangle$ and variance $\text{Var}(J_z^S)$ across $\theta$](figures/20260519-phase-nm-expectation-variance.svg)
 
 The best overall sensitivity is $\Delta\theta = 0.02036$ at $\theta = 0.2$, which is **4.91× below the SQL**. All 50 $\theta$ values from $\theta = 0.1$ to $\theta = 5.0$ beat the SQL, and Nelder--Mead refinement consistently improves the random-search best by 10–20%.
 
@@ -217,7 +217,7 @@ The optimal parameters show clear systematic trends:
 
 ### Comparison with Fixed-Drive (2026-05-18)
 
-![Comparison between $\theta$-modulated and fixed-drive protocols](figures/2026-05-19-phase-cross-experiment-comparison.svg)
+![Comparison between $\theta$-modulated and fixed-drive protocols](figures/20260519-phase-cross-experiment-comparison.svg)
 
 The fixed-drive protocol achieves $\Delta\theta = 0.1$ (exactly SQL) for all $\theta$ values. The $\theta$-modulated protocol achieves $\Delta\theta < 0.1$ for all 50 $\theta$ values tested, with a maximum improvement of 4.91$\times$ at $\theta=0.2$. The ratio $\Delta\theta_{2026-05-19} / \Delta\theta_{2026-05-18}$ is well below 1 for all $\theta$ values, confirming that the $\theta$-modulation is the essential ingredient.
 

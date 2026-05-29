@@ -1559,17 +1559,17 @@ def generate_phase_cross_experiment_comparison(force: bool = False) -> None:
     pq_19 = _parquet_path("phase-theta-scan")
     if not pq_19.exists():
         print(
-            "[skip] 2026-05-19-phase-theta-scan.parquet does not exist; "
+            "[skip] 20260519-phase-theta-scan.parquet does not exist; "
             "run 'phase-theta-scan' first"
         )
         return
     result_19 = DriveThetaScanResult.from_parquet(pq_19)
 
     # Load fixed-drive result (2026-05-18, 5 points)
-    csv_18 = REPORTS_DIR / "20260518" / "raw_data" / "2026-05-18-drive-theta-scan.csv"
+    csv_18 = REPORTS_DIR / "20260518" / "raw_data" / "20260518-drive-theta-scan.csv"
     if not csv_18.exists():
         print(
-            "[skip] 2026-05-18-drive-theta-scan.csv does not exist; "
+            "[skip] 20260518-drive-theta-scan.csv does not exist; "
             "run 'drive-theta-scan' first"
         )
         return

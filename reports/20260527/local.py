@@ -12,7 +12,7 @@ Contains all code exclusive to this report:
 Usage:
     uv run python reports/20260527/local.py --force
 
-This module is **not** importable as ``reports.2026-05-27.local`` (the directory
+This module is **not** importable as ``reports.20260527.local`` (the directory
 name contains hyphens).  Instead, importers add the report directory to
 ``sys.path`` and do ``import local``.
 """

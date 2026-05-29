@@ -23,7 +23,7 @@ The hypothesis is structured as **two sequential claims**:
 2. **Multi-particle amplification (N > 1)**: For $N > 1$ with the dual MZI and 4-parameter interaction, the ratio $\Delta\theta / \Delta\theta_{\text{SQL}}$ improves (decreases) monotonically with $N$. The $N$-scaling exponent $\alpha$ from $\Delta\theta \propto N^\alpha$ satisfies $\alpha < -0.5$ (i.e., sub-SQL scaling), approaching the Heisenberg limit $\alpha \to -1.0$ as $N$ grows. This would indicate that the ancilla-mediated information flow grows with the spectral radius of each subsystem, enabling the reduced system state to achieve a QFI beyond the CSS bound $F_Q = N$.
 
 **Null hypotheses**:
-- **Null 1**: At $N=1$, $\Delta\theta / \Delta\theta_{\text{SQL}} \geq 1.0$ for the dual MZI with the 4-parameter interaction — the dual MZI suppresses the gain entirely, just as it did for pure-XX coupling in 2026-05-22.
+- **Null 1**: At $N=1$, $\Delta\theta / \Delta\theta_{\text{SQL}} \geq 1.0$ for the dual MZI with the 4-parameter interaction — the dual MZI suppresses the gain entirely, just as it did for pure-XX coupling in 20260522.
 - **Null 2**: For $N > 1$, the exponent satisfies $\alpha \geq -0.5$ (SQL scaling or worse) — multi-particle subsystems do not amplify the metrological gain, and the reduced system QFI never exceeds $N$.
 
 **Key differences from the S-only MZI comparison** (2026-05-21):
@@ -91,7 +91,7 @@ corresponding to the maximum QFI $F_Q = N T_H^2$ for a classical $N$-particle st
 - $\alpha_{zx} J_z^S J_x^A \to \alpha_{zx} J_z^S \otimes [\cos(\theta t) J_x^A + \sin(\theta t) J_y^A]$
 - $\alpha_{zz} J_z^S J_z^A \to \alpha_{zz} J_z^S J_z^A$ (unchanged — commutes with $H_0$).
 
-The $\theta$-dependence of the trigonometric coefficients creates an **implicit** $\theta$-dependence through the non-commuting structure of $H_0$ and $H_{\text{int}}$, beyond the explicit $\theta J_z$ phase-encoding terms. This is the BCH cross-term mechanism identified in 2026-05-21.
+The $\theta$-dependence of the trigonometric coefficients creates an **implicit** $\theta$-dependence through the non-commuting structure of $H_0$ and $H_{\text{int}}$, beyond the explicit $\theta J_z$ phase-encoding terms. This is the BCH cross-term mechanism identified in 20260521.
 
 **Key role of the dual MZI**: When the ancilla enters the hold after a beam splitter, it is in a superposition of $J_z^A$ eigenstates. The $H_A = \theta J_z^A$ term drives $\theta$-dependent dynamics on this superposition, which couples to the system through the interaction terms containing $J_x^A$ (the $\alpha_{xx}$ and $\alpha_{zx}$ terms). In the S-only MZI, the ancilla enters the hold in a $J_z^A$ eigenstate $|J, J\rangle_A$, so only $J_z^A$ terms ($\alpha_{xz}$ and $\alpha_{zz}$) are active; the transverse ancilla operators ($J_x^A$ in $\alpha_{xx}$ and $\alpha_{zx}$) have zero expectation value and generate no ancilla dynamics under $H_A$.
 
@@ -204,7 +204,7 @@ The S-only MZI at N=1, $\theta=3.8$ with 25 L-BFGS-B starts gives:
 
 The ratio $0.7714$ exceeds the $0.7245$ target ($0.690 \times 1.05$), but the value is close to the target and clearly sub-SQL. The difference likely reflects a rugged optimization landscape where 25 starts is insufficient for reliable convergence to the global minimum.
 
-**Key Finding**: The S-only MZI reproduces sub-SQL sensitivity at N=1 (ratio $0.7714 < 1.0$), though not within the $5\%$ tolerance of the 2026-05-21 result. See `figures/2026-05-23-sonly-reproduction-n1.svg`.
+**Key Finding**: The S-only MZI reproduces sub-SQL sensitivity at N=1 (ratio $0.7714 < 1.0$), though not within the $5\%$ tolerance of the 2026-05-21 result. See `figures/20260523-sonly-reproduction-n1.svg`.
 
 ### 3. Claim 1: Dual MZI at N=1
 
@@ -227,19 +227,19 @@ The best dual MZI ratio is $0.7755$ at $\theta=4.5$, compared to $0.7714$ for th
 
 ### 4. Dual MZI Full Sweep (N=1-10)
 
-![Dual MZI sensitivity ratio heatmap](figures/2026-05-23-dual-mzi-ratio-heatmap.svg)
+![Dual MZI sensitivity ratio heatmap](figures/20260523-dual-mzi-ratio-heatmap.svg)
 
 The heatmap shows the ratio $\Delta\theta_{\text{opt}}/\Delta\theta_{\text{SQL}}$ across $(\theta, N)$. Dark blue regions ($\text{ratio} < 1$) indicate sub-SQL sensitivity, occurring only at N=1. For N >= 5, most ratios exceed 1.4, with some exceeding 3.0 at N=6-10. At N=3 and N=4, several configurations fall below 1.4, though none are sub-SQL.
 
-![N-scaling at $\theta=0.5$](figures/2026-05-23-dual-mzi-n-scaling-theta0.5.svg)
-![N-scaling at $\theta=2.5$](figures/2026-05-23-dual-mzi-n-scaling-theta2.5.svg)
-![N-scaling at $\theta=5.0$](figures/2026-05-23-dual-mzi-n-scaling-theta5.0.svg)
+![N-scaling at $\theta=0.5$](figures/20260523-dual-mzi-n-scaling-theta0.5.svg)
+![N-scaling at $\theta=2.5$](figures/20260523-dual-mzi-n-scaling-theta2.5.svg)
+![N-scaling at $\theta=5.0$](figures/20260523-dual-mzi-n-scaling-theta5.0.svg)
 
 The N-scaling plots show that $\Delta\theta_{\text{opt}}$ remains roughly constant as N increases, while the SQL reference $\propto 1/\sqrt{N}$ decreases. This produces an increasing ratio with N — the opposite of the hypothesized multi-particle amplification.
 
-![$\theta$-dependence at N=1](figures/2026-05-23-dual-mzi-theta-N1.svg)
-![$\theta$-dependence at N=5](figures/2026-05-23-dual-mzi-theta-N5.svg)
-![$\theta$-dependence at N=10](figures/2026-05-23-dual-mzi-theta-N10.svg)
+![$\theta$-dependence at N=1](figures/20260523-dual-mzi-theta-N1.svg)
+![$\theta$-dependence at N=5](figures/20260523-dual-mzi-theta-N5.svg)
+![$\theta$-dependence at N=10](figures/20260523-dual-mzi-theta-N10.svg)
 
 The $\theta$-dependence plots show strong $\theta$-dependent variation at N=1 (including sub-SQL regions), but at N=5 and N=10 the sensitivity is consistently above SQL with less $\theta$-dependence.
 
@@ -255,13 +255,13 @@ The $\theta$-dependence plots show strong $\theta$-dependent variation at N=1 (i
 
 The S-only MZI outperforms the dual MZI at N=1 (consistent with 2026-05-21 having a stronger BCH mechanism). At N=5, the dual MZI achieves a best ratio of 1.42 (vs 2.01 for S-only), indicating a relative advantage for the dual protocol at this intermediate $N$. At N=10, both protocols produce ratios above 2.4, with the S-only MZI slightly better (2.37 vs 2.59). Neither protocol achieves sub-SQL sensitivity for N > 1.
 
-![S-only MZI sensitivity ratio heatmap](figures/2026-05-23-sonly-mzi-ratio-heatmap.svg)
+![S-only MZI sensitivity ratio heatmap](figures/20260523-sonly-mzi-ratio-heatmap.svg)
 
 **Key Finding**: The S-only MZI produces better sub-SQL sensitivity at N=1 than the dual MZI. Neither protocol benefits from multi-particle enhancement. The 4-parameter interaction's gain is fundamentally a single-particle (N=1) effect.
 
 ### 6. Scaling Analysis
 
-![Scaling exponents and R²](figures/2026-05-23-dual-mzi-scaling-exponents.svg)
+![Scaling exponents and R²](figures/20260523-dual-mzi-scaling-exponents.svg)
 
 The scaling analysis fits $\Delta\theta_{\text{opt}} = C N^\alpha$ for each $\theta$:
 
@@ -293,9 +293,9 @@ Examination of the optimal $\alpha^*$ values across the sweep reveals:
 
 Both protocols recover $\Delta\theta = 0.1/\sqrt{N}$ at $\alpha = (0,0,0,0)$ for all tested $(\theta, N)$ values. Maximum deviation from SQL: $\sim 3 \times 10^{-11}$ (machine precision for 64-bit floating-point arithmetic).
 
-**Decoupled baseline (Dual MZI)**: ![Decoupled baseline dual](figures/2026-05-23-decoupled-baseline-dual.svg)
+**Decoupled baseline (Dual MZI)**: ![Decoupled baseline dual](figures/20260523-decoupled-baseline-dual.svg)
 
-**Decoupled baseline (S-only MZI)**: ![Decoupled baseline S-only](figures/2026-05-23-decoupled-baseline-S-only.svg)
+**Decoupled baseline (S-only MZI)**: ![Decoupled baseline S-only](figures/20260523-decoupled-baseline-S-only.svg)
 
 ### 9. Verification Summary
 
@@ -325,7 +325,7 @@ Both protocols recover $\Delta\theta = 0.1/\sqrt{N}$ at $\alpha = (0,0,0,0)$ for
 - **Numerical validity** — Hermiticity, variance positivity, sensitivity positivity, derivative stability — **PASS**
 - **Parquet roundtrip** — All metadata fields survive serialisation/deserialisation roundtrip; fail-fast on missing columns — **PASS**
 
-The primary hypotheses (sub-SQL sensitivity via dual MZI at N=1 and multi-particle amplification) both failed. The decoupled baseline and all numerical validity criteria passed. The 2026-05-21 reproduction was close (ratio $0.7714$ vs target $0.7245$) but did not meet the strict $5\%$ tolerance. The key physical finding is that the 4-parameter interaction produces sub-SQL sensitivity **only** at N=1, regardless of protocol, and the gain does not scale with N. Possible next steps include: (a) investigating whether the optimization landscape becomes significantly more rugged for N>1, requiring many more starts, (b) testing joint measurements $J_z^S + J_z^A$ instead of tracing out the ancilla, and (c) exploring non-commuting ancilla drives as suggested in 2026-05-19.
+The primary hypotheses (sub-SQL sensitivity via dual MZI at N=1 and multi-particle amplification) both failed. The decoupled baseline and all numerical validity criteria passed. The 2026-05-21 reproduction was close (ratio $0.7714$ vs target $0.7245$) but did not meet the strict $5\%$ tolerance. The key physical finding is that the 4-parameter interaction produces sub-SQL sensitivity **only** at N=1, regardless of protocol, and the gain does not scale with N. Possible next steps include: (a) investigating whether the optimization landscape becomes significantly more rugged for N>1, requiring many more starts, (b) testing joint measurements $J_z^S + J_z^A$ instead of tracing out the ancilla, and (c) exploring non-commuting ancilla drives as suggested in 20260519.
 
 ## ⚖️ Analytical Bounds
 

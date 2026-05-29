@@ -141,11 +141,11 @@ The noise scan ran over 50 $\theta$ values (0.1 to 5.0, step 0.1) and 32 $\gamma
 
 The protocol transitions from sub-SQL to above-SQL at widely varying $\gamma_\phi^*$: from $\sim 0.25$ at $\theta=0.1$ to effectively $0$ for $\theta \geq 4.1$ (where even the lowest scanned $\gamma_\phi=0.01$ yields $\Delta\theta > \Delta\theta_{\text{SQL}}$). The three regimes — robust, intermediate, fragile — are visible as distinct branches in the sensitivity curves figure.
 
-![Sensitivity curves: $\Delta\theta$ vs $\gamma_\phi$ for selected $\theta$ values](figures/2026-05-24-noise-sensitivity-curves.svg)
+![Sensitivity curves: $\Delta\theta$ vs $\gamma_\phi$ for selected $\theta$ values](figures/20260524-noise-sensitivity-curves.svg)
 
 The denser $\gamma_\phi$ sampling (32 vs 15 points per $\theta$, log-spaced $10^{-2}$ to $10^{0}$ compared to the original $10^{-4}$ to $10^{1}$) provides a more resolved picture of the sub-SQL-to-above-SQL transition. The narrower $\gamma_\phi$ range (maximum $1.0$ vs $10$) means the deep-dephasing regime is no longer sampled, but the transition region is better resolved. The full 2D landscape is shown in the heatmap below.
 
-![Sensitivity heatmap: $\Delta\theta / \Delta\theta_{\text{SQL}}$ vs $\theta$ and $\gamma_\phi$](figures/2026-05-24-noise-sensitivity-heatmap.svg)
+![Sensitivity heatmap: $\Delta\theta / \Delta\theta_{\text{SQL}}$ vs $\theta$ and $\gamma_\phi$](figures/20260524-noise-sensitivity-heatmap.svg)
 
 **Key Finding**: Finite-noise survival is confirmed across all $\theta$ where $\gamma_\phi$ is small enough. The protocol's robustness divides into three regimes: robust at low $\theta$ ($\gamma_\phi^* \sim 0.25$), intermediate at mid $\theta$ ($\gamma_\phi^* \sim 0.02$--$0.18$), and fragile at $\theta > 4.0$ where even $\gamma_\phi=0.01$ eliminates the sub-SQL advantage. The advantage decays gracefully and does not collapse at infinitesimal noise.
 
@@ -153,7 +153,7 @@ The denser $\gamma_\phi$ sampling (32 vs 15 points per $\theta$, log-spaced $10^
 
 With the complete $\theta$ scan (50 values, 0.1 to 5.0), the critical rate $\gamma_\phi^*$ (where $\Delta\theta = \Delta\theta_{\text{SQL}}$) was computed by linear interpolation in log-log space. The figure below shows $\gamma_\phi^*$ vs $\theta$ across the full range, with a shaded blue region marking the sub-SQL zone.
 
-![Critical noise rate $\gamma_\phi^*$ vs $\theta$ with shaded sub-SQL region](figures/2026-05-24-noise-critical-rate.svg)
+![Critical noise rate $\gamma_\phi^*$ vs $\theta$ with shaded sub-SQL region](figures/20260524-noise-critical-rate.svg)
 
 The overall pattern reveals **three distinct regimes**:
 
@@ -175,9 +175,9 @@ Optimal parameters $(a_x^*, a_y^*, a_z^*, \alpha_{zz}^*)$ as a function of $\gam
 
 **Key Finding**: Only $\alpha_{zz}^*$ shows a systematic monotonic shift with $\gamma_\phi$ (increasing to compensate for dephasing). The drive amplitudes $(a_x^*, a_y^*, a_z^*)$ remain near the optimisation bounds regardless of $\gamma_\phi$, contradicting the hypothesis that they would decrease with noise. This pattern is consistent across all 50 $\theta$ values, confirming its universality.
 
-![Optimal parameters $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$ vs $\gamma_\phi$ for selected $\theta$ values](figures/2026-05-24-noise-optimal-params.svg)
+![Optimal parameters $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$ vs $\gamma_\phi$ for selected $\theta$ values](figures/20260524-noise-optimal-params.svg)
 
-![Signal diagnostics: $\langle J_z^S \rangle$, $\mathrm{Var}(J_z^S)$, and $|\partial\langle J_z^S\rangle/\partial\theta|$ vs $\gamma_\phi$](figures/2026-05-24-noise-signal-diagnostics.svg)
+![Signal diagnostics: $\langle J_z^S \rangle$, $\mathrm{Var}(J_z^S)$, and $|\partial\langle J_z^S\rangle/\partial\theta|$ vs $\gamma_\phi$](figures/20260524-noise-signal-diagnostics.svg)
 
 ### E4 — Re-optimised vs Fixed-Parameter Sensitivity
 
@@ -187,9 +187,9 @@ At the lowest noise ($\gamma_\phi = 0.01$), the fixed-params ratio is $0.219$ vs
 
 **Key Finding**: Re-optimisation provides a modest benefit at low noise ($< 5\%$ at $\gamma_\phi = 0.1$), growing to $\sim 30\%$ at $\gamma_\phi = 1.0$. The noise-free optimal parameters are surprisingly robust — the protocol retains most of its sub-SQL advantage without re-optimisation for $\gamma_\phi \lesssim 0.1$, consistent with the original findings. The denser $\gamma_\phi$ sampling (32 vs 15 points) confirms that the benefit grows smoothly with noise.
 
-![Re-optimised vs fixed-parameter sensitivity at $\theta=0.2$](figures/2026-05-24-noise-reopt-vs-fixed.svg)
+![Re-optimised vs fixed-parameter sensitivity at $\theta=0.2$](figures/20260524-noise-reopt-vs-fixed.svg)
 
-![Improvement ratio $\Delta\theta_{\mathrm{fixed}} / \Delta\theta_{\mathrm{reopt}}$ vs $\gamma_\phi$ for selected $\theta$](figures/2026-05-24-noise-improvement-ratio.svg)
+![Improvement ratio $\Delta\theta_{\mathrm{fixed}} / \Delta\theta_{\mathrm{reopt}}$ vs $\gamma_\phi$ for selected $\theta$](figures/20260524-noise-improvement-ratio.svg)
 
 ### E5 — Decoupled Baseline Under Phase Diffusion
 
@@ -205,7 +205,7 @@ The decoupled baseline ($a_k = \alpha_{zz} = 0$) was evaluated for reference (un
 
 **Key Finding**: The decoupled baseline degrades rapidly with $\gamma_\phi$, reaching $1.16\times$ SQL at $\gamma_\phi=0.01$ and diverging at $\gamma_\phi=10$. The re-optimised protocol dramatically outperforms this baseline, maintaining $\Delta\theta/\Delta\theta_{\text{SQL}} < 0.33$ at $\gamma_\phi=0.01$ and $< 1$ at $\gamma_\phi=0.16$. This confirms that entanglement with the ancilla is essential for preserving sensitivity under phase diffusion.
 
-![Decoupled baseline vs re-optimised protocol under phase diffusion](figures/2026-05-24-noise-decoupled-vs-optimal.svg)
+![Decoupled baseline vs re-optimised protocol under phase diffusion](figures/20260524-noise-decoupled-vs-optimal.svg)
 
 ## ✅ Success Criteria
 

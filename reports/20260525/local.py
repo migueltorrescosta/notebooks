@@ -18,7 +18,7 @@ Contains all code exclusive to this report:
 Usage:
     uv run python reports/20260525/local.py --force
 
-This module is **not** importable as ``reports.2026-05-25.local`` (the directory
+This module is **not** importable as ``reports.20260525.local`` (the directory
 name contains hyphens).  Instead, importers add the report directory to
 ``sys.path`` and do ``import local``.
 """
@@ -1764,7 +1764,7 @@ def generate_comparison_traced_out(force: bool = False) -> None:
 
     # Locate the 2026-05-22 sweep Parquet
     traced_path = (
-        REPORTS_DIR / "20260522" / "raw_data" / "2026-05-22-dual-mzi-sweep.parquet"
+        REPORTS_DIR / "20260522" / "raw_data" / "20260522-dual-mzi-sweep.parquet"
     )
 
     if not traced_path.exists():

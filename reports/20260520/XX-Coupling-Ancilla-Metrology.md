@@ -108,7 +108,7 @@ The grid scan evaluates $\Delta\theta(\alpha_{xx}, \theta)$ on a $2001 \times 50
 
 An additional **decoupled baseline** run with $\alpha_{xx} = 0$ for each $\theta$ verifies that the standard single-qubit MZI result $\Delta\theta = 0.1$ is recovered.
 
-All data CSVs are stored in `raw_data/2026-05-20-{tag}.csv` and figures in `figures/2026-05-20-{tag}.svg`.
+All data CSVs are stored in `raw_data/20260520-{tag}.csv` and figures in `figures/20260520-{tag}.svg`.
 
 ### Validation
 
@@ -219,11 +219,11 @@ The $\Delta\theta(\alpha_{xx})$ curve oscillates due to the Rabi-like dynamics i
 
 The $\theta$ scan collects the optimal sensitivity (over $\alpha_{xx}$) for each of the 50 $\theta$ values:
 
-![XX-coupling sensitivity vs $\theta$](figures/2026-05-20-xx-theta-scan.svg)
+![XX-coupling sensitivity vs $\theta$](figures/20260520-xx-theta-scan.svg)
 
 The optimal $\alpha_{xx}^*$ is **zero for all 50 $\theta$ values** — no non-zero XX coupling improves the sensitivity at any $\theta$ value tested. The achieved $\Delta\theta$ is uniformly $0.100000$ (the SQL) across the entire $\theta$ range.
 
-![Optimal parameters and fraction below SQL](figures/2026-05-20-xx-optimal-params.svg)
+![Optimal parameters and fraction below SQL](figures/20260520-xx-optimal-params.svg)
 
 **Key Finding**: The XX coupling with symmetric $J_z$ phase encoding on both qubits **does not beat the SQL**. The optimal $\alpha_{xx}^*$ is zero for all $\theta$, confirming that any non-zero XX coupling degrades the sensitivity. The $J_z^S$ measurement on the system, after tracing out the ancilla, is fundamentally limited by the single-qubit SQL $\Delta\theta = 1/T_H$.
 

@@ -11,7 +11,7 @@ Usage:
     uv run python reports/20260511/local.py --force
     uv run python reports/20260511/local.py --experiment ancilla-vs-system --force
 
-This module is not importable as reports.2026-05-11.local (hyphens in path).
+This module is not importable as reports.20260511.local (hyphens in path).
 Importers should use importlib.util.spec_from_file_location.
 """
 
@@ -2614,7 +2614,7 @@ def _ancilla_sensitivity_fn(
         is multiplied by ``(1 + noise_level)``.
 
     """
-    # Imported via importlib from reports/2026-05-09/local.py at module scope.
+    # Imported via importlib from reports/20260509/local.py at module scope.
 
     def _sensitivity(N: int, noise_level: float) -> float:
         try:

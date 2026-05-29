@@ -135,8 +135,8 @@ def _run_N_batch(N_val: int, theta_arr: np.ndarray, protocol: str) -> FourParamS
 def run_dual_sweep_parallel(force: bool = False, workers: int = 8) -> None:
     """Run dual MZI sweep in parallel across N values."""
     csv_p = parquet_path("dual-mzi-sweep")
-    fig_ratio = parquet_path("..") / "figures" / "2026-05-23-dual-mzi-ratio-heatmap.svg"
-    fig_theta_scan = parquet_path("..") / "figures" / "2026-05-23-dual-mzi-theta-scan-N5.svg"
+    fig_ratio = parquet_path("..") / "figures" / "20260523-dual-mzi-ratio-heatmap.svg"
+    fig_theta_scan = parquet_path("..") / "figures" / "20260523-dual-mzi-theta-scan-N5.svg"
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
@@ -236,11 +236,11 @@ def run_dual_sweep_parallel(force: bool = False, workers: int = 8) -> None:
 
     # Generate figures from the sweep data
     from local import plot_ratio_heatmap, plot_theta_scan
-    fig_ratio_p = parquet_path("..").parent / "figures" / "2026-05-23-dual-mzi-ratio-heatmap.svg"
+    fig_ratio_p = parquet_path("..").parent / "figures" / "20260523-dual-mzi-ratio-heatmap.svg"
     plot_ratio_heatmap(combined, fig_ratio_p, title_suffix="Dual MZI")
     print(f"[fig]  {fig_ratio_p}")
 
-    fig_scan_p = parquet_path("..").parent / "figures" / "2026-05-23-dual-mzi-theta-scan-N5.svg"
+    fig_scan_p = parquet_path("..").parent / "figures" / "20260523-dual-mzi-theta-scan-N5.svg"
     plot_theta_scan(combined, fig_scan_p, N_fixed=5)
     print(f"[fig]  {fig_scan_p}")
 
@@ -308,7 +308,7 @@ def _run_single_sweep(protocol: str, force: bool = False) -> None:
 
     name = f"{protocol.lower().replace('-', '')}-mzi-sweep"
     csv_p = parquet_path(name)
-    fig_ratio = parquet_path("..") / "figures" / f"2026-05-23-{protocol.lower().replace('-', '')}-mzi-ratio-heatmap.svg"
+    fig_ratio = parquet_path("..") / "figures" / f"20260523-{protocol.lower().replace('-', '')}-mzi-ratio-heatmap.svg"
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists")
