@@ -92,15 +92,26 @@ def classical_fisher_information_single(
     p_plus: np.ndarray,
     p_minus: np.ndarray,
     dphi: float,
+    p_at_theta: np.ndarray | None = None,
+    prob_floor: float = 1e-12,
 ) -> float:
     """Compute F_C for a single phase value given neighboring probabilities.
 
     F_C = Σ [P(m|φ+dphi/2) - P(m|φ-dphi/2)]² / (dphi² * P(m|φ))
 
+    When ``p_at_theta`` is provided, it is used in the denominator
+    (textbook definition).  Otherwise the average of ``p_plus`` and
+    ``p_minus`` is used (centered approximation, more numerically
+    stable for grid-based computations).
+
     Args:
         p_plus: P(m|φ + dphi/2) for each outcome.
         p_minus: P(m|φ - dphi/2) for each outcome.
         dphi: Phase step size.
+        p_at_theta: Optional P(m|φ) at the evaluation point.  When
+            provided, used as the denominator instead of the average.
+        prob_floor: Minimum probability threshold — outcomes with
+            denominator below this value are excluded.
 
     Returns:
         Classical Fisher Information value.
@@ -115,18 +126,24 @@ def classical_fisher_information_single(
     if p_plus.shape != p_minus.shape:
         raise ValueError("Probability arrays must have same shape")
 
+    if p_at_theta is not None and p_at_theta.shape != p_plus.shape:
+        raise ValueError("p_at_theta must have the same shape as p_plus")
+
     # Central difference derivative
     deriv = (p_plus - p_minus) / (2 * dphi)
 
-    # Use average probability for denominator (more accurate)
-    p_avg = 0.5 * (p_plus + p_minus)
+    # Denominator: use p_at_theta if provided, otherwise average
+    if p_at_theta is not None:
+        denom = p_at_theta
+    else:
+        denom = 0.5 * (p_plus + p_minus)
 
     # F_C = Σ (∂P/∂φ)² / P
-    mask = p_avg > 1e-12
+    mask = denom > prob_floor
     if not np.any(mask):
         return 0.0
 
-    return float(np.sum(deriv[mask] ** 2 / p_avg[mask]))
+    return float(np.sum(deriv[mask] ** 2 / denom[mask]))
 
 
 def quantum_fisher_information(state: np.ndarray, generator: np.ndarray) -> float:

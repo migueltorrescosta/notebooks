@@ -199,6 +199,18 @@ The default baseline is a single-particle ($N=1$) MZI with system-only phase enc
 
 ---
 
+### 20. NOON and Twin-Fock MZI: Classical Fisher Information vs. Error-Propagation (2026-06-01)
+
+- **Configuration**: Standard MZI (BS1 → phase → BS2) with $H_t = 10$; **NOON states** $|N,0\rangle + |0,N\rangle$ (skip BS1) and **Twin-Fock states** $|N/2,N/2\rangle$ (after BS1) in two-mode Fock space truncated at $N_{\max}=20$. Sensitivity computed via **Classical Fisher Information** $F_C(\theta) = \sum_m (\partial P(m|\theta)/\partial\theta)^2 / P(m|\theta)$ from the full number-difference distribution $P(m|\theta)$, alongside the error-propagation formula $\Delta\theta_{\text{EP}} = \sqrt{\text{Var}(J_z)}/|\partial\langle J_z\rangle/\partial\theta|$ for comparison.
+- **Interferometric improvement**: **Not applicable (noise-free scaling survey)** — both saturate their QFI bounds under number-difference measurement. NOON achieves Heisenberg scaling $\Delta\theta_C = 1/(H_t N)$ (exponent $\alpha = -1.0000$). Twin-Fock achieves near-Heisenberg scaling $\Delta\theta_C = 1/(H_t \sqrt{N(N+2)/2})$ (exponent $\alpha = -0.907$ for $N\in[4,20]$, asymptotically $\alpha\to -1.0$).
+- **Unexpected findings**:
+  1. **$\langle J_z\rangle_{\text{out}} = 0$ for NOON $N\ge 2$ but not $N=1$**: Under the codebase's BS convention ($U_{\text{BS}}^\dagger J_z U_{\text{BS}} = J_y$), $\langle J_z\rangle_{\text{out}} = \langle\psi_{\text{in}}|J_y|\psi_{\text{in}}\rangle$ with $|\psi_{\text{in}}\rangle = (|N,0\rangle + e^{i\theta N H_t}|0,N\rangle)/\sqrt{2}$. The ladder operators $J_\pm = a_0^\dagger a_1, a_1^\dagger a_0$ map $|N,0\rangle \leftrightarrow |N-1,1\rangle$ and $|0,N\rangle \leftrightarrow |1,N-1\rangle$. For $N=1$, the mapped states coincide with the original components ($\langle 1,0|1,0\rangle = 1$), producing a non-zero $\langle J_z\rangle_{\text{out}} = -\tfrac12\sin(\theta H_t)$. For $N\ge 2$, the mapped states ($|N-1,1\rangle$ or $|1,N-1\rangle$) are orthogonal to both $|N,0\rangle$ and $|0,N\rangle$, so all inner products vanish and $\langle J_z\rangle_{\text{out}} = 0$ identically.
+  2. **CFI is $\theta$-independent for both states**: $F_C(\theta)$ is constant across all $\theta$ (numerical std $<10^{-3}$) for both NOON ($F_C = H_t^2 N^2$) and Twin-Fock ($F_C = H_t^2 N(N+2)/2$), saturating the QFI bound at every operating point. Unlike error-propagation, which diverges at fringe nulls where $\partial\langle J_z\rangle/\partial\theta \approx 0$, the CFI from the full distribution never loses sensitivity — the phase information is encoded in higher moments of $P(m|\theta)$ even when the first moment is pinned at zero.
+  3. **Number-difference measurement is optimal**: For both states in the balanced MZI, $\Delta\theta_C = \Delta\theta_Q$ identically at all $\theta$. The initial hypothesis that Twin-Fock would require parity measurement to saturate its QFI bound was incorrect — in a balanced MZI with no loss, the Fock-basis measurement at the output captures all available phase information.
+- **Explanation**: The $\langle J_z\rangle = 0$ degeneracy for $N\ge 2$ NOON arises from the mismatch between the ladder-operator image of each NOON component and the original component itself — the intermediate Fock states $|N-1,1\rangle$ and $|1,N-1\rangle$ are orthogonal to both $|N,0\rangle$ and $|0,N\rangle$. This forces $\langle J_z\rangle_{\text{out}} = 0$ identically, rendering the error-propagation formula invalid (the derivative $\partial\langle J_z\rangle/\partial\theta = 0$ at all $\theta$). The CFI approach resolves this by considering the full probability distribution $P(m|\theta)$, which carries phase information through the redistribution of probability weights among the $2N+1$ possible number-difference outcomes $m$ — even when $\langle J_z\rangle$ is pinned at zero. The $\theta$-independence of CFI follows from the fact that the output distribution undergoes a rigid translation in $m$-space as $\theta$ varies, maintaining a constant Fisher information at all operating points.
+
+---
+
 ## Summary of Key Results
 
 | Experiment | Outcome vs SQL | Key Physical Mechanism |
@@ -215,6 +227,7 @@ The default baseline is a single-particle ($N=1$) MZI with system-only phase enc
 | Phase-diffusion robustness | Sub-SQL survives $\gamma_\phi < 0.08$ | Static BCH term compensates drive reduction |
 | Drive-component analysis | $=$ SQL (all 2D slices) | Confirms $\theta$ must appear in $H_A$ |
 | **Free ancilla initial state** | **$=$ SQL** (all scenarios) | $J=1/2$ spectral radius bound is absolute for product states |
+| **NOON/Twin-Fock CFI vs error-propagation** | **N/A (scaling survey)** | $\langle J_z\rangle=0$ for NOON $N\ge2$; CFI resolves degeneracy via full distribution $P(m\vert\theta)$ |
 | Non-Markovian bath protection | PENDING | Infrastructure ready (75 tests) |
 | Advanced architectures survey | PENDING | Six models, theoretical framework ready |
 
