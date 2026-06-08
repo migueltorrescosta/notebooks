@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -646,7 +647,7 @@ class OptimisationResult:
     covariance_SA: float = 0.0
     history: list[float] = field(default_factory=list)
 
-    _PARQUET_COLUMNS = [
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
         "delta_theta_opt",
         "meas_label",
         "theta_true",
@@ -904,7 +905,7 @@ class ThetaScanResult:
             all_results={},
         )
 
-    _RESTART_COLUMNS = [
+    _RESTART_COLUMNS: ClassVar[list[str]] = [
         "theta",
         "restart_index",
         "delta_theta_opt",
@@ -1441,7 +1442,7 @@ class AlphaReoptScanResult:
     best_params_joint: list[np.ndarray] = field(default_factory=list)
     best_params_sonly: list[np.ndarray] = field(default_factory=list)
 
-    _PARAM_COLS = [
+    _PARAM_COLS: ClassVar[list[str]] = [
         "theta_S",
         "phi_S",
         "theta_A",

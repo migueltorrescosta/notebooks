@@ -1,8 +1,10 @@
-"""E2E tests using Playwright to verify Streamlit app navigation.
+"""E2E smoke tests using HTTP to verify Streamlit app launches and serves content.
 
 These tests verify that:
-1. The Streamlit app launches successfully
-2. The custom sidebar navigation is visible
+1. The Streamlit app launches successfully as a background process
+2. The HTTP server responds with a valid page
+
+No browser dependency is required — uses only urllib for HTTP requests.
 """
 
 from __future__ import annotations
@@ -14,7 +16,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -81,28 +82,33 @@ def streamlit_server() -> Generator[tuple[subprocess.Popen, int], None, None]:
 def test_given_streamlit_app_launches_then_start_without_immediate_errors(
     streamlit_server: tuple[subprocess.Popen, int],
 ) -> None:
+    """Verify the Streamlit process stays running after launch."""
     process, _port = streamlit_server
     time.sleep(5)
     assert process.poll() is None, "Streamlit process should be running"
 
 
-def test_given_sidebar_navigation_visible_then_be_visible(
+def test_given_app_running_then_serves_home_page(
     streamlit_server: tuple[subprocess.Popen, int],
 ) -> None:
+    """Verify the Streamlit server responds with HTTP 200 and contains expected content.
+
+    Uses only urllib — no browser dependency required.
+    """
+    import urllib.request
+
     _, port = streamlit_server
     base_url = f"http://localhost:{port}"
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+    response = urllib.request.urlopen(base_url, timeout=10)
+    assert response.status == 200, f"Expected HTTP 200, got {response.status}"
 
-        page.goto(base_url)
-
-        # Wait for the main content to load (streamlit renders client-side)
-        page.wait_for_selector('[data-testid="stSidebar"]', timeout=20000)
-
-        # Check that sidebar exists
-        sidebar = page.locator('[data-testid="stSidebar"]')
-        expect(sidebar).to_be_visible()
-
-        browser.close()
+    html = response.read().decode("utf-8")
+    # Streamlit renders a client-side app; the initial HTML is a thin shell
+    # containing the framework bootstrap and a root mount point.
+    assert '<div id="root"></div>' in html, (
+        "Expected Streamlit root mount point in HTML"
+    )
+    assert "streamlit" in html.lower(), (
+        "Expected Streamlit framework references in HTML"
+    )

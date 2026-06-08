@@ -7,11 +7,14 @@ on disk when given minimal valid input data.
 from __future__ import annotations
 
 import tempfile
-from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 from src.analysis.ancilla_drive_metrology import (
     Drive2DSliceResult,

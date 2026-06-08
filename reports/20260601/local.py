@@ -1224,7 +1224,7 @@ def generate_all(
         results[st] = data
 
     # --- Δθ overlay figures (one per state) ---
-    for st, n_range, _label in state_configs:
+    for st, _n_range, _label in state_configs:
         if only is not None and st != only:
             continue
         data = results.get(st)

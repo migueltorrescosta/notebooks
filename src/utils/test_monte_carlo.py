@@ -7,11 +7,13 @@ Run with:
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pytest
 from scipy.stats import kstest
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from src.utils.monte_carlo import (
     StratifiedBallConfig,
@@ -28,6 +30,7 @@ def _uniform_cdf(lo: float, hi: float) -> Callable[[float], float]:
         return (x - lo) / width
 
     return _cdf
+
 
 # ── Reusable constants ───────────────────────────────────────────────────────
 

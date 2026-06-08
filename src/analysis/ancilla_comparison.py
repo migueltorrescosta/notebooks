@@ -508,17 +508,17 @@ class RandomSearchResult:
         stem = path.stem
         rho_path = path.with_stem(stem + "-best-rho")
         n_dim = self.best_rho.shape[0]
-        rows = []
-        for i in range(n_dim):
-            for j in range(n_dim):
-                rows.append(
-                    {
-                        "row": i,
-                        "col": j,
-                        "real": np.real(self.best_rho[i, j]),
-                        "imag": np.imag(self.best_rho[i, j]),
-                    }
-                )
+        rows: list[dict[str, object]] = []
+        rows.extend(
+            {
+                "row": i,
+                "col": j,
+                "real": np.real(self.best_rho[i, j]),
+                "imag": np.imag(self.best_rho[i, j]),
+            }
+            for i in range(n_dim)
+            for j in range(n_dim)
+        )
         pd.DataFrame(rows).to_parquet(rho_path, index=False)
         fq_path = path.with_stem(stem + "-all-fq")
         pd.DataFrame({"fq_values": self.all_fq}).to_parquet(fq_path, index=False)
