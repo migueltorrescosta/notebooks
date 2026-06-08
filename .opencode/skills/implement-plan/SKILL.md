@@ -40,6 +40,7 @@ Define a disciplined, repeatable process for implementing physics simulations fr
 
 Before considering implementation complete, verify:
 
+0. **Update the CHANGELOG** — If this implementation completes a backlog item or adds significant infrastructure, add an entry under the appropriate weekly section using the format: `- **Title** (#YYYYMMDD) — description`. Remove the completed item from the backlog.
 1. **Tests pass**: Run `uv run pytest . --testmon --quiet --tb=short`
 2. **Linter passes**: Run `uv run ruff check . --fix && uv run ruff format .`
 3. **Type checks pass (mypy)**: Run `uv run mypy .`

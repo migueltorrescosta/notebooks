@@ -69,4 +69,5 @@ For each report review:
 - [ ] Key Finding paragraphs added to each experiment subsection
 - [ ] Success Criteria updated with PASS/FAIL annotations
 - [ ] Conclusions updated with summary of findings
+- [ ] CHANGELOG updated with the completed report under the appropriate weekly section using the format `- **Title** (#YYYYMMDD) — description`
 - [ ] Internal consistency: Results match Success Criteria match Conclusions

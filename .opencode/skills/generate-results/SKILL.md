@@ -53,6 +53,10 @@ Execute the simulation experiments defined in a report, produce all raw data and
 - After any code change, run `uv run pytest . --testmon --quiet --tb=short` to verify nothing is broken.
 - After any code change, run `uv run ruff check . --fix && uv run ruff format .`, `uv run mypy .`, and `uvx pyright src/ pages/`.
 
+## 5. Update the CHANGELOG
+
+After all figures and data are generated, add the experiment as an entry under the appropriate weekly section using the format: `- **Title** (#YYYYMMDD) — description`. Remove it from the `# Backlog` if it was there.
+
 # Standard Pipeline Instructions
 
 Every simulation run follows a strict four-step sequence. Execute these in order:

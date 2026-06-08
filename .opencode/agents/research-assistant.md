@@ -45,6 +45,7 @@ These apply to every task, regardless of which skills are loaded:
 5. **New code in `local.py`**: All new report-specific simulation code must be added to the report's `reports/YYYYMMDD/local.py`. Only promote code to `src/` when it is demonstrably reusable across multiple reports.
 6. **No module-level constants in `src/`**: Shared modules under `src/` must not define module-level constants for default parameters, bounds, or reference values. Use function-level defaults or `@dataclass` config objects instead.
 7. **No imports from `local.py`**: Code inside `local.py` must never be imported by modules outside its own report directory — including `src/`, `tests/`, and `pages/`. If a function in `local.py` is needed externally, promote it to a `src/` module first.
+8. **Keep the CHANGELOG current.** Every completed experiment or infrastructure task from the `# Backlog` in `CHANGELOG.md` must be moved into the appropriate weekly release section as part of the work. Never leave finished work unrecorded.
 
 # Skill Loading Order
 
@@ -366,6 +367,31 @@ Final wrap-up section. Summarize what was learned, whether the hypothesis was su
 
 Optional unsolved issues and future directions. Start the paragraph with `**Open items**` in bold — do not use a heading.
 
+# End-of-Task Verification
+
+At the end of every task, produce this verification checklist as part of your response text:
+
+```
+## Workflow Verification
+
+### Before implementation
+[✅/❌] Searched agentmemory for relevant context
+[✅/❌] Read relevant code for existing patterns
+[✅/❌] Consulted CHANGELOG.md backlog before starting
+[✅/❌] Challenged assumptions and asked clarifying questions
+[✅/❌] Tests pass before changes
+
+### After implementation
+[✅/❌] Followed YAGNI/KISS — no speculative abstractions
+[✅/❌] Tests pass after changes
+[✅/❌] Linting and formatting pass (ruff, mypy, pyright)
+[✅/❌] CHANGELOG.md updated with entry under the appropriate weekly section
+[✅/❌] Backlog entry removed if task came from backlog
+[✅/❌] New knowledge saved to agentmemory (memory_save)
+```
+
+Replace [✅/❌] with the actual outcome — every item must be answered. Mark inapplicable checks with [⬜].
+
 # Quick Reference
 
 ```bash
@@ -388,8 +414,9 @@ AgentMemory provides persistent across-session recall via an MCP backend (agentm
 
 1. **Search agentmemory** for relevant prior work, decisions, or discussions
 2. **Recall architecture decisions** that may constrain the current task
-3. **Recall coding conventions** and patterns established in earlier sessions
-4. **Save important new decisions, findings, or conventions** after completing a task
+3. **Consult the backlog** — Read `CHANGELOG.md`. Note if the task corresponds to a backlog entry by section and number.
+4. **Recall coding conventions** and patterns established in earlier sessions
+5. **Save important new decisions, findings, or conventions** after completing a task
 
 ## Always use these tools
 
@@ -409,7 +436,8 @@ AgentMemory provides persistent across-session recall via an MCP backend (agentm
 1. At the start of a task: `memory_recall` or `memory_smart_search` for relevant context
 2. During the task: consult recalled decisions and conventions
 3. After completing a significant step or task: `memory_save` with the key decisions, findings, and any conventions established
-4. Periodically: `memory_consolidate` to promote working memories into semantic and procedural tiers
-5. When a pattern emerges: `memory_lesson_save` to crystallize the lesson
+4. After completing a task (report, variation, or infrastructure): **update the CHANGELOG** — add a brief entry under the appropriate weekly section in the appropriate category using the format `- **Title** (#YYYYMMDD) — description`. If the task was from the backlog, remove the backlog entry.
+5. Periodically: `memory_consolidate` to promote working memories into episodic, semantic, and procedural tiers
+6. When a pattern emerges: `memory_lesson_save` to crystallize the lesson
 
 Search memory before answering implementation questions — prior context may already contain the answer.
