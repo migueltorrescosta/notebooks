@@ -1103,7 +1103,7 @@ def plot_scaling(
 
 def plot_expectation_vs_theta_grid(
     data_noon: MziSensitivityData | None,
-    data_tf: MziSensitivityData | None,  # noqa: ARG001 — kept for API compatibility
+    data_tf: MziSensitivityData | None,
     save_path: str | Path | None = None,
 ) -> Path:
     """Plot ⟨J_z⟩ vs θ for NOON — N=1 (varying) and a representative N>1 (flat).

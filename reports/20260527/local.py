@@ -49,6 +49,9 @@ from src.analysis.ancilla_drive_metrology import (
 from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
 )
+from src.utils.monte_carlo import (
+    stratified_ball_sample,
+)
 from src.visualization.ancilla_drive_plots import (
     plot_drive_2d_slice_heatmap,
 )
@@ -84,6 +87,9 @@ N_AZZ: int = 201
 
 # Envelope grid
 N_R: int = 100
+
+# Stratified sampling (used when method="stratified")
+N_STRATA: int = 50
 
 
 # ============================================================================
@@ -353,17 +359,80 @@ def _marsaglia_3ball_sample(
     return drive_samples, azz_samples
 
 
+def _sample_ball_for_theta(
+    theta_rng: np.random.Generator,
+    n_samp: int,
+    R: float,
+    azz_lo: float,
+    azz_hi: float,
+    sampling_method: str,
+    n_strata: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Dispatch to the appropriate ball-sampling method.
+
+    Args:
+        theta_rng: Random generator for this θ value.
+        n_samp: Total number of samples.
+        R: Ball radius.
+        azz_lo: Lower bound for a_zz.
+        azz_hi: Upper bound for a_zz.
+        sampling_method: ``"marsaglia"`` or ``"stratified"``.
+        n_strata: Number of radial strata (only used when
+            *sampling_method* is ``"stratified"``).
+
+    Returns:
+        Tuple (drive_samples, azz_samples).
+
+    Raises:
+        ValueError: If *sampling_method* is unknown.
+    """
+    if sampling_method == "marsaglia":
+        return _marsaglia_3ball_sample(theta_rng, n_samp, R, azz_lo, azz_hi)
+    if sampling_method == "stratified":
+        if n_samp % n_strata != 0:
+            raise ValueError(
+                f"n_samp={n_samp} must be divisible by n_strata={n_strata} "
+                "for stratified sampling"
+            )
+        n_per_stratum = n_samp // n_strata
+        return stratified_ball_sample(
+            theta_rng,
+            n_per_stratum,
+            n_strata,
+            R,
+            azz_lo,
+            azz_hi,
+        )
+    raise ValueError(
+        f"Unknown sampling_method='{sampling_method}'. "
+        "Must be 'marsaglia' or 'stratified'."
+    )
+
+
 def _normball_theta_chunk_worker(args: tuple) -> dict:
     """Worker for parallel norm-ball θ chunk (module-level for pickling).
 
     Args:
-        args: Tuple (theta_list, n_samp, R, azz_lo, azz_hi, T_H, T_BS, fd_step, base_seed).
+        args: Tuple (theta_list, n_samp, R, azz_lo, azz_hi, T_H, T_BS,
+            fd_step, base_seed, sampling_method, n_strata).
 
     Returns:
         Dict with keys 'theta_values', 'samples', 'deltas', 'exps',
         'vars_', 'derivs', 'norms', each a numpy array for the chunk.
     """
-    theta_list, n_samp, R, azz_lo, azz_hi, T_H, T_BS, fd_step, base_seed = args
+    (
+        theta_list,
+        n_samp,
+        R,
+        azz_lo,
+        azz_hi,
+        T_H,
+        T_BS,
+        fd_step,
+        base_seed,
+        sampling_method,
+        n_strata,
+    ) = args
     n_theta = len(theta_list)
     samples = np.zeros((n_theta, n_samp, 4), dtype=float)
     deltas = np.full((n_theta, n_samp), np.inf, dtype=float)
@@ -376,8 +445,14 @@ def _normball_theta_chunk_worker(args: tuple) -> dict:
         theta_rng = np.random.default_rng(
             base_seed + int(theta * 1000) if base_seed is not None else None
         )
-        drive_samp, azz_samp = _marsaglia_3ball_sample(
-            theta_rng, n_samp, R, azz_lo, azz_hi
+        drive_samp, azz_samp = _sample_ball_for_theta(
+            theta_rng,
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            sampling_method,
+            n_strata,
         )
         for si in range(n_samp):
             ax = float(drive_samp[si, 0])
@@ -425,18 +500,30 @@ def norm_ball_sampling(
     fd_step: float = FD_STEP,
     seed: int | None = 42,
     n_jobs: int | None = None,
+    sampling_method: str = "marsaglia",
+    n_strata: int = 10,
 ) -> NormBallResult:
     """Run norm-ball Monte Carlo sampling over multiple θ values.
 
-    For each θ, generates ``n_samp`` configurations uniformly from the
-    3-ball ‖a‖ ≤ R with a_zz ~ U[azz_lo, azz_hi] independently, and
-    evaluates the sensitivity Δθ for each configuration.
+    For each θ, generates ``n_samp`` configurations from the 3-ball
+    ‖a‖ ≤ R with a_zz ~ U[azz_lo, azz_hi] independently, and evaluates
+    the sensitivity Δθ for each configuration.
+
+    Two sampling methods are available:
+
+    - **marsaglia** (default): uniform volume distribution.  Most samples
+      lie at large radii (``P(r) ∝ r²``).
+    - **stratified**: uniform linear density in *r*.  The ball is divided
+      into *n_strata* equal-width radial bins; each bin receives
+      ``n_samp / n_strata`` samples.  Use this to resolve the small-r
+      regime.
 
     When ``n_jobs > 1``, θ values are split across worker processes.
 
     Args:
         theta_values: θ values to scan.
-        n_samp: Number of random samples per θ.
+        n_samp: Number of random samples per θ.  Must be divisible by
+            *n_strata* when using ``"stratified"``.
         R: Norm-ball radius.
         azz_bounds: (min, max) for a_zz.
         T_H: Holding-time strength.
@@ -445,9 +532,16 @@ def norm_ball_sampling(
         seed: Random seed for reproducibility.
         n_jobs: Number of parallel workers. ``None`` (default) = sequential.
             Pass ``-1`` to use all available CPUs.
+        sampling_method: ``"marsaglia"`` or ``"stratified"``.
+        n_strata: Number of radial strata for stratified sampling.
+            Ignored when *sampling_method* is ``"marsaglia"``.
 
     Returns:
         NormBallResult with all sample data.
+
+    Raises:
+        ValueError: If *sampling_method* is unknown, or if *n_samp* is not
+            divisible by *n_strata* for stratified sampling.
     """
     theta_arr = np.asarray(theta_values, dtype=float)
     n_theta = len(theta_arr)
@@ -468,8 +562,14 @@ def norm_ball_sampling(
             theta_rng = np.random.default_rng(
                 seed + int(theta * 1000) if seed is not None else None
             )
-            drive_samp, azz_samp = _marsaglia_3ball_sample(
-                theta_rng, n_samp, R, azz_lo, azz_hi
+            drive_samp, azz_samp = _sample_ball_for_theta(
+                theta_rng,
+                n_samp,
+                R,
+                azz_lo,
+                azz_hi,
+                sampling_method,
+                n_strata,
             )
 
             for si in range(n_samp):
@@ -510,6 +610,8 @@ def norm_ball_sampling(
                 T_BS,
                 fd_step,
                 seed,
+                sampling_method,
+                n_strata,
             )
             for chunk in chunks
         ]
@@ -918,9 +1020,7 @@ def plot_barycentric_sensitivity_heatmap(
 
     # Barycentric weights (only where all three are finite and total > 0)
     for st in ("ax", "ay", "az"):
-        merged[f"w_{st}"] = np.where(
-            all_finite, merged[f"log_{st}"] / total, np.nan
-        )
+        merged[f"w_{st}"] = np.where(all_finite, merged[f"log_{st}"] / total, np.nan)
 
     # Reshape to 2D grid (201 × 201)
     drive_vals = np.sort(merged["drive"].unique())
@@ -961,7 +1061,9 @@ def plot_barycentric_sensitivity_heatmap(
         float(drive_vals.min()),
         float(drive_vals.max()),
     )
-    ax.imshow(rgb, extent=extent, aspect="auto", origin="lower", interpolation="nearest")
+    ax.imshow(
+        rgb, extent=extent, aspect="auto", origin="lower", interpolation="nearest"
+    )
 
     ax.set_xlabel(r"$a_{zz}$ (Ising interaction)")
     ax.set_ylabel("$a_{\\mathrm{drive}}$ (ancilla drive coefficient)")
@@ -1124,20 +1226,41 @@ def generate_2d_slice_az_azz(force: bool = False, n_jobs: int | None = None) -> 
         _run_2d_slice(theta, slice_type="az", force=force, n_jobs=n_jobs)
 
 
-def generate_norm_ball(force: bool = False, n_jobs: int | None = None) -> None:
-    """Experiment 2: Norm-ball sampling at 50 θ values × 5000 samples."""
-    csv_p = _parquet_path("normball-samples")
-    env_csv_p = _parquet_path("normball-envelope")
-    fig_env_p = _fig_path("norm-envelope")
+def generate_norm_ball(
+    force: bool = False,
+    n_jobs: int | None = None,
+    sampling_method: str = "marsaglia",
+) -> None:
+    """Experiment 2: Norm-ball sampling at 50 θ values × 5000 samples.
+
+    Args:
+        force: Re-run even if Parquet files exist.
+        n_jobs: Number of parallel workers.
+        sampling_method: ``"marsaglia"`` or ``"stratified"``.
+    """
+    if sampling_method == "stratified":
+        suffix = "-stratified"
+    else:
+        suffix = ""
+    csv_p = _parquet_path(f"normball-samples{suffix}")
+    env_csv_p = _parquet_path(f"normball-envelope{suffix}")
+    fig_env_p = _fig_path(f"norm-envelope{suffix}")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
         result = NormBallResult.from_parquet(csv_p)
     else:
+        n_strata = 50 if sampling_method == "stratified" else 1
+        method_label = (
+            f"{sampling_method} ({n_strata} strata)"
+            if sampling_method == "stratified"
+            else sampling_method
+        )
         print(
             "[run]  Computing norm-ball sampling "
             f"({len(THETA_VALS)} θ × {N_SAMP} samples = "
-            f"{len(THETA_VALS) * N_SAMP} evaluations)..."
+            f"{len(THETA_VALS) * N_SAMP} evaluations, "
+            f"method={method_label})..."
         )
         result = norm_ball_sampling(
             theta_values=THETA_VALS,
@@ -1149,6 +1272,8 @@ def generate_norm_ball(force: bool = False, n_jobs: int | None = None) -> None:
             fd_step=FD_STEP,
             seed=42,
             n_jobs=n_jobs,
+            sampling_method=sampling_method,
+            n_strata=n_strata,
         )
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
@@ -1219,6 +1344,13 @@ def main() -> None:
         default=None,
         help="Number of parallel workers. -1 = all CPUs (default: sequential)",
     )
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="marsaglia",
+        choices=["marsaglia", "stratified"],
+        help="Sampling method for norm-ball (default: marsaglia)",
+    )
     args = parser.parse_args()
 
     # Ensure per-date directories exist
@@ -1242,6 +1374,7 @@ def main() -> None:
         *,
         force: bool,
         n_jobs: int | None,
+        sampling_method: str,
     ) -> None:
         import inspect
 
@@ -1249,17 +1382,29 @@ def main() -> None:
         kwargs: dict[str, object] = {"force": force}
         if "n_jobs" in sig.parameters:
             kwargs["n_jobs"] = n_jobs
+        if "sampling_method" in sig.parameters:
+            kwargs["sampling_method"] = sampling_method
         func(**kwargs)
 
     if args.only:
         if args.only not in tasks:
             print(f"Unknown dataset '{args.only}'. Options: {list(tasks.keys())}")
             sys.exit(1)
-        _dispatch(tasks[args.only], force=args.force, n_jobs=n_jobs)
+        _dispatch(
+            tasks[args.only],
+            force=args.force,
+            n_jobs=n_jobs,
+            sampling_method=args.method,
+        )
     else:
         for name, func in tasks.items():
             print(f"\n=== {name} ===")
-            _dispatch(func, force=args.force, n_jobs=n_jobs)
+            _dispatch(
+                func,
+                force=args.force,
+                n_jobs=n_jobs,
+                sampling_method=args.method,
+            )
 
     print("\nDone.")
 

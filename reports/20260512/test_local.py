@@ -51,6 +51,7 @@ def _fock_state(n0: int, n1: int) -> np.ndarray:
     s[n0 * 2 + n1] = 1.0
     return s
 
+
 # Shared parameter combinations reused across multiple tests
 _MZI_PARAMS = [
     (0.5, 0.1),

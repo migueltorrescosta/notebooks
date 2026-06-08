@@ -483,11 +483,13 @@ class FreeAncillaSearchResult:
         vars_ = df["variance"].to_numpy(dtype=float)
         derivs = df["derivative"].to_numpy(dtype=float)
 
-        for name, arr in [("expectation", exps), ("variance", vars_), ("derivative", derivs)]:
+        for name, arr in [
+            ("expectation", exps),
+            ("variance", vars_),
+            ("derivative", derivs),
+        ]:
             if np.any(np.isnan(arr)):
-                raise ValueError(
-                    f"Parquet at {path} contains NaN in '{name}' column"
-                )
+                raise ValueError(f"Parquet at {path} contains NaN in '{name}' column")
         fringes = df["is_fringe"].to_numpy(dtype=bool)
         best_idx = int(np.nanargmin(deltas))
         return cls(

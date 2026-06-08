@@ -426,7 +426,9 @@ class TestScalingAnalysis:
             N_values=N_vals,
         )
         scaling = fit_scaling_exponents(
-            sweep.theta_values, sweep.N_values, sweep.delta_theta_opt,
+            sweep.theta_values,
+            sweep.N_values,
+            sweep.delta_theta_opt,
         )
         valid = np.isfinite(scaling.exponents)
         if np.any(valid):
@@ -444,7 +446,9 @@ class TestScalingAnalysis:
             N_values=N_vals,
         )
         scaling = fit_scaling_exponents(
-            sweep.theta_values, sweep.N_values, sweep.delta_theta_opt,
+            sweep.theta_values,
+            sweep.N_values,
+            sweep.delta_theta_opt,
         )
         assert len(scaling.theta_values) == 3
         assert len(scaling.exponents) == 3
@@ -458,7 +462,9 @@ class TestScalingAnalysis:
             N_values=N_vals,
         )
         scaling = fit_scaling_exponents(
-            sweep.theta_values, sweep.N_values, sweep.delta_theta_opt,
+            sweep.theta_values,
+            sweep.N_values,
+            sweep.delta_theta_opt,
         )
         valid = np.isfinite(scaling.r_squared)
         if np.any(valid):

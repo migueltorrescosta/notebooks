@@ -312,8 +312,7 @@ def validate_density(rho: np.ndarray, atol: float = 1e-8) -> None:
     )
     assert result["is_hermitian"], "Density matrix not Hermitian"
     assert result["is_positive"], (
-        f"Density matrix has negative eigenvalues: "
-        f"min={result['min_eigenvalue']:.2e}"
+        f"Density matrix has negative eigenvalues: min={result['min_eigenvalue']:.2e}"
     )
 
 

@@ -74,14 +74,21 @@ def run_dual_N(N_val: int, theta_arr: np.ndarray, force: bool = False) -> Path |
     for i, theta_val in enumerate(theta_arr):
         t0 = time.time()
         opt = optimise_four_params(
-            N=N_val, theta=theta_val, ops=ops, psi0=psi0,
-            protocol="dual", n_starts=n_starts, T_H=DEFAULT_T_H,
+            N=N_val,
+            theta=theta_val,
+            ops=ops,
+            psi0=psi0,
+            protocol="dual",
+            n_starts=n_starts,
+            T_H=DEFAULT_T_H,
         )
         elapsed = time.time() - t0
         sql = 1.0 / (np.sqrt(N_val) * DEFAULT_T_H)
-        ratio = (opt.delta_theta_opt / sql
-                 if np.isfinite(opt.delta_theta_opt) and sql > 0
-                 else float("inf"))
+        ratio = (
+            opt.delta_theta_opt / sql
+            if np.isfinite(opt.delta_theta_opt) and sql > 0
+            else float("inf")
+        )
 
         thetas[i] = theta_val
         a_xx[i] = opt.alpha_opt[0]
@@ -97,16 +104,29 @@ def run_dual_N(N_val: int, theta_arr: np.ndarray, force: bool = False) -> Path |
         n_conv_arr[i] = opt.n_converged
         grad_norm_arr[i] = opt.gradient_norm
 
-        print(f"  [N={N_val:2d}, θ={theta_val:.1f}] Δθ={opt.delta_theta_opt:.6f}, "
-              f"ratio={ratio:.4f}, conv={opt.n_converged}/{n_starts}, "
-              f"t={elapsed:.0f}s ({i+1}/{total_theta})")
+        print(
+            f"  [N={N_val:2d}, θ={theta_val:.1f}] Δθ={opt.delta_theta_opt:.6f}, "
+            f"ratio={ratio:.4f}, conv={opt.n_converged}/{n_starts}, "
+            f"t={elapsed:.0f}s ({i + 1}/{total_theta})"
+        )
 
     result = FourParamSweepResult(
-        theta_values=thetas, N_values=Ns, protocol=protos,
-        alpha_xx_opt=a_xx, alpha_xz_opt=a_xz, alpha_zx_opt=a_zx, alpha_zz_opt=a_zz,
-        delta_theta_opt=delta_opts, sql_values=sqls, ratio=ratios,
-        expectation_Jz=exps, variance_Jz=vars_, d_expectation=d_exps,
-        n_starts=n_starts_arr, n_converged=n_conv_arr, gradient_norm=grad_norm_arr,
+        theta_values=thetas,
+        N_values=Ns,
+        protocol=protos,
+        alpha_xx_opt=a_xx,
+        alpha_xz_opt=a_xz,
+        alpha_zx_opt=a_zx,
+        alpha_zz_opt=a_zz,
+        delta_theta_opt=delta_opts,
+        sql_values=sqls,
+        ratio=ratios,
+        expectation_Jz=exps,
+        variance_Jz=vars_,
+        d_expectation=d_exps,
+        n_starts=n_starts_arr,
+        n_converged=n_conv_arr,
+        gradient_norm=grad_norm_arr,
         T_H=DEFAULT_T_H,
     )
     result.save_parquet(indv_path)
@@ -146,14 +166,21 @@ def run_sonly_N(N_val: int, theta_arr: np.ndarray, force: bool = False) -> Path 
     for i, theta_val in enumerate(theta_arr):
         t0 = time.time()
         opt = optimise_four_params(
-            N=N_val, theta=theta_val, ops=ops, psi0=psi0,
-            protocol="S-only", n_starts=n_starts, T_H=DEFAULT_T_H,
+            N=N_val,
+            theta=theta_val,
+            ops=ops,
+            psi0=psi0,
+            protocol="S-only",
+            n_starts=n_starts,
+            T_H=DEFAULT_T_H,
         )
         elapsed = time.time() - t0
         sql = 1.0 / (np.sqrt(N_val) * DEFAULT_T_H)
-        ratio = (opt.delta_theta_opt / sql
-                 if np.isfinite(opt.delta_theta_opt) and sql > 0
-                 else float("inf"))
+        ratio = (
+            opt.delta_theta_opt / sql
+            if np.isfinite(opt.delta_theta_opt) and sql > 0
+            else float("inf")
+        )
 
         thetas[i] = theta_val
         a_xx[i] = opt.alpha_opt[0]
@@ -169,16 +196,29 @@ def run_sonly_N(N_val: int, theta_arr: np.ndarray, force: bool = False) -> Path 
         n_conv_arr[i] = opt.n_converged
         grad_norm_arr[i] = opt.gradient_norm
 
-        print(f"  [S-only N={N_val:2d}, θ={theta_val:.1f}] Δθ={opt.delta_theta_opt:.6f}, "
-              f"ratio={ratio:.4f}, conv={opt.n_converged}/{n_starts}, "
-              f"t={elapsed:.0f}s ({i+1}/{total_theta})")
+        print(
+            f"  [S-only N={N_val:2d}, θ={theta_val:.1f}] Δθ={opt.delta_theta_opt:.6f}, "
+            f"ratio={ratio:.4f}, conv={opt.n_converged}/{n_starts}, "
+            f"t={elapsed:.0f}s ({i + 1}/{total_theta})"
+        )
 
     result = FourParamSweepResult(
-        theta_values=thetas, N_values=Ns, protocol=protos,
-        alpha_xx_opt=a_xx, alpha_xz_opt=a_xz, alpha_zx_opt=a_zx, alpha_zz_opt=a_zz,
-        delta_theta_opt=delta_opts, sql_values=sqls, ratio=ratios,
-        expectation_Jz=exps, variance_Jz=vars_, d_expectation=d_exps,
-        n_starts=n_starts_arr, n_converged=n_conv_arr, gradient_norm=grad_norm_arr,
+        theta_values=thetas,
+        N_values=Ns,
+        protocol=protos,
+        alpha_xx_opt=a_xx,
+        alpha_xz_opt=a_xz,
+        alpha_zx_opt=a_zx,
+        alpha_zz_opt=a_zz,
+        delta_theta_opt=delta_opts,
+        sql_values=sqls,
+        ratio=ratios,
+        expectation_Jz=exps,
+        variance_Jz=vars_,
+        d_expectation=d_exps,
+        n_starts=n_starts_arr,
+        n_converged=n_conv_arr,
+        gradient_norm=grad_norm_arr,
         T_H=DEFAULT_T_H,
     )
     result.save_parquet(indv_path)
@@ -189,9 +229,7 @@ def run_sonly_N(N_val: int, theta_arr: np.ndarray, force: bool = False) -> Path 
 def combine_dual_sweep() -> None:
     """Combine individual N parquets into full sweep result."""
     csv_p = parquet_path("dual-mzi-sweep")
-    all_paths = sorted(
-        Path(csv_p).parent.glob("20260523-dual-mzi-N*.parquet")
-    )
+    all_paths = sorted(Path(csv_p).parent.glob("20260523-dual-mzi-N*.parquet"))
     if not all_paths:
         print("  [skip] No individual N files found for dual MZI")
         return None
@@ -202,6 +240,7 @@ def combine_dual_sweep() -> None:
         all_results.append(r)
 
     import pandas as pd
+
     df = pd.concat([r.to_dataframe() for r in all_results], ignore_index=True)
     df = df.sort_values(["N", "theta"]).reset_index(drop=True)
 
@@ -242,9 +281,7 @@ def combine_dual_sweep() -> None:
 def combine_sonly_sweep() -> None:
     """Combine individual N parquets into full S-only sweep result."""
     csv_p = parquet_path("sonly-mzi-sweep")
-    all_paths = sorted(
-        Path(csv_p).parent.glob("20260523-sonly-mzi-N*.parquet")
-    )
+    all_paths = sorted(Path(csv_p).parent.glob("20260523-sonly-mzi-N*.parquet"))
     if not all_paths:
         print("  [skip] No individual N files found for S-only MZI")
         return
@@ -255,6 +292,7 @@ def combine_sonly_sweep() -> None:
         all_results.append(r)
 
     import pandas as pd
+
     df = pd.concat([r.to_dataframe() for r in all_results], ignore_index=True)
     df = df.sort_values(["N", "theta"]).reset_index(drop=True)
 
@@ -289,7 +327,9 @@ def run_dual_sweep(force: bool = False) -> None:
     """Run all N values for dual MZI sweep."""
     theta_arr = np.array(THETA_VALS, dtype=float)
     N_vals = DUAL_MZI_N_VALS
-    print(f"Dual MZI sweep: {len(N_vals)} N × {len(theta_arr)} θ = {len(N_vals) * len(theta_arr)} points (N=1..10)")
+    print(
+        f"Dual MZI sweep: {len(N_vals)} N × {len(theta_arr)} θ = {len(N_vals) * len(theta_arr)} points (N=1..10)"
+    )
 
     for N_val in N_vals:
         print(f"\n--- N={N_val} ---")
@@ -304,7 +344,7 @@ def run_dual_sweep(force: bool = False) -> None:
         est_per_point = 0.5 * scaling
         est_sec = est_per_point * total_per_N
         if est_sec > 60:
-            print(f"  Est. time: {est_sec/60:.0f} min")
+            print(f"  Est. time: {est_sec / 60:.0f} min")
         else:
             print(f"  Est. time: {est_sec:.0f}s")
 
@@ -315,7 +355,9 @@ def run_sonly_sweep(force: bool = False) -> None:
     """Run all N values for S-only MZI sweep."""
     theta_arr = np.array(THETA_VALS, dtype=float)
     N_vals = SONLY_MZI_N_VALS
-    print(f"S-only MZI sweep: {len(N_vals)} N × {len(theta_arr)} θ = {len(N_vals) * len(theta_arr)} points")
+    print(
+        f"S-only MZI sweep: {len(N_vals)} N × {len(theta_arr)} θ = {len(N_vals) * len(theta_arr)} points"
+    )
 
     for N_val in N_vals:
         print(f"\n--- S-only N={N_val} ---")
@@ -324,8 +366,12 @@ def run_sonly_sweep(force: bool = False) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Incremental sweep runner")
-    parser.add_argument("task", type=str, nargs="?",
-                        help="Task: dual-sweep, sonly-sweep, combine-dual, combine-sonly, all")
+    parser.add_argument(
+        "task",
+        type=str,
+        nargs="?",
+        help="Task: dual-sweep, sonly-sweep, combine-dual, combine-sonly, all",
+    )
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
 
@@ -364,6 +410,7 @@ def main() -> None:
             generate_scaling_analysis,
             generate_theta_dependence,
         )
+
         generate_n_scaling(force=args.force)
         generate_theta_dependence(force=args.force)
         generate_scaling_analysis(force=args.force)

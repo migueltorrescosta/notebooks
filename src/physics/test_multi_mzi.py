@@ -146,7 +146,10 @@ class TestEmbedCombinedOperators:
         ops = embed_combined_operators(N)
         for k in ["Jz", "Jx", "Jy"]:
             for label in ["Jz", "Jx", "Jy"]:
-                comm = ops[f"{k}_S"] @ ops[f"{label}_A"] - ops[f"{label}_A"] @ ops[f"{k}_S"]
+                comm = (
+                    ops[f"{k}_S"] @ ops[f"{label}_A"]
+                    - ops[f"{label}_A"] @ ops[f"{k}_S"]
+                )
                 assert np.allclose(comm, 0, atol=1e-12), (
                     f"[{k}_S, {label}_A] != 0 for N={N}"
                 )
@@ -173,9 +176,7 @@ class TestSingleBSUnitary:
         """T=0 should give the identity."""
         U = single_bs_unitary(N, T=0.0)
         eye = np.eye(N + 1, dtype=complex)
-        assert np.allclose(U, eye, atol=1e-12), (
-            f"BS(T=0) != I for N={N}"
-        )
+        assert np.allclose(U, eye, atol=1e-12), f"BS(T=0) != I for N={N}"
 
     def test_cache_hit_returns_same_object(self) -> None:
         """Cached call with same (N, T) should return the same object."""
@@ -224,6 +225,4 @@ class TestDualBSUnitary:
         U = dual_bs_unitary(N, T=0.0)
         dim = (N + 1) ** 2
         eye = np.eye(dim, dtype=complex)
-        assert np.allclose(U, eye, atol=1e-12), (
-            f"Dual BS(T=0) != I for N={N}"
-        )
+        assert np.allclose(U, eye, atol=1e-12), f"Dual BS(T=0) != I for N={N}"

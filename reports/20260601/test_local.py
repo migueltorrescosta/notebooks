@@ -31,7 +31,6 @@ del _sys, _report_dir
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     H_T,
     MziSensitivityData,
-    ScalingFitResult,
     _make_standard_twin_fock_state,
     analyse_best_worst_sensitivity,
     compute_fisher_classical,
@@ -124,7 +123,11 @@ class TestSimpleMziEvolution:
         """MZI evolution must preserve norm for NOON state."""
         state = input_state_factory("noon", N, N)
         final = simple_mzi_evolution(
-            state, theta=1.0, max_photons=N, H_t=H_T, skip_bs1=True,
+            state,
+            theta=1.0,
+            max_photons=N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         assert np.isclose(np.linalg.norm(final), 1.0, rtol=1e-10), f"Failed for N={N}"
 
@@ -133,7 +136,11 @@ class TestSimpleMziEvolution:
         """MZI evolution must preserve norm for standard Twin-Fock."""
         state = _make_standard_twin_fock_state(N, N)
         final = simple_mzi_evolution(
-            state, theta=1.0, max_photons=N, H_t=H_T, skip_bs1=False,
+            state,
+            theta=1.0,
+            max_photons=N,
+            H_t=H_T,
+            skip_bs1=False,
         )
         assert np.isclose(np.linalg.norm(final), 1.0, rtol=1e-10), f"Failed for N={N}"
 
@@ -142,7 +149,11 @@ class TestSimpleMziEvolution:
         N = 4
         state = input_state_factory("noon", N, N)
         final = simple_mzi_evolution(
-            state, theta=0.0, max_photons=N, H_t=H_T, skip_bs1=True,
+            state,
+            theta=0.0,
+            max_photons=N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         assert np.isclose(np.linalg.norm(final), 1.0, rtol=1e-10)
 
@@ -152,7 +163,11 @@ class TestSimpleMziEvolution:
         N = 4
         state = input_state_factory("noon", N, N)
         final = simple_mzi_evolution(
-            state, theta=theta, max_photons=N, H_t=H_T, skip_bs1=True,
+            state,
+            theta=theta,
+            max_photons=N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         var = compute_jz_variance(final, N)
         assert var >= -1e-12, f"Negative variance: {var}"
@@ -170,7 +185,7 @@ class TestNOONQFI:
         state = input_state_factory("noon", N, N)
         var = compute_jz_variance(state, N)
         assert np.isclose(var, N**2 / 4, rtol=1e-10), (
-            f"N={N}: Var={var}, expected {N**2/4}"
+            f"N={N}: Var={var}, expected {N**2 / 4}"
         )
 
     @pytest.mark.parametrize("N", [1, 2, 4, 6, 10])
@@ -194,7 +209,11 @@ class TestNOONQFI:
         r"""NOON probe with skip_bs1=True is the input itself (no BS1 applied)."""
         state = input_state_factory("noon", N, N)
         result = compute_mzi_sensitivity_grid(
-            state, np.linspace(0.1, 5.0, 5), N, H_t=H_T, skip_bs1=True,
+            state,
+            np.linspace(0.1, 5.0, 5),
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         var_from_qfi = result["fisher_quantum"] / (4.0 * H_T**2)
         expected_var = N**2 / 4.0
@@ -244,12 +263,22 @@ class TestComputeMziSensitivityGrid:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         expected_keys = {
-            "theta_values", "expectation_values", "variance_values",
-            "derivative_values", "delta_theta_ep", "delta_theta_q",
-            "fisher_quantum", "fisher_classical", "delta_theta_c",
+            "theta_values",
+            "expectation_values",
+            "variance_values",
+            "derivative_values",
+            "delta_theta_ep",
+            "delta_theta_q",
+            "fisher_quantum",
+            "fisher_classical",
+            "delta_theta_c",
         }
         assert expected_keys.issubset(result.keys()), (
             f"Missing keys: {expected_keys - set(result.keys())}"
@@ -261,11 +290,21 @@ class TestComputeMziSensitivityGrid:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         n_theta = len(theta_grid)
-        for key in ["expectation_values", "variance_values", "derivative_values",
-                     "delta_theta_ep", "fisher_classical", "delta_theta_c"]:
+        for key in [
+            "expectation_values",
+            "variance_values",
+            "derivative_values",
+            "delta_theta_ep",
+            "fisher_classical",
+            "delta_theta_c",
+        ]:
             assert len(result[key]) == n_theta, (
                 f"Key '{key}' has length {len(result[key])}, expected {n_theta}"
             )
@@ -278,7 +317,11 @@ class TestComputeMziSensitivityGrid:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         assert np.all(result["variance_values"] >= -1e-12)
 
@@ -288,7 +331,11 @@ class TestComputeMziSensitivityGrid:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         finite_count = np.sum(np.isfinite(result["delta_theta_ep"]))
         assert finite_count >= len(theta_grid) // 2, (
@@ -301,7 +348,11 @@ class TestComputeMziSensitivityGrid:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         delta_q = result["delta_theta_q"]
         for ep_val in result["delta_theta_ep"]:
@@ -316,7 +367,11 @@ class TestComputeMziSensitivityGrid:
         state = _make_standard_twin_fock_state(N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=False,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=False,
         )
         delta_q = result["delta_theta_q"]
         for ep_val in result["delta_theta_ep"]:
@@ -332,10 +387,18 @@ class TestComputeMziSensitivityGrid:
         grid1 = np.linspace(0.1, 2.0, 5)
         grid2 = np.linspace(3.0, 5.0, 5)
         r1 = compute_mzi_sensitivity_grid(
-            state, grid1, N, H_t=H_T, skip_bs1=True,
+            state,
+            grid1,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         r2 = compute_mzi_sensitivity_grid(
-            state, grid2, N, H_t=H_T, skip_bs1=True,
+            state,
+            grid2,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         assert np.isclose(r1["delta_theta_q"], r2["delta_theta_q"], rtol=1e-10)
 
@@ -347,7 +410,11 @@ class TestComputeMziSensitivityGrid:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         assert np.all(result["fisher_classical"] >= -1e-12), (
             "Some F_C values are negative"
@@ -359,7 +426,11 @@ class TestComputeMziSensitivityGrid:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         finite_c = np.sum(np.isfinite(result["delta_theta_c"]))
         finite_ep = np.sum(np.isfinite(result["delta_theta_ep"]))
@@ -377,7 +448,11 @@ class TestComputeMziSensitivityGrid:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         delta_q = result["delta_theta_q"]
         for c_val in result["delta_theta_c"]:
@@ -392,7 +467,11 @@ class TestComputeMziSensitivityGrid:
         state = _make_standard_twin_fock_state(N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=False,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=False,
         )
         delta_q = result["delta_theta_q"]
         for c_val in result["delta_theta_c"]:
@@ -407,7 +486,11 @@ class TestComputeMziSensitivityGrid:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
 
         alt_eps = 1e-7
@@ -418,19 +501,34 @@ class TestComputeMziSensitivityGrid:
                 continue
 
             state_out = simple_mzi_evolution(
-                state, theta, N, H_t=H_T, skip_bs1=True,
+                state,
+                theta,
+                N,
+                H_t=H_T,
+                skip_bs1=True,
             )
             state_plus = simple_mzi_evolution(
-                state, theta + alt_eps, N, H_t=H_T, skip_bs1=True,
+                state,
+                theta + alt_eps,
+                N,
+                H_t=H_T,
+                skip_bs1=True,
             )
             state_minus = simple_mzi_evolution(
-                state, theta - alt_eps, N, H_t=H_T, skip_bs1=True,
+                state,
+                theta - alt_eps,
+                N,
+                H_t=H_T,
+                skip_bs1=True,
             )
             P_theta = output_number_diff_distribution(state_out, N)
             P_plus = output_number_diff_distribution(state_plus, N)
             P_minus = output_number_diff_distribution(state_minus, N)
             fc_alt = compute_fisher_classical(
-                P_theta, P_plus, P_minus, epsilon=alt_eps,
+                P_theta,
+                P_plus,
+                P_minus,
+                epsilon=alt_eps,
             )
 
             if np.isfinite(fc_alt):
@@ -584,7 +682,9 @@ class TestMziSensitivityDataParquet:
         assert np.allclose(loaded.derivative_grid, make_result.derivative_grid)
         assert np.allclose(loaded.delta_theta_ep_grid, make_result.delta_theta_ep_grid)
         assert np.allclose(loaded.delta_theta_q_per_N, make_result.delta_theta_q_per_N)
-        assert np.allclose(loaded.fisher_classical_grid, make_result.fisher_classical_grid)
+        assert np.allclose(
+            loaded.fisher_classical_grid, make_result.fisher_classical_grid
+        )
         assert np.allclose(loaded.delta_theta_c_grid, make_result.delta_theta_c_grid)
         assert np.isclose(loaded.H_t, make_result.H_t)
 
@@ -620,8 +720,9 @@ class TestGenerateThetaScan:
         from local import generate_theta_scan
 
         theta_grid = np.linspace(0.1, 5.0, 5)
-        result = generate_theta_scan("noon", N=4, theta_grid=theta_grid,
-                                     max_photons=4, H_t=H_T)
+        result = generate_theta_scan(
+            "noon", N=4, theta_grid=theta_grid, max_photons=4, H_t=H_T
+        )
         assert result.state_type == "noon"
         assert result.N_values[0] == 4
         assert len(result.theta_values) == 5
@@ -633,8 +734,9 @@ class TestGenerateThetaScan:
         from local import generate_theta_scan
 
         theta_grid = np.linspace(0.1, 5.0, 5)
-        result = generate_theta_scan("twin_fock_std", N=4, theta_grid=theta_grid,
-                                     max_photons=4, H_t=H_T)
+        result = generate_theta_scan(
+            "twin_fock_std", N=4, theta_grid=theta_grid, max_photons=4, H_t=H_T
+        )
         assert result.state_type == "twin_fock_std"
         assert result.N_values[0] == 4
         assert len(result.theta_values) == 5
@@ -651,8 +753,9 @@ class TestOutputNumberDiffDistribution:
         """Sum of P(m|θ) = 1 for any output state."""
         N = 4
         state = input_state_factory("noon", N, N)
-        out = simple_mzi_evolution(state, theta=0.5, max_photons=N, H_t=H_T,
-                                   skip_bs1=True)
+        out = simple_mzi_evolution(
+            state, theta=0.5, max_photons=N, H_t=H_T, skip_bs1=True
+        )
         P = output_number_diff_distribution(out, N)
         assert np.isclose(np.sum(P), 1.0, rtol=1e-12), f"Sum={np.sum(P)}"
 
@@ -660,8 +763,9 @@ class TestOutputNumberDiffDistribution:
         """All P(m) ≥ 0."""
         N = 4
         state = input_state_factory("noon", N, N)
-        out = simple_mzi_evolution(state, theta=0.5, max_photons=N, H_t=H_T,
-                                   skip_bs1=True)
+        out = simple_mzi_evolution(
+            state, theta=0.5, max_photons=N, H_t=H_T, skip_bs1=True
+        )
         P = output_number_diff_distribution(out, N)
         assert np.all(P >= -1e-15), "Some probabilities are negative"
 
@@ -669,11 +773,12 @@ class TestOutputNumberDiffDistribution:
         """Array shape = (2*max_photons+1,)."""
         for M in [2, 4, 6]:
             state = input_state_factory("noon", M, M)
-            out = simple_mzi_evolution(state, theta=0.5, max_photons=M, H_t=H_T,
-                                       skip_bs1=True)
+            out = simple_mzi_evolution(
+                state, theta=0.5, max_photons=M, H_t=H_T, skip_bs1=True
+            )
             P = output_number_diff_distribution(out, M)
             assert P.shape == (2 * M + 1,), (
-                f"max_photons={M}: shape={P.shape}, expected {(2*M+1,)}"
+                f"max_photons={M}: shape={P.shape}, expected {(2 * M + 1,)}"
             )
 
     def test_number_difference_fock(self) -> None:
@@ -754,12 +859,20 @@ class TestClassicalFisher:
 
         fc_values = []
         for eps in [1e-6, 1e-7, 1e-8]:
-            P_plus = np.array([
-                0.5 - H_t_val * eps / 2, 0.0, 0.5 + H_t_val * eps / 2,
-            ])
-            P_minus = np.array([
-                0.5 + H_t_val * eps / 2, 0.0, 0.5 - H_t_val * eps / 2,
-            ])
+            P_plus = np.array(
+                [
+                    0.5 - H_t_val * eps / 2,
+                    0.0,
+                    0.5 + H_t_val * eps / 2,
+                ]
+            )
+            P_minus = np.array(
+                [
+                    0.5 + H_t_val * eps / 2,
+                    0.0,
+                    0.5 - H_t_val * eps / 2,
+                ]
+            )
             fc = compute_fisher_classical(P_theta, P_plus, P_minus, epsilon=eps)
             fc_values.append(fc)
 
@@ -767,7 +880,7 @@ class TestClassicalFisher:
             if fc_values[0] > 0 and fc_values[i] > 0:
                 rel_diff = abs(fc_values[i] - fc_values[0]) / fc_values[0]
                 assert rel_diff < 0.01, (
-                    f"ε={[1e-6,1e-7,1e-8][i]}: rel_diff={rel_diff:.6e}"
+                    f"ε={[1e-6, 1e-7, 1e-8][i]}: rel_diff={rel_diff:.6e}"
                 )
 
     def test_cfi_protected_division(self) -> None:
@@ -794,8 +907,11 @@ class TestAnalyseBestWorstSensitivity:
         grid = np.random.default_rng(42).uniform(0.01, 1, (2, 10))
         result = analyse_best_worst_sensitivity(N_vals, theta_vals, grid)
         expected_keys = {
-            "N_values", "best_sensitivity", "best_theta",
-            "worst_sensitivity", "worst_theta",
+            "N_values",
+            "best_sensitivity",
+            "best_theta",
+            "worst_sensitivity",
+            "worst_theta",
         }
         assert result.keys() == expected_keys, (
             f"Missing keys: {expected_keys - result.keys()}"
@@ -821,16 +937,24 @@ class TestAnalyseBestWorstSensitivity:
         best_idx = int(np.argmin(sens))
         worst_idx = int(np.argmax(sens))
         assert np.isclose(
-            result["best_sensitivity"][0], sens[best_idx], rtol=1e-10,
+            result["best_sensitivity"][0],
+            sens[best_idx],
+            rtol=1e-10,
         ), "Best sensitivity mismatch"
         assert np.isclose(
-            result["best_theta"][0], theta_vals[best_idx], rtol=1e-10,
+            result["best_theta"][0],
+            theta_vals[best_idx],
+            rtol=1e-10,
         ), "Best theta mismatch"
         assert np.isclose(
-            result["worst_sensitivity"][0], sens[worst_idx], rtol=1e-10,
+            result["worst_sensitivity"][0],
+            sens[worst_idx],
+            rtol=1e-10,
         ), "Worst sensitivity mismatch"
         assert np.isclose(
-            result["worst_theta"][0], theta_vals[worst_idx], rtol=1e-10,
+            result["worst_theta"][0],
+            theta_vals[worst_idx],
+            rtol=1e-10,
         ), "Worst theta mismatch"
 
 
@@ -846,7 +970,11 @@ class TestEdgeCases:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.1, 5.0, 5)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         assert np.isfinite(result["delta_theta_q"])
         assert result["delta_theta_q"] > 0
@@ -857,7 +985,11 @@ class TestEdgeCases:
         state = _make_standard_twin_fock_state(N, N)
         theta_grid = np.linspace(0.1, 5.0, 5)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=False,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=False,
         )
         assert np.isfinite(result["delta_theta_q"])
         assert result["delta_theta_q"] > 0
@@ -868,7 +1000,11 @@ class TestEdgeCases:
         state = input_state_factory("noon", N, N)
         theta_grid = np.linspace(0.0, np.pi, 50)
         result = compute_mzi_sensitivity_grid(
-            state, theta_grid, N, H_t=H_T, skip_bs1=True,
+            state,
+            theta_grid,
+            N,
+            H_t=H_T,
+            skip_bs1=True,
         )
         max_dt = np.max(result["delta_theta_ep"][np.isfinite(result["delta_theta_ep"])])
         assert max_dt > 10 * result["delta_theta_q"], (
@@ -887,7 +1023,7 @@ class TestEdgeCases:
         exp_n2 = np.real(state.conj() @ (n_op_mat @ n_op_mat) @ state)
         var_n = exp_n2 - exp_n**2
         assert np.isclose(var_n, N**2 / 4, rtol=1e-10), (
-            f"N={N}: Var(n₂)={var_n}, expected {N**2/4}"
+            f"N={N}: Var(n₂)={var_n}, expected {N**2 / 4}"
         )
 
 
@@ -900,7 +1036,9 @@ class TestCLI:
     def test_cli_help(self) -> None:
         result = subprocess.run(  # noqa: PLW1510
             [
-                "uv", "run", "python",
+                "uv",
+                "run",
+                "python",
                 str(Path(__file__).resolve().parent / "local.py"),
                 "--help",
             ],

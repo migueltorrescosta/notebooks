@@ -2391,8 +2391,6 @@ def compute_distributed_scaling(
     }
 
 
-
-
 # Custom Sensitivity Function Generators
 
 
@@ -2506,6 +2504,7 @@ def _ancilla_sensitivity_fn(
         is multiplied by ``(1 + noise_level)``.
 
     """
+
     def _sensitivity(N: int, noise_level: float) -> float:
         try:
             if N < 2:
@@ -3647,4 +3646,3 @@ def create_default_survey() -> list[ModelConfig]:
 # Section: ancilla_comparison
 
 # Operator Construction
-

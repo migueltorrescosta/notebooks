@@ -85,8 +85,9 @@ class TestFitScalingExponents:
     def test_perfect_sql_scaling(self) -> None:
         """If Δθ = 2 / sqrt(N), then α = -0.5 and C = 2."""
         theta_values = np.full(20, 0.5)
-        N_values = np.array([2, 3, 4, 5, 6, 8, 10, 12, 16, 20,
-                             24, 30, 36, 42, 48, 54, 60, 70, 80, 100])
+        N_values = np.array(
+            [2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24, 30, 36, 42, 48, 54, 60, 70, 80, 100]
+        )
         delta_theta_opt = 2.0 / np.sqrt(N_values)
 
         result = fit_scaling_exponents(theta_values, N_values, delta_theta_opt)
@@ -99,8 +100,7 @@ class TestFitScalingExponents:
     def test_heisenberg_scaling(self) -> None:
         """If Δθ = 3 / N, then α = -1.0 and C = 3."""
         theta_values = np.full(15, 1.0)
-        N_values = np.array([2, 3, 4, 5, 6, 8, 10, 12,
-                             15, 20, 25, 30, 40, 50, 60])
+        N_values = np.array([2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50, 60])
         delta_theta_opt = 3.0 / N_values
 
         result = fit_scaling_exponents(theta_values, N_values, delta_theta_opt)
@@ -115,10 +115,12 @@ class TestFitScalingExponents:
         N_vals = np.array([5, 10, 20, 40, 80])
         N_values = np.tile(N_vals, 2)
         theta_values = np.array([0.5] * 5 + [1.0] * 5)
-        delta_theta_opt = np.concatenate([
-            2.0 / np.sqrt(N_vals),
-            3.0 / N_vals,
-        ])
+        delta_theta_opt = np.concatenate(
+            [
+                2.0 / np.sqrt(N_vals),
+                3.0 / N_vals,
+            ]
+        )
 
         result = fit_scaling_exponents(theta_values, N_values, delta_theta_opt)
 

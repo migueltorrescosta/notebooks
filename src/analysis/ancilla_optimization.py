@@ -1442,9 +1442,17 @@ class AlphaReoptScanResult:
     best_params_sonly: list[np.ndarray] = field(default_factory=list)
 
     _PARAM_COLS = [
-        "theta_S", "phi_S", "theta_A", "phi_A",
-        "T_BS1", "T_BS2", "T_H",
-        "alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz",
+        "theta_S",
+        "phi_S",
+        "theta_A",
+        "phi_A",
+        "T_BS1",
+        "T_BS2",
+        "T_H",
+        "alpha_xx",
+        "alpha_xz",
+        "alpha_zx",
+        "alpha_zz",
     ]
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -1465,6 +1473,7 @@ class AlphaReoptScanResult:
             "delta_theta_joint": self.delta_theta_joint,
             "delta_theta_sonly": self.delta_theta_sonly,
         }
+
         # Pad or truncate params lists to match n
         def _pad(p: list[np.ndarray], n_target: int) -> list[np.ndarray]:
             if len(p) < n_target:
@@ -1507,7 +1516,9 @@ class AlphaReoptScanResult:
         """
         df = pd.read_parquet(path)
         required = {
-            "alpha", "delta_theta_joint", "delta_theta_sonly",
+            "alpha",
+            "delta_theta_joint",
+            "delta_theta_sonly",
         }
         for side in ("joint", "sonly"):
             for col in cls._PARAM_COLS:
@@ -2251,8 +2262,12 @@ class AlphaRandomSearchResult:
     def from_parquet(cls, path: str | Path) -> AlphaRandomSearchResult:
         df = pd.read_parquet(path)
         required = {
-            "alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz",
-            "delta_theta", "fixed_params_json",
+            "alpha_xx",
+            "alpha_xz",
+            "alpha_zx",
+            "alpha_zz",
+            "delta_theta",
+            "fixed_params_json",
         }
         missing = required - set(df.columns)
         if missing:

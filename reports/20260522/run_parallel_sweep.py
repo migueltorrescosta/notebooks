@@ -195,9 +195,7 @@ def main() -> None:
 
     scaling = fit_scaling_exponents(sweep)
     scaling.save_parquet(raw_dir / "20260522-dual-mzi-scaling.parquet")
-    plot_scaling_exponents(
-        scaling, fig_dir / "20260522-dual-mzi-scaling-exponents.svg"
-    )
+    plot_scaling_exponents(scaling, fig_dir / "20260522-dual-mzi-scaling-exponents.svg")
     print("All figures generated.")
 
 

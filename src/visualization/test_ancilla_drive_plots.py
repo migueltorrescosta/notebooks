@@ -93,9 +93,11 @@ class TestPlotDriveThetaScan:
     def test_creates_svg_file(self, tmp_svg: Path) -> None:
         result = DriveThetaScanResult(
             theta_values=np.array([0.5, 1.0, 1.5]),
-            best_params_per_theta=[(1.0, 0.0, 0.0, 0.5),
-                                   (0.8, 0.2, 0.1, 0.6),
-                                   (0.6, 0.4, 0.2, 0.7)],
+            best_params_per_theta=[
+                (1.0, 0.0, 0.0, 0.5),
+                (0.8, 0.2, 0.1, 0.6),
+                (0.6, 0.4, 0.2, 0.7),
+            ],
             best_delta_theta_per_theta=np.array([0.08, 0.07, 0.09]),
             sql_values=np.full(3, 0.1),
             expectation_Jz_per_theta=np.array([0.3, 0.4, 0.2]),
@@ -126,9 +128,11 @@ class TestPlotDriveOptimalParams:
     def test_creates_svg_file(self, tmp_svg: Path) -> None:
         result = DriveThetaScanResult(
             theta_values=np.array([0.5, 1.0, 1.5]),
-            best_params_per_theta=[(1.0, 0.0, 0.0, 0.5),
-                                   (0.8, 0.2, 0.1, 0.6),
-                                   (0.6, 0.4, 0.2, 0.7)],
+            best_params_per_theta=[
+                (1.0, 0.0, 0.0, 0.5),
+                (0.8, 0.2, 0.1, 0.6),
+                (0.6, 0.4, 0.2, 0.7),
+            ],
             best_delta_theta_per_theta=np.array([0.08, 0.07, 0.09]),
             sql_values=np.full(3, 0.1),
         )

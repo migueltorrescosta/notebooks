@@ -37,6 +37,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     EnvelopeResult,
     NormBallResult,
     _marsaglia_3ball_sample,
+    _sample_ball_for_theta,
     compute_sensitivity_with_extra,
     extract_envelope_curve,
     norm_ball_sampling,
@@ -100,6 +101,183 @@ class TestMarsaglia3BallSample:
         d2, a2 = _marsaglia_3ball_sample(rng2, 100, 10.0, -5.0, 5.0)
         assert np.allclose(d1, d2)
         assert np.allclose(a1, a2)
+
+
+# ============================================================================
+# Ball Sampling Dispatcher
+# ============================================================================
+
+
+class TestSampleBallForTheta:
+    def test_marsaglia_default(self) -> None:
+        rng = np.random.default_rng(42)
+        drive, azz = _sample_ball_for_theta(rng, 100, 10.0, -5.0, 5.0, "marsaglia", 1)
+        assert drive.shape == (100, 3)
+        assert azz.shape == (100,)
+
+    def test_stratified_correct_shape(self) -> None:
+        rng = np.random.default_rng(42)
+        drive, azz = _sample_ball_for_theta(
+            rng,
+            100,
+            10.0,
+            -5.0,
+            5.0,
+            "stratified",
+            10,
+        )
+        assert drive.shape == (100, 3)
+        assert azz.shape == (100,)
+
+    def test_stratified_requires_divisible(self) -> None:
+        rng = np.random.default_rng(42)
+        with pytest.raises(ValueError, match="must be divisible by n_strata"):
+            _sample_ball_for_theta(rng, 101, 10.0, -5.0, 5.0, "stratified", 10)
+
+    def test_unknown_method_raises(self) -> None:
+        rng = np.random.default_rng(42)
+        with pytest.raises(ValueError, match="Unknown sampling_method"):
+            _sample_ball_for_theta(rng, 100, 10.0, -5.0, 5.0, "invalid", 1)
+
+
+# ============================================================================
+# Norm-Ball Sampling — Stratified Mode
+# ============================================================================
+
+
+class TestNormBallSamplingStratified:
+    def test_stratified_correct_shape(self) -> None:
+        theta_vals = [0.5, 1.0]
+        result = norm_ball_sampling(
+            theta_values=theta_vals,
+            n_samp=100,
+            R=5.0,
+            seed=42,
+            sampling_method="stratified",
+            n_strata=10,
+        )
+        assert result.theta_values.shape == (2,)
+        assert result.samples.shape == (2, 100, 4)
+        assert result.delta_theta_values.shape == (2, 100)
+        assert result.norms.shape == (2, 100)
+
+    def test_stratified_norms_within_R(self) -> None:
+        result = norm_ball_sampling(
+            [1.0],
+            n_samp=100,
+            R=5.0,
+            seed=42,
+            sampling_method="stratified",
+            n_strata=10,
+        )
+        assert np.all(result.norms <= 5.0 + 1e-12)
+
+    def test_stratified_azz_within_bounds(self) -> None:
+        result = norm_ball_sampling(
+            [1.0],
+            n_samp=100,
+            R=5.0,
+            seed=42,
+            sampling_method="stratified",
+            n_strata=10,
+        )
+        a_zz_vals = result.samples[0, :, 3]
+        assert np.all(a_zz_vals >= AZZ_BOUNDS[0] - 1e-12)
+        assert np.all(a_zz_vals <= AZZ_BOUNDS[1] + 1e-12)
+
+    def test_stratified_deterministic(self) -> None:
+        r1 = norm_ball_sampling(
+            [1.0],
+            n_samp=100,
+            R=5.0,
+            seed=42,
+            sampling_method="stratified",
+            n_strata=10,
+        )
+        r2 = norm_ball_sampling(
+            [1.0],
+            n_samp=100,
+            R=5.0,
+            seed=42,
+            sampling_method="stratified",
+            n_strata=10,
+        )
+        assert np.allclose(r1.samples, r2.samples)
+        assert np.allclose(r1.delta_theta_values, r2.delta_theta_values)
+
+    def test_stratified_some_finite(self) -> None:
+        result = norm_ball_sampling(
+            [1.0],
+            n_samp=100,
+            R=5.0,
+            seed=42,
+            sampling_method="stratified",
+            n_strata=10,
+        )
+        finite_count = np.sum(np.isfinite(result.delta_theta_values))
+        assert finite_count > 0
+
+    def test_stratified_sql_bound_holds(self) -> None:
+        result = norm_ball_sampling(
+            [1.0],
+            n_samp=100,
+            R=5.0,
+            seed=42,
+            sampling_method="stratified",
+            n_strata=10,
+        )
+        finite_mask = np.isfinite(result.delta_theta_values)
+        if np.any(finite_mask):
+            min_dt = np.min(result.delta_theta_values[finite_mask])
+            assert min_dt >= SQL - 1e-12
+
+    def test_stratified_small_r_density(self) -> None:
+        """Stratified mode produces many more samples at small r than Marsaglia."""
+        r_m = norm_ball_sampling(
+            [1.0],
+            n_samp=500,
+            R=10.0,
+            seed=42,
+            sampling_method="marsaglia",
+        )
+        r_s = norm_ball_sampling(
+            [1.0],
+            n_samp=500,
+            R=10.0,
+            seed=42,
+            sampling_method="stratified",
+            n_strata=50,
+        )
+        count_m = int(np.sum(r_m.norms[0] <= 2.0))
+        count_s = int(np.sum(r_s.norms[0] <= 2.0))
+        assert count_s > count_m, (
+            f"Stratified has {count_s} samples at r≤2, "
+            f"Marsaglia has {count_m}; expected stratified to have more"
+        )
+
+    def test_stratified_each_stratum_has_samples(self) -> None:
+        """Each of the n_strata bins is populated."""
+        n_strata = 20
+        result = norm_ball_sampling(
+            [1.0],
+            n_samp=200,
+            R=10.0,
+            seed=42,
+            sampling_method="stratified",
+            n_strata=n_strata,
+        )
+        norms = result.norms[0]
+        r_bounds = np.linspace(0.0, 10.0, n_strata + 1)
+        for i in range(n_strata):
+            r_lo = r_bounds[i]
+            r_hi = r_bounds[i + 1]
+            mask = (norms > r_lo - 1e-12) & (norms <= r_hi + 1e-12)
+            count = int(np.sum(mask))
+            expected = 200 // n_strata  # 10
+            assert count == expected, (
+                f"Stratum [{r_lo:.2f}, {r_hi:.2f}] has {count} samples, "
+                f"expected {expected}"
+            )
 
 
 # ============================================================================
