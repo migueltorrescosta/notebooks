@@ -46,6 +46,7 @@ These apply to every task, regardless of which skills are loaded:
 6. **No module-level constants in `src/`**: Shared modules under `src/` must not define module-level constants for default parameters, bounds, or reference values. Use function-level defaults or `@dataclass` config objects instead.
 7. **No imports from `local.py`**: Code inside `local.py` must never be imported by modules outside its own report directory — including `src/`, `tests/`, and `pages/`. If a function in `local.py` is needed externally, promote it to a `src/` module first.
 8. **Keep the CHANGELOG current.** Every completed experiment or infrastructure task from the `# Backlog` in `CHANGELOG.md` must be moved into the appropriate weekly release section as part of the work. Never leave finished work unrecorded.
+9. **Backlog priority scheme** — The `# Backlog` in `CHANGELOG.md` uses 🔴🟠🟡🟢 as a 4-level scale (most → least urgent). When asked to **"Review priorities"**, reassign all backlog emojis following this scale with exactly 2–3 🔴 items and the rest roughly evenly split. Update or confirm the colour legend at the top of the `# Backlog` section.
 
 # Skill Loading Order
 

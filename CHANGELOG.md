@@ -60,29 +60,31 @@ with weekly groupings corresponding to experimental campaigns.
 
 # Backlog
 
+Priority colours: 🔴🟠🟡🟢
+
 ## Partially Completed
 
 Reports that have been started but are not yet fully complete (i.e., not all pipeline steps finished: plan report, implement code, review implementation, generate raw data and figures, write final report).
 
 - 🟡 **High-Order Squeezing Plan** (#20260507) — Hypothesis and theoretical model written. Next step: implement code (build the bosonic+spin oscillator simulation, Lindblad master equation solver with order-$n$ spin-dependent forces).
-- 🟢 **Non-Markovian Bath with Ancilla Protection** (#20260509) — Infrastructure complete and validated (75 unit tests). Pseudomode representation of Lorentzian bath, tripartite evolution, and QFI preservation pipeline all operational. Next step: generate raw data and figures (parameter sweeps over coupling $g$ and bath correlation $\lambda$).
+- 🔴 **Non-Markovian Bath with Ancilla Protection** (#20260509) — Infrastructure complete and validated (75 unit tests). Pseudomode representation of Lorentzian bath, tripartite evolution, and QFI preservation pipeline all operational. Next step: generate raw data and figures (parameter sweeps over coupling $g$ and bath correlation $\lambda$).
 - 🟡 **Advanced Architecture Surveys** (#20260511) — Theoretical framework documented for six models (non-Markovian bath, thermal Langevin noise, cavity-enhanced MZI, distributed sensor arrays, dynamical decoupling, tilt-to-length noise). Next step: implement code (build model-specific simulators and figure generators).
 
 ## Ancilla-Enhanced Metrology
 
 - 🟠 **3D drive-component landscape** — Beyond 20260527's one-at-a-time 2D slices: study the sensitivity landscape with all three drive components $(a_x, a_y, a_z)$ active simultaneously. Does the commuting $a_z$ drive "protect" against degradation from $a_x$ and $a_y$? Are there interference effects when all three are non-zero? See #20260527.
 - 🟠 **Stratified norm-ball sampling at small $\|\mathbf{a}\|$** — The Marsaglia method under-samples the small-$r$ regime (only $\sim 1\%$ of samples at $\|\mathbf{a}\| \le 2.15$). Use stratified sampling (uniform in $r$) to resolve the envelope at $\|\mathbf{a}\| \le 1$ and determine whether the best ratio at small drive is meaningfully worse than SQL. Infrastructure unblocked: `--method stratified` flag available in `reports/20260527/local.py`. See #20260527, #20260608.
-- 🟠 **Free ancilla with $\theta$-modulated drive** — Combine the free-ancilla initial state (20260528, Scenario B) with the $\theta$-modulated drive mechanism (20260519: $H_A = \theta\cdot\mathbf{a}\cdot\mathbf{J}^A$). The 20260519 protocol achieved $4.91\times$ below SQL with a fixed ancilla $|1,0\rangle$; can a free ancilla $(\theta_A,\phi_A)$ improve this further? Does the optimal ancilla state depend on $\theta$? See #20260519, #20260528.
+- 🔴 **Free ancilla with $\theta$-modulated drive** — Combine the free-ancilla initial state (20260528, Scenario B) with the $\theta$-modulated drive mechanism (20260519: $H_A = \theta\cdot\mathbf{a}\cdot\mathbf{J}^A$). The 20260519 protocol achieved $4.91\times$ below SQL with a fixed ancilla $|1,0\rangle$; can a free ancilla $(\theta_A,\phi_A)$ improve this further? Does the optimal ancilla state depend on $\theta$? See #20260519, #20260528.
 - 🟡 **Entangled initial S--A state in driven-ancilla metrology** — Replace the product initial state $|1,0\rangle_S \otimes |\psi_A\rangle$ with a maximally entangled Bell state $|\Phi^+\rangle = (|00\rangle + |11\rangle)/\sqrt{2}$ and test whether the $J=1/2$ bound still holds when S and A are entangled from the start.
 - 🟡 **Multi-particle ancilla ($J_A > 1/2$) with free initial state** — Test whether an ancilla with $J_A = 1, 3/2, 2$ (M=2,3,4 particles) can circumvent the single-qubit SQL bound through its larger Hilbert space.
-- 🟡 **Simple evolution structures for Heisenberg-limit scaling with an ancilla** — Read reports/findings/interferometric_sensitivity_improvements.md and relevant reports. Suggest simple evolution structures (Hamiltonians, measurement schemes, encoding strategies) that would unblock Heisenberg-limit scaling with an ancilla system, while the original system setup could not beat SQL scaling.
-- 🟡 **Joint measurement with driven ancilla** — Combine the $\theta$-modulated drive (20260519) with an optimized weighted joint measurement $M = aJ_z^S + bJ_z^A$ (20260525) to test whether the two enhancement mechanisms compound. See #20260519, #20260525.
-- 🟡 **Phase-modulated drive with larger $N$** — Extend the 20260519 phase-modulated drive mechanism to $N>1$ system particles. Does the SQL-violation ratio $(\Delta\theta_{\text{SQL}}/\Delta\theta)$ improve with system size, or does it saturate? See #20260519.
+- 🟠 **Simple evolution structures for Heisenberg-limit scaling with an ancilla** — Read reports/findings/interferometric_sensitivity_improvements.md and relevant reports. Suggest simple evolution structures (Hamiltonians, measurement schemes, encoding strategies) that would unblock Heisenberg-limit scaling with an ancilla system, while the original system setup could not beat SQL scaling.
+- 🟠 **Joint measurement with driven ancilla** — Combine the $\theta$-modulated drive (20260519) with an optimized weighted joint measurement $M = aJ_z^S + bJ_z^A$ (20260525) to test whether the two enhancement mechanisms compound. See #20260519, #20260525.
+- 🔴 **Phase-modulated drive with larger $N$** — Extend the 20260519 phase-modulated drive mechanism to $N>1$ system particles. Does the SQL-violation ratio $(\Delta\theta_{\text{SQL}}/\Delta\theta)$ improve with system size, or does it saturate? See #20260519.
 - 🟢 **Free ancilla with joint measurement** — Apply the free-ancilla initial state (20260528) to the weighted joint measurement protocol (20260518 NM generalization) to test whether a free ancilla unlocks better joint-readout sensitivity than a fixed $|1,0\rangle$ ancilla. See #20260518, #20260528.
 
 ## Squeezed-State & Non-Gaussian Metrology
 
-- 🟡 **Heisenberg-limited MZI with squeezed-vacuum and OAT** — Extend the CFI analysis (#20260601) to squeezed-vacuum input and OAT-generated spin-squeezed states; confirm $\alpha\to-1.0$ and compare prefactor with NOON/Twin-Fock. See #20260601.
+- 🟠 **Heisenberg-limited MZI with squeezed-vacuum and OAT** — Extend the CFI analysis (#20260601) to squeezed-vacuum input and OAT-generated spin-squeezed states; confirm $\alpha\to-1.0$ and compare prefactor with NOON/Twin-Fock. See #20260601.
 
 ## Foundational Analysis
 
