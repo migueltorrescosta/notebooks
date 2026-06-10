@@ -1,5 +1,5 @@
 ---
-name: review-implementation
+name: audit-code
 description: MUST be used when reviewing code implementation against project standards. Reads the report, then checks the codebase for violations of architecture, testing, numerical, and coding conventions. Suggests fixes but does NOT implement them.
 ---
 

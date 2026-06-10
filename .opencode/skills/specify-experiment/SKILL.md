@@ -1,5 +1,5 @@
 ---
-name: plan-report
+name: specify-experiment
 description: MUST be used when writing a new report in reports/ based on a user request. Surveys existing reports, clarifies the research question, determines the minimum Hilbert space, and writes the formatted markdown file. Do NOT use for editing existing reports or for implementation.
 ---
 

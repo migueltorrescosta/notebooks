@@ -1,5 +1,5 @@
 ---
-name: implement-plan
+name: build-simulation
 description: MUST be used when implementing code in the codebase based on a report in reports/. Reads the report, plans the physical model, writes tests first, and implements following project architecture and numerical guidelines. Do NOT use for writing reports or generating results figures.
 ---
 

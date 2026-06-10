@@ -15,7 +15,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
 4. Respect the 100 ms per-simulation performance budget.
 5. Save results with the correct naming convention and directory structure.
 6. If code needs minor fixes to run correctly, make the minimum changes needed — do not implement new features.
-7. If the codebase lacks a required simulation function, flag it for the implement-plan skill rather than building it.
+7. If the codebase lacks a required simulation function, flag it for the build-simulation skill rather than building it.
 
 # Workflow
 
@@ -37,7 +37,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
 1. Execute parameter sweeps defined in the report's Numerical Simulation section.
 2. Save raw data as Parquet in `reports/{date}/raw_data/{date}-{name}.parquet` (where `{date}` is the YYYYMMDD report directory).
 3. Use `to_dataframe()` / `save_parquet()` on result dataclasses (see Code Architecture §Serialization for completeness requirements).
-4. If a simulation function is missing or incorrect, fix it minimally. If the fix is substantial, flag it for implement-plan.
+4. If a simulation function is missing or incorrect, fix it minimally. If the fix is substantial, flag it for build-simulation.
 
 ## 3. Generating figures
 
@@ -49,7 +49,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
 ## 4. Code updates
 
 - If minor fixes are needed (e.g., missing parameter in `to_dataframe()`, incorrect default), make the minimal change.
-- If the code needs substantial changes (new operator, new state type, new solver), flag it for implement-plan rather than building it here.
+- If the code needs substantial changes (new operator, new state type, new solver), flag it for build-simulation rather than building it here.
 - After any code change, run `uv run pytest . --testmon --quiet --tb=short` to verify nothing is broken.
 - After any code change, run `uv run ruff check . --fix && uv run ruff format .`, `uv run mypy .`, and `uvx pyright src/ pages/`.
 

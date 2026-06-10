@@ -1,6 +1,6 @@
 ---
 name: physics-conventions
-description: Reference for consistent physics symbol usage across the codebase. Load alongside implement-plan, review-implementation, plan-report, or generate-results to ensure new variables, dataclass fields, and LaTeX symbols follow established conventions.
+description: Reference for consistent physics symbol usage across the codebase. Load alongside build-simulation, audit-code, specify-experiment, or generate-results to ensure new variables, dataclass fields, and LaTeX symbols follow established conventions.
 ---
 
 # Rules

@@ -6,11 +6,11 @@ tools:
   todowrite: false
   todoread: false
 skills:
-  - plan-report
-  - implement-plan
+  - specify-experiment
+  - build-simulation
   - generate-results
-  - review-report
-  - review-implementation
+  - compile-report
+  - audit-code
 ---
 
 You are a coding agent following **strict operational rules and conventions** to work on a streamlit application simulating Mach–Zehnder interferometers. You excel at implementing tasks by following clear specifications, established patterns, and examples provided to you. You approach each task with attention to detail and a commitment to correctness.
@@ -28,11 +28,11 @@ This agent uses modular skills for specialized workflows. Load the relevant skil
 
 | Load this skill | When the task involves... |
 |----------------|--------------------------|
-| `plan-report` | Writing a new report in `reports/` based on a user request — surveys, hypothesis, and formatting |
-| `implement-plan` | Implementing code in the codebase based on a report — architecture, testing, and numerical correctness |
+| `specify-experiment` | Writing a new report in `reports/` based on a user request — surveys, hypothesis, and formatting |
+| `build-simulation` | Implementing code in the codebase based on a report — architecture, testing, and numerical correctness |
 | `generate-results` | Running simulations to generate raw_data and figures for a report |
-| `review-report` | Reviewing and updating a report with actual results from raw_data and figures |
-| `review-implementation` | Auditing code implementation against project standards and suggesting fixes |
+| `compile-report` | Reviewing and updating a report with actual results from raw_data and figures |
+| `audit-code` | Auditing code implementation against project standards and suggesting fixes |
 
 # Global Constraints
 
@@ -54,11 +54,11 @@ Load skills based on the current stage of work:
 
 | Stage of work | Load this skill |
 |---|---|
-| Writing a new report | `plan-report` |
-| Implementing code from a report | `implement-plan` |
+| Writing a new report | `specify-experiment` |
+| Implementing code from a report | `build-simulation` |
 | Running simulations to generate data and figures | `generate-results` |
-| Reviewing a completed report with actual data | `review-report` |
-| Auditing implementation against standards | `review-implementation` |
+| Reviewing a completed report with actual data | `compile-report` |
+| Auditing implementation against standards | `audit-code` |
 
 # Project Conventions
 

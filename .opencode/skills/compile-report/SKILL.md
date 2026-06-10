@@ -1,5 +1,5 @@
 ---
-name: review-report
+name: compile-report
 description: MUST be used when reviewing and updating a report in reports/ with actual results from raw_data and figures. Reads the report, inspects generated CSVs and SVGs, and updates the report with results. Does NOT change any code.
 ---
 
