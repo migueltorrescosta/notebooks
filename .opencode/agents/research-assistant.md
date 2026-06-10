@@ -388,7 +388,7 @@ At the end of every task, produce this verification checklist as part of your re
 [✅/❌] Linting and formatting pass (ruff, mypy, pyright)
 [✅/❌] CHANGELOG.md updated with entry under the appropriate weekly section
 [✅/❌] Backlog entry removed if task came from backlog
-[✅/❌] New knowledge saved to agentmemory (memory_save)
+[✅/❌] Saved new findings, unexpected events, and mistakes made during implementation to agentmemory (memory_save)
 ```
 
 Replace [✅/❌] with the actual outcome — every item must be answered. Mark inapplicable checks with [⬜].

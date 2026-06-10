@@ -7,6 +7,9 @@ with weekly groupings corresponding to experimental campaigns.
 
 ## Week 24 (Jun 8–14)
 
+### New Report
+- **Non-Markovian Bath with Ancilla Protection** (#20260509) — Full pipeline: tripartite pseudomode simulator (src/physics/pseudomode_system.py, 61 tests), sweep infrastructure (reports/20260509/local.py, 39 tests), implementation audit, and parameter sweeps. All 100 tests pass. Ancilla sweep (51 pts, $\theta\in[0,\pi]$): $\theta^*=\pi/2$, $\mathcal{R}_{\text{with}}=4.37$ ($3.2\times$ no-ancilla). Memory sweep (40 pts, $\lambda\in[0.05,10]$): $\Delta\mathcal{R}=3.97$ at $\lambda=0.05$ vs $0.86$ at $\lambda=10$ — non-Markovian advantage confirmed. Time sweeps (4×31 pts, $T\in[0,5]$): $\mathcal{R}=12.6$ at $\theta=\pi/2$, $T=5$, demonstrating QFI enhancement ($\mathcal{R}>1$) via non-Markovian information backflow amplified by the ancilla. QuTiP sparse Liouvillian solver added for performance. 6 Parquet files, 3 SVG figures, report updated with embedded results.
+
 ### Infrastructure
 - **Symbol disambiguation campaign** — Disambiguated five overloaded symbols across the full codebase. Renamed phase rate `θ`→`ω`; bare `T`→semantic names (`T_hold`, `T_evo`, `T_decay`, `T_BS`, `T_kerr`, `T_dd`, `temp`); BS reflection `φ`→`phi_bs`, MZI estimation `φ`→`phi_phase`, Bloch azimuth `φ`→`phi_Bloch`; Kerr `χ`→`K`. Verified `α` overloading already resolved. Removed stale `$\phi$ vs $\theta$ semantic audit` backlog item. 0 bare `T` or ambiguous `phi`/`theta` parameters remain.
 - **API hardening and infrastructure cleanup** — Made `basis` a mandatory keyword argument on `jz_operator`/`jx_operator`/`jy_operator` (~80 call sites). Removed `validate_state`/`validate_hamiltonian` aliases; replaced 5 local Pauli-matrix redefinitions with `src.utils.constants` imports; renamed `delta`→`fd_step`, `hold_unitary`→`hold_unitary_two_qubit`/`hold_unitary_dicke`, `N_traj`→`n_traj`, `N_points`→`n_points`. Fixed 8 pre-existing test regressions across 6 report suites (stale imports, race conditions, tolerance relaxation). Updated SKILL.md Known Inconsistencies table.
@@ -67,7 +70,7 @@ Priority colours: 🔴🟠🟡🟢
 Reports that have been started but are not yet fully complete (i.e., not all pipeline steps finished: plan report, implement code, review implementation, generate raw data and figures, write final report).
 
 - 🟡 **High-Order Squeezing Plan** (#20260507) — Hypothesis and theoretical model written. Next step: implement code (build the bosonic+spin oscillator simulation, Lindblad master equation solver with order-$n$ spin-dependent forces).
-- 🔴 **Non-Markovian Bath with Ancilla Protection** (#20260509) — Infrastructure complete and validated (75 unit tests). Pseudomode representation of Lorentzian bath, tripartite evolution, and QFI preservation pipeline all operational. Next step: generate raw data and figures (parameter sweeps over coupling $g$ and bath correlation $\lambda$).
+
 - 🟡 **Advanced Architecture Surveys** (#20260511) — Theoretical framework documented for six models (non-Markovian bath, thermal Langevin noise, cavity-enhanced MZI, distributed sensor arrays, dynamical decoupling, tilt-to-length noise). Next step: implement code (build model-specific simulators and figure generators).
 
 ## Ancilla-Enhanced Metrology

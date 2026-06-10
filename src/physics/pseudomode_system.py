@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+import qutip
 import scipy
 import scipy.integrate
 import scipy.linalg
@@ -393,13 +394,13 @@ def evolve_pseudomode(
     Args:
         initial_state: Initial state vector (dim,) or density matrix (dim, dim).
         config: Simulation configuration.
-        method: Integration method - "rk4" (default) or "scipy".
+        method: Integration method - "rk4" (default), "scipy", or "qutip".
 
     Returns:
         Final density matrix of shape (dim, dim) where dim = 2*(N+1)*(K+1).
 
     Raises:
-        ValueError: If method is not "rk4" or "scipy".
+        ValueError: If method is not "rk4", "scipy", or "qutip".
 
     """
     N = config.N
@@ -434,7 +435,32 @@ def evolve_pseudomode(
         return evolve_lindblad_rk4(rho0, H, L_ops, gammas, config.T_decay, config.dt)
     if method == "scipy":
         return evolve_lindblad_scipy(rho0, H, L_ops, gammas, config.T_decay)
-    raise ValueError(f"Unknown method '{method}'. Use 'rk4' or 'scipy'.")
+    if method == "qutip":
+        # Convert to sparse QuTiP objects to avoid dense Liouvillian construction
+        H_qobj = qutip.Qobj(H).to("csr")
+        rho0_qobj = qutip.Qobj(rho0).to("csr")
+        c_ops_qobj = [
+            qutip.Qobj(np.sqrt(g) * L).to("csr")
+            for L, g in zip(L_ops, gammas, strict=True)
+        ]
+        # Tight tolerances for positivity preservation
+        options = {"rtol": 1e-12, "atol": 1e-14, "nsteps": 1_000_000}
+        result = qutip.mesolve(
+            H_qobj,
+            rho0_qobj,
+            [0, config.T_decay],
+            c_ops_qobj,
+            e_ops=[],
+            options=options,
+        )
+        rho = result.states[-1].full()
+        # Enforce Hermiticity and trace normalisation
+        rho = 0.5 * (rho + rho.conj().T)
+        trace = np.trace(rho)
+        if trace > 0:
+            rho = rho / trace
+        return rho
+    raise ValueError(f"Unknown method '{method}'. Use 'rk4', 'scipy', or 'qutip'.")
 
 
 # =============================================================================
@@ -666,7 +692,12 @@ def run_metrology_protocol(
             - ratio_with: qfi_with / qfi_initial
             - ratio_without: qfi_without / qfi_initial
             - pm_occupancy: <b^dagger b> (for truncation check)
+            - pm_occupancy_safe: bool, False if occupancy > 0.8*K
             - validation: validation dict (trace, hermiticity, positivity)
+
+    Raises:
+        RuntimeError: If pseudomode occupancy exceeds safe limit (0.8*K).
+            Indicates K is too small for the given g_sp/T parameters.
 
     """
     # Step 1: initial state
@@ -681,7 +712,8 @@ def run_metrology_protocol(
     qfi_initial = compute_qfi_with_ancilla(rho_entangled, config.N, config.K)
 
     # Step 4: non-Markovian decoherence evolution
-    rho_final = evolve_pseudomode(psi_entangled, config, method="rk4")
+    # Use qutip mesolve for efficient sparse Liouvillian integration.
+    rho_final = evolve_pseudomode(psi_entangled, config, method="qutip")
 
     # Step 5a: QFI with ancilla
     qfi_with = compute_qfi_with_ancilla(rho_final, config.N, config.K)
@@ -694,7 +726,15 @@ def run_metrology_protocol(
     ratio_without = qfi_without / qfi_initial if qfi_initial > 0 else 0.0
 
     # Pseudomode occupancy for truncation check
-    pm_occ, _ = check_pseudomode_occupancy(rho_final, config.N, config.K)
+    pm_occ, pm_occ_safe = check_pseudomode_occupancy(rho_final, config.N, config.K)
+
+    # Enforce the occupancy guard (fail-fast on truncation artifacts)
+    if not pm_occ_safe:
+        raise RuntimeError(
+            f"Pseudomode occupancy {pm_occ:.2f} exceeds safe limit "
+            f"0.8 * K = {0.8 * config.K:.2f}. Increase K (currently "
+            f"{config.K}) or reduce g_sp/T."
+        )
 
     # Validation
     validation = validate_density_matrix(rho_final)
@@ -707,6 +747,7 @@ def run_metrology_protocol(
         "ratio_with": ratio_with,
         "ratio_without": ratio_without,
         "pm_occupancy": pm_occ,
+        "pm_occupancy_safe": pm_occ_safe,
         "validation": validation,
     }
 
