@@ -38,11 +38,11 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     ALPHA_BOUNDS,
     DEFAULT_PSI0,
     DEFAULT_T_BS,
-    DEFAULT_T_H,
     N_BFGS_STARTS,
     SQL_REFERENCE,
+    DEFAULT_T_hold,
     GeneralBFGSOptimizationResult,
-    GeneralThetaScanResult,
+    GeneralOmegaScanResult,
     _upsert_bfgs_result,
     build_general_hold_hamiltonian,
     compute_general_decoupled_baseline,
@@ -53,7 +53,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     evolve_general_circuit,
     general_hold_unitary,
     run_general_bfgs_optimization,
-    run_general_theta_scan,
+    run_general_omega_scan,
 )
 
 # ============================================================================
@@ -75,21 +75,21 @@ def make_ops() -> dict:
 class TestOperatorConstruction:
     def test_hold_hamiltonian_hermitian(self, make_ops: dict) -> None:
         alpha = (1.0, -0.5, 2.0, 1.5)
-        H = build_general_hold_hamiltonian(theta=0.5, alpha=alpha, ops=make_ops)
+        H = build_general_hold_hamiltonian(omega=0.5, alpha=alpha, ops=make_ops)
         assert np.allclose(H, H.conj().T, atol=1e-12)
 
     def test_hold_hamiltonian_contains_jz_sum(self, make_ops: dict) -> None:
-        """H should contain θ(J_z^S + J_z^A) as the phase-encoding part."""
-        theta = 0.7
+        """H should contain ω(J_z^S + J_z^A) as the phase-encoding part."""
+        omega = 0.7
         alpha = (0.0, 0.0, 0.0, 0.0)
-        H = build_general_hold_hamiltonian(theta=theta, alpha=alpha, ops=make_ops)
-        expected = theta * (make_ops["Jz_S"] + make_ops["Jz_A"])
+        H = build_general_hold_hamiltonian(omega=omega, alpha=alpha, ops=make_ops)
+        expected = omega * (make_ops["Jz_S"] + make_ops["Jz_A"])
         assert np.allclose(H, expected, atol=1e-12)
 
-    def test_hold_hamiltonian_zero_theta(self, make_ops: dict) -> None:
-        """At θ=0, the Hamiltonian should be just H_int."""
+    def test_hold_hamiltonian_zero_omega(self, make_ops: dict) -> None:
+        """At ω=0, the Hamiltonian should be just H_int."""
         alpha = (1.0, 2.0, 3.0, 4.0)
-        H = build_general_hold_hamiltonian(theta=0.0, alpha=alpha, ops=make_ops)
+        H = build_general_hold_hamiltonian(omega=0.0, alpha=alpha, ops=make_ops)
         from local import build_interaction_hamiltonian
 
         H_int = build_interaction_hamiltonian(alpha)
@@ -97,21 +97,21 @@ class TestOperatorConstruction:
 
     def test_hold_unitary(self, make_ops: dict) -> None:
         alpha = (1.0, -0.5, 2.0, 1.5)
-        U = general_hold_unitary(T_H=1.0, theta=0.5, alpha=alpha, ops=make_ops)
+        U = general_hold_unitary(T_hold=1.0, omega=0.5, alpha=alpha, ops=make_ops)
         assert np.allclose(U @ U.conj().T, np.eye(4), atol=1e-12)
 
     def test_hold_unitary_identity_at_zero(self, make_ops: dict) -> None:
-        """At T_H=0, the hold unitary should be identity."""
+        """At T_hold=0, the hold unitary should be identity."""
         alpha = (1.0, 2.0, 3.0, 4.0)
-        U = general_hold_unitary(T_H=0.0, theta=0.5, alpha=alpha, ops=make_ops)
+        U = general_hold_unitary(T_hold=0.0, omega=0.5, alpha=alpha, ops=make_ops)
         assert np.allclose(U, np.eye(4), atol=1e-12)
 
-    @pytest.mark.parametrize("theta", [0.0, 0.5, 1.0, 2.0])
-    def test_hold_hermiticity_all_theta(self, theta: float, make_ops: dict) -> None:
+    @pytest.mark.parametrize("omega", [0.0, 0.5, 1.0, 2.0])
+    def test_hold_hermiticity_all_omega(self, omega: float, make_ops: dict) -> None:
         """Total H must be Hermitian for all parameters."""
         alpha = (1.0, -1.0, 1.0, -1.0)
-        H = build_general_hold_hamiltonian(theta, alpha, make_ops)
-        assert np.allclose(H, H.conj().T, atol=1e-12), f"H not Hermitian at θ={theta}"
+        H = build_general_hold_hamiltonian(omega, alpha, make_ops)
+        assert np.allclose(H, H.conj().T, atol=1e-12), f"H not Hermitian at ω={omega}"
 
     def test_commutation_jz_jx(self, make_ops: dict) -> None:
         comm_S = (
@@ -126,15 +126,15 @@ class TestOperatorConstruction:
     def test_decoupled_hold_reduces_to_factorised(self, make_ops: dict) -> None:
         """At α = (0,0,0,0), the hold should factorise.
 
-        exp(-i T_H θ (J_z^S + J_z^A)) = exp(-i T_H θ J_z) ⊗ exp(-i T_H θ J_z)
+        exp(-i T_hold ω (J_z^S + J_z^A)) = exp(-i T_hold ω J_z) ⊗ exp(-i T_hold ω J_z)
         since [J_z^S, J_z^A] = 0.
         """
-        theta = 0.5
-        T_H = 2.0
+        omega = 0.5
+        T_hold = 2.0
         alpha = (0.0, 0.0, 0.0, 0.0)
-        U = general_hold_unitary(T_H=T_H, theta=theta, alpha=alpha, ops=make_ops)
+        U = general_hold_unitary(T_hold=T_hold, omega=omega, alpha=alpha, ops=make_ops)
         J_z = np.array([[0.5, 0], [0, -0.5]], dtype=complex)
-        U_single = expm(-1j * T_H * theta * J_z)
+        U_single = expm(-1j * T_hold * omega * J_z)
         expected = np.kron(U_single, U_single)
         assert np.allclose(U, expected, atol=1e-12)
 
@@ -176,12 +176,12 @@ class TestCircuitEvolution:
         self, alpha: tuple[float, float, float, float], make_ops: dict
     ) -> None:
         psi = evolve_general_circuit(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 0.5, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 0.5, alpha, make_ops
         )
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
     def test_no_op_identity(self, make_ops: dict) -> None:
-        """T_BS=0, T_H=0, θ=0 should give the initial state back."""
+        """T_BS=0, T_hold=0, ω=0 should give the initial state back."""
         alpha = (0.0, 0.0, 0.0, 0.0)
         psi = evolve_general_circuit(DEFAULT_PSI0, 0.0, 0.0, 0.0, alpha, make_ops)
         assert np.allclose(psi, DEFAULT_PSI0, atol=1e-12)
@@ -191,10 +191,10 @@ class TestCircuitEvolution:
     ) -> None:
         """At α=0, the system and ancilla evolve independently."""
         T_BS = 0.0  # No BS to entangle them
-        T_H = 5.0
-        theta = 1.0
+        T_hold = 5.0
+        omega = 1.0
         alpha = (0.0, 0.0, 0.0, 0.0)
-        psi = evolve_general_circuit(DEFAULT_PSI0, T_BS, T_H, theta, alpha, make_ops)
+        psi = evolve_general_circuit(DEFAULT_PSI0, T_BS, T_hold, omega, alpha, make_ops)
         # State should be a product state: |ψ_S⟩ ⊗ |ψ_A⟩
         psi_mat = psi.reshape(2, 2)
         # Check that it's rank-1 (product state)
@@ -241,7 +241,7 @@ class TestReducedVariance:
     ) -> None:
         """Variance should always be non-negative."""
         psi = evolve_general_circuit(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 0.5, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 0.5, alpha, make_ops
         )
         var = compute_reduced_variance(psi)
         assert var >= -1e-12, f"Negative variance at α={alpha}: {var}"
@@ -250,7 +250,7 @@ class TestReducedVariance:
         """⟨J_z^S⟩ via reduced state should match full-state expectation."""
         alpha = (3.0, -2.0, 1.0, 4.0)
         psi = evolve_general_circuit(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 0.5, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 0.5, alpha, make_ops
         )
         exp_reduced = compute_reduced_expectation(psi)
         Jz_S = make_ops["Jz_S"]
@@ -265,26 +265,26 @@ class TestReducedVariance:
 
 class TestSensitivity:
     def test_decoupled_sensitivity(self, make_ops: dict) -> None:
-        """At α = (0,0,0,0), Δθ should equal SQL = 1/T_H."""
+        """At α = (0,0,0,0), Δω should equal SQL = 1/T_hold."""
         alpha = (0.0, 0.0, 0.0, 0.0)
-        dtheta = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 1.0, alpha, make_ops
+        domega = compute_general_sensitivity(
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, make_ops
         )
-        sql = 1.0 / DEFAULT_T_H
-        assert dtheta == pytest.approx(sql, rel=1e-6), (
-            f"Δθ={dtheta:.10f} != SQL={sql:.10f} at α=0"
+        sql = 1.0 / DEFAULT_T_hold
+        assert domega == pytest.approx(sql, rel=1e-6), (
+            f"Δω={domega:.10f} != SQL={sql:.10f} at α=0"
         )
 
-    @pytest.mark.parametrize("theta_true", [0.1, 0.5, 1.0, 2.0, 5.0])
-    def test_decoupled_all_theta(self, theta_true: float, make_ops: dict) -> None:
-        """At α = (0,0,0,0), Δθ = SQL for any θ."""
+    @pytest.mark.parametrize("omega_true", [0.1, 0.5, 1.0, 2.0, 5.0])
+    def test_decoupled_all_omega(self, omega_true: float, make_ops: dict) -> None:
+        """At α = (0,0,0,0), Δω = SQL for any ω."""
         alpha = (0.0, 0.0, 0.0, 0.0)
-        dtheta = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, theta_true, alpha, make_ops
+        domega = compute_general_sensitivity(
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, omega_true, alpha, make_ops
         )
-        sql = 1.0 / DEFAULT_T_H
-        assert dtheta == pytest.approx(sql, rel=1e-5), (
-            f"θ={theta_true}: Δθ={dtheta:.10f} != SQL={sql:.10f}"
+        sql = 1.0 / DEFAULT_T_hold
+        assert domega == pytest.approx(sql, rel=1e-5), (
+            f"ω={omega_true}: Δω={domega:.10f} != SQL={sql:.10f}"
         )
 
     @pytest.mark.parametrize(
@@ -306,10 +306,10 @@ class TestSensitivity:
         self, alpha: tuple[float, float, float, float], make_ops: dict
     ) -> None:
         """With non-zero α, sensitivity should be finite."""
-        dtheta = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 1.0, alpha, make_ops
+        domega = compute_general_sensitivity(
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, make_ops
         )
-        assert np.isfinite(dtheta), f"Non-finite Δθ={dtheta} at α={alpha}"
+        assert np.isfinite(domega), f"Non-finite Δω={domega} at α={alpha}"
 
     def test_sensitivity_positive(self, make_ops: dict) -> None:
         """Sensitivity should always be positive."""
@@ -321,39 +321,39 @@ class TestSensitivity:
             (0.0, 0.0, 0.0, 4.0),
             (1.0, -1.0, 1.0, -1.0),
         ]:
-            dtheta = compute_general_sensitivity(
-                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 1.0, a_vals, make_ops
+            domega = compute_general_sensitivity(
+                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, a_vals, make_ops
             )
-            assert dtheta > 0, f"Non-positive Δθ={dtheta} at α={a_vals}"
+            assert domega > 0, f"Non-positive Δω={domega} at α={a_vals}"
 
     def test_sensitivity_with_diagnostics_consistency(self, make_ops: dict) -> None:
         """compute_general_sensitivity and *_with_diagnostics should agree."""
         alpha = (2.0, -1.0, 3.0, -2.0)
-        theta = 0.5
-        dtheta1 = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, theta, alpha, make_ops
+        omega = 0.5
+        domega1 = compute_general_sensitivity(
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, omega, alpha, make_ops
         )
-        dtheta2, exp_val, var_val, d_exp = compute_general_sensitivity_with_diagnostics(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, theta, alpha, make_ops
+        domega2, exp_val, var_val, d_exp = compute_general_sensitivity_with_diagnostics(
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, omega, alpha, make_ops
         )
-        assert dtheta1 == pytest.approx(dtheta2, rel=1e-12)
+        assert domega1 == pytest.approx(domega2, rel=1e-12)
         assert np.isfinite(exp_val)
         assert var_val >= 0
         assert np.isfinite(d_exp)
 
     def test_fringe_extremum(self, make_ops: dict) -> None:
-        """At θ = π/T_H with α=0, derivative should vanish (fringe extremum)."""
+        """At ω = π/T_hold with α=0, derivative should vanish (fringe extremum)."""
         alpha = (0.0, 0.0, 0.0, 0.0)
-        dtheta = compute_general_sensitivity(
+        domega = compute_general_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
-            np.pi / DEFAULT_T_H,
+            DEFAULT_T_hold,
+            np.pi / DEFAULT_T_hold,
             alpha,
             make_ops,
         )
-        assert np.isinf(dtheta) or dtheta > 100, (
-            f"Δθ should be large at fringe extremum: {dtheta}"
+        assert np.isinf(domega) or domega > 100, (
+            f"Δω should be large at fringe extremum: {domega}"
         )
 
 
@@ -365,19 +365,19 @@ class TestSensitivity:
 class TestDecoupledBaseline:
     def test_baseline_matches_sql(self) -> None:
         result = compute_general_decoupled_baseline()
-        assert result.delta_theta == pytest.approx(result.sql, rel=1e-10)
+        assert result.delta_omega == pytest.approx(result.sql, rel=1e-10)
 
     def test_baseline_ratio(self) -> None:
         result = compute_general_decoupled_baseline()
-        ratio = result.delta_theta / result.sql
+        ratio = result.delta_omega / result.sql
         assert ratio == pytest.approx(1.0, rel=1e-10)
 
-    def test_baseline_multiple_thetas(self) -> None:
-        """Baseline should match SQL for any θ value."""
-        for theta_true in [0.1, 0.5, 1.0, 2.0, 5.0]:
-            result = compute_general_decoupled_baseline(theta_true=theta_true)
-            assert result.delta_theta == pytest.approx(result.sql, rel=1e-5), (
-                f"Baseline failed at θ={theta_true}"
+    def test_baseline_multiple_omegas(self) -> None:
+        """Baseline should match SQL for any ω value."""
+        for omega_true in [0.1, 0.5, 1.0, 2.0, 5.0]:
+            result = compute_general_decoupled_baseline(omega_true=omega_true)
+            assert result.delta_omega == pytest.approx(result.sql, rel=1e-5), (
+                f"Baseline failed at ω={omega_true}"
             )
 
 
@@ -390,18 +390,18 @@ class TestBFGSOptimisation:
     def test_optimisation_runs(self) -> None:
         """L-BFGS-B should complete without error."""
         result = run_general_bfgs_optimization(
-            theta_true=0.5,
+            omega_true=0.5,
             n_starts=5,
             maxiter=100,
         )
-        assert np.isfinite(result.delta_theta_opt)
+        assert np.isfinite(result.delta_omega_opt)
         assert result.n_starts == 5
         assert result.n_converged >= 0
 
     def test_optimisation_returns_valid_alpha(self) -> None:
         """Optimal α should be within bounds."""
         result = run_general_bfgs_optimization(
-            theta_true=1.0,
+            omega_true=1.0,
             n_starts=10,
             maxiter=200,
         )
@@ -409,29 +409,29 @@ class TestBFGSOptimisation:
         for a_val in result.alpha_opt:
             assert lo <= a_val <= hi, f"α={a_val} outside bounds [{lo}, {hi}]"
 
-    def test_optimisation_theta_recorded(self) -> None:
+    def test_optimisation_omega_recorded(self) -> None:
         result = run_general_bfgs_optimization(
-            theta_true=0.7,
+            omega_true=0.7,
             n_starts=5,
             maxiter=100,
         )
-        assert result.theta_value == pytest.approx(0.7)
+        assert result.omega_value == pytest.approx(0.7)
 
     def test_optimisation_diagnostics_recorded(self) -> None:
         result = run_general_bfgs_optimization(
-            theta_true=1.0,
+            omega_true=1.0,
             n_starts=5,
             maxiter=100,
         )
         assert np.isfinite(result.expectation_Jz)
         assert result.variance_Jz >= -1e-12
-        assert np.isfinite(result.d_exp_d_theta) or np.isinf(result.delta_theta_opt)
+        assert np.isfinite(result.d_exp_d_omega) or np.isinf(result.delta_omega_opt)
 
-    @pytest.mark.parametrize("theta_true", [0.1, 1.0, 3.0])
-    def test_optimisation_convergence_variation(self, theta_true: float) -> None:
-        """At least some starts should converge at each θ."""
+    @pytest.mark.parametrize("omega_true", [0.1, 1.0, 3.0])
+    def test_optimisation_convergence_variation(self, omega_true: float) -> None:
+        """At least some starts should converge at each ω."""
         result = run_general_bfgs_optimization(
-            theta_true=theta_true,
+            omega_true=omega_true,
             n_starts=10,
             maxiter=200,
         )
@@ -442,65 +442,65 @@ class TestBFGSOptimisation:
 
 
 # ============================================================================
-# Test: θ Scan
+# Test: ω Scan
 # ============================================================================
 
 
-class TestThetaScan:
-    def test_theta_scan_runs(self) -> None:
-        result = run_general_theta_scan(
-            theta_values=[0.1, 0.5, 1.0],
+class TestOmegaScan:
+    def test_omega_scan_runs(self) -> None:
+        result = run_general_omega_scan(
+            omega_values=[0.1, 0.5, 1.0],
             n_starts=5,
             maxiter=100,
         )
-        assert len(result.theta_values) == 3
-        assert len(result.delta_theta_opt_per_theta) == 3
+        assert len(result.omega_values) == 3
+        assert len(result.delta_omega_opt_per_omega) == 3
 
-    def test_theta_scan_all_alphas_recorded(self) -> None:
-        result = run_general_theta_scan(
-            theta_values=[0.1, 0.5, 1.0, 2.0, 5.0],
+    def test_omega_scan_all_alphas_recorded(self) -> None:
+        result = run_general_omega_scan(
+            omega_values=[0.1, 0.5, 1.0, 2.0, 5.0],
             n_starts=5,
             maxiter=100,
         )
-        assert len(result.alpha_xx_opt_per_theta) == 5
-        assert len(result.alpha_xz_opt_per_theta) == 5
-        assert len(result.alpha_zx_opt_per_theta) == 5
-        assert len(result.alpha_zz_opt_per_theta) == 5
+        assert len(result.alpha_xx_opt_per_omega) == 5
+        assert len(result.alpha_xz_opt_per_omega) == 5
+        assert len(result.alpha_zx_opt_per_omega) == 5
+        assert len(result.alpha_zz_opt_per_omega) == 5
         for i in range(5):
-            assert np.isfinite(result.alpha_xx_opt_per_theta[i]) or np.isnan(
-                result.alpha_xx_opt_per_theta[i]
+            assert np.isfinite(result.alpha_xx_opt_per_omega[i]) or np.isnan(
+                result.alpha_xx_opt_per_omega[i]
             )
 
-    def test_theta_scan_finite_results(self) -> None:
-        """All θ values should produce finite optimal Δθ."""
-        result = run_general_theta_scan(
-            theta_values=[0.1, 0.5, 1.0, 2.0, 5.0],
+    def test_omega_scan_finite_results(self) -> None:
+        """All ω values should produce finite optimal Δω."""
+        result = run_general_omega_scan(
+            omega_values=[0.1, 0.5, 1.0, 2.0, 5.0],
             n_starts=5,
             maxiter=100,
         )
-        for i, theta in enumerate(result.theta_values):
-            dt = result.delta_theta_opt_per_theta[i]
-            assert np.isfinite(dt), f"Non-finite Δθ at θ={theta}"
+        for i, omega in enumerate(result.omega_values):
+            dt = result.delta_omega_opt_per_omega[i]
+            assert np.isfinite(dt), f"Non-finite Δω at ω={omega}"
 
-    def test_theta_scan_expectation_variance(self) -> None:
-        result = run_general_theta_scan(
-            theta_values=[0.1, 1.0],
+    def test_omega_scan_expectation_variance(self) -> None:
+        result = run_general_omega_scan(
+            omega_values=[0.1, 1.0],
             n_starts=5,
             maxiter=100,
         )
-        assert len(result.expectation_Jz_per_theta) == 2
-        assert len(result.variance_Jz_per_theta) == 2
-        assert np.all(np.isfinite(result.expectation_Jz_per_theta))
+        assert len(result.expectation_Jz_per_omega) == 2
+        assert len(result.variance_Jz_per_omega) == 2
+        assert np.all(np.isfinite(result.expectation_Jz_per_omega))
 
-    def test_theta_scan_converged_recorded(self) -> None:
-        result = run_general_theta_scan(
-            theta_values=[0.1, 1.0],
+    def test_omega_scan_converged_recorded(self) -> None:
+        result = run_general_omega_scan(
+            omega_values=[0.1, 1.0],
             n_starts=5,
             maxiter=100,
         )
-        assert len(result.n_converged_per_theta) == 2
+        assert len(result.n_converged_per_omega) == 2
         for i in range(2):
-            assert 0 <= result.n_converged_per_theta[i] <= 5
+            assert 0 <= result.n_converged_per_omega[i] <= 5
 
 
 # ============================================================================
@@ -511,100 +511,100 @@ class TestThetaScan:
 class TestParquetRoundtrip:
     def test_bfgs_optimization_roundtrip(self, tmp_path: Path) -> None:
         original = GeneralBFGSOptimizationResult(
-            theta_value=1.0,
+            omega_value=1.0,
             alpha_opt=(5.0, -3.0, 2.0, 4.0),
-            delta_theta_opt=0.05,
+            delta_omega_opt=0.05,
             sql=0.1,
             expectation_Jz=0.25,
             variance_Jz=0.05,
-            d_exp_d_theta=-0.5,
+            d_exp_d_omega=-0.5,
             n_starts=100,
             n_converged=95,
         )
         parquet_path = tmp_path / "test_bfgs.parquet"
         original.save_parquet(parquet_path)
         loaded = GeneralBFGSOptimizationResult.from_parquet(parquet_path)
-        assert loaded.theta_value == pytest.approx(original.theta_value)
+        assert loaded.omega_value == pytest.approx(original.omega_value)
         assert loaded.alpha_opt == pytest.approx(original.alpha_opt)
-        assert loaded.delta_theta_opt == pytest.approx(original.delta_theta_opt)
+        assert loaded.delta_omega_opt == pytest.approx(original.delta_omega_opt)
         assert loaded.sql == pytest.approx(original.sql)
 
     def test_bfgs_roundtrip_all_metadata(self, tmp_path: Path) -> None:
         """Verify all metadata fields survive roundtrip."""
         original = GeneralBFGSOptimizationResult(
-            theta_value=0.5,
+            omega_value=0.5,
             alpha_opt=(10.0, -5.0, 0.0, -10.0),
-            delta_theta_opt=0.03,
+            delta_omega_opt=0.03,
             sql=0.1,
             expectation_Jz=-0.2,
             variance_Jz=0.15,
-            d_exp_d_theta=2.5,
+            d_exp_d_omega=2.5,
             n_starts=50,
             n_converged=48,
         )
         parquet_path = tmp_path / "test_bfgs_meta.parquet"
         original.save_parquet(parquet_path)
         loaded = GeneralBFGSOptimizationResult.from_parquet(parquet_path)
-        assert loaded.theta_value == pytest.approx(0.5)
+        assert loaded.omega_value == pytest.approx(0.5)
         assert np.allclose(loaded.alpha_opt, (10.0, -5.0, 0.0, -10.0))
-        assert loaded.delta_theta_opt == pytest.approx(0.03)
+        assert loaded.delta_omega_opt == pytest.approx(0.03)
         assert loaded.sql == pytest.approx(0.1)
         assert loaded.n_starts == 50
         assert loaded.n_converged == 48
 
-    def test_theta_scan_roundtrip(self, tmp_path: Path) -> None:
-        original = GeneralThetaScanResult(
-            theta_values=np.array([0.1, 0.5, 1.0]),
-            alpha_xx_opt_per_theta=np.array([5.0, 10.0, 15.0]),
-            alpha_xz_opt_per_theta=np.array([-2.0, 3.0, -5.0]),
-            alpha_zx_opt_per_theta=np.array([1.0, -1.0, 2.0]),
-            alpha_zz_opt_per_theta=np.array([3.0, -4.0, 6.0]),
-            delta_theta_opt_per_theta=np.array([0.05, 0.06, 0.08]),
+    def test_omega_scan_roundtrip(self, tmp_path: Path) -> None:
+        original = GeneralOmegaScanResult(
+            omega_values=np.array([0.1, 0.5, 1.0]),
+            alpha_xx_opt_per_omega=np.array([5.0, 10.0, 15.0]),
+            alpha_xz_opt_per_omega=np.array([-2.0, 3.0, -5.0]),
+            alpha_zx_opt_per_omega=np.array([1.0, -1.0, 2.0]),
+            alpha_zz_opt_per_omega=np.array([3.0, -4.0, 6.0]),
+            delta_omega_opt_per_omega=np.array([0.05, 0.06, 0.08]),
             sql_values=np.array([0.1, 0.1, 0.1]),
-            expectation_Jz_per_theta=np.array([0.1, 0.2, 0.3]),
-            variance_Jz_per_theta=np.array([0.01, 0.02, 0.03]),
-            d_exp_d_theta_per_theta=np.array([-0.5, 1.0, -1.5]),
-            n_converged_per_theta=np.array([95, 90, 85]),
+            expectation_Jz_per_omega=np.array([0.1, 0.2, 0.3]),
+            variance_Jz_per_omega=np.array([0.01, 0.02, 0.03]),
+            d_exp_d_omega_per_omega=np.array([-0.5, 1.0, -1.5]),
+            n_converged_per_omega=np.array([95, 90, 85]),
         )
-        parquet_path = tmp_path / "test_theta.parquet"
+        parquet_path = tmp_path / "test_omega.parquet"
         original.save_parquet(parquet_path)
-        loaded = GeneralThetaScanResult.from_parquet(parquet_path)
-        assert np.allclose(loaded.theta_values, original.theta_values)
+        loaded = GeneralOmegaScanResult.from_parquet(parquet_path)
+        assert np.allclose(loaded.omega_values, original.omega_values)
         assert np.allclose(
-            loaded.alpha_xx_opt_per_theta, original.alpha_xx_opt_per_theta
+            loaded.alpha_xx_opt_per_omega, original.alpha_xx_opt_per_omega
         )
         assert np.allclose(
-            loaded.alpha_xz_opt_per_theta, original.alpha_xz_opt_per_theta
+            loaded.alpha_xz_opt_per_omega, original.alpha_xz_opt_per_omega
         )
         assert np.allclose(
-            loaded.delta_theta_opt_per_theta, original.delta_theta_opt_per_theta
+            loaded.delta_omega_opt_per_omega, original.delta_omega_opt_per_omega
         )
         assert np.allclose(loaded.sql_values, original.sql_values)
 
-    def test_theta_scan_roundtrip_metadata(self, tmp_path: Path) -> None:
+    def test_omega_scan_roundtrip_metadata(self, tmp_path: Path) -> None:
         """Verify all metadata fields survive roundtrip."""
-        original = GeneralThetaScanResult(
-            theta_values=np.array([0.1, 0.5]),
-            alpha_xx_opt_per_theta=np.array([3.0, 7.0]),
-            alpha_xz_opt_per_theta=np.array([-1.0, 2.0]),
-            alpha_zx_opt_per_theta=np.array([4.0, -3.0]),
-            alpha_zz_opt_per_theta=np.array([-2.0, 5.0]),
-            delta_theta_opt_per_theta=np.array([0.04, 0.06]),
+        original = GeneralOmegaScanResult(
+            omega_values=np.array([0.1, 0.5]),
+            alpha_xx_opt_per_omega=np.array([3.0, 7.0]),
+            alpha_xz_opt_per_omega=np.array([-1.0, 2.0]),
+            alpha_zx_opt_per_omega=np.array([4.0, -3.0]),
+            alpha_zz_opt_per_omega=np.array([-2.0, 5.0]),
+            delta_omega_opt_per_omega=np.array([0.04, 0.06]),
             sql_values=np.array([0.1, 0.1]),
-            expectation_Jz_per_theta=np.array([0.15, 0.25]),
-            variance_Jz_per_theta=np.array([0.02, 0.03]),
-            d_exp_d_theta_per_theta=np.array([2.0, -1.0]),
-            n_converged_per_theta=np.array([80, 90]),
+            expectation_Jz_per_omega=np.array([0.15, 0.25]),
+            variance_Jz_per_omega=np.array([0.02, 0.03]),
+            d_exp_d_omega_per_omega=np.array([2.0, -1.0]),
+            n_converged_per_omega=np.array([80, 90]),
         )
-        parquet_path = tmp_path / "test_theta_meta.parquet"
+        parquet_path = tmp_path / "test_omega_meta.parquet"
         original.save_parquet(parquet_path)
-        loaded = GeneralThetaScanResult.from_parquet(parquet_path)
-        assert loaded.theta_values[0] == pytest.approx(0.1)
-        assert loaded.alpha_xx_opt_per_theta[1] == pytest.approx(7.0)
-        assert loaded.alpha_xz_opt_per_theta[0] == pytest.approx(-1.0)
+        loaded = GeneralOmegaScanResult.from_parquet(parquet_path)
+        assert loaded.omega_values[0] == pytest.approx(0.1)
+        assert loaded.alpha_xx_opt_per_omega[1] == pytest.approx(7.0)
+        assert loaded.alpha_xz_opt_per_omega[0] == pytest.approx(-1.0)
         assert loaded.sql_values[0] == pytest.approx(0.1)
-        assert loaded.expectation_Jz_per_theta[0] == pytest.approx(0.15)
-        assert loaded.n_converged_per_theta[1] == pytest.approx(90.0)
+        assert loaded.expectation_Jz_per_omega[0] == pytest.approx(0.15)
+        assert loaded.n_converged_per_omega[1] == pytest.approx(90.0)
 
     def test_bfgs_from_parquet_missing_columns(self, tmp_path: Path) -> None:
         """from_parquet should fail fast when required columns are missing."""
@@ -612,9 +612,9 @@ class TestParquetRoundtrip:
 
         df_bad = pd.DataFrame(
             {
-                "theta_value": [1.0],
+                "omega_value": [1.0],
                 "alpha_xx_opt": [5.0],
-                "delta_theta_opt": [0.05],
+                "delta_omega_opt": [0.05],
             }
         )
         parquet_path = tmp_path / "bad_bfgs.parquet"
@@ -622,20 +622,20 @@ class TestParquetRoundtrip:
         with pytest.raises(ValueError, match="missing required columns"):
             GeneralBFGSOptimizationResult.from_parquet(parquet_path)
 
-    def test_theta_scan_from_parquet_missing_columns(self, tmp_path: Path) -> None:
+    def test_omega_scan_from_parquet_missing_columns(self, tmp_path: Path) -> None:
         """from_parquet should fail fast when required columns are missing."""
         import pandas as pd
 
         df_bad = pd.DataFrame(
             {
-                "theta": [0.1, 0.5],
-                "best_delta_theta": [0.05, 0.06],
+                "omega": [0.1, 0.5],
+                "best_delta_omega": [0.05, 0.06],
             }
         )
-        parquet_path = tmp_path / "bad_theta.parquet"
+        parquet_path = tmp_path / "bad_omega.parquet"
         df_bad.to_parquet(parquet_path, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
-            GeneralThetaScanResult.from_parquet(parquet_path)
+            GeneralOmegaScanResult.from_parquet(parquet_path)
 
 
 # ============================================================================
@@ -660,7 +660,7 @@ class TestPhysicalInvariants:
         ]
         for alpha in alpha_list:
             psi = evolve_general_circuit(
-                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 1.0, alpha, ops
+                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, ops
             )
             var = compute_reduced_variance(psi)
             assert var >= -1e-12, f"Negative Var(J_z^S)={var:.2e} at α={alpha}"
@@ -668,7 +668,7 @@ class TestPhysicalInvariants:
     def test_hold_hermiticity_all_parameters(self) -> None:
         """Total H must be Hermitian for all parameter combinations."""
         ops = build_two_qubit_operators()
-        for theta in [0.0, 0.1, 1.0, 5.0]:
+        for omega in [0.0, 0.1, 1.0, 5.0]:
             for alpha in [
                 (0.0, 0.0, 0.0, 0.0),
                 (1.0, 0.0, 0.0, 0.0),
@@ -678,15 +678,15 @@ class TestPhysicalInvariants:
                 (5.0, -3.0, 2.0, -1.0),
                 (-10.0, 10.0, -10.0, 10.0),
             ]:
-                H = build_general_hold_hamiltonian(theta, alpha, ops)
+                H = build_general_hold_hamiltonian(omega, alpha, ops)
                 assert np.allclose(H, H.conj().T, atol=1e-12), (
-                    f"H not Hermitian at θ={theta}, α={alpha}"
+                    f"H not Hermitian at ω={omega}, α={alpha}"
                 )
 
     def test_unitarity_preserved(self) -> None:
         """All unitaries should be unitary for all parameters."""
         ops = build_two_qubit_operators()
-        for theta in [0.1, 1.0, 5.0]:
+        for omega in [0.1, 1.0, 5.0]:
             for alpha in [
                 (0.0, 0.0, 0.0, 0.0),
                 (5.0, 0.0, 0.0, 0.0),
@@ -694,49 +694,49 @@ class TestPhysicalInvariants:
                 (5.0, -5.0, 5.0, -5.0),
             ]:
                 U = general_hold_unitary(
-                    T_H=DEFAULT_T_H, theta=theta, alpha=alpha, ops=ops
+                    T_hold=DEFAULT_T_hold, omega=omega, alpha=alpha, ops=ops
                 )
                 assert np.allclose(U @ U.conj().T, np.eye(4), atol=1e-12), (
-                    f"Hold unitary not unitary at θ={theta}, α={alpha}"
+                    f"Hold unitary not unitary at ω={omega}, α={alpha}"
                 )
 
     def test_zz_only_gives_sql(self, make_ops: dict) -> None:
-        """α_zz-only interaction should give Δθ = SQL."""
+        """α_zz-only interaction should give Δω = SQL."""
         alpha = (0.0, 0.0, 0.0, 10.0)
-        dtheta = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 1.0, alpha, make_ops
+        domega = compute_general_sensitivity(
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, make_ops
         )
-        sql = 1.0 / DEFAULT_T_H
-        assert dtheta == pytest.approx(sql, rel=1e-6), (
-            f"α_zz-only: Δθ={dtheta:.10f} != SQL={sql:.10f}"
+        sql = 1.0 / DEFAULT_T_hold
+        assert domega == pytest.approx(sql, rel=1e-6), (
+            f"α_zz-only: Δω={domega:.10f} != SQL={sql:.10f}"
         )
 
     def test_zx_only_finite(self, make_ops: dict) -> None:
-        """α_zx-only interaction should produce finite Δθ (BCH corrections)."""
+        """α_zx-only interaction should produce finite Δω (BCH corrections)."""
         alpha = (0.0, 0.0, 10.0, 0.0)
-        dtheta = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_H, 1.0, alpha, make_ops
+        domega = compute_general_sensitivity(
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, make_ops
         )
-        assert np.isfinite(dtheta), f"Non-finite Δθ={dtheta} for α_zx-only"
-        assert dtheta > 0, f"Non-positive Δθ={dtheta} for α_zx-only"
+        assert np.isfinite(domega), f"Non-finite Δω={domega} for α_zx-only"
+        assert domega > 0, f"Non-positive Δω={domega} for α_zx-only"
 
     def test_derivative_stability(self, make_ops: dict) -> None:
         """Central-difference derivative should be stable across step sizes."""
         alpha = (2.0, -1.0, 3.0, -2.0)
-        theta = 0.5
+        omega = 0.5
         sensitivities = []
         for step in [1e-5, 1e-6, 1e-7]:
-            dtheta = compute_general_sensitivity(
+            domega = compute_general_sensitivity(
                 DEFAULT_PSI0,
                 DEFAULT_T_BS,
-                DEFAULT_T_H,
-                theta,
+                DEFAULT_T_hold,
+                omega,
                 alpha,
                 make_ops,
                 fd_step=step,
             )
-            if np.isfinite(dtheta):
-                sensitivities.append(dtheta)
+            if np.isfinite(domega):
+                sensitivities.append(domega)
         # We need at least 2 finite values to compare
         assert len(sensitivities) >= 2, (
             f"Not enough finite sensitivities: {sensitivities}"
@@ -758,7 +758,7 @@ class TestPhysicalInvariants:
 
 class TestConstants:
     def test_sql_reference_correct(self) -> None:
-        assert pytest.approx(1.0 / DEFAULT_T_H) == SQL_REFERENCE
+        assert pytest.approx(1.0 / DEFAULT_T_hold) == SQL_REFERENCE
 
     def test_alpha_bounds(self) -> None:
         lo, hi = ALPHA_BOUNDS
@@ -793,13 +793,13 @@ class TestDeltaLake:
         table_dir = str(tmp_dir / "bfgs-results")
 
         result = GeneralBFGSOptimizationResult(
-            theta_value=1.0,
+            omega_value=1.0,
             alpha_opt=(1.0, 2.0, 3.0, 4.0),
-            delta_theta_opt=0.05,
+            delta_omega_opt=0.05,
             sql=0.1,
             expectation_Jz=0.25,
             variance_Jz=0.0625,
-            d_exp_d_theta=-0.5,
+            d_exp_d_omega=-0.5,
             n_starts=100,
             n_converged=90,
         )
@@ -809,10 +809,10 @@ class TestDeltaLake:
         dt = DeltaTable(table_dir)
         df = dt.to_pandas()
         assert len(df) == 1
-        assert df["theta_value"].iloc[0] == pytest.approx(1.0)
+        assert df["omega_value"].iloc[0] == pytest.approx(1.0)
         assert df["alpha_xx_opt"].iloc[0] == pytest.approx(1.0)
         assert df["alpha_zz_opt"].iloc[0] == pytest.approx(4.0)
-        assert df["delta_theta_opt"].iloc[0] == pytest.approx(0.05)
+        assert df["delta_omega_opt"].iloc[0] == pytest.approx(0.05)
         assert df["n_converged"].iloc[0] == 90
 
     def test_delta_concurrent_append(
@@ -823,29 +823,29 @@ class TestDeltaLake:
         tmp_dir = tmp_path_factory.mktemp("delta_concurrent")
         table_dir = str(tmp_dir / "bfgs-results")
 
-        def _worker(theta: float) -> None:
+        def _worker(omega: float) -> None:
             result = GeneralBFGSOptimizationResult(
-                theta_value=theta,
-                alpha_opt=(theta, 0.0, 0.0, 0.0),
-                delta_theta_opt=0.05,
+                omega_value=omega,
+                alpha_opt=(omega, 0.0, 0.0, 0.0),
+                delta_omega_opt=0.05,
                 sql=0.1,
                 expectation_Jz=0.0,
                 variance_Jz=0.0625,
-                d_exp_d_theta=0.0,
+                d_exp_d_omega=0.0,
                 n_starts=10,
                 n_converged=10,
             )
             with patch("local.BFGS_TABLE_DIR", table_dir):
                 _upsert_bfgs_result(result)
 
-        thetas = [0.1 * i for i in range(10)]
+        omegas = [0.1 * i for i in range(10)]
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as exe:
-            list(exe.map(_worker, thetas))
+            list(exe.map(_worker, omegas))
 
         dt = DeltaTable(table_dir)
         df = dt.to_pandas()
         assert len(df) == 10
-        assert sorted(df["theta_value"].tolist()) == pytest.approx(thetas)
+        assert sorted(df["omega_value"].tolist()) == pytest.approx(omegas)
 
     def test_delta_force_recreates_table(
         self, tmp_path_factory: pytest.TempPathFactory
@@ -858,13 +858,13 @@ class TestDeltaLake:
         def _write_n_rows(n: int) -> None:
             for i in range(n):
                 result = GeneralBFGSOptimizationResult(
-                    theta_value=float(i),
+                    omega_value=float(i),
                     alpha_opt=(0.0, 0.0, 0.0, 0.0),
-                    delta_theta_opt=0.1,
+                    delta_omega_opt=0.1,
                     sql=0.1,
                     expectation_Jz=0.0,
                     variance_Jz=0.0,
-                    d_exp_d_theta=0.0,
+                    d_exp_d_omega=0.0,
                     n_starts=10,
                     n_converged=10,
                 )
@@ -883,63 +883,63 @@ class TestDeltaLake:
         dt = DeltaTable(table_dir)
         df = dt.to_pandas()
         assert len(df) == 2
-        assert sorted(df["theta_value"].tolist()) == [0.0, 1.0]
+        assert sorted(df["omega_value"].tolist()) == [0.0, 1.0]
 
-    def test_delta_to_theta_scan_roundtrip(
+    def test_delta_to_omega_scan_roundtrip(
         self, tmp_path_factory: pytest.TempPathFactory
     ) -> None:
-        """Write 5 rows; construct GeneralThetaScanResult; verify data matches."""
+        """Write 5 rows; construct GeneralOmegaScanResult; verify data matches."""
 
         tmp_dir = tmp_path_factory.mktemp("delta_roundtrip")
         table_dir = str(tmp_dir / "bfgs-results")
 
-        theta_vals = [0.1, 0.5, 1.0, 2.0, 5.0]
-        for theta in theta_vals:
+        omega_vals = [0.1, 0.5, 1.0, 2.0, 5.0]
+        for omega in omega_vals:
             result = GeneralBFGSOptimizationResult(
-                theta_value=theta,
-                alpha_opt=(theta * 2, theta, -theta, theta * 3),
-                delta_theta_opt=0.1 / theta if theta > 0 else 0.1,
+                omega_value=omega,
+                alpha_opt=(omega * 2, omega, -omega, omega * 3),
+                delta_omega_opt=0.1 / omega if omega > 0 else 0.1,
                 sql=0.1,
-                expectation_Jz=0.25 / theta if theta > 0 else 0.0,
+                expectation_Jz=0.25 / omega if omega > 0 else 0.0,
                 variance_Jz=0.0625,
-                d_exp_d_theta=-0.5 * theta,
+                d_exp_d_omega=-0.5 * omega,
                 n_starts=100,
-                n_converged=int(100 - theta * 10),
+                n_converged=int(100 - omega * 10),
             )
             with patch("local.BFGS_TABLE_DIR", table_dir):
                 _upsert_bfgs_result(result)
 
         # Read back via DeltaTable
         dt = DeltaTable(table_dir)
-        df = dt.to_pandas().sort_values("theta_value").reset_index(drop=True)
+        df = dt.to_pandas().sort_values("omega_value").reset_index(drop=True)
 
-        # Construct GeneralThetaScanResult from Delta data
-        scan_result = GeneralThetaScanResult(
-            theta_values=df["theta_value"].to_numpy(dtype=float),
-            alpha_xx_opt_per_theta=df["alpha_xx_opt"].to_numpy(dtype=float),
-            alpha_xz_opt_per_theta=df["alpha_xz_opt"].to_numpy(dtype=float),
-            alpha_zx_opt_per_theta=df["alpha_zx_opt"].to_numpy(dtype=float),
-            alpha_zz_opt_per_theta=df["alpha_zz_opt"].to_numpy(dtype=float),
-            delta_theta_opt_per_theta=df["delta_theta_opt"].to_numpy(dtype=float),
+        # Construct GeneralOmegaScanResult from Delta data
+        scan_result = GeneralOmegaScanResult(
+            omega_values=df["omega_value"].to_numpy(dtype=float),
+            alpha_xx_opt_per_omega=df["alpha_xx_opt"].to_numpy(dtype=float),
+            alpha_xz_opt_per_omega=df["alpha_xz_opt"].to_numpy(dtype=float),
+            alpha_zx_opt_per_omega=df["alpha_zx_opt"].to_numpy(dtype=float),
+            alpha_zz_opt_per_omega=df["alpha_zz_opt"].to_numpy(dtype=float),
+            delta_omega_opt_per_omega=df["delta_omega_opt"].to_numpy(dtype=float),
             sql_values=df["sql"].to_numpy(dtype=float),
-            expectation_Jz_per_theta=df["expectation_Jz"].to_numpy(dtype=float),
-            variance_Jz_per_theta=df["variance_Jz"].to_numpy(dtype=float),
-            d_exp_d_theta_per_theta=df["d_exp_d_theta"].to_numpy(dtype=float),
-            n_converged_per_theta=df["n_converged"].to_numpy(dtype=float),
+            expectation_Jz_per_omega=df["expectation_Jz"].to_numpy(dtype=float),
+            variance_Jz_per_omega=df["variance_Jz"].to_numpy(dtype=float),
+            d_exp_d_omega_per_omega=df["d_exp_d_omega"].to_numpy(dtype=float),
+            n_converged_per_omega=df["n_converged"].to_numpy(dtype=float),
         )
 
-        assert len(scan_result.theta_values) == 5
-        assert np.allclose(scan_result.theta_values, sorted(theta_vals))
+        assert len(scan_result.omega_values) == 5
+        assert np.allclose(scan_result.omega_values, sorted(omega_vals))
         assert np.allclose(
-            scan_result.alpha_xx_opt_per_theta,
-            [t * 2 for t in sorted(theta_vals)],
+            scan_result.alpha_xx_opt_per_omega,
+            [t * 2 for t in sorted(omega_vals)],
         )
         assert np.allclose(
-            scan_result.delta_theta_opt_per_theta,
-            [0.1 / t if t > 0 else 0.1 for t in sorted(theta_vals)],
+            scan_result.delta_omega_opt_per_omega,
+            [0.1 / t if t > 0 else 0.1 for t in sorted(omega_vals)],
         )
         assert np.allclose(scan_result.sql_values, [0.1] * 5)
         assert np.allclose(
-            scan_result.n_converged_per_theta,
-            [100.0 - t * 10 for t in sorted(theta_vals)],
+            scan_result.n_converged_per_omega,
+            [100.0 - t * 10 for t in sorted(omega_vals)],
         )

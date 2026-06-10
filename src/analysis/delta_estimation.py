@@ -24,19 +24,7 @@ import numpy as np
 import scipy.linalg
 
 from src.physics.dicke_basis import jx_operator, jz_operator
-from src.utils.validators import (
-    validate_hamiltonian_delta_estimation,
-    validate_state_delta_estimation,
-)
-
-# Aliases for backward compatibility
-# Agent Notes: validate_state here refers to validate_state_delta_estimation.
-# This is a DIFFERENT function from validate_state in src.physics.mzi_simulation
-# (which aliases validate_state_mzi). Do not merge them — they validate
-# different quantum system dimensionalities.
-validate_state = validate_state_delta_estimation
-validate_hamiltonian = validate_hamiltonian_delta_estimation
-
+from src.utils.enums import OperatorBasis
 
 # =============================================================================
 # Configuration
@@ -94,8 +82,10 @@ def _get_paired_operators(
 
     """
     if dim not in _paired_operators:
-        sigma_x, sigma_z = jx_operator(1), jz_operator(1)
-        jx, jz = jx_operator(dim - 1), jz_operator(dim - 1)
+        sigma_x = jx_operator(1, basis=OperatorBasis.DICKE)
+        sigma_z = jz_operator(1, basis=OperatorBasis.DICKE)
+        jx = jx_operator(dim - 1, basis=OperatorBasis.DICKE)
+        jz = jz_operator(dim - 1, basis=OperatorBasis.DICKE)
         _paired_operators[dim] = (sigma_x, sigma_z, jx, jz)
     return _paired_operators[dim]
 

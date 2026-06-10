@@ -26,8 +26,8 @@ class TestBECSensitivityScaling:
             N=20,
             state_type="CSS",
             chi=1.0,
-            T=0.1,
-            N_traj=50,
+            T_evo=0.1,
+            n_traj=50,
             seed=42,
         )
 
@@ -51,6 +51,7 @@ class TestBECAncilla:
             evolve_lindblad,
         )
         from src.physics.dicke_basis import jz_operator
+        from src.utils.enums import OperatorBasis
 
         N = 10
         state = coherent_spin_state(N)
@@ -60,7 +61,7 @@ class TestBECAncilla:
         rho0 = np.outer(state, state.conj())
         config = LindbladConfig(N=N, chi=chi)
         rho = evolve_lindblad(rho0, config, T, 0.01)
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
 
         Jz_mean = np.real(np.trace(rho @ J_z))
         assert np.isfinite(Jz_mean), "Jz expectation should be finite"

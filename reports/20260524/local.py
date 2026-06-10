@@ -6,7 +6,7 @@ Contains all code exclusive to this report:
 - Noisy circuit evolution (BS → Lindblad hold → BS)
 - Sensitivity computation for mixed states
 - 4D random search + Nelder–Mead optimisation with phase noise
-- Noise scan over (θ, γ_φ) pairs
+- Noise scan over (ω, γ_φ) pairs
 - Exclusive plot functions
 - Data and figure generation pipeline
 - CLI entry point for standalone execution
@@ -60,18 +60,18 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_H: float = 10.0  # Holding time (SQL = 0.1)
-SQL_REFERENCE: float = 1.0 / DEFAULT_T_H  # Δθ_SQL = 0.1
+DEFAULT_T_hold: float = 10.0  # Holding time (SQL = 0.1)
+SQL_REFERENCE: float = 1.0 / DEFAULT_T_hold  # Δω_SQL = 0.1
 DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Range for all coefficients
-FD_STEP: float = 1e-6  # Finite-difference step for theta derivative
+FD_STEP: float = 1e-6  # Finite-difference step for omega derivative
 
 
 # Initial state: |00⟩ (pure, density matrix form)
 DEFAULT_RHO0: np.ndarray = np.zeros((4, 4), dtype=complex)
 DEFAULT_RHO0[0, 0] = 1.0
 
-# Theta and gamma_phi values for the scan
-THETA_VALS: list[float] = [
+# Omega and gamma_phi values for the scan
+OMEGA_VALS: list[float] = [
     round(0.1 * i, 1) for i in range(1, 51)
 ]  # 0.1, 0.2, ..., 5.0 (50 values)
 GAMMA_PHI_VALS: list[float] = list(
@@ -79,23 +79,23 @@ GAMMA_PHI_VALS: list[float] = list(
 )  # 32 log-spaced from 0.01 to 1.0
 
 # ============================================================================
-# Hamiltonian Construction (same as θ-modulated drive protocol)
+# Hamiltonian Construction (same as ω-modulated drive protocol)
 # ============================================================================
 
 
 def build_noise_drive_hamiltonian(
-    theta: float,
+    omega: float,
     a_x: float,
     a_y: float,
     a_z: float,
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
-    """Build the ancilla drive Hamiltonian with θ modulation.
+    """Build the ancilla drive Hamiltonian with ω modulation.
 
-    H_A = θ (a_x J_x^A + a_y J_y^A + a_z J_z^A)
+    H_A = ω (a_x J_x^A + a_y J_y^A + a_z J_z^A)
 
     Args:
-        theta: Unknown phase rate parameter.
+        omega: Unknown phase rate parameter.
         a_x: Coefficient for J_x^A.
         a_y: Coefficient for J_y^A.
         a_z: Coefficient for J_z^A.
@@ -111,7 +111,7 @@ def build_noise_drive_hamiltonian(
         H += a_y * ops["Jy_A"]
     if a_z != 0.0:
         H += a_z * ops["Jz_A"]
-    H = theta * H
+    H = omega * H
     return 0.5 * (H + H.conj().T)
 
 
@@ -137,19 +137,19 @@ def build_noise_iszz_interaction(
 
 
 def build_noise_hold_hamiltonian(
-    theta: float,
+    omega: float,
     a_x: float,
     a_y: float,
     a_z: float,
     a_zz: float,
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
-    """Build the total holding Hamiltonian with θ-modulated ancilla drive.
+    """Build the total holding Hamiltonian with ω-modulated ancilla drive.
 
-    H = θ J_z^S + θ (a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_zz J_z^S ⊗ J_z^A
+    H = ω J_z^S + ω (a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_zz J_z^S ⊗ J_z^A
 
     Args:
-        theta: Unknown phase rate parameter.
+        omega: Unknown phase rate parameter.
         a_x: Ancilla J_x drive coefficient.
         a_y: Ancilla J_y drive coefficient.
         a_z: Ancilla J_z drive coefficient.
@@ -159,8 +159,8 @@ def build_noise_hold_hamiltonian(
     Returns:
         4×4 Hermitian Hamiltonian matrix.
     """
-    H = theta * ops["Jz_S"]
-    H += build_noise_drive_hamiltonian(theta, a_x, a_y, a_z, ops)
+    H = omega * ops["Jz_S"]
+    H += build_noise_drive_hamiltonian(omega, a_x, a_y, a_z, ops)
     H += build_noise_iszz_interaction(a_zz, ops)
     return 0.5 * (H + H.conj().T)
 
@@ -324,8 +324,8 @@ def validate_density(rho: np.ndarray, atol: float = 1e-8) -> None:
 def evolve_noisy_drive_circuit(
     rho0: np.ndarray,
     T_BS: float,
-    T_H: float,
-    theta: float,
+    T_hold: float,
+    omega: float,
     gamma_phi: float,
     a_x: float,
     a_y: float,
@@ -335,15 +335,15 @@ def evolve_noisy_drive_circuit(
 ) -> np.ndarray:
     """Run the full noisy MZI circuit with phase diffusion.
 
-    ρ_final = U_BS_S · exp(ℒ T_H)(U_BS_S · ρ₀ · U_BS_S^†) · U_BS_S^†
+    ρ_final = U_BS_S · exp(ℒ T_hold)(U_BS_S · ρ₀ · U_BS_S^†) · U_BS_S^†
 
     where ℒ is the Lindblad Liouvillian with phase diffusion.
 
     Args:
         rho0: Initial 4×4 density matrix.
         T_BS: Beam-splitter duration (both BS identical).
-        T_H: Holding time.
-        theta: Phase rate parameter.
+        T_hold: Holding time.
+        omega: Phase rate parameter.
         gamma_phi: Phase diffusion rate.
         a_x: Ancilla J_x drive coefficient.
         a_y: Ancilla J_y drive coefficient.
@@ -363,13 +363,13 @@ def evolve_noisy_drive_circuit(
     rho = U_bs @ rho0 @ U_bs.conj().T
 
     # Hold with Lindblad evolution (always use Liouvillian for consistency)
-    H = build_noise_hold_hamiltonian(theta, a_x, a_y, a_z, a_zz, ops)
+    H = build_noise_hold_hamiltonian(omega, a_x, a_y, a_z, a_zz, ops)
     lindblad_ops = build_phase_diffusion_operators(gamma_phi, ops)
     L = build_liouvillian(H, lindblad_ops)
 
     # Vectorise, exponentiate, unvectorise
     rho_vec = vectorise_rho(rho)
-    rho_vec_evolved = expm(L * T_H) @ rho_vec
+    rho_vec_evolved = expm(L * T_hold) @ rho_vec
     rho = unvectorise_rho(rho_vec_evolved)
 
     # BS2
@@ -389,8 +389,8 @@ def evolve_noisy_drive_circuit(
 def compute_noisy_sensitivity(
     rho0: np.ndarray,
     T_BS: float,
-    T_H: float,
-    theta_true: float,
+    T_hold: float,
+    omega_true: float,
     gamma_phi: float,
     a_x: float,
     a_y: float,
@@ -399,18 +399,18 @@ def compute_noisy_sensitivity(
     ops: dict[str, np.ndarray],
     fd_step: float = FD_STEP,
 ) -> float:
-    """Compute the error-propagation sensitivity Δθ with phase diffusion.
+    """Compute the error-propagation sensitivity Δω with phase diffusion.
 
-    Δθ = sqrt(Var(J_z^S)) / |∂⟨J_z^S⟩/∂θ|
+    Δω = sqrt(Var(J_z^S)) / |∂⟨J_z^S⟩/∂ω|
 
-    The derivative is computed via central finite differences at θ±δ,
+    The derivative is computed via central finite differences at ω±δ,
     re-evaluating the full noisy circuit at each point.
 
     Args:
         rho0: Initial 4×4 density matrix.
         T_BS: Beam-splitter duration.
-        T_H: Holding-time strength.
-        theta_true: True phase rate parameter.
+        T_hold: Holding-time strength.
+        omega_true: True phase rate parameter.
         gamma_phi: Phase diffusion rate.
         a_x: Ancilla J_x drive coefficient.
         a_y: Ancilla J_y drive coefficient.
@@ -420,22 +420,22 @@ def compute_noisy_sensitivity(
         fd_step: Finite-difference step size (default 1e-6).
 
     Returns:
-        Sensitivity Δθ (positive float). Returns inf if derivative is zero.
+        Sensitivity Δω (positive float). Returns inf if derivative is zero.
     """
     meas_op = ops["Jz_S"]
 
-    # Evaluate at theta_true
+    # Evaluate at omega_true
     rho = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_H, theta_true, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, T_hold, omega_true, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
     var = density_variance(rho, meas_op)
 
-    # Central finite difference for ∂⟨J_z^S⟩/∂θ
+    # Central finite difference for ∂⟨J_z^S⟩/∂ω
     rho_plus = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_H, theta_true + fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, T_hold, omega_true + fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
     rho_minus = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_H, theta_true - fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, T_hold, omega_true - fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
 
     exp_plus = density_expectation(rho_plus, meas_op)
@@ -451,8 +451,8 @@ def compute_noisy_sensitivity(
 def compute_noisy_sensitivity_with_diagnostics(
     rho0: np.ndarray,
     T_BS: float,
-    T_H: float,
-    theta_true: float,
+    T_hold: float,
+    omega_true: float,
     gamma_phi: float,
     a_x: float,
     a_y: float,
@@ -461,26 +461,26 @@ def compute_noisy_sensitivity_with_diagnostics(
     ops: dict[str, np.ndarray],
     fd_step: float = FD_STEP,
 ) -> tuple[float, float, float, float]:
-    """Compute Δθ with diagnostics.
+    """Compute Δω with diagnostics.
 
     Returns:
-        Tuple (delta_theta, expectation_Jz, variance_Jz, d_exp_d_theta).
+        Tuple (delta_omega, expectation_Jz, variance_Jz, d_exp_d_omega).
     """
     meas_op = ops["Jz_S"]
 
-    # Evaluate at theta_true
+    # Evaluate at omega_true
     rho = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_H, theta_true, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, T_hold, omega_true, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
     exp_val = density_expectation(rho, meas_op)
     var = density_variance(rho, meas_op)
 
-    # Central finite difference for ∂⟨J_z^S⟩/∂θ
+    # Central finite difference for ∂⟨J_z^S⟩/∂ω
     rho_plus = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_H, theta_true + fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, T_hold, omega_true + fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
     rho_minus = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_H, theta_true - fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, T_hold, omega_true - fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
 
     exp_plus = density_expectation(rho_plus, meas_op)
@@ -490,8 +490,8 @@ def compute_noisy_sensitivity_with_diagnostics(
     if abs(d_exp) < 1e-12:
         return float("inf"), exp_val, var, d_exp
 
-    delta_theta = float(np.sqrt(var) / abs(d_exp))
-    return delta_theta, exp_val, var, d_exp
+    delta_omega = float(np.sqrt(var) / abs(d_exp))
+    return delta_omega, exp_val, var, d_exp
 
 
 # ============================================================================
@@ -501,24 +501,24 @@ def compute_noisy_sensitivity_with_diagnostics(
 
 @dataclass
 class DriveNoiseScanResult:
-    """Result from a (θ, γ_φ) noise scan with re-optimised parameters.
+    """Result from a (ω, γ_φ) noise scan with re-optimised parameters.
 
     Attributes:
-        theta_values: Array of θ values scanned.
+        omega_values: Array of ω values scanned.
         gamma_phi_values: Array of γ_φ values scanned.
         best_params_per_pair: List of optimal (a_x, a_y, a_z, a_zz) tuples
-            indexed as [i_theta * n_gamma + i_gamma].
-        delta_theta_per_pair: Δθ at the optimal parameters for each (θ, γ_φ),
-            shaped (n_theta, n_gamma).
+            indexed as [i_omega * n_gamma + i_gamma].
+        delta_omega_per_pair: Δω at the optimal parameters for each (ω, γ_φ),
+            shaped (n_omega, n_gamma).
         expectation_Jz_per_pair: ⟨J_z^S⟩ at each optimal point,
-            shaped (n_theta, n_gamma).
+            shaped (n_omega, n_gamma).
         variance_Jz_per_pair: Var(J_z^S) at each optimal point,
-            shaped (n_theta, n_gamma).
-        d_exp_d_theta_per_pair: ∂⟨J_z^S⟩/∂θ at each optimal point,
-            shaped (n_theta, n_gamma).
-        sql: SQL = 1/T_H reference value.
-        T_H: Holding time used.
-        n_random: Number of random search points per (θ, γ_φ) pair.
+            shaped (n_omega, n_gamma).
+        d_exp_d_omega_per_pair: ∂⟨J_z^S⟩/∂ω at each optimal point,
+            shaped (n_omega, n_gamma).
+        sql: SQL = 1/T_hold reference value.
+        T_hold: Holding time used.
+        n_random: Number of random search points per (ω, γ_φ) pair.
         n_nm_refine: Number of Nelder-Mead refinements per pair.
         maxiter: Maximum Nelder-Mead iterations.
         bounds_lo: Lower bound for all optimisation parameters.
@@ -527,17 +527,17 @@ class DriveNoiseScanResult:
         seed: Base random seed.
     """
 
-    theta_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
     gamma_phi_values: np.ndarray = field(default_factory=lambda: np.array([]))
     best_params_per_pair: list[tuple[float, float, float, float]] = field(
         default_factory=list
     )
-    delta_theta_per_pair: np.ndarray = field(default_factory=lambda: np.array([]))
+    delta_omega_per_pair: np.ndarray = field(default_factory=lambda: np.array([]))
     expectation_Jz_per_pair: np.ndarray = field(default_factory=lambda: np.array([]))
     variance_Jz_per_pair: np.ndarray = field(default_factory=lambda: np.array([]))
-    d_exp_d_theta_per_pair: np.ndarray = field(default_factory=lambda: np.array([]))
+    d_exp_d_omega_per_pair: np.ndarray = field(default_factory=lambda: np.array([]))
     sql: float = SQL_REFERENCE
-    T_H: float = DEFAULT_T_H
+    T_hold: float = DEFAULT_T_hold
     n_random: int = 1000
     n_nm_refine: int = 25
     maxiter: int = 5000
@@ -547,11 +547,11 @@ class DriveNoiseScanResult:
     seed: int = 42
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Flatten into a long-format DataFrame with one row per (θ, γ_φ)."""
-        n_theta = len(self.theta_values)
+        """Flatten into a long-format DataFrame with one row per (ω, γ_φ)."""
+        n_omega = len(self.omega_values)
         n_gamma = len(self.gamma_phi_values)
         rows: list[dict[str, float | str]] = []
-        for i in range(n_theta):
+        for i in range(n_omega):
             for j in range(n_gamma):
                 idx = i * n_gamma + j
                 params = (
@@ -560,8 +560,8 @@ class DriveNoiseScanResult:
                     else (0.0, 0.0, 0.0, 0.0)
                 )
                 dt = (
-                    float(self.delta_theta_per_pair[i, j])
-                    if self.delta_theta_per_pair.size > 0
+                    float(self.delta_omega_per_pair[i, j])
+                    if self.delta_omega_per_pair.size > 0
                     else float("inf")
                 )
                 exp_val = (
@@ -575,24 +575,24 @@ class DriveNoiseScanResult:
                     else 0.0
                 )
                 d_exp = (
-                    float(self.d_exp_d_theta_per_pair[i, j])
-                    if self.d_exp_d_theta_per_pair.size > 0
+                    float(self.d_exp_d_omega_per_pair[i, j])
+                    if self.d_exp_d_omega_per_pair.size > 0
                     else 0.0
                 )
                 rows.append(
                     {
-                        "theta": float(self.theta_values[i]),
+                        "omega": float(self.omega_values[i]),
                         "gamma_phi": float(self.gamma_phi_values[j]),
                         "a_x": float(params[0]),
                         "a_y": float(params[1]),
                         "a_z": float(params[2]),
                         "a_zz": float(params[3]),
-                        "delta_theta": dt,
+                        "delta_omega": dt,
                         "expectation_Jz": exp_val,
                         "variance_Jz": var_val,
-                        "d_exp_d_theta": d_exp,
+                        "d_exp_d_omega": d_exp,
                         "sql": float(self.sql),
-                        "T_H": float(self.T_H),
+                        "T_hold": float(self.T_hold),
                         "n_random": int(self.n_random),
                         "n_nm_refine": int(self.n_nm_refine),
                         "maxiter": int(self.maxiter),
@@ -614,18 +614,18 @@ class DriveNoiseScanResult:
     def from_parquet(cls, path: str | Path) -> DriveNoiseScanResult:
         df = pd.read_parquet(path)
         required = {
-            "theta",
+            "omega",
             "gamma_phi",
             "a_x",
             "a_y",
             "a_z",
             "a_zz",
-            "delta_theta",
+            "delta_omega",
             "expectation_Jz",
             "variance_Jz",
-            "d_exp_d_theta",
+            "d_exp_d_omega",
             "sql",
-            "T_H",
+            "T_hold",
             "n_random",
             "n_nm_refine",
             "maxiter",
@@ -640,35 +640,35 @@ class DriveNoiseScanResult:
                 f"Parquet at {path} is missing required columns: {sorted(missing)}. "
                 "Regenerate the file with the current code."
             )
-        theta_vals = df["theta"].unique()
+        omega_vals = df["omega"].unique()
         gamma_vals = df["gamma_phi"].unique()
-        theta_vals.sort()
+        omega_vals.sort()
         gamma_vals.sort()
-        n_theta = len(theta_vals)
+        n_omega = len(omega_vals)
         n_gamma = len(gamma_vals)
 
         # Build the lookup dict
         lookup: dict[tuple[float, float], dict[str, float]] = {}
         for _, row in df.iterrows():
-            key = (float(row["theta"]), float(row["gamma_phi"]))
+            key = (float(row["omega"]), float(row["gamma_phi"]))
             lookup[key] = {
                 "a_x": float(row["a_x"]),
                 "a_y": float(row["a_y"]),
                 "a_z": float(row["a_z"]),
                 "a_zz": float(row["a_zz"]),
-                "delta_theta": float(row["delta_theta"]),
+                "delta_omega": float(row["delta_omega"]),
                 "expectation_Jz": float(row["expectation_Jz"]),
                 "variance_Jz": float(row["variance_Jz"]),
-                "d_exp_d_theta": float(row["d_exp_d_theta"]),
+                "d_exp_d_omega": float(row["d_exp_d_omega"]),
             }
 
         params_list: list[tuple[float, float, float, float]] = []
-        dt_arr = np.full((n_theta, n_gamma), np.inf, dtype=float)
-        exp_arr = np.zeros((n_theta, n_gamma), dtype=float)
-        var_arr = np.zeros((n_theta, n_gamma), dtype=float)
-        d_exp_arr = np.zeros((n_theta, n_gamma), dtype=float)
+        dt_arr = np.full((n_omega, n_gamma), np.inf, dtype=float)
+        exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
+        var_arr = np.zeros((n_omega, n_gamma), dtype=float)
+        d_exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
 
-        for i, t in enumerate(theta_vals):
+        for i, t in enumerate(omega_vals):
             for j, g in enumerate(gamma_vals):
                 entry = lookup[(t, g)]
                 params_list.append(
@@ -679,21 +679,21 @@ class DriveNoiseScanResult:
                         entry["a_zz"],
                     )
                 )
-                dt_arr[i, j] = entry["delta_theta"]
+                dt_arr[i, j] = entry["delta_omega"]
                 exp_arr[i, j] = entry["expectation_Jz"]
                 var_arr[i, j] = entry["variance_Jz"]
-                d_exp_arr[i, j] = entry["d_exp_d_theta"]
+                d_exp_arr[i, j] = entry["d_exp_d_omega"]
 
         return cls(
-            theta_values=np.array(theta_vals, dtype=float),
+            omega_values=np.array(omega_vals, dtype=float),
             gamma_phi_values=np.array(gamma_vals, dtype=float),
             best_params_per_pair=params_list,
-            delta_theta_per_pair=dt_arr,
+            delta_omega_per_pair=dt_arr,
             expectation_Jz_per_pair=exp_arr,
             variance_Jz_per_pair=var_arr,
-            d_exp_d_theta_per_pair=d_exp_arr,
+            d_exp_d_omega_per_pair=d_exp_arr,
             sql=float(df["sql"].iloc[0]),
-            T_H=float(df["T_H"].iloc[0]),
+            T_hold=float(df["T_hold"].iloc[0]),
             n_random=int(df["n_random"].iloc[0]),
             n_nm_refine=int(df["n_nm_refine"].iloc[0]),
             maxiter=int(df["maxiter"].iloc[0]),
@@ -711,8 +711,8 @@ class DriveNoiseScanResult:
 
 def compute_noisy_decoupled_baseline(
     gamma_phi: float = 0.0,
-    T_H: float = DEFAULT_T_H,
-    theta_true: float = 1.0,
+    T_hold: float = DEFAULT_T_hold,
+    omega_true: float = 1.0,
 ) -> float:
     """Compute the decoupled baseline sensitivity with phase diffusion.
 
@@ -723,18 +723,18 @@ def compute_noisy_decoupled_baseline(
 
     Args:
         gamma_phi: Phase diffusion rate.
-        T_H: Holding-time strength.
-        theta_true: True phase rate.
+        T_hold: Holding-time strength.
+        omega_true: True phase rate.
 
     Returns:
-        Δθ (should equal 1/T_H = SQL for any γ_φ).
+        Δω (should equal 1/T_hold = SQL for any γ_φ).
     """
     ops = build_two_qubit_operators()
     return compute_noisy_sensitivity(
         DEFAULT_RHO0,
         DEFAULT_T_BS,
-        T_H,
-        theta_true,
+        T_hold,
+        omega_true,
         gamma_phi,
         0.0,
         0.0,
@@ -751,33 +751,33 @@ def compute_noisy_decoupled_baseline(
 
 def noisy_sensitivity_objective(
     params: np.ndarray,
-    theta_true: float,
+    omega_true: float,
     gamma_phi: float,
     ops: dict[str, np.ndarray],
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
     fd_step: float = FD_STEP,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
     penalty_scale: float = 1e6,
 ) -> float:
-    """Objective function for minimising Δθ under phase diffusion.
+    """Objective function for minimising Δω under phase diffusion.
 
-    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed T_H.
+    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed T_hold.
     params = [a_x, a_y, a_z, a_zz] (4 elements).
 
     Args:
         params: 4-element parameter vector.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         gamma_phi: Phase diffusion rate.
         ops: Two-qubit operators.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step.
         bounds: (min, max) for all parameters.
         penalty_scale: Scale for bound-violation penalty.
 
     Returns:
-        Δθ (plus infinite penalty if bounds violated).
+        Δω (plus infinite penalty if bounds violated).
     """
     ax = float(params[0])
     ay = float(params[1])
@@ -799,8 +799,8 @@ def noisy_sensitivity_objective(
     return compute_noisy_sensitivity(
         DEFAULT_RHO0,
         T_BS,
-        T_H,
-        theta_true,
+        T_hold,
+        omega_true,
         gamma_phi,
         ax,
         ay,
@@ -817,27 +817,27 @@ def noisy_sensitivity_objective(
 
 
 def run_noisy_random_search(
-    theta: float,
+    omega: float,
     gamma_phi: float,
     n_samples: int = 500,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
     seed: int | None = 42,
 ) -> tuple[np.ndarray, np.ndarray, tuple[float, float, float, float], float]:
-    """Random search over the 4D parameter space at fixed (θ, γ_φ).
+    """Random search over the 4D parameter space at fixed (ω, γ_φ).
 
     Args:
-        theta: Phase rate value.
+        omega: Phase rate value.
         gamma_phi: Phase diffusion rate.
         n_samples: Number of random points to evaluate.
         bounds: (min, max) for all four coefficients.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
         seed: Random seed for reproducibility.
 
     Returns:
-        Tuple (samples, delta_theta_values, best_params, best_delta_theta).
+        Tuple (samples, delta_omega_values, best_params, best_delta_omega).
     """
     rng = np.random.default_rng(seed)
     ops = build_two_qubit_operators()
@@ -852,11 +852,11 @@ def run_noisy_random_search(
         az = float(samples[i, 2])
         azz = float(samples[i, 3])
 
-        dtheta = compute_noisy_sensitivity(
+        domega = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             T_BS,
-            T_H,
-            theta,
+            T_hold,
+            omega,
             gamma_phi,
             ax,
             ay,
@@ -864,7 +864,7 @@ def run_noisy_random_search(
             azz,
             ops,
         )
-        deltas[i] = dtheta
+        deltas[i] = domega
 
     best_idx = int(np.argmin(deltas))
     best_params: tuple[float, float, float, float] = (
@@ -934,7 +934,7 @@ def _make_nm_early_stop_callback(
 
 
 def run_noisy_nelder_mead(
-    theta_true: float,
+    omega_true: float,
     gamma_phi: float,
     x0: np.ndarray | None = None,
     seed: int | None = None,
@@ -943,17 +943,17 @@ def run_noisy_nelder_mead(
     fatol: float = 1e-8,
     adaptive: bool = True,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
     early_stop_patience: int = 200,
 ) -> dict[str, Any]:
-    """Run Nelder-Mead optimisation for the noisy protocol at fixed (θ, γ_φ).
+    """Run Nelder-Mead optimisation for the noisy protocol at fixed (ω, γ_φ).
 
     Uses an early-stopping callback to terminate when the objective has not
     improved for *early_stop_patience* consecutive iterations.
 
     Args:
-        theta_true: True phase rate parameter.
+        omega_true: True phase rate parameter.
         gamma_phi: Phase diffusion rate.
         x0: Initial 4-parameter vector [ax, ay, az, azz]. Random if None.
         seed: Random seed (used if x0 is None).
@@ -962,13 +962,13 @@ def run_noisy_nelder_mead(
         fatol: Absolute function tolerance.
         adaptive: Use adaptive Nelder-Mead parameters.
         bounds: (min, max) for all four parameters.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
         early_stop_patience: Consecutive non-improving calls before stopping.
 
     Returns:
-        Dict with keys: 'delta_theta_opt', 'params_opt', 'success',
-        'nfev', 'message', 'expectation_Jz', 'variance_Jz', 'd_exp_d_theta'.
+        Dict with keys: 'delta_omega_opt', 'params_opt', 'success',
+        'nfev', 'message', 'expectation_Jz', 'variance_Jz', 'd_exp_d_omega'.
     """
     ops = build_two_qubit_operators()
 
@@ -983,10 +983,10 @@ def run_noisy_nelder_mead(
     def objective(p: np.ndarray) -> float:
         return noisy_sensitivity_objective(
             p,
-            theta_true,
+            omega_true,
             gamma_phi,
             ops,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
             bounds=bounds,
         )
@@ -1012,8 +1012,8 @@ def run_noisy_nelder_mead(
     _, exp_val, var_val, d_exp = compute_noisy_sensitivity_with_diagnostics(
         DEFAULT_RHO0,
         T_BS,
-        T_H,
-        theta_true,
+        T_hold,
+        omega_true,
         gamma_phi,
         float(opt_params[0]),
         float(opt_params[1]),
@@ -1023,24 +1023,24 @@ def run_noisy_nelder_mead(
     )
 
     return {
-        "delta_theta_opt": float(result.fun),
+        "delta_omega_opt": float(result.fun),
         "params_opt": opt_params,
         "success": bool(result.success),
         "nfev": int(result.nfev),
         "message": str(result.message),
         "expectation_Jz": exp_val,
         "variance_Jz": var_val,
-        "d_exp_d_theta": d_exp,
+        "d_exp_d_omega": d_exp,
     }
 
 
 # ============================================================================
-# Noise Scan: (θ, γ_φ) Grid
+# Noise Scan: (ω, γ_φ) Grid
 # ============================================================================
 
 
 def _run_single_noise_pair(
-    theta: float,
+    omega: float,
     gamma_phi: float,
     n_random: int = 1000,
     n_nm_refine: int = 25,
@@ -1048,13 +1048,13 @@ def _run_single_noise_pair(
     maxiter: int = 2000,
     early_stop_patience: int = 200,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> dict[str, Any]:
-    """Run random search + Nelder-Mead refinement for a single (θ, γ_φ) pair.
+    """Run random search + Nelder-Mead refinement for a single (ω, γ_φ) pair.
 
     Args:
-        theta: Phase rate value.
+        omega: Phase rate value.
         gamma_phi: Phase diffusion rate.
         n_random: Number of random search points.
         n_nm_refine: Number of Nelder-Mead refinements.
@@ -1062,23 +1062,23 @@ def _run_single_noise_pair(
         maxiter: Maximum Nelder-Mead iterations.
         early_stop_patience: Consecutive non-improving NM iterations before stop.
         bounds: (min, max) for all four coefficients.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
-        Dict with results for this (θ, γ_φ) pair.
+        Dict with results for this (ω, γ_φ) pair.
     """
     base_seed = seed if seed is not None else 42
-    seed_raw = base_seed + int(theta * 1000) + int(100 * np.log10(gamma_phi + 1e-10))
+    seed_raw = base_seed + int(omega * 1000) + int(100 * np.log10(gamma_phi + 1e-10))
     seed_val = abs(seed_raw)  # ensure non-negative for numpy
 
     # Stage 1: Random search
     samples, deltas, best_params, best_delta = run_noisy_random_search(
-        theta,
+        omega,
         gamma_phi,
         n_samples=n_random,
         bounds=bounds,
-        T_H=T_H,
+        T_hold=T_hold,
         T_BS=T_BS,
         seed=seed_val,
     )
@@ -1092,24 +1092,24 @@ def _run_single_noise_pair(
     nm_best_diag: dict[str, float] = {
         "expectation_Jz": 0.0,
         "variance_Jz": 0.0,
-        "d_exp_d_theta": 0.0,
+        "d_exp_d_omega": 0.0,
     }
 
     for rank, idx in enumerate(top_indices):
         x0 = samples[idx].copy()
         nm_result = run_noisy_nelder_mead(
-            theta_true=theta,
+            omega_true=omega,
             gamma_phi=gamma_phi,
             x0=x0,
             seed=seed_val + 10000 + rank,
             maxiter=maxiter,
             early_stop_patience=early_stop_patience,
             bounds=bounds,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
         )
 
-        dt = float(nm_result["delta_theta_opt"])
+        dt = float(nm_result["delta_omega_opt"])
         if np.isfinite(dt) and dt < nm_best_delta:
             nm_best_delta = dt
             nm_best_params = (
@@ -1121,25 +1121,25 @@ def _run_single_noise_pair(
             nm_best_diag = {
                 "expectation_Jz": float(nm_result["expectation_Jz"]),
                 "variance_Jz": float(nm_result["variance_Jz"]),
-                "d_exp_d_theta": float(nm_result["d_exp_d_theta"]),
+                "d_exp_d_omega": float(nm_result["d_exp_d_omega"]),
             }
 
     return {
-        "theta": theta,
+        "omega": omega,
         "gamma_phi": gamma_phi,
         "a_x": nm_best_params[0],
         "a_y": nm_best_params[1],
         "a_z": nm_best_params[2],
         "a_zz": nm_best_params[3],
-        "delta_theta": nm_best_delta,
+        "delta_omega": nm_best_delta,
         "expectation_Jz": nm_best_diag["expectation_Jz"],
         "variance_Jz": nm_best_diag["variance_Jz"],
-        "d_exp_d_theta": nm_best_diag["d_exp_d_theta"],
+        "d_exp_d_omega": nm_best_diag["d_exp_d_omega"],
     }
 
 
 def run_noise_scan(
-    theta_values: list[float] | np.ndarray,
+    omega_values: list[float] | np.ndarray,
     gamma_phi_values: list[float] | np.ndarray,
     n_random: int = 1000,
     n_nm_refine: int = 25,
@@ -1147,42 +1147,42 @@ def run_noise_scan(
     maxiter: int = 2000,
     early_stop_patience: int = 200,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> DriveNoiseScanResult:
-    """Scan over (θ, γ_φ) pairs with random search + Nelder-Mead refinement.
+    """Scan over (ω, γ_φ) pairs with random search + Nelder-Mead refinement.
 
-    For each (θ, γ_φ) pair:
+    For each (ω, γ_φ) pair:
     1. Run `n_random` random evaluations in the 4D parameter space.
     2. Select the best `n_nm_refine` points.
     3. Run Nelder-Mead refinement from each selected point.
     4. Record the best overall result.
 
     Args:
-        theta_values: θ values to scan.
+        omega_values: ω values to scan.
         gamma_phi_values: γ_φ values to scan.
         n_random: Number of random search points per pair.
         n_nm_refine: Number of Nelder-Mead refinements per pair.
         seed: Base random seed.
         maxiter: Maximum Nelder-Mead iterations.
         bounds: (min, max) for all parameters.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
         DriveNoiseScanResult with optimal parameters and sensitivities.
     """
-    theta_arr = np.asarray(theta_values, dtype=float)
+    omega_arr = np.asarray(omega_values, dtype=float)
     gamma_arr = np.asarray(gamma_phi_values, dtype=float)
-    n_theta = len(theta_arr)
+    n_omega = len(omega_arr)
     n_gamma = len(gamma_arr)
 
     all_results: list[dict[str, Any]] = []
 
-    for theta in theta_arr:
+    for omega in omega_arr:
         for gamma in gamma_arr:
             result = _run_single_noise_pair(
-                theta,
+                omega,
                 gamma,
                 n_random=n_random,
                 n_nm_refine=n_nm_refine,
@@ -1190,22 +1190,22 @@ def run_noise_scan(
                 maxiter=maxiter,
                 early_stop_patience=early_stop_patience,
                 bounds=bounds,
-                T_H=T_H,
+                T_hold=T_hold,
                 T_BS=T_BS,
             )
             all_results.append(result)
 
     # Build the result structure
     params_list: list[tuple[float, float, float, float]] = []
-    dt_arr = np.full((n_theta, n_gamma), np.inf, dtype=float)
-    exp_arr = np.zeros((n_theta, n_gamma), dtype=float)
-    var_arr = np.zeros((n_theta, n_gamma), dtype=float)
-    d_exp_arr = np.zeros((n_theta, n_gamma), dtype=float)
+    dt_arr = np.full((n_omega, n_gamma), np.inf, dtype=float)
+    exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
+    var_arr = np.zeros((n_omega, n_gamma), dtype=float)
+    d_exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
 
     for r in all_results:
-        t_val = float(r["theta"])
+        t_val = float(r["omega"])
         g_val = float(r["gamma_phi"])
-        i = int(np.where(theta_arr == t_val)[0][0])
+        i = int(np.where(omega_arr == t_val)[0][0])
         j = int(np.where(gamma_arr == g_val)[0][0])
         params_list.append(
             (
@@ -1215,22 +1215,22 @@ def run_noise_scan(
                 float(r["a_zz"]),
             )
         )
-        dt_arr[i, j] = float(r["delta_theta"])
+        dt_arr[i, j] = float(r["delta_omega"])
         exp_arr[i, j] = float(r.get("expectation_Jz", 0.0))
         var_arr[i, j] = float(r.get("variance_Jz", 0.0))
-        d_exp_arr[i, j] = float(r.get("d_exp_d_theta", 0.0))
+        d_exp_arr[i, j] = float(r.get("d_exp_d_omega", 0.0))
 
     bounds_lo_f, bounds_hi_f = bounds
     return DriveNoiseScanResult(
-        theta_values=theta_arr,
+        omega_values=omega_arr,
         gamma_phi_values=gamma_arr,
         best_params_per_pair=params_list,
-        delta_theta_per_pair=dt_arr,
+        delta_omega_per_pair=dt_arr,
         expectation_Jz_per_pair=exp_arr,
         variance_Jz_per_pair=var_arr,
-        d_exp_d_theta_per_pair=d_exp_arr,
-        sql=1.0 / T_H,
-        T_H=T_H,
+        d_exp_d_omega_per_pair=d_exp_arr,
+        sql=1.0 / T_hold,
+        T_hold=T_hold,
         n_random=n_random,
         n_nm_refine=n_nm_refine,
         maxiter=maxiter,
@@ -1247,43 +1247,43 @@ def run_noise_scan(
 
 
 def evaluate_fixed_params_scan(
-    theta_values: list[float] | np.ndarray,
+    omega_values: list[float] | np.ndarray,
     gamma_phi_values: list[float] | np.ndarray,
     noise_free_params: dict[float, tuple[float, float, float, float]],
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> np.ndarray:
-    """Evaluate Δθ at noise-free optimal params for each (θ, γ_φ) pair.
+    """Evaluate Δω at noise-free optimal params for each (ω, γ_φ) pair.
 
     Args:
-        theta_values: θ values.
+        omega_values: ω values.
         gamma_phi_values: γ_φ values.
-        noise_free_params: Dict mapping θ → (a_x*, a_y*, a_z*, a_zz*)
+        noise_free_params: Dict mapping ω → (a_x*, a_y*, a_z*, a_zz*)
             from the noise-free (γ_φ = 0) optimum.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
-        Array of Δθ values, shape (n_theta, n_gamma).
+        Array of Δω values, shape (n_omega, n_gamma).
     """
     ops = build_two_qubit_operators()
-    theta_arr = np.asarray(theta_values, dtype=float)
+    omega_arr = np.asarray(omega_values, dtype=float)
     gamma_arr = np.asarray(gamma_phi_values, dtype=float)
-    n_theta = len(theta_arr)
+    n_omega = len(omega_arr)
     n_gamma = len(gamma_arr)
 
-    result = np.full((n_theta, n_gamma), np.inf, dtype=float)
+    result = np.full((n_omega, n_gamma), np.inf, dtype=float)
 
-    for i, theta in enumerate(theta_arr):
-        if theta not in noise_free_params:
+    for i, omega in enumerate(omega_arr):
+        if omega not in noise_free_params:
             continue
-        ax, ay, az, azz = noise_free_params[theta]
+        ax, ay, az, azz = noise_free_params[omega]
         for j, gamma in enumerate(gamma_arr):
             dt = compute_noisy_sensitivity(
                 DEFAULT_RHO0,
                 T_BS,
-                T_H,
-                theta,
+                T_hold,
+                omega,
                 gamma,
                 ax,
                 ay,
@@ -1306,7 +1306,7 @@ def plot_noise_sensitivity_heatmap(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 7),
 ) -> Path:
-    """Heatmap of Δθ/Δθ_SQL as a function of θ and γ_φ.
+    """Heatmap of Δω/Δω_SQL as a function of ω and γ_φ.
 
     Args:
         result: DriveNoiseScanResult.
@@ -1319,12 +1319,12 @@ def plot_noise_sensitivity_heatmap(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    ratio = result.delta_theta_per_pair / result.sql
+    ratio = result.delta_omega_per_pair / result.sql
 
     fig, ax = plt.subplots(figsize=figsize)
 
     im = ax.pcolormesh(
-        result.theta_values,
+        result.omega_values,
         result.gamma_phi_values,
         ratio.T,
         shading="auto",
@@ -1334,11 +1334,11 @@ def plot_noise_sensitivity_heatmap(
             vmax=max(np.nanmax(ratio[ratio < np.inf]), 10),
         ),
     )
-    fig.colorbar(im, ax=ax, label=r"$\Delta\theta / \Delta\theta_{\mathrm{SQL}}$")
+    fig.colorbar(im, ax=ax, label=r"$\Delta\omega / \Delta\omega_{\mathrm{SQL}}$")
 
-    # Contour line at Δθ = SQL
+    # Contour line at Δω = SQL
     cs = ax.contour(
-        result.theta_values,
+        result.omega_values,
         result.gamma_phi_values,
         ratio.T,
         levels=[1.0],
@@ -1348,7 +1348,7 @@ def plot_noise_sensitivity_heatmap(
     )
     ax.clabel(cs, fmt=r"SQL", fontsize=10)
 
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$\gamma_\phi$")
     ax.set_yscale("log")
     ax.set_title(
@@ -1364,23 +1364,23 @@ def plot_noise_sensitivity_heatmap(
 
 def plot_noise_sensitivity_curves(
     result: DriveNoiseScanResult,
-    theta_subset: list[float] | None = None,
+    omega_subset: list[float] | None = None,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Line plot of Δθ vs γ_φ for selected θ values.
+    """Line plot of Δω vs γ_φ for selected ω values.
 
     Args:
         result: DriveNoiseScanResult.
-        theta_subset: List of θ values to plot. If None, uses all.
+        omega_subset: List of ω values to plot. If None, uses all.
         save_path: Output SVG path. If None, does not save.
         figsize: Figure size (width, height).
 
     Returns:
         Path to saved SVG, or a dummy path if not saved.
     """
-    if theta_subset is None:
-        theta_subset = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
+    if omega_subset is None:
+        omega_subset = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
 
     fig, ax = plt.subplots(figsize=figsize)
 
@@ -1395,32 +1395,32 @@ def plot_noise_sensitivity_curves(
     )
 
     _viridis_cmap = colormaps.get_cmap("viridis")
-    colors = _viridis_cmap(np.linspace(0, 1, len(theta_subset)))
+    colors = _viridis_cmap(np.linspace(0, 1, len(omega_subset)))
 
-    for theta_val, color in zip(theta_subset, colors, strict=False):
+    for omega_val, color in zip(omega_subset, colors, strict=False):
         # Find the index
-        idx = np.where(np.isclose(result.theta_values, theta_val, atol=1e-6))[0]
+        idx = np.where(np.isclose(result.omega_values, omega_val, atol=1e-6))[0]
         if len(idx) == 0:
             continue
         i = idx[0]
 
-        valid = np.isfinite(result.delta_theta_per_pair[i, :])
+        valid = np.isfinite(result.delta_omega_per_pair[i, :])
         if np.any(valid):
             ax.plot(
                 result.gamma_phi_values[valid],
-                result.delta_theta_per_pair[i, valid],
+                result.delta_omega_per_pair[i, valid],
                 "o-",
                 color=color,
                 markersize=5,
                 linewidth=1.5,
-                label=rf"$\theta$ = {theta_val:.1f}",
+                label=rf"$\omega$ = {omega_val:.1f}",
             )
 
     ax.set_xlabel(r"$\gamma_\phi$")
-    ax.set_ylabel(r"$\Delta\theta$")
+    ax.set_ylabel(r"$\Delta\omega$")
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_title("Sensitivity vs phase diffusion rate at fixed $\\theta$")
+    ax.set_title("Sensitivity vs phase diffusion rate at fixed $\\omega$")
     ax.legend(fontsize=9, loc="upper left")
 
     fig.tight_layout()
@@ -1438,23 +1438,23 @@ def plot_noise_sensitivity_curves(
 
 def plot_noise_optimal_params(
     result: DriveNoiseScanResult,
-    theta_subset: list[float] | None = None,
+    omega_subset: list[float] | None = None,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (12, 8),
 ) -> Path:
-    """Plot optimal parameters as a function of γ_φ for selected θ values.
+    """Plot optimal parameters as a function of γ_φ for selected ω values.
 
     Args:
         result: DriveNoiseScanResult.
-        theta_subset: List of θ values to plot. If None, uses all.
+        omega_subset: List of ω values to plot. If None, uses all.
         save_path: Output SVG path.
         figsize: Figure size (width, height).
 
     Returns:
         Path to saved SVG.
     """
-    if theta_subset is None:
-        theta_subset = [0.1, 0.5, 1.0, 2.0, 5.0]
+    if omega_subset is None:
+        omega_subset = [0.1, 0.5, 1.0, 2.0, 5.0]
 
     param_names = [r"$a_x^*$", r"$a_y^*$", r"$a_z^*$", r"$a_{zz}^*$"]
 
@@ -1462,17 +1462,17 @@ def plot_noise_optimal_params(
     fig, axes = plt.subplots(n_params, 1, figsize=figsize, sharex=True)
 
     _viridis_cmap = colormaps.get_cmap("viridis")
-    colors = _viridis_cmap(np.linspace(0, 1, len(theta_subset)))
+    colors = _viridis_cmap(np.linspace(0, 1, len(omega_subset)))
 
     for param_idx in range(n_params):
         ax = axes[param_idx]
-        for theta_val, color in zip(theta_subset, colors, strict=False):
-            idx = np.where(np.isclose(result.theta_values, theta_val, atol=1e-6))[0]
+        for omega_val, color in zip(omega_subset, colors, strict=False):
+            idx = np.where(np.isclose(result.omega_values, omega_val, atol=1e-6))[0]
             if len(idx) == 0:
                 continue
             i = idx[0]
 
-            # Extract the parameter values for this theta across all gamma
+            # Extract the parameter values for this omega across all gamma
             param_vals = []
             for j in range(len(result.gamma_phi_values)):
                 pair_idx = i * len(result.gamma_phi_values) + j
@@ -1480,7 +1480,7 @@ def plot_noise_optimal_params(
                 param_vals.append(params[param_idx])
 
             param_arr = np.array(param_vals)
-            valid = np.isfinite(result.delta_theta_per_pair[i, :]) & np.isfinite(
+            valid = np.isfinite(result.delta_omega_per_pair[i, :]) & np.isfinite(
                 param_arr
             )
             if np.any(valid):
@@ -1491,7 +1491,7 @@ def plot_noise_optimal_params(
                     color=color,
                     markersize=4,
                     linewidth=1.2,
-                    label=rf"$\theta$ = {theta_val:.1f}" if param_idx == 0 else "",
+                    label=rf"$\omega$ = {omega_val:.1f}" if param_idx == 0 else "",
                 )
 
         ax.axhline(y=0, color="gray", linestyle=":", alpha=0.5)
@@ -1502,9 +1502,9 @@ def plot_noise_optimal_params(
     axes[-1].set_xlabel(r"$\gamma_\phi$")
     axes[0].set_title(
         "Optimal parameters vs phase diffusion rate\n"
-        "(re-optimised per $\\theta$, $\\gamma_\\phi$ pair)"
+        "(re-optimised per $\\omega$, $\\gamma_\\phi$ pair)"
     )
-    axes[0].legend(fontsize=8, loc="upper left", ncol=len(theta_subset))
+    axes[0].legend(fontsize=8, loc="upper left", ncol=len(omega_subset))
 
     fig.tight_layout()
 
@@ -1524,29 +1524,29 @@ def plot_noise_optimal_params(
 # ============================================================================
 
 
-def _optimise_noise_free_single_theta(
-    theta: float,
+def _optimise_noise_free_single_omega(
+    omega: float,
     n_random: int = 500,
     n_nm_refine: int = 25,
     seed: int = 42,
     maxiter: int = 2000,
     early_stop_patience: int = 200,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> tuple[float, tuple[float, float, float, float]]:
-    """Optimise noise-free sensitivity for a single θ value.
+    """Optimise noise-free sensitivity for a single ω value.
 
     This is a module-level worker for parallel execution via ProcessPoolExecutor.
 
     Returns:
-        Tuple (theta, (a_x*, a_y*, a_z*, a_zz*)).
+        Tuple (omega, (a_x*, a_y*, a_z*, a_zz*)).
     """
-    theta_seed = seed + int(theta * 1000)
+    omega_seed = seed + int(omega * 1000)
     local_ops = build_two_qubit_operators()
 
     # Stage 1: Random search at γ_φ=0
-    samples = np.random.default_rng(theta_seed).uniform(
+    samples = np.random.default_rng(omega_seed).uniform(
         bounds[0], bounds[1], size=(n_random, 4)
     )
     deltas = np.full(n_random, np.inf, dtype=float)
@@ -1554,8 +1554,8 @@ def _optimise_noise_free_single_theta(
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             T_BS,
-            T_H,
-            theta,
+            T_hold,
+            omega,
             0.0,
             float(samples[i, 0]),
             float(samples[i, 1]),
@@ -1579,17 +1579,17 @@ def _optimise_noise_free_single_theta(
     for rank in range(n_nm_refine):
         x0 = samples[int(sorted_indices[rank])].copy()
         nm = run_noisy_nelder_mead(
-            theta_true=theta,
+            omega_true=omega,
             gamma_phi=0.0,
             x0=x0,
-            seed=theta_seed + 10000 + rank,
+            seed=omega_seed + 10000 + rank,
             maxiter=maxiter,
             early_stop_patience=early_stop_patience,
             bounds=bounds,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
         )
-        dt_nm = float(nm["delta_theta_opt"])
+        dt_nm = float(nm["delta_omega_opt"])
         if np.isfinite(dt_nm) and dt_nm < best_dt:
             best_dt = dt_nm
             best_params = (
@@ -1599,47 +1599,47 @@ def _optimise_noise_free_single_theta(
                 float(nm["params_opt"][3]),
             )
 
-    return (float(theta), best_params)
+    return (float(omega), best_params)
 
 
 def compute_noise_free_optimal_params(
-    theta_values: list[float] | np.ndarray,
+    omega_values: list[float] | np.ndarray,
     n_random: int = 500,
     n_nm_refine: int = 25,
     seed: int = 42,
     maxiter: int = 2000,
     early_stop_patience: int = 200,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> dict[float, tuple[float, float, float, float]]:
-    """Compute noise-free optimal parameters (γ_φ = 0) for each θ value.
+    """Compute noise-free optimal parameters (γ_φ = 0) for each ω value.
 
     Uses the same two-stage optimisation (random search + Nelder-Mead)
     as the noise scan, but at γ_φ = 0. Results are used by
     ``evaluate_fixed_params_scan`` and ``plot_noise_reopt_vs_fixed``.
 
     Args:
-        theta_values: θ values to optimise for.
-        n_random: Number of random search points per θ.
-        n_nm_refine: Number of Nelder-Mead refinements per θ.
+        omega_values: ω values to optimise for.
+        n_random: Number of random search points per ω.
+        n_nm_refine: Number of Nelder-Mead refinements per ω.
         seed: Base random seed.
         maxiter: Maximum Nelder-Mead iterations.
         early_stop_patience: Consecutive non-improving NM iterations before stop.
         bounds: (min, max) for all parameters.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
-        Dict mapping θ → (a_x*, a_y*, a_z*, a_zz*).
+        Dict mapping ω → (a_x*, a_y*, a_z*, a_zz*).
     """
     with concurrent.futures.ProcessPoolExecutor(
         max_workers=min(16, os.cpu_count() or 1),
         mp_context=_mp.get_context("fork"),
     ) as executor:
-        fut_to_theta = {
+        fut_to_omega = {
             executor.submit(
-                _optimise_noise_free_single_theta,
+                _optimise_noise_free_single_omega,
                 float(t),
                 n_random,
                 n_nm_refine,
@@ -1647,13 +1647,13 @@ def compute_noise_free_optimal_params(
                 maxiter,
                 early_stop_patience,
                 bounds,
-                T_H,
+                T_hold,
                 T_BS,
             ): float(t)
-            for t in theta_values
+            for t in omega_values
         }
         result: dict[float, tuple[float, float, float, float]] = {}
-        for future in concurrent.futures.as_completed(fut_to_theta):
+        for future in concurrent.futures.as_completed(fut_to_omega):
             t_val, params = future.result()
             result[t_val] = params
 
@@ -1661,7 +1661,7 @@ def compute_noise_free_optimal_params(
 
 
 # ============================================================================
-# New Plot: P1 — Critical Noise Rate γ_φ*(θ)
+# New Plot: P1 — Critical Noise Rate γ_φ*(ω)
 # ============================================================================
 
 
@@ -1670,10 +1670,10 @@ def plot_noise_critical_rate(
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
 ) -> Path:
-    """Plot the critical phase-diffusion rate γ_φ* vs θ.
+    """Plot the critical phase-diffusion rate γ_φ* vs ω.
 
-    For each θ value, the threshold γ_φ* is the rate at which
-    Δθ(γ_φ*) = Δθ_SQL (i.e., the ratio crosses 1.0).  Interpolation
+    For each ω value, the threshold γ_φ* is the rate at which
+    Δω(γ_φ*) = Δω_SQL (i.e., the ratio crosses 1.0).  Interpolation
     is performed on log(γ_φ) vs log(ratio).
 
     Args:
@@ -1687,16 +1687,16 @@ def plot_noise_critical_rate(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    ratio = result.delta_theta_per_pair / result.sql
-    theta_arr = result.theta_values
+    ratio = result.delta_omega_per_pair / result.sql
+    omega_arr = result.omega_values
     gamma_arr = result.gamma_phi_values
     log_gamma = np.log10(gamma_arr)
 
-    gamma_star = np.full(len(theta_arr), np.nan)
-    gamma_star_lo = np.full(len(theta_arr), np.nan)
-    gamma_star_hi = np.full(len(theta_arr), np.nan)
+    gamma_star = np.full(len(omega_arr), np.nan)
+    gamma_star_lo = np.full(len(omega_arr), np.nan)
+    gamma_star_hi = np.full(len(omega_arr), np.nan)
 
-    for i in range(len(theta_arr)):
+    for i in range(len(omega_arr)):
         row = ratio[i, :]
         valid = np.isfinite(row) & (row > 0)
         if np.sum(valid) < 2:
@@ -1737,7 +1737,7 @@ def plot_noise_critical_rate(
     valid_crit = np.isfinite(gamma_star)
     if np.any(valid_crit):
         ax.errorbar(
-            theta_arr[valid_crit],
+            omega_arr[valid_crit],
             gamma_star[valid_crit],
             yerr=(
                 (gamma_star[valid_crit] - gamma_star_lo[valid_crit]),
@@ -1748,20 +1748,20 @@ def plot_noise_critical_rate(
             markersize=8,
             linewidth=2,
             capsize=4,
-            label=r"$\gamma_\phi^*(\theta)$",
+            label=r"$\gamma_\phi^*(\omega)$",
         )
 
     # Shaded region where protocol beats SQL
     ax.fill_between(
-        theta_arr,
+        omega_arr,
         gamma_arr[0] / 10,
         gamma_star,
         alpha=0.1,
         color="C0",
-        label=r"Sub-SQL ($\Delta\theta < \Delta\theta_{\mathrm{SQL}}$)",
+        label=r"Sub-SQL ($\Delta\omega < \Delta\omega_{\mathrm{SQL}}$)",
     )
 
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$\gamma_\phi^*$ (critical rate)")
     ax.set_yscale("log")
     ax.set_title("Critical phase-diffusion rate vs true phase")
@@ -1782,17 +1782,17 @@ def plot_noise_critical_rate(
 def plot_noise_reopt_vs_fixed(
     result: DriveNoiseScanResult,
     fixed_delta: np.ndarray,
-    theta_val: float = 0.2,
+    omega_val: float = 0.2,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Overlay re-optimised and fixed-parameter Δθ vs γ_φ at a given θ.
+    """Overlay re-optimised and fixed-parameter Δω vs γ_φ at a given ω.
 
     Args:
         result: DriveNoiseScanResult (re-optimised).
-        fixed_delta: Δθ from fixed (noise-free optimal) params,
-            shape (n_theta, n_gamma).
-        theta_val: θ value to plot.
+        fixed_delta: Δω from fixed (noise-free optimal) params,
+            shape (n_omega, n_gamma).
+        omega_val: ω value to plot.
         save_path: Output SVG path.
         figsize: Figure size.
 
@@ -1802,11 +1802,11 @@ def plot_noise_reopt_vs_fixed(
     save_path = Path(save_path) if save_path else Path()
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    i = np.where(np.isclose(result.theta_values, theta_val, atol=1e-6))[0]
+    i = np.where(np.isclose(result.omega_values, omega_val, atol=1e-6))[0]
     if len(i) == 0:
-        # Fallback to first theta
+        # Fallback to first omega
         i = [0]
-        theta_val = float(result.theta_values[0])
+        omega_val = float(result.omega_values[0])
     i = int(i[0])
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -1822,11 +1822,11 @@ def plot_noise_reopt_vs_fixed(
     )
 
     # Re-optimised
-    valid_reopt = np.isfinite(result.delta_theta_per_pair[i, :])
+    valid_reopt = np.isfinite(result.delta_omega_per_pair[i, :])
     if np.any(valid_reopt):
         ax.plot(
             result.gamma_phi_values[valid_reopt],
-            result.delta_theta_per_pair[i, valid_reopt],
+            result.delta_omega_per_pair[i, valid_reopt],
             "o-",
             color="C0",
             markersize=6,
@@ -1837,7 +1837,7 @@ def plot_noise_reopt_vs_fixed(
     # Fixed-params
     if (
         fixed_delta is not None
-        and fixed_delta.shape == result.delta_theta_per_pair.shape
+        and fixed_delta.shape == result.delta_omega_per_pair.shape
     ):
         valid_fixed = np.isfinite(fixed_delta[i, :])
         if np.any(valid_fixed):
@@ -1852,11 +1852,11 @@ def plot_noise_reopt_vs_fixed(
             )
 
     ax.set_xlabel(r"$\gamma_\phi$")
-    ax.set_ylabel(r"$\Delta\theta$")
+    ax.set_ylabel(r"$\Delta\omega$")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_title(
-        rf"Re-optimised vs fixed-parameter sensitivity at $\theta={theta_val:.1f}$"
+        rf"Re-optimised vs fixed-parameter sensitivity at $\omega={omega_val:.1f}$"
     )
     ax.legend(fontsize=9)
 
@@ -1873,40 +1873,40 @@ def plot_noise_reopt_vs_fixed(
 
 def plot_noise_signal_diagnostics(
     result: DriveNoiseScanResult,
-    theta_subset: list[float] | None = None,
+    omega_subset: list[float] | None = None,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (12, 8),
 ) -> Path:
-    """Three-panel stacked diagnostics vs γ_φ: ⟨Jz⟩, Var(Jz), |∂⟨Jz⟩/∂θ|.
+    """Three-panel stacked diagnostics vs γ_φ: ⟨Jz⟩, Var(Jz), |∂⟨Jz⟩/∂ω|.
 
     Args:
         result: DriveNoiseScanResult.
-        theta_subset: θ values to plot. Defaults to [0.2, 1.0, 5.0].
+        omega_subset: ω values to plot. Defaults to [0.2, 1.0, 5.0].
         save_path: Output SVG path.
         figsize: Figure size.
 
     Returns:
         Path to saved SVG.
     """
-    if theta_subset is None:
-        theta_subset = [0.2, 1.0, 5.0]
+    if omega_subset is None:
+        omega_subset = [0.2, 1.0, 5.0]
 
     save_path = Path(save_path) if save_path else Path()
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     _viridis_cmap = colormaps.get_cmap("viridis")
-    colors = _viridis_cmap(np.linspace(0, 1, len(theta_subset)))
+    colors = _viridis_cmap(np.linspace(0, 1, len(omega_subset)))
 
     fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=figsize, sharex=True)
 
-    for theta_val, color in zip(theta_subset, colors, strict=False):
-        idx = np.where(np.isclose(result.theta_values, theta_val, atol=1e-6))[0]
+    for omega_val, color in zip(omega_subset, colors, strict=False):
+        idx = np.where(np.isclose(result.omega_values, omega_val, atol=1e-6))[0]
         if len(idx) == 0:
             continue
         i = int(idx[0])
-        label = rf"$\theta$ = {theta_val:.1f}"
+        label = rf"$\omega$ = {omega_val:.1f}"
 
-        valid = np.isfinite(result.delta_theta_per_pair[i, :])
+        valid = np.isfinite(result.delta_omega_per_pair[i, :])
 
         # Panel 1: expectation
         if np.any(valid):
@@ -1934,7 +1934,7 @@ def plot_noise_signal_diagnostics(
 
         # Panel 3: |derivative|
         if np.any(valid):
-            d_exp = np.abs(result.d_exp_d_theta_per_pair[i, :])
+            d_exp = np.abs(result.d_exp_d_omega_per_pair[i, :])
             d_exp_valid = np.isfinite(d_exp) & valid
             if np.any(d_exp_valid):
                 ax3.plot(
@@ -1958,7 +1958,7 @@ def plot_noise_signal_diagnostics(
     ax2.grid(True, alpha=0.2)
 
     ax3.set_xlabel(r"$\gamma_\phi$")
-    ax3.set_ylabel(r"$|\partial\langle J_z^S\rangle/\partial\theta|$")
+    ax3.set_ylabel(r"$|\partial\langle J_z^S\rangle/\partial\omega|$")
     ax3.set_yscale("log")
     ax3.legend(fontsize=8, loc="best")
     ax3.grid(True, alpha=0.2)
@@ -1977,7 +1977,7 @@ def plot_noise_signal_diagnostics(
 def plot_noise_decoupled_vs_optimal(
     result: DriveNoiseScanResult,
     decoupled_data: pd.DataFrame | None = None,
-    theta_val: float = 1.0,
+    omega_val: float = 1.0,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
@@ -1985,9 +1985,9 @@ def plot_noise_decoupled_vs_optimal(
 
     Args:
         result: DriveNoiseScanResult (re-optimised).
-        decoupled_data: DataFrame with columns 'gamma_phi' and 'delta_theta'
+        decoupled_data: DataFrame with columns 'gamma_phi' and 'delta_omega'
             from the decoupled baseline scan. If None, loads from default path.
-        theta_val: θ value to plot.
+        omega_val: ω value to plot.
         save_path: Output SVG path.
         figsize: Figure size.
 
@@ -2003,10 +2003,10 @@ def plot_noise_decoupled_vs_optimal(
         if decoupled_p.exists():
             decoupled_data = pd.read_parquet(decoupled_p)
 
-    idx = np.where(np.isclose(result.theta_values, theta_val, atol=1e-6))[0]
+    idx = np.where(np.isclose(result.omega_values, omega_val, atol=1e-6))[0]
     if len(idx) == 0:
         idx = [0]
-        theta_val = float(result.theta_values[0])
+        omega_val = float(result.omega_values[0])
     i = int(idx[0])
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -2024,7 +2024,7 @@ def plot_noise_decoupled_vs_optimal(
     # Decoupled baseline
     if decoupled_data is not None:
         gammas_d = decoupled_data["gamma_phi"].to_numpy()
-        deltas_d = decoupled_data["delta_theta"].to_numpy()
+        deltas_d = decoupled_data["delta_omega"].to_numpy()
         valid_d = np.isfinite(deltas_d)
         if np.any(valid_d):
             ax.plot(
@@ -2038,20 +2038,20 @@ def plot_noise_decoupled_vs_optimal(
             )
 
     # Re-optimised
-    valid_opt = np.isfinite(result.delta_theta_per_pair[i, :])
+    valid_opt = np.isfinite(result.delta_omega_per_pair[i, :])
     if np.any(valid_opt):
         ax.plot(
             result.gamma_phi_values[valid_opt],
-            result.delta_theta_per_pair[i, valid_opt],
+            result.delta_omega_per_pair[i, valid_opt],
             "o-",
             color="C0",
             markersize=6,
             linewidth=1.8,
-            label=rf"Re-optimised ($\theta = {theta_val:.1f}$)",
+            label=rf"Re-optimised ($\omega = {omega_val:.1f}$)",
         )
 
     ax.set_xlabel(r"$\gamma_\phi$")
-    ax.set_ylabel(r"$\Delta\theta$")
+    ax.set_ylabel(r"$\Delta\omega$")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_title("Decoupled baseline vs re-optimised protocol under phase diffusion")
@@ -2064,50 +2064,50 @@ def plot_noise_decoupled_vs_optimal(
 
 
 # ============================================================================
-# New Plot: P5 — Improvement Ratio Δθ_fixed / Δθ_reopt
+# New Plot: P5 — Improvement Ratio Δω_fixed / Δω_reopt
 # ============================================================================
 
 
 def plot_noise_improvement_ratio(
     result: DriveNoiseScanResult,
     fixed_delta: np.ndarray,
-    theta_subset: list[float] | None = None,
+    omega_subset: list[float] | None = None,
     save_path: str | Path | None = None,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Plot the ratio Δθ_fixed / Δθ_reopt vs γ_φ.
+    """Plot the ratio Δω_fixed / Δω_reopt vs γ_φ.
 
     Values > 1 mean re-optimisation helps. Horizontal line at 1.0.
 
     Args:
         result: DriveNoiseScanResult (re-optimised).
-        fixed_delta: Δθ from fixed (noise-free optimal) params,
-            shape (n_theta, n_gamma).
-        theta_subset: θ values to plot.
+        fixed_delta: Δω from fixed (noise-free optimal) params,
+            shape (n_omega, n_gamma).
+        omega_subset: ω values to plot.
         save_path: Output SVG path.
         figsize: Figure size.
 
     Returns:
         Path to saved SVG.
     """
-    if theta_subset is None:
-        theta_subset = [0.2, 1.0, 2.0]
+    if omega_subset is None:
+        omega_subset = [0.2, 1.0, 2.0]
 
     save_path = Path(save_path) if save_path else Path()
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     _viridis_cmap = colormaps.get_cmap("viridis")
-    colors = _viridis_cmap(np.linspace(0, 1, len(theta_subset)))
+    colors = _viridis_cmap(np.linspace(0, 1, len(omega_subset)))
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    for theta_val, color in zip(theta_subset, colors, strict=False):
-        idx = np.where(np.isclose(result.theta_values, theta_val, atol=1e-6))[0]
+    for omega_val, color in zip(omega_subset, colors, strict=False):
+        idx = np.where(np.isclose(result.omega_values, omega_val, atol=1e-6))[0]
         if len(idx) == 0:
             continue
         i = int(idx[0])
 
-        reopt = result.delta_theta_per_pair[i, :]
+        reopt = result.delta_omega_per_pair[i, :]
         fixed = fixed_delta[i, :]
 
         valid = np.isfinite(reopt) & np.isfinite(fixed) & (reopt > 0)
@@ -2120,7 +2120,7 @@ def plot_noise_improvement_ratio(
                 color=color,
                 markersize=5,
                 linewidth=1.5,
-                label=rf"$\theta$ = {theta_val:.1f}",
+                label=rf"$\omega$ = {omega_val:.1f}",
             )
 
     ax.axhline(
@@ -2129,11 +2129,11 @@ def plot_noise_improvement_ratio(
         linestyle="--",
         alpha=0.7,
         linewidth=1.5,
-        label=r"$\Delta\theta_{\mathrm{fixed}} = \Delta\theta_{\mathrm{reopt}}$",
+        label=r"$\Delta\omega_{\mathrm{fixed}} = \Delta\omega_{\mathrm{reopt}}$",
     )
 
     ax.set_xlabel(r"$\gamma_\phi$")
-    ax.set_ylabel(r"$\Delta\theta_{\mathrm{fixed}} / \Delta\theta_{\mathrm{reopt}}$")
+    ax.set_ylabel(r"$\Delta\omega_{\mathrm{fixed}} / \Delta\omega_{\mathrm{reopt}}$")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_title("Re-optimisation benefit: improvement ratio vs phase diffusion rate")
@@ -2208,9 +2208,9 @@ def _parallel_map(
 def _run_single_pair_worker(args: dict[str, Any]) -> None:
     """Worker function for parallel noise scan.
 
-    Runs one (θ, γ_φ) pair and saves to a separate Parquet file.
+    Runs one (ω, γ_φ) pair and saves to a separate Parquet file.
     """
-    theta = args["theta"]
+    omega = args["omega"]
     gamma_phi = args["gamma_phi"]
     force = args["force"]
     n_random = args.get("n_random", 1000)
@@ -2219,16 +2219,16 @@ def _run_single_pair_worker(args: dict[str, Any]) -> None:
     maxiter = args.get("maxiter", 2000)
     early_stop_patience = args.get("early_stop_patience", 200)
 
-    tag = f"noise-pair-theta{theta}-gamma{gamma_phi:.6e}"
+    tag = f"noise-pair-omega{omega}-gamma{gamma_phi:.6e}"
     csv_p = _parquet_path(tag)
 
     if csv_p.exists() and not force:
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
         return
 
-    print(f"  [run]  (θ={theta}, γ_φ={gamma_phi:.2e})...")
+    print(f"  [run]  (ω={omega}, γ_φ={gamma_phi:.2e})...")
     result = _run_single_noise_pair(
-        theta,
+        omega,
         gamma_phi,
         n_random=n_random,
         n_nm_refine=n_nm_refine,
@@ -2241,18 +2241,18 @@ def _run_single_pair_worker(args: dict[str, Any]) -> None:
     row = pd.DataFrame(
         [
             {
-                "theta": theta,
+                "omega": omega,
                 "gamma_phi": gamma_phi,
                 "a_x": result["a_x"],
                 "a_y": result["a_y"],
                 "a_z": result["a_z"],
                 "a_zz": result["a_zz"],
-                "delta_theta": result["delta_theta"],
+                "delta_omega": result["delta_omega"],
                 "expectation_Jz": result.get("expectation_Jz", 0.0),
                 "variance_Jz": result.get("variance_Jz", 0.0),
-                "d_exp_d_theta": result.get("d_exp_d_theta", 0.0),
+                "d_exp_d_omega": result.get("d_exp_d_omega", 0.0),
                 "sql": SQL_REFERENCE,
-                "T_H": DEFAULT_T_H,
+                "T_hold": DEFAULT_T_hold,
                 "n_random": n_random,
                 "n_nm_refine": n_nm_refine,
                 "maxiter": maxiter,
@@ -2269,9 +2269,9 @@ def _run_single_pair_worker(args: dict[str, Any]) -> None:
 
 
 def generate_noise_scan(force: bool = False) -> None:
-    """Run the full (θ, γ_φ) noise scan in parallel.
+    """Run the full (ω, γ_φ) noise scan in parallel.
 
-    Each (θ, γ_φ) pair is computed independently and saved to a separate
+    Each (ω, γ_φ) pair is computed independently and saved to a separate
     Parquet file. After all pairs complete, results are aggregated into a
     single DriveNoiseScanResult and saved.
     """
@@ -2281,15 +2281,15 @@ def generate_noise_scan(force: bool = False) -> None:
         print(f"[skip] {agg_p.name} exists (use --force to overwrite)")
         result = DriveNoiseScanResult.from_parquet(agg_p)
     else:
-        n_theta = len(THETA_VALS)
+        n_omega = len(OMEGA_VALS)
         n_gamma = len(GAMMA_PHI_VALS)
-        n_total = n_theta * n_gamma
-        print(f"[run]  Noise scan: {n_total} (θ, γ_φ) pairs (parallel)")
+        n_total = n_omega * n_gamma
+        print(f"[run]  Noise scan: {n_total} (ω, γ_φ) pairs (parallel)")
 
         # Build worker arguments
         args_list = [
             {
-                "theta": theta,
+                "omega": omega,
                 "gamma_phi": gamma_phi,
                 "force": force,
                 "n_random": 1000,
@@ -2298,7 +2298,7 @@ def generate_noise_scan(force: bool = False) -> None:
                 "maxiter": 2000,
                 "early_stop_patience": 200,
             }
-            for theta in THETA_VALS
+            for omega in OMEGA_VALS
             for gamma_phi in GAMMA_PHI_VALS
         ]
 
@@ -2311,9 +2311,9 @@ def generate_noise_scan(force: bool = False) -> None:
         # Aggregate results from individual Parquet files
         print("  [aggregate] Building aggregated result...")
         all_rows: list[pd.DataFrame] = []
-        for theta in THETA_VALS:
+        for omega in OMEGA_VALS:
             for gamma_phi in GAMMA_PHI_VALS:
-                tag = f"noise-pair-theta{theta}-gamma{gamma_phi:.6e}"
+                tag = f"noise-pair-omega{omega}-gamma{gamma_phi:.6e}"
                 csv_p = _parquet_path(tag)
                 if csv_p.exists():
                     all_rows.append(pd.read_parquet(csv_p))
@@ -2325,32 +2325,32 @@ def generate_noise_scan(force: bool = False) -> None:
         df_agg = pd.concat(all_rows, ignore_index=True)
 
         # Build the aggregated result
-        theta_arr = np.array(THETA_VALS, dtype=float)
+        omega_arr = np.array(OMEGA_VALS, dtype=float)
         gamma_arr = np.array(GAMMA_PHI_VALS, dtype=float)
-        n_theta = len(theta_arr)
+        n_omega = len(omega_arr)
         n_gamma = len(gamma_arr)
 
         params_list: list[tuple[float, float, float, float]] = []
-        dt_arr = np.full((n_theta, n_gamma), np.inf, dtype=float)
-        exp_arr = np.zeros((n_theta, n_gamma), dtype=float)
-        var_arr = np.zeros((n_theta, n_gamma), dtype=float)
-        d_exp_arr = np.zeros((n_theta, n_gamma), dtype=float)
+        dt_arr = np.full((n_omega, n_gamma), np.inf, dtype=float)
+        exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
+        var_arr = np.zeros((n_omega, n_gamma), dtype=float)
+        d_exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
 
         lookup: dict[tuple[float, float], dict[str, float]] = {}
         for _, row in df_agg.iterrows():
-            key = (float(row["theta"]), float(row["gamma_phi"]))
+            key = (float(row["omega"]), float(row["gamma_phi"]))
             lookup[key] = {
                 "a_x": float(row["a_x"]),
                 "a_y": float(row["a_y"]),
                 "a_z": float(row["a_z"]),
                 "a_zz": float(row["a_zz"]),
-                "delta_theta": float(row["delta_theta"]),
+                "delta_omega": float(row["delta_omega"]),
                 "expectation_Jz": float(row.get("expectation_Jz", 0.0)),
                 "variance_Jz": float(row.get("variance_Jz", 0.0)),
-                "d_exp_d_theta": float(row.get("d_exp_d_theta", 0.0)),
+                "d_exp_d_omega": float(row.get("d_exp_d_omega", 0.0)),
             }
 
-        for i, t in enumerate(theta_arr):
+        for i, t in enumerate(omega_arr):
             for j, g in enumerate(gamma_arr):
                 entry = lookup.get((t, g), {})
                 params_list.append(
@@ -2361,23 +2361,23 @@ def generate_noise_scan(force: bool = False) -> None:
                         entry.get("a_zz", 0.0),
                     )
                 )
-                dt_arr[i, j] = entry.get("delta_theta", float("inf"))
+                dt_arr[i, j] = entry.get("delta_omega", float("inf"))
                 exp_arr[i, j] = entry.get("expectation_Jz", 0.0)
                 var_arr[i, j] = entry.get("variance_Jz", 0.0)
-                d_exp_arr[i, j] = entry.get("d_exp_d_theta", 0.0)
+                d_exp_arr[i, j] = entry.get("d_exp_d_omega", 0.0)
 
         # Read hyperparameters from the first row of the aggregated data
         first_row = df_agg.iloc[0]
         result = DriveNoiseScanResult(
-            theta_values=theta_arr,
+            omega_values=omega_arr,
             gamma_phi_values=gamma_arr,
             best_params_per_pair=params_list,
-            delta_theta_per_pair=dt_arr,
+            delta_omega_per_pair=dt_arr,
             expectation_Jz_per_pair=exp_arr,
             variance_Jz_per_pair=var_arr,
-            d_exp_d_theta_per_pair=d_exp_arr,
+            d_exp_d_omega_per_pair=d_exp_arr,
             sql=SQL_REFERENCE,
-            T_H=DEFAULT_T_H,
+            T_hold=DEFAULT_T_hold,
             n_random=int(first_row.get("n_random", 1000)),
             n_nm_refine=int(first_row.get("n_nm_refine", 25)),
             maxiter=int(first_row.get("maxiter", 5000)),
@@ -2436,18 +2436,18 @@ def generate_noise_figures(result: DriveNoiseScanResult | None = None) -> None:
     fixed_p = _parquet_path("noise-fixed-params-scan")
     if fixed_p.exists():
         fixed_df = pd.read_parquet(fixed_p)
-        # Reshape to (n_theta, n_gamma)
-        theta_arr = result.theta_values
+        # Reshape to (n_omega, n_gamma)
+        omega_arr = result.omega_values
         gamma_arr = result.gamma_phi_values
-        n_theta = len(theta_arr)
+        n_omega = len(omega_arr)
         n_gamma = len(gamma_arr)
-        fixed_delta = np.full((n_theta, n_gamma), np.inf, dtype=float)
+        fixed_delta = np.full((n_omega, n_gamma), np.inf, dtype=float)
         for _, row in fixed_df.iterrows():
-            t = float(row["theta"])
+            t = float(row["omega"])
             g = float(row["gamma_phi"])
-            i = int(np.where(np.isclose(theta_arr, t, atol=1e-6))[0][0])
+            i = int(np.where(np.isclose(omega_arr, t, atol=1e-6))[0][0])
             j = int(np.where(np.isclose(gamma_arr, g, atol=1e-6))[0][0])
-            fixed_delta[i, j] = float(row["delta_theta"])
+            fixed_delta[i, j] = float(row["delta_omega"])
 
         # P2: Re-optimised vs fixed
         fig_p = _fig_path("noise-reopt-vs-fixed")
@@ -2477,9 +2477,9 @@ def generate_noise_decoupled_baseline(force: bool = False) -> None:
             rows.append(
                 {
                     "gamma_phi": g,
-                    "delta_theta": dt,
+                    "delta_omega": dt,
                     "sql": SQL_REFERENCE,
-                    "T_H": DEFAULT_T_H,
+                    "T_hold": DEFAULT_T_hold,
                 }
             )
         df = pd.DataFrame(rows)
@@ -2489,7 +2489,7 @@ def generate_noise_decoupled_baseline(force: bool = False) -> None:
 
 
 def generate_noise_free_optimal_params(force: bool = False) -> None:
-    """Compute noise-free optimal parameters (γ_φ = 0) for each θ value.
+    """Compute noise-free optimal parameters (γ_φ = 0) for each ω value.
 
     Results are saved as a single-row Parquet and used by the fixed-params scan.
     """
@@ -2500,7 +2500,7 @@ def generate_noise_free_optimal_params(force: bool = False) -> None:
     else:
         print("[run]  Computing noise-free optimal parameters...")
         optimal = compute_noise_free_optimal_params(
-            THETA_VALS,
+            OMEGA_VALS,
             n_random=500,
             n_nm_refine=25,
             seed=42,
@@ -2508,11 +2508,11 @@ def generate_noise_free_optimal_params(force: bool = False) -> None:
             early_stop_patience=200,
         )
         rows = []
-        for theta_val in THETA_VALS:
-            params = optimal.get(float(theta_val), (0.0, 0.0, 0.0, 0.0))
+        for omega_val in OMEGA_VALS:
+            params = optimal.get(float(omega_val), (0.0, 0.0, 0.0, 0.0))
             rows.append(
                 {
-                    "theta": theta_val,
+                    "omega": omega_val,
                     "a_x": params[0],
                     "a_y": params[1],
                     "a_z": params[2],
@@ -2526,10 +2526,10 @@ def generate_noise_free_optimal_params(force: bool = False) -> None:
 
 
 def generate_noise_fixed_params_scan(force: bool = False) -> None:
-    """Evaluate Δθ at noise-free optimal params for all (θ, γ_φ) pairs.
+    """Evaluate Δω at noise-free optimal params for all (ω, γ_φ) pairs.
 
     Requires noise-free optimal params Parquet and noise-scan Parquet
-    (to know the θ and γ_φ values).
+    (to know the ω and γ_φ values).
     """
     csv_p = _parquet_path("noise-fixed-params-scan")
     opt_p = _parquet_path("noise-free-optimal-params")
@@ -2548,7 +2548,7 @@ def generate_noise_fixed_params_scan(force: bool = False) -> None:
     opt_df = pd.read_parquet(opt_p)
     noise_free_params: dict[float, tuple[float, float, float, float]] = {}
     for _, row in opt_df.iterrows():
-        noise_free_params[float(row["theta"])] = (
+        noise_free_params[float(row["omega"])] = (
             float(row["a_x"]),
             float(row["a_y"]),
             float(row["a_z"]),
@@ -2556,22 +2556,22 @@ def generate_noise_fixed_params_scan(force: bool = False) -> None:
         )
 
     delta = evaluate_fixed_params_scan(
-        THETA_VALS,
+        OMEGA_VALS,
         GAMMA_PHI_VALS,
         noise_free_params,
     )
 
     # Save as DataFrame
     rows = []
-    for i, t in enumerate(THETA_VALS):
+    for i, t in enumerate(OMEGA_VALS):
         for j, g in enumerate(GAMMA_PHI_VALS):
             rows.append(
                 {
-                    "theta": t,
+                    "omega": t,
                     "gamma_phi": g,
-                    "delta_theta": float(delta[i, j]),
+                    "delta_omega": float(delta[i, j]),
                     "sql": SQL_REFERENCE,
-                    "T_H": DEFAULT_T_H,
+                    "T_hold": DEFAULT_T_hold,
                 }
             )
     df = pd.DataFrame(rows)
@@ -2585,8 +2585,8 @@ def generate_noise_validation(force: bool = False) -> None:
     print("[run]  Running validation checks...")
     ops = build_two_qubit_operators()
 
-    # Test a small set of (θ, γ_φ) pairs
-    test_thetas = [0.1, 1.0, 5.0]
+    # Test a small set of (ω, γ_φ) pairs
+    test_omegas = [0.1, 1.0, 5.0]
     test_gammas = [0.0, 1e-4, 1e-2, 1.0]
     test_params_list = [
         (0.0, 0.0, 0.0, 0.0),
@@ -2596,7 +2596,7 @@ def generate_noise_validation(force: bool = False) -> None:
 
     n_pass = 0
     n_total = 0
-    for theta in test_thetas:
+    for omega in test_omegas:
         for gamma in test_gammas:
             for params in test_params_list:
                 ax, ay, az, azz = params
@@ -2604,8 +2604,8 @@ def generate_noise_validation(force: bool = False) -> None:
                     rho = evolve_noisy_drive_circuit(
                         DEFAULT_RHO0,
                         DEFAULT_T_BS,
-                        DEFAULT_T_H,
-                        theta,
+                        DEFAULT_T_hold,
+                        omega,
                         gamma,
                         ax,
                         ay,
@@ -2616,7 +2616,7 @@ def generate_noise_validation(force: bool = False) -> None:
                     validate_density(rho)
                     n_pass += 1
                 except AssertionError as e:
-                    print(f"  [FAIL] θ={theta}, γ_φ={gamma}, params={params}: {e}")
+                    print(f"  [FAIL] ω={omega}, γ_φ={gamma}, params={params}: {e}")
                 n_total += 1
 
     print(f"  Validation: {n_pass}/{n_total} passed")
@@ -2624,15 +2624,15 @@ def generate_noise_validation(force: bool = False) -> None:
     # Also test sensitivity is finite
     n_sens_pass = 0
     n_sens_total = 0
-    for theta in test_thetas:
+    for omega in test_omegas:
         for gamma in test_gammas:
             for params in [test_params_list[0], test_params_list[1]]:
                 ax, ay, az, azz = params
                 dt = compute_noisy_sensitivity(
                     DEFAULT_RHO0,
                     DEFAULT_T_BS,
-                    DEFAULT_T_H,
-                    theta,
+                    DEFAULT_T_hold,
+                    omega,
                     gamma,
                     ax,
                     ay,

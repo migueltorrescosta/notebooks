@@ -5,9 +5,9 @@ Contains all code exclusive to this report:
 - Multi-particle operator construction (Dicke basis, N up to 20)
 - Dual MZI circuit: BS(S)⊗BS(A) → Hold → BS(S)⊗BS(A) → Tr_A → measure J_z^S
 - Sensitivity via error propagation with central finite differences
-- α_xx optimisation (coarse grid + bounded 1D refinement) per (θ, N) pair
-- Full 2D sweep over θ ∈ [0.1, 5.0] and N ∈ [1, 20]
-- Scaling analysis (log-log fit Δθ ∝ N^α)
+- α_xx optimisation (coarse grid + bounded 1D refinement) per (ω, N) pair
+- Full 2D sweep over ω ∈ [0.1, 5.0] and N ∈ [1, 20]
+- Scaling analysis (log-log fit Δω ∝ N^α)
 - Exclusive plot functions for heatmaps and scaling curves
 - Data and figure generation pipeline (``generate_*`` functions)
 - CLI entry point for standalone execution
@@ -52,9 +52,10 @@ from src.physics.multi_mzi import (
     dual_bs_unitary,  # noqa: F401 — re-exported for tests
     embed_combined_operators,
     evolve_circuit,
-    hold_unitary,  # noqa: F401 — re-exported for tests
+    hold_unitary_dicke,  # noqa: F401 — re-exported for tests
     single_bs_unitary,  # noqa: F401 — re-exported for tests
 )
+from src.utils.enums import OperatorBasis
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -66,15 +67,15 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_H: float = 10.0  # Holding time (SQL reference)
+DEFAULT_T_hold: float = 10.0  # Holding time (SQL reference)
 AXX_BOUNDS: tuple[float, float] = (0.0, 20.0)  # α_xx optimisation range
 N_COARSE_GRID: int = 101  # Coarse grid points for α_xx scan
 FD_STEP: float = 1e-6  # Central finite-difference step
 
-# θ and N sweep ranges (from report)
-THETA_MIN: float = 0.1
-THETA_MAX: float = 5.0
-THETA_STEP: float = 0.1
+# ω and N sweep ranges (from report)
+OMEGA_MIN: float = 0.1
+OMEGA_MAX: float = 5.0
+OMEGA_STEP: float = 0.1
 N_MIN: int = 1
 N_MAX: int = 20
 
@@ -117,47 +118,51 @@ def initial_state(N: int) -> np.ndarray:
 def compute_sensitivity(
     N: int,
     psi0: np.ndarray,
-    theta_true: float,
+    omega_true: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray],
     meas_op: np.ndarray | None = None,
     fd_step: float = FD_STEP,
     T_BS: float = DEFAULT_T_BS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
 ) -> tuple[float, float, float, float]:
-    """Compute the error-propagation sensitivity Δθ.
+    """Compute the error-propagation sensitivity Δω.
 
-    Δθ = √Var(J_z^S) / |∂⟨J_z^S⟩/∂θ|
+    Δω = √Var(J_z^S) / |∂⟨J_z^S⟩/∂ω|
 
-    Also returns ⟨J_z^S⟩, Var(J_z^S), and ∂⟨J_z^S⟩/∂θ at theta_true.
+    Also returns ⟨J_z^S⟩, Var(J_z^S), and ∂⟨J_z^S⟩/∂ω at omega_true.
 
     Args:
         N: Particle number per subsystem.
         psi0: Initial state vector.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         alpha_xx: XX coupling strength.
         ops: Embedded operators.
         meas_op: (N+1)×(N+1) measurement operator (default = J_z^S single).
         fd_step: Central finite-difference step size.
         T_BS: Beam-splitter angle.
-        T_H: Holding time.
+        T_hold: Holding time.
 
     Returns:
-        Tuple (delta_theta, expectation, variance, derivative).
+        Tuple (delta_omega, expectation, variance, derivative).
         Returns (inf, exp, var, 0.0) if derivative is zero.
     """
     if meas_op is None:
         meas_op = ops["Jz_S"]
 
-    # Evaluate at theta_true
-    psi = evolve_circuit(N, psi0, theta_true, alpha_xx, ops, T_BS, T_H)
+    # Evaluate at omega_true
+    psi = evolve_circuit(N, psi0, omega_true, alpha_xx, ops, T_BS, T_hold)
     # Use single-subsystem J_z for the reduced expectation/variance
-    Jz_single = jz_operator(N)
+    Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
     exp_val, var_val = compute_reduced_expectation_and_variance(psi, N, Jz_single)
 
-    # Central finite difference for ∂⟨J_z^S⟩/∂θ
-    psi_plus = evolve_circuit(N, psi0, theta_true + fd_step, alpha_xx, ops, T_BS, T_H)
-    psi_minus = evolve_circuit(N, psi0, theta_true - fd_step, alpha_xx, ops, T_BS, T_H)
+    # Central finite difference for ∂⟨J_z^S⟩/∂ω
+    psi_plus = evolve_circuit(
+        N, psi0, omega_true + fd_step, alpha_xx, ops, T_BS, T_hold
+    )
+    psi_minus = evolve_circuit(
+        N, psi0, omega_true - fd_step, alpha_xx, ops, T_BS, T_hold
+    )
 
     exp_plus, _ = compute_reduced_expectation_and_variance(psi_plus, N, Jz_single)
     exp_minus, _ = compute_reduced_expectation_and_variance(psi_minus, N, Jz_single)
@@ -166,8 +171,8 @@ def compute_sensitivity(
     if abs(d_exp) < 1e-12:
         return float("inf"), exp_val, var_val, 0.0
 
-    delta_theta = float(np.sqrt(var_val) / abs(d_exp))
-    return delta_theta, exp_val, var_val, d_exp
+    delta_omega = float(np.sqrt(var_val) / abs(d_exp))
+    return delta_omega, exp_val, var_val, d_exp
 
 
 # ============================================================================
@@ -177,53 +182,53 @@ def compute_sensitivity(
 
 def optimise_alpha_xx(
     N: int,
-    theta: float,
+    omega: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray | None = None,
     axx_bounds: tuple[float, float] = AXX_BOUNDS,
     n_coarse: int = N_COARSE_GRID,
     T_BS: float = DEFAULT_T_BS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     fd_step: float = FD_STEP,
 ) -> dict[str, float]:
-    """Optimise Δθ over α_xx for a given (θ, N) pair.
+    """Optimise Δω over α_xx for a given (ω, N) pair.
 
     Two-stage approach:
-    Stage 1: Evaluate Δθ on a coarse grid of n_coarse points.
+    Stage 1: Evaluate Δω on a coarse grid of n_coarse points.
     Stage 2: Bounded 1D refinement via scipy.optimize.minimize_scalar,
              seeded at the best grid point.
 
     Args:
         N: Particle number per subsystem.
-        theta: Phase rate.
+        omega: Phase rate.
         ops: Embedded operators.
         psi0: Initial state (default: built fresh).
         axx_bounds: (min, max) for α_xx.
         n_coarse: Number of coarse grid points.
         T_BS: Beam-splitter angle.
-        T_H: Holding time.
+        T_hold: Holding time.
         fd_step: Finite-difference step.
 
     Returns:
         Dict with keys:
             'alpha_xx_opt': optimal α_xx value.
-            'delta_theta_opt': minimal Δθ.
+            'delta_omega_opt': minimal Δω.
             'expectation_Jz': ⟨J_z^S⟩ at optimum.
             'variance_Jz': Var(J_z^S) at optimum.
-            'd_expectation': ∂⟨J_z^S⟩/∂θ at optimum.
-            'sql': SQL = 1/(√N * T_H) reference.
+            'd_expectation': ∂⟨J_z^S⟩/∂ω at optimum.
+            'sql': SQL = 1/(√N * T_hold) reference.
     """
     if psi0 is None:
         psi0 = initial_state(N)
 
-    sql = 1.0 / (np.sqrt(N) * T_H)
+    sql = 1.0 / (np.sqrt(N) * T_hold)
 
     # Stage 1: coarse grid
     alpha_vals = np.linspace(axx_bounds[0], axx_bounds[1], n_coarse)
     delta_vals = np.full(n_coarse, np.inf, dtype=float)
 
     for i, a_val in enumerate(alpha_vals):
-        dt, _, _, _ = compute_sensitivity(N, psi0, theta, a_val, ops, fd_step=fd_step)
+        dt, _, _, _ = compute_sensitivity(N, psi0, omega, a_val, ops, fd_step=fd_step)
         delta_vals[i] = dt
 
     # Find best grid point
@@ -231,7 +236,7 @@ def optimise_alpha_xx(
     if not np.any(finite_mask):
         return {
             "alpha_xx_opt": float("nan"),
-            "delta_theta_opt": float("inf"),
+            "delta_omega_opt": float("inf"),
             "expectation_Jz": 0.0,
             "variance_Jz": 0.0,
             "d_expectation": 0.0,
@@ -244,7 +249,7 @@ def optimise_alpha_xx(
 
     # Stage 2: bounded 1D refinement
     def _objective(a: float) -> float:
-        dt, _, _, _ = compute_sensitivity(N, psi0, theta, a, ops, fd_step=fd_step)
+        dt, _, _, _ = compute_sensitivity(N, psi0, omega, a, ops, fd_step=fd_step)
         return dt if np.isfinite(dt) else 1e10
 
     result = minimize_scalar(
@@ -259,20 +264,20 @@ def optimise_alpha_xx(
 
     # Re-evaluate at optimum for expectation and variance
     dt_opt, exp_opt, var_opt, d_exp = compute_sensitivity(
-        N, psi0, theta, alpha_opt, ops, fd_step=fd_step
+        N, psi0, omega, alpha_opt, ops, fd_step=fd_step
     )
 
     # If the refine result is worse than the grid, prefer the grid result
     if delta_opt > delta_vals[best_idx]:
         alpha_opt = seed_alpha
         dt_opt, exp_opt, var_opt, d_exp = compute_sensitivity(
-            N, psi0, theta, alpha_opt, ops, fd_step=fd_step
+            N, psi0, omega, alpha_opt, ops, fd_step=fd_step
         )
         delta_opt = dt_opt
 
     return {
         "alpha_xx_opt": alpha_opt,
-        "delta_theta_opt": delta_opt,
+        "delta_omega_opt": delta_opt,
         "expectation_Jz": exp_opt,
         "variance_Jz": var_opt,
         "d_expectation": d_exp,
@@ -287,34 +292,34 @@ def optimise_alpha_xx(
 
 @dataclass
 class DualMZISweepResult:
-    """Full 2D sweep over θ and N with α_xx optimisation per point.
+    """Full 2D sweep over ω and N with α_xx optimisation per point.
 
-    All array fields have the same length (n_theta × n_N), stored in
-    row-major order (θ varies fastest, then N).
+    All array fields have the same length (n_omega × n_N), stored in
+    row-major order (ω varies fastest, then N).
 
     Attributes:
-        theta_values: θ values for each point.
+        omega_values: ω values for each point.
         N_values: N values for each point.
         alpha_xx_opt: Optimal α_xx at each point.
-        delta_theta_opt: Minimal Δθ at each point.
-        sql_values: SQL = 1/(√N T_H) at each point.
-        ratio: Δθ_opt / SQL at each point.
+        delta_omega_opt: Minimal Δω at each point.
+        sql_values: SQL = 1/(√N T_hold) at each point.
+        ratio: Δω_opt / SQL at each point.
         expectation_Jz: ⟨J_z^S⟩ at optimum.
         variance_Jz: Var(J_z^S) at optimum.
-        d_expectation: ∂⟨J_z^S⟩/∂θ at optimum.
-        T_H: Holding time (scalar).
+        d_expectation: ∂⟨J_z^S⟩/∂ω at optimum.
+        T_hold: Holding time (scalar).
     """
 
-    theta_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
     N_values: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
     alpha_xx_opt: np.ndarray = field(default_factory=lambda: np.array([]))
-    delta_theta_opt: np.ndarray = field(default_factory=lambda: np.array([]))
+    delta_omega_opt: np.ndarray = field(default_factory=lambda: np.array([]))
     sql_values: np.ndarray = field(default_factory=lambda: np.array([]))
     ratio: np.ndarray = field(default_factory=lambda: np.array([]))
     expectation_Jz: np.ndarray = field(default_factory=lambda: np.array([]))
     variance_Jz: np.ndarray = field(default_factory=lambda: np.array([]))
     d_expectation: np.ndarray = field(default_factory=lambda: np.array([]))
-    T_H: float = DEFAULT_T_H
+    T_hold: float = DEFAULT_T_hold
 
     def __post_init__(self) -> None:
         # Ensure int dtype for N_values
@@ -324,11 +329,11 @@ class DualMZISweepResult:
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
             {
-                "theta": self.theta_values,
+                "omega": self.omega_values,
                 "N": self.N_values,
-                "T_H": np.full(len(self.theta_values), self.T_H),
+                "T_hold": np.full(len(self.omega_values), self.T_hold),
                 "alpha_xx_opt": self.alpha_xx_opt,
-                "delta_theta_opt": self.delta_theta_opt,
+                "delta_omega_opt": self.delta_omega_opt,
                 "sql": self.sql_values,
                 "ratio": self.ratio,
                 "expectation_Jz": self.expectation_Jz,
@@ -347,11 +352,11 @@ class DualMZISweepResult:
     def from_parquet(cls, path: str | Path) -> DualMZISweepResult:
         df = pd.read_parquet(path)
         required = {
-            "theta",
+            "omega",
             "N",
-            "T_H",
+            "T_hold",
             "alpha_xx_opt",
-            "delta_theta_opt",
+            "delta_omega_opt",
             "sql",
             "ratio",
             "expectation_Jz",
@@ -366,25 +371,25 @@ class DualMZISweepResult:
             )
 
         return cls(
-            theta_values=df["theta"].to_numpy(dtype=float),
+            omega_values=df["omega"].to_numpy(dtype=float),
             N_values=df["N"].to_numpy(dtype=int),
             alpha_xx_opt=df["alpha_xx_opt"].to_numpy(dtype=float),
-            delta_theta_opt=df["delta_theta_opt"].to_numpy(dtype=float),
+            delta_omega_opt=df["delta_omega_opt"].to_numpy(dtype=float),
             sql_values=df["sql"].to_numpy(dtype=float),
             ratio=df["ratio"].to_numpy(dtype=float),
             expectation_Jz=df["expectation_Jz"].to_numpy(dtype=float),
             variance_Jz=df["variance_Jz"].to_numpy(dtype=float),
             d_expectation=df["d_expectation"].to_numpy(dtype=float),
-            T_H=float(df["T_H"].iloc[0]),
+            T_hold=float(df["T_hold"].iloc[0]),
         )
 
     @property
     def n_points(self) -> int:
-        return len(self.theta_values)
+        return len(self.omega_values)
 
     @property
-    def n_theta_unique(self) -> int:
-        return len(np.unique(self.theta_values))
+    def n_omega_unique(self) -> int:
+        return len(np.unique(self.omega_values))
 
     @property
     def n_N_unique(self) -> int:
@@ -397,32 +402,32 @@ class DualMZISweepResult:
 
 
 def run_sweep(
-    theta_values: np.ndarray | None = None,
+    omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     progress_callback: Callable[[int, int], None] | None = None,
 ) -> DualMZISweepResult:
-    """Run the full 2D sweep over θ and N with α_xx optimisation.
+    """Run the full 2D sweep over ω and N with α_xx optimisation.
 
     Args:
-        theta_values: θ values to sweep (default: 0.1 to 5.0 step 0.1).
+        omega_values: ω values to sweep (default: 0.1 to 5.0 step 0.1).
         N_values: N values to sweep (default: 1 to 20 inclusive).
-        T_H: Holding time.
+        T_hold: Holding time.
         progress_callback: Optional callback (current, total).
 
     Returns:
         DualMZISweepResult with all optimised points.
     """
-    if theta_values is None:
-        theta_values = np.arange(THETA_MIN, THETA_MAX + 1e-9, THETA_STEP)
+    if omega_values is None:
+        omega_values = np.arange(OMEGA_MIN, OMEGA_MAX + 1e-9, OMEGA_STEP)
     if N_values is None:
         N_values = np.arange(N_MIN, N_MAX + 1, dtype=int)
 
-    n_theta = len(theta_values)
+    n_omega = len(omega_values)
     n_N = len(N_values)
-    total = n_theta * n_N
+    total = n_omega * n_N
 
-    thetas = np.zeros(total, dtype=float)
+    omegas = np.zeros(total, dtype=float)
     Ns = np.zeros(total, dtype=int)
     alpha_opts = np.full(total, np.nan, dtype=float)
     delta_opts = np.full(total, np.inf, dtype=float)
@@ -436,23 +441,23 @@ def run_sweep(
     for N in N_values:
         ops = embed_combined_operators(N)
         psi0 = initial_state(N)
-        for theta in theta_values:
-            thetas[idx] = theta
+        for omega in omega_values:
+            omegas[idx] = omega
             Ns[idx] = N
 
             opt_result = optimise_alpha_xx(
                 N=N,
-                theta=theta,
+                omega=omega,
                 ops=ops,
                 psi0=psi0,
-                T_H=T_H,
+                T_hold=T_hold,
             )
             alpha_opts[idx] = opt_result["alpha_xx_opt"]
-            delta_opts[idx] = opt_result["delta_theta_opt"]
+            delta_opts[idx] = opt_result["delta_omega_opt"]
             sqls[idx] = opt_result["sql"]
             ratios[idx] = (
-                opt_result["delta_theta_opt"] / opt_result["sql"]
-                if np.isfinite(opt_result["delta_theta_opt"]) and opt_result["sql"] > 0
+                opt_result["delta_omega_opt"] / opt_result["sql"]
+                if np.isfinite(opt_result["delta_omega_opt"]) and opt_result["sql"] > 0
                 else float("inf")
             )
             exps[idx] = opt_result["expectation_Jz"]
@@ -464,16 +469,16 @@ def run_sweep(
                 progress_callback(idx, total)
 
     return DualMZISweepResult(
-        theta_values=thetas,
+        omega_values=omegas,
         N_values=Ns,
         alpha_xx_opt=alpha_opts,
-        delta_theta_opt=delta_opts,
+        delta_omega_opt=delta_opts,
         sql_values=sqls,
         ratio=ratios,
         expectation_Jz=exps,
         variance_Jz=vars_,
         d_expectation=d_exps,
-        T_H=T_H,
+        T_hold=T_hold,
     )
 
 
@@ -483,33 +488,33 @@ def run_sweep(
 
 
 def compute_decoupled_baseline(
-    theta_values: np.ndarray | None = None,
+    omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     fd_step: float = FD_STEP,
 ) -> DualMZISweepResult:
-    """Verify the decoupled baseline (α_xx = 0) for all (θ, N) pairs.
+    """Verify the decoupled baseline (α_xx = 0) for all (ω, N) pairs.
 
-    At α_xx = 0, the sensitivity should equal SQL = 1/(√N T_H).
+    At α_xx = 0, the sensitivity should equal SQL = 1/(√N T_hold).
 
     Args:
-        theta_values: θ values (default: sweep range).
+        omega_values: ω values (default: sweep range).
         N_values: N values (default: 1 to 20).
-        T_H: Holding time.
+        T_hold: Holding time.
 
     Returns:
         DualMZISweepResult with α_xx=0 results.
     """
-    if theta_values is None:
-        theta_values = np.arange(THETA_MIN, THETA_MAX + 1e-9, THETA_STEP)
+    if omega_values is None:
+        omega_values = np.arange(OMEGA_MIN, OMEGA_MAX + 1e-9, OMEGA_STEP)
     if N_values is None:
         N_values = np.arange(N_MIN, N_MAX + 1, dtype=int)
 
-    n_theta = len(theta_values)
+    n_omega = len(omega_values)
     n_N = len(N_values)
-    total = n_theta * n_N
+    total = n_omega * n_N
 
-    thetas = np.zeros(total, dtype=float)
+    omegas = np.zeros(total, dtype=float)
     Ns = np.zeros(total, dtype=int)
     sqls = np.zeros(total, dtype=float)
     delta_opts = np.zeros(total, dtype=float)
@@ -523,14 +528,14 @@ def compute_decoupled_baseline(
     for N in N_values:
         ops = embed_combined_operators(N)
         psi0 = initial_state(N)
-        for theta in theta_values:
-            thetas[idx] = theta
+        for omega in omega_values:
+            omegas[idx] = omega
             Ns[idx] = N
-            sql = 1.0 / (np.sqrt(N) * T_H)
+            sql = 1.0 / (np.sqrt(N) * T_hold)
             sqls[idx] = sql
 
             dt, exp_val, var_val, d_exp_val = compute_sensitivity(
-                N, psi0, theta, 0.0, ops, T_H=T_H, fd_step=fd_step
+                N, psi0, omega, 0.0, ops, T_hold=T_hold, fd_step=fd_step
             )
             delta_opts[idx] = dt
             ratios[idx] = dt / sql if np.isfinite(dt) and sql > 0 else float("inf")
@@ -541,16 +546,16 @@ def compute_decoupled_baseline(
             idx += 1
 
     return DualMZISweepResult(
-        theta_values=thetas,
+        omega_values=omegas,
         N_values=Ns,
         alpha_xx_opt=alpha_opts,
-        delta_theta_opt=delta_opts,
+        delta_omega_opt=delta_opts,
         sql_values=sqls,
         ratio=ratios,
         expectation_Jz=exps,
         variance_Jz=vars_,
         d_expectation=d_exps,
-        T_H=T_H,
+        T_hold=T_hold,
     )
 
 
@@ -569,7 +574,7 @@ def plot_ratio_heatmap(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 7),
 ) -> Path:
-    """Plot a heatmap of Δθ_opt / SQL ratio across (θ, N).
+    """Plot a heatmap of Δω_opt / SQL ratio across (ω, N).
 
     Args:
         sweep: Sweep result.
@@ -582,13 +587,13 @@ def plot_ratio_heatmap(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    theta_vals = np.unique(sweep.theta_values)
+    omega_vals = np.unique(sweep.omega_values)
     N_vals = np.unique(sweep.N_values)
-    ratio_map = np.full((len(N_vals), len(theta_vals)), np.nan, dtype=float)
+    ratio_map = np.full((len(N_vals), len(omega_vals)), np.nan, dtype=float)
 
-    for i, theta in enumerate(theta_vals):
+    for i, omega in enumerate(omega_vals):
         for j, N in enumerate(N_vals):
-            mask = np.isclose(sweep.theta_values, theta) & (sweep.N_values == N)
+            mask = np.isclose(sweep.omega_values, omega) & (sweep.N_values == N)
             if np.any(mask):
                 ratio_map[j, i] = float(sweep.ratio[mask][0])
 
@@ -597,7 +602,7 @@ def plot_ratio_heatmap(
     vmax = max(2.0, float(np.nanmax(ratio_map[ratio_map < 10])))
 
     im = ax.pcolormesh(
-        theta_vals,
+        omega_vals,
         N_vals,
         ratio_map,
         shading="nearest",
@@ -606,11 +611,11 @@ def plot_ratio_heatmap(
         vmax=vmax,
     )
     cbar = fig.colorbar(
-        im, ax=ax, label=r"$\Delta\theta_{\mathrm{opt}} / \Delta\theta_{\mathrm{SQL}}$"
+        im, ax=ax, label=r"$\Delta\omega_{\mathrm{opt}} / \Delta\omega_{\mathrm{SQL}}$"
     )
     cbar.ax.axhline(y=1.0, color="black", linewidth=1.5, linestyle="--")
 
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$N$ (particles per subsystem)")
     ax.set_title("Sensitivity Ratio: Dual-MZI XX Coupling\n(lower = better; 1.0 = SQL)")
 
@@ -625,7 +630,7 @@ def plot_alpha_opt_heatmap(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 7),
 ) -> Path:
-    """Plot a heatmap of optimal α_xx across (θ, N).
+    """Plot a heatmap of optimal α_xx across (ω, N).
 
     Args:
         sweep: Sweep result.
@@ -638,13 +643,13 @@ def plot_alpha_opt_heatmap(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    theta_vals = np.unique(sweep.theta_values)
+    omega_vals = np.unique(sweep.omega_values)
     N_vals = np.unique(sweep.N_values)
-    alpha_map = np.full((len(N_vals), len(theta_vals)), np.nan, dtype=float)
+    alpha_map = np.full((len(N_vals), len(omega_vals)), np.nan, dtype=float)
 
-    for i, theta in enumerate(theta_vals):
+    for i, omega in enumerate(omega_vals):
         for j, N in enumerate(N_vals):
-            mask = np.isclose(sweep.theta_values, theta) & (sweep.N_values == N)
+            mask = np.isclose(sweep.omega_values, omega) & (sweep.N_values == N)
             if np.any(mask):
                 alpha_map[j, i] = float(sweep.alpha_xx_opt[mask][0])
 
@@ -652,7 +657,7 @@ def plot_alpha_opt_heatmap(
     vmax = float(np.nanmax(alpha_map)) if np.any(np.isfinite(alpha_map)) else 20.0
 
     im = ax.pcolormesh(
-        theta_vals,
+        omega_vals,
         N_vals,
         alpha_map,
         shading="nearest",
@@ -661,7 +666,7 @@ def plot_alpha_opt_heatmap(
         vmax=vmax,
     )
     fig.colorbar(im, ax=ax, label=r"$\alpha_{xx}^*$")
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$N$ (particles per subsystem)")
     ax.set_title(r"Optimal $\alpha_{xx}$: Dual-MZI XX Coupling")
 
@@ -674,15 +679,15 @@ def plot_alpha_opt_heatmap(
 def plot_n_scaling(
     sweep: DualMZISweepResult,
     save_path: str | Path,
-    theta_fixed: float | None = None,
+    omega_fixed: float | None = None,
     figsize: tuple[float, float] = (8, 6),
 ) -> Path:
-    """Plot Δθ_opt vs N at a fixed θ, with SQL and HL reference lines.
+    """Plot Δω_opt vs N at a fixed ω, with SQL and HL reference lines.
 
     Args:
         sweep: Sweep result.
         save_path: Output SVG path.
-        theta_fixed: θ value to plot. If None, uses the first θ.
+        omega_fixed: ω value to plot. If None, uses the first ω.
         figsize: Figure size.
 
     Returns:
@@ -691,19 +696,19 @@ def plot_n_scaling(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if theta_fixed is None:
-        theta_fixed = float(np.unique(sweep.theta_values)[0])
+    if omega_fixed is None:
+        omega_fixed = float(np.unique(sweep.omega_values)[0])
 
-    mask = np.isclose(sweep.theta_values, theta_fixed)
+    mask = np.isclose(sweep.omega_values, omega_fixed)
     N_vals = sweep.N_values[mask].astype(float)
-    delta_vals = sweep.delta_theta_opt[mask]
+    delta_vals = sweep.delta_omega_opt[mask]
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # SQL reference: Δθ = 1/(√N T_H)
+    # SQL reference: Δω = 1/(√N T_hold)
     N_dense = np.logspace(np.log10(1), np.log10(20), 100)
-    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.T_H)
-    hl_dense = 1.0 / (N_dense * sweep.T_H)
+    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.T_hold)
+    hl_dense = 1.0 / (N_dense * sweep.T_hold)
 
     ax.loglog(N_dense, sql_dense, "--", color="gray", alpha=0.7, label="SQL")
     ax.loglog(N_dense, hl_dense, ":", color="gray", alpha=0.5, label="HL")
@@ -718,12 +723,12 @@ def plot_n_scaling(
             color="C0",
             markersize=8,
             linewidth=1.8,
-            label=rf"$\Delta\theta_{{\mathrm{{opt}}}}(\theta={theta_fixed:.2f})$",
+            label=rf"$\Delta\omega_{{\mathrm{{opt}}}}(\omega={omega_fixed:.2f})$",
         )
 
     ax.set_xlabel(r"$N$ (particles per subsystem)")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(f"N-Scaling at $\\theta={theta_fixed:.2f}$:\nDual-MZI XX Coupling")
+    ax.set_ylabel(r"$\Delta\omega$")
+    ax.set_title(f"N-Scaling at $\\omega={omega_fixed:.2f}$:\nDual-MZI XX Coupling")
     ax.legend(fontsize=10)
     ax.grid(True, which="both", alpha=0.3)
 
@@ -733,13 +738,13 @@ def plot_n_scaling(
     return save_path
 
 
-def plot_theta_dependence(
+def plot_omega_dependence(
     sweep: DualMZISweepResult,
     save_path: str | Path,
     N_fixed: int | None = None,
     figsize: tuple[float, float] = (8, 6),
 ) -> Path:
-    """Plot Δθ_opt vs θ at fixed N, with SQL reference line.
+    """Plot Δω_opt vs ω at fixed N, with SQL reference line.
 
     Args:
         sweep: Sweep result.
@@ -757,14 +762,14 @@ def plot_theta_dependence(
         N_fixed = int(np.unique(sweep.N_values)[0])
 
     mask = sweep.N_values == N_fixed
-    theta_vals = sweep.theta_values[mask]
-    delta_vals = sweep.delta_theta_opt[mask]
+    omega_vals = sweep.omega_values[mask]
+    delta_vals = sweep.delta_omega_opt[mask]
     sql_vals = sweep.sql_values[mask]
 
     fig, ax = plt.subplots(figsize=figsize)
 
     # SQL reference (flat line for fixed N)
-    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.T_H) if len(sql_vals) > 0 else 0.1
+    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.T_hold) if len(sql_vals) > 0 else 0.1
     ax.axhline(
         y=sql_val,
         color="gray",
@@ -777,18 +782,18 @@ def plot_theta_dependence(
     finite_mask = np.isfinite(delta_vals)
     if np.any(finite_mask):
         ax.plot(
-            theta_vals[finite_mask],
+            omega_vals[finite_mask],
             delta_vals[finite_mask],
             "o-",
             color="C0",
             markersize=6,
             linewidth=1.5,
-            label=rf"$\Delta\theta_{{\mathrm{{opt}}}}(N={N_fixed})$",
+            label=rf"$\Delta\omega_{{\mathrm{{opt}}}}(N={N_fixed})$",
         )
 
-    ax.set_xlabel(r"$\theta$")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(f"$\\theta$-Dependence at $N={N_fixed}$:\nDual-MZI XX Coupling")
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\Delta\omega$")
+    ax.set_title(f"$\\omega$-Dependence at $N={N_fixed}$:\nDual-MZI XX Coupling")
     ax.legend(fontsize=10)
 
     fig.tight_layout()
@@ -802,7 +807,7 @@ def plot_scaling_exponents(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Plot the scaling exponent α vs θ from log-log fits.
+    """Plot the scaling exponent α vs ω from log-log fits.
 
     Args:
         scaling: Scaling analysis result.
@@ -817,11 +822,11 @@ def plot_scaling_exponents(
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
-    # Left: exponent vs θ
+    # Left: exponent vs ω
     valid_exp = np.isfinite(scaling.exponents)
     if np.any(valid_exp):
         ax1.plot(
-            scaling.theta_values[valid_exp],
+            scaling.omega_values[valid_exp],
             scaling.exponents[valid_exp],
             "o-",
             color="C1",
@@ -842,16 +847,16 @@ def plot_scaling_exponents(
         alpha=0.5,
         label="HL (α = −1.0)",
     )
-    ax1.set_xlabel(r"$\theta$")
+    ax1.set_xlabel(r"$\omega$")
     ax1.set_ylabel(r"Scaling exponent $\alpha$")
-    ax1.set_title("Exponent $\\alpha$ from\n$\\Delta\\theta = C N^{\\alpha}$")
+    ax1.set_title("Exponent $\\alpha$ from\n$\\Delta\\omega = C N^{\\alpha}$")
     ax1.legend(fontsize=9)
 
-    # Right: R² vs θ
+    # Right: R² vs ω
     valid_r2 = np.isfinite(scaling.r_squared)
     if np.any(valid_r2):
         ax2.plot(
-            scaling.theta_values[valid_r2],
+            scaling.omega_values[valid_r2],
             scaling.r_squared[valid_r2],
             "s-",
             color="C2",
@@ -859,7 +864,7 @@ def plot_scaling_exponents(
             linewidth=1.5,
         )
     ax2.axhline(y=0.95, color="gray", linestyle="--", alpha=0.5)
-    ax2.set_xlabel(r"$\theta$")
+    ax2.set_xlabel(r"$\omega$")
     ax2.set_ylabel(r"$R^2$")
     ax2.set_title("Goodness of Fit")
     ax2.set_ylim(-0.05, 1.05)
@@ -876,7 +881,7 @@ def plot_scaling_exponents(
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260522"
-THETA_VALS: list[float] = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
+OMEGA_VALS: list[float] = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
 N_VALS: list[int] = list(range(1, 21))
 
 
@@ -899,7 +904,7 @@ _fig_path = fig_path
 
 
 def generate_sweep(force: bool = False) -> None:
-    """Run the full θ × N sweep with α_xx optimisation."""
+    """Run the full ω × N sweep with α_xx optimisation."""
     csv_p = _parquet_path("dual-mzi-sweep")
     fig_ratio = _fig_path("dual-mzi-ratio-heatmap")
     fig_alpha = _fig_path("dual-mzi-alpha-opt-heatmap")
@@ -909,12 +914,12 @@ def generate_sweep(force: bool = False) -> None:
         result = DualMZISweepResult.from_parquet(csv_p)
     else:
         print(
-            "[run]  Computing dual-MZI θ×N sweep "
-            f"({len(THETA_VALS)}×{len(N_VALS)} = {len(THETA_VALS) * len(N_VALS)} points)..."
+            "[run]  Computing dual-MZI ω×N sweep "
+            f"({len(OMEGA_VALS)}×{len(N_VALS)} = {len(OMEGA_VALS) * len(N_VALS)} points)..."
         )
-        theta_arr = np.array(THETA_VALS, dtype=float)
+        omega_arr = np.array(OMEGA_VALS, dtype=float)
         N_arr = np.array(N_VALS, dtype=int)
-        result = run_sweep(theta_values=theta_arr, N_values=N_arr)
+        result = run_sweep(omega_values=omega_arr, N_values=N_arr)
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
@@ -935,10 +940,10 @@ def generate_decoupled_baseline(force: bool = False) -> None:
     else:
         print("[run]  Computing decoupled baseline (α_xx = 0)...")
         N_arr = np.array(N_VALS, dtype=int)
-        # Use a subset for speed (every 5th θ, all N)
-        theta_subset = np.array([v for i, v in enumerate(THETA_VALS) if i % 5 == 0])
+        # Use a subset for speed (every 5th ω, all N)
+        omega_subset = np.array([v for i, v in enumerate(OMEGA_VALS) if i % 5 == 0])
         result = compute_decoupled_baseline(
-            theta_values=theta_subset,
+            omega_values=omega_subset,
             N_values=N_arr,
         )
         result.save_parquet(csv_p)
@@ -947,13 +952,13 @@ def generate_decoupled_baseline(force: bool = False) -> None:
     # Create a verification figure: heatmap of |ratio - 1| on log scale
     from matplotlib.colors import LogNorm
 
-    theta_vals = np.unique(result.theta_values)
+    omega_vals = np.unique(result.omega_values)
     N_vals = np.unique(result.N_values)
-    dev_map = np.full((len(N_vals), len(theta_vals)), np.nan, dtype=float)
+    dev_map = np.full((len(N_vals), len(omega_vals)), np.nan, dtype=float)
 
-    for i, theta in enumerate(theta_vals):
+    for i, omega in enumerate(omega_vals):
         for j, N_val in enumerate(N_vals):
-            mask = np.isclose(result.theta_values, theta) & (result.N_values == N_val)
+            mask = np.isclose(result.omega_values, omega) & (result.N_values == N_val)
             if np.any(mask):
                 r = float(result.ratio[mask][0])
                 dev_map[j, i] = abs(r - 1.0)
@@ -967,21 +972,21 @@ def generate_decoupled_baseline(force: bool = False) -> None:
         vmin, vmax = 1e-15, 1.0
 
     im = ax.pcolormesh(
-        theta_vals,
+        omega_vals,
         N_vals,
         dev_map,
         shading="nearest",
         cmap="viridis",
         norm=LogNorm(vmin=max(vmin, 1e-16), vmax=vmax),
     )
-    fig.colorbar(im, ax=ax, label=r"$|\Delta\theta/\Delta\theta_{\mathrm{SQL}} - 1|$")
+    fig.colorbar(im, ax=ax, label=r"$|\Delta\omega/\Delta\omega_{\mathrm{SQL}} - 1|$")
 
     max_dev = float(np.max(finite)) if len(finite) > 0 else 0.0
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$N$ (particles per subsystem)")
     ax.set_title(
-        f"Decoupled Baseline Verification ($\\alpha_{{xx}} = 0$, $T_H = {result.T_H}$)\n"
-        f"Max $|\\Delta\\theta/\\mathrm{{SQL}} - 1| = {max_dev:.2e}$, "
+        f"Decoupled Baseline Verification ($\\alpha_{{xx}} = 0$, $T_hold = {result.T_hold}$)\n"
+        f"Max $|\\Delta\\omega/\\mathrm{{SQL}} - 1| = {max_dev:.2e}$, "
         f"points checked: {len(finite)}"
     )
 
@@ -994,9 +999,9 @@ def generate_decoupled_baseline(force: bool = False) -> None:
 def generate_n_scaling(force: bool = False) -> None:
     """N-scaling analysis from the sweep data."""
     csv_p = _parquet_path("dual-mzi-sweep")
-    fig_n3 = _fig_path("dual-mzi-n-scaling-theta0.3")
-    fig_n1 = _fig_path("dual-mzi-n-scaling-theta1.0")
-    fig_n3p = _fig_path("dual-mzi-n-scaling-theta3.0")
+    fig_n3 = _fig_path("dual-mzi-n-scaling-omega0.3")
+    fig_n1 = _fig_path("dual-mzi-n-scaling-omega1.0")
+    fig_n3p = _fig_path("dual-mzi-n-scaling-omega3.0")
 
     if not csv_p.exists():
         print("[skip] Sweep data not found; run 'sweep' first")
@@ -1004,18 +1009,18 @@ def generate_n_scaling(force: bool = False) -> None:
 
     result = DualMZISweepResult.from_parquet(csv_p)
 
-    # Plot at three representative θ values
-    for theta_val, fig_p in [(0.3, fig_n3), (1.0, fig_n1), (3.0, fig_n3p)]:
-        plot_n_scaling(result, fig_p, theta_fixed=theta_val)
+    # Plot at three representative ω values
+    for omega_val, fig_p in [(0.3, fig_n3), (1.0, fig_n1), (3.0, fig_n3p)]:
+        plot_n_scaling(result, fig_p, omega_fixed=omega_val)
         print(f"[fig]  {fig_p}")
 
 
-def generate_theta_dependence(force: bool = False) -> None:
-    """θ-dependence plots at fixed N values."""
+def generate_omega_dependence(force: bool = False) -> None:
+    """ω-dependence plots at fixed N values."""
     csv_p = _parquet_path("dual-mzi-sweep")
-    fig_n1 = _fig_path("dual-mzi-theta-N1")
-    fig_n5 = _fig_path("dual-mzi-theta-N5")
-    fig_n20 = _fig_path("dual-mzi-theta-N20")
+    fig_n1 = _fig_path("dual-mzi-omega-N1")
+    fig_n5 = _fig_path("dual-mzi-omega-N5")
+    fig_n20 = _fig_path("dual-mzi-omega-N20")
 
     if not csv_p.exists():
         print("[skip] Sweep data not found; run 'sweep' first")
@@ -1024,7 +1029,7 @@ def generate_theta_dependence(force: bool = False) -> None:
     result = DualMZISweepResult.from_parquet(csv_p)
 
     for N_fixed, fig_p in [(1, fig_n1), (5, fig_n5), (20, fig_n20)]:
-        plot_theta_dependence(result, fig_p, N_fixed=N_fixed)
+        plot_omega_dependence(result, fig_p, N_fixed=N_fixed)
         print(f"[fig]  {fig_p}")
 
 
@@ -1046,9 +1051,9 @@ def generate_scaling_analysis(force: bool = False) -> None:
     else:
         print("[run]  Fitting scaling exponents...")
         scaling = fit_scaling_exponents(
-            result.theta_values,
+            result.omega_values,
             result.N_values,
-            result.delta_theta_opt,
+            result.delta_omega_opt,
         )
         scaling.save_parquet(scaling_csv)
         print(f"[save] {scaling_csv}")
@@ -1087,7 +1092,7 @@ def main() -> None:
         "decoupled-baseline": generate_decoupled_baseline,
         "sweep": generate_sweep,
         "n-scaling": generate_n_scaling,
-        "theta-dependence": generate_theta_dependence,
+        "omega-dependence": generate_omega_dependence,
         "scaling-analysis": generate_scaling_analysis,
     }
 

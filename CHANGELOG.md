@@ -5,6 +5,12 @@ All notable experiments and infrastructure changes in this project are documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 with weekly groupings corresponding to experimental campaigns.
 
+## Week 24 (Jun 8–14)
+
+### Infrastructure
+- **Symbol disambiguation campaign** — Disambiguated five overloaded symbols across the full codebase. Renamed phase rate `θ`→`ω`; bare `T`→semantic names (`T_hold`, `T_evo`, `T_decay`, `T_BS`, `T_kerr`, `T_dd`, `temp`); BS reflection `φ`→`phi_bs`, MZI estimation `φ`→`phi_phase`, Bloch azimuth `φ`→`phi_Bloch`; Kerr `χ`→`K`. Verified `α` overloading already resolved. Removed stale `$\phi$ vs $\theta$ semantic audit` backlog item. 0 bare `T` or ambiguous `phi`/`theta` parameters remain.
+- **API hardening and infrastructure cleanup** — Made `basis` a mandatory keyword argument on `jz_operator`/`jx_operator`/`jy_operator` (~80 call sites). Removed `validate_state`/`validate_hamiltonian` aliases; replaced 5 local Pauli-matrix redefinitions with `src.utils.constants` imports; renamed `delta`→`fd_step`, `hold_unitary`→`hold_unitary_two_qubit`/`hold_unitary_dicke`, `N_traj`→`n_traj`, `N_points`→`n_points`. Fixed 8 pre-existing test regressions across 6 report suites (stale imports, race conditions, tolerance relaxation). Updated SKILL.md Known Inconsistencies table.
+
 ## Week 23 (Jun 1–7)
 
 ### New Report
@@ -85,8 +91,8 @@ Reports that have been started but are not yet fully complete (i.e., not all pip
 
 ## Infrastructure & Tooling
 
-- 🟠 **$\phi$ vs $\theta$ semantic audit** — Find all mentions of $\phi$ and $\theta$ in the codebase (`src/`, `pages/`, `reports/`). Clarify the semantic usage between the two: $\theta$ is the unknown phase rate to be estimated, $\phi$ is the measurement weight angle. Highlight any semantic inconsistencies (e.g., swapped usage, ambiguous variable names, conflicting conventions in different modules).
 - 🟡 **3D slice visualization** — Heatmap infrastructure currently supports 2D slices only. For studying all three drive components simultaneously, 3D volumetric plots or 2D projections of 3D landscapes are needed.
 - 🟡 **CI/CD pipeline** — Automated test/lint/type-check on push and PR; automated CHANGELOG management.
 - 🟢 **Performance benchmarks** — Automated per-function timing to catch regressions exceeding the 100 ms per-simulation budget.
 - 🟢 **Advanced architecture simulation functions** — Implement six model-specific simulators and figure generators for the PENDING advanced architecture surveys (non-Markovian bath, thermal noise, cavity-enhanced MZI, distributed arrays, dynamical decoupling, tilt-to-length noise).
+

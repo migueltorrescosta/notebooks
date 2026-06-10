@@ -107,7 +107,7 @@ def model_selector() -> list[ModelConfig]:
         custom_sensitivity_fn=lambda N, _nl: dd_phase_sensitivity(
             N,
             0.0,
-            T=1.0,
+            T_dd=1.0,
             n_pulses=8,
         ),
     )
@@ -282,7 +282,7 @@ def n_range_selector() -> tuple[int, int, int]:
     """Let user select N range.
 
     Returns:
-        Tuple of (N_min, N_max, N_points).
+        Tuple of (N_min, N_max, n_points).
 
     """
     st.subheader("N Sweep Configuration")
@@ -293,9 +293,9 @@ def n_range_selector() -> tuple[int, int, int]:
     with col2:
         N_max = st.number_input("N max", min_value=N_min + 2, value=32, step=4)
     with col3:
-        N_points = st.slider("N points", min_value=3, max_value=12, value=6)
+        n_points = st.slider("N points", min_value=3, max_value=12, value=6)
 
-    return int(N_min), int(N_max), int(N_points)
+    return int(N_min), int(N_max), int(n_points)
 
 
 def phase_selector() -> float:
@@ -332,8 +332,8 @@ def run_full_survey(
     noise_levels: list[float],
     N_min: int,
     N_max: int,
-    N_points: int,
-    phi: float,
+    n_points: int,
+    phi_phase: float,
     seed: int = 42,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Run the scaling survey with given parameters.
@@ -349,8 +349,8 @@ def run_full_survey(
         noise_levels: List of noise levels to sweep.
         N_min: Minimum N for sweep.
         N_max: Maximum N for sweep.
-        N_points: Number of log-spaced N values.
-        phi: Operating phase.
+        n_points: Number of log-spaced N values.
+        phi_phase: Operating phase.
         seed: Random seed for reproducibility.
 
     Returns:
@@ -381,9 +381,9 @@ def run_full_survey(
     # Create survey config
     survey_config = SurveyConfig(
         N_range=(N_min, N_max),
-        N_points=N_points,
+        n_points=n_points,
         noise_levels=noise_levels,
-        phi=phi,
+        phi_phase=phi_phase,
         method="qfi",
         seed=seed,
     )
@@ -721,10 +721,10 @@ def main() -> None:
         noise_type, noise_levels = noise_selector()
         st.divider()
 
-        N_min, N_max, N_points = n_range_selector()
+        N_min, N_max, n_points = n_range_selector()
         st.divider()
 
-        phi = phase_selector()
+        phi_phase = phase_selector()
 
         st.divider()
         st.subheader("Reproducibility", divider="gray")
@@ -755,8 +755,8 @@ def main() -> None:
                     noise_levels=noise_levels,
                     N_min=N_min,
                     N_max=N_max,
-                    N_points=N_points,
-                    phi=phi,
+                    n_points=n_points,
+                    phi_phase=phi_phase,
                     seed=int(seed),
                 )
 

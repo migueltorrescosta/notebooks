@@ -30,17 +30,17 @@ import pandas as pd
 
 @dataclass
 class ScalingAnalysisResult:
-    """Log-log fit results for Δθ ∝ N^α at each θ value.
+    """Log-log fit results for Δθ ∝ N^α at each ω value.
 
     Attributes:
-        theta_values: θ values analysed.
+        omega_values: ω values analysed.
         exponents: Exponent α from Δθ ∝ N^α for each θ.
         prefactors: Prefactor C in Δθ = C N^α for each θ.
         r_squared: R² goodness-of-fit for each θ.
         sql_exponent: SQL exponent = -0.5 (reference).
     """
 
-    theta_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
     exponents: np.ndarray = field(default_factory=lambda: np.array([]))
     prefactors: np.ndarray = field(default_factory=lambda: np.array([]))
     r_squared: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -49,11 +49,11 @@ class ScalingAnalysisResult:
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
             {
-                "theta": self.theta_values,
+                "omega": self.omega_values,
                 "exponent": self.exponents,
                 "prefactor": self.prefactors,
                 "r_squared": self.r_squared,
-                "sql_exponent": [self.sql_exponent] * len(self.theta_values),
+                "sql_exponent": [self.sql_exponent] * len(self.omega_values),
             },
         )
 
@@ -66,7 +66,7 @@ class ScalingAnalysisResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> ScalingAnalysisResult:
         df = pd.read_parquet(path)
-        required = {"theta", "exponent", "prefactor", "r_squared", "sql_exponent"}
+        required = {"omega", "exponent", "prefactor", "r_squared", "sql_exponent"}
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
@@ -74,7 +74,7 @@ class ScalingAnalysisResult:
                 "Regenerate the file with the current code."
             )
         return cls(
-            theta_values=df["theta"].to_numpy(dtype=float),
+            omega_values=df["omega"].to_numpy(dtype=float),
             exponents=df["exponent"].to_numpy(dtype=float),
             prefactors=df["prefactor"].to_numpy(dtype=float),
             r_squared=df["r_squared"].to_numpy(dtype=float),
@@ -83,32 +83,32 @@ class ScalingAnalysisResult:
 
 
 def fit_scaling_exponents(
-    theta_values: np.ndarray,
+    omega_values: np.ndarray,
     N_values: np.ndarray,
-    delta_theta_opt: np.ndarray,
+    delta_omega_opt: np.ndarray,
 ) -> ScalingAnalysisResult:
-    """Fit Δθ = C N^α at each θ value via log-log linear regression.
+    """Fit Δθ = C N^α at each ω value via log-log linear regression.
 
-    Performs a log-log linear fit per unique θ:
+    Performs a log-log linear fit per unique ω:
         log(Δθ) = α log(N) + log(C)
 
     Args:
-        theta_values: Array of θ values (same length as N_values and delta_theta_opt).
+        omega_values: Array of ω values (same length as N_values and delta_omega_opt).
         N_values: Array of particle numbers (same length).
-        delta_theta_opt: Array of optimal sensitivities (same length).
+        delta_omega_opt: Array of optimal sensitivities (same length).
 
     Returns:
-        ScalingAnalysisResult with exponent α and prefactor C at each θ.
+        ScalingAnalysisResult with exponent α and prefactor C at each ω.
     """
-    theta_vals = np.unique(theta_values)
-    exponents = np.full(len(theta_vals), np.nan, dtype=float)
-    prefactors = np.full(len(theta_vals), np.nan, dtype=float)
-    r_squared_vals = np.full(len(theta_vals), np.nan, dtype=float)
+    omega_vals = np.unique(omega_values)
+    exponents = np.full(len(omega_vals), np.nan, dtype=float)
+    prefactors = np.full(len(omega_vals), np.nan, dtype=float)
+    r_squared_vals = np.full(len(omega_vals), np.nan, dtype=float)
 
-    for i, theta in enumerate(theta_vals):
-        mask = np.isclose(theta_values, theta)
+    for i, omega in enumerate(omega_vals):
+        mask = np.isclose(omega_values, omega)
         N_vals_at_theta = N_values[mask].astype(float)
-        delta_vals = delta_theta_opt[mask]
+        delta_vals = delta_omega_opt[mask]
 
         # Filter finite values
         finite_mask = np.isfinite(delta_vals) & (delta_vals > 0) & (N_vals_at_theta > 0)
@@ -137,7 +137,7 @@ def fit_scaling_exponents(
             r_squared_vals[i] = 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
 
     return ScalingAnalysisResult(
-        theta_values=theta_vals,
+        omega_values=omega_vals,
         exponents=exponents,
         prefactors=prefactors,
         r_squared=r_squared_vals,

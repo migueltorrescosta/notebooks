@@ -213,7 +213,7 @@ def _build_hamiltonian_and_cops(
 def evolve_lindblad(
     initial_rho: np.ndarray,
     config: LindbladConfig,
-    T: float,
+    T_decay: float,
     dt: float = 0.01,
     method: str = "rk4",
     seed: int | None = None,
@@ -227,7 +227,7 @@ def evolve_lindblad(
     Args:
         initial_rho: Initial density matrix.
         config: Lindblad configuration.
-        T: Final evolution time.
+        T_decay: Final evolution time.
         dt: Ignored (kept for backward compatibility).
         method: Ignored (kept for backward compatibility).
         seed: Random seed (for reproducibility, currently unused).
@@ -244,7 +244,7 @@ def evolve_lindblad(
     c_ops_qobj = [qutip.Qobj(L) for L in c_ops]
 
     # Call mesolve — QuTiP handles all integration
-    result = qutip.mesolve(H_qobj, rho0_qobj, [0, T], c_ops_qobj, e_ops=[])
+    result = qutip.mesolve(H_qobj, rho0_qobj, [0, T_decay], c_ops_qobj, e_ops=[])
 
     return result.states[-1].full()
 
@@ -252,7 +252,7 @@ def evolve_lindblad(
 def simulate_trajectory(
     initial_rho: np.ndarray,
     config: LindbladConfig,
-    T: float,
+    T_decay: float,
     num_times: int,
     method: str = "rk4",
     seed: int | None = None,
@@ -266,7 +266,7 @@ def simulate_trajectory(
     Args:
         initial_rho: Initial density matrix.
         config: Lindblad configuration.
-        T: Final time.
+        T_decay: Final time.
         num_times: Number of time points.
         method: Ignored (kept for backward compatibility).
         seed: Random seed (for reproducibility, currently unused).
@@ -278,7 +278,7 @@ def simulate_trajectory(
 
     """
     H, c_ops = _build_hamiltonian_and_cops(config)
-    times = np.linspace(0, T, num_times)
+    times = np.linspace(0, T_decay, num_times)
 
     # Convert to QuTiP objects
     H_qobj = qutip.Qobj(H)
@@ -442,7 +442,7 @@ def evolve_lindblad_rk4(
     H: np.ndarray,
     L_ops: list[np.ndarray],
     gammas: list[float],
-    T: float,
+    T_decay: float,
     dt: float,
 ) -> np.ndarray:
     """4th-order Runge-Kutta integration of the Lindblad master equation.
@@ -456,19 +456,19 @@ def evolve_lindblad_rk4(
         H: Hamiltonian of shape (d, d).
         L_ops: List of Lindblad jump operators.
         gammas: List of decay rates.
-        T: Total evolution time.
+        T_decay: Total evolution time.
         dt: Time step.
 
     Returns:
         Final density matrix of shape (d, d).
 
     """
-    if T <= 0:
+    if T_decay <= 0:
         return rho0.copy()
 
     rho = rho0.copy()
-    num_steps = max(1, int(np.ceil(T / dt)))
-    dt_eff = T / num_steps
+    num_steps = max(1, int(np.ceil(T_decay / dt)))
+    dt_eff = T_decay / num_steps
 
     for _ in range(num_steps):
         k1 = lindblad_rhs(rho, H, L_ops, gammas)
@@ -490,7 +490,7 @@ def evolve_lindblad_scipy(
     H: np.ndarray,
     L_ops: list[np.ndarray],
     gammas: list[float],
-    T: float,
+    T_decay: float,
 ) -> np.ndarray:
     """Evolve Lindblad master equation using scipy.integrate.solve_ivp.
 
@@ -502,7 +502,7 @@ def evolve_lindblad_scipy(
         H: Hamiltonian of shape (d, d).
         L_ops: List of Lindblad jump operators.
         gammas: List of decay rates.
-        T: Total evolution time.
+        T_decay: Total evolution time.
 
     Returns:
         Final density matrix of shape (d, d).
@@ -518,7 +518,7 @@ def evolve_lindblad_scipy(
 
     sol = scipy.integrate.solve_ivp(
         _rhs,
-        (0, T),
+        (0, T_decay),
         rho0_vec,
         method="RK45",
         rtol=1e-8,
@@ -577,7 +577,7 @@ def run_simulation(
     gamma_phi: float = 0.0,
     chi: float = 0.0,
     initial_n: int = 1,
-    T: float = 1.0,
+    T_decay: float = 1.0,
     dt: float = 0.01,
     method: str = "rk4",
     seed: int | None = None,
@@ -593,7 +593,7 @@ def run_simulation(
         gamma_phi: Phase diffusion rate.
         chi: OAT squeezing strength.
         initial_n: Initial Fock state |n⟩.
-        T: Final evolution time.
+        T_decay: Final evolution time.
         dt: Timestep.
         method: Integration method.
         seed: Random seed.
@@ -615,7 +615,7 @@ def run_simulation(
     initial_rho = np.outer(psi, psi.conj())
 
     # Evolve
-    final_rho = evolve_lindblad(initial_rho, config, T, dt, method, seed)
+    final_rho = evolve_lindblad(initial_rho, config, T_decay, dt, method, seed)
 
     # Validation
     validation = validate_density_matrix(final_rho)

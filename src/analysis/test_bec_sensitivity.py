@@ -28,7 +28,7 @@ class TestComputePhaseUncertaintyLindblad:
             N=4,
             state=state,
             chi=1.0,
-            T=0.1,
+            T_decay=0.1,
             noise_config=noise,
         )
         assert np.isfinite(dphi)
@@ -43,7 +43,7 @@ class TestComputePhaseUncertaintyLindblad:
             N=4,
             state=state,
             chi=1.0,
-            T=0.1,
+            T_decay=0.1,
             noise_config=noise,
         )
         assert np.isfinite(dphi)
@@ -57,7 +57,7 @@ class TestComputePhaseUncertaintyLindblad:
                 N=2,
                 state=wrong_state,
                 chi=1.0,
-                T=0.1,
+                T_decay=0.1,
                 noise_config=noise,
             )
 
@@ -71,7 +71,7 @@ class TestComputePhaseUncertaintyLindblad:
                 N=4,
                 state=state,
                 chi=-1.0,
-                T=0.1,
+                T_decay=0.1,
                 noise_config=noise,
             )
 
@@ -85,7 +85,7 @@ class TestComputePhaseUncertaintyLindblad:
                 N=4,
                 state=state,
                 chi=1.0,
-                T=-0.1,
+                T_decay=-0.1,
                 noise_config=noise,
             )
 
@@ -99,7 +99,7 @@ class TestComputePhaseUncertaintyLindblad:
             N=4,
             state=state,
             chi=0.0,
-            T=0.0,
+            T_decay=0.0,
             noise_config=noise,
         )
         assert np.isfinite(dphi)
@@ -118,7 +118,7 @@ class TestComputeSensitivityVsN:
         df = compute_sensitivity_vs_n(
             state_type="CSS",
             N_range=(4, 8),
-            N_points=2,
+            n_points=2,
             chi=1.0,
             noise_config=noise,
             method="Lindblad",
@@ -132,7 +132,7 @@ class TestComputeSensitivityVsN:
         df = compute_sensitivity_vs_n(
             state_type="NOON",
             N_range=(4, 6),
-            N_points=2,
+            n_points=2,
             chi=1.0,
             noise_config=noise,
             method="Lindblad",
@@ -145,7 +145,7 @@ class TestComputeSensitivityVsN:
         df = compute_sensitivity_vs_n(
             state_type="Twin-Fock",
             N_range=(4, 8),
-            N_points=2,
+            n_points=2,
             chi=1.0,
             noise_config=noise,
             method="Lindblad",

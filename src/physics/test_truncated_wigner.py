@@ -3,7 +3,7 @@ Tests for Truncated Wigner Approximation (TWA).
 
 Physical Validation Tests:
 - Bloch vector normalization: |r| = 1 for all trajectories
-- Statistics convergence: estimates improve with N_traj
+- Statistics convergence: estimates improve with n_traj
 - CSS agreement with Lindblad for small N (N ≤ 20)
 - Phase sensitivity scaling matches SQL/Heisenberg limits
 """
@@ -101,7 +101,7 @@ class TestSDETrajectory:
 
         for _ in range(50):
             J_init = sample_wigner_sphere(10, "CSS", rng)
-            result = wigner_sde_trajectory(J_init, params, T=1.0, dt=0.01, rng=rng)
+            result = wigner_sde_trajectory(J_init, params, T_evo=1.0, dt=0.01, rng=rng)
             J_final = result["J_final"]
             validation = validate_bloch_vector(J_final)
             assert validation["is_normalized"]
@@ -119,7 +119,7 @@ class TestSDETrajectory:
 
         for _ in range(50):
             J_init = sample_wigner_sphere(10, "CSS", rng)
-            result = wigner_sde_trajectory(J_init, params, T=0.5, dt=0.01, rng=rng)
+            result = wigner_sde_trajectory(J_init, params, T_evo=0.5, dt=0.01, rng=rng)
             J_final = result["J_final"]
             validation = validate_bloch_vector(J_final, tol=1e-4)
             assert validation["is_normalized"]
@@ -137,7 +137,7 @@ class TestSDETrajectory:
         }
 
         J_init = sample_wigner_sphere(10, "CSS", rng)
-        result = wigner_sde_trajectory(J_init, params, T=1.0, dt=0.01, rng=rng)
+        result = wigner_sde_trajectory(J_init, params, T_evo=1.0, dt=0.01, rng=rng)
         J_final = result["J_final"]
 
         # Total spin should be approximately J
@@ -162,8 +162,8 @@ class TestSDETrajectory:
         # Same initial condition
         J_init = np.array([1.0, 0.0, 0.0])
 
-        result1 = wigner_sde_trajectory(J_init, params, T=0.5, dt=0.01, rng=rng1)
-        result2 = wigner_sde_trajectory(J_init, params, T=0.5, dt=0.01, rng=rng2)
+        result1 = wigner_sde_trajectory(J_init, params, T_evo=0.5, dt=0.01, rng=rng1)
+        result2 = wigner_sde_trajectory(J_init, params, T_evo=0.5, dt=0.01, rng=rng2)
 
         # Different noise should produce different results
         diff = np.linalg.norm(result1["J_final"] - result2["J_final"])
@@ -185,24 +185,24 @@ class TestTWAExpectations:
             N=10,
             state_type="CSS",
             params=params,
-            T=0.1,
-            N_traj=100,
+            T_evo=0.1,
+            n_traj=100,
             seed=42,
         )
         results_1000 = compute_twa_expectations(
             N=10,
             state_type="CSS",
             params=params,
-            T=0.1,
-            N_traj=1000,
+            T_evo=0.1,
+            n_traj=1000,
             seed=42,
         )
         results_5000 = compute_twa_expectations(
             N=10,
             state_type="CSS",
             params=params,
-            T=0.1,
-            N_traj=5000,
+            T_evo=0.1,
+            n_traj=5000,
             seed=42,
         )
 
@@ -225,8 +225,8 @@ class TestTWAExpectations:
             N=N,
             state_type="CSS",
             params=params,
-            T=0.0,
-            N_traj=1000,
+            T_evo=0.0,
+            n_traj=1000,
             seed=42,
         )
         J_mean = result["Jz_mean"]
@@ -243,8 +243,8 @@ class TestTWAExpectations:
                 N=10,
                 state_type="NOON",
                 params=params,
-                T=0.1,
-                N_traj=10,
+                T_evo=0.1,
+                n_traj=10,
                 seed=42,
             )
 
@@ -263,16 +263,16 @@ class TestPhaseSensitivity:
             N=10,
             state_type="CSS",
             params=params,
-            T=0.1,
-            N_traj=1000,
+            T_evo=0.1,
+            n_traj=1000,
             seed=42,
         )
         result_20 = compute_phase_sensitivity(
             N=20,
             state_type="CSS",
             params=params,
-            T=0.1,
-            N_traj=1000,
+            T_evo=0.1,
+            n_traj=1000,
             seed=42,
         )
 
@@ -288,8 +288,8 @@ class TestPhaseSensitivity:
             N=20,
             state_type="SSS",
             params=params,
-            T=0.1,
-            N_traj=1000,
+            T_evo=0.1,
+            n_traj=1000,
             seed=42,
         )
 
@@ -340,8 +340,8 @@ class TestIntegration:
             gamma_1=0.0,
             gamma_2=0.0,
             gamma_phi=0.0,
-            T=0.1,
-            N_traj=100,
+            T_evo=0.1,
+            n_traj=100,
             seed=42,
         )
 
@@ -357,8 +357,8 @@ class TestIntegration:
             gamma_1=0.1,
             gamma_2=0.0,
             gamma_phi=0.0,
-            T=0.5,
-            N_traj=100,
+            T_evo=0.5,
+            n_traj=100,
             seed=42,
         )
 
@@ -375,8 +375,8 @@ class TestIntegration:
             gamma_1=0.0,
             gamma_2=0.0,
             gamma_phi=0.0,
-            T=0.1,
-            N_traj=100,
+            T_evo=0.1,
+            n_traj=100,
             seed=42,
         )
 
@@ -392,13 +392,13 @@ class TestPhysicalValidation:
     def test_given_css_under_unitary_evolution_then_preserve_mean_jz(self) -> None:
         params = {"chi": 0.0, "gamma_1": 0.0, "gamma_2": 0.0, "gamma_phi": 0.0}
 
-        # For time T=0, mean Jz should be approximately zero
+        # For time T_evo=0, mean Jz should be approximately zero
         result = compute_twa_expectations(
             N=10,
             state_type="CSS",
             params=params,
-            T=0.0,
-            N_traj=1000,
+            T_evo=0.0,
+            n_traj=1000,
             seed=42,
         )
 
@@ -426,16 +426,16 @@ class TestPhysicalValidation:
             N=10,
             state_type="CSS",
             params=params_no_diff,
-            T=0.5,
-            N_traj=1000,
+            T_evo=0.5,
+            n_traj=1000,
             seed=42,
         )
         result_diff = compute_twa_expectations(
             N=10,
             state_type="CSS",
             params=params_diff,
-            T=0.5,
-            N_traj=1000,
+            T_evo=0.5,
+            n_traj=1000,
             seed=42,
         )
 
@@ -463,16 +463,16 @@ class TestPhysicalValidation:
             N=10,
             state_type="CSS",
             params=params_no_loss,
-            T=0.5,
-            N_traj=1000,
+            T_evo=0.5,
+            n_traj=1000,
             seed=42,
         )
         result_loss = compute_twa_expectations(
             N=10,
             state_type="CSS",
             params=params_loss,
-            T=0.5,
-            N_traj=1000,
+            T_evo=0.5,
+            n_traj=1000,
             seed=42,
         )
 
@@ -497,8 +497,8 @@ class TestEdgeCases:
             N=N,
             state_type="CSS",
             params=params,
-            T=0.1,
-            N_traj=100,
+            T_evo=0.1,
+            n_traj=100,
             seed=42,
         )
         assert "Jz_mean" in result
@@ -510,8 +510,8 @@ class TestEdgeCases:
             N=10,
             state_type="CSS",
             params=params,
-            T=0.0,
-            N_traj=100,
+            T_evo=0.0,
+            n_traj=100,
             seed=42,
         )
 
@@ -527,8 +527,8 @@ class TestEdgeCases:
             N=10,
             state_type="CSS",
             params=params,
-            T=0.1,
-            N_traj=10000,
+            T_evo=0.1,
+            n_traj=10000,
             seed=42,
         )
 
@@ -552,8 +552,8 @@ class TestPerformance:
             N=100,
             state_type="CSS",
             params=params,
-            T=0.1,
-            N_traj=1000,
+            T_evo=0.1,
+            n_traj=1000,
             seed=42,
         )
         elapsed = time.time() - start
@@ -572,8 +572,8 @@ class TestPerformance:
             N=1000,
             state_type="CSS",
             params=params,
-            T=0.1,
-            N_traj=1000,
+            T_evo=0.1,
+            n_traj=1000,
             seed=42,
         )
         elapsed = time.time() - start

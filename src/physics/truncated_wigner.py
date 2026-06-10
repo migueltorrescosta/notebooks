@@ -9,7 +9,7 @@ Physical Model:
 - SU(2) Wigner function on Bloch sphere
 - Stochastic differential equations for Bloch vector (x, y, z) = (⟨J_x⟩/J, ⟨J_y⟩/J, ⟨J_z⟩/J)
 - Quantum jumps modeled as noise terms
-- Average over N_traj trajectories
+- Average over n_traj trajectories
 
 The TWA provides O(1) complexity scaling vs O(N) for full quantum simulations,
 enabling practical simulation of large atom numbers.
@@ -66,7 +66,7 @@ def sample_wigner_sphere(
     N: int,
     state_type: str,
     rng: np.random.Generator,
-    phi: float = 0.0,
+    phi_Bloch: float = 0.0,
 ) -> np.ndarray:
     """Sample initial Bloch vector from Wigner function.
 
@@ -80,7 +80,7 @@ def sample_wigner_sphere(
         N: Total atom number (determines spin J = N/2).
         state_type: State type ('CSS', 'SSS', 'NOON').
         rng: Random number generator.
-        phi: Phase angle for CSS (default 0.0).
+        phi_Bloch: Phase angle for CSS (default 0.0).
 
     Returns:
         Bloch vector of shape (3,) with components (x, y, z).
@@ -99,8 +99,8 @@ def sample_wigner_sphere(
         sigma = 1.0 / np.sqrt(2 * J)
 
         # Add small noise based on quantum uncertainty
-        x = np.cos(phi) + rng.normal(0, sigma)
-        y = np.sin(phi) + rng.normal(0, sigma)
+        x = np.cos(phi_Bloch) + rng.normal(0, sigma)
+        y = np.sin(phi_Bloch) + rng.normal(0, sigma)
         z = rng.normal(0, sigma)
 
         # Normalize to sphere surface
@@ -108,7 +108,7 @@ def sample_wigner_sphere(
         if norm > 1e-10:
             x, y, z = x / norm, y / norm, z / norm
         else:
-            x, y, z = np.cos(phi), np.sin(phi), 0.0
+            x, y, z = np.cos(phi_Bloch), np.sin(phi_Bloch), 0.0
 
         return np.array([x, y, z])
 
@@ -182,7 +182,7 @@ def sample_wigner_sphere(
 def wigner_sde_trajectory(
     J_init: np.ndarray,
     params: dict,
-    T: float,
+    T_evo: float,
     dt: float,
     rng: np.random.Generator,
     store_trajectory: bool = False,
@@ -213,7 +213,7 @@ def wigner_sde_trajectory(
             - gamma_1: one-body loss rate
             - gamma_2: two-body loss rate
             - gamma_phi: phase diffusion rate
-        T: Total evolution time.
+        T_evo: Total evolution time.
         dt: Timestep for integration.
         rng: Random number generator.
         store_trajectory: Whether to store full trajectory.
@@ -233,8 +233,8 @@ def wigner_sde_trajectory(
     J = N / 2.0  # Total spin
 
     # Number of steps
-    num_steps = max(1, int(np.ceil(T / dt)))
-    dt = T / num_steps  # Adjust to exactly hit T
+    num_steps = max(1, int(np.ceil(T_evo / dt)))
+    dt = T_evo / num_steps  # Adjust to exactly hit T_evo
 
     # Initialize
     J_vec = J_init.copy()
@@ -328,15 +328,15 @@ def compute_twa_expectations(
     N: int,
     state_type: str,
     params: dict,
-    T: float,
-    N_traj: int = 5000,
+    T_evo: float,
+    n_traj: int = 5000,
     seed: int | None = None,
     dt: float = 0.01,
     store_trajectories: bool = False,
 ) -> dict:
     """Compute ⟨J_z⟩ and Var(J_z) via Truncated Wigner Approximation.
 
-    Runs N_traj stochastic trajectories and averages to compute
+    Runs n_traj stochastic trajectories and averages to compute
     expectation values. This is the key method that enables
     efficient simulation of large-N systems.
 
@@ -348,8 +348,8 @@ def compute_twa_expectations(
             - gamma_1: one-body loss rate
             - gamma_2: two-body loss rate
             - gamma_phi: phase diffusion rate
-        T: Evolution time.
-        N_traj: Number of trajectories to average.
+        T_evo: Evolution time.
+        n_traj: Number of trajectories to average.
         seed: Random seed for reproducibility (None = fresh entropy).
         dt: Timestep for SDE integration.
         store_trajectories: Whether to store all trajectories.
@@ -385,12 +385,12 @@ def compute_twa_expectations(
     J_total_samples = []
     all_trajectories = []
 
-    for _traj_idx in range(N_traj):
+    for _traj_idx in range(n_traj):
         # Sample initial Bloch vector
         J_init = sample_wigner_sphere(N, state_type, rng)
 
         # Propagate trajectory
-        result = wigner_sde_trajectory(J_init, full_params, T, dt, rng)
+        result = wigner_sde_trajectory(J_init, full_params, T_evo, dt, rng)
 
         J_final = result["J_final"]
         x, y, z = J_final
@@ -439,8 +439,8 @@ def compute_phase_sensitivity(
     N: int,
     state_type: str,
     params: dict,
-    T: float,
-    N_traj: int = 5000,
+    T_evo: float,
+    n_traj: int = 5000,
     seed: int | None = None,
 ) -> dict:
     """Compute phase estimation sensitivity via TWA.
@@ -455,8 +455,8 @@ def compute_phase_sensitivity(
         N: Total atom number.
         state_type: Initial state type.
         params: Evolution parameters.
-        T: Evolution time.
-        N_traj: Number of trajectories.
+        T_evo: Evolution time.
+        n_traj: Number of trajectories.
         seed: Random seed (None = fresh entropy).
 
     Returns:
@@ -467,8 +467,8 @@ def compute_phase_sensitivity(
         N=N,
         state_type=state_type,
         params=params,
-        T=T,
-        N_traj=N_traj,
+        T_evo=T_evo,
+        n_traj=n_traj,
         seed=seed,
     )
 
@@ -535,8 +535,8 @@ def run_twa_simulation(
     gamma_1: float = 0.0,
     gamma_2: float = 0.0,
     gamma_phi: float = 0.0,
-    T: float = 1.0,
-    N_traj: int = 5000,
+    T_evo: float = 1.0,
+    n_traj: int = 5000,
     seed: int | None = None,
 ) -> dict:
     """Run complete TWA simulation.
@@ -550,8 +550,8 @@ def run_twa_simulation(
         gamma_1: One-body loss rate.
         gamma_2: Two-body loss rate.
         gamma_phi: Phase diffusion rate.
-        T: Evolution time.
-        N_traj: Number of trajectories.
+        T_evo: Evolution time.
+        n_traj: Number of trajectories.
         seed: Random seed (None = fresh entropy).
 
     Returns:
@@ -570,8 +570,8 @@ def run_twa_simulation(
         N=N,
         state_type=state_type,
         params=params,
-        T=T,
-        N_traj=N_traj,
+        T_evo=T_evo,
+        n_traj=n_traj,
         seed=seed,
     )
 
@@ -581,8 +581,8 @@ def run_twa_simulation(
         N=N,
         state_type=state_type,
         params=params,
-        T=T,
-        N_traj=N_traj,
+        T_evo=T_evo,
+        n_traj=n_traj,
         seed=sens_seed,
     )
 
@@ -590,8 +590,8 @@ def run_twa_simulation(
         "N": N,
         "state_type": state_type,
         "params": params,
-        "T": T,
-        "N_traj": N_traj,
+        "T_evo": T_evo,
+        "n_traj": n_traj,
         "Jz_mean": exp_result["Jz_mean"],
         "Jz_variance": exp_result["Jz_variance"],
         "Jz_std": exp_result["Jz_std"],
@@ -611,8 +611,8 @@ def compare_with_lindblad(
     N: int,
     state_type: str,
     params: dict,
-    T: float,
-    N_traj: int = 5000,
+    T_evo: float,
+    n_traj: int = 5000,
     seed: int | None = None,
     tolerance: float = 0.05,
 ) -> dict:
@@ -625,8 +625,8 @@ def compare_with_lindblad(
         N: Total atom number (small N <= 20 for tractability).
         state_type: Initial state type.
         params: Dissipation parameters.
-        T: Evolution time.
-        N_traj: Number of TWA trajectories.
+        T_evo: Evolution time.
+        n_traj: Number of TWA trajectories.
         seed: Random seed (None = fresh entropy).
         tolerance: Acceptable relative difference (default 5%).
 
@@ -641,6 +641,7 @@ def compare_with_lindblad(
             evolve_lindblad,
         )
         from src.physics.dicke_basis import jz_operator
+        from src.utils.enums import OperatorBasis
 
         # Limit N for computational feasibility
         max_N = 20
@@ -658,8 +659,8 @@ def compare_with_lindblad(
         N=N,
         state_type=state_type,
         params=params,
-        T=T,
-        N_traj=N_traj,
+        T_evo=T_evo,
+        n_traj=n_traj,
         seed=seed,
     )
 
@@ -686,15 +687,15 @@ def compare_with_lindblad(
 
     # Evolve
     dt = 0.01
-    if T > 0:
-        rho_final = evolve_lindblad(rho0, config, T, dt)
+    if T_evo > 0:
+        rho_final = evolve_lindblad(rho0, config, T_evo, dt)
 
         # Compute Jz expectation
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.FOCK)
         lindblad_Jz_mean = np.real(np.trace(rho_final @ J_z))
     else:
         # At t=0, compute initial expectation
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.FOCK)
         lindblad_Jz_mean = np.real(np.trace(rho0 @ J_z))
 
     # Compare

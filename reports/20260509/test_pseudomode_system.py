@@ -49,7 +49,7 @@ class TestPseudomodeConfig:
             ("g_sp", 0.5),
             ("omega_0", 0.0),
             ("lam", 1.0),
-            ("T", 2.0),
+            ("T_decay", 2.0),
             ("dt", 0.01),
         ],
     )
@@ -162,7 +162,7 @@ class TestRunMetrologyProtocol:
         "tau": 0.2,
         "g_sp": 0.3,
         "lam": 0.5,
-        "T": 0.5,
+        "T_decay": 0.5,
     }
 
     def test_protocol_completes(self) -> None:

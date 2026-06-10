@@ -18,22 +18,24 @@ class TestCoherentSpinState:
     @pytest.mark.parametrize("N", [1, 2, 3, 4, 5, 10])
     def test_given_css_then_points_along_negative_x(self, N: int) -> None:
         from src.physics.dicke_basis import jx_operator
+        from src.utils.enums import OperatorBasis
 
         css = coherent_spin_state(N)
         rho = np.outer(css, css.conj())
-        J_x = jx_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
         jx = np.real(np.trace(rho @ J_x))
         assert jx == pytest.approx(-N / 2)
 
     @pytest.mark.parametrize("N", [1, 2, 5, 10])
     def test_given_css_then_spin_magnitude_is_N_over_2(self, N: int) -> None:
         from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
+        from src.utils.enums import OperatorBasis
 
         css = coherent_spin_state(N)
         rho = np.outer(css, css.conj())
-        J_x = jx_operator(N)
-        J_y = jy_operator(N)
-        J_z = jz_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
+        J_y = jy_operator(N, basis=OperatorBasis.DICKE)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
 
         jx = np.real(np.trace(rho @ J_x))
         jy = np.real(np.trace(rho @ J_y))

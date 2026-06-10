@@ -27,15 +27,15 @@ class TestMziNoiseConfig:
         assert config.gamma_1 == 0.0
         assert config.gamma_2 == 0.0
         assert config.gamma_phi == 0.0
-        assert config.T == 1.0
+        assert config.T_decay == 1.0
         assert config.dt == 0.01
         assert config.method == "rk4"
 
     def test_custom_values_are_preserved(self) -> None:
-        config = MziNoiseConfig(gamma_1=0.5, gamma_phi=0.3, T=2.0, dt=0.05)
+        config = MziNoiseConfig(gamma_1=0.5, gamma_phi=0.3, T_decay=2.0, dt=0.05)
         assert config.gamma_1 == 0.5
         assert config.gamma_phi == 0.3
-        assert config.T == 2.0
+        assert config.T_decay == 2.0
         assert config.dt == 0.05
 
 
@@ -83,7 +83,7 @@ class TestRunNoisyMzi:
         dim = max_photons + 1
         state = qutip.tensor(qutip.fock(dim, 2), qutip.fock(dim, 0)).full().ravel()
 
-        config = MziNoiseConfig(gamma_1=0.1, gamma_phi=0.05, T=0.5, dt=0.05)
+        config = MziNoiseConfig(gamma_1=0.1, gamma_phi=0.05, T_decay=0.5, dt=0.05)
         rho = run_noisy_mzi(
             state,
             max_photons=max_photons,
@@ -110,7 +110,7 @@ class TestRunNoisyMzi:
         state = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
 
         # Noiseless noisy MZI
-        config = MziNoiseConfig(T=1.0, dt=0.1)
+        config = MziNoiseConfig(T_decay=1.0, dt=0.1)
         rho_noiseless = run_noisy_mzi(
             state,
             max_photons=max_photons,

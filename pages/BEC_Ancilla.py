@@ -127,7 +127,7 @@ with st.sidebar:
     )
 
     # Evolution time
-    T = st.number_input("T (evolution time)", value=1.0, min_value=0.0)
+    T_evo = st.number_input("Evolution time", value=1.0, min_value=0.0)
 
     # TTN options
     show_ttn = st.toggle("Show TTN bond dimension", value=True)
@@ -139,7 +139,7 @@ with st.sidebar:
 
 
 # Generate states
-system_state = generate_system_state(N, state_type, chi, T)
+system_state = generate_system_state(N, state_type, chi, T_evo)
 
 # Compute sensitivity without ancilla (reference)
 noise_config = NoiseConfig()
@@ -147,7 +147,7 @@ results_no_ancilla = compute_phase_sensitivity(
     N=N,
     state=system_state,
     chi=chi,
-    T=T,
+    T_decay=T_evo,
     lambda_coupling=0.0,
     has_ancilla=False,
     noise_config=noise_config,
@@ -158,7 +158,7 @@ results_with_ancilla = compute_phase_sensitivity(
     N=N,
     state=system_state,
     chi=chi,
-    T=T,
+    T_decay=T_evo,
     lambda_coupling=lambda_coupling,
     has_ancilla=True,
     noise_config=noise_config,
@@ -218,7 +218,7 @@ for n_atoms_raw in N_range:
         N=n_atoms,
         state=state_n,
         chi=chi,
-        T=T,
+        T_decay=T_evo,
         lambda_coupling=0.0,
         has_ancilla=False,
         noise_config=noise_config,
@@ -230,7 +230,7 @@ for n_atoms_raw in N_range:
         N=n_atoms,
         state=state_n,
         chi=chi,
-        T=T,
+        T_decay=T_evo,
         lambda_coupling=lambda_coupling,
         has_ancilla=True,
         noise_config=noise_config,

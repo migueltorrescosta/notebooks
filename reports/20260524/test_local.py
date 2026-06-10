@@ -30,10 +30,10 @@ del _sys, _Path, _report_dir
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     DEFAULT_RHO0,
     DEFAULT_T_BS,
-    DEFAULT_T_H,
     DRIVE_BOUNDS,
     FD_STEP,
     SQL_REFERENCE,
+    DEFAULT_T_hold,
     DriveNoiseScanResult,
     build_liouvillian,
     build_noise_drive_hamiltonian,
@@ -137,8 +137,8 @@ class TestHamiltonianConstruction:
         H = build_noise_drive_hamiltonian(1.0, 2.0, 3.0, 4.0, make_ops)
         assert np.allclose(H, H.conj().T, atol=1e-12)
 
-    def test_drive_hamiltonian_zero_theta(self, make_ops: dict) -> None:
-        """At θ=0, the drive Hamiltonian should be zero."""
+    def test_drive_hamiltonian_zero_omega(self, make_ops: dict) -> None:
+        """At ω=0, the drive Hamiltonian should be zero."""
         H = build_noise_drive_hamiltonian(0.0, 5.0, 3.0, 2.0, make_ops)
         assert np.allclose(H, 0.0, atol=1e-14)
 
@@ -157,15 +157,15 @@ class TestHamiltonianConstruction:
         assert np.allclose(H, H.conj().T, atol=1e-12)
 
     def test_hold_contains_jz_plus_drive(self, make_ops: dict) -> None:
-        """H should contain θ J_z^S + drive + interaction."""
-        theta = 0.7
+        """H should contain ω J_z^S + drive + interaction."""
+        omega = 0.7
         a_x, a_y, a_z, a_zz = 2.0, 0.0, 0.0, 0.0
-        H = build_noise_hold_hamiltonian(theta, a_x, a_y, a_z, a_zz, make_ops)
-        expected = theta * make_ops["Jz_S"] + theta * a_x * make_ops["Jx_A"]
+        H = build_noise_hold_hamiltonian(omega, a_x, a_y, a_z, a_zz, make_ops)
+        expected = omega * make_ops["Jz_S"] + omega * a_x * make_ops["Jx_A"]
         assert np.allclose(H, expected, atol=1e-12)
 
-    def test_hold_reduces_to_thetajz_at_zero(self, make_ops: dict) -> None:
-        """At a_k = a_zz = 0, H = θ J_z^S."""
+    def test_hold_reduces_to_omegajz_at_zero(self, make_ops: dict) -> None:
+        """At a_k = a_zz = 0, H = ω J_z^S."""
         H = build_noise_hold_hamiltonian(1.0, 0.0, 0.0, 0.0, 0.0, make_ops)
         expected = 1.0 * make_ops["Jz_S"]
         assert np.allclose(H, expected, atol=1e-12)
@@ -221,7 +221,7 @@ class TestLiouvillian:
         L = build_liouvillian(H, lindblad)
 
         rho_vec = vectorise_rho(DEFAULT_RHO0)
-        rho_evolved = unvectorise_rho(expm(L * DEFAULT_T_H) @ rho_vec)
+        rho_evolved = unvectorise_rho(expm(L * DEFAULT_T_hold) @ rho_vec)
         trace = float(np.real(np.trace(rho_evolved)))
         assert np.isclose(trace, 1.0, atol=1e-10)
 
@@ -257,12 +257,21 @@ class TestNoisyCircuit:
         """At γ_φ = 0, the noisy circuit should match the unitary evolution."""
         ops = make_ops
         rho_noiseless = evolve_noisy_drive_circuit(
-            DEFAULT_RHO0, DEFAULT_T_BS, DEFAULT_T_H, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, ops
+            DEFAULT_RHO0,
+            DEFAULT_T_BS,
+            DEFAULT_T_hold,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            ops,
         )
 
         # Pure unitary evolution
         H = build_noise_hold_hamiltonian(1.0, 0.0, 0.0, 0.0, 0.0, ops)
-        U_hold = expm(-1j * DEFAULT_T_H * H)
+        U_hold = expm(-1j * DEFAULT_T_hold * H)
         from src.analysis.ancilla_drive_metrology import system_only_bs_unitary
 
         U_bs = system_only_bs_unitary(DEFAULT_T_BS)
@@ -282,7 +291,7 @@ class TestNoisyCircuit:
             rho = evolve_noisy_drive_circuit(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_H,
+                DEFAULT_T_hold,
                 1.0,
                 gamma,
                 2.0,
@@ -301,7 +310,7 @@ class TestNoisyCircuit:
             rho = evolve_noisy_drive_circuit(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_H,
+                DEFAULT_T_hold,
                 0.5,
                 gamma,
                 1.0,
@@ -318,7 +327,7 @@ class TestNoisyCircuit:
             rho = evolve_noisy_drive_circuit(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_H,
+                DEFAULT_T_hold,
                 1.0,
                 gamma,
                 0.0,
@@ -334,13 +343,13 @@ class TestNoisyCircuit:
 
     def test_zero_params_reduces_to_bs_sequence(self, make_ops: dict) -> None:
         """At all params=0, the circuit should be just BS → phase → BS."""
-        theta = 0.5
+        omega = 0.5
         gamma = 0.0
         rho = evolve_noisy_drive_circuit(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
-            theta,
+            DEFAULT_T_hold,
+            omega,
             gamma,
             0.0,
             0.0,
@@ -353,7 +362,7 @@ class TestNoisyCircuit:
         from src.analysis.ancilla_drive_metrology import system_only_bs_unitary
 
         U_bs = system_only_bs_unitary(DEFAULT_T_BS)
-        U_phase = expm(-1j * DEFAULT_T_H * theta * Jz_S)
+        U_phase = expm(-1j * DEFAULT_T_hold * omega * Jz_S)
         rho_manual = (
             U_bs
             @ U_phase
@@ -369,7 +378,7 @@ class TestNoisyCircuit:
         rho1 = evolve_noisy_drive_circuit(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             1.0,
             0.1,
             2.0,
@@ -381,7 +390,7 @@ class TestNoisyCircuit:
         rho2 = evolve_noisy_drive_circuit(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             1.0,
             0.1,
             2.0,
@@ -400,11 +409,11 @@ class TestNoisyCircuit:
 
 class TestNoisySensitivity:
     def test_decoupled_sensitivity_at_zero_noise(self, make_ops: dict) -> None:
-        """At γ_φ=0 and a_k=a_zz=0, Δθ should equal SQL."""
+        """At γ_φ=0 and a_k=a_zz=0, Δω should equal SQL."""
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             1.0,
             0.0,
             0.0,
@@ -414,7 +423,7 @@ class TestNoisySensitivity:
             make_ops,
         )
         assert dt == pytest.approx(SQL_REFERENCE, rel=1e-5), (
-            f"Δθ={dt:.10f} != SQL={SQL_REFERENCE:.10f}"
+            f"Δω={dt:.10f} != SQL={SQL_REFERENCE:.10f}"
         )
 
     @pytest.mark.parametrize("gamma_phi", [0.0, 1e-4, 1e-2])
@@ -425,7 +434,7 @@ class TestNoisySensitivity:
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             1.0,
             gamma_phi,
             2.0,
@@ -434,7 +443,7 @@ class TestNoisySensitivity:
             0.5,
             make_ops,
         )
-        assert np.isfinite(dt), f"Non-finite Δθ at γ_φ={gamma_phi}"
+        assert np.isfinite(dt), f"Non-finite Δω at γ_φ={gamma_phi}"
 
     def test_sensitivity_positive(self, make_ops: dict) -> None:
         """Sensitivity should always be positive."""
@@ -442,7 +451,7 @@ class TestNoisySensitivity:
             dt = compute_noisy_sensitivity(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_H,
+                DEFAULT_T_hold,
                 0.5,
                 gamma,
                 1.0,
@@ -451,42 +460,42 @@ class TestNoisySensitivity:
                 0.0,
                 make_ops,
             )
-            assert dt > 0, f"Non-positive Δθ at γ_φ={gamma}"
+            assert dt > 0, f"Non-positive Δω at γ_φ={gamma}"
 
     def test_sensitivity_worsens_with_noise(self, make_ops: dict) -> None:
-        """Δθ should increase monotonically with γ_φ for fixed params."""
+        """Δω should increase monotonically with γ_φ for fixed params."""
         fixed_params = (2.0, 1.0, 0.0, 0.5)
-        thetas = [1.0]
+        omegas = [1.0]
         gammas = [0.0, 1e-4, 1e-2, 1.0]
         deltas = []
         for gamma in gammas:
             dt = compute_noisy_sensitivity(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_H,
-                thetas[0],
+                DEFAULT_T_hold,
+                omegas[0],
                 gamma,
                 *fixed_params,
                 make_ops,
             )
             deltas.append(dt)
 
-        # Δθ should be non-decreasing with γ_φ
+        # Δω should be non-decreasing with γ_φ
         for i in range(1, len(deltas)):
             finite_prev = np.isfinite(deltas[i - 1])
             finite_curr = np.isfinite(deltas[i])
             if finite_prev and finite_curr:
                 assert deltas[i] >= deltas[i - 1] - 0.01 * deltas[i - 1], (
-                    f"Δθ decreased from g={gammas[i - 1]} to g={gammas[i]}: "
+                    f"Δω decreased from g={gammas[i - 1]} to g={gammas[i]}: "
                     f"{deltas[i - 1]:.6f} → {deltas[i]:.6f}"
                 )
 
     def test_high_noise_gives_large_delta(self, make_ops: dict) -> None:
-        """At very high noise, Δθ should be very large."""
+        """At very high noise, Δω should be very large."""
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             1.0,
             100.0,
             0.0,
@@ -496,7 +505,7 @@ class TestNoisySensitivity:
             make_ops,
         )
         assert np.isinf(dt) or dt > 10 * SQL_REFERENCE, (
-            f"Δθ={dt:.4f} should be large at high noise"
+            f"Δω={dt:.4f} should be large at high noise"
         )
 
 
@@ -511,7 +520,7 @@ class TestSensitivityWithDiagnostics:
         dt1 = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             0.5,
             0.01,
             1.0,
@@ -523,7 +532,7 @@ class TestSensitivityWithDiagnostics:
         dt2, exp_val, var_val, d_exp = compute_noisy_sensitivity_with_diagnostics(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             0.5,
             0.01,
             1.0,
@@ -542,7 +551,7 @@ class TestSensitivityWithDiagnostics:
         _, exp_val, var_val, d_exp = compute_noisy_sensitivity_with_diagnostics(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             1.0,
             0.0,
             0.0,
@@ -566,7 +575,7 @@ class TestNoiseDecoupledBaseline:
         """At γ_φ=0, decoupled baseline should equal SQL."""
         dt = compute_noisy_decoupled_baseline(gamma_phi=0.0)
         assert dt == pytest.approx(SQL_REFERENCE, rel=1e-5), (
-            f"γ_φ=0: Δθ={dt:.10f} != SQL={SQL_REFERENCE:.10f}"
+            f"γ_φ=0: Δω={dt:.10f} != SQL={SQL_REFERENCE:.10f}"
         )
 
     @pytest.mark.parametrize("gamma_phi", [1e-4, 1e-2, 0.1])
@@ -574,27 +583,27 @@ class TestNoiseDecoupledBaseline:
         """At γ_φ>0, decoupled baseline should be worse than SQL (dephasing
         destroys coherences that the BS2-rotated measurement depends on)."""
         dt = compute_noisy_decoupled_baseline(gamma_phi=gamma_phi)
-        assert dt > SQL_REFERENCE, f"γ_φ={gamma_phi}: Δθ={dt:.10f} should be > SQL"
-        assert np.isfinite(dt), f"γ_φ={gamma_phi}: Δθ={dt:.10f} should be finite"
+        assert dt > SQL_REFERENCE, f"γ_φ={gamma_phi}: Δω={dt:.10f} should be > SQL"
+        assert np.isfinite(dt), f"γ_φ={gamma_phi}: Δω={dt:.10f} should be finite"
 
     def test_baseline_finite_low_noise(self) -> None:
         """Baseline should be finite for small γ_φ."""
         for gamma in [1e-4, 1e-3, 0.01]:
             dt = compute_noisy_decoupled_baseline(gamma_phi=gamma)
-            assert np.isfinite(dt), f"γ_φ={gamma}: Δθ={dt} not finite"
+            assert np.isfinite(dt), f"γ_φ={gamma}: Δω={dt} not finite"
 
     def test_baseline_large_at_high_noise(self) -> None:
         """At very high noise, decoupled baseline should be very large."""
         dt = compute_noisy_decoupled_baseline(gamma_phi=100.0)
         assert np.isinf(dt) or dt > 10 * SQL_REFERENCE, (
-            f"γ_φ=100: Δθ={dt:.4f} should be large"
+            f"γ_φ=100: Δω={dt:.4f} should be large"
         )
 
-    @pytest.mark.parametrize("theta_true", [0.1, 0.5, 2.0, 5.0])
-    def test_baseline_finite_at_different_theta(self, theta_true: float) -> None:
-        """Decoupled baseline should be finite for different θ at low noise."""
-        dt = compute_noisy_decoupled_baseline(gamma_phi=0.01, theta_true=theta_true)
-        assert np.isfinite(dt), f"θ={theta_true}: Δθ={dt:.10f} not finite"
+    @pytest.mark.parametrize("omega_true", [0.1, 0.5, 2.0, 5.0])
+    def test_baseline_finite_at_different_omega(self, omega_true: float) -> None:
+        """Decoupled baseline should be finite for different ω at low noise."""
+        dt = compute_noisy_decoupled_baseline(gamma_phi=0.01, omega_true=omega_true)
+        assert np.isfinite(dt), f"ω={omega_true}: Δω={dt:.10f} not finite"
 
 
 # ============================================================================
@@ -607,7 +616,7 @@ class TestNoisyObjective:
         """Objective should return a finite value for valid parameters."""
         obj = noisy_sensitivity_objective(
             np.array([1.0, 2.0, 0.0, 0.5]),
-            theta_true=1.0,
+            omega_true=1.0,
             gamma_phi=0.01,
             ops=make_ops,
         )
@@ -617,7 +626,7 @@ class TestNoisyObjective:
         """Objective should return a large value for out-of-bounds params."""
         obj = noisy_sensitivity_objective(
             np.array([100.0, 0.0, 0.0, 0.0]),
-            theta_true=1.0,
+            omega_true=1.0,
             gamma_phi=0.01,
             ops=make_ops,
         )
@@ -627,13 +636,13 @@ class TestNoisyObjective:
         """Objective should be symmetric about a_x = 0 in some configurations."""
         obj_pos = noisy_sensitivity_objective(
             np.array([1.0, 0.0, 0.0, 0.0]),
-            theta_true=1.0,
+            omega_true=1.0,
             gamma_phi=0.0,
             ops=make_ops,
         )
         obj_neg = noisy_sensitivity_objective(
             np.array([-1.0, 0.0, 0.0, 0.0]),
-            theta_true=1.0,
+            omega_true=1.0,
             gamma_phi=0.0,
             ops=make_ops,
         )
@@ -650,7 +659,7 @@ class TestNoisyRandomSearch:
     def test_random_search_runs(self) -> None:
         """Random search should complete without error."""
         samples, deltas, best_params, best_delta = run_noisy_random_search(
-            theta=1.0,
+            omega=1.0,
             gamma_phi=0.01,
             n_samples=20,
             seed=42,
@@ -663,7 +672,7 @@ class TestNoisyRandomSearch:
     def test_random_search_finds_best(self) -> None:
         """The reported best should be the minimum of all samples."""
         samples, deltas, best_params, best_delta = run_noisy_random_search(
-            theta=1.0,
+            omega=1.0,
             gamma_phi=0.0,
             n_samples=30,
             seed=42,
@@ -684,8 +693,8 @@ class TestNoisyRandomSearch:
 
     def test_random_search_deterministic(self) -> None:
         """Same seed should give same results."""
-        res1 = run_noisy_random_search(theta=0.5, gamma_phi=0.1, n_samples=10, seed=42)
-        res2 = run_noisy_random_search(theta=0.5, gamma_phi=0.1, n_samples=10, seed=42)
+        res1 = run_noisy_random_search(omega=0.5, gamma_phi=0.1, n_samples=10, seed=42)
+        res2 = run_noisy_random_search(omega=0.5, gamma_phi=0.1, n_samples=10, seed=42)
         assert np.allclose(res1[0], res2[0])
         assert np.allclose(res1[1], res2[1])
         assert res1[3] == pytest.approx(res2[3])
@@ -700,41 +709,41 @@ class TestNoisyNelderMead:
     def test_nm_runs(self) -> None:
         """Nelder-Mead should complete without error."""
         result = run_noisy_nelder_mead(
-            theta_true=1.0,
+            omega_true=1.0,
             gamma_phi=0.01,
             x0=np.array([1.0, 0.0, 0.0, 0.0]),
             maxiter=50,
         )
-        assert np.isfinite(result["delta_theta_opt"]) or np.isinf(
-            result["delta_theta_opt"]
+        assert np.isfinite(result["delta_omega_opt"]) or np.isinf(
+            result["delta_omega_opt"]
         )
         assert result["params_opt"].shape == (4,)
 
     def test_nm_diagnostics(self) -> None:
         """Diagnostics should be recorded."""
         result = run_noisy_nelder_mead(
-            theta_true=1.0,
+            omega_true=1.0,
             gamma_phi=0.0,
             x0=np.array([0.0, 0.0, 0.0, 0.0]),
             maxiter=50,
         )
         assert "expectation_Jz" in result
         assert "variance_Jz" in result
-        assert "d_exp_d_theta" in result
+        assert "d_exp_d_omega" in result
 
     def test_nm_improves_over_decoupled(self) -> None:
         """Nelder-Mead should find parameters that beat the decoupled baseline."""
         decoupled_dt = compute_noisy_decoupled_baseline(gamma_phi=0.0)
         result = run_noisy_nelder_mead(
-            theta_true=1.0,
+            omega_true=1.0,
             gamma_phi=0.0,
             x0=np.array([2.0, 1.0, 0.0, 0.5]),
             maxiter=200,
         )
-        nm_dt = float(result["delta_theta_opt"])
+        nm_dt = float(result["delta_omega_opt"])
         if np.isfinite(nm_dt):
             assert nm_dt <= decoupled_dt * 1.1, (
-                f"NM Δθ={nm_dt:.6f} should not be much worse than decoupled "
+                f"NM Δω={nm_dt:.6f} should not be much worse than decoupled "
                 f"{decoupled_dt:.6f}"
             )
 
@@ -748,43 +757,43 @@ class TestNoiseScan:
     def test_noise_scan_runs(self) -> None:
         """Noise scan should complete without error for a small grid."""
         result = run_noise_scan(
-            theta_values=[0.1, 1.0],
+            omega_values=[0.1, 1.0],
             gamma_phi_values=[1e-4, 0.01, 1.0],
             n_random=10,
             n_nm_refine=2,
             maxiter=20,
         )
-        assert len(result.theta_values) == 2
+        assert len(result.omega_values) == 2
         assert len(result.gamma_phi_values) == 3
-        assert result.delta_theta_per_pair.shape == (2, 3)
+        assert result.delta_omega_per_pair.shape == (2, 3)
 
     def test_noise_scan_all_results_finite(self) -> None:
-        """All (θ, γ_φ) pairs should produce finite Δθ for small noise."""
+        """All (ω, γ_φ) pairs should produce finite Δω for small noise."""
         result = run_noise_scan(
-            theta_values=[0.5],
+            omega_values=[0.5],
             gamma_phi_values=[1e-4, 1e-2],
             n_random=10,
             n_nm_refine=2,
             maxiter=20,
         )
-        for i in range(len(result.theta_values)):
+        for i in range(len(result.omega_values)):
             for j in range(len(result.gamma_phi_values)):
-                dt = result.delta_theta_per_pair[i, j]
+                dt = result.delta_omega_per_pair[i, j]
                 assert np.isfinite(dt), (
-                    f"Non-finite Δθ at θ={result.theta_values[i]}, "
+                    f"Non-finite Δω at ω={result.omega_values[i]}, "
                     f"γ_φ={result.gamma_phi_values[j]}"
                 )
 
     def test_noise_scan_params_recorded(self) -> None:
         """Optimal parameters should be recorded for each pair."""
         result = run_noise_scan(
-            theta_values=[1.0],
+            omega_values=[1.0],
             gamma_phi_values=[1e-3, 0.1],
             n_random=10,
             n_nm_refine=2,
             maxiter=20,
         )
-        assert len(result.best_params_per_pair) == 2  # n_theta * n_gamma
+        assert len(result.best_params_per_pair) == 2  # n_omega * n_gamma
         for params in result.best_params_per_pair:
             assert len(params) == 4
 
@@ -798,7 +807,7 @@ class TestParquetRoundtrip:
     def test_noise_scan_roundtrip(self, tmp_path: Path) -> None:
         """DriveNoiseScanResult should survive a roundtrip."""
         original = DriveNoiseScanResult(
-            theta_values=np.array([0.1, 1.0]),
+            omega_values=np.array([0.1, 1.0]),
             gamma_phi_values=np.array([1e-4, 0.01, 1.0]),
             best_params_per_pair=[
                 (1.0, 2.0, 0.0, 0.5),
@@ -808,12 +817,12 @@ class TestParquetRoundtrip:
                 (1.0, 0.0, 2.0, 0.5),
                 (0.0, 2.0, 1.0, 0.0),
             ],
-            delta_theta_per_pair=np.array([[0.05, 0.06, 0.10], [0.04, 0.05, 0.08]]),
+            delta_omega_per_pair=np.array([[0.05, 0.06, 0.10], [0.04, 0.05, 0.08]]),
             expectation_Jz_per_pair=np.array([[0.5, 0.4, 0.3], [0.6, 0.5, 0.4]]),
             variance_Jz_per_pair=np.array([[0.05, 0.06, 0.08], [0.04, 0.05, 0.07]]),
-            d_exp_d_theta_per_pair=np.array([[-0.5, -0.4, -0.3], [-0.6, -0.5, -0.4]]),
+            d_exp_d_omega_per_pair=np.array([[-0.5, -0.4, -0.3], [-0.6, -0.5, -0.4]]),
             sql=0.1,
-            T_H=10.0,
+            T_hold=10.0,
             n_random=500,
             n_nm_refine=10,
             maxiter=2000,
@@ -826,15 +835,15 @@ class TestParquetRoundtrip:
         original.save_parquet(csv_path)
         loaded = DriveNoiseScanResult.from_parquet(csv_path)
 
-        assert np.allclose(loaded.theta_values, original.theta_values)
+        assert np.allclose(loaded.omega_values, original.omega_values)
         assert np.allclose(loaded.gamma_phi_values, original.gamma_phi_values)
-        assert np.allclose(loaded.delta_theta_per_pair, original.delta_theta_per_pair)
+        assert np.allclose(loaded.delta_omega_per_pair, original.delta_omega_per_pair)
         assert np.allclose(
             loaded.expectation_Jz_per_pair, original.expectation_Jz_per_pair
         )
         assert np.allclose(loaded.variance_Jz_per_pair, original.variance_Jz_per_pair)
         assert loaded.sql == pytest.approx(original.sql)
-        assert pytest.approx(original.T_H) == loaded.T_H
+        assert pytest.approx(original.T_hold) == loaded.T_hold
         # Verify hyperparameter metadata roundtrip
         assert loaded.n_random == 500
         assert loaded.n_nm_refine == 10
@@ -847,15 +856,15 @@ class TestParquetRoundtrip:
     def test_noise_scan_roundtrip_metadata(self, tmp_path: Path) -> None:
         """Verify all metadata fields survive roundtrip."""
         original = DriveNoiseScanResult(
-            theta_values=np.array([0.5]),
+            omega_values=np.array([0.5]),
             gamma_phi_values=np.array([1e-3, 0.1]),
             best_params_per_pair=[(2.0, 1.0, 0.0, 0.5), (1.0, 0.0, 1.0, 2.0)],
-            delta_theta_per_pair=np.array([[0.04, 0.07]]),
+            delta_omega_per_pair=np.array([[0.04, 0.07]]),
             expectation_Jz_per_pair=np.array([[0.3, 0.2]]),
             variance_Jz_per_pair=np.array([[0.06, 0.09]]),
-            d_exp_d_theta_per_pair=np.array([[-0.3, -0.2]]),
+            d_exp_d_omega_per_pair=np.array([[-0.3, -0.2]]),
             sql=0.1,
-            T_H=10.0,
+            T_hold=10.0,
             n_random=100,
             n_nm_refine=5,
             maxiter=1000,
@@ -868,11 +877,11 @@ class TestParquetRoundtrip:
         original.save_parquet(csv_path)
         loaded = DriveNoiseScanResult.from_parquet(csv_path)
 
-        assert loaded.theta_values[0] == pytest.approx(0.5)
+        assert loaded.omega_values[0] == pytest.approx(0.5)
         assert loaded.gamma_phi_values[0] == pytest.approx(1e-3)
-        assert loaded.delta_theta_per_pair[0, 0] == pytest.approx(0.04)
+        assert loaded.delta_omega_per_pair[0, 0] == pytest.approx(0.04)
         assert loaded.sql == pytest.approx(0.1)
-        assert pytest.approx(10.0) == loaded.T_H
+        assert pytest.approx(10.0) == loaded.T_hold
         assert loaded.n_random == 100
         assert loaded.n_nm_refine == 5
         assert loaded.maxiter == 1000
@@ -887,13 +896,13 @@ class TestParquetRoundtrip:
 
         df_bad = pd.DataFrame(
             {
-                "theta": [0.1],
+                "omega": [0.1],
                 "gamma_phi": [0.01],
                 "a_x": [1.0],
                 "a_y": [0.0],
                 "a_z": [0.0],
-                # missing a_zz, delta_theta, expectation_Jz, variance_Jz,
-                # d_exp_d_theta, sql, T_H, n_random, n_nm_refine, maxiter,
+                # missing a_zz, delta_omega, expectation_Jz, variance_Jz,
+                # d_exp_d_omega, sql, T_hold, n_random, n_nm_refine, maxiter,
                 # bounds_lo, bounds_hi, fd_step, seed
             }
         )
@@ -909,18 +918,18 @@ class TestParquetRoundtrip:
         import pandas as pd
 
         # All core columns present but diagnostics (expectation_Jz, variance_Jz,
-        # d_exp_d_theta) missing
+        # d_exp_d_omega) missing
         df_bad = pd.DataFrame(
             {
-                "theta": [0.1],
+                "omega": [0.1],
                 "gamma_phi": [0.01],
                 "a_x": [1.0],
                 "a_y": [0.0],
                 "a_z": [0.0],
                 "a_zz": [0.5],
-                "delta_theta": [0.05],
+                "delta_omega": [0.05],
                 "sql": [0.1],
-                "T_H": [10.0],
+                "T_hold": [10.0],
                 "n_random": [1000],
                 "n_nm_refine": [25],
                 "maxiter": [5000],
@@ -928,7 +937,7 @@ class TestParquetRoundtrip:
                 "bounds_hi": [5.0],
                 "fd_step": [1e-6],
                 "seed": [42],
-                # missing expectation_Jz, variance_Jz, d_exp_d_theta
+                # missing expectation_Jz, variance_Jz, d_exp_d_omega
             }
         )
         csv_path = tmp_path / "bad_noise_diag.parquet"
@@ -946,7 +955,7 @@ class TestPhysicalInvariants:
     def test_trace_preserved_all_params(self) -> None:
         """Trace should be preserved for all typical parameters."""
         ops = build_two_qubit_operators()
-        for theta in [0.1, 1.0, 5.0]:
+        for omega in [0.1, 1.0, 5.0]:
             for gamma in [0.0, 1e-4, 1e-2, 0.1]:
                 for params in [
                     (0.0, 0.0, 0.0, 0.0),
@@ -957,8 +966,8 @@ class TestPhysicalInvariants:
                     rho = evolve_noisy_drive_circuit(
                         DEFAULT_RHO0,
                         DEFAULT_T_BS,
-                        DEFAULT_T_H,
-                        theta,
+                        DEFAULT_T_hold,
+                        omega,
                         gamma,
                         ax,
                         ay,
@@ -967,13 +976,13 @@ class TestPhysicalInvariants:
                         ops,
                     )
                     assert np.isclose(np.trace(rho), 1.0, atol=1e-8), (
-                        f"Trace not preserved at θ={theta}, γ={gamma}, params={params}"
+                        f"Trace not preserved at ω={omega}, γ={gamma}, params={params}"
                     )
 
     def test_hermiticity_all_params(self) -> None:
         """Density matrix should be Hermitian for all parameters."""
         ops = build_two_qubit_operators()
-        for theta in [0.1, 1.0]:
+        for omega in [0.1, 1.0]:
             for gamma in [0.0, 1e-3]:
                 for params in [
                     (1.0, 0.0, 0.0, 0.0),
@@ -986,8 +995,8 @@ class TestPhysicalInvariants:
                     rho = evolve_noisy_drive_circuit(
                         DEFAULT_RHO0,
                         DEFAULT_T_BS,
-                        DEFAULT_T_H,
-                        theta,
+                        DEFAULT_T_hold,
+                        omega,
                         gamma,
                         ax,
                         ay,
@@ -996,13 +1005,13 @@ class TestPhysicalInvariants:
                         ops,
                     )
                     assert np.allclose(rho, rho.conj().T, atol=1e-8), (
-                        f"Not Hermitian at θ={theta}, γ={gamma}, params={params}"
+                        f"Not Hermitian at ω={omega}, γ={gamma}, params={params}"
                     )
 
     def test_positivity_all_params(self) -> None:
         """Density matrix eigenvalues should be non-negative."""
         ops = build_two_qubit_operators()
-        for theta in [0.5, 2.0]:
+        for omega in [0.5, 2.0]:
             for gamma in [0.0, 1e-3, 0.1]:
                 for params in [
                     (1.0, 1.0, 0.0, 0.0),
@@ -1012,8 +1021,8 @@ class TestPhysicalInvariants:
                     rho = evolve_noisy_drive_circuit(
                         DEFAULT_RHO0,
                         DEFAULT_T_BS,
-                        DEFAULT_T_H,
-                        theta,
+                        DEFAULT_T_hold,
+                        omega,
                         gamma,
                         ax,
                         ay,
@@ -1023,7 +1032,7 @@ class TestPhysicalInvariants:
                     )
                     evals = np.linalg.eigvalsh(rho)
                     assert np.all(evals >= -1e-8), (
-                        f"Negative eigenvalues at θ={theta}, γ={gamma}: "
+                        f"Negative eigenvalues at ω={omega}, γ={gamma}: "
                         f"min={float(np.min(evals)):.2e}"
                     )
 
@@ -1033,7 +1042,7 @@ class TestPhysicalInvariants:
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             1.0,
             0.0,
             0.0,
@@ -1043,7 +1052,7 @@ class TestPhysicalInvariants:
             ops,
         )
         assert dt == pytest.approx(SQL_REFERENCE, rel=1e-4), (
-            f"γ_φ=0: Δθ={dt:.10f} != SQL={SQL_REFERENCE:.10f}"
+            f"γ_φ=0: Δω={dt:.10f} != SQL={SQL_REFERENCE:.10f}"
         )
 
     def test_decoupled_sensitivity_degraded_by_noise(self) -> None:
@@ -1054,7 +1063,7 @@ class TestPhysicalInvariants:
             dt = compute_noisy_sensitivity(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_H,
+                DEFAULT_T_hold,
                 1.0,
                 gamma,
                 0.0,
@@ -1063,17 +1072,17 @@ class TestPhysicalInvariants:
                 0.0,
                 ops,
             )
-            assert dt > SQL_REFERENCE, f"γ_φ={gamma}: Δθ={dt:.10f} should be > SQL"
-            assert np.isfinite(dt), f"γ_φ={gamma}: Δθ={dt:.10f} should be finite"
+            assert dt > SQL_REFERENCE, f"γ_φ={gamma}: Δω={dt:.10f} should be > SQL"
+            assert np.isfinite(dt), f"γ_φ={gamma}: Δω={dt:.10f} should be finite"
 
     def test_noise_free_reproduction(self) -> None:
-        """At γ_φ=10^{-4} (negligible noise), optimised Δθ should be
+        """At γ_φ=10^{-4} (negligible noise), optimised Δω should be
         sub-SQL.  A short optimisation run (random search + Nelder-Mead)
-        at θ=0.2 should find parameters achieving Δθ < 0.75 × SQL,
+        at ω=0.2 should find parameters achieving Δω < 0.75 × SQL,
         confirming that the protocol still works at negligible noise."""
         # Stage 1: small random search
         _, _, best_params, _ = run_noisy_random_search(
-            theta=0.2,
+            omega=0.2,
             gamma_phi=1e-4,
             n_samples=200,
             seed=42,
@@ -1081,21 +1090,21 @@ class TestPhysicalInvariants:
 
         # Stage 2: Nelder-Mead refinement
         nm_result = run_noisy_nelder_mead(
-            theta_true=0.2,
+            omega_true=0.2,
             gamma_phi=1e-4,
             x0=np.array(best_params),
             maxiter=300,
         )
-        dt_opt = float(nm_result["delta_theta_opt"])
+        dt_opt = float(nm_result["delta_omega_opt"])
         ratio = dt_opt / SQL_REFERENCE
 
-        # The noise-free protocol achieves ~0.204 at θ=0.2.
+        # The noise-free protocol achieves ~0.204 at ω=0.2.
         # With γ_φ=1e-4 (negligible), the ratio should be well below 1.0.
         assert ratio < 0.75, (
-            f"γ_φ=1e-4 with re-optimisation: Δθ/Δθ_SQL={ratio:.4f} "
-            f"should be < 0.75 (SQL).  Best Δθ={dt_opt:.6f}"
+            f"γ_φ=1e-4 with re-optimisation: Δω/Δω_SQL={ratio:.4f} "
+            f"should be < 0.75 (SQL).  Best Δω={dt_opt:.6f}"
         )
-        assert np.isfinite(dt_opt), "Δθ should be finite at negligible noise"
+        assert np.isfinite(dt_opt), "Δω should be finite at negligible noise"
 
     def test_css_limit_dephased(self) -> None:
         """At very high γ_φ, the state should be heavily dephased and
@@ -1105,7 +1114,7 @@ class TestPhysicalInvariants:
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_H,
+            DEFAULT_T_hold,
             1.0,
             1e6,
             0.0,
@@ -1115,7 +1124,7 @@ class TestPhysicalInvariants:
             ops,
         )
         assert np.isinf(dt) or dt > 100 * SQL_REFERENCE, (
-            f"At γ_φ=1e6: Δθ={dt:.4f} should be >> SQL"
+            f"At γ_φ=1e6: Δω={dt:.4f} should be >> SQL"
         )
 
 
@@ -1126,7 +1135,7 @@ class TestPhysicalInvariants:
 
 class TestConstants:
     def test_sql_reference_correct(self) -> None:
-        assert pytest.approx(1.0 / DEFAULT_T_H) == SQL_REFERENCE
+        assert pytest.approx(1.0 / DEFAULT_T_hold) == SQL_REFERENCE
 
     def test_drive_bounds(self) -> None:
         lo, hi = DRIVE_BOUNDS

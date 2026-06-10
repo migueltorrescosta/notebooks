@@ -37,6 +37,7 @@ from src.evolution.lindblad_solver import LindbladConfig, evolve_lindblad
 from src.physics.dicke_basis import jz_operator
 from src.physics.states import generate_noon_state, generate_twin_fock_state
 from src.physics.truncated_wigner import run_twa_simulation
+from src.utils.enums import OperatorBasis
 
 if TYPE_CHECKING:
     from src.physics.noise_channels import NoiseConfig
@@ -46,7 +47,7 @@ def compute_phase_uncertainty_lindblad(
     N: int,
     state: np.ndarray,
     chi: float,
-    T: float,
+    T_decay: float,
     noise_config: NoiseConfig,
 ) -> float:
     """Compute phase uncertainty via Lindblad evolution.
@@ -58,7 +59,7 @@ def compute_phase_uncertainty_lindblad(
         N: Atom number.
         state: Initial state vector in Dicke basis.
         chi: OAT strength.
-        T: Evolution time.
+        T_decay: Evolution time.
         noise_config: Noise configuration.
 
     Returns:
@@ -66,14 +67,14 @@ def compute_phase_uncertainty_lindblad(
 
     Raises:
         ValueError: If the state dimension does not match N+1.
-        ValueError: If chi or T is negative.
+        ValueError: If chi or T_decay is negative.
 
     Example:
         >>> from src.physics.noise_channels import NoiseConfig
         >>> from src.algorithms.spin_squeezing import coherent_spin_state
         >>> state = coherent_spin_state(4)
         >>> noise = NoiseConfig()
-        >>> dphi = compute_phase_uncertainty_lindblad(4, state, chi=0.0, T=0.0, noise_config=noise)
+        >>> dphi = compute_phase_uncertainty_lindblad(4, state, chi=0.0, T_decay=0.0, noise_config=noise)
         >>> dphi > 0
         True
 
@@ -84,8 +85,8 @@ def compute_phase_uncertainty_lindblad(
         )
     if chi < 0:
         raise ValueError(f"OAT strength chi must be non-negative, got {chi}")
-    if T < 0:
-        raise ValueError(f"Evolution time T must be non-negative, got {T}")
+    if T_decay < 0:
+        raise ValueError(f"Evolution time T_decay must be non-negative, got {T_decay}")
 
     rho0 = np.outer(state, state.conj())
 
@@ -98,10 +99,10 @@ def compute_phase_uncertainty_lindblad(
     )
 
     dt = 0.01
-    rho_final = evolve_lindblad(rho0, config, T, dt)
+    rho_final = evolve_lindblad(rho0, config, T_decay, dt)
 
     # Compute J_z variance
-    J_z = jz_operator(N)
+    J_z = jz_operator(N, basis=OperatorBasis.FOCK)
     Jz_mean = np.real(np.trace(rho_final @ J_z))
     Jz2_mean = np.real(np.trace(rho_final @ J_z @ J_z))
     Jz_var = Jz2_mean - Jz_mean**2
@@ -116,7 +117,7 @@ def compute_phase_uncertainty_lindblad(
 def compute_sensitivity_vs_n(
     state_type: str,
     N_range: tuple[int, int],
-    N_points: int,
+    n_points: int,
     chi: float,
     noise_config: NoiseConfig,
     method: str,
@@ -130,7 +131,7 @@ def compute_sensitivity_vs_n(
     Args:
         state_type: One of 'CSS', 'SSS', 'Twin-Fock', 'NOON'.
         N_range: Tuple (min_N, max_N).
-        N_points: Number of N values to sample.
+        n_points: Number of N values to sample.
         chi: OAT strength.
         noise_config: Noise configuration.
         method: 'Lindblad' or 'TWA'.
@@ -143,7 +144,7 @@ def compute_sensitivity_vs_n(
         ValueError: If state_type is not recognized.
 
     """
-    N_values = np.linspace(N_range[0], N_range[1], N_points, dtype=int)
+    N_values = np.linspace(N_range[0], N_range[1], n_points, dtype=int)
     N_values = np.unique(N_values)  # Remove duplicates
 
     results: list[dict[str, float]] = []
@@ -184,8 +185,8 @@ def compute_sensitivity_vs_n(
                     gamma_1=noise_config.gamma_1,
                     gamma_2=noise_config.gamma_2,
                     gamma_phi=noise_config.gamma_phi,
-                    T=t_opt,
-                    N_traj=200,
+                    T_evo=t_opt,
+                    n_traj=200,
                     seed=seed,
                 )
 

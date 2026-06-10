@@ -38,13 +38,14 @@ from src.evolution.lindblad_solver import (
     evolve_lindblad,
 )
 from src.physics.dicke_basis import jz_operator
+from src.utils.enums import OperatorBasis
 
 
 def generate_system_state(
     N: int,
     state_type: str,
     chi: float,
-    T: float,
+    T_evo: float,
 ) -> np.ndarray:
     """Generate initial system state in the Dicke basis.
 
@@ -54,7 +55,7 @@ def generate_system_state(
             ``'hybrid'`` (50-50 superposition of squeezed and coherent).
         chi: One-axis twisting strength (used for squeezed state when
             state_type is ``'hybrid'``).
-        T: Evolution time (used for optimal squeezing time when state_type
+        T_evo: Evolution time (used for optimal squeezing time when state_type
             is ``'hybrid'``).
 
     Returns:
@@ -93,7 +94,7 @@ def compute_phase_sensitivity(
     N: int,
     state: np.ndarray,
     chi: float,
-    T: float,
+    T_decay: float,
     lambda_coupling: float,
     has_ancilla: bool,
     noise_config: NoiseConfig,
@@ -103,7 +104,7 @@ def compute_phase_sensitivity(
     The protocol is:
         1. Prepare the initial pure state |ψ⟩.
         2. Evolve under the Lindblad master equation (OAT + decoherence)
-           for time T.
+           for time T_decay.
         3. Compute ⟨J_z⟩ and Var(J_z) from the final density matrix.
         4. Estimate phase sensitivity via error propagation:
                Δφ = √Var(J_z) / (N/2)
@@ -114,7 +115,7 @@ def compute_phase_sensitivity(
         N: Number of atoms.
         state: Initial state vector of dimension (N+1) in the Dicke basis.
         chi: One-axis twisting strength (used in the Lindblad Hamiltonian).
-        T: Total evolution time.
+        T_decay: Total evolution time.
         lambda_coupling: System-ancilla coupling strength. Ignored unless
             has_ancilla is True.
         has_ancilla: Whether an ancilla is present. If True and
@@ -145,10 +146,10 @@ def compute_phase_sensitivity(
     )
 
     dt = 0.01
-    rho_final = evolve_lindblad(rho0, config, T, dt)
+    rho_final = evolve_lindblad(rho0, config, T_decay, dt)
 
     # Compute J_z variance
-    J_z = jz_operator(N)
+    J_z = jz_operator(N, basis=OperatorBasis.FOCK)
     Jz_mean = np.real(np.trace(rho_final @ J_z))
     Jz2_mean = np.real(np.trace(rho_final @ J_z @ J_z))
     Jz_var = Jz2_mean - Jz_mean**2

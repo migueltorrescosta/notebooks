@@ -60,7 +60,7 @@ sns.set_theme(style="whitegrid")
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260601"
-H_T: float = 10.0  # Holding time
+t_hold: float = 10.0  # Holding time
 BS_THETA: float = np.pi / 4  # 50/50 beam splitter
 BS_PHI: float = 0.0  # Beam splitter phase
 CFI_EPSILON: float = 1e-6  # Finite-difference step for CFI derivative
@@ -71,12 +71,14 @@ PROB_FLOOR: float = 1e-15  # Minimum probability for CFI denominator
 # Parameter sweep ranges
 NOON_N_RANGE: list[int] = list(range(1, 41))  # 1..40
 TF_N_RANGE: list[int] = list(range(2, 41, 2))  # Even 2..40
-THETA_RANGE: tuple[float, float] = (0.1, 5.0)
-THETA_STEP: float = 0.1
+OMEGA_RANGE: tuple[float, float] = (0.1, 5.0)
+OMEGA_STEP: float = 0.1
 
 # Scaling fit
-ALPHA_EXPECTED_NOON: float = -1.0
-ALPHA_TOL: float = 0.02
+ALPHA_EXPECTED_NOON: float = (
+    -1.0
+)  # α = scaling exponent for NOON Δω ∝ N^α (Heisenberg → α = -1.0)
+ALPHA_TOL: float = 0.02  # Tolerance on fitted α for PASS/FAIL determination
 
 
 # ============================================================================
@@ -186,22 +188,22 @@ def _apply_phase_shift(
 
 def simple_mzi_evolution(
     initial_state: np.ndarray,
-    theta: float,
+    omega: float,
     max_photons: int,
-    H_t: float = H_T,
+    t_hold: float = t_hold,
     skip_bs1: bool = False,
     bs: np.ndarray | None = None,
 ) -> np.ndarray:
     r"""Evolve a state through a standard MZI with no ancilla.
 
-    Circuit: BS1(:math:`\pi/4`) → Phase(:math:`H_t \cdot \theta`) → BS2(:math:`\pi/4`)
+    Circuit: BS1(:math:`\pi/4`) → Phase(:math:`t_hold \cdot \omega`) → BS2(:math:`\pi/4`)
 
     When ``skip_bs1=True``, the first BS is omitted (the input state is already
     path-entangled and is used directly as the probe). This is used for the NOON
     state, which is its own optimal probe.
 
-    The phase shift is :math:`\exp(i \cdot H_t \cdot \theta \cdot n_2)`, which
-    produces the same relative phase as :math:`\exp(-i \theta H_t J_z)` up to
+    The phase shift is :math:`\exp(i \cdot t_hold \cdot \omega \cdot n_2)`, which
+    produces the same relative phase as :math:`\exp(-i \omega t_hold J_z)` up to
     an irrelevant global phase.
 
     The phase shift is applied as an O(d) element-wise multiplication (rather than
@@ -209,9 +211,9 @@ def simple_mzi_evolution(
 
     Args:
         initial_state: Input state in the two-mode Fock basis.
-        theta: Unknown phase parameter :math:`\theta`.
+        omega: Unknown phase parameter :math:`\omega`.
         max_photons: Maximum photon number per mode.
-        H_t: Holding time (sensitivity amplification factor).
+        t_hold: Holding time (sensitivity amplification factor).
         skip_bs1: If True, omit the first beam splitter (NOON convention).
         bs: Pre-computed beam-splitter unitary. If None, computed fresh.
 
@@ -220,7 +222,7 @@ def simple_mzi_evolution(
     """
     if bs is None:
         bs = beam_splitter_unitary(BS_THETA, BS_PHI, max_photons)
-    phi = theta * H_t
+    phi = omega * t_hold
 
     if skip_bs1:
         state = _apply_phase_shift(initial_state.copy(), phi, max_photons)
@@ -239,7 +241,7 @@ def output_number_diff_distribution(
     state_out: np.ndarray,
     max_photons: int,
 ) -> np.ndarray:
-    r"""Compute :math:`P(m|\theta)` where :math:`m = n_1 - n_2`.
+    r"""Compute :math:`P(m|\omega)` where :math:`m = n_1 - n_2`.
 
     From the output state, collect the probability of each number-difference
     outcome :math:`m \in \{-M, \dots, M\}` with :math:`M = \text{max\_photons}`.
@@ -269,34 +271,34 @@ def output_number_diff_distribution(
 
 
 def compute_fisher_classical(
-    P_theta: np.ndarray,
+    P_omega: np.ndarray,
     P_plus: np.ndarray,
     P_minus: np.ndarray,
     epsilon: float = CFI_EPSILON,
 ) -> float:
-    r"""Compute the Classical Fisher Information at a single :math:`\theta`.
+    r"""Compute the Classical Fisher Information at a single :math:`\omega`.
 
     Delegates to :func:`src.analysis.fisher_information.classical_fisher_information_single`
-    with ``p_at_theta=P_theta`` for the textbook denominator convention.
+    with ``p_at_theta=P_omega`` for the textbook denominator convention.
 
     .. math::
 
-        F_C(\theta) = \sum_m \frac{(\partial P(m|\theta)/\partial\theta)^2}{P(m|\theta)}
+        F_C(\omega) = \sum_m \frac{(\partial P(m|\omega)/\partial\omega)^2}{P(m|\omega)}
 
     Args:
-        P_theta: :math:`P(m|\theta)` — distribution at the evaluation point.
-        P_plus: :math:`P(m|\theta+\varepsilon)` — distribution at forward point.
-        P_minus: :math:`P(m|\theta-\varepsilon)` — distribution at backward point.
+        P_omega: :math:`P(m|\omega)` — distribution at the evaluation point.
+        P_plus: :math:`P(m|\omega+\varepsilon)` — distribution at forward point.
+        P_minus: :math:`P(m|\omega-\varepsilon)` — distribution at backward point.
         epsilon: Finite-difference step.
 
     Returns:
-        Classical Fisher information :math:`F_C(\theta)`.
+        Classical Fisher information :math:`F_C(\omega)`.
     """
     return classical_fisher_information_single(
         P_plus,
         P_minus,
         epsilon,
-        p_at_theta=P_theta,
+        p_at_theta=P_omega,
         prob_floor=PROB_FLOOR,
     )
 
@@ -308,49 +310,49 @@ def compute_fisher_classical(
 
 def compute_mzi_sensitivity_grid(
     initial_state: np.ndarray,
-    theta_grid: np.ndarray,
+    omega_grid: np.ndarray,
     max_photons: int,
-    H_t: float = H_T,
+    t_hold: float = t_hold,
     skip_bs1: bool = False,
 ) -> dict[str, np.ndarray | float]:
-    r"""Compute :math:`\Delta\theta_C`, :math:`\Delta\theta_{\text{EP}}` and
-    :math:`\Delta\theta_Q` across a :math:`\theta` grid.
+    r"""Compute :math:`\Delta\omega_C`, :math:`\Delta\omega_{\text{EP}}` and
+    :math:`\Delta\omega_Q` across a :math:`\omega` grid.
 
-    For each :math:`\theta_i`:
+    For each :math:`\omega_i`:
         1. Evolve the state through the MZI
-        2. Compute :math:`P(m|\theta_i)` from the output state
+        2. Compute :math:`P(m|\omega_i)` from the output state
         3. Compute :math:`\langle J_z\rangle_{\text{out}}` and
            :math:`\text{Var}(J_z)_{\text{out}}`
-        4. Compute :math:`\partial P(m|\theta)/\partial\theta` via
+        4. Compute :math:`\partial P(m|\omega)/\partial\omega` via
            central finite differences with step :math:`\varepsilon = 10^{-6}`
-        5. :math:`F_C = \sum_m (\partial P/\partial\theta)^2 / P`
-        6. :math:`\Delta\theta_C = 1/\sqrt{F_C}`
+        5. :math:`F_C = \sum_m (\partial P/\partial\omega)^2 / P`
+        6. :math:`\Delta\omega_C = 1/\sqrt{F_C}`
 
-    The QFI bound :math:`\Delta\theta_Q = 1/\sqrt{F_Q}` is computed from the
-    probe state using :math:`F_Q = 4 H_t^2 \text{Var}(J_z)_{\text{probe}}`,
-    independent of :math:`\theta`. When ``skip_bs1=True``, the probe state
+    The QFI bound :math:`\Delta\omega_Q = 1/\sqrt{F_Q}` is computed from the
+    probe state using :math:`F_Q = 4 t_hold^2 \text{Var}(J_z)_{\text{probe}}`,
+    independent of :math:`\omega`. When ``skip_bs1=True``, the probe state
     is the initial state itself (used for NOON, which is already path-entangled).
 
     Args:
         initial_state: Input state in the two-mode Fock basis.
-        theta_grid: Array of :math:`\theta` values to evaluate.
+        omega_grid: Array of :math:`\omega` values to evaluate.
         max_photons: Maximum photon number per mode.
-        H_t: Holding time.
+        t_hold: Holding time.
         skip_bs1: If True, omit BS1 from both probe and evolution (NOON convention).
 
     Returns:
         Dictionary with keys:
-        - ``theta_values``: The input :math:`\theta` grid.
+        - ``omega_values``: The input :math:`\omega` grid.
         - ``expectation_values``: :math:`\langle J_z\rangle_{\text{out}}`.
         - ``variance_values``: :math:`\text{Var}(J_z)_{\text{out}}`.
-        - ``derivative_values``: :math:`\partial\langle J_z\rangle/\partial\theta`.
-        - ``delta_theta_ep``: :math:`\Delta\theta_{\text{EP}}` (error propagation).
-        - ``delta_theta_q``: :math:`\Delta\theta_Q` (scalar, :math:`\theta`-independent).
+        - ``derivative_values``: :math:`\partial\langle J_z\rangle/\partial\omega`.
+        - ``delta_omega_ep``: :math:`\Delta\omega_{\text{EP}}` (error propagation).
+        - ``delta_omega_q``: :math:`\Delta\omega_Q` (scalar, :math:`\omega`-independent).
         - ``fisher_quantum``: :math:`F_Q` (scalar).
-        - ``fisher_classical``: :math:`F_C(\theta)` (array, primary sensitivity metric).
-        - ``delta_theta_c``: :math:`\Delta\theta_C(\theta)` (array).
+        - ``fisher_classical``: :math:`F_C(\omega)` (array, primary sensitivity metric).
+        - ``delta_omega_c``: :math:`\Delta\omega_C(\omega)` (array).
     """
-    n_theta = len(theta_grid)
+    n_omega = len(omega_grid)
     jz = two_mode_jz_operator(max_photons)
     jz2 = jz @ jz
 
@@ -365,17 +367,17 @@ def compute_mzi_sensitivity_grid(
     mean_probe = np.conj(probe_state) @ jz @ probe_state
     mean_sq_probe = np.conj(probe_state) @ jz2 @ probe_state
     var_probe = float(np.real(mean_sq_probe - mean_probe**2))
-    fq = 4.0 * H_t**2 * var_probe
-    delta_theta_q = 1.0 / np.sqrt(fq) if fq > 0 else float("inf")
+    fq = 4.0 * t_hold**2 * var_probe
+    delta_omega_q = 1.0 / np.sqrt(fq) if fq > 0 else float("inf")
 
     # Evolve state at each θ and compute statistics
-    expectation_values = np.zeros(n_theta, dtype=float)
-    variance_values = np.zeros(n_theta, dtype=float)
-    derivative_values = np.zeros(n_theta, dtype=float)
-    fisher_classical = np.full(n_theta, np.nan, dtype=float)
+    expectation_values = np.zeros(n_omega, dtype=float)
+    variance_values = np.zeros(n_omega, dtype=float)
+    derivative_values = np.zeros(n_omega, dtype=float)
+    fisher_classical = np.full(n_omega, np.nan, dtype=float)
 
     # Cache P(m|θ_i) for each θ_i
-    P_grid = np.zeros((n_theta, 2 * max_photons + 1), dtype=float)
+    P_grid = np.zeros((n_omega, 2 * max_photons + 1), dtype=float)
 
     def _jz_expectation(state: np.ndarray) -> float:
         r"""Inline ⟨ψ|J_z|ψ⟩ using precomputed jz (avoids O(d²) reconstruction)."""
@@ -387,8 +389,8 @@ def compute_mzi_sensitivity_grid(
         mean_sq = np.conj(state) @ jz2 @ state
         return float(np.real(mean_sq - mean**2))
 
-    for i, theta in enumerate(theta_grid):
-        phi = theta * H_t
+    for i, omega in enumerate(omega_grid):
+        phi = omega * t_hold
         if skip_bs1:
             state = _apply_phase_shift(initial_state.copy(), phi, max_photons)
         else:
@@ -409,17 +411,17 @@ def compute_mzi_sensitivity_grid(
         # Evolve at θ ± ε for both CFI and EP derivative
         state_plus = simple_mzi_evolution(
             initial_state,
-            theta + CFI_EPSILON,
+            omega + CFI_EPSILON,
             max_photons,
-            H_t=H_t,
+            t_hold=t_hold,
             skip_bs1=skip_bs1,
             bs=bs,
         )
         state_minus = simple_mzi_evolution(
             initial_state,
-            theta - CFI_EPSILON,
+            omega - CFI_EPSILON,
             max_photons,
-            H_t=H_t,
+            t_hold=t_hold,
             skip_bs1=skip_bs1,
             bs=bs,
         )
@@ -445,19 +447,19 @@ def compute_mzi_sensitivity_grid(
     min_deriv = EP_DERIV_REL_FLOOR * max_exp if max_exp > 0 else 1e-12
     abs_deriv = np.maximum(abs_deriv, min_deriv)
 
-    delta_theta_ep = np.sqrt(variance_values) / abs_deriv
-    delta_theta_c = 1.0 / np.sqrt(np.maximum(fisher_classical, 1e-300))
+    delta_omega_ep = np.sqrt(variance_values) / abs_deriv
+    delta_omega_c = 1.0 / np.sqrt(np.maximum(fisher_classical, 1e-300))
 
     return {
-        "theta_values": theta_grid,
+        "omega_values": omega_grid,
         "expectation_values": expectation_values,
         "variance_values": variance_values,
         "derivative_values": derivative_values,
-        "delta_theta_ep": delta_theta_ep,
-        "delta_theta_q": float(delta_theta_q),
+        "delta_omega_ep": delta_omega_ep,
+        "delta_omega_q": float(delta_omega_q),
         "fisher_quantum": float(fq),
         "fisher_classical": fisher_classical,
-        "delta_theta_c": delta_theta_c,
+        "delta_omega_c": delta_omega_c,
     }
 
 
@@ -468,65 +470,65 @@ def compute_mzi_sensitivity_grid(
 
 @dataclass
 class MziSensitivityData:
-    r"""All sensitivity data for one state type across :math:`N` and :math:`\theta`.
+    r"""All sensitivity data for one state type across :math:`N` and :math:`\omega`.
 
-    Stores a 2D grid indexed by ``(N, theta)``, plus per-:math:`N` QFI bounds.
+    Stores a 2D grid indexed by ``(N, omega)``, plus per-:math:`N` QFI bounds.
 
-    The primary sensitivity metric is :math:`\Delta\theta_C` (Classical Fisher
-    Information from the full :math:`P(m|\theta)` distribution). The error-
-    propagation :math:`\Delta\theta_{\text{EP}}` is retained as a secondary
+    The primary sensitivity metric is :math:`\Delta\omega_C` (Classical Fisher
+    Information from the full :math:`P(m|\omega)` distribution). The error-
+    propagation :math:`\Delta\omega_{\text{EP}}` is retained as a secondary
     diagnostic.
 
     Attributes:
         state_type: ``"noon"`` or ``"twin_fock_std"``.
         N_values: Array of :math:`N` values, shape ``(n_N,)``.
-        theta_values: Array of :math:`\theta` values, shape ``(n_theta,)``.
-        expectation_grid: :math:`\langle J_z\rangle` at each ``(N, theta)``.
-        variance_grid: :math:`\text{Var}(J_z)` at each ``(N, theta)``.
-        derivative_grid: :math:`\partial\langle J_z\rangle/\partial\theta`.
-        delta_theta_ep_grid: :math:`\Delta\theta_{\text{EP}}`.
-        delta_theta_q_per_N: :math:`\Delta\theta_Q` per :math:`N` (length ``n_N``).
-        fisher_classical_grid: :math:`F_C` at each ``(N, theta)``.
-        delta_theta_c_grid: :math:`\Delta\theta_C` at each ``(N, theta)``.
-        H_t: Holding time.
+        omega_values: Array of :math:`\omega` values, shape ``(n_omega,)``.
+        expectation_grid: :math:`\langle J_z\rangle` at each ``(N, omega)``.
+        variance_grid: :math:`\text{Var}(J_z)` at each ``(N, omega)``.
+        derivative_grid: :math:`\partial\langle J_z\rangle/\partial\omega`.
+        delta_omega_ep_grid: :math:`\Delta\omega_{\text{EP}}`.
+        delta_omega_q_per_N: :math:`\Delta\omega_Q` per :math:`N` (length ``n_N``).
+        fisher_classical_grid: :math:`F_C` at each ``(N, omega)``.
+        delta_omega_c_grid: :math:`\Delta\omega_C` at each ``(N, omega)``.
+        t_hold: Holding time.
     """
 
     state_type: str
     N_values: np.ndarray
-    theta_values: np.ndarray
+    omega_values: np.ndarray
     expectation_grid: np.ndarray
     variance_grid: np.ndarray
     derivative_grid: np.ndarray
-    delta_theta_ep_grid: np.ndarray
-    delta_theta_q_per_N: np.ndarray
+    delta_omega_ep_grid: np.ndarray
+    delta_omega_q_per_N: np.ndarray
     fisher_classical_grid: np.ndarray
-    delta_theta_c_grid: np.ndarray
-    H_t: float = H_T
+    delta_omega_c_grid: np.ndarray
+    t_hold: float = t_hold
 
     def to_dataframe(self) -> pd.DataFrame:
         """Convert to long-format DataFrame (one row per N, θ combination)."""
         n_N = len(self.N_values)
-        n_theta = len(self.theta_values)
+        n_omega = len(self.omega_values)
         rows: list[dict] = []
         for i in range(n_N):
-            for j in range(n_theta):
-                dt_ep = float(self.delta_theta_ep_grid[i, j])
-                dt_c = float(self.delta_theta_c_grid[i, j])
+            for j in range(n_omega):
+                dt_ep = float(self.delta_omega_ep_grid[i, j])
+                dt_c = float(self.delta_omega_c_grid[i, j])
                 rows.append(
                     {
                         "state_type": self.state_type,
                         "N": int(self.N_values[i]),
-                        "theta": float(self.theta_values[j]),
+                        "omega": float(self.omega_values[j]),
                         "expectation": float(self.expectation_grid[i, j]),
                         "variance": float(self.variance_grid[i, j]),
                         "derivative": float(self.derivative_grid[i, j]),
-                        "delta_theta_ep": (
+                        "delta_omega_ep": (
                             dt_ep if np.isfinite(dt_ep) else float("inf")
                         ),
-                        "delta_theta_q": float(self.delta_theta_q_per_N[i]),
+                        "delta_omega_q": float(self.delta_omega_q_per_N[i]),
                         "fisher_classical": float(self.fisher_classical_grid[i, j]),
-                        "delta_theta_c": (dt_c if np.isfinite(dt_c) else float("inf")),
-                        "H_t": self.H_t,
+                        "delta_omega_c": (dt_c if np.isfinite(dt_c) else float("inf")),
+                        "t_hold": self.t_hold,
                     }
                 )
         return pd.DataFrame(rows)
@@ -545,15 +547,15 @@ class MziSensitivityData:
         required = {
             "state_type",
             "N",
-            "theta",
+            "omega",
             "expectation",
             "variance",
             "derivative",
-            "delta_theta_ep",
-            "delta_theta_q",
+            "delta_omega_ep",
+            "delta_omega_q",
             "fisher_classical",
-            "delta_theta_c",
-            "H_t",
+            "delta_omega_c",
+            "t_hold",
         }
         missing = required - set(df.columns)
         if missing:
@@ -562,76 +564,76 @@ class MziSensitivityData:
                 f"{sorted(missing)}. Regenerate the file with the current code."
             )
         state_type = str(df["state_type"].iloc[0])
-        H_t = float(df["H_t"].iloc[0])
+        t_hold = float(df["t_hold"].iloc[0])
         N_vals = sorted(df["N"].unique())
-        theta_vals = sorted(df["theta"].unique())
+        omega_vals = sorted(df["omega"].unique())
         n_N = len(N_vals)
-        n_theta = len(theta_vals)
+        n_omega = len(omega_vals)
 
         # Build lookup for reconstruction
-        expectation_grid = np.full((n_N, n_theta), np.nan, dtype=float)
-        variance_grid = np.full((n_N, n_theta), np.nan, dtype=float)
-        derivative_grid = np.full((n_N, n_theta), np.nan, dtype=float)
-        delta_theta_ep_grid = np.full((n_N, n_theta), np.nan, dtype=float)
-        delta_theta_q_per_N = np.full(n_N, np.nan, dtype=float)
-        fisher_classical_grid = np.full((n_N, n_theta), np.nan, dtype=float)
-        delta_theta_c_grid = np.full((n_N, n_theta), np.nan, dtype=float)
+        expectation_grid = np.full((n_N, n_omega), np.nan, dtype=float)
+        variance_grid = np.full((n_N, n_omega), np.nan, dtype=float)
+        derivative_grid = np.full((n_N, n_omega), np.nan, dtype=float)
+        delta_omega_ep_grid = np.full((n_N, n_omega), np.nan, dtype=float)
+        delta_omega_q_per_N = np.full(n_N, np.nan, dtype=float)
+        fisher_classical_grid = np.full((n_N, n_omega), np.nan, dtype=float)
+        delta_omega_c_grid = np.full((n_N, n_omega), np.nan, dtype=float)
 
         for _, row in df.iterrows():
             n_idx = N_vals.index(int(row["N"]))
-            t_idx = theta_vals.index(float(row["theta"]))
+            t_idx = omega_vals.index(float(row["omega"]))
             expectation_grid[n_idx, t_idx] = row["expectation"]
             variance_grid[n_idx, t_idx] = row["variance"]
             derivative_grid[n_idx, t_idx] = row["derivative"]
-            delta_theta_ep_grid[n_idx, t_idx] = row["delta_theta_ep"]
+            delta_omega_ep_grid[n_idx, t_idx] = row["delta_omega_ep"]
             # All rows for the same N must have the same QFI bound
-            dq = float(row["delta_theta_q"])
-            if np.isnan(delta_theta_q_per_N[n_idx]):
-                delta_theta_q_per_N[n_idx] = dq
-            elif not np.isclose(delta_theta_q_per_N[n_idx], dq, rtol=1e-10):
+            dq = float(row["delta_omega_q"])
+            if np.isnan(delta_omega_q_per_N[n_idx]):
+                delta_omega_q_per_N[n_idx] = dq
+            elif not np.isclose(delta_omega_q_per_N[n_idx], dq, rtol=1e-10):
                 raise ValueError(
-                    f"Inconsistent delta_theta_q for N={row['N']}: "
-                    f"expected {delta_theta_q_per_N[n_idx]}, got {dq}. "
+                    f"Inconsistent delta_omega_q for N={row['N']}: "
+                    f"expected {delta_omega_q_per_N[n_idx]}, got {dq}. "
                     f"Regenerate the file."
                 )
             fisher_classical_grid[n_idx, t_idx] = float(row["fisher_classical"])
-            delta_theta_c_grid[n_idx, t_idx] = float(row["delta_theta_c"])
+            delta_omega_c_grid[n_idx, t_idx] = float(row["delta_omega_c"])
 
         return cls(
             state_type=state_type,
             N_values=np.array(N_vals, dtype=int),
-            theta_values=np.array(theta_vals, dtype=float),
+            omega_values=np.array(omega_vals, dtype=float),
             expectation_grid=expectation_grid,
             variance_grid=variance_grid,
             derivative_grid=derivative_grid,
-            delta_theta_ep_grid=delta_theta_ep_grid,
-            delta_theta_q_per_N=delta_theta_q_per_N,
+            delta_omega_ep_grid=delta_omega_ep_grid,
+            delta_omega_q_per_N=delta_omega_q_per_N,
             fisher_classical_grid=fisher_classical_grid,
-            delta_theta_c_grid=delta_theta_c_grid,
-            H_t=H_t,
+            delta_omega_c_grid=delta_omega_c_grid,
+            t_hold=t_hold,
         )
 
 
 # ============================================================================
-# Generate Theta Scan (Single N)
+# Generate Omega Scan (Single N)
 # ============================================================================
 
 
-def generate_theta_scan(
+def generate_omega_scan(
     state_type: str,
     N: int,
-    theta_grid: np.ndarray,
+    omega_grid: np.ndarray,
     max_photons: int | None = None,
-    H_t: float = H_T,
+    t_hold: float = t_hold,
 ) -> MziSensitivityData:
-    r"""Run a :math:`\theta` scan for a single :math:`N` value.
+    r"""Run a :math:`\omega` scan for a single :math:`N` value.
 
     Args:
         state_type: ``"noon"`` or ``"twin_fock_std"``.
         N: Total photon number.
-        theta_grid: :math:`\theta` values to scan.
+        omega_grid: :math:`\omega` values to scan.
         max_photons: Hilbert space truncation (defaults to ``N``).
-        H_t: Holding time.
+        t_hold: Holding time.
 
     Returns:
         MziSensitivityData with one N value.
@@ -642,25 +644,25 @@ def generate_theta_scan(
     skip_bs1 = state_type == "noon"
     result = compute_mzi_sensitivity_grid(
         state,
-        theta_grid,
+        omega_grid,
         max_photons,
-        H_t=H_t,
+        t_hold=t_hold,
         skip_bs1=skip_bs1,
     )
 
-    theta_arr = np.asarray(result["theta_values"], dtype=float)
+    omega_arr = np.asarray(result["omega_values"], dtype=float)
     return MziSensitivityData(
         state_type=state_type,
         N_values=np.array([N], dtype=int),
-        theta_values=theta_arr,
+        omega_values=omega_arr,
         expectation_grid=np.atleast_2d(np.asarray(result["expectation_values"])),
         variance_grid=np.atleast_2d(np.asarray(result["variance_values"])),
         derivative_grid=np.atleast_2d(np.asarray(result["derivative_values"])),
-        delta_theta_ep_grid=np.atleast_2d(np.asarray(result["delta_theta_ep"])),
-        delta_theta_q_per_N=np.array([float(result["delta_theta_q"])]),
+        delta_omega_ep_grid=np.atleast_2d(np.asarray(result["delta_omega_ep"])),
+        delta_omega_q_per_N=np.array([float(result["delta_omega_q"])]),
         fisher_classical_grid=np.atleast_2d(np.asarray(result["fisher_classical"])),
-        delta_theta_c_grid=np.atleast_2d(np.asarray(result["delta_theta_c"])),
-        H_t=H_t,
+        delta_omega_c_grid=np.atleast_2d(np.asarray(result["delta_omega_c"])),
+        t_hold=t_hold,
     )
 
 
@@ -672,16 +674,16 @@ def generate_theta_scan(
 def generate_full_data(
     state_type: str,
     N_range: list[int],
-    theta_grid: np.ndarray,
-    H_t: float = H_T,
+    omega_grid: np.ndarray,
+    t_hold: float = t_hold,
 ) -> MziSensitivityData:
     r"""Generate sensitivity data for all :math:`N` in a range.
 
     Args:
         state_type: ``"noon"`` or ``"twin_fock_std"``.
         N_range: List of :math:`N` values.
-        theta_grid: :math:`\theta` values to scan.
-        H_t: Holding time.
+        omega_grid: :math:`\omega` values to scan.
+        t_hold: Holding time.
 
     Returns:
         MziSensitivityData with all N values.
@@ -694,12 +696,12 @@ def generate_full_data(
                 f"  Sweeping {state_type} N={N} ({idx + 1}/{len(N_range)})...",
                 flush=True,
             )
-            scan = generate_theta_scan(
+            scan = generate_omega_scan(
                 state_type,
                 N,
-                theta_grid,
+                omega_grid,
                 max_photons=max_photons,
-                H_t=H_t,
+                t_hold=t_hold,
             )
             scan_results.append(scan)
         except (ValueError, AssertionError) as exc:
@@ -713,21 +715,21 @@ def generate_full_data(
     return MziSensitivityData(
         state_type=state_type,
         N_values=np.concatenate([r.N_values for r in scan_results]).astype(int),
-        theta_values=scan_results[0].theta_values,
+        omega_values=scan_results[0].omega_values,
         expectation_grid=np.concatenate([r.expectation_grid for r in scan_results]),
         variance_grid=np.concatenate([r.variance_grid for r in scan_results]),
         derivative_grid=np.concatenate([r.derivative_grid for r in scan_results]),
-        delta_theta_ep_grid=np.concatenate(
-            [r.delta_theta_ep_grid for r in scan_results]
+        delta_omega_ep_grid=np.concatenate(
+            [r.delta_omega_ep_grid for r in scan_results]
         ),
-        delta_theta_q_per_N=np.concatenate(
-            [r.delta_theta_q_per_N for r in scan_results]
+        delta_omega_q_per_N=np.concatenate(
+            [r.delta_omega_q_per_N for r in scan_results]
         ),
         fisher_classical_grid=np.concatenate(
             [r.fisher_classical_grid for r in scan_results]
         ),
-        delta_theta_c_grid=np.concatenate([r.delta_theta_c_grid for r in scan_results]),
-        H_t=H_t,
+        delta_omega_c_grid=np.concatenate([r.delta_omega_c_grid for r in scan_results]),
+        t_hold=t_hold,
     )
 
 
@@ -738,10 +740,10 @@ def generate_full_data(
 
 def fit_scaling_exponent(
     N_values: np.ndarray,
-    delta_theta_values: np.ndarray,
+    delta_omega_values: np.ndarray,
     N_min: int = 4,
 ) -> ScalingFitResult:
-    r"""Fit scaling exponent :math:`\alpha` from :math:`\Delta\theta \propto N^\alpha`.
+    r"""Fit scaling exponent :math:`\alpha` from :math:`\Delta\omega \propto N^\alpha`.
 
     Delegates to :func:`src.analysis.scaling_fit.fit_scaling_exponent` for the
     actual regression (``scipy.stats.linregress``), returning a
@@ -750,7 +752,7 @@ def fit_scaling_exponent(
 
     Args:
         N_values: Array of :math:`N` values.
-        delta_theta_values: Array of :math:`\Delta\theta` values.
+        delta_omega_values: Array of :math:`\Delta\omega` values.
         N_min: Minimum :math:`N` for the fit (excludes small-:math:`N` transients).
 
     Returns:
@@ -758,9 +760,9 @@ def fit_scaling_exponent(
         and quality diagnostics.
     """
     # Filter out non-positive / non-finite sensitivities
-    mask = np.isfinite(delta_theta_values) & (delta_theta_values > 0)
+    mask = np.isfinite(delta_omega_values) & (delta_omega_values > 0)
     N_filtered = np.asarray(N_values, dtype=float)[mask]
-    delta_filtered = np.asarray(delta_theta_values, dtype=float)[mask]
+    delta_filtered = np.asarray(delta_omega_values, dtype=float)[mask]
 
     if len(N_filtered) < 3:
         # Too few points — return invalid result (same pattern as module)
@@ -790,23 +792,23 @@ def fit_scaling_exponent(
 
 def analyse_best_worst_sensitivity(
     N_values: np.ndarray,
-    theta_values: np.ndarray,
+    omega_values: np.ndarray,
     sensitivity_grid: np.ndarray,
 ) -> dict:
     """Find best (min) and worst (max) sensitivity at each N.
 
     Args:
         N_values: Array of N values, shape ``(n_N,)``.
-        theta_values: Array of θ values, shape ``(n_theta,)``.
-        sensitivity_grid: 2D array of sensitivity values, shape ``(n_N, n_theta)``.
+        omega_values: Array of θ values, shape ``(n_omega,)``.
+        sensitivity_grid: 2D array of sensitivity values, shape ``(n_N, n_omega)``.
 
     Returns:
         Dictionary with keys:
         - ``N_values``: Array of N values.
         - ``best_sensitivity``: Minimum sensitivity at each N.
-        - ``best_theta``: θ where minimum occurs.
+        - ``best_omega``: θ where minimum occurs.
         - ``worst_sensitivity``: Maximum finite sensitivity at each N.
-        - ``worst_theta``: θ where maximum occurs.
+        - ``worst_omega``: θ where maximum occurs.
     """
     n_N = len(N_values)
     best_sens = np.full(n_N, np.inf, dtype=float)
@@ -824,20 +826,20 @@ def analyse_best_worst_sensitivity(
             b_idx = int(np.argmin(slice_[finite_mask]))
             actual_idx = full_indices[b_idx]
             best_sens[i] = float(slice_[actual_idx])
-            best_th[i] = float(theta_values[actual_idx])
+            best_th[i] = float(omega_values[actual_idx])
 
             # Worst (maximum finite)
             w_idx = int(np.argmax(slice_[finite_mask]))
             actual_w_idx = full_indices[w_idx]
             worst_sens[i] = float(slice_[actual_w_idx])
-            worst_th[i] = float(theta_values[actual_w_idx])
+            worst_th[i] = float(omega_values[actual_w_idx])
 
     return {
         "N_values": N_values.copy(),
         "best_sensitivity": best_sens,
-        "best_theta": best_th,
+        "best_omega": best_th,
         "worst_sensitivity": worst_sens,
-        "worst_theta": worst_th,
+        "worst_omega": worst_th,
     }
 
 
@@ -846,7 +848,7 @@ def analyse_best_worst_sensitivity(
 # ============================================================================
 
 
-def plot_delta_theta_overlay(
+def plot_delta_omega_overlay(
     data: MziSensitivityData,
     selected_N: list[int] | None = None,
     save_path: str | Path | None = None,
@@ -874,7 +876,7 @@ def plot_delta_theta_overlay(
             selected_N = [2, 4, 10, 20, 30, 40]
 
     if save_path is None:
-        save_path = _fig_path(f"{data.state_type}_delta_theta_comparison")
+        save_path = _fig_path(f"{data.state_type}_delta_omega_comparison")
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -891,19 +893,19 @@ def plot_delta_theta_overlay(
             continue
         n_idx = match[0]
 
-        theta = data.theta_values
-        dt_c = data.delta_theta_c_grid[n_idx, :]
-        dt_q = data.delta_theta_q_per_N[n_idx]
+        omega = data.omega_values
+        dt_c = data.delta_omega_c_grid[n_idx, :]
+        dt_q = data.delta_omega_q_per_N[n_idx]
 
         # Δθ_C (solid line)
         c_finite = np.isfinite(dt_c)
         if np.any(c_finite):
             ax.semilogy(
-                theta[c_finite],
+                omega[c_finite],
                 dt_c[c_finite],
                 color=colors[idx],
                 linewidth=1.5,
-                label=rf"N={N_val}  $\Delta\theta_{{\mathrm{{C}}}}$",
+                label=rf"N={N_val}  $\Delta\omega_{{\mathrm{{C}}}}$",
             )
 
         # Δθ_Q (dashed horizontal line)
@@ -915,9 +917,9 @@ def plot_delta_theta_overlay(
             alpha=0.6,
         )
 
-    ax.set_xlabel(r"$\theta$")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(f"{state_label} — Phase Sensitivity vs $\theta$")
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\Delta\omega$")
+    ax.set_title(rf"{state_label} — Phase Sensitivity vs $\omega$")
     ax.legend(fontsize=8, loc="best", ncol=1)
     ax.grid(True, alpha=0.3, which="both")
 
@@ -938,7 +940,7 @@ def plot_standard_deviation_comparison(
 
     .. math::
 
-        \text{Var}(J_z)_{\text{probe}} = \frac{1}{4 H_t^2 \cdot \Delta\theta_Q^2}
+        \text{Var}(J_z)_{\text{probe}} = \frac{1}{4 t_hold^2 \cdot \Delta\omega_Q^2}
 
     For NOON this gives :math:`\text{Var}(J_z) = N^2/4` (Heisenberg-limited input).
     For Twin-Fock after BS1 this gives
@@ -971,8 +973,8 @@ def plot_standard_deviation_comparison(
     ]:
         if data is None:
             continue
-        # Probe variance Var(J_z) = 1 / (4 * H_t² * Δθ_Q²)
-        var = 1.0 / (4.0 * H_T**2 * data.delta_theta_q_per_N**2)
+        # Probe variance Var(J_z) = 1 / (4 * t_hold² * Δθ_Q²)
+        var = 1.0 / (4.0 * t_hold**2 * data.delta_omega_q_per_N**2)
         ax.loglog(
             data.N_values,
             var,
@@ -1027,14 +1029,14 @@ def plot_scaling(
     N_ref = np.logspace(0, 1.5, 50)
     ax.plot(
         N_ref,
-        1.0 / (H_T * N_ref),
+        1.0 / (t_hold * N_ref),
         "k--",
         alpha=0.4,
         label=r"$\propto 1/N$ (Heisenberg)",
     )
     ax.plot(
         N_ref,
-        1.0 / (H_T * np.sqrt(N_ref)),
+        1.0 / (t_hold * np.sqrt(N_ref)),
         "k:",
         alpha=0.4,
         label=r"$\propto 1/\sqrt{N}$ (SQL)",
@@ -1052,7 +1054,7 @@ def plot_scaling(
         # QFI bound
         ax.loglog(
             data.N_values,
-            data.delta_theta_q_per_N,
+            data.delta_omega_q_per_N,
             f"{colour}--",
             alpha=0.5,
             label=f"{label_name} QFI bound",
@@ -1061,8 +1063,8 @@ def plot_scaling(
         # Best Δθ_C at each N
         analysis = analyse_best_worst_sensitivity(
             data.N_values,
-            data.theta_values,
-            data.delta_theta_c_grid,
+            data.omega_values,
+            data.delta_omega_c_grid,
         )
         N_vals = analysis["N_values"]
         best_dt_c = analysis["best_sensitivity"]
@@ -1072,7 +1074,7 @@ def plot_scaling(
                 N_vals[finite],
                 best_dt_c[finite],
                 f"{colour}{marker}-",
-                label=rf"{label_name} best $\Delta\theta_{{\mathrm{{C}}}}$",
+                label=rf"{label_name} best $\Delta\omega_{{\mathrm{{C}}}}$",
             )
 
         # Fit exponent to Δθ_C
@@ -1091,7 +1093,7 @@ def plot_scaling(
             )
 
     ax.set_xlabel("Total photon number $N$")
-    ax.set_ylabel(r"$\Delta\theta$")
+    ax.set_ylabel(r"$\Delta\omega$")
     ax.set_title("Phase Sensitivity Scaling in Standard MZI")
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3, which="both")
@@ -1101,7 +1103,7 @@ def plot_scaling(
     return save_path
 
 
-def plot_expectation_vs_theta_grid(
+def plot_expectation_vs_omega_grid(
     data_noon: MziSensitivityData | None,
     data_tf: MziSensitivityData | None,
     save_path: str | Path | None = None,
@@ -1125,7 +1127,7 @@ def plot_expectation_vs_theta_grid(
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
-    theta = data_noon.theta_values
+    omega = data_noon.omega_values
 
     # N=1: varies sinusoidally
     idx_1 = np.where(data_noon.N_values == 1)[0]
@@ -1133,9 +1135,9 @@ def plot_expectation_vs_theta_grid(
         i1 = idx_1[0]
         exp_1 = data_noon.expectation_grid[i1, :]
         var_1 = data_noon.variance_grid[i1, :]
-        ax.plot(theta, exp_1, "C0-", linewidth=1.5, label=r"N=1: $\langle J_z \rangle$")
+        ax.plot(omega, exp_1, "C0-", linewidth=1.5, label=r"N=1: $\langle J_z \rangle$")
         ax.fill_between(
-            theta,
+            omega,
             exp_1 - np.sqrt(var_1),
             exp_1 + np.sqrt(var_1),
             alpha=0.15,
@@ -1151,14 +1153,14 @@ def plot_expectation_vs_theta_grid(
         exp_large = data_noon.expectation_grid[large_idx, :]
         var_large = data_noon.variance_grid[large_idx, :]
         ax.plot(
-            theta,
+            omega,
             exp_large,
             "C1-",
             linewidth=1.5,
             label=rf"N={N_large}: $\langle J_z \rangle$",
         )
         ax.fill_between(
-            theta,
+            omega,
             exp_large - np.sqrt(var_large),
             exp_large + np.sqrt(var_large),
             alpha=0.15,
@@ -1166,7 +1168,7 @@ def plot_expectation_vs_theta_grid(
             label=rf"N={N_large}: $\pm\sigma$",
         )
 
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$\langle J_z \rangle$")
     ax.set_title("NOON — Output Expectation (N=1 vs N>1)")
     ax.legend(fontsize=9)
@@ -1196,7 +1198,7 @@ def generate_all(
     Returns:
         Dict mapping state_type to MziSensitivityData.
     """
-    theta_grid = np.arange(THETA_RANGE[0], THETA_RANGE[1] + THETA_STEP / 2, THETA_STEP)
+    omega_grid = np.arange(OMEGA_RANGE[0], OMEGA_RANGE[1] + OMEGA_STEP / 2, OMEGA_STEP)
 
     results: dict[str, MziSensitivityData] = {}
 
@@ -1217,7 +1219,7 @@ def generate_all(
             print(
                 f"Generating {label} sensitivity data (N={n_range[0]}..{n_range[-1]})"
             )
-            data = generate_full_data(st, n_range, theta_grid, H_t=H_T)
+            data = generate_full_data(st, n_range, omega_grid, t_hold=t_hold)
             data.save_parquet(pq_path)
             print(f"  Saved to {pq_path}")
 
@@ -1230,13 +1232,13 @@ def generate_all(
         data = results.get(st)
         if data is None:
             continue
-        overlay_path = _fig_path(f"{st}_delta_theta_comparison")
+        overlay_path = _fig_path(f"{st}_delta_omega_comparison")
         if not overlay_path.exists() or force:
             if st == "noon":
                 sel_N = [1, 2, 4, 10, 20, 30, 40]
             else:
                 sel_N = [2, 4, 10, 20, 30, 40]
-            plot_delta_theta_overlay(data, selected_N=sel_N, save_path=overlay_path)
+            plot_delta_omega_overlay(data, selected_N=sel_N, save_path=overlay_path)
             print(f"  Plotted {overlay_path}")
 
     # --- Probe standard deviation comparison ---
@@ -1252,7 +1254,7 @@ def generate_all(
     # --- Simplified expectation grid (NOON-only: N=1 + N>1) ---
     exp_path = _fig_path("expectation_grid")
     if not exp_path.exists() or force:
-        plot_expectation_vs_theta_grid(
+        plot_expectation_vs_omega_grid(
             results.get("noon"),
             results.get("twin_fock_std"),
             save_path=exp_path,

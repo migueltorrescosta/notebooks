@@ -192,7 +192,7 @@ def _mean_photon_number(state: np.ndarray, max_photons: int) -> float:
 
 def weak_value_mzi(
     initial_state: np.ndarray,
-    phi: float,
+    phi_phase: float,
     config: WeakValueConfig,
     max_photons: int,
 ) -> dict[str, Any]:
@@ -229,7 +229,7 @@ def weak_value_mzi(
     Args:
         initial_state: Initial two-mode state vector entering the MZI
             (truncated Fock space of dimension (max_photons+1)²).
-        phi: Phase shift in mode 1 (the parameter to estimate), in
+        phi_phase: Phase shift in mode 1 (the parameter to estimate), in
             radians. Used to compute the amplified signal.
         config: WeakValueConfig with MZI and post-selection parameters.
         max_photons: Maximum photon number per mode for Hilbert space
@@ -259,7 +259,7 @@ def weak_value_mzi(
         >>> config = WeakValueConfig()
         >>> dim = 10 + 1
         >>> psi0 = qutip.tensor(qutip.coherent(dim, 2.0+0j), qutip.fock(dim, 0)).full()
-        >>> result = weak_value_mzi(psi0, phi=0.01, config=config, max_photons=10)
+        >>> result = weak_value_mzi(psi0, phi_phase=0.01, config=config, max_photons=10)
         >>> result["amplification"] > 1.0
         True
 
@@ -317,7 +317,7 @@ def weak_value_mzi(
     # ------------------------------------------------------------------
     # Phase shift unitary
     # ------------------------------------------------------------------
-    U_phi = phase_shift_unitary(phi, max_photons)
+    U_phi = phase_shift_unitary(phi_phase, max_photons)
 
     # ------------------------------------------------------------------
     # Full MZI evolution: |ψ_out(φ)⟩ = U_BS₂ · U_φ · |i⟩
@@ -342,7 +342,7 @@ def weak_value_mzi(
             "weak_value": complex(np.inf, 0),
             "amplification": np.inf,
             "post_selection_prob": 0.0,
-            "signal": np.inf if phi != 0 else 0.0,
+            "signal": np.inf if phi_phase != 0 else 0.0,
             "fisher_information": 0.0,
             "delta_phi": np.inf,
             "delta_phi_conventional": np.inf,
@@ -396,7 +396,7 @@ def weak_value_mzi(
     # is amplified by the weak value. However, this amplification
     # comes at the cost of reduced post-selection probability.
     # ------------------------------------------------------------------
-    signal: float = amplification * abs(phi)
+    signal: float = amplification * abs(phi_phase)
 
     # ------------------------------------------------------------------
     # Fisher information
@@ -446,7 +446,7 @@ def weak_value_mzi(
 
 def weak_value_mzi_sensitivity(
     N: float,
-    phi: float,
+    phi_phase: float,
     config: WeakValueConfig,
 ) -> dict[str, Any]:
     """Compute sensitivity for weak-value MZI with coherent state input.
@@ -479,7 +479,7 @@ def weak_value_mzi_sensitivity(
     Args:
         N: Mean photon number |α|² of the coherent state input.
             Must be strictly positive.
-        phi: Phase shift in radians (the parameter being estimated).
+        phi_phase: Phase shift in radians (the parameter being estimated).
             Used only for computing the amplified signal.
         config: WeakValueConfig with post-selection and MZI parameters.
 
@@ -499,7 +499,7 @@ def weak_value_mzi_sensitivity(
 
     Example:
         >>> config = WeakValueConfig(post_select_angle=np.pi/2 - 0.1)
-        >>> result = weak_value_mzi_sensitivity(N=100, phi=0.01, config=config)
+        >>> result = weak_value_mzi_sensitivity(N=100, phi_phase=0.01, config=config)
         >>> np.isclose(result["amplification"], 1.0/np.tan(0.1), rtol=1e-10)
         True
         >>> result["delta_phi"] > result["delta_phi_conventional"]
@@ -536,7 +536,7 @@ def weak_value_mzi_sensitivity(
             "weak_value": complex(np.inf, 0),
             "amplification": np.inf,
             "post_selection_prob": 0.0,
-            "signal": np.inf if phi != 0 else 0.0,
+            "signal": np.inf if phi_phase != 0 else 0.0,
             "fisher_information": N,  # Limit: cos²(δ) → 1
             "fisher_information_conventional": N,
             "delta_phi": 1.0 / np.sqrt(N),
@@ -569,7 +569,7 @@ def weak_value_mzi_sensitivity(
     # ------------------------------------------------------------------
     # Amplified signal: S = |A_w| · φ
     # ------------------------------------------------------------------
-    signal: float = amplification * abs(phi)
+    signal: float = amplification * abs(phi_phase)
 
     # ------------------------------------------------------------------
     # Fisher information: F = N · sin²(δ) · cot²(δ) = N · cos²(δ)
@@ -893,17 +893,17 @@ def mechanical_susceptibility(
 
 
 def force_psd_thermal(
-    T: float,
+    temp: float,
     gamma: float,
     k_B: float = 1.0,
 ) -> float:
     """Compute thermal force power spectral density S_F(ω).
 
     For thermal Langevin noise, the force PSD is white:
-        S_F = 2 Γ k_B T
+        S_F = 2 Γ k_B temp
 
     Args:
-        T: Temperature.
+        temp: Temperature.
         gamma: Damping Γ.
         k_B: Boltzmann constant.
 
@@ -911,7 +911,7 @@ def force_psd_thermal(
         Force PSD S_F.
 
     """
-    return 2.0 * gamma * k_B * T
+    return 2.0 * gamma * k_B * temp
 
 
 def thermal_floor_approximation(
@@ -1176,8 +1176,8 @@ def dd_effective_coherence_time(
 
 def dd_phase_sensitivity(
     N: int,
-    phi: float,
-    T: float,
+    phi_phase: float,
+    T_dd: float,
     n_pulses: int,
     T_2_0: float = 1.0,
     sequence: str = "CPMG",
@@ -1187,16 +1187,16 @@ def dd_phase_sensitivity(
     The phase sensitivity for an interferometer with DD-enhanced
     coherence is:
 
-        Δφ = 1 / √(N · T₂^(DD) / T)
+        Δφ = 1 / √(N · T₂^(DD) / T_dd)
 
     where:
     - N is the mean photon number (SQL resource scaling)
     - T₂^(DD) is the effective coherence time under DD
-    - T is the total evolution time
+    - T_dd is the total evolution time
 
     This formula assumes:
     - The SQL scaling Δφ ∝ 1/√N is preserved
-    - DD only improves the prefactor C = √(T / T₂^(DD))
+    - DD only improves the prefactor C = √(T_dd / T₂^(DD))
     - The measurement is optimal (photon number counting)
 
     The phase φ argument is included for interface consistency with
@@ -1205,8 +1205,8 @@ def dd_phase_sensitivity(
 
     Args:
         N: Mean photon number.
-        phi: Phase shift (radians). Included for interface consistency.
-        T: Total evolution time.
+        phi_phase: Phase shift (radians). Included for interface consistency.
+        T_dd: Total evolution time.
         n_pulses: Number of π-pulses.
         T_2_0: Bare coherence time. Defaults to 1.0.
         sequence: 'CPMG' or 'XY8'. Defaults to 'CPMG'.
@@ -1216,12 +1216,12 @@ def dd_phase_sensitivity(
 
     Raises:
         ValueError: If N is not positive.
-        ValueError: If T is not positive.
+        ValueError: If T_dd is not positive.
         ValueError: If n_pulses is negative.
         ValueError: If T_2_0 is not positive.
 
     Example:
-        >>> delta_phi = dd_phase_sensitivity(N=100, phi=np.pi/4, T=1.0,
+        >>> delta_phi = dd_phase_sensitivity(N=100, phi_phase=np.pi/4, T_dd=1.0,
         ...                                  n_pulses=4, T_2_0=0.5)
         >>> delta_phi > 0
         True
@@ -1234,8 +1234,8 @@ def dd_phase_sensitivity(
     """
     if N <= 0:
         raise ValueError(f"Mean photon number N must be positive, got {N}")
-    if T <= 0:
-        raise ValueError(f"Total evolution time T must be positive, got {T}")
+    if T_dd <= 0:
+        raise ValueError(f"Total evolution time T_dd must be positive, got {T_dd}")
     if n_pulses < 0:
         raise ValueError(f"Number of pulses must be non-negative, got {n_pulses}")
     if T_2_0 <= 0:
@@ -1245,8 +1245,8 @@ def dd_phase_sensitivity(
     T_2_dd = dd_effective_coherence_time(T_2_0, n_pulses, sequence)
 
     # SQL sensitivity with DD-enhanced coherence
-    # Δφ = 1 / √(N · T₂^(DD) / T)
-    return 1.0 / np.sqrt(N * T_2_dd / T)
+    # Δφ = 1 / √(N · T₂^(DD) / T_dd)
+    return 1.0 / np.sqrt(N * T_2_dd / T_dd)
 
 
 # Scaling Analysis
@@ -1255,7 +1255,7 @@ def dd_phase_sensitivity(
 def dd_sensitivity_scaling(
     N_values: np.ndarray,
     n_pulses: int,
-    T: float,
+    T_dd: float,
     T_2_0: float = 1.0,
 ) -> dict:
     r"""Compute Δφ vs N for DD-enhanced interferometry.
@@ -1270,12 +1270,12 @@ def dd_sensitivity_scaling(
 
     where:
     - α = -0.5 (SQL) is fixed — DD does NOT change this
-    - C = (T / T₂^(DD))^{-1/2} is improved by more pulses
+    - C = (T_dd / T₂^(DD))^{-1/2} is improved by more pulses
 
     Args:
         N_values: Array of mean photon numbers to evaluate.
         n_pulses: Number of π-pulses.
-        T: Total evolution time.
+        T_dd: Total evolution time.
         T_2_0: Bare coherence time. Defaults to 1.0.
 
     Returns:
@@ -1308,12 +1308,12 @@ def dd_sensitivity_scaling(
         raise ValueError("All N_values must be positive")
     if n_pulses < 0:
         raise ValueError(f"Number of pulses must be non-negative, got {n_pulses}")
-    if T <= 0:
-        raise ValueError(f"Total evolution time T must be positive, got {T}")
+    if T_dd <= 0:
+        raise ValueError(f"Total evolution time T_dd must be positive, got {T_dd}")
 
     # Compute sensitivity at each N
     delta_phi = np.array(
-        [dd_phase_sensitivity(int(N), 0.0, T, n_pulses, T_2_0) for N in N_values],
+        [dd_phase_sensitivity(int(N), 0.0, T_dd, n_pulses, T_2_0) for N in N_values],
     )
 
     # Fit power law: log(Δφ) = log(C) + α · log(N)
@@ -1668,7 +1668,7 @@ class CavityMziConfig:
 
 def cavity_enhanced_mzi(
     initial_state: np.ndarray,
-    phi: float,
+    phi_phase: float,
     config: CavityMziConfig,
     max_photons: int,
 ) -> np.ndarray:
@@ -1695,7 +1695,7 @@ def cavity_enhanced_mzi(
     Args:
         initial_state: Input state in two-mode Fock basis.
             Must be a normalized vector of dimension (max_photons+1)².
-        phi: Phase shift per pass (radians). The total accumulated
+        phi_phase: Phase shift per pass (radians). The total accumulated
             phase is ℱ·φ.
         config: Cavity configuration specifying finesse F and beam
             splitter parameters.
@@ -1714,7 +1714,7 @@ def cavity_enhanced_mzi(
         >>> config = CavityMziConfig(F=10.0)
         >>> state = prepare_input_state("fock", max_photons=2, n_particles=1)
         >>> final = cavity_enhanced_mzi(
-        ...     state, phi=np.pi / 4, config=config, max_photons=2,
+        ...     state, phi_phase=np.pi / 4, config=config, max_photons=2,
         ... )
         >>> final.shape
         (9,)
@@ -1726,7 +1726,7 @@ def cavity_enhanced_mzi(
         raise ValueError(f"Cavity finesse must be >= 1, got {config.F}")
 
     # Total accumulated phase: ℱ·φ
-    total_phi = config.F * phi
+    total_phi = config.F * phi_phase
 
     # Build unitary operators
     bs = beam_splitter_unitary(config.theta, config.phi_bs, max_photons)
@@ -1743,13 +1743,13 @@ def cavity_enhanced_mzi(
 
 def cavity_enhanced_mzi_with_noise(
     initial_state: np.ndarray,
-    phi: float,
+    phi_phase: float,
     noise_gamma_1: float,
     noise_gamma_2: float,
     noise_gamma_phi: float,
     config: CavityMziConfig,
     max_photons: int,
-    noise_T: float = 1.0,
+    noise_T_decay: float = 1.0,
     noise_dt: float = 0.01,
 ) -> np.ndarray:
     r"""Cavity-enhanced MZI with Lindblad noise.
@@ -1782,7 +1782,7 @@ def cavity_enhanced_mzi_with_noise(
     Args:
         initial_state: Input state in two-mode Fock basis.
             Can be a pure state (1D vector) or a density matrix (2D).
-        phi: Phase shift per pass (radians). Total accumulated
+        phi_phase: Phase shift per pass (radians). Total accumulated
             phase is ℱ·φ.
         noise_gamma_1: One-body loss rate (γ₁) per pass for mode 1.
             Must be non-negative.
@@ -1793,7 +1793,7 @@ def cavity_enhanced_mzi_with_noise(
         config: Cavity configuration (F, theta, phi_bs).
         max_photons: Maximum photon number per mode for Hilbert
             space truncation.
-        noise_T: Noise evolution time per pass (dimensionless).
+        noise_T_decay: Noise evolution time per pass (dimensionless).
             The noise is integrated for this duration per pass,
             then the rates are scaled by ℱ for the efficient
             approximation.
@@ -1811,7 +1811,7 @@ def cavity_enhanced_mzi_with_noise(
         initial_state must be normalized (pure) or trace-1 (density matrix).
         config.F >= 1 (cavity finesse).
         noise_gamma_{1,2,phi} >= 0 (non-negative rates per pass).
-        noise_T > 0, noise_dt > 0.
+        noise_T_decay > 0, noise_dt > 0.
         Performance: O(ℱ × (N+1)⁴) for exact; O((N+1)⁴) for efficient approximation.
 
     Example:
@@ -1819,7 +1819,7 @@ def cavity_enhanced_mzi_with_noise(
         >>> config = CavityMziConfig(F=5.0)
         >>> state = prepare_input_state("fock", max_photons=2, n_particles=1)
         >>> rho = cavity_enhanced_mzi_with_noise(
-        ...     state, phi=np.pi / 4,
+        ...     state, phi_phase=np.pi / 4,
         ...     noise_gamma_1=0.1, noise_gamma_2=0.0,
         ...     noise_gamma_phi=0.05,
         ...     config=config, max_photons=2,
@@ -1842,12 +1842,12 @@ def cavity_enhanced_mzi_with_noise(
         gamma_1=noise_gamma_1 * F,
         gamma_2=noise_gamma_2 * F,
         gamma_phi=noise_gamma_phi * F,
-        T=noise_T,
+        T_decay=noise_T_decay,
         dt=noise_dt,
     )
 
     # Total accumulated phase: ℱ·φ
-    total_phi = F * phi
+    total_phi = F * phi_phase
 
     # Run the full noisy MZI with scaled rates and total phase.
     # Circuit: BS₁ → Phase(ℱ·φ) → Noise(ℱ·γ, T) → BS₂
@@ -1866,7 +1866,7 @@ def cavity_enhanced_mzi_with_noise(
 
 def cavity_enhanced_sensitivity(
     N: int,
-    phi: float,
+    phi_phase: float,
     config: CavityMziConfig,
     state_type: str = "coherent",
 ) -> float:
@@ -1877,7 +1877,7 @@ def cavity_enhanced_sensitivity(
 
     Args:
         N: Mean photon number (used to construct input state).
-        phi: Phase shift per pass (radians). Total phase is ℱ·φ.
+        phi_phase: Phase shift per pass (radians). Total phase is ℱ·φ.
         config: Cavity configuration (finesse ℱ, beam splitter angles).
         state_type: Input state type. Default: "coherent".
             Supported: "coherent" (SQL input), "noon" (Heisenberg input).
@@ -1891,7 +1891,7 @@ def cavity_enhanced_sensitivity(
 
     Example:
         >>> config = CavityMziConfig(F=10.0)
-        >>> delta = cavity_enhanced_sensitivity(4, np.pi/4, config)
+        >>> delta = cavity_enhanced_sensitivity(4, np.pi/4, config)  # phi_phase = np.pi/4
         >>> delta > 0
         True
 
@@ -1914,7 +1914,7 @@ def cavity_enhanced_sensitivity(
         raise ValueError(f"Unknown state_type '{state_type}'")
 
     # Run cavity-enhanced MZI circuit
-    state_out = cavity_enhanced_mzi(state, phi, config, max_photons)
+    state_out = cavity_enhanced_mzi(state, phi_phase, config, max_photons)
 
     # Compute QFI on output state
     try:
@@ -1971,7 +1971,7 @@ class DistributedMziConfig:
 
 def distributed_mzi_sensitivity(
     N_per_sensor: int,
-    phi: float,
+    phi_phase: float,
     config: DistributedMziConfig,
     noise_config: NoiseConfig | None = None,
 ) -> dict:
@@ -2009,7 +2009,7 @@ def distributed_mzi_sensitivity(
 
     Args:
         N_per_sensor: Photon number per sensor.
-        phi: Phase shift being estimated.
+        phi_phase: Phase shift being estimated.
         config: Distributed array configuration (M, entanglement, correlation).
         noise_config: Noise configuration for loss, dephasing, detection efficiency.
 
@@ -2028,21 +2028,21 @@ def distributed_mzi_sensitivity(
     Example:
         >>> # Classical averaging: M=4 independent sensors
         >>> config = DistributedMziConfig(M=4, entangled=False)
-        >>> result = distributed_mzi_sensitivity(100, 0.0, config)
+        >>> result = distributed_mzi_sensitivity(100, 0.0, config)  # phi_phase = 0.0
         >>> # Expected: 1/√(4·100) = 0.05
         >>> abs(result["delta_phi"] - 0.05) < 0.001
         True
 
         >>> # Entangled: collective Heisenberg limit
         >>> config_ent = DistributedMziConfig(M=4, entangled=True)
-        >>> result_ent = distributed_mzi_sensitivity(100, 0.0, config_ent)
+        >>> result_ent = distributed_mzi_sensitivity(100, 0.0, config_ent)  # phi_phase = 0.0
         >>> # Expected: 1/(4·100) = 0.0025
         >>> abs(result_ent["delta_phi"] - 0.0025) < 0.0001
         True
 
         >>> # Fully correlated classical: no M benefit
         >>> config_corr = DistributedMziConfig(M=4, entangled=False, correlation_noise=1.0)
-        >>> result_corr = distributed_mzi_sensitivity(100, 0.0, config_corr)
+        >>> result_corr = distributed_mzi_sensitivity(100, 0.0, config_corr)  # phi_phase = 0.0
         >>> # Expected: 1/√100 = 0.1 (same as single sensor)
         >>> abs(result_corr["delta_phi"] - 0.1) < 0.01
         True
@@ -2061,7 +2061,7 @@ def distributed_mzi_sensitivity(
     # Readout efficiency from beam splitter and phase
     # For MZI at optimal working point
     visibility = np.abs(np.sin(2 * config.theta))
-    phi_factor = np.abs(np.cos(phi - config.phi_bs))
+    phi_factor = np.abs(np.cos(phi_phase - config.phi_bs))
     readout_efficiency = max(visibility * phi_factor, 1e-6)
 
     # Compute effective efficiency from noise channels
@@ -2519,7 +2519,7 @@ def _ancilla_sensitivity_fn(
                 g_sp=g_sp,
                 omega_0=omega_0,
                 lam=lam,
-                T=1.0,
+                T_decay=1.0,
                 dt=0.1,
             )
             result = run_metrology_protocol(config)
@@ -2536,21 +2536,21 @@ def _ancilla_sensitivity_fn(
 
 
 def _kerr_mzi_sensitivity_fn(
-    chi: float = 0.1,
-    T: float = 1.0,
+    K: float = 0.1,
+    T_kerr: float = 1.0,
     state_type: str = "noon",
 ) -> Callable[[int, float], float]:
     """Create a sensitivity function for Kerr-nonlinear MZI.
 
-    The Kerr nonlinearity :math:`\\chi (n_1^2 + n_2^2)` commutes with
+    The Kerr nonlinearity :math:`K (n_1^2 + n_2^2)` commutes with
     the phase generator :math:`n_2`, so the QFI is invariant under Kerr
     evolution. For NOON states this gives :math:`F_Q = N^2` (Heisenberg
     limit) regardless of the Kerr strength.
 
     Args:
-        chi: Kerr nonlinearity strength. Default 0.1.
-        T: Evolution time for the Kerr interaction. Default 1.0.
-            The product ``chi * T`` controls the nonlinear phase.
+        K: Kerr nonlinearity strength. Default 0.1.
+        T_kerr: Evolution time for the Kerr interaction. Default 1.0.
+            The product ``K * T_kerr`` controls the nonlinear phase.
         state_type: Input state type passed to ``input_state_factory``.
             Default ``"noon"``.
 
@@ -2612,7 +2612,7 @@ def _weak_value_mzi_sensitivity_fn(
             return np.inf
         try:
             config = WeakValueConfig(post_select_angle=post_select_angle)
-            result = weak_value_mzi_sensitivity(N=N, phi=0.0, config=config)
+            result = weak_value_mzi_sensitivity(N=N, phi_phase=0.0, config=config)
             delta = result["delta_phi"]
         except (KeyError, ValueError, TypeError):
             return np.inf
@@ -2634,11 +2634,11 @@ class SurveyConfig:
     Attributes:
         N_range: Tuple of (min, max) particle number range.
             N values are log-spaced between min and max. Default: (2, 64).
-        N_points: Number of N values to sweep (log-spaced). Default: 8.
+        n_points: Number of N values to sweep (log-spaced). Default: 8.
         noise_levels: List of noise levels (dephasing rates) to sweep.
             Each level corresponds to a J_z dephasing rate γ.
             Default: [0.0, 1e-3, 1e-2, 1e-1].
-        phi: Operating phase for sensitivity estimation. For QFI-based
+        phi_phase: Operating phase for sensitivity estimation. For QFI-based
             estimation, the sensitivity is phase-independent for pure states
             (F_Q = 4·Var(J_z)), but noise effects may depend on the phase.
             Default: π/4.
@@ -2654,9 +2654,9 @@ class SurveyConfig:
     """
 
     N_range: tuple[int, int] = (2, 64)
-    N_points: int = 8
+    n_points: int = 8
     noise_levels: list[float] = field(default_factory=lambda: [0.0, 1e-3, 1e-2, 1e-1])
-    phi: float = np.pi / 4
+    phi_phase: float = np.pi / 4
     measurement: str = "parity"
     method: str = "qfi"
     seed: int = 42
@@ -2669,10 +2669,10 @@ class SurveyConfig:
             raise ValueError(
                 f"N_range max ({self.N_range[1]}) must be >= min ({self.N_range[0]})",
             )
-        if self.N_points < 2:
-            raise ValueError(f"N_points must be >= 2, got {self.N_points}")
-        if self.phi < 0 or self.phi > 2 * np.pi:
-            raise ValueError(f"phi must be in [0, 2π], got {self.phi}")
+        if self.n_points < 2:
+            raise ValueError(f"n_points must be >= 2, got {self.n_points}")
+        if self.phi_phase < 0 or self.phi_phase > 2 * np.pi:
+            raise ValueError(f"phi_phase must be in [0, 2π], got {self.phi_phase}")
         valid_methods = {"qfi", "cf", "ep", "bayesian"}
         if self.method not in valid_methods:
             raise ValueError(
@@ -2776,7 +2776,7 @@ def _generate_N_values(config: SurveyConfig) -> np.ndarray:
 
     """
     N_min, N_max = config.N_range
-    N_raw = np.logspace(np.log10(N_min), np.log10(N_max), config.N_points).astype(int)
+    N_raw = np.logspace(np.log10(N_min), np.log10(N_max), config.n_points).astype(int)
     # Deduplicate from rounding and sort
     N_unique = np.unique(N_raw)
     # Ensure at least 2 points
@@ -2865,7 +2865,7 @@ def _compute_noisy_sensitivity(
     max_photons: int,
     noise_level: float,
     noise_type: str = "dephasing",
-    T: float = 1.0,
+    T_decay: float = 1.0,
 ) -> float:
     """Compute phase sensitivity for a state with the specified noise type.
 
@@ -2890,7 +2890,7 @@ def _compute_noisy_sensitivity(
         noise_level: Noise strength γ (dimensionless rate × time).
             For detection noise, this is the efficiency η ∈ [0, 1].
         noise_type: Type of noise to apply. Default: "dephasing".
-        T: Evolution time for Lindblad dynamics. Default: 1.0.
+        T_decay: Evolution time for Lindblad dynamics. Default: 1.0.
 
     Returns:
         Phase sensitivity Δφ (lower is better). Returns np.inf if
@@ -2927,7 +2927,7 @@ def _compute_noisy_sensitivity(
         H0 = 0 * n0  # zero Hamiltonian with matching dims
         state_q = qutip.Qobj(state.reshape(-1, 1), dims=[[dim, dim], [1, 1]])
         rho0 = qutip.ket2dm(state_q)
-        tlist = [0.0, T]
+        tlist = [0.0, T_decay]
 
         result = qutip.mesolve(
             H0, rho0, tlist, c_ops=c_ops, options={"store_states": True}
@@ -3038,21 +3038,21 @@ def _compute_pure_state_sensitivity(state: np.ndarray, max_photons: int) -> floa
 
 def _apply_phase_imprint(
     state: np.ndarray,
-    phi: float,
+    phi_phase: float,
     max_photons: int,
 ) -> np.ndarray:
     """Apply a phase shift U = exp(i φ n₂) to mode 1.
 
     Args:
         state: State vector in the two-mode Fock basis.
-        phi: Phase shift in radians.
+        phi_phase: Phase shift in radians.
         max_photons: Maximum photon number per mode.
 
     Returns:
         Phase-imprinted state vector.
 
     """
-    phase_U = phase_shift_unitary(phi, max_photons)
+    phase_U = phase_shift_unitary(phi_phase, max_photons)
     return phase_U @ state
 
 
@@ -3177,7 +3177,9 @@ def run_scaling_survey(
 
                 # --- Step 3: Apply phase imprint ---
                 try:
-                    state = _apply_phase_imprint(state, survey_config.phi, max_photons)
+                    state = _apply_phase_imprint(
+                        state, survey_config.phi_phase, max_photons
+                    )
                 except (ValueError, IndexError):
                     pass  # Continue without phase imprint if it fails
 
@@ -3548,13 +3550,13 @@ def create_survey_model(
         )
 
     if model_id == "kerr_mzi":
-        chi = kwargs.get("chi", 0.1)
-        T = kwargs.get("T", 1.0)
+        K = kwargs.get("K", 0.1)
+        T_kerr = kwargs.get("T_kerr", 1.0)
         state_type = kwargs.get("state_type", "noon")
-        chi_val = float(chi) if isinstance(chi, (int, float)) else 0.1
-        T_val = float(T) if isinstance(T, (int, float)) else 1.0
+        K_val = float(K) if isinstance(K, (int, float)) else 0.1
+        T_val = float(T_kerr) if isinstance(T_kerr, (int, float)) else 1.0
         st_val = str(state_type) if isinstance(state_type, str) else "noon"
-        fn = _kerr_mzi_sensitivity_fn(chi=chi_val, T=T_val, state_type=st_val)
+        fn = _kerr_mzi_sensitivity_fn(K=K_val, T_kerr=T_val, state_type=st_val)
         return ModelConfig(
             model_id=model_id,
             custom_sensitivity_fn=fn,

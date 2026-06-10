@@ -19,6 +19,8 @@ import pytest
 import scipy.stats
 from numpy.testing import assert_allclose
 
+from src.utils.enums import OperatorBasis
+
 from .dicke_basis import jz_operator
 from .noise_channels import (
     NoiseConfig,
@@ -126,14 +128,14 @@ class TestJzOperator:
     """Tests for J_z operator."""
 
     def test_given_j_z_then_have_correct_eigenvalues(self, N: int) -> None:
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
         J = N / 2.0
 
         expected = np.arange(J, -J - 1, -1)
         assert_allclose(J_z.diagonal(), expected)
 
     def test_given_j_z_then_be_hermitian(self, N: int) -> None:
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
         assert_allclose(J_z, J_z.conj().T)
 
     def test_number_operator_structure(self, N: int) -> None:
@@ -185,7 +187,7 @@ class TestBuildLindbladOperators:
         L_ops = build_lindblad_operators(N, config)
 
         assert len(L_ops) == 1
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
         expected = np.sqrt(0.3) * J_z
         assert_allclose(L_ops[0], expected)
 
@@ -420,7 +422,7 @@ class TestEdgeCases:
         a = annihilation_operator(N)
         assert a.shape == (N + 1, N + 1)
 
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
         assert J_z.shape == (N + 1, N + 1)
 
     def test_given_very_small_rates_then_not_cause_numerical_issues(self) -> None:

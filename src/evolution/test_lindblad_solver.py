@@ -15,6 +15,7 @@ import numpy as np
 import pytest
 
 from src.physics.dicke_basis import jz_operator
+from src.utils.enums import OperatorBasis
 
 from .lindblad_solver import (
     LindbladConfig,
@@ -37,7 +38,7 @@ class TestTracePreservation:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
-        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
+        _times, rhos = simulate_trajectory(rho0, config, T_decay=1.0, num_times=100)
         traces = np.array([np.trace(rho) for rho in rhos])
         assert traces == pytest.approx(1.0, abs=1e-6)
 
@@ -45,7 +46,7 @@ class TestTracePreservation:
         config = LindbladConfig(N=5, gamma_1=0.5, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(2, 5)
         rho0 = np.outer(psi, psi.conj())
-        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
+        _times, rhos = simulate_trajectory(rho0, config, T_decay=1.0, num_times=100)
         traces = np.array([np.trace(rho) for rho in rhos])
         assert np.all(traces <= 1.0 + 1e-6)
         assert np.all(np.diff(traces) <= 1e-6)
@@ -54,7 +55,7 @@ class TestTracePreservation:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0.5)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
-        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=100)
+        _times, rhos = simulate_trajectory(rho0, config, T_decay=1.0, num_times=100)
         traces = np.array([np.trace(rho) for rho in rhos])
         assert traces == pytest.approx(1.0, abs=1e-6)
 
@@ -66,7 +67,7 @@ class TestHermiticity:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
-        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
+        _times, rhos = simulate_trajectory(rho0, config, T_decay=1.0, num_times=50)
         for rho in rhos:
             assert rho == pytest.approx(rho.conj().T, abs=1e-6)
 
@@ -74,7 +75,7 @@ class TestHermiticity:
         config = LindbladConfig(N=5, gamma_1=0.3, gamma_2=0.1, gamma_phi=0.2)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
-        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
+        _times, rhos = simulate_trajectory(rho0, config, T_decay=1.0, num_times=50)
         for rho in rhos:
             assert rho == pytest.approx(rho.conj().T, abs=1e-6)
 
@@ -86,7 +87,9 @@ class TestPositivity:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
-        _times, rhos = simulate_trajectory(rho0, config=config, T=1.0, num_times=50)
+        _times, rhos = simulate_trajectory(
+            rho0, config=config, T_decay=1.0, num_times=50
+        )
         for rho in rhos:
             min_eigenvalue = np.min(np.linalg.eigvalsh(rho).real)
             assert min_eigenvalue >= -1e-6
@@ -95,7 +98,9 @@ class TestPositivity:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=0.01)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
-        _times, rhos = simulate_trajectory(rho0, config=config, T=0.5, num_times=50)
+        _times, rhos = simulate_trajectory(
+            rho0, config=config, T_decay=0.5, num_times=50
+        )
         for rho in rhos:
             min_eigenvalue = np.min(np.linalg.eigvalsh(rho).real)
             assert min_eigenvalue >= -1e-3
@@ -104,7 +109,7 @@ class TestPositivity:
         config = LindbladConfig(N=5, gamma_1=0, gamma_2=0, gamma_phi=1.0)
         psi = create_fock_state(1, 5)
         rho0 = np.outer(psi, psi.conj())
-        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=50)
+        _times, rhos = simulate_trajectory(rho0, config, T_decay=1.0, num_times=50)
         for rho in rhos:
             min_eigenvalue = np.min(np.linalg.eigvalsh(rho).real)
             assert min_eigenvalue >= -1e-6
@@ -122,7 +127,7 @@ class TestParticleConservation:
         rho0 = np.outer(psi, psi.conj())
         n_op = qutip.create(N + 1).full() @ qutip.destroy(N + 1).full()
         initial_n = np.real(np.trace(rho0 @ n_op))
-        _times, rhos = simulate_trajectory(rho0, config, T=2.0, num_times=50)
+        _times, rhos = simulate_trajectory(rho0, config, T_decay=2.0, num_times=50)
         for rho in rhos:
             mean_n = np.real(np.trace(rho @ n_op))
             assert mean_n == pytest.approx(initial_n, abs=1e-6)
@@ -137,7 +142,7 @@ class TestParticleConservation:
         rho0 = np.outer(psi, psi.conj())
         n_op = qutip.create(N + 1).full() @ qutip.destroy(N + 1).full()
         initial_n = np.real(np.trace(rho0 @ n_op))
-        _times, rhos = simulate_trajectory(rho0, config, T=1.0, num_times=30)
+        _times, rhos = simulate_trajectory(rho0, config, T_decay=1.0, num_times=30)
         for rho in rhos:
             mean_n = np.real(np.trace(rho @ n_op))
             assert mean_n == pytest.approx(initial_n, abs=1e-4)
@@ -153,7 +158,9 @@ class TestPhaseDiffusion:
         psi = create_coherent_state(alpha + 0j, N, truncation=5)
         rho0 = np.outer(psi, psi.conj())
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=gamma_phi)
-        _times, rhos = simulate_trajectory(rho0, config=config, T=2.0, num_times=50)
+        _times, rhos = simulate_trajectory(
+            rho0, config=config, T_decay=2.0, num_times=50
+        )
         coherences = [np.abs(rho[0, 1]) for rho in rhos]
         initial_c = coherences[0]
         final_c = coherences[-1]
@@ -167,7 +174,9 @@ class TestPhaseDiffusion:
         psi = (create_fock_state(0, N) + create_fock_state(1, N)) / np.sqrt(2)
         rho0 = np.outer(psi, psi.conj())
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=gamma_phi)
-        _times, rhos = simulate_trajectory(rho0, config=config, T=0.5, num_times=50)
+        _times, rhos = simulate_trajectory(
+            rho0, config=config, T_decay=0.5, num_times=50
+        )
         for rho in rhos[:10]:
             pop_0 = np.real(rho[0, 0])
             pop_1 = np.real(rho[1, 1])
@@ -233,21 +242,21 @@ class TestEvolveLindbladRk4:
         d = 4
         rho0 = np.eye(d, dtype=complex) / d
         H = np.diag([0.0, 1.0, 2.0, 3.0])
-        result = evolve_lindblad_rk4(rho0, H, [], [], T=0.0, dt=0.01)
+        result = evolve_lindblad_rk4(rho0, H, [], [], T_decay=0.0, dt=0.01)
         assert result == pytest.approx(rho0)
 
     def test_given_no_dissipation_then_trace_preserved(self) -> None:
         d = 4
         rho0 = np.eye(d, dtype=complex) / d
         H = np.diag([0.0, 1.0, 2.0, 3.0])
-        result = evolve_lindblad_rk4(rho0, H, [], [], T=1.0, dt=0.01)
+        result = evolve_lindblad_rk4(rho0, H, [], [], T_decay=1.0, dt=0.01)
         assert np.trace(result) == pytest.approx(1.0, abs=1e-6)
 
     def test_given_no_dissipation_then_hermitian(self) -> None:
         d = 4
         rho0 = np.eye(d, dtype=complex) / d
         H = np.diag([0.0, 1.0, 2.0, 3.0])
-        result = evolve_lindblad_rk4(rho0, H, [], [], T=1.0, dt=0.01)
+        result = evolve_lindblad_rk4(rho0, H, [], [], T_decay=1.0, dt=0.01)
         assert result == pytest.approx(result.conj().T, abs=1e-6)
 
     def test_given_dissipation_then_hermitian(self) -> None:
@@ -255,7 +264,7 @@ class TestEvolveLindbladRk4:
         rho0 = np.diag([1.0, 0.0, 0.0])
         H = np.zeros((d, d), dtype=complex)
         L = np.array([[0, 1, 0], [0, 0, np.sqrt(2)], [0, 0, 0]], dtype=complex)
-        result = evolve_lindblad_rk4(rho0, H, [L], [1.0], T=0.5, dt=0.01)
+        result = evolve_lindblad_rk4(rho0, H, [L], [1.0], T_decay=0.5, dt=0.01)
         assert result == pytest.approx(result.conj().T, abs=1e-6)
         assert np.trace(result) == pytest.approx(1.0, abs=1e-6)
 
@@ -264,7 +273,7 @@ class TestEvolveLindbladRk4:
         rho0 = np.diag([1.0, 0.0, 0.0])
         H = np.zeros((d, d), dtype=complex)
         L = np.array([[0, 1, 0], [0, 0, np.sqrt(2)], [0, 0, 0]], dtype=complex)
-        result = evolve_lindblad_rk4(rho0, H, [L], [1.0], T=0.5, dt=0.01)
+        result = evolve_lindblad_rk4(rho0, H, [L], [1.0], T_decay=0.5, dt=0.01)
         eigenvalues = np.linalg.eigvalsh(result)
         assert np.min(eigenvalues) >= -1e-6
 
@@ -276,14 +285,14 @@ class TestEvolveLindbladScipy:
         d = 3
         rho0 = np.eye(d, dtype=complex) / d
         H = np.diag([0.0, 1.0, 2.0])
-        result = evolve_lindblad_scipy(rho0, H, [], [], T=1.0)
+        result = evolve_lindblad_scipy(rho0, H, [], [], T_decay=1.0)
         assert np.trace(result) == pytest.approx(1.0, abs=1e-6)
 
     def test_given_no_dissipation_then_hermitian(self) -> None:
         d = 3
         rho0 = np.eye(d, dtype=complex) / d
         H = np.diag([0.0, 1.0, 2.0])
-        result = evolve_lindblad_scipy(rho0, H, [], [], T=1.0)
+        result = evolve_lindblad_scipy(rho0, H, [], [], T_decay=1.0)
         assert result == pytest.approx(result.conj().T, abs=1e-6)
 
     def test_given_dissipation_then_density_matrix_valid(self) -> None:
@@ -291,7 +300,7 @@ class TestEvolveLindbladScipy:
         rho0 = np.diag([1.0, 0.0, 0.0])
         H = np.zeros((d, d), dtype=complex)
         L = np.array([[0, 1, 0], [0, 0, np.sqrt(2)], [0, 0, 0]], dtype=complex)
-        result = evolve_lindblad_scipy(rho0, H, [L], [1.0], T=0.5)
+        result = evolve_lindblad_scipy(rho0, H, [L], [1.0], T_decay=0.5)
         assert result == pytest.approx(result.conj().T, abs=1e-6)
         assert np.trace(result) == pytest.approx(1.0, abs=1e-6)
         eigenvalues = np.linalg.eigvalsh(result)
@@ -319,7 +328,7 @@ class TestSteadyState:
         N = 5
         config = LindbladConfig(N=N, gamma_1=0, gamma_2=0, gamma_phi=1.0)
         H = qutip.create(N + 1).full() @ qutip.destroy(N + 1).full()
-        jz = jz_operator(N)
+        jz = jz_operator(N, basis=OperatorBasis.FOCK)
         L_ops = [np.sqrt(config.gamma_phi) * jz]
         gammas = [1.0]
         rho_ss = steady_state(H, L_ops, gammas)
@@ -359,7 +368,7 @@ class TestFullSimulation:
         config = LindbladConfig(N=5, gamma_1=0.1, gamma_2=0.05)
         psi = create_fock_state(2, 5)
         rho0 = np.outer(psi, psi.conj())
-        final_rho = evolve_lindblad(rho0, config, T=1.0, dt=0.01)
+        final_rho = evolve_lindblad(rho0, config, T_decay=1.0, dt=0.01)
         validation = validate_density_matrix(final_rho)
         assert validation["is_hermitian"]
 
@@ -367,7 +376,7 @@ class TestFullSimulation:
         config = LindbladConfig(N=4, gamma_1=0.0, gamma_2=0.0, gamma_phi=0.2)
         psi = create_fock_state(1, 4)
         rho0 = np.outer(psi, psi.conj())
-        rho_rk4 = evolve_lindblad(rho0, config, T=0.5, dt=0.01, method="rk4")
+        rho_rk4 = evolve_lindblad(rho0, config, T_decay=0.5, dt=0.01, method="rk4")
         validation = validate_density_matrix(rho_rk4)
         assert validation["is_hermitian"]
 
@@ -379,14 +388,14 @@ class TestEdgeCases:
         config = LindbladConfig(N=3, gamma_1=0.1)
         psi = create_fock_state(1, 3)
         rho0 = np.outer(psi, psi.conj())
-        final_rho = evolve_lindblad(rho0, config, T=0.0, dt=0.01)
+        final_rho = evolve_lindblad(rho0, config, T_decay=0.0, dt=0.01)
         assert final_rho == pytest.approx(rho0, abs=1e-6)
 
     def test_given_small_dt_then_evolution_stable(self) -> None:
         config = LindbladConfig(N=4, gamma_1=0.1, gamma_2=0.0, gamma_phi=0.0)
         psi = create_fock_state(2, 4)
         rho0 = np.outer(psi, psi.conj())
-        final_rho = evolve_lindblad(rho0, config, T=0.5, dt=0.001)
+        final_rho = evolve_lindblad(rho0, config, T_decay=0.5, dt=0.001)
         validation = validate_density_matrix(final_rho)
         assert validation["is_hermitian"]
         assert validation["is_normalized"]

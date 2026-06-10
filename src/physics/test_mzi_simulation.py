@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 import qutip
 
+from src.utils.validators import validate_state_mzi
+
 from .mzi_simulation import (
     beam_splitter_unitary,
     compute_interference_fringe,
@@ -16,7 +18,6 @@ from .mzi_simulation import (
     phase_shift_unitary,
     prepare_input_state,
     system_ancilla_interaction_unitary,
-    validate_state,
 )
 
 
@@ -38,20 +39,20 @@ class TestStateCreation:
 
     def test_vacuum_state(self) -> None:
         state = _make_vacuum(max_photons=2)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
         assert state[0] == pytest.approx(1.0)  # |0,0> is first state
 
     def test_single_photon_state_mode0(self) -> None:
         state = _make_single_photon(mode=0, max_photons=2)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_single_photon_state_mode1(self) -> None:
         state = _make_single_photon(mode=1, max_photons=2)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_noon_state(self) -> None:
         state = noon_state(N=2, max_photons=3)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
         # Should be (|2,0> + |0,2>)/sqrt(2)
 
     def test_coherent_state(self) -> None:
@@ -59,12 +60,12 @@ class TestStateCreation:
         state = (
             qutip.tensor(qutip.coherent(dim, 0.5), qutip.fock(dim, 0)).full().ravel()
         )
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_fock_state_n(self) -> None:
         dim = 5 + 1
         state = qutip.tensor(qutip.fock(dim, 3), qutip.fock(dim, 0)).full().ravel()
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
 
 class TestOperators:
@@ -78,7 +79,7 @@ class TestOperators:
 
     def test_beam_splitter_preserves_norm(self) -> None:
         # Beam splitter should preserve norm of any state
-        bs = beam_splitter_unitary(theta=np.pi / 4, phi=0.0, max_photons=2)
+        bs = beam_splitter_unitary(theta=np.pi / 4, phi_bs=0.0, max_photons=2)
         # Test with vacuum
         vac = _make_vacuum(2)
         vac_out = bs @ vac
@@ -93,7 +94,7 @@ class TestOperators:
         )
 
     def test_phase_shift_unitarity(self) -> None:
-        ps = phase_shift_unitary(phi=np.pi / 2, max_photons=2)
+        ps = phase_shift_unitary(phi_phase=np.pi / 2, max_photons=2)
         assert np.allclose(ps @ ps.conj().T, np.eye(ps.shape[0]), atol=1e-10), (
             "Phase shift unitary must satisfy U U† = I"
         )
@@ -129,7 +130,9 @@ class TestEvolution:
             ancilla_dim=2,
         )
         # Vacuum should remain vacuum (no phase to apply)
-        assert validate_state(evolved), "Condition failed: validate_state(evolved)"
+        assert validate_state_mzi(evolved), (
+            "Condition failed: validate_state_mzi(evolved)"
+        )
 
     def test_evolution_conserves_probability(self) -> None:
         state = _make_vacuum(max_photons=2)
@@ -207,23 +210,23 @@ class TestInputStatePreparation:
 
     def test_prepare_vacuum(self) -> None:
         state = prepare_input_state("vacuum", max_photons=2)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_prepare_make_single_photon(self) -> None:
         state = prepare_input_state("single_photon", max_photons=2, mode=0)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_prepare_coherent(self) -> None:
         state = prepare_input_state("coherent", max_photons=5, alpha=0.5)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_prepare_fock(self) -> None:
         state = prepare_input_state("fock", max_photons=5, n_particles=3)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_prepare_noon(self) -> None:
         state = prepare_input_state("noon", max_photons=5, n_particles=2)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
 
 class TestValidation:
@@ -231,8 +234,10 @@ class TestValidation:
 
     def test_validate_normalized_state(self) -> None:
         state = np.array([1, 0, 0], dtype=complex)
-        assert validate_state(state), "Condition failed: validate_state(state)"
+        assert validate_state_mzi(state), "Condition failed: validate_state_mzi(state)"
 
     def test_validate_unnormalized_state(self) -> None:
         state = np.array([1, 1, 1], dtype=complex)
-        assert not validate_state(state), "validate_state(state) should be falsy"
+        assert not validate_state_mzi(state), (
+            "validate_state_mzi(state) should be falsy"
+        )

@@ -4,7 +4,7 @@ Local module for the 2026-05-18 Weighted Joint Measurement N,M-Generalization re
 Contains all code exclusive to this report:
 - Core physics simulation (collective spin operators, CSS states, beam-splitter
   unitaries, circuit evolution, weighted measurement and sensitivity)
-- Golden-section sub-optimisation for the weight angle phi
+- Golden-section sub-optimisation for the weight angle psi
 - L-BFGS-B circuit parameter optimisation with FD or AD gradients
 - N-scaling and M-scaling analysis with bootstrap confidence intervals
 - Alpha-scan with weight re-optimisation
@@ -48,26 +48,27 @@ from scipy.optimize import minimize
 from src.analysis.ancilla_drive_metrology import (
     Drive2DSliceResult,
     DriveDecoupledBaselineResult,
+    DriveOmegaScanResult,
     DriveRandomSearchResult,
-    DriveThetaScanResult,
     compute_drive_decoupled_baseline,
     drive_2d_slice,
     drive_random_search,
-    run_drive_theta_scan,
+    run_drive_omega_scan,
 )
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.physics.multi_mzi import single_bs_unitary
+from src.utils.enums import OperatorBasis
 from src.visualization.ancilla_drive_plots import (
     plot_drive_2d_slice_heatmap,
     plot_drive_decoupled_baseline,
+    plot_drive_omega_scan,
     plot_drive_optimal_params,
     plot_drive_random_search_histogram,
-    plot_drive_theta_scan,
 )
 
 sns.set_theme(style="whitegrid")
 # ============================================================================
-# Utility: Golden-Section Search for Weight Angle phi
+# Utility: Golden-Section Search for Weight Angle psi
 # ============================================================================
 
 GOLDEN_RATIO: float = (np.sqrt(5.0) - 1.0) / 2.0  # ~0.618
@@ -151,12 +152,12 @@ def build_collective_operators(N: int, M: int) -> dict[str, np.ndarray]:
     d_S = N + 1
     d_A = M + 1
 
-    Jz_S_np = jz_operator(N)
-    Jx_S_np = jx_operator(N)
-    Jy_S_np = jy_operator(N)
-    Jz_A_np = jz_operator(M)
-    Jx_A_np = jx_operator(M)
-    Jy_A_np = jy_operator(M)
+    Jz_S_np = jz_operator(N, basis=OperatorBasis.DICKE)
+    Jx_S_np = jx_operator(N, basis=OperatorBasis.DICKE)
+    Jy_S_np = jy_operator(N, basis=OperatorBasis.DICKE)
+    Jz_A_np = jz_operator(M, basis=OperatorBasis.DICKE)
+    Jx_A_np = jx_operator(M, basis=OperatorBasis.DICKE)
+    Jy_A_np = jy_operator(M, basis=OperatorBasis.DICKE)
 
     I_S = np.eye(d_S, dtype=complex)
     I_A = np.eye(d_A, dtype=complex)
@@ -245,7 +246,7 @@ def css_state_np(J: float, theta: float) -> np.ndarray:
 
     # Build J_y operator
     N = int(2 * J)
-    Jy = jy_operator(N)
+    Jy = jy_operator(N, basis=OperatorBasis.DICKE)
 
     # Rotate via matrix exponential
     from scipy.linalg import expm
@@ -323,19 +324,19 @@ def product_css_state_torch(
 # bs_unitary_np replaced by single_bs_unitary from src.physics.multi_mzi
 
 
-def full_bs_unitary_np(N: int, M: int, T: float) -> np.ndarray:
-    """Full beam-splitter unitary: U_BS(T; N) ⊗ U_BS(T; M).
+def full_bs_unitary_np(N: int, M: int, T_BS: float) -> np.ndarray:
+    """Full beam-splitter unitary: U_BS(T_BS; N) ⊗ U_BS(T_BS; M).
 
     Args:
         N: System particle number.
         M: Ancilla particle number.
-        T: Beam-splitter duration.
+        T_BS: Beam-splitter duration.
 
     Returns:
         (N+1)(M+1) × (N+1)(M+1) unitary matrix.
     """
-    U_S = single_bs_unitary(N, T)
-    U_A = single_bs_unitary(M, T)
+    U_S = single_bs_unitary(N, T_BS)
+    U_A = single_bs_unitary(M, T_BS)
     return np.kron(U_S, U_A)
 
 
@@ -348,8 +349,8 @@ def evolve_full_np(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_H: float,
-    theta_true: float,
+    T_hold: float,
+    omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
     N: int,
@@ -357,14 +358,14 @@ def evolve_full_np(
 ) -> np.ndarray:
     """Run the full MZI circuit in numpy.
 
-    |psi_final> = U_BS(T_BS2) · U_hold(T_H, theta_true, alpha) · U_BS(T_BS1) · |psi0>
+    |psi_final> = U_BS(T_BS2) · U_hold(T_hold, omega_true, alpha) · U_BS(T_BS1) · |psi0>
 
     Args:
         psi0: Initial state vector of dimension (N+1)(M+1).
         T_BS1: First beam-splitter duration.
         T_BS2: Second beam-splitter duration.
-        T_H: Holding time.
-        theta_true: True phase rate parameter.
+        T_hold: Holding time.
+        omega_true: True phase rate parameter.
         alpha: (alpha_xx, alpha_xz, alpha_zx, alpha_zz).
         ops_np: Operators from build_collective_operators().
         N: System particle number.
@@ -381,12 +382,12 @@ def evolve_full_np(
 
     # Hold
     H_int = build_interaction_hamiltonian_np(alpha, ops_np)
-    H_hold = theta_true * ops_np["Jz_S"] + H_int
+    H_hold = omega_true * ops_np["Jz_S"] + H_int
     H_hold = 0.5 * (H_hold + H_hold.conj().T)
 
     from scipy.linalg import expm as scipy_expm
 
-    U_hold = scipy_expm(-1j * T_H * H_hold)
+    U_hold = scipy_expm(-1j * T_hold * H_hold)
     d = ops_np["Jz_S"].shape[0]
     assert np.allclose(U_hold @ U_hold.conj().T, np.eye(d), atol=1e-12), (
         "Hold unitary not unitary"
@@ -419,7 +420,7 @@ def _state_to_torch(state_np: np.ndarray) -> torch.Tensor:
 
 
 def build_hold_hamiltonian_torch(
-    theta_true: float | torch.Tensor,
+    omega_true: float | torch.Tensor,
     alpha: tuple[
         float | torch.Tensor,
         float | torch.Tensor,
@@ -428,13 +429,13 @@ def build_hold_hamiltonian_torch(
     ],
     ops_torch: dict[str, torch.Tensor],
 ) -> torch.Tensor:
-    """Build H_hold = theta * J_z^S + H_int as a torch tensor.
+    """Build H_hold = omega * J_z^S + H_int as a torch tensor.
 
     Supports both float and torch.Tensor alpha for AD through
     interaction coefficients.
 
     Args:
-        theta_true: True phase rate parameter.
+        omega_true: True phase rate parameter.
         alpha: (alpha_xx, alpha_xz, alpha_zx, alpha_zz).
         ops_torch: Torch operators.
 
@@ -466,10 +467,10 @@ def build_hold_hamiltonian_torch(
         if a_zz != 0.0:
             H_int += a_zz * (ops_torch["Jz_S"] @ ops_torch["Jz_A"])
 
-    if isinstance(theta_true, torch.Tensor):
-        H = theta_true * ops_torch["Jz_S"] + H_int
+    if isinstance(omega_true, torch.Tensor):
+        H = omega_true * ops_torch["Jz_S"] + H_int
     else:
-        H = float(theta_true) * ops_torch["Jz_S"] + H_int
+        H = float(omega_true) * ops_torch["Jz_S"] + H_int
     return 0.5 * (H + H.conj().T)
 
 
@@ -477,8 +478,8 @@ def evolve_full_torch(
     psi0: torch.Tensor,
     T_BS1: torch.Tensor,
     T_BS2: torch.Tensor,
-    T_H: torch.Tensor,
-    theta_true: torch.Tensor,
+    T_hold: torch.Tensor,
+    omega_true: torch.Tensor,
     alpha: tuple[
         float | torch.Tensor,
         float | torch.Tensor,
@@ -502,8 +503,8 @@ def evolve_full_torch(
         psi0: Initial state vector (torch tensor, complex128).
         T_BS1: First beam-splitter duration (torch scalar).
         T_BS2: Second beam-splitter duration (torch scalar).
-        T_H: Holding time (torch scalar).
-        theta_true: True phase rate parameter (torch scalar).
+        T_hold: Holding time (torch scalar).
+        omega_true: True phase rate parameter (torch scalar).
         alpha: (alpha_xx, alpha_xz, alpha_zx, alpha_zz).
         ops_torch: Torch operators.
         N: System particle number.
@@ -522,13 +523,13 @@ def evolve_full_torch(
     psi = U_BS1 @ psi0
 
     # Hold unitary via torch.linalg.matrix_exp
-    theta_scalar = (
-        float(theta_true.detach())
-        if isinstance(theta_true, torch.Tensor)
-        else theta_true
+    omega_scalar = (
+        float(omega_true.detach())
+        if isinstance(omega_true, torch.Tensor)
+        else omega_true
     )
-    H_hold = build_hold_hamiltonian_torch(theta_scalar, alpha, ops_torch)
-    U_hold = torch.linalg.matrix_exp(-1j * T_H * H_hold)
+    H_hold = build_hold_hamiltonian_torch(omega_scalar, alpha, ops_torch)
+    U_hold = torch.linalg.matrix_exp(-1j * T_hold * H_hold)
     psi = U_hold @ psi
 
     # BS2: use torch-based expm if T_BS2 requires grad
@@ -678,7 +679,7 @@ def _compute_six_moments_torch(
     return exp_S, exp_A, var_S, var_A, cov_SA, norm
 
 
-def compute_weighted_delta_theta(
+def compute_weighted_delta_omega(
     a: float,
     b: float,
     moments: tuple[float, float, float, float, float, float],
@@ -697,7 +698,7 @@ def compute_weighted_delta_theta(
         b: Ancilla weight.
         moments: Six moments (exp_S, exp_A, var_S, var_A, cov_SA, norm)
             at the evaluation point.
-        d_moments: Six derivatives of moments with respect to theta.
+        d_moments: Six derivatives of moments with respect to omega.
             If None, derivative is computed separately.
         fd_step: Finite-difference step size (default 1e-6).
         N: System particle number (used for threshold normalisation).
@@ -728,7 +729,7 @@ def compute_weighted_delta_theta(
     # numerical noise (~1e-10 for finite differences through expm).
     # A hard threshold of 1e-8 ensures we don't treat numerical noise
     # as a signal, while remaining well below any physical derivative
-    # (which scales as ~N * T_H, typically >= 0.1 for our test cases).
+    # (which scales as ~N * T_hold, typically >= 0.1 for our test cases).
     if abs(d_exp_M) < 1e-8:
         return float("inf")
 
@@ -742,47 +743,47 @@ def compute_weighted_delta_theta(
     return float(np.sqrt(var_M) / abs(d_exp_M))
 
 
-def delta_theta_from_phi(
-    phi: float,
+def delta_omega_from_psi(
+    psi: float,
     moments: tuple[float, float, float, float, float, float],
     d_moments: tuple[float, float, float, float, float, float],
 ) -> float:
-    """Compute Δθ for a given weight angle φ = arctan(b/a).
+    """Compute Δθ for a given weight angle ψ = arctan(b/a).
 
     Args:
-        phi: Weight angle such that (a,b) = (cos φ, sin φ).
+        psi: Weight angle such that (a,b) = (cos ψ, sin ψ).
         moments: Six moments at the evaluation point.
         d_moments: Six derivative moments.
 
     Returns:
         Δθ value (positive float).
     """
-    a = np.cos(phi)
-    b = np.sin(phi)
-    return compute_weighted_delta_theta(a, b, moments, d_moments)
+    a = np.cos(psi)
+    b = np.sin(psi)
+    return compute_weighted_delta_omega(a, b, moments, d_moments)
 
 
-def optimize_weight_phi(
+def optimize_weight_psi(
     moments: tuple[float, float, float, float, float, float],
     d_moments: tuple[float, float, float, float, float, float],
 ) -> tuple[float, float, float, float]:
-    """Optimise the weight angle φ via golden-section search on safe intervals.
+    """Optimise the weight angle ψ via golden-section search on safe intervals.
 
-    The objective Δθ(φ) has singularities at φ = π/2 and 3π/2 (where a = 0,
+    The objective Δθ(ψ) has singularities at ψ = π/2 and 3π/2 (where a = 0,
     so the derivative |d⟨M⟩/dθ| vanishes for the decoupled ancilla). To avoid
     these, we split [0, 2π) into three intervals that exclude neighbourhoods
     around the singularities, run golden-section search on each, and pick the
-    best result. This gives a continuous φ^* for the envelope theorem.
+    best result. This gives a continuous ψ^* for the envelope theorem.
 
     Args:
         moments: Six moments at the evaluation point.
         d_moments: Six derivative moments.
 
     Returns:
-        Tuple (phi_opt, delta_theta_opt, a_opt, b_opt) where
-        (a_opt, b_opt) = (cos(phi_opt), sin(phi_opt)) are the optimal weights.
+        Tuple (psi_opt, delta_omega_opt, a_opt, b_opt) where
+        (a_opt, b_opt) = (cos(psi_opt), sin(psi_opt)) are the optimal weights.
     """
-    f = partial(delta_theta_from_phi, moments=moments, d_moments=d_moments)
+    f = partial(delta_omega_from_psi, moments=moments, d_moments=d_moments)
 
     # Singularity locations
     sing1 = np.pi / 2.0
@@ -800,14 +801,14 @@ def optimize_weight_phi(
             safe_intervals.append((lo, hi))
 
     # Run golden-section on each safe interval
-    phi_opt = 0.0
-    delta_theta_opt = float("inf")
+    psi_opt = 0.0
+    delta_omega_opt = float("inf")
     found_finite = False
 
     for lo, hi in safe_intervals:
         # Check if there's any finite value in this interval
-        test_phi = (lo + hi) / 2.0
-        test_val = f(test_phi)
+        test_psi = (lo + hi) / 2.0
+        test_val = f(test_psi)
         if not np.isfinite(test_val):
             # Quick scan to check if any point in interval is finite
             scan = np.linspace(lo, hi, 21)
@@ -816,10 +817,10 @@ def optimize_weight_phi(
                 continue  # entire interval is singular — skip
 
         try:
-            phi_gs, dt_gs = golden_section_minimize(f, lo, hi, tol=1e-12, max_iter=200)
-            if np.isfinite(dt_gs) and dt_gs < delta_theta_opt:
-                phi_opt = float(phi_gs)
-                delta_theta_opt = float(dt_gs)
+            psi_gs, dt_gs = golden_section_minimize(f, lo, hi, tol=1e-12, max_iter=200)
+            if np.isfinite(dt_gs) and dt_gs < delta_omega_opt:
+                psi_opt = float(psi_gs)
+                delta_omega_opt = float(dt_gs)
                 found_finite = True
         except (RuntimeError, ValueError):
             continue
@@ -829,19 +830,19 @@ def optimize_weight_phi(
         grid = np.linspace(0.0, 2.0 * np.pi, 1001)
         for p in grid:
             v = f(p)
-            if np.isfinite(v) and v < delta_theta_opt:
-                phi_opt = float(p)
-                delta_theta_opt = float(v)
+            if np.isfinite(v) and v < delta_omega_opt:
+                psi_opt = float(p)
+                delta_omega_opt = float(v)
                 found_finite = True
 
     if not found_finite:
         return 0.0, float("inf"), 1.0, 0.0
 
-    phi_opt = phi_opt % (2.0 * np.pi)
-    a_opt = float(np.cos(phi_opt))
-    b_opt = float(np.sin(phi_opt))
+    psi_opt = psi_opt % (2.0 * np.pi)
+    a_opt = float(np.cos(psi_opt))
+    b_opt = float(np.sin(psi_opt))
 
-    return phi_opt, delta_theta_opt, a_opt, b_opt
+    return psi_opt, delta_omega_opt, a_opt, b_opt
 
 
 # ============================================================================
@@ -853,8 +854,8 @@ def compute_moments_and_derivatives(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_H: float,
-    theta_true: float,
+    T_hold: float,
+    omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
     N: int,
@@ -864,14 +865,14 @@ def compute_moments_and_derivatives(
     tuple[float, float, float, float, float, float],
     tuple[float, float, float, float, float, float],
 ]:
-    """Compute the six moments and their theta-derivatives.
+    """Compute the six moments and their omega-derivatives.
 
     Args:
         psi0: Initial state vector.
         T_BS1: First beam-splitter duration.
         T_BS2: Second beam-splitter duration.
-        T_H: Holding time.
-        theta_true: True phase rate parameter.
+        T_hold: Holding time.
+        omega_true: True phase rate parameter.
         alpha: (alpha_xx, alpha_xz, alpha_zx, alpha_zz).
         ops_np: Operators from build_collective_operators().
         N: System particle number.
@@ -881,19 +882,19 @@ def compute_moments_and_derivatives(
     Returns:
         Tuple (moments, d_moments) each as (exp_S, exp_A, var_S, var_A, cov, norm).
     """
-    # Moments at theta_true
-    psi = evolve_full_np(psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops_np, N, M)
+    # Moments at omega_true
+    psi = evolve_full_np(psi0, T_BS1, T_BS2, T_hold, omega_true, alpha, ops_np, N, M)
     moments = compute_six_moments(psi, ops_np)
 
-    # Moments at theta_true + fd_step
+    # Moments at omega_true + fd_step
     psi_plus = evolve_full_np(
-        psi0, T_BS1, T_BS2, T_H, theta_true + fd_step, alpha, ops_np, N, M
+        psi0, T_BS1, T_BS2, T_hold, omega_true + fd_step, alpha, ops_np, N, M
     )
     moments_plus = compute_six_moments(psi_plus, ops_np)
 
-    # Moments at theta_true - fd_step
+    # Moments at omega_true - fd_step
     psi_minus = evolve_full_np(
-        psi0, T_BS1, T_BS2, T_H, theta_true - fd_step, alpha, ops_np, N, M
+        psi0, T_BS1, T_BS2, T_hold, omega_true - fd_step, alpha, ops_np, N, M
     )
     moments_minus = compute_six_moments(psi_minus, ops_np)
 
@@ -912,8 +913,8 @@ def compute_sensitivity_weighted(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_H: float,
-    theta_true: float,
+    T_hold: float,
+    omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
     N: int,
@@ -928,8 +929,8 @@ def compute_sensitivity_weighted(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_H: float,
-    theta_true: float,
+    T_hold: float,
+    omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
     N: int,
@@ -943,8 +944,8 @@ def compute_sensitivity_weighted(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_H: float,
-    theta_true: float,
+    T_hold: float,
+    omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
     N: int,
@@ -958,36 +959,36 @@ def compute_sensitivity_weighted(
         psi0: Initial state vector.
         T_BS1: First beam-splitter duration.
         T_BS2: Second beam-splitter duration.
-        T_H: Holding time.
-        theta_true: True phase rate parameter.
+        T_hold: Holding time.
+        omega_true: True phase rate parameter.
         alpha: (alpha_xx, alpha_xz, alpha_zx, alpha_zz).
         ops_np: Operators from build_collective_operators().
         N: System particle number.
         M: Ancilla particle number.
         fd_step: Finite-difference step (default 1e-6).
-        return_optimal_weights: If True, also return (phi*, a*, b*, delta_theta*).
+        return_optimal_weights: If True, also return (psi*, a*, b*, delta_omega*).
 
     Returns:
         If return_optimal_weights is False: Δθ (positive float).
-        If True: tuple (phi_opt, a_opt, b_opt, delta_theta_opt).
+        If True: tuple (psi_opt, a_opt, b_opt, delta_omega_opt).
     """
     moments, d_moments = compute_moments_and_derivatives(
-        psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops_np, N, M, fd_step
+        psi0, T_BS1, T_BS2, T_hold, omega_true, alpha, ops_np, N, M, fd_step
     )
 
-    phi_opt, delta_theta_opt, a_opt, b_opt = optimize_weight_phi(moments, d_moments)
+    psi_opt, delta_omega_opt, a_opt, b_opt = optimize_weight_psi(moments, d_moments)
 
     if return_optimal_weights:
-        return phi_opt, a_opt, b_opt, delta_theta_opt
-    return delta_theta_opt
+        return psi_opt, a_opt, b_opt, delta_omega_opt
+    return delta_omega_opt
 
 
 def compute_sensitivity_sonly(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_H: float,
-    theta_true: float,
+    T_hold: float,
+    omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
     N: int,
@@ -1003,10 +1004,10 @@ def compute_sensitivity_sonly(
         Δθ (positive float).
     """
     moments, d_moments = compute_moments_and_derivatives(
-        psi0, T_BS1, T_BS2, T_H, theta_true, alpha, ops_np, N, M, fd_step
+        psi0, T_BS1, T_BS2, T_hold, omega_true, alpha, ops_np, N, M, fd_step
     )
-    # S-only: a=1, b=0 → phi=0
-    return compute_weighted_delta_theta(1.0, 0.0, moments, d_moments)
+    # S-only: a=1, b=0 → psi=0
+    return compute_weighted_delta_omega(1.0, 0.0, moments, d_moments)
 
 
 # ============================================================================
@@ -1038,8 +1039,8 @@ def _so3_rotate_x(point: np.ndarray, angle: float) -> np.ndarray:
 def _exact_zero_interaction_moments(
     N: int,
     M: int,
-    T_H: float,
-    theta_true: float = 1.0,
+    T_hold: float,
+    omega_true: float = 1.0,
     theta_S: float = 0.0,
     theta_A: float = 0.0,
     T_BS1: float = np.pi / 2.0,
@@ -1048,10 +1049,10 @@ def _exact_zero_interaction_moments(
     tuple[float, float, float, float, float, float],
     tuple[float, float, float, float, float, float],
 ]:
-    """Exact closed-form moments and theta-derivatives for α=0 (zero interaction).
+    """Exact closed-form moments and omega-derivatives for α=0 (zero interaction).
 
     Uses SO(3) rotation formulas: the system evolves as
-    R_x(T_BS2) R_z(T_H θ) R_x(T_BS1) R_y(Θ_S) |J_S, -J_S⟩,
+    R_x(T_BS2) R_z(T_hold θ) R_x(T_BS1) R_y(Θ_S) |J_S, -J_S⟩,
     which is a CSS at a known Bloch-sphere point. The ancilla evolves
     independently as R_x(T_BS1+T_BS2) R_y(Θ_A) |J_A, -J_A⟩.
 
@@ -1064,7 +1065,7 @@ def _exact_zero_interaction_moments(
     """
     J_S = N / 2.0
     J_A = M / 2.0
-    phi = T_H * theta_true
+    phi = T_hold * omega_true
 
     # --- System: SO(3) rotation sequence ---
     # Start from south pole (0, 0, -1)
@@ -1074,7 +1075,7 @@ def _exact_zero_interaction_moments(
     r = _so3_rotate_y(r, -theta_S)  # CSS uses exp(-i Θ J_y), which in SO(3) is R_y(-Θ)
     # Apply R_x(T_BS1)
     r = _so3_rotate_x(r, -T_BS1)  # exp(-i T J_x) in SO(3) is R_x(-T)
-    # Apply R_z(φ) where φ = T_H θ
+    # Apply R_z(φ) where φ = T_hold θ
     r = _so3_rotate_z(r, -phi)  # exp(-i φ J_z) in SO(3) is R_z(-φ)
     # Apply R_x(T_BS2)
     r = _so3_rotate_x(r, -T_BS2)  # exp(-i T J_x) in SO(3) is R_x(-T)
@@ -1095,8 +1096,10 @@ def _exact_zero_interaction_moments(
     s_phi = np.sin(phi)
 
     # Verified derivation: r_z matches the SO(3) rotation chain result
-    dr_z_dtheta = T_H * (s_theta_S * s_BS2 * c_phi + s_BS1 * c_theta_S * s_BS2 * s_phi)
-    d_exp_S = float(J_S * dr_z_dtheta)
+    dr_z_domega = T_hold * (
+        s_theta_S * s_BS2 * c_phi + s_BS1 * c_theta_S * s_BS2 * s_phi
+    )
+    d_exp_S = float(J_S * dr_z_domega)
 
     # --- Ancilla: no θ dependence ---
     r_A = np.array([0.0, 0.0, -1.0])
@@ -1121,8 +1124,8 @@ def _exact_alpha_zz_moments(
     N: int,
     M: int,
     alpha_zz: float,
-    T_H: float,
-    theta_true: float = 1.0,
+    T_hold: float,
+    omega_true: float = 1.0,
     theta_S: float = 0.0,
     theta_A: float = 0.0,
     T_BS1: float = np.pi / 2.0,
@@ -1132,7 +1135,7 @@ def _exact_alpha_zz_moments(
     tuple[float, float, float, float, float, float],
     tuple[float, float, float, float, float, float],
 ]:
-    """Exact moments and theta-derivatives for α_zz-only interaction.
+    """Exact moments and omega-derivatives for α_zz-only interaction.
 
     Uses the diagonal nature of the hold Hamiltonian:
         H_hold = θ J_z^S + α_zz J_z^S ⊗ J_z^A
@@ -1157,8 +1160,8 @@ def _exact_alpha_zz_moments(
     psi_A = css_state_np(M / 2.0, theta_A)
 
     # BS1 rotations (subsystem expm only, not full-space)
-    U_BS1_S = expm(-1j * T_BS1 * jx_operator(N))
-    U_BS1_A = expm(-1j * T_BS1 * jx_operator(M))
+    U_BS1_S = expm(-1j * T_BS1 * jx_operator(N, basis=OperatorBasis.DICKE))
+    U_BS1_A = expm(-1j * T_BS1 * jx_operator(M, basis=OperatorBasis.DICKE))
     psi_S_bs1 = U_BS1_S @ psi_S
     psi_A_bs1 = U_BS1_A @ psi_A
 
@@ -1175,8 +1178,8 @@ def _exact_alpha_zz_moments(
     m_A_mat = m_A_vals[np.newaxis, :]  # 1 × d_A
 
     # J_z operators for final moment computation
-    Jz_S_np = jz_operator(N)
-    Jz_A_np = jz_operator(M)
+    Jz_S_np = jz_operator(N, basis=OperatorBasis.DICKE)
+    Jz_A_np = jz_operator(M, basis=OperatorBasis.DICKE)
     Jz_S_full = np.kron(Jz_S_np, np.eye(d_A, dtype=complex))
     Jz_A_full = np.kron(np.eye(d_S, dtype=complex), Jz_A_np)
     Jz_S_sq = Jz_S_full @ Jz_S_full
@@ -1184,18 +1187,18 @@ def _exact_alpha_zz_moments(
     Jz_S_Jz_A = Jz_S_full @ Jz_A_full
 
     # BS2 rotation matrices (subsystem only)
-    U_BS2_S = expm(-1j * T_BS2 * jx_operator(N))
-    U_BS2_A = expm(-1j * T_BS2 * jx_operator(M))
+    U_BS2_S = expm(-1j * T_BS2 * jx_operator(N, basis=OperatorBasis.DICKE))
+    U_BS2_A = expm(-1j * T_BS2 * jx_operator(M, basis=OperatorBasis.DICKE))
 
-    # Helper to compute moments at a given θ
-    def _compute_moments_at_theta(
-        theta_val: float,
+    # Helper to compute moments at a given ω
+    def _compute_moments_at_omega(
+        omega_val: float,
     ) -> tuple[float, float, float, float, float, float]:
-        phi = T_H * theta_val
+        phi = T_hold * omega_val
 
         # Apply diagonal hold phase elementwise
-        # phase = exp(-i T_H (θ m_S + α_zz m_S m_A))
-        phase = np.exp(-1j * (phi * m_S_mat + T_H * alpha_zz * m_S_mat * m_A_mat))
+        # phase = exp(-i T_hold (θ m_S + α_zz m_S m_A))
+        phase = np.exp(-1j * (phi * m_S_mat + T_hold * alpha_zz * m_S_mat * m_A_mat))
         psi_hold_phased = psi_hold * phase
 
         # Apply BS2 via Kronecker product: R_S ⊗ R_A
@@ -1217,12 +1220,12 @@ def _exact_alpha_zz_moments(
 
         return exp_S, exp_A, var_S, var_A, cov_SA, norm
 
-    # Moments at theta_true
-    moments = _compute_moments_at_theta(theta_true)
+    # Moments at omega_true
+    moments = _compute_moments_at_omega(omega_true)
 
     # Central finite differences for θ-derivatives
-    moments_plus = _compute_moments_at_theta(theta_true + fd_step)
-    moments_minus = _compute_moments_at_theta(theta_true - fd_step)
+    moments_plus = _compute_moments_at_omega(omega_true + fd_step)
+    moments_minus = _compute_moments_at_omega(omega_true - fd_step)
 
     d_moments = cast(
         "tuple[float, float, float, float, float, float]",
@@ -1243,8 +1246,8 @@ def _exact_alpha_zz_moments(
 def analytical_benchmark_zero_interaction(
     N: int,
     M: int,
-    T_H: float,
-    theta_true: float = 1.0,
+    T_hold: float,
+    omega_true: float = 1.0,
     theta_S: float = 0.0,
     theta_A: float = 0.0,
     T_BS1: float = np.pi / 2.0,
@@ -1263,8 +1266,8 @@ def analytical_benchmark_zero_interaction(
     Args:
         N: System particle number.
         M: Ancilla particle number.
-        T_H: Holding time.
-        theta_true: True phase rate (default 1.0).
+        T_hold: Holding time.
+        omega_true: True phase rate (default 1.0).
         theta_S: System CSS angle (default 0.0).
         theta_A: Ancilla CSS angle (default 0.0).
         T_BS1: First beam-splitter duration (default pi/2).
@@ -1272,9 +1275,9 @@ def analytical_benchmark_zero_interaction(
         fd_step: Finite-difference step (tiny for high precision).
 
     Returns:
-        Dict with keys: 'delta_theta_numerical', 'delta_theta_exact',
+        Dict with keys: 'delta_omega_numerical', 'delta_omega_exact',
         'relative_error_to_exact', 'optimal_weight_a',
-        'optimal_weight_b', 'phi_opt', 'expected_sql'.
+        'optimal_weight_b', 'psi_opt', 'expected_sql'.
     """
     if T_BS2 is None:
         T_BS2 = T_BS1
@@ -1284,26 +1287,26 @@ def analytical_benchmark_zero_interaction(
     psi0 = product_css_state_np(theta_S, theta_A, N, M)
 
     # Use S-only (a=1, b=0) directly — optimal at α=0, avoids optimizer bias
-    delta_theta_opt = compute_sensitivity_sonly(
+    delta_omega_opt = compute_sensitivity_sonly(
         psi0,
         T_BS1,
         T_BS2,
-        T_H,
-        theta_true,
+        T_hold,
+        omega_true,
         alpha,
         ops_np,
         N,
         M,
         fd_step,
     )
-    a_opt, b_opt, phi_opt = 1.0, 0.0, 0.0
+    a_opt, b_opt, psi_opt = 1.0, 0.0, 0.0
 
     # Exact closed-form moments (SO(3) rotation formulas)
     exact_moments, exact_d_moments = _exact_zero_interaction_moments(
         N,
         M,
-        T_H,
-        theta_true,
+        T_hold,
+        omega_true,
         theta_S,
         theta_A,
         T_BS1,
@@ -1311,7 +1314,7 @@ def analytical_benchmark_zero_interaction(
     )
 
     # Exact S-only (a=1, b=0) sensitivity
-    delta_theta_exact = compute_weighted_delta_theta(
+    delta_omega_exact = compute_weighted_delta_omega(
         1.0,
         0.0,
         exact_moments,
@@ -1319,25 +1322,25 @@ def analytical_benchmark_zero_interaction(
     )
 
     relative_error_to_exact = (
-        abs(delta_theta_opt - delta_theta_exact) / delta_theta_exact
-        if delta_theta_exact > 0 and np.isfinite(delta_theta_exact)
+        abs(delta_omega_opt - delta_omega_exact) / delta_omega_exact
+        if delta_omega_exact > 0 and np.isfinite(delta_omega_exact)
         else float("inf")
     )
 
-    # Expected SQL: for CSS at optimal, Δθ_SQL = 1/(sqrt(N) T_H)
-    expected_sql = 1.0 / (np.sqrt(N) * T_H)
+    # Expected SQL: for CSS at optimal, Δθ_SQL = 1/(sqrt(N) T_hold)
+    expected_sql = 1.0 / (np.sqrt(N) * T_hold)
 
     return {
         "N": N,
         "M": M,
-        "T_H": T_H,
-        "delta_theta_numerical": delta_theta_opt,
-        "delta_theta_exact": delta_theta_exact,
+        "T_hold": T_hold,
+        "delta_omega_numerical": delta_omega_opt,
+        "delta_omega_exact": delta_omega_exact,
         "relative_error_to_exact": relative_error_to_exact,
         "expected_sql": expected_sql,
         "optimal_weight_a": a_opt,
         "optimal_weight_b": b_opt,
-        "phi_opt": phi_opt,
+        "psi_opt": psi_opt,
     }
 
 
@@ -1345,8 +1348,8 @@ def analytical_benchmark_alpha_zz_only(
     N: int,
     M: int,
     alpha_zz: float,
-    T_H: float,
-    theta_true: float = 1.0,
+    T_hold: float,
+    omega_true: float = 1.0,
     theta_S: float = 0.0,
     theta_A: float = 0.0,
     T_BS1: float = np.pi / 2.0,
@@ -1356,7 +1359,7 @@ def analytical_benchmark_alpha_zz_only(
     """Benchmark: only alpha_zz is non-zero (diagonal evolution).
 
     When only alpha_zz != 0, the hold Hamiltonian is
-    H_hold = theta J_z^S + alpha_zz J_z^S ⊗ J_z^A,
+    H_hold = omega J_z^S + alpha_zz J_z^S ⊗ J_z^A,
     which is diagonal in the product Dicke basis |m_S, m_A⟩.
 
     The numerical result is compared against an exact computation that
@@ -1369,8 +1372,8 @@ def analytical_benchmark_alpha_zz_only(
         N: System particle number.
         M: Ancilla particle number.
         alpha_zz: ZZ interaction strength.
-        T_H: Holding time.
-        theta_true: True phase rate (default 1.0).
+        T_hold: Holding time.
+        omega_true: True phase rate (default 1.0).
         theta_S: System CSS angle (default 0.0).
         theta_A: Ancilla CSS angle (default 0.0).
         T_BS1: First beam-splitter duration (default pi/2).
@@ -1379,7 +1382,7 @@ def analytical_benchmark_alpha_zz_only(
 
     Returns:
         Dict with results including 'exact_moments', 'exact_d_moments',
-        'moments_max_rel_error', 'delta_theta_exact', 'relative_error_to_exact'.
+        'moments_max_rel_error', 'delta_omega_exact', 'relative_error_to_exact'.
     """
     if T_BS2 is None:
         T_BS2 = T_BS1
@@ -1393,8 +1396,8 @@ def analytical_benchmark_alpha_zz_only(
         psi0,
         T_BS1,
         T_BS2,
-        T_H,
-        theta_true,
+        T_hold,
+        omega_true,
         alpha,
         ops_np,
         N,
@@ -1404,11 +1407,11 @@ def analytical_benchmark_alpha_zz_only(
     num_moments = np.array(num_moments_raw)
 
     # Weighted Δθ (optimal and S-only)
-    phi_opt, dt_weighted, a_opt, b_opt = optimize_weight_phi(
+    psi_opt, dt_weighted, a_opt, b_opt = optimize_weight_psi(
         num_moments_raw,
         num_d_moments_raw,
     )
-    dt_sonly = compute_weighted_delta_theta(
+    dt_sonly = compute_weighted_delta_omega(
         1.0,
         0.0,
         num_moments_raw,
@@ -1420,8 +1423,8 @@ def analytical_benchmark_alpha_zz_only(
         N,
         M,
         alpha_zz,
-        T_H,
-        theta_true,
+        T_hold,
+        omega_true,
         theta_S,
         theta_A,
         T_BS1,
@@ -1442,7 +1445,7 @@ def analytical_benchmark_alpha_zz_only(
         moment_max_abs = max(moment_max_abs, abs_err)
 
     # S-only Δθ from exact moments
-    dt_sonly_exact = compute_weighted_delta_theta(
+    dt_sonly_exact = compute_weighted_delta_omega(
         1.0,
         0.0,
         exact_moments_raw,
@@ -1455,7 +1458,7 @@ def analytical_benchmark_alpha_zz_only(
     )
 
     # Weighted Δθ from exact moments (using numerical optimal φ)
-    dt_weighted_exact = compute_weighted_delta_theta(
+    dt_weighted_exact = compute_weighted_delta_omega(
         a_opt,
         b_opt,
         exact_moments_raw,
@@ -1471,14 +1474,14 @@ def analytical_benchmark_alpha_zz_only(
         "N": N,
         "M": M,
         "alpha_zz": alpha_zz,
-        "T_H": T_H,
+        "T_hold": T_hold,
         # S-only comparison (best-conditioned)
-        "delta_theta_numerical": dt_sonly,
-        "delta_theta_exact": dt_sonly_exact,
+        "delta_omega_numerical": dt_sonly,
+        "delta_omega_exact": dt_sonly_exact,
         "relative_error_to_exact": rel_error_sonly,
         # Weighted comparison (diagnostic)
-        "delta_theta_weighted": dt_weighted,
-        "delta_theta_weighted_exact": dt_weighted_exact,
+        "delta_omega_weighted": dt_weighted,
+        "delta_omega_weighted_exact": dt_weighted_exact,
         "relative_error_weighted": rel_error_weighted,
         # Moment comparison
         "moments_max_rel_error": moment_max_rel,
@@ -1487,7 +1490,7 @@ def analytical_benchmark_alpha_zz_only(
         "exact_moments": exact_moments_raw,
         "optimal_weight_a": a_opt,
         "optimal_weight_b": b_opt,
-        "phi_opt": phi_opt,
+        "psi_opt": psi_opt,
     }
 
 
@@ -1500,7 +1503,7 @@ def _objective_and_gradient_fd(
     params: np.ndarray,
     N: int,
     M: int,
-    theta_true: float,
+    omega_true: float,
     ops_np: dict[str, np.ndarray],
     fd_step: float = 1e-6,
     grad_step: float = 1e-5,
@@ -1508,21 +1511,21 @@ def _objective_and_gradient_fd(
     """Objective and gradient via finite differences for L-BFGS-B.
 
     Parameter vector (9 elements):
-        [theta_S, theta_A, T_BS1, T_BS2, T_H, alpha_xx, alpha_xz, alpha_zx, alpha_zz]
+        [theta_S, theta_A, T_BS1, T_BS2, T_hold, alpha_xx, alpha_xz, alpha_zx, alpha_zz]
 
     Args:
         params: 9-element parameter vector.
         N: System particle number.
         M: Ancilla particle number.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         ops_np: Operators from build_collective_operators().
-        fd_step: FD step for theta derivative in sensitivity (default 1e-6).
+        fd_step: FD step for omega derivative in sensitivity (default 1e-6).
         grad_step: FD step for gradient computation (default 1e-5).
 
     Returns:
         Tuple (objective_value, gradient_vector).
     """
-    theta_S, theta_A, T_BS1, T_BS2, T_H = params[:5]
+    theta_S, theta_A, T_BS1, T_BS2, T_hold = params[:5]
     alpha = (float(params[5]), float(params[6]), float(params[7]), float(params[8]))
 
     # Objective at the current point
@@ -1532,8 +1535,8 @@ def _objective_and_gradient_fd(
             psi0,
             float(T_BS1),
             float(T_BS2),
-            float(T_H),
-            theta_true,
+            float(T_hold),
+            omega_true,
             alpha,
             ops_np,
             N,
@@ -1548,7 +1551,7 @@ def _objective_and_gradient_fd(
     for i in range(9):
         params_plus = params.copy()
         params_plus[i] += grad_step
-        theta_S_p, theta_A_p, T_BS1_p, T_BS2_p, T_H_p = params_plus[:5]
+        theta_S_p, theta_A_p, T_BS1_p, T_BS2_p, T_hold_p = params_plus[:5]
         alpha_p = (
             float(params_plus[5]),
             float(params_plus[6]),
@@ -1561,8 +1564,8 @@ def _objective_and_gradient_fd(
                 psi0_p,
                 float(T_BS1_p),
                 float(T_BS2_p),
-                float(T_H_p),
-                theta_true,
+                float(T_hold_p),
+                omega_true,
                 alpha_p,
                 ops_np,
                 N,
@@ -1574,7 +1577,7 @@ def _objective_and_gradient_fd(
 
         params_minus = params.copy()
         params_minus[i] -= grad_step
-        theta_S_m, theta_A_m, T_BS1_m, T_BS2_m, T_H_m = params_minus[:5]
+        theta_S_m, theta_A_m, T_BS1_m, T_BS2_m, T_hold_m = params_minus[:5]
         alpha_m = (
             float(params_minus[5]),
             float(params_minus[6]),
@@ -1587,8 +1590,8 @@ def _objective_and_gradient_fd(
                 psi0_m,
                 float(T_BS1_m),
                 float(T_BS2_m),
-                float(T_H_m),
-                theta_true,
+                float(T_hold_m),
+                omega_true,
                 alpha_m,
                 ops_np,
                 N,
@@ -1607,34 +1610,34 @@ def _objective_and_gradient_ad(
     params: np.ndarray,
     N: int,
     M: int,
-    theta_true: float,
+    omega_true: float,
     ops_np: dict[str, np.ndarray],
     fd_step: float = 1e-6,
 ) -> tuple[float, np.ndarray]:
     """Objective and gradient via automatic differentiation for L-BFGS-B.
 
     Uses torch.autograd.grad to differentiate through the circuit at the
-    optimal weight angle phi^*, applying the envelope theorem (Danskin's
-    theorem): since phi^* is an interior minimiser, the gradient of the
-    objective equals the partial derivative of Delta_theta with respect
-    to the circuit parameters, evaluated at phi^*.
+    optimal weight angle psi^*, applying the envelope theorem (Danskin's
+    theorem): since psi^* is an interior minimiser, the gradient of the
+    objective equals the partial derivative of Delta_omega with respect
+    to the circuit parameters, evaluated at psi^*.
 
-    The theta-derivative (d_moments) is computed via finite differences
+    The omega-derivative (d_moments) is computed via finite differences
     through the SAME torch circuit (with grad), so the gradient correctly
     captures the dependence of d_moments on the circuit parameters.
-    The weight angle phi^* is treated as constant (envelope theorem),
-    so the phi-subproblem is evaluated via numpy on detached values.
+    The weight angle psi^* is treated as constant (envelope theorem),
+    so the psi-subproblem is evaluated via numpy on detached values.
 
     Parameter vector (9 elements):
-        [theta_S, theta_A, T_BS1, T_BS2, T_H, alpha_xx, alpha_xz, alpha_zx, alpha_zz]
+        [theta_S, theta_A, T_BS1, T_BS2, T_hold, alpha_xx, alpha_xz, alpha_zx, alpha_zz]
 
     Args:
         params: 9-element parameter vector.
         N: System particle number.
         M: Ancilla particle number.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         ops_np: Operators from build_collective_operators().
-        fd_step: FD step for theta derivative in sensitivity (default 1e-6).
+        fd_step: FD step for omega derivative in sensitivity (default 1e-6).
 
     Returns:
         Tuple (objective_value, gradient_vector).
@@ -1647,7 +1650,7 @@ def _objective_and_gradient_ad(
     theta_A_t = p_torch[1]
     T_BS1_t = p_torch[2]
     T_BS2_t = p_torch[3]
-    T_H_t = p_torch[4]
+    T_hold_t = p_torch[4]
     alpha_t: tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (
         p_torch[5],
         p_torch[6],
@@ -1655,20 +1658,20 @@ def _objective_and_gradient_ad(
         p_torch[8],
     )
 
-    # --- Step 1: Build CSS state (shared across theta evaluations) ---
+    # --- Step 1: Build CSS state (shared across omega evaluations) ---
     psi0 = product_css_state_torch(theta_S_t, theta_A_t, N, M, ops_torch)
 
-    # --- Step 2: Run circuit at theta, theta+δ, theta-δ (all with grad) ---
-    theta_t = torch.tensor(theta_true, dtype=torch.float64)
-    theta_plus_t = torch.tensor(theta_true + fd_step, dtype=torch.float64)
-    theta_minus_t = torch.tensor(theta_true - fd_step, dtype=torch.float64)
+    # --- Step 2: Run circuit at omega, omega+δ, omega-δ (all with grad) ---
+    omega_t = torch.tensor(omega_true, dtype=torch.float64)
+    omega_plus_t = torch.tensor(omega_true + fd_step, dtype=torch.float64)
+    omega_minus_t = torch.tensor(omega_true - fd_step, dtype=torch.float64)
 
     psi = evolve_full_torch(
         psi0,
         T_BS1_t,
         T_BS2_t,
-        T_H_t,
-        theta_t,
+        T_hold_t,
+        omega_t,
         alpha_t,
         ops_torch,
         N,
@@ -1678,8 +1681,8 @@ def _objective_and_gradient_ad(
         psi0,
         T_BS1_t,
         T_BS2_t,
-        T_H_t,
-        theta_plus_t,
+        T_hold_t,
+        omega_plus_t,
         alpha_t,
         ops_torch,
         N,
@@ -1689,8 +1692,8 @@ def _objective_and_gradient_ad(
         psi0,
         T_BS1_t,
         T_BS2_t,
-        T_H_t,
-        theta_minus_t,
+        T_hold_t,
+        omega_minus_t,
         alpha_t,
         ops_torch,
         N,
@@ -1717,7 +1720,7 @@ def _objective_and_gradient_ad(
     d_cov_SA = (cov_SA_p - cov_SA_m) * inv_2fd
     d_norm = (norm_p - norm_m) * inv_2fd
 
-    # --- Step 5: Find phi^* via numpy on detached tensors ---
+    # --- Step 5: Find psi^* via numpy on detached tensors ---
     moments_np = cast(
         "tuple[float, float, float, float, float, float]",
         tuple(
@@ -1732,12 +1735,12 @@ def _objective_and_gradient_ad(
             for t in (d_exp_S, d_exp_A, d_var_S, d_var_A, d_cov_SA, d_norm)
         ),
     )
-    _, _delta_theta_opt, a_opt, b_opt = optimize_weight_phi(
+    _, _delta_omega_opt, a_opt, b_opt = optimize_weight_psi(
         moments_np,
         d_moments_np,
     )
 
-    # --- Step 6: Re-evaluate Δθ at phi^* as a torch scalar ---
+    # --- Step 6: Re-evaluate Δθ at psi^* as a torch scalar ---
     a_t = torch.tensor(a_opt, dtype=torch.float64)
     b_t = torch.tensor(b_opt, dtype=torch.float64)
 
@@ -1751,13 +1754,13 @@ def _objective_and_gradient_ad(
         grad = np.zeros(9, dtype=float)
         return float("inf"), grad
 
-    delta_theta = torch.sqrt(var_M) / torch.abs(d_exp_M)
+    delta_omega = torch.sqrt(var_M) / torch.abs(d_exp_M)
 
     # --- Step 7: Compute gradient via AD ---
-    (grad_torch,) = torch.autograd.grad(delta_theta, p_torch)
+    (grad_torch,) = torch.autograd.grad(delta_omega, p_torch)
     grad = grad_torch.detach().numpy().copy()
 
-    return float(delta_theta.detach().numpy()), grad
+    return float(delta_omega.detach().numpy()), grad
 
 
 # ============================================================================
@@ -1776,9 +1779,9 @@ def get_bounds_nm(N: int, M: int) -> dict[str, tuple[float, float]]:
         Dict of bound tuples.
     """
     return {
-        "theta": (0.0, np.pi),  # theta_S, theta_A
+        "bloch_theta": (0.0, np.pi),  # theta_S, theta_A
         "T_BS": (0.0, np.pi),  # T_BS1, T_BS2
-        "T_H": (0.1, 20.0),  # T_H
+        "T_hold": (0.1, 20.0),  # T_hold
         "alpha": (-2.0, 2.0),  # alpha_xx, _xz, _zx, _zz
     }
 
@@ -1798,26 +1801,26 @@ def random_params_nm(
         bounds: Optional custom bounds (uses defaults if None).
 
     Returns:
-        9-element array: [theta_S, theta_A, T_BS1, T_BS2, T_H,
+        9-element array: [theta_S, theta_A, T_BS1, T_BS2, T_hold,
                          alpha_xx, alpha_xz, alpha_zx, alpha_zz].
     """
     if bounds is None:
         bounds = get_bounds_nm(N, M)
 
-    theta_lo, theta_hi = bounds["theta"]
+    theta_lo, theta_hi = bounds["bloch_theta"]
     tbs_lo, tbs_hi = bounds["T_BS"]
-    th_lo, th_hi = bounds["T_H"]
+    th_lo, th_hi = bounds["T_hold"]
     alpha_lo, alpha_hi = bounds["alpha"]
 
     theta_S = rng.uniform(theta_lo, theta_hi)
     theta_A = rng.uniform(theta_lo, theta_hi)
     T_BS1 = rng.uniform(tbs_lo, tbs_hi)
     T_BS2 = rng.uniform(tbs_lo, tbs_hi)
-    T_H = rng.uniform(th_lo, th_hi)
+    T_hold = rng.uniform(th_lo, th_hi)
     alpha = rng.uniform(alpha_lo, alpha_hi, size=4)
 
     return np.array(
-        [theta_S, theta_A, T_BS1, T_BS2, T_H, *alpha],
+        [theta_S, theta_A, T_BS1, T_BS2, T_hold, *alpha],
         dtype=float,
     )
 
@@ -1825,7 +1828,7 @@ def random_params_nm(
 def run_lbfgsb_optimisation(
     N: int,
     M: int,
-    theta_true: float = 1.0,
+    omega_true: float = 1.0,
     x0: np.ndarray | None = None,
     seed: int | None = 42,
     maxiter: int = 500,
@@ -1839,11 +1842,11 @@ def run_lbfgsb_optimisation(
     Args:
         N: System particle number.
         M: Ancilla particle number.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         x0: Initial 9-element parameter vector (random if None).
         seed: Random seed (used if x0 is None).
         maxiter: Maximum L-BFGS-B iterations.
-        fd_step: FD step for theta derivative.
+        fd_step: FD step for omega derivative.
         grad_step: FD step for gradient computation (only used for
             method='fd').
         bounds_dict: Custom bounds (uses defaults if None).
@@ -1854,8 +1857,8 @@ def run_lbfgsb_optimisation(
             faster and more accurate gradients; use 'fd' as reference.
 
     Returns:
-        Dict with keys: 'delta_theta_opt', 'params_opt', 'success',
-        'message', 'nfev', 'njev', 'N', 'M', 'phi_opt', 'a_opt', 'b_opt',
+        Dict with keys: 'delta_omega_opt', 'params_opt', 'success',
+        'message', 'nfev', 'njev', 'N', 'M', 'psi_opt', 'a_opt', 'b_opt',
         'exp_S', 'exp_A', 'var_S', 'var_A', 'cov_SA'.
     """
     if method not in ("fd", "ad"):
@@ -1872,11 +1875,11 @@ def run_lbfgsb_optimisation(
 
     # Build bound list for L-BFGS-B
     bound_list = [
-        bounds_dict["theta"],  # theta_S
-        bounds_dict["theta"],  # theta_A
+        bounds_dict["bloch_theta"],  # theta_S
+        bounds_dict["bloch_theta"],  # theta_A
         bounds_dict["T_BS"],  # T_BS1
         bounds_dict["T_BS"],  # T_BS2
-        bounds_dict["T_H"],  # T_H
+        bounds_dict["T_hold"],  # T_hold
         bounds_dict["alpha"],  # alpha_xx
         bounds_dict["alpha"],  # alpha_xz
         bounds_dict["alpha"],  # alpha_zx
@@ -1897,7 +1900,7 @@ def run_lbfgsb_optimisation(
         obj_grad_kwargs = {"fd_step": fd_step}
 
     def _objective_grad_wrapper(params: np.ndarray) -> tuple[float, np.ndarray]:
-        return _obj_grad_fn(params, N, M, theta_true, ops_np, **obj_grad_kwargs)
+        return _obj_grad_fn(params, N, M, omega_true, ops_np, **obj_grad_kwargs)
 
     # Objective function for scipy
     def objective(params: np.ndarray) -> float:
@@ -1924,7 +1927,7 @@ def run_lbfgsb_optimisation(
     )
 
     opt_params = result.x
-    theta_S_opt, theta_A_opt, T_BS1_opt, T_BS2_opt, T_H_opt = opt_params[:5]
+    theta_S_opt, theta_A_opt, T_BS1_opt, T_BS2_opt, T_hold_opt = opt_params[:5]
     alpha_opt = (
         float(opt_params[5]),
         float(opt_params[6]),
@@ -1940,8 +1943,8 @@ def run_lbfgsb_optimisation(
             psi0_opt,
             float(T_BS1_opt),
             float(T_BS2_opt),
-            float(T_H_opt),
-            theta_true,
+            float(T_hold_opt),
+            omega_true,
             alpha_opt,
             ops_np,
             N,
@@ -1949,18 +1952,18 @@ def run_lbfgsb_optimisation(
             fd_step=fd_step,
             return_optimal_weights=True,
         )
-        phi_opt, a_opt, b_opt, delta_theta_opt = weighted_result
+        psi_opt, a_opt, b_opt, delta_omega_opt = weighted_result
     except (ValueError, np.linalg.LinAlgError, TypeError):
-        phi_opt, a_opt, b_opt = 0.0, 1.0, 0.0
-        delta_theta_opt = float(result.fun)
+        psi_opt, a_opt, b_opt = 0.0, 1.0, 0.0
+        delta_omega_opt = float(result.fun)
 
     # Diagnostics
     moments, _d_moments = compute_moments_and_derivatives(
         psi0_opt,
         float(T_BS1_opt),
         float(T_BS2_opt),
-        float(T_H_opt),
-        theta_true,
+        float(T_hold_opt),
+        omega_true,
         alpha_opt,
         ops_np,
         N,
@@ -1972,13 +1975,13 @@ def run_lbfgsb_optimisation(
     return {
         "N": N,
         "M": M,
-        "delta_theta_opt": delta_theta_opt,
+        "delta_omega_opt": delta_omega_opt,
         "params_opt": opt_params,
         "success": bool(result.success),
         "message": str(result.message),
         "nfev": int(result.nfev),
         "njev": int(getattr(result, "njev", 0)),
-        "phi_opt": phi_opt,
+        "psi_opt": psi_opt,
         "a_opt": a_opt,
         "b_opt": b_opt,
         "exp_S": exp_S,
@@ -2001,12 +2004,12 @@ class NScalingResult:
     Attributes:
         N_values: Array of N values scanned.
         M_value: Fixed ancilla size used.
-        delta_theta_values: Mean Δθ per N across seeds (after optimisation).
-        delta_theta_std: Standard deviation of Δθ across seeds per N.
+        delta_omega_values: Mean Δθ per N across seeds (after optimisation).
+        delta_omega_std: Standard deviation of Δθ across seeds per N.
             Used for weighted regression weights w_N = 1/σ_N².
-        delta_theta_seeds: Full per-seed Δθ array, shape (len(N_values), num_seeds).
+        delta_omega_seeds: Full per-seed Δθ array, shape (len(N_values), num_seeds).
             None when not collected (legacy/backward-compatible).
-        phi_opt_values: Optimal weight angle for each N (from best seed).
+        psi_opt_values: Optimal weight angle for each N (from best seed).
         a_opt_values: Optimal weight a for each N (from best seed).
         b_opt_values: Optimal weight b for each N (from best seed).
         scaling_exponent: Fitted exponent nu in Δθ ∝ N^{-nu}. Median of bootstrap
@@ -2030,8 +2033,8 @@ class NScalingResult:
 
     N_values: np.ndarray
     M_value: int
-    delta_theta_values: np.ndarray
-    phi_opt_values: np.ndarray
+    delta_omega_values: np.ndarray
+    psi_opt_values: np.ndarray
     a_opt_values: np.ndarray
     b_opt_values: np.ndarray
     scaling_exponent: float
@@ -2040,10 +2043,10 @@ class NScalingResult:
     curvature_err: float
     R_squared: float
     num_seeds: int
-    delta_theta_std: np.ndarray = field(
+    delta_omega_std: np.ndarray = field(
         default_factory=lambda: np.array([], dtype=float)
     )
-    delta_theta_seeds: np.ndarray | None = None
+    delta_omega_seeds: np.ndarray | None = None
     scaling_exponent_ci: tuple[float, float] = (float("nan"), float("nan"))
     curvature_ci: tuple[float, float] = (float("nan"), float("nan"))
     n_bootstrap: int = 10000
@@ -2055,11 +2058,11 @@ class NScalingResult:
         n = len(self.N_values)
         data: dict[str, np.ndarray] = {
             "N": self.N_values,
-            "delta_theta": self.delta_theta_values,
-            "delta_theta_std": self.delta_theta_std
-            if len(self.delta_theta_std) == n
+            "delta_omega": self.delta_omega_values,
+            "delta_omega_std": self.delta_omega_std
+            if len(self.delta_omega_std) == n
             else np.full(n, float("nan")),
-            "phi_opt": self.phi_opt_values,
+            "psi_opt": self.psi_opt_values,
             "a_opt": self.a_opt_values,
             "b_opt": self.b_opt_values,
             "M_value": np.full(n, self.M_value, dtype=int),
@@ -2093,9 +2096,9 @@ class NScalingResult:
 
         # Reconstruct arrays from the DataFrame
         N_values = df["N"].to_numpy(dtype=int)
-        delta_theta_values = df["delta_theta"].to_numpy(dtype=float)
-        delta_theta_std = df["delta_theta_std"].to_numpy(dtype=float)
-        phi_opt_values = df["phi_opt"].to_numpy(dtype=float)
+        delta_omega_values = df["delta_omega"].to_numpy(dtype=float)
+        delta_omega_std = df["delta_omega_std"].to_numpy(dtype=float)
+        psi_opt_values = df["psi_opt"].to_numpy(dtype=float)
         a_opt_values = df["a_opt"].to_numpy(dtype=float)
         b_opt_values = df["b_opt"].to_numpy(dtype=float)
 
@@ -2123,17 +2126,17 @@ class NScalingResult:
                 f"Re-run the simulation that generated this file."
             )
 
-        if "delta_theta_std" not in df.columns:
+        if "delta_omega_std" not in df.columns:
             raise ValueError(
-                f"Missing required column 'delta_theta_std' in {path}. "
+                f"Missing required column 'delta_omega_std' in {path}. "
                 f"Re-run the simulation that generated this file."
             )
 
         return cls(
             N_values=N_values,
             M_value=int(df["M_value"].iloc[0]),
-            delta_theta_values=delta_theta_values,
-            phi_opt_values=phi_opt_values,
+            delta_omega_values=delta_omega_values,
+            psi_opt_values=psi_opt_values,
             a_opt_values=a_opt_values,
             b_opt_values=b_opt_values,
             scaling_exponent=float(df["scaling_exponent"].iloc[0]),
@@ -2142,7 +2145,7 @@ class NScalingResult:
             curvature_err=float(df["curvature_err"].iloc[0]),
             R_squared=float(df["R_squared"].iloc[0]),
             num_seeds=int(df["num_seeds"].iloc[0]),
-            delta_theta_std=delta_theta_std,
+            delta_omega_std=delta_omega_std,
             scaling_exponent_ci=(
                 float(df["scaling_exponent_ci_lower"].iloc[0]),
                 float(df["scaling_exponent_ci_upper"].iloc[0]),
@@ -2164,8 +2167,8 @@ class MScalingResult:
     Attributes:
         M_values: Array of M values scanned.
         N_value: Fixed system size used.
-        delta_theta_values: Best Δθ for each M.
-        phi_opt_values: Optimal weight angle for each M.
+        delta_omega_values: Best Δθ for each M.
+        psi_opt_values: Optimal weight angle for each M.
         a_opt_values: Optimal weight a for each M.
         b_opt_values: Optimal weight b for each M.
         improvement_01: Fractional improvement from M=0 to M=1.
@@ -2174,8 +2177,8 @@ class MScalingResult:
 
     M_values: np.ndarray
     N_value: int
-    delta_theta_values: np.ndarray
-    phi_opt_values: np.ndarray
+    delta_omega_values: np.ndarray
+    psi_opt_values: np.ndarray
     a_opt_values: np.ndarray
     b_opt_values: np.ndarray
     improvement_01: float = 0.0
@@ -2185,8 +2188,8 @@ class MScalingResult:
         n = len(self.M_values)
         data = {
             "M": self.M_values,
-            "delta_theta": self.delta_theta_values,
-            "phi_opt": self.phi_opt_values,
+            "delta_omega": self.delta_omega_values,
+            "psi_opt": self.psi_opt_values,
             "a_opt": self.a_opt_values,
             "b_opt": self.b_opt_values,
             "N_value": np.full(n, self.N_value, dtype=int),
@@ -2218,8 +2221,8 @@ class MScalingResult:
         return cls(
             M_values=df["M"].to_numpy(dtype=int),
             N_value=int(df["N_value"].iloc[0]),
-            delta_theta_values=df["delta_theta"].to_numpy(dtype=float),
-            phi_opt_values=df["phi_opt"].to_numpy(dtype=float),
+            delta_omega_values=df["delta_omega"].to_numpy(dtype=float),
+            psi_opt_values=df["psi_opt"].to_numpy(dtype=float),
             a_opt_values=df["a_opt"].to_numpy(dtype=float),
             b_opt_values=df["b_opt"].to_numpy(dtype=float),
             improvement_01=float(df["improvement_01"].iloc[0]),
@@ -2343,7 +2346,7 @@ def _bootstrap_scaling(
 def run_n_scaling(
     N_values: list[int],
     M: int = -1,
-    theta_true: float = 1.0,
+    omega_true: float = 1.0,
     num_seeds: int = 20,
     maxiter: int = 200,
     seed: int = 42,
@@ -2366,12 +2369,12 @@ def run_n_scaling(
     Args:
         N_values: List of system particle numbers to scan.
         M: Ancilla particle number. If -1, uses M = N for each N.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         num_seeds: Number of random seeds per N. Default 20; raise
             further for production runs.
         maxiter: Maximum L-BFGS-B iterations per run.
         seed: Base random seed.
-        fd_step: FD step for theta derivative.
+        fd_step: FD step for omega derivative.
         grad_step: FD step for gradient.
         n_bootstrap: Number of bootstrap resamples for CI. Default 10000.
 
@@ -2385,8 +2388,8 @@ def run_n_scaling(
     outer_rng = np.random.default_rng(seed)
 
     # Per-seed storage: (n_N, num_seeds)
-    all_delta_theta = np.full((n_N, num_seeds), np.inf, dtype=float)
-    all_phi = np.full((n_N, num_seeds), np.nan, dtype=float)
+    all_delta_omega = np.full((n_N, num_seeds), np.inf, dtype=float)
+    all_psi = np.full((n_N, num_seeds), np.nan, dtype=float)
     all_a = np.full((n_N, num_seeds), np.nan, dtype=float)
     all_b = np.full((n_N, num_seeds), np.nan, dtype=float)
 
@@ -2398,28 +2401,28 @@ def run_n_scaling(
             result = run_lbfgsb_optimisation(
                 N_val,
                 M_val,
-                theta_true=theta_true,
+                omega_true=omega_true,
                 x0=x0,
                 maxiter=maxiter,
                 fd_step=fd_step,
                 grad_step=grad_step,
             )
-            dt = result["delta_theta_opt"]
-            all_delta_theta[i, restart] = dt
-            all_phi[i, restart] = result["phi_opt"]
+            dt = result["delta_omega_opt"]
+            all_delta_omega[i, restart] = dt
+            all_psi[i, restart] = result["psi_opt"]
             all_a[i, restart] = result["a_opt"]
             all_b[i, restart] = result["b_opt"]
 
     # --- Per-N statistics (mean, std, best) ---
-    dt_valid = np.where(np.isfinite(all_delta_theta), all_delta_theta, np.nan)
+    dt_valid = np.where(np.isfinite(all_delta_omega), all_delta_omega, np.nan)
     dt_mean = np.nanmean(dt_valid, axis=1)
     dt_std = np.nanstd(dt_valid, axis=1)
     # Fallback: if std is zero (e.g. single seed), use a small positive value
     dt_std = np.maximum(dt_std, 1e-30)
 
     # Best per-N corresponds to minimum Δθ across seeds
-    best_idx = np.nanargmin(all_delta_theta, axis=1)
-    phi_opt = all_phi[np.arange(n_N), best_idx]
+    best_idx = np.nanargmin(all_delta_omega, axis=1)
+    psi_opt = all_psi[np.arange(n_N), best_idx]
     a_opt = all_a[np.arange(n_N), best_idx]
     b_opt = all_b[np.arange(n_N), best_idx]
 
@@ -2430,8 +2433,8 @@ def run_n_scaling(
         return NScalingResult(
             N_values=N_arr,
             M_value=M,
-            delta_theta_values=dt_mean,
-            phi_opt_values=phi_opt,
+            delta_omega_values=dt_mean,
+            psi_opt_values=psi_opt,
             a_opt_values=a_opt,
             b_opt_values=b_opt,
             scaling_exponent=float("nan"),
@@ -2440,8 +2443,8 @@ def run_n_scaling(
             curvature_err=float("nan"),
             R_squared=float("nan"),
             num_seeds=num_seeds,
-            delta_theta_std=dt_std,
-            delta_theta_seeds=all_delta_theta,
+            delta_omega_std=dt_std,
+            delta_omega_seeds=all_delta_omega,
             scaling_exponent_ci=(float("nan"), float("nan")),
             curvature_ci=(float("nan"), float("nan")),
             n_bootstrap=n_bootstrap,
@@ -2512,8 +2515,8 @@ def run_n_scaling(
     return NScalingResult(
         N_values=N_arr,
         M_value=M,
-        delta_theta_values=dt_mean,
-        phi_opt_values=phi_opt,
+        delta_omega_values=dt_mean,
+        psi_opt_values=psi_opt,
         a_opt_values=a_opt,
         b_opt_values=b_opt,
         scaling_exponent=scaling_exponent,
@@ -2522,8 +2525,8 @@ def run_n_scaling(
         curvature_err=beta_err,
         R_squared=R_sq,
         num_seeds=num_seeds,
-        delta_theta_std=dt_std,
-        delta_theta_seeds=all_delta_theta,
+        delta_omega_std=dt_std,
+        delta_omega_seeds=all_delta_omega,
         scaling_exponent_ci=scaling_exponent_ci,
         curvature_ci=curvature_ci,
         n_bootstrap=n_bootstrap,
@@ -2533,7 +2536,7 @@ def run_n_scaling(
 def run_m_scaling(
     M_values: list[int],
     N: int = 4,
-    theta_true: float = 1.0,
+    omega_true: float = 1.0,
     num_seeds: int = 20,
     maxiter: int = 200,
     seed: int = 42,
@@ -2545,25 +2548,25 @@ def run_m_scaling(
     Args:
         M_values: List of ancilla particle numbers to scan.
         N: Fixed system particle number (default 4).
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         num_seeds: Number of random seeds per M.
         maxiter: Maximum L-BFGS-B iterations per run.
         seed: Base random seed.
-        fd_step: FD step for theta derivative.
+        fd_step: FD step for omega derivative.
         grad_step: FD step for gradient.
 
     Returns:
         MScalingResult.
     """
     M_arr = np.array(M_values, dtype=int)
-    delta_theta_arr = np.full(len(M_arr), np.inf, dtype=float)
-    phi_arr = np.full(len(M_arr), np.nan, dtype=float)
+    delta_omega_arr = np.full(len(M_arr), np.inf, dtype=float)
+    psi_arr = np.full(len(M_arr), np.nan, dtype=float)
     a_arr = np.full(len(M_arr), np.nan, dtype=float)
     b_arr = np.full(len(M_arr), np.nan, dtype=float)
 
     for i, M_val in enumerate(M_arr):
         best_dt = float("inf")
-        best_phi = float("nan")
+        best_psi = float("nan")
         best_a = float("nan")
         best_b = float("nan")
 
@@ -2573,21 +2576,21 @@ def run_m_scaling(
             result = run_lbfgsb_optimisation(
                 N,
                 M_val,
-                theta_true=theta_true,
+                omega_true=omega_true,
                 x0=x0,
                 maxiter=maxiter,
                 fd_step=fd_step,
                 grad_step=grad_step,
             )
-            dt = result["delta_theta_opt"]
+            dt = result["delta_omega_opt"]
             if np.isfinite(dt) and dt < best_dt:
                 best_dt = dt
-                best_phi = result["phi_opt"]
+                best_psi = result["psi_opt"]
                 best_a = result["a_opt"]
                 best_b = result["b_opt"]
 
-        delta_theta_arr[i] = best_dt
-        phi_arr[i] = best_phi
+        delta_omega_arr[i] = best_dt
+        psi_arr[i] = best_psi
         a_arr[i] = best_a
         b_arr[i] = best_b
 
@@ -2597,17 +2600,17 @@ def run_m_scaling(
         len(M_arr) >= 2
         and M_arr[0] == 0
         and M_arr[1] == 1
-        and np.isfinite(delta_theta_arr[0])
-        and np.isfinite(delta_theta_arr[1])
-        and delta_theta_arr[0] > 0
+        and np.isfinite(delta_omega_arr[0])
+        and np.isfinite(delta_omega_arr[1])
+        and delta_omega_arr[0] > 0
     ):
-        improvement_01 = (delta_theta_arr[0] - delta_theta_arr[1]) / delta_theta_arr[0]
+        improvement_01 = (delta_omega_arr[0] - delta_omega_arr[1]) / delta_omega_arr[0]
 
     return MScalingResult(
         M_values=M_arr,
         N_value=N,
-        delta_theta_values=delta_theta_arr,
-        phi_opt_values=phi_arr,
+        delta_omega_values=delta_omega_arr,
+        psi_opt_values=psi_arr,
         a_opt_values=a_arr,
         b_opt_values=b_arr,
         improvement_01=improvement_01,
@@ -2626,22 +2629,22 @@ class AlphaReoptResultNM:
     Attributes:
         alpha_name: Which coefficient was scanned.
         alpha_values: Array of alpha values.
-        delta_theta_weighted: Best Δθ with weighted joint measurement.
-        delta_theta_sonly: Δθ with S-only measurement at same params.
+        delta_omega_weighted: Best Δθ with weighted joint measurement.
+        delta_omega_sonly: Δθ with S-only measurement at same params.
         a_opt_values: Optimal weight a for each alpha.
         b_opt_values: Optimal weight b for each alpha.
-        phi_opt_values: Optimal phi for each alpha.
+        psi_opt_values: Optimal psi for each alpha.
         N: System particle number.
         M: Ancilla particle number.
     """
 
     alpha_name: str
     alpha_values: np.ndarray
-    delta_theta_weighted: np.ndarray
-    delta_theta_sonly: np.ndarray
+    delta_omega_weighted: np.ndarray
+    delta_omega_sonly: np.ndarray
     a_opt_values: np.ndarray
     b_opt_values: np.ndarray
-    phi_opt_values: np.ndarray
+    psi_opt_values: np.ndarray
     N: int
     M: int
 
@@ -2649,11 +2652,11 @@ class AlphaReoptResultNM:
         n = len(self.alpha_values)
         data = {
             "alpha": self.alpha_values,
-            "delta_theta_weighted": self.delta_theta_weighted,
-            "delta_theta_sonly": self.delta_theta_sonly,
+            "delta_omega_weighted": self.delta_omega_weighted,
+            "delta_omega_sonly": self.delta_omega_sonly,
             "a_opt": self.a_opt_values,
             "b_opt": self.b_opt_values,
-            "phi_opt": self.phi_opt_values,
+            "psi_opt": self.psi_opt_values,
             "alpha_name": np.full(n, self.alpha_name, dtype=object),
             "N": np.full(n, self.N, dtype=int),
             "M": np.full(n, self.M, dtype=int),
@@ -2683,11 +2686,11 @@ class AlphaReoptResultNM:
         return cls(
             alpha_name=str(df["alpha_name"].iloc[0]),
             alpha_values=df["alpha"].to_numpy(dtype=float),
-            delta_theta_weighted=df["delta_theta_weighted"].to_numpy(dtype=float),
-            delta_theta_sonly=df["delta_theta_sonly"].to_numpy(dtype=float),
+            delta_omega_weighted=df["delta_omega_weighted"].to_numpy(dtype=float),
+            delta_omega_sonly=df["delta_omega_sonly"].to_numpy(dtype=float),
             a_opt_values=df["a_opt"].to_numpy(dtype=float),
             b_opt_values=df["b_opt"].to_numpy(dtype=float),
-            phi_opt_values=df["phi_opt"].to_numpy(dtype=float),
+            psi_opt_values=df["psi_opt"].to_numpy(dtype=float),
             N=int(df["N"].iloc[0]),
             M=int(df["M"].iloc[0]),
         )
@@ -2698,7 +2701,7 @@ def run_alpha_scan_with_reoptimisation(
     N: int,
     M: int,
     alpha_values: np.ndarray | None = None,
-    theta_true: float = 1.0,
+    omega_true: float = 1.0,
     num_seeds: int = 3,
     maxiter: int = 100,
     fd_step: float = 1e-6,
@@ -2711,10 +2714,10 @@ def run_alpha_scan_with_reoptimisation(
         N: System particle number.
         M: Ancilla particle number.
         alpha_values: Array of alpha values to scan.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         num_seeds: Number of random seeds per alpha value.
         maxiter: Maximum L-BFGS-B iterations per run.
-        fd_step: FD step for theta derivative.
+        fd_step: FD step for omega derivative.
         grad_step: FD step for gradient.
 
     Returns:
@@ -2737,7 +2740,7 @@ def run_alpha_scan_with_reoptimisation(
     dt_sonly = np.full(n_pts, np.inf, dtype=float)
     a_opt_arr = np.full(n_pts, np.nan, dtype=float)
     b_opt_arr = np.full(n_pts, np.nan, dtype=float)
-    phi_opt_arr = np.full(n_pts, np.nan, dtype=float)
+    psi_opt_arr = np.full(n_pts, np.nan, dtype=float)
 
     ops_np = build_collective_operators(N, M)
 
@@ -2748,7 +2751,7 @@ def run_alpha_scan_with_reoptimisation(
 
         best_dt_w = float("inf")
         best_dt_s = float("inf")
-        best_phi = float("nan")
+        best_psi = float("nan")
         best_a_v = float("nan")
         best_b_v = float("nan")
 
@@ -2768,7 +2771,7 @@ def run_alpha_scan_with_reoptimisation(
                         float(Tb1),
                         float(Tb2),
                         float(Th),
-                        theta_true,
+                        omega_true,
                         alpha_fixed,
                         ops_np,
                         N,
@@ -2786,7 +2789,7 @@ def run_alpha_scan_with_reoptimisation(
                 (0.0, np.pi),  # theta_A
                 (0.0, np.pi),  # T_BS1
                 (0.0, np.pi),  # T_BS2
-                (0.1, 20.0),  # T_H
+                (0.1, 20.0),  # T_hold
             ]
             obj_w = make_obj(fixed_alpha)
             res_w = minimize(
@@ -2806,7 +2809,7 @@ def run_alpha_scan_with_reoptimisation(
                 float(Tb1_opt),
                 float(Tb2_opt),
                 float(Th_opt),
-                theta_true,
+                omega_true,
                 fixed_alpha,
                 ops_np,
                 N,
@@ -2814,10 +2817,10 @@ def run_alpha_scan_with_reoptimisation(
                 fd_step=fd_step,
                 return_optimal_weights=True,
             )
-            phi_w, a_w, b_w, dt_w_val = w_result
+            psi_w, a_w, b_w, dt_w_val = w_result
             if np.isfinite(dt_w_val) and dt_w_val < best_dt_w:
                 best_dt_w = dt_w_val
-                best_phi = phi_w
+                best_psi = psi_w
                 best_a_v = a_w
                 best_b_v = b_w
 
@@ -2827,7 +2830,7 @@ def run_alpha_scan_with_reoptimisation(
                 float(Tb1_opt),
                 float(Tb2_opt),
                 float(Th_opt),
-                theta_true,
+                omega_true,
                 fixed_alpha,
                 ops_np,
                 N,
@@ -2841,16 +2844,16 @@ def run_alpha_scan_with_reoptimisation(
         dt_sonly[i] = best_dt_s
         a_opt_arr[i] = best_a_v
         b_opt_arr[i] = best_b_v
-        phi_opt_arr[i] = best_phi
+        psi_opt_arr[i] = best_psi
 
     return AlphaReoptResultNM(
         alpha_name=alpha_name,
         alpha_values=alpha_arr,
-        delta_theta_weighted=dt_weighted,
-        delta_theta_sonly=dt_sonly,
+        delta_omega_weighted=dt_weighted,
+        delta_omega_sonly=dt_sonly,
         a_opt_values=a_opt_arr,
         b_opt_values=b_opt_arr,
-        phi_opt_values=phi_opt_arr,
+        psi_opt_values=psi_opt_arr,
         N=N,
         M=M,
     )
@@ -2918,20 +2921,20 @@ def validate_css_state(N: int, theta: float) -> bool:
     return True
 
 
-def validate_hl_bound(delta_theta: float, N: int, T_H: float) -> bool:
-    """Validate Heisenberg limit: Δθ ≥ 1/(N * T_H).
+def validate_hl_bound(delta_omega: float, N: int, T_hold: float) -> bool:
+    """Validate Heisenberg limit: Δθ ≥ 1/(N * T_hold).
 
     Args:
-        delta_theta: Sensitivity value.
+        delta_omega: Sensitivity value.
         N: System particle number.
-        T_H: Holding time.
+        T_hold: Holding time.
 
     Returns:
         True if bound holds (with 1e-6 tolerance).
     """
-    hl = 1.0 / (N * T_H)
-    assert delta_theta >= hl - 1e-6, (
-        f"HL bound violated: Δθ={delta_theta:.6e} < 1/(N T_H)={hl:.6e}"
+    hl = 1.0 / (N * T_hold)
+    assert delta_omega >= hl - 1e-6, (
+        f"HL bound violated: Δθ={delta_omega:.6e} < 1/(N T_hold)={hl:.6e}"
     )
     return True
 
@@ -2946,8 +2949,8 @@ def plot_n_scaling(
     Shows:
     - Mean Δθ per N with error bars (std across seeds)
     - Weighted log-log linear fit line with shaded 95% bootstrap CI
-    - SQL reference: Δθ_SQL = 1/(√N · T_H)
-    - Heisenberg limit reference: Δθ_HL = 1/(N · T_H)
+    - SQL reference: Δθ_SQL = 1/(√N · T_hold)
+    - Heisenberg limit reference: Δθ_HL = 1/(N · T_hold)
     """
     if isinstance(result, (str, Path)):
         result = NScalingResult.from_parquet(result)
@@ -2957,28 +2960,28 @@ def plot_n_scaling(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Use an effective T_H for reference lines. Since T_H is optimised
-    # per N and varies, show the SQL/HL lines using the maximum T_H
+    # Use an effective T_hold for reference lines. Since T_hold is optimised
+    # per N and varies, show the SQL/HL lines using the maximum T_hold
     # from the bounds (20.0), giving the most optimistic reference.
-    T_H_ref = 20.0
+    T_hold_ref = 20.0
 
     # Data points with error bars
     ax.errorbar(
         result.N_values,
-        result.delta_theta_values,
-        yerr=result.delta_theta_std,
+        result.delta_omega_values,
+        yerr=result.delta_omega_std,
         fmt="o",
         color="C0",
         capsize=4,
         markersize=6,
-        label=r"$\Delta\theta$ (mean $\pm$ std)",
+        label=r"$\Delta\omega$ (mean $\pm$ std)",
     )
 
     # Best Δθ per N (minimum across seeds)
     best_per_N = (
-        np.min(result.delta_theta_seeds, axis=1)
-        if result.delta_theta_seeds is not None
-        else result.delta_theta_values
+        np.min(result.delta_omega_seeds, axis=1)
+        if result.delta_omega_seeds is not None
+        else result.delta_omega_values
     )
     ax.scatter(
         result.N_values,
@@ -2999,7 +3002,7 @@ def plot_n_scaling(
     log_N_fit = np.log(N_fit)
     nu = result.scaling_exponent
     c_fit = np.mean(
-        np.log(result.delta_theta_values) + nu * np.log(result.N_values.astype(float))
+        np.log(result.delta_omega_values) + nu * np.log(result.N_values.astype(float))
     )
     dt_fit = np.exp(-nu * log_N_fit + c_fit)
     ax.loglog(
@@ -3025,7 +3028,7 @@ def plot_n_scaling(
             label=rf"95% CI: $[{nu_lo:.3f}, {nu_hi:.3f}]$",
         )
 
-    # SQL and HL reference lines (using T_H_ref)
+    # SQL and HL reference lines (using T_hold_ref)
     N_range = np.logspace(
         np.log10(max(result.N_values.min(), 1)),
         np.log10(result.N_values.max()),
@@ -3033,24 +3036,24 @@ def plot_n_scaling(
     )
     ax.loglog(
         N_range,
-        1.0 / (np.sqrt(N_range) * T_H_ref),
+        1.0 / (np.sqrt(N_range) * T_hold_ref),
         ":",
         color="C2",
         alpha=0.6,
-        label=r"SQL: $1/(\sqrt{N}\,T_H)$",
+        label=r"SQL: $1/(\sqrt{N}\,T_hold)$",
     )
     ax.loglog(
         N_range,
-        1.0 / (N_range * T_H_ref),
+        1.0 / (N_range * T_hold_ref),
         ":",
         color="C4",
         alpha=0.6,
-        label=r"HL: $1/(N\,T_H)$",
+        label=r"HL: $1/(N\,T_hold)$",
     )
 
     ax.set_xlabel(r"$N$ (system particles)")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(rf"N-scaling: $\Delta\theta$ vs $N$ (M={result.M_value})")
+    ax.set_ylabel(r"$\Delta\omega$")
+    ax.set_title(rf"N-scaling: $\Delta\omega$ vs $N$ (M={result.M_value})")
     ax.legend(fontsize="small")
     fig.savefig(save_path, format="svg", bbox_inches="tight")
     plt.close(fig)
@@ -3086,35 +3089,35 @@ def plot_m_scaling(
     # Δθ vs M
     ax1.semilogy(
         result.M_values,
-        result.delta_theta_values,
+        result.delta_omega_values,
         marker="o",
         linestyle="-",
         color="C0",
         linewidth=2,
         markersize=6,
-        label=r"$\Delta\theta$ (best)",
+        label=r"$\Delta\omega$ (best)",
     )
 
     # SQL reference for N=4
-    T_H_ref = 20.0
-    sql = 1.0 / (np.sqrt(result.N_value) * T_H_ref)
+    T_hold_ref = 20.0
+    sql = 1.0 / (np.sqrt(result.N_value) * T_hold_ref)
     ax1.axhline(
         y=sql,
         color="C2",
         linestyle=":",
         alpha=0.6,
-        label=rf"SQL: $1/(\sqrt{{{result.N_value}}}\,T_H)$",
+        label=rf"SQL: $1/(\sqrt{{{result.N_value}}}\,T_hold)$",
     )
 
     # Ensure all data points are within the plotted y-range
-    y_min = 0.99 * min(result.delta_theta_values)
-    y_max = 1.01 * max(result.delta_theta_values)
+    y_min = 0.99 * min(result.delta_omega_values)
+    y_max = 1.01 * max(result.delta_omega_values)
     ax1.set_ylim(y_min, y_max)
 
     ax1.set_xlabel(r"$M$ (ancilla particles)")
-    ax1.set_ylabel(r"$\Delta\theta$")
+    ax1.set_ylabel(r"$\Delta\omega$")
     ax1.set_title(
-        rf"M-scaling: $\Delta\theta$ vs ancilla size $M$ (N={result.N_value})"
+        rf"M-scaling: $\Delta\omega$ vs ancilla size $M$ (N={result.N_value})"
     )
 
     # Annotate improvement from M=0 to M=1
@@ -3122,8 +3125,8 @@ def plot_m_scaling(
         improvement_pct = result.improvement_01 * 100
         text_y = y_min / 1.015
         ax1.annotate(
-            rf"$\Delta\theta$ improvement: {improvement_pct:.1f}\%",
-            xy=(1, result.delta_theta_values[1]),
+            rf"$\Delta\omega$ improvement: {improvement_pct:.1f}\%",
+            xy=(1, result.delta_omega_values[1]),
             xytext=(4, text_y),
             arrowprops={"arrowstyle": "->", "color": "gray"},
             fontsize=10,
@@ -3189,29 +3192,29 @@ def plot_weighted_alpha_scan(
     # Weighted joint measurement
     ax1.plot(
         result.alpha_values,
-        result.delta_theta_weighted,
+        result.delta_omega_weighted,
         marker="o",
         linestyle="-",
         color="C0",
         linewidth=2,
         markersize=6,
-        label=r"Weighted joint: $\Delta\theta$",
+        label=r"Weighted joint: $\Delta\omega$",
     )
 
     # S-only measurement
     ax1.plot(
         result.alpha_values,
-        result.delta_theta_sonly,
+        result.delta_omega_sonly,
         marker="s",
         linestyle="--",
         color="C1",
         linewidth=2,
         markersize=6,
-        label=r"S-only: $\Delta\theta$",
+        label=r"S-only: $\Delta\omega$",
     )
 
     ax1.set_xlabel(rf"$\alpha_{{{result.alpha_name}}}$")
-    ax1.set_ylabel(r"$\Delta\theta$")
+    ax1.set_ylabel(r"$\Delta\omega$")
     ax1.set_title(rf"$\alpha_{{{result.alpha_name}}}$ scan: N={result.N}, M={result.M}")
     ax1.legend(fontsize="small")
 
@@ -3219,15 +3222,15 @@ def plot_weighted_alpha_scan(
     ax2 = ax1.twinx()
     ax2.plot(
         result.alpha_values,
-        result.phi_opt_values,
+        result.psi_opt_values,
         marker=".",
         linestyle=":",
         color="gray",
         alpha=0.5,
         markersize=3,
-        label=r"$\phi^*$",
+        label=r"$\psi^*$",
     )
-    ax2.set_ylabel(r"Optimal $\phi$ (rad)")
+    ax2.set_ylabel(r"Optimal $\psi$ (rad)")
     ax2.legend(fontsize="small", loc="lower right")
 
     fig.savefig(save_path, format="svg", bbox_inches="tight")
@@ -3241,7 +3244,7 @@ def plot_weighted_alpha_scan(
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260518"
-DRIVE_THETA_VALS = [0.1, 0.5, 1.0, 2.0, 5.0]
+DRIVE_OMEGA_VALS = [0.1, 0.5, 1.0, 2.0, 5.0]
 
 
 def _parquet_path(name: str) -> Path:
@@ -3266,7 +3269,7 @@ def generate_n_scaling(force: bool = False) -> None:
         result = run_n_scaling(
             N_values=N_vals,
             M=-1,
-            theta_true=1.0,
+            omega_true=1.0,
             num_seeds=5,
             maxiter=200,
             seed=42,
@@ -3294,7 +3297,7 @@ def generate_m_scaling(force: bool = False) -> None:
         result = run_m_scaling(
             M_values=M_vals,
             N=4,
-            theta_true=1.0,
+            omega_true=1.0,
             num_seeds=5,
             maxiter=200,
             seed=42,
@@ -3323,7 +3326,7 @@ def generate_weighted_alpha_scan(force: bool = False) -> None:
             N=4,
             M=4,
             alpha_values=alpha_vals,
-            theta_true=1.0,
+            omega_true=1.0,
             num_seeds=3,
             maxiter=100,
         )
@@ -3354,12 +3357,12 @@ def generate_drive_decoupled_baseline(force: bool = False) -> None:
 
 
 def _run_drive_2d_slice(
-    theta: float,
+    omega: float,
     slice_type: str,
     force: bool,
 ) -> None:
-    """Run a 2D slice scan for a single \u03b8 value and generate CSV + SVG."""
-    tag = f"drive-2d-slice-{slice_type}-azz-theta{theta}"
+    """Run a 2D slice scan for a single \u03c9 value and generate CSV + SVG."""
+    tag = f"drive-2d-slice-{slice_type}-azz-omega{omega}"
     csv_p = _parquet_path(tag)
     fig_p = _fig_path(tag)
 
@@ -3367,9 +3370,9 @@ def _run_drive_2d_slice(
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
         result = Drive2DSliceResult.from_parquet(csv_p)
     else:
-        print(f"  [run]  Computing ({slice_type}, a_zz) slice at \u03b8={theta}...")
+        print(f"  [run]  Computing ({slice_type}, a_zz) slice at \u03c9={omega}...")
         result = drive_2d_slice(
-            theta=theta,
+            omega=omega,
             slice_type=slice_type,
             n_drive=201,
             n_azz=201,
@@ -3382,24 +3385,24 @@ def _run_drive_2d_slice(
 
 
 def generate_drive_2d_slice_ax_azz(force: bool = False) -> None:
-    """Experiment 2a: 2D slice scans over (a_x, a_zz) at all \u03b8 values."""
-    print(f"[run]  (a_x, a_zz) slice at {DRIVE_THETA_VALS}")
-    for theta in DRIVE_THETA_VALS:
-        _run_drive_2d_slice(theta, slice_type="ax", force=force)
+    """Experiment 2a: 2D slice scans over (a_x, a_zz) at all \u03c9 values."""
+    print(f"[run]  (a_x, a_zz) slice at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        _run_drive_2d_slice(omega, slice_type="ax", force=force)
 
 
 def generate_drive_2d_slice_ay_azz(force: bool = False) -> None:
-    """Experiment 2b: 2D slice scans over (a_y, a_zz) at all \u03b8 values."""
-    print(f"[run]  (a_y, a_zz) slice at {DRIVE_THETA_VALS}")
-    for theta in DRIVE_THETA_VALS:
-        _run_drive_2d_slice(theta, slice_type="ay", force=force)
+    """Experiment 2b: 2D slice scans over (a_y, a_zz) at all \u03c9 values."""
+    print(f"[run]  (a_y, a_zz) slice at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        _run_drive_2d_slice(omega, slice_type="ay", force=force)
 
 
 def generate_drive_random_search(force: bool = False) -> None:
-    """Experiment 3: 4D random search at all \u03b8 values."""
-    print(f"[run]  4D random search at {DRIVE_THETA_VALS}")
-    for theta in DRIVE_THETA_VALS:
-        tag = f"drive-random-search-theta{theta}"
+    """Experiment 3: 4D random search at all \u03c9 values."""
+    print(f"[run]  4D random search at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        tag = f"drive-random-search-omega{omega}"
         csv_p = _parquet_path(tag)
         fig_p = _fig_path(tag)
 
@@ -3408,10 +3411,10 @@ def generate_drive_random_search(force: bool = False) -> None:
             result = DriveRandomSearchResult.from_parquet(csv_p)
         else:
             print(
-                f"  [run]  Running 4D random search at \u03b8={theta} (500 samples)..."
+                f"  [run]  Running 4D random search at \u03c9={omega} (500 samples)..."
             )
             result = drive_random_search(
-                theta=theta,
+                omega=omega,
                 n_samples=500,
                 seed=42,
             )
@@ -3422,18 +3425,18 @@ def generate_drive_random_search(force: bool = False) -> None:
         print(f"  [fig]  {fig_p}")
 
 
-def generate_drive_theta_scan(force: bool = False) -> None:
-    """Experiments 4 & 5: \u03b8-scan with Nelder-Mead refinement."""
-    csv_p = _parquet_path("drive-theta-scan")
-    fig_p = _fig_path("drive-theta-scan")
+def generate_drive_omega_scan(force: bool = False) -> None:
+    """Experiments 4 & 5: \u03c9-scan with Nelder-Mead refinement."""
+    csv_p = _parquet_path("drive-omega-scan")
+    fig_p = _fig_path("drive-omega-scan")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveThetaScanResult.from_parquet(csv_p)
+        result = DriveOmegaScanResult.from_parquet(csv_p)
     else:
-        print("[run]  Computing drive \u03b8-scan (may be slow)...")
-        result = run_drive_theta_scan(
-            theta_values=DRIVE_THETA_VALS,
+        print("[run]  Computing drive \u03c9-scan (may be slow)...")
+        result = run_drive_omega_scan(
+            omega_values=DRIVE_OMEGA_VALS,
             n_random=500,
             n_nm_refine=50,
             seed=42,
@@ -3442,16 +3445,16 @@ def generate_drive_theta_scan(force: bool = False) -> None:
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    plot_drive_theta_scan(result, fig_p)
+    plot_drive_omega_scan(result, fig_p)
     print(f"[fig]  {fig_p}")
 
 
 def generate_drive_optimal_params(force: bool = False) -> None:
-    """Optimal parameter evolution vs \u03b8."""
-    csv_p = _parquet_path("drive-theta-scan")
+    """Optimal parameter evolution vs \u03c9."""
+    csv_p = _parquet_path("drive-omega-scan")
     fig_p = _fig_path("drive-optimal-params")
 
-    result = DriveThetaScanResult.from_parquet(csv_p)
+    result = DriveOmegaScanResult.from_parquet(csv_p)
     plot_drive_optimal_params(result, fig_p)
     print(f"[fig]  {fig_p}")
 
@@ -3490,7 +3493,7 @@ def main() -> None:
         "drive-2d-slice-ax-azz": generate_drive_2d_slice_ax_azz,
         "drive-2d-slice-ay-azz": generate_drive_2d_slice_ay_azz,
         "drive-random-search": generate_drive_random_search,
-        "drive-theta-scan": generate_drive_theta_scan,
+        "drive-omega-scan": generate_drive_omega_scan,
         "drive-optimal-params": generate_drive_optimal_params,
     }
 

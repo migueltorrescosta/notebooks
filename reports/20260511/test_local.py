@@ -19,11 +19,13 @@ import pytest
 # Load local.py via importlib
 # Must register in sys.modules for dataclass machinery to resolve __module__
 _local_path = Path(__file__).resolve().parent / "local.py"
-_spec = importlib.util.spec_from_file_location("report_local", str(_local_path))
+_dirname = Path(__file__).resolve().parent.name
+_modname = f"report_local_{_dirname}"
+_spec = importlib.util.spec_from_file_location(_modname, str(_local_path))
 assert _spec is not None, f"Could not find local.py at {_local_path}"
 _report_local = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
-sys.modules["report_local"] = _report_local
+sys.modules[_modname] = _report_local
 _spec.loader.exec_module(_report_local)
 
 
@@ -143,17 +145,17 @@ class TestDDPhaseSensitivity:
 
     def test_sensitivity_positive(self) -> None:
         for n_pulses in [0, 1, 4, 8]:
-            d = _report_local.dd_phase_sensitivity(10, 0.0, T=1.0, n_pulses=n_pulses)
+            d = _report_local.dd_phase_sensitivity(10, 0.0, T_dd=1.0, n_pulses=n_pulses)
             assert d > 0
 
     def test_more_pulses_improves(self) -> None:
-        d0 = _report_local.dd_phase_sensitivity(10, 0.0, T=1.0, n_pulses=0)
-        d8 = _report_local.dd_phase_sensitivity(10, 0.0, T=1.0, n_pulses=8)
+        d0 = _report_local.dd_phase_sensitivity(10, 0.0, T_dd=1.0, n_pulses=0)
+        d8 = _report_local.dd_phase_sensitivity(10, 0.0, T_dd=1.0, n_pulses=8)
         assert d8 < d0
 
     def test_sql_scaling_preserved(self) -> None:
         N_values = np.logspace(1, 4, 20)
-        result = _report_local.dd_sensitivity_scaling(N_values, 0, T=1.0, T_2_0=1.0)
+        result = _report_local.dd_sensitivity_scaling(N_values, 0, T_dd=1.0, T_2_0=1.0)
         assert result["fitted_alpha"] == pytest.approx(-0.5, abs=0.02)
 
 
@@ -319,7 +321,7 @@ class TestSurveyConfig:
 
     def test_survey_config_defaults(self) -> None:
         config = _report_local.SurveyConfig()
-        assert config.N_points == 8
+        assert config.n_points == 8
         assert config.method == "qfi"
 
     def test_model_config_validation(self) -> None:
@@ -382,7 +384,7 @@ class TestScalingSurveyMiniIntegration:
         ]
         survey_config = _report_local.SurveyConfig(
             N_range=(2, 8),
-            N_points=3,
+            n_points=3,
             noise_levels=[0.0, 0.1],
             seed=42,
         )
@@ -407,7 +409,7 @@ class TestScalingSurveyMiniIntegration:
         models = [_report_local.create_survey_model("ideal_coherent")]
         survey_config = _report_local.SurveyConfig(
             N_range=(2, 16),
-            N_points=5,
+            n_points=5,
             noise_levels=[0.0],
             seed=42,
         )
@@ -452,18 +454,18 @@ class TestGeneratorB:
     """Test G_B for the 2-particle system."""
 
     def test_generator_b_hermitian(self) -> None:
-        G_B = _report_local.compute_generator_B(T_H=1.0, N_max=2)
+        G_B = _report_local.compute_generator_B(T_hold=1.0, N_max=2)
         assert pytest.approx(G_B.conj().T) == G_B
 
     def test_generator_b_eigenvalues_bounded(self) -> None:
-        G_B = _report_local.compute_generator_B(T_H=1.0, N_max=2)
+        G_B = _report_local.compute_generator_B(T_hold=1.0, N_max=2)
         evals = np.linalg.eigvalsh(G_B)
         assert np.min(evals) >= -1.0 - 1e-10
         assert np.max(evals) <= 1.0 + 1e-10
 
     def test_generator_b_scales_linearly(self) -> None:
-        G_B_1 = _report_local.compute_generator_B(T_H=1.0, N_max=2)
-        G_B_2 = _report_local.compute_generator_B(T_H=2.0, N_max=2)
+        G_B_1 = _report_local.compute_generator_B(T_hold=1.0, N_max=2)
+        G_B_2 = _report_local.compute_generator_B(T_hold=2.0, N_max=2)
         assert pytest.approx(2.0 * G_B_1) == G_B_2
 
 
@@ -489,7 +491,7 @@ class TestComparisonPipeline:
 
     def test_run_comparison_returns_comparisonresult(self) -> None:
         result = _report_local.run_comparison(
-            T_H=1.0,
+            T_hold=1.0,
             n_samples_B=100,
             n_samples_A=100,
             n_alpha_samples=5,
@@ -500,7 +502,7 @@ class TestComparisonPipeline:
 
     def test_fq_b_positive(self) -> None:
         result = _report_local.run_comparison(
-            T_H=1.0,
+            T_hold=1.0,
             n_samples_B=100,
             n_samples_A=100,
             n_alpha_samples=5,
@@ -511,7 +513,7 @@ class TestComparisonPipeline:
 
     def test_fq_a_positive(self) -> None:
         result = _report_local.run_comparison(
-            T_H=1.0,
+            T_hold=1.0,
             n_samples_B=100,
             n_samples_A=100,
             n_alpha_samples=5,

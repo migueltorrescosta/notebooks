@@ -35,7 +35,7 @@ import seaborn as sns
 
 from src.analysis.ancilla_optimization import (
     random_search_alpha,
-    run_theta_scan,
+    run_omega_scan,
     scan_alpha_single_parameter,
 )
 from src.analysis.scaling_fit import fit_scaling_exponent
@@ -51,21 +51,21 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent
 # =============================================================================
 #
 # Implements the exact analytical model for a single-particle (spin-1/2
-# equivalent) Mach-Zehnder interferometer where the parameter θ is encoded
-# via H = θ J_z during a holding time T_H.
+# equivalent) Mach-Zehnder interferometer where the parameter ω is encoded
+# via H = ω J_z during a holding time T_hold.
 #
 # Physical Model:
 # - Hilbert space: two-mode bosonic Fock space truncated at max_photons = 1.
 #   Only two basis states are physical: |1,0⟩ and |0,1⟩ (dimension 2).
 # - Beam splitter: 50:50, U_BS = exp(-i(π/4)(a₀†a₁ + a₁†a₀)).
-# - Holding: U_hold(T_H) = exp(-i θ T_H J_z), with J_z = (n₁ - n₂)/2.
+# - Holding: U_hold(T_hold) = exp(-i ω T_hold J_z), with J_z = (n₁ - n₂)/2.
 # - State: |1,0⟩ → U_BS → U_hold → U_BS → measurement of J_z.
 #
 # Analytical result:
-# ⟨J_z⟩ = -(1/2) cos(θ T_H)
-# Var(J_z) = (1/4) sin²(θ T_H)
-# ∂⟨J_z⟩/∂θ = (T_H/2) sin(θ T_H)
-# ⇒ Δθ = 1/T_H  (independent of θ, away from sin(θ T_H) = 0)
+# ⟨J_z⟩ = -(1/2) cos(ω T_hold)
+# Var(J_z) = (1/4) sin²(ω T_hold)
+# ∂⟨J_z⟩/∂ω = (T_hold/2) sin(ω T_hold)
+# ⇒ Δω = 1/T_hold  (independent of ω, away from sin(ω T_hold) = 0)
 #
 # Units: Dimensionless throughout.
 # Conventions: J_z = (n₁ - n₂)/2, beam-splitter generator = a₀†a₁ + a₁†a₀.
@@ -92,9 +92,9 @@ def generate_single_particle_raw_data(force: bool = False) -> Path:
     """Run the single-particle sensitivity sweep and save raw data Parquet.
 
     Uses the report's standard parameters:
-        theta = 1.0
-        T_H range: 0.1 to 100, 500 log-spaced points
-        Also runs multi-theta sweep at [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+        omega = 1.0
+        T_hold range: 0.1 to 100, 500 log-spaced points
+        Also runs multi-omega sweep at [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 
     Args:
         force: Re-run even if Parquet exists.
@@ -106,23 +106,23 @@ def generate_single_particle_raw_data(force: bool = False) -> Path:
     raw_dir = REPORTS_DIR / REPORT_DATE / "raw_data"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    # Standard sweep at theta = 1.0
+    # Standard sweep at omega = 1.0
     csv_path = raw_dir / f"{REPORT_DATE}-single-particle-sweep.parquet"
     if not csv_path.exists() or force:
         print(f"  Generating {csv_path.name} ...")
-        df = compute_sensitivity_sweep(theta=1.0, n_points=500)
+        df = compute_sensitivity_sweep(omega=1.0, n_points=500)
         df.to_parquet(csv_path, index=False)
     else:
         print(f"  {csv_path.name} exists (use --force to regenerate)")
 
-    # Multi-theta sweep
-    multi_csv = raw_dir / f"{REPORT_DATE}-single-particle-multi-theta-sweep.parquet"
+    # Multi-omega sweep
+    multi_csv = raw_dir / f"{REPORT_DATE}-single-particle-multi-omega-sweep.parquet"
     if not multi_csv.exists() or force:
         print(f"  Generating {multi_csv.name} ...")
-        theta_values = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+        omega_values = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
         rows = []
-        for theta in theta_values:
-            df_t = compute_sensitivity_sweep(theta=theta, n_points=500)
+        for omega in omega_values:
+            df_t = compute_sensitivity_sweep(omega=omega, n_points=500)
             rows.append(df_t)
         multi_df = pd.concat(rows, ignore_index=True)
         multi_df.to_parquet(multi_csv, index=False)
@@ -136,7 +136,7 @@ def generate_ancilla_raw_data(force: bool = False) -> Path:
     """Run ancilla-metrology experiments and save raw data Parquet.
 
     Generates:
-        1. Theta-scan with Nelder–Mead optimisation
+        1. Omega-scan with Nelder–Mead optimisation
         2. Alpha single-coefficient grid scan
         3. Alpha 4D random search
 
@@ -150,20 +150,20 @@ def generate_ancilla_raw_data(force: bool = False) -> Path:
     raw_dir = REPORTS_DIR / REPORT_DATE / "raw_data"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Theta scan (moderate settings for automated generation;
+    # 1. Omega scan (moderate settings for automated generation;
     #    use higher n_restarts/maxiter for report-quality results)
-    theta_csv = raw_dir / f"{REPORT_DATE}-ancilla-theta-scan.parquet"
-    if not theta_csv.exists() or force:
-        print(f"  Generating {theta_csv.name} (this may take several minutes) ...")
-        theta_values = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
-        scan_result = run_theta_scan(
-            theta_values=theta_values,
+    omega_csv = raw_dir / f"{REPORT_DATE}-ancilla-omega-scan.parquet"
+    if not omega_csv.exists() or force:
+        print(f"  Generating {omega_csv.name} (this may take several minutes) ...")
+        omega_values = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
+        scan_result = run_omega_scan(
+            omega_values=omega_values,
             n_restarts=3,
             maxiter=500,
         )
-        scan_result.save_parquet(theta_csv)
+        scan_result.save_parquet(omega_csv)
     else:
-        print(f"  {theta_csv.name} exists (use --force to regenerate)")
+        print(f"  {omega_csv.name} exists (use --force to regenerate)")
 
     # 2. Alpha single-coefficient scan
     alpha_csv = raw_dir / f"{REPORT_DATE}-ancilla-alpha-scan.parquet"
@@ -206,9 +206,9 @@ def generate_single_particle_figures(force: bool = False) -> Path:
     """Generate figures for the single-particle MZI report.
 
     Creates:
-        1. log-log Δθ vs T_H with analytical and numerical traces
-        2. ⟨J_z⟩ vs T_H oscillatory signal
-        3. ∂⟨J_z⟩/∂θ analytical vs numerical comparison
+        1. log-log Δω vs T_hold with analytical and numerical traces
+        2. ⟨J_z⟩ vs T_hold oscillatory signal
+        3. ∂⟨J_z⟩/∂ω analytical vs numerical comparison
 
     Args:
         force: Re-generate even if SVGs exist.
@@ -221,22 +221,22 @@ def generate_single_particle_figures(force: bool = False) -> Path:
     fig_dir.mkdir(parents=True, exist_ok=True)
 
     # Run the standard sweep
-    df = compute_sensitivity_sweep(theta=1.0, n_points=500)
+    df = compute_sensitivity_sweep(omega=1.0, n_points=500)
     fit_scaling_exponent(
-        np.asarray(df["T_H"]).astype(float),
-        np.asarray(df["delta_theta_analytical"]).astype(float),
+        np.asarray(df["t_hold"]).astype(float),
+        np.asarray(df["delta_omega_analytical"]).astype(float),
     )
 
-    t_h_min = float(df["T_H"].min())
-    t_h_max = float(df["T_H"].max())
+    t_h_min = float(df["t_hold"].min())
+    t_h_max = float(df["t_hold"].max())
 
-    # ── Figure 1: log-log Δθ vs T_H ──
+    # ── Figure 1: log-log Δθ vs T_hold ──
     fig1_path = fig_dir / f"{REPORT_DATE}-single-particle-scaling.svg"
     if not fig1_path.exists() or force:
         print(f"  Generating {fig1_path.name} ...")
         fig, ax = plt.subplots(figsize=(8, 5))
 
-        # Theory reference: 1/T_H
+        # Theory reference: 1/T_hold
         t_ref = np.array([t_h_min, t_h_max])
         dt_ref = 1.0 / t_ref
         ax.loglog(
@@ -245,56 +245,56 @@ def generate_single_particle_figures(force: bool = False) -> Path:
             "--",
             color="gray",
             linewidth=2,
-            label=r"$1/T_H$ (theory, $\alpha=-1$)",
+            label=r"$1/T_hold$ (theory, $\alpha=-1$)",
         )
 
         # Clean (non-fringe) points
         clean = df[~df["is_fringe_extremum"]]
         ax.loglog(
-            clean["T_H"],
-            clean["delta_theta_analytical"],
+            clean["T_hold"],
+            clean["delta_omega_analytical"],
             "o",
             color="#1f77b4",
             markersize=4,
-            label=r"$\Delta\theta$ (analytical)",
+            label=r"$\Delta\omega$ (analytical)",
         )
         ax.loglog(
-            clean["T_H"],
-            clean["delta_theta_numerical"],
+            clean["T_hold"],
+            clean["delta_omega_numerical"],
             "x",
             color="#ff7f0e",
             markersize=4,
-            label=r"$\Delta\theta$ (numerical)",
+            label=r"$\Delta\omega$ (numerical)",
         )
 
         # Fringe points
         fringe = df[df["is_fringe_extremum"]]
         if not fringe.empty:
             ax.loglog(
-                fringe["T_H"],
-                fringe["delta_theta_analytical"],
+                fringe["T_hold"],
+                fringe["delta_omega_analytical"],
                 "r*",
                 markersize=8,
                 alpha=0.6,
                 label="Fringe extremum (excluded)",
             )
 
-        ax.set_xlabel(r"$T_H$")
-        ax.set_ylabel(r"$\Delta\theta$")
-        ax.set_title("Single-Particle MZI: Sensitivity Scaling with $T_H$")
+        ax.set_xlabel(r"$T_hold$")
+        ax.set_ylabel(r"$\Delta\omega$")
+        ax.set_title("Single-Particle MZI: Sensitivity Scaling with $T_hold$")
         ax.legend()
         fig.tight_layout()
         fig.savefig(fig1_path, format="svg", bbox_inches="tight")
         plt.close(fig)
 
-    # ── Figure 2: ⟨J_z⟩ vs T_H ──
+    # ── Figure 2: ⟨J_z⟩ vs T_hold ──
     fig2_path = fig_dir / f"{REPORT_DATE}-single-particle-jz-mean.svg"
     if not fig2_path.exists() or force:
         print(f"  Generating {fig2_path.name} ...")
         fig, ax = plt.subplots(figsize=(8, 4))
 
         ax.semilogx(
-            df["T_H"],
+            df["t_hold"],
             df["jz_mean"],
             "-o",
             color="#2ca02c",
@@ -309,10 +309,10 @@ def generate_single_particle_figures(force: bool = False) -> Path:
             ":",
             color="gray",
             linewidth=1,
-            label=r"$-\frac{1}{2}\cos(\theta T_H)$",
+            label=r"$-\frac{1}{2}\cos(\omega T_hold)$",
         )
 
-        ax.set_xlabel(r"$T_H$")
+        ax.set_xlabel(r"$T_hold$")
         ax.set_ylabel(r"$\langle J_z \rangle$")
         ax.set_title("Single-Particle MZI: Signal Oscillation")
         ax.legend()
@@ -327,23 +327,23 @@ def generate_single_particle_figures(force: bool = False) -> Path:
         fig, ax1 = plt.subplots(figsize=(8, 4))
 
         ax1.loglog(
-            df["T_H"],
+            df["t_hold"],
             df["d_jz_analytical"],
             "-",
             color="#1f77b4",
             linewidth=2,
-            label=r"Analytical: $\frac{T_H}{2}\sin(\theta T_H)$",
+            label=r"Analytical: $\frac{T_hold}{2}\sin(\omega T_hold)$",
         )
         ax1.loglog(
-            df["T_H"],
+            df["t_hold"],
             df["d_jz_numerical"],
             "x",
             color="#ff7f0e",
             markersize=3,
             label=r"Numerical ($\delta = 10^{-6}$)",
         )
-        ax1.set_xlabel(r"$T_H$")
-        ax1.set_ylabel(r"$\partial\langle J_z \rangle / \partial\theta$")
+        ax1.set_xlabel(r"$T_hold$")
+        ax1.set_ylabel(r"$\partial\langle J_z \rangle / \partial\omega$")
         ax1.set_title("Derivative Comparison: Analytical vs Numerical")
         ax1.legend(loc="upper left")
 
@@ -354,7 +354,7 @@ def generate_single_particle_figures(force: bool = False) -> Path:
         )
         ax2 = ax1.twinx()
         ax2.loglog(
-            df["T_H"],
+            df["t_hold"],
             rel_diff,
             "--",
             color="red",
@@ -376,7 +376,7 @@ def generate_ancilla_figures(force: bool = False) -> Path:
     """Generate figures for the ancilla-assisted metrology report.
 
     Creates:
-        1. Δθ vs θ (best-per-theta from Nelder–Mead)
+        1. Δω vs ω (best-per-omega from Nelder–Mead)
 
     Args:
         force: Re-generate even if SVGs exist.
@@ -388,23 +388,23 @@ def generate_ancilla_figures(force: bool = False) -> Path:
     fig_dir = REPORTS_DIR / REPORT_DATE / "figures"
     fig_dir.mkdir(parents=True, exist_ok=True)
 
-    # Sensitivity vs θ
-    fig_path = fig_dir / f"{REPORT_DATE}-ancilla-theta-scan.svg"
+    # Sensitivity vs ω
+    fig_path = fig_dir / f"{REPORT_DATE}-ancilla-omega-scan.svg"
     if not fig_path.exists() or force:
         print(f"  Generating {fig_path.name} ...")
-        theta_values = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
-        scan_result = run_theta_scan(
-            theta_values=theta_values,
+        omega_values = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
+        scan_result = run_omega_scan(
+            omega_values=omega_values,
             n_restarts=3,
             maxiter=500,
         )
 
         fig, ax = plt.subplots(figsize=(8, 5))
 
-        # Best per θ
+        # Best per ω
         ax.semilogy(
-            scan_result.theta_values,
-            scan_result.best_per_theta,
+            scan_result.omega_values,
+            scan_result.best_per_omega,
             "-o",
             color="firebrick",
             linewidth=2,
@@ -412,28 +412,28 @@ def generate_ancilla_figures(force: bool = False) -> Path:
             label="Best Δθ (Nelder–Mead)",
         )
 
-        # SQL reference (1/T_H with optimal T_H from each θ)
+        # SQL reference (1/T_hold with optimal T_hold from each ω)
         sql_vals = []
-        for theta in theta_values:
-            results = scan_result.all_results.get(theta, [])
+        for omega in omega_values:
+            results = scan_result.all_results.get(omega, [])
             if results:
-                best = min(results, key=lambda r: r.delta_theta_opt)
+                best = min(results, key=lambda r: r.delta_omega_opt)
                 t_h_star = best.params_opt[6]
                 sql_vals.append(1.0 / t_h_star if t_h_star > 0 else float("inf"))
             else:
                 sql_vals.append(float("inf"))
         ax.semilogy(
-            theta_values,
+            omega_values,
             sql_vals,
             "--",
             color="gray",
             linewidth=2,
-            label="SQL (1/T_H*)",
+            label="SQL (1/T_hold*)",
         )
 
-        ax.set_xlabel(r"True $\theta$")
-        ax.set_ylabel(r"$\Delta\theta$")
-        ax.set_title("Ancilla-Assisted Metrology: Sensitivity vs θ")
+        ax.set_xlabel(r"True $\omega$")
+        ax.set_ylabel(r"$\Delta\omega$")
+        ax.set_title("Ancilla-Assisted Metrology: Sensitivity vs ω")
         ax.legend()
         fig.tight_layout()
         fig.savefig(fig_path, format="svg", bbox_inches="tight")

@@ -232,9 +232,10 @@ def build_lindblad_operators(N: int, config: NoiseConfig) -> list[np.ndarray]:
 
     # Get base operators
     from src.physics.dicke_basis import jz_operator
+    from src.utils.enums import OperatorBasis
 
     a = annihilation_operator(N)
-    J_z = jz_operator(N)
+    J_z = jz_operator(N, basis=OperatorBasis.DICKE)
 
     # One-body loss: L = √γ₁ a
     if config.gamma_1 > 0:

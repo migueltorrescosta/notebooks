@@ -55,7 +55,7 @@ st.set_page_config(
 def compute_sensitivity_vs_n(
     state_type: str,
     N_range: tuple[int, int],
-    N_points: int,
+    n_points: int,
     chi: float,
     noise_config: NoiseConfig,
     method: str,
@@ -70,7 +70,7 @@ def compute_sensitivity_vs_n(
     return _compute_sensitivity_vn(
         state_type=state_type,
         N_range=N_range,
-        N_points=N_points,
+        n_points=n_points,
         chi=chi,
         noise_config=noise_config,
         method=method,
@@ -136,7 +136,7 @@ with st.sidebar:
         N_min = st.number_input("N min", min_value=10, value=20, step=10)
     with c2:
         N_max = st.number_input("N max", min_value=N_min + 10, value=200, step=50)
-    N_points = st.slider("N points", min_value=5, value=10, max_value=20)
+    n_points = st.slider("N points", min_value=5, value=10, max_value=20)
 
     # Method toggle
     st.subheader("Method", divider="gray")
@@ -223,7 +223,7 @@ for idx, state_type in enumerate(states_to_analyze):
     df = compute_sensitivity_vs_n(
         state_type=state_type,
         N_range=(N_min, N_max),
-        N_points=N_points,
+        n_points=n_points,
         chi=chi,
         noise_config=noise_config,
         method=method,

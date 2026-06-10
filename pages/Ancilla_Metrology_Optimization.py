@@ -30,7 +30,7 @@ from src.analysis.ancilla_optimization import (
     evolve_full,
     get_default_bounds,
     random_search_alpha,
-    run_theta_scan,
+    run_omega_scan,
     scan_alpha_single_parameter,
     scan_alpha_with_reoptimisation,
     two_qubit_state,
@@ -51,10 +51,10 @@ st.set_page_config(
 st.title("🎛️ Ancilla-Assisted Metrology Optimisation")
 st.markdown(
     r"""
-    **Nelder–Mead optimisation of sensitivity $\Delta\theta$ for a two-qubit
+    **Nelder–Mead optimisation of sensitivity $\Delta\omega$ for a two-qubit
     (system + ancilla) Mach–Zehnder interferometer.** 11 free parameters:
     4 for the initial product state $|\psi_S\rangle \otimes |\psi_A\rangle$,
-    2 beam-splitter durations, holding time $T_H$, and 4 interaction coefficients
+    2 beam-splitter durations, holding time $T_hold$, and 4 interaction coefficients
     $\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz}$.
     Choose between **S-only** ($J_z^S$) and **joint** ($M = J_z^S + J_z^A$)
     measurement operators from the sidebar.
@@ -78,8 +78,8 @@ with st.expander("🔧 Validation Checks", expanded=False):
             psi0=psi0_check,
             T_BS1=np.pi / 2,
             T_BS2=np.pi / 2,
-            T_H=1.0,
-            theta_true=1.0,
+            T_hold=1.0,
+            omega_true=1.0,
             alpha=alpha_check,
             ops=ops,
         )
@@ -96,22 +96,22 @@ with st.expander("🔧 Validation Checks", expanded=False):
 with st.sidebar:
     st.header("Optimisation Parameters")
 
-    theta_min = st.number_input(
-        "θ min",
+    omega_min = st.number_input(
+        "ω min",
         value=0.1,
         min_value=0.01,
         step=0.1,
         format="%.2f",
     )
-    theta_max = st.number_input(
-        "θ max",
+    omega_max = st.number_input(
+        "ω max",
         value=5.0,
         min_value=0.1,
         step=0.1,
         format="%.2f",
     )
-    n_theta = st.slider(
-        "Number of θ values",
+    n_omega = st.slider(
+        "Number of ω values",
         min_value=2,
         max_value=20,
         value=6,
@@ -119,7 +119,7 @@ with st.sidebar:
     )
 
     n_restarts = st.slider(
-        "Restarts per θ",
+        "Restarts per ω",
         min_value=1,
         max_value=50,
         value=10,
@@ -142,10 +142,10 @@ with st.sidebar:
 
     with st.expander("📐 Advanced: Bounds", expanded=False):
         st.markdown(
-            "Adjust parameter search bounds. Use `T_H max = 20.0` to replicate the expanded-range investigation in the report.",
+            "Adjust parameter search bounds. Use `T_hold max = 20.0` to replicate the expanded-range investigation in the report.",
         )
         t_h_min = st.number_input(
-            "T_H min",
+            "T_hold min",
             value=0.0,
             min_value=0.0,
             max_value=50.0,
@@ -153,7 +153,7 @@ with st.sidebar:
             format="%.1f",
         )
         t_h_max = st.number_input(
-            "T_H max",
+            "T_hold max",
             value=5.0,
             min_value=0.1,
             max_value=50.0,
@@ -180,14 +180,14 @@ with st.sidebar:
     )
 
     run_button = st.button(
-        "▶ Run θ Scan",
+        "▶ Run ω Scan",
         type="primary",
         use_container_width=True,
     )
 
 # ── Main content ─────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3 = st.tabs(["θ-Scan", "α-Scan", "Re-optimisation"])
+tab1, tab2, tab3 = st.tabs(["ω-Scan", "α-Scan", "Re-optimisation"])
 
 with tab1:
     # Show theoretical SQL reference
@@ -202,22 +202,22 @@ with tab1:
         For a **decoupled system** ($\alpha = 0$) with an optimal initial state
         and 50/50 beam splitters, both S-only and joint measurements saturate
         $$
-        \Delta\theta_{{\text{{SQL}}}} = \frac{{1}}{{T_H}}
+        \Delta\omega_{{\text{{SQL}}}} = \frac{{1}}{{T_hold}}
         $$
         The Nelder–Mead optimiser explores the full 11-parameter space, seeking
-        $\Delta\theta < \Delta\theta_{{\text{{SQL}}}}$ via ancilla interaction.
+        $\Delta\omega < \Delta\omega_{{\text{{SQL}}}}$ via ancilla interaction.
         The objective currently uses ${meas_label}$.
         """,
     )
 
-    # θ values to scan
-    theta_values = np.linspace(theta_min, theta_max, n_theta)
-    st.caption(f"θ scan: {n_theta} values from {theta_min:.2f} to {theta_max:.2f}")
+    # ω values to scan
+    omega_values = np.linspace(omega_min, omega_max, n_omega)
+    st.caption(f"ω scan: {n_omega} values from {omega_min:.2f} to {omega_max:.2f}")
 
-    # Build bounds dict (override T_H only if user changed it)
+    # Build bounds dict (override T_hold only if user changed it)
     bounds = get_default_bounds()
     if "t_h_min" in locals() and "t_h_max" in locals():
-        bounds["T_H"] = (float(t_h_min), float(t_h_max))
+        bounds["T_hold"] = (float(t_h_min), float(t_h_max))
 
     # Select measurement operator based on sidebar choice
     ops = build_two_qubit_operators()
@@ -228,14 +228,14 @@ with tab1:
 
     if run_button:
         with st.spinner(
-            f"Running Nelder–Mead optimisation over {n_theta} θ values "
-            f"× {n_restarts} restarts = {n_theta * n_restarts} runs... "
-            f"(T_H ∈ [{bounds['T_H'][0]:.1f}, {bounds['T_H'][1]:.1f}], "
+            f"Running Nelder–Mead optimisation over {n_omega} ω values "
+            f"× {n_restarts} restarts = {n_omega * n_restarts} runs... "
+            f"(T_hold ∈ [{bounds['T_hold'][0]:.1f}, {bounds['T_hold'][1]:.1f}], "
             f"measurement: {meas_label_short})",
         ):
             start = time.time()
-            scan_result = run_theta_scan(
-                theta_values=theta_values,
+            scan_result = run_omega_scan(
+                omega_values=omega_values,
                 n_restarts=n_restarts,
                 seed=int(seed),
                 maxiter=maxiter,
@@ -248,8 +248,8 @@ with tab1:
             # (only if requested meas_op differs from default — i.e. joint mode)
             if meas_op is not None:
                 st.info("⏳ Running companion S-only scan for comparison...")
-                sonly_scan_result = run_theta_scan(
-                    theta_values=theta_values,
+                sonly_scan_result = run_omega_scan(
+                    omega_values=omega_values,
                     n_restarts=n_restarts,
                     seed=int(seed),
                     maxiter=maxiter,
@@ -259,33 +259,33 @@ with tab1:
 
                 # Compute comparison stats for each θ
                 comparison_table_data: dict[str, list[str]] = {
-                    "θ": [],
-                    f"Δθ_{meas_label_short} (best)": [],
-                    "Δθ S-only (best)": [],
+                    "ω": [],
+                    f"Δω_{meas_label_short} (best)": [],
+                    "Δω S-only (best)": [],
                     "Joint < S-only?": [],
                 }
-                for theta in theta_values:
-                    joint_results = scan_result.all_results.get(theta, [])
-                    sonly_results = sonly_scan_result.all_results.get(theta, [])
+                for omega_val in omega_values:
+                    joint_results = scan_result.all_results.get(omega_val, [])
+                    sonly_results = sonly_scan_result.all_results.get(omega_val, [])
                     best_joint = (
                         min(
-                            joint_results, key=lambda r: r.delta_theta_opt
-                        ).delta_theta_opt
+                            joint_results, key=lambda r: r.delta_omega_opt
+                        ).delta_omega_opt
                         if joint_results
                         else float("inf")
                     )
                     best_sonly = (
                         min(
-                            sonly_results, key=lambda r: r.delta_theta_opt
-                        ).delta_theta_opt
+                            sonly_results, key=lambda r: r.delta_omega_opt
+                        ).delta_omega_opt
                         if sonly_results
                         else float("inf")
                     )
-                    comparison_table_data["θ"].append(f"{theta:.2f}")
-                    comparison_table_data[f"Δθ_{meas_label_short} (best)"].append(
+                    comparison_table_data["ω"].append(f"{omega_val:.2f}")
+                    comparison_table_data[f"Δω_{meas_label_short} (best)"].append(
                         f"{best_joint:.4f}" if np.isfinite(best_joint) else "∞"
                     )
-                    comparison_table_data["Δθ S-only (best)"].append(
+                    comparison_table_data["Δω S-only (best)"].append(
                         f"{best_sonly:.4f}" if np.isfinite(best_sonly) else "∞"
                     )
                     comparison_table_data["Joint < S-only?"].append(
@@ -301,31 +301,31 @@ with tab1:
 
         st.success(
             f"Scan completed in {elapsed:.1f}s "
-            f"({elapsed / (n_theta * n_restarts):.2f}s per run)",
+            f"({elapsed / (n_omega * n_restarts):.2f}s per run)",
         )
 
         # ── Summary metrics ──────────────────────────────────────────────────
         mcol1, mcol2, mcol3, mcol4 = st.columns(4)
-        best_overall = float(np.min(scan_result.best_per_theta))
-        worst_overall = float(np.max(scan_result.best_per_theta))
-        mean_overall = float(np.mean(scan_result.best_per_theta))
+        best_overall = float(np.min(scan_result.best_per_omega))
+        worst_overall = float(np.max(scan_result.best_per_omega))
+        mean_overall = float(np.mean(scan_result.best_per_omega))
 
         with mcol1:
-            st.metric("Best Δθ (overall)", f"{best_overall:.4f}")
+            st.metric("Best Δω (overall)", f"{best_overall:.4f}")
         with mcol2:
-            st.metric("Worst Δθ", f"{worst_overall:.4f}")
+            st.metric("Worst Δω", f"{worst_overall:.4f}")
         with mcol3:
-            st.metric("Mean Δθ", f"{mean_overall:.4f}")
+            st.metric("Mean Δω", f"{mean_overall:.4f}")
         with mcol4:
-            # Best improvement over the SQL for the optimal T_H*
+            # Best improvement over the SQL for the optimal T_hold*
             best_result = min(
                 (r for results in scan_result.all_results.values() for r in results),
-                key=lambda r: r.delta_theta_opt,
+                key=lambda r: r.delta_omega_opt,
             )
             t_h_star = best_result.params_opt[6]
             sql_ref = 1.0 / t_h_star if t_h_star > 0 else float("inf")
             improvement = (
-                (1.0 - best_result.delta_theta_opt / sql_ref) * 100
+                (1.0 - best_result.delta_omega_opt / sql_ref) * 100
                 if np.isfinite(sql_ref)
                 else 0.0
             )
@@ -337,19 +337,21 @@ with tab1:
         # Build a table
         best_results = []
         convergence_metrics = {}
-        for theta in theta_values:
-            theta_results = scan_result.all_results.get(theta, [])
-            best_for_theta = min(theta_results, key=lambda r: r.delta_theta_opt)
-            best_results.append(best_for_theta)
-            convergence_metrics[theta] = compute_convergence_metric(theta_results)
+        for omega_val in omega_values:
+            omega_results_list = scan_result.all_results.get(omega_val, [])
+            best_for_omega = min(omega_results_list, key=lambda r: r.delta_omega_opt)
+            best_results.append(best_for_omega)
+            convergence_metrics[omega_val] = compute_convergence_metric(
+                omega_results_list
+            )
 
         table_data: dict[str, list[str]] = {
-            "θ": [],
-            "Best Δθ": [],
-            "Δθ_SQL": [],
+            "ω": [],
+            "Best Δω": [],
+            "Δω_SQL": [],
             "vs SQL": [],
             "Spread": [],
-            "T_H*": [],
+            "T_hold*": [],
             "Purity": [],
             "⟨M⟩": [],
             "Cov": [],
@@ -364,21 +366,21 @@ with tab1:
             t_h_star = r.params_opt[6]
             sql_dtheta = 1.0 / t_h_star if t_h_star > 0 else float("inf")
             imp_str = (
-                f"{((1.0 - r.delta_theta_opt / sql_dtheta) * 100):.1f}%"
+                f"{((1.0 - r.delta_omega_opt / sql_dtheta) * 100):.1f}%"
                 if np.isfinite(sql_dtheta) and sql_dtheta > 0
                 else "—"
             )
-            spread = convergence_metrics.get(r.theta_true, 0.0)
+            spread = convergence_metrics.get(r.omega_true, 0.0)
             spread_str = f"{spread:.3f}" + (" ✅" if spread < 0.10 else " ⚠️")
 
-            table_data["θ"].append(f"{r.theta_true:.2f}")
-            table_data["Best Δθ"].append(f"{r.delta_theta_opt:.4f}")
-            table_data["Δθ_SQL"].append(
+            table_data["ω"].append(f"{r.omega_true:.2f}")
+            table_data["Best Δω"].append(f"{r.delta_omega_opt:.4f}")
+            table_data["Δω_SQL"].append(
                 f"{sql_dtheta:.4f}" if np.isfinite(sql_dtheta) else "—",
             )
             table_data["vs SQL"].append(imp_str)
             table_data["Spread"].append(spread_str)
-            table_data["T_H*"].append(f"{t_h_star:.4f}")
+            table_data["T_hold*"].append(f"{t_h_star:.4f}")
             table_data["Purity"].append(f"{r.purity_S:.3f}")
             # Joint measurement diagnostics (always computed by the backend)
             table_data["⟨M⟩"].append(f"{r.expectation_M:.4f}")
@@ -393,50 +395,50 @@ with tab1:
         st.table(table_data)
 
         # ── Sensitivity vs θ plot ────────────────────────────────────────────
-        st.subheader("Sensitivity Δθ vs θ")
+        st.subheader("Sensitivity Δω vs ω")
 
         fig = go.Figure()
 
         # Best per θ
         fig.add_trace(
             go.Scatter(
-                x=theta_values,
-                y=scan_result.best_per_theta,
+                x=omega_values,
+                y=scan_result.best_per_omega,
                 mode="lines+markers",
-                name="Best Δθ (Nelder–Mead)",
+                name="Best Δω (Nelder–Mead)",
                 line={"color": "firebrick", "width": 2},
                 marker={"size": 8},
             ),
         )
 
-        # SQL reference: dynamic per-θ based on optimal T_H*
+        # SQL reference: dynamic per-θ based on optimal T_hold*
         sql_y = [
             1.0 / best_results[i].params_opt[6]
             if best_results[i].params_opt[6] > 0
             else float("inf")
-            for i in range(len(theta_values))
+            for i in range(len(omega_values))
         ]
         fig.add_trace(
             go.Scatter(
-                x=theta_values,
+                x=omega_values,
                 y=sql_y,
                 mode="lines",
-                name="SQL (1/T_H*)",
+                name="SQL (1/T_hold*)",
                 line={"color": "gray", "width": 2, "dash": "dash"},
             ),
         )
 
         # All individual results
-        all_thetas = []
+        all_omegas = []
         all_deltas = []
-        for theta in theta_values:
-            for r in scan_result.all_results.get(theta, []):
-                all_thetas.append(theta)
-                all_deltas.append(r.delta_theta_opt)
+        for omega_val in omega_values:
+            for r in scan_result.all_results.get(omega_val, []):
+                all_omegas.append(omega_val)
+                all_deltas.append(r.delta_omega_opt)
 
         fig.add_trace(
             go.Scatter(
-                x=all_thetas,
+                x=all_omegas,
                 y=all_deltas,
                 mode="markers",
                 name="Individual runs",
@@ -446,9 +448,9 @@ with tab1:
         )
 
         fig.update_layout(
-            title="Δθ vs True θ",
-            xaxis_title="True θ",
-            yaxis_title="Δθ",
+            title="Δω vs True ω",
+            xaxis_title="True ω",
+            yaxis_title="Δω",
             yaxis_type="log",
             height=450,
             legend={"yanchor": "top", "y": 0.95, "xanchor": "left", "x": 0.05},
@@ -458,7 +460,7 @@ with tab1:
 
         # ── Optimal parameters visualisation ─────────────────────────────────
         with st.expander("Optimal Parameters Details", expanded=False):
-            st.markdown("#### Optimal parameters for each θ value")
+            st.markdown("#### Optimal parameters for each ω value")
             param_names = [
                 "θ_S",
                 "φ_S",
@@ -466,7 +468,7 @@ with tab1:
                 "φ_A",
                 "T_BS1",
                 "T_BS2",
-                "T_H",
+                "T_hold",
                 "α_xx",
                 "α_xz",
                 "α_zx",
@@ -480,7 +482,7 @@ with tab1:
             for i, name in enumerate(param_names):
                 fig_params.add_trace(
                     go.Scatter(
-                        x=theta_values,
+                        x=omega_values,
                         y=param_matrix[:, i],
                         mode="lines+markers",
                         name=name,
@@ -488,8 +490,8 @@ with tab1:
                 )
 
             fig_params.update_layout(
-                title="Optimal Parameters vs θ",
-                xaxis_title="True θ",
+                title="Optimal Parameters vs ω",
+                xaxis_title="True ω",
                 yaxis_title="Parameter value",
                 height=400,
                 legend={"yanchor": "top", "y": 0.95, "xanchor": "right", "x": 0.95},
@@ -513,7 +515,7 @@ with tab1:
                 ),
             )
             fig_corr.update_layout(
-                title="Parameter Correlation (across θ values)",
+                title="Parameter Correlation (across ω values)",
                 height=500,
             )
             st.plotly_chart(fig_corr, use_container_width=True)
@@ -535,8 +537,8 @@ with tab1:
             with col2:
                 T_BS1_test = st.slider("T_BS1", 0.0, np.pi, np.pi / 2, 0.01)
                 T_BS2_test = st.slider("T_BS2", 0.0, np.pi, np.pi / 2, 0.01)
-                T_H_test = st.slider("T_H", 0.0, 5.0, 1.0, 0.1)
-                theta_test = st.slider("True θ", 0.1, 5.0, 1.0, 0.1)
+                T_hold_test = st.slider("T_hold", 0.0, 5.0, 1.0, 0.1)
+                omega_test = st.slider("True ω", 0.1, 5.0, 1.0, 0.1)
             with col3:
                 a_xx_test = st.slider("α_xx", -2.0, 2.0, 0.0, 0.01)
                 a_xz_test = st.slider("α_xz", -2.0, 2.0, 0.0, 0.01)
@@ -551,7 +553,7 @@ with tab1:
                     phi_A_test,
                     T_BS1_test,
                     T_BS2_test,
-                    T_H_test,
+                    T_hold_test,
                     a_xx_test,
                     a_xz_test,
                     a_zx_test,
@@ -571,8 +573,8 @@ with tab1:
                         psi0_test,
                         T_BS1_test,
                         T_BS2_test,
-                        T_H_test,
-                        theta_test,
+                        T_hold_test,
+                        omega_test,
                         (a_xx_test, a_xz_test, a_zx_test, a_zz_test),
                         ops_test,
                     )
@@ -590,8 +592,8 @@ with tab1:
                         psi0_test,
                         T_BS1_test,
                         T_BS2_test,
-                        T_H_test,
-                        theta_test,
+                        T_hold_test,
+                        omega_test,
                         (a_xx_test, a_xz_test, a_zx_test, a_zz_test),
                         ops_test,
                         meas_op=None,
@@ -600,18 +602,18 @@ with tab1:
                         psi0_test,
                         T_BS1_test,
                         T_BS2_test,
-                        T_H_test,
-                        theta_test,
+                        T_hold_test,
+                        omega_test,
                         (a_xx_test, a_xz_test, a_zx_test, a_zz_test),
                         ops_test,
                         meas_op=M_op_test,
                     )
-                    sql_ref = 1.0 / T_H_test
+                    sql_ref = 1.0 / T_hold_test
 
                 dcol1, dcol2, dcol3 = st.columns(3)
                 with dcol1:
                     st.metric(
-                        "Δθ (S-only)", f"{val_sonly:.6f}", delta=f"SQL: {sql_ref:.6f}"
+                        "Δω (S-only)", f"{val_sonly:.6f}", delta=f"SQL: {sql_ref:.6f}"
                     )
                     if val_sonly < sql_ref:
                         st.success("🎯 Below SQL (S-only)")
@@ -619,7 +621,7 @@ with tab1:
                         st.warning("⚠️ Fringe extremum (S-only)")
                 with dcol2:
                     st.metric(
-                        "Δθ (Joint M)", f"{val_joint:.6f}", delta=f"SQL: {sql_ref:.6f}"
+                        "Δω (Joint M)", f"{val_joint:.6f}", delta=f"SQL: {sql_ref:.6f}"
                     )
                     if val_joint < sql_ref:
                         st.success("🎯 Below SQL (Joint)")
@@ -641,20 +643,20 @@ with tab1:
                     diag_col2.metric("Var(M)", f"{var_M:.4f}")
                     diag_col3.metric("Cov(J_z^S, J_z^A)", f"{cov_SA:.4f}")
                     diag_col3.metric("⟨J_z^A⟩", f"{exp_M - exp_S:.4f}")
-                    diag_col4.metric("T_H", f"{T_H_test:.2f}")
+                    diag_col4.metric("T_hold", f"{T_hold_test:.2f}")
                     diag_col4.metric("SQL ref", f"{sql_ref:.4f}")
 
         # ── Conclusion ────────────────────────────────────────────────────────
         st.subheader("Summary")
-        # Compute improvement relative to the SQL at the best T_H*
-        best_theta = min(
+        # Compute improvement relative to the SQL at the best T_hold*
+        best_omega = min(
             (r for results in scan_result.all_results.values() for r in results),
-            key=lambda r: r.delta_theta_opt,
+            key=lambda r: r.delta_omega_opt,
         )
-        t_h_best = best_theta.params_opt[6]
+        t_h_best = best_omega.params_opt[6]
         sql_best = 1.0 / t_h_best if t_h_best > 0 else float("inf")
         improvement_best = (
-            (1.0 - best_theta.delta_theta_opt / sql_best) * 100
+            (1.0 - best_omega.delta_omega_opt / sql_best) * 100
             if np.isfinite(sql_best)
             else 0.0
         )
@@ -720,16 +722,16 @@ with tab1:
                 )
 
     else:
-        st.info("👈 Configure parameters in the sidebar and click **▶ Run θ Scan**")
+        st.info("👈 Configure parameters in the sidebar and click **▶ Run ω Scan**")
 
     # ── Footer ───────────────────────────────────────────────────────────────────
     st.divider()
     obj_label = (
-        r"\Delta\theta = \sqrt{\text{Var}(J_z^S)} / |\partial\langle J_z^S\rangle/\partial\theta|"
+        r"\Delta\omega = \sqrt{\text{Var}(J_z^S)} / |\partial\langle J_z^S\rangle/\partial\omega|"
         if meas_choice == "S-only (J_z^S)"
         else (
-            r"\Delta\theta = \sqrt{\text{Var}(J_z^S + J_z^A)} "
-            r"/ |\partial\langle J_z^S + J_z^A\rangle/\partial\theta|"
+            r"\Delta\omega = \sqrt{\text{Var}(J_z^S + J_z^A)} "
+            r"/ |\partial\langle J_z^S + J_z^A\rangle/\partial\omega|"
         )
     )
     st.caption(
@@ -784,16 +786,16 @@ with tab2:
                 key="alpha_scan_npts",
             )
         with acol2:
-            T_H_alpha = st.slider(
-                "T_H",
+            T_hold_alpha = st.slider(
+                "T_hold",
                 0.1,
                 10.0,
                 1.0,
                 0.1,
                 key="alpha_scan_th",
             )
-            theta_true_alpha = st.slider(
-                "θ_true",
+            omega_true_alpha = st.slider(
+                "ω_true",
                 0.1,
                 5.0,
                 1.0,
@@ -801,8 +803,8 @@ with tab2:
                 key="alpha_scan_theta",
             )
         with acol3:
-            sql_ref_alpha = 1.0 / T_H_alpha if T_H_alpha > 0 else float("inf")
-            st.metric("SQL Δθ = 1/T_H", f"{sql_ref_alpha:.4f}")
+            sql_ref_alpha = 1.0 / T_hold_alpha if T_hold_alpha > 0 else float("inf")
+            st.metric("SQL Δω = 1/T_hold", f"{sql_ref_alpha:.4f}")
 
         if st.button("▶ Run Scan", key="alpha_scan_btn"):
             ops_alpha = build_two_qubit_operators()
@@ -814,8 +816,8 @@ with tab2:
                     alpha_min=alpha_min,
                     alpha_max=alpha_max,
                     n_points=n_points,
-                    T_H=T_H_alpha,
-                    theta_true=theta_true_alpha,
+                    T_hold=T_hold_alpha,
+                    omega_true=omega_true_alpha,
                     meas_op=None,
                 )
 
@@ -825,8 +827,8 @@ with tab2:
                     alpha_min=alpha_min,
                     alpha_max=alpha_max,
                     n_points=n_points,
-                    T_H=T_H_alpha,
-                    theta_true=theta_true_alpha,
+                    T_hold=T_hold_alpha,
+                    omega_true=omega_true_alpha,
                     meas_op=M_op_alpha,
                 )
 
@@ -835,7 +837,7 @@ with tab2:
             fig_alpha.add_trace(
                 go.Scatter(
                     x=result_sonly.alpha_values,
-                    y=result_sonly.delta_theta_values,
+                    y=result_sonly.delta_omega_values,
                     mode="lines+markers",
                     name="S-only (J_z^S)",
                     line={"color": "firebrick", "width": 2},
@@ -844,7 +846,7 @@ with tab2:
             fig_alpha.add_trace(
                 go.Scatter(
                     x=result_joint.alpha_values,
-                    y=result_joint.delta_theta_values,
+                    y=result_joint.delta_omega_values,
                     mode="lines+markers",
                     name="Joint M = J_z^S + J_z^A",
                     line={"color": "royalblue", "width": 2},
@@ -859,7 +861,7 @@ with tab2:
             fig_alpha.update_layout(
                 title=f"Sensitivity vs α_{{{alpha_name}}}",
                 xaxis_title=f"α_{alpha_name}",
-                yaxis_title="Δθ",
+                yaxis_title="Δω",
                 yaxis_type="log",
                 height=450,
                 legend={"yanchor": "top", "y": 0.95, "xanchor": "left", "x": 0.05},
@@ -867,11 +869,11 @@ with tab2:
             st.plotly_chart(fig_alpha, use_container_width=True)
 
             # Best values summary
-            best_sonly = float(np.min(result_sonly.delta_theta_values))
-            best_joint = float(np.min(result_joint.delta_theta_values))
+            best_sonly = float(np.min(result_sonly.delta_omega_values))
+            best_joint = float(np.min(result_joint.delta_omega_values))
             bcol1, bcol2, bcol3 = st.columns(3)
-            bcol1.metric("Best Δθ (S-only)", f"{best_sonly:.4f}")
-            bcol2.metric("Best Δθ (Joint)", f"{best_joint:.4f}")
+            bcol1.metric("Best Δω (S-only)", f"{best_sonly:.4f}")
+            bcol2.metric("Best Δω (Joint)", f"{best_joint:.4f}")
             bcol3.metric("SQL ref", f"{sql_ref_alpha:.4f}")
 
     else:
@@ -886,16 +888,16 @@ with tab2:
                 10,
                 key="alpha_rnd_nsamples",
             )
-            T_H_rnd = st.slider(
-                "T_H",
+            T_hold_rnd = st.slider(
+                "T_hold",
                 0.1,
                 10.0,
                 1.0,
                 0.1,
                 key="alpha_rnd_th",
             )
-            theta_true_rnd = st.slider(
-                "θ_true",
+            omega_true_rnd = st.slider(
+                "ω_true",
                 0.1,
                 5.0,
                 1.0,
@@ -910,8 +912,8 @@ with tab2:
             with st.spinner(f"Random search over {n_samples} samples (S-only)..."):
                 rnd_sonly = random_search_alpha(
                     n_samples=n_samples,
-                    T_H=T_H_rnd,
-                    theta_true=theta_true_rnd,
+                    T_hold=T_hold_rnd,
+                    omega_true=omega_true_rnd,
                     meas_op=None,
                     seed=int(seed),
                 )
@@ -919,23 +921,23 @@ with tab2:
             with st.spinner(f"Random search over {n_samples} samples (Joint)..."):
                 rnd_joint = random_search_alpha(
                     n_samples=n_samples,
-                    T_H=T_H_rnd,
-                    theta_true=theta_true_rnd,
+                    T_hold=T_hold_rnd,
+                    omega_true=omega_true_rnd,
                     meas_op=M_op_rnd,
                     seed=int(seed),
                 )
 
-            sql_ref_rnd = 1.0 / T_H_rnd if T_H_rnd > 0 else float("inf")
+            sql_ref_rnd = 1.0 / T_hold_rnd if T_hold_rnd > 0 else float("inf")
 
             scol1, scol2, scol3 = st.columns(3)
             scol1.metric(
-                "Best Δθ (S-only)",
-                f"{rnd_sonly.best_delta_theta:.4f}",
+                "Best Δω (S-only)",
+                f"{rnd_sonly.best_delta_omega:.4f}",
                 delta=f"SQL: {sql_ref_rnd:.4f}",
             )
             scol2.metric(
-                "Best Δθ (Joint)",
-                f"{rnd_joint.best_delta_theta:.4f}",
+                "Best Δω (Joint)",
+                f"{rnd_joint.best_delta_omega:.4f}",
                 delta=f"SQL: {sql_ref_rnd:.4f}",
             )
             scol3.metric("SQL ref", f"{sql_ref_rnd:.4f}")
@@ -964,7 +966,7 @@ with tab2:
             fig_rnd = go.Figure()
             fig_rnd.add_trace(
                 go.Histogram(
-                    x=rnd_sonly.delta_theta_values,
+                    x=rnd_sonly.delta_omega_values,
                     name="S-only",
                     opacity=0.7,
                     nbinsx=30,
@@ -972,7 +974,7 @@ with tab2:
             )
             fig_rnd.add_trace(
                 go.Histogram(
-                    x=rnd_joint.delta_theta_values,
+                    x=rnd_joint.delta_omega_values,
                     name="Joint",
                     opacity=0.7,
                     nbinsx=30,
@@ -985,8 +987,8 @@ with tab2:
                 annotation_text=f"SQL = {sql_ref_rnd:.4f}",
             )
             fig_rnd.update_layout(
-                title="Δθ Distribution (4D Random Search)",
-                xaxis_title="Δθ",
+                title="Δω Distribution (4D Random Search)",
+                xaxis_title="Δω",
                 yaxis_title="Count",
                 height=400,
                 barmode="overlay",
@@ -1030,8 +1032,8 @@ with tab3:
             key="alpha_reopt_maxiter",
         )
     with rcol3:
-        theta_true_reopt = st.slider(
-            "θ_true",
+        omega_true_reopt = st.slider(
+            "ω_true",
             0.1,
             5.0,
             1.0,
@@ -1040,7 +1042,7 @@ with tab3:
         )
         st.caption(
             "Re-optimises 7 state parameters (θ_S, φ_S, θ_A, φ_A, "
-            "T_BS1, T_BS2, T_H) at each α value.",
+            "T_BS1, T_BS2, T_hold) at each α value.",
         )
 
     if st.button("▶ Run Re-optimisation Scan", key="alpha_reopt_btn"):
@@ -1052,7 +1054,7 @@ with tab3:
             reopt_result = scan_alpha_with_reoptimisation(
                 alpha_name=alpha_name_reopt,
                 alpha_values=np.linspace(-2.0, 2.0, n_points_reopt),
-                theta_true=theta_true_reopt,
+                omega_true=omega_true_reopt,
                 n_restarts=n_restarts_reopt,
                 maxiter=maxiter_reopt,
                 seed=int(seed),
@@ -1064,18 +1066,18 @@ with tab3:
         st.subheader("📊 Joint vs S-only Comparison")
         table_reopt: dict[str, list[str]] = {
             "α": [],
-            "Δθ Joint": [],
-            "Δθ S-only": [],
+            "Δω Joint": [],
+            "Δω S-only": [],
             "Joint < S-only?": [],
         }
         for i in range(len(reopt_result.alpha_values)):
-            j = reopt_result.delta_theta_joint[i]
-            s = reopt_result.delta_theta_sonly[i]
+            j = reopt_result.delta_omega_joint[i]
+            s = reopt_result.delta_omega_sonly[i]
             table_reopt["α"].append(f"{reopt_result.alpha_values[i]:.3f}")
-            table_reopt["Δθ Joint"].append(
+            table_reopt["Δω Joint"].append(
                 f"{j:.4f}" if np.isfinite(j) else "∞",
             )
-            table_reopt["Δθ S-only"].append(
+            table_reopt["Δω S-only"].append(
                 f"{s:.4f}" if np.isfinite(s) else "∞",
             )
             if np.isfinite(j) and np.isfinite(s):
@@ -1092,7 +1094,7 @@ with tab3:
         fig_reopt.add_trace(
             go.Scatter(
                 x=reopt_result.alpha_values,
-                y=reopt_result.delta_theta_joint,
+                y=reopt_result.delta_omega_joint,
                 mode="lines+markers",
                 name="Joint M = J_z^S + J_z^A",
                 line={"color": "royalblue", "width": 2},
@@ -1101,7 +1103,7 @@ with tab3:
         fig_reopt.add_trace(
             go.Scatter(
                 x=reopt_result.alpha_values,
-                y=reopt_result.delta_theta_sonly,
+                y=reopt_result.delta_omega_sonly,
                 mode="lines+markers",
                 name="S-only (J_z^S)",
                 line={"color": "firebrick", "width": 2},
@@ -1110,7 +1112,7 @@ with tab3:
         fig_reopt.update_layout(
             title=f"Sensitivity vs α_{{{alpha_name_reopt}}} (Re-optimised)",
             xaxis_title=f"α_{alpha_name_reopt}",
-            yaxis_title="Δθ",
+            yaxis_title="Δω",
             yaxis_type="log",
             height=450,
             legend={"yanchor": "top", "y": 0.95, "xanchor": "left", "x": 0.05},

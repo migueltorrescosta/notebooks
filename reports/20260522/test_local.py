@@ -15,6 +15,7 @@ import pytest
 from scipy.linalg import expm
 
 from src.physics.dicke_basis import jz_operator
+from src.utils.enums import OperatorBasis
 
 _report_dir = str(
     Path(__file__).resolve().parent.parent.parent / "reports" / "20260522",
@@ -26,11 +27,11 @@ del _sys, _report_dir
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     AXX_BOUNDS,
     DEFAULT_T_BS,
-    DEFAULT_T_H,
     FD_STEP,
     N_COARSE_GRID,
-    THETA_MAX,
-    THETA_MIN,
+    OMEGA_MAX,
+    OMEGA_MIN,
+    DEFAULT_T_hold,
     DualMZISweepResult,
     ScalingAnalysisResult,
     build_hold_hamiltonian,
@@ -41,7 +42,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     embed_combined_operators,
     evolve_circuit,
     fit_scaling_exponents,
-    hold_unitary,
+    hold_unitary_dicke,
     initial_state,
     optimise_alpha_xx,
     run_sweep,
@@ -88,26 +89,26 @@ class TestOperatorConstruction:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_hold_hamiltonian_hermitian(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
-        for theta in [0.1, 1.0, 5.0]:
+        for omega in [0.1, 1.0, 5.0]:
             for alpha_xx in [0.0, 1.0, 10.0]:
-                H = build_hold_hamiltonian(N, theta, alpha_xx, ops)
+                H = build_hold_hamiltonian(N, omega, alpha_xx, ops)
                 assert np.allclose(H, H.conj().T, atol=1e-12), (
-                    f"H not Hermitian for N={N}, θ={theta}, α_xx={alpha_xx}"
+                    f"H not Hermitian for N={N}, ω={omega}, α_xx={alpha_xx}"
                 )
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_hold_hamiltonian_decoupled(self, N: int) -> None:
-        """At α_xx = 0, H = θ(J_z^S + J_z^A)."""
+        """At α_xx = 0, H = ω(J_z^S + J_z^A)."""
         ops = _embed_ops_for_tests(N)
-        theta = 0.7
-        H = build_hold_hamiltonian(N, theta, 0.0, ops)
-        expected = theta * (ops["Jz_S"] + ops["Jz_A"])
+        omega = 0.7
+        H = build_hold_hamiltonian(N, omega, 0.0, ops)
+        expected = omega * (ops["Jz_S"] + ops["Jz_A"])
         assert np.allclose(H, expected, atol=1e-12), f"Decoupled H mismatch for N={N}"
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_jz_single_diagonal(self, N: int) -> None:
         """J_z should be diagonal in the Dicke basis."""
-        Jz = jz_operator(N)
+        Jz = jz_operator(N, basis=OperatorBasis.DICKE)
         assert np.allclose(Jz, np.diag(np.diag(Jz)), atol=1e-12), (
             f"J_z not diagonal for N={N}"
         )
@@ -132,9 +133,9 @@ class TestUnitarity:
         )
 
     @pytest.mark.parametrize("N", [1, 2, 5])
-    def test_hold_unitary(self, N: int) -> None:
+    def test_hold_unitary_dicke(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
-        U = hold_unitary(N, T_H=1.0, theta=0.5, alpha_xx=2.0, ops=ops)
+        U = hold_unitary_dicke(N, T_hold=1.0, omega=0.5, alpha_xx=2.0, ops=ops)
         dim = (N + 1) ** 2
         eye = np.eye(dim, dtype=complex)
         assert np.allclose(U @ U.conj().T, eye, atol=1e-12), (
@@ -143,13 +144,13 @@ class TestUnitarity:
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_hold_unitary_decoupled_factorizes(self, N: int) -> None:
-        """At α_xx = 0, U_hold = exp(-i T_H θ J_z) ⊗ exp(-i T_H θ J_z)."""
+        """At α_xx = 0, U_hold = exp(-i T_hold ω J_z) ⊗ exp(-i T_hold ω J_z)."""
         ops = _embed_ops_for_tests(N)
-        theta = 0.5
-        T_H = 2.0
-        U = hold_unitary(N, T_H, theta, 0.0, ops)
-        Jz = jz_operator(N)
-        U_single = expm(-1j * T_H * theta * Jz)
+        omega = 0.5
+        T_hold = 2.0
+        U = hold_unitary_dicke(N, T_hold, omega, 0.0, ops)
+        Jz = jz_operator(N, basis=OperatorBasis.DICKE)
+        U_single = expm(-1j * T_hold * omega * Jz)
         expected = np.kron(U_single, U_single)
         assert np.allclose(U, expected, atol=1e-12), (
             f"Decoupled hold does not factorize for N={N}"
@@ -166,7 +167,7 @@ class TestCircuitEvolution:
     def test_normalisation_preserved(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        psi = evolve_circuit(N, psi0, theta=0.5, alpha_xx=0.0, ops=ops)
+        psi = evolve_circuit(N, psi0, omega=0.5, alpha_xx=0.0, ops=ops)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
     @pytest.mark.parametrize(
@@ -175,18 +176,18 @@ class TestCircuitEvolution:
     def test_normalisation_with_coupling(self, N: int, alpha_xx: float) -> None:
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        psi = evolve_circuit(N, psi0, theta=1.0, alpha_xx=alpha_xx, ops=ops)
+        psi = evolve_circuit(N, psi0, omega=1.0, alpha_xx=alpha_xx, ops=ops)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_no_op_identity(self, N: int) -> None:
-        """T_BS=0, T_H=0 should give the initial state back."""
+        """T_BS=0, T_hold=0 should give the initial state back."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        # T_BS=0 is identity, T_H=0 is identity
-        U_bs_zero = dual_bs_unitary(N, T=0.0)
+        # T_BS=0 is identity, T_hold=0 is identity
+        U_bs_zero = dual_bs_unitary(N, T_BS=0.0)
         psi = U_bs_zero @ psi0
-        psi = hold_unitary(N, T_H=0.0, theta=0.0, alpha_xx=0.0, ops=ops) @ psi
+        psi = hold_unitary_dicke(N, T_hold=0.0, omega=0.0, alpha_xx=0.0, ops=ops) @ psi
         psi = U_bs_zero @ psi
         assert np.allclose(psi, psi0, atol=1e-12), f"Identity failed for N={N}"
 
@@ -196,7 +197,7 @@ class TestReducedVariance:
     def test_product_state_variance_zero(self, N: int) -> None:
         """For the initial product state |J,J⟩_S⊗|J,J⟩_A, Var(J_z^S)=0."""
         psi = initial_state(N)
-        Jz_single = jz_operator(N)
+        Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
         _, var = compute_reduced_expectation_and_variance(psi, N, Jz_single)
         assert var == pytest.approx(0.0, abs=1e-12), f"Var != 0 for N={N}"
 
@@ -205,7 +206,7 @@ class TestReducedVariance:
         """Tr(ρ_S) = 1 after partial trace."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        psi = evolve_circuit(N, psi0, theta=0.5, alpha_xx=2.0, ops=ops)
+        psi = evolve_circuit(N, psi0, omega=0.5, alpha_xx=2.0, ops=ops)
         psi_mat = psi.reshape(N + 1, N + 1)
         rho_S = psi_mat @ psi_mat.conj().T
         trace = float(np.real(np.trace(rho_S)))
@@ -216,9 +217,9 @@ class TestReducedVariance:
         """Var(J_z^S) >= 0 for all couplings."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        Jz_single = jz_operator(N)
+        Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
         for alpha_xx in [0.0, 1.0, 5.0, 10.0]:
-            psi = evolve_circuit(N, psi0, theta=0.5, alpha_xx=alpha_xx, ops=ops)
+            psi = evolve_circuit(N, psi0, omega=0.5, alpha_xx=alpha_xx, ops=ops)
             _, var = compute_reduced_expectation_and_variance(psi, N, Jz_single)
             assert var >= -1e-12, f"Negative Var at N={N}, α_xx={alpha_xx}: {var}"
 
@@ -226,37 +227,37 @@ class TestReducedVariance:
 class TestSensitivity:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_decoupled_sensitivity_matches_sql(self, N: int) -> None:
-        """At α_xx = 0, Δθ should equal SQL = 1/(√N T_H)."""
+        """At α_xx = 0, Δω should equal SQL = 1/(√N T_hold)."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        theta = 1.0
+        omega = 1.0
         dt, *_ = compute_sensitivity(
             N,
             psi0,
-            theta_true=theta,
+            omega_true=omega,
             alpha_xx=0.0,
             ops=ops,
         )
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_H)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
         assert dt == pytest.approx(sql, rel=1e-5), (
-            f"N={N}: Δθ={dt:.10f} != SQL={sql:.10f}"
+            f"N={N}: Δω={dt:.10f} != SQL={sql:.10f}"
         )
 
-    @pytest.mark.parametrize(("N", "theta"), [(1, 0.1), (2, 0.5), (3, 1.0), (5, 2.0)])
-    def test_decoupled_all_theta(self, N: int, theta: float) -> None:
-        """At α_xx = 0, Δθ = SQL for any θ."""
+    @pytest.mark.parametrize(("N", "omega"), [(1, 0.1), (2, 0.5), (3, 1.0), (5, 2.0)])
+    def test_decoupled_all_omega(self, N: int, omega: float) -> None:
+        """At α_xx = 0, Δω = SQL for any ω."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
         dt, _, _, _ = compute_sensitivity(
             N,
             psi0,
-            theta_true=theta,
+            omega_true=omega,
             alpha_xx=0.0,
             ops=ops,
         )
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_H)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
         assert dt == pytest.approx(sql, rel=1e-5), (
-            f"N={N}, θ={theta}: Δθ={dt:.10f} != SQL={sql:.10f}"
+            f"N={N}, ω={omega}: Δω={dt:.10f} != SQL={sql:.10f}"
         )
 
     @pytest.mark.parametrize("N", [1, 2, 5])
@@ -268,11 +269,11 @@ class TestSensitivity:
             dt, _, _, _ = compute_sensitivity(
                 N,
                 psi0,
-                theta_true=1.0,
+                omega_true=1.0,
                 alpha_xx=alpha_xx,
                 ops=ops,
             )
-            assert np.isfinite(dt), f"Non-finite Δθ={dt} at N={N}, α_xx={alpha_xx}"
+            assert np.isfinite(dt), f"Non-finite Δω={dt} at N={N}, α_xx={alpha_xx}"
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_sensitivity_positive(self, N: int) -> None:
@@ -283,14 +284,14 @@ class TestSensitivity:
             dt, _, _, _ = compute_sensitivity(
                 N,
                 psi0,
-                theta_true=1.0,
+                omega_true=1.0,
                 alpha_xx=alpha_xx,
                 ops=ops,
             )
-            assert dt > 0, f"Non-positive Δθ={dt} at N={N}, α_xx={alpha_xx}"
+            assert dt > 0, f"Non-positive Δω={dt} at N={N}, α_xx={alpha_xx}"
 
     def test_derivative_stability_across_fd_step(self) -> None:
-        """Δθ should be stable across a range of fd_step values."""
+        """Δω should be stable across a range of fd_step values."""
         N = 3
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
@@ -299,7 +300,7 @@ class TestSensitivity:
             dt, _, _, _ = compute_sensitivity(
                 N,
                 psi0,
-                theta_true=1.0,
+                omega_true=1.0,
                 alpha_xx=2.0,
                 ops=ops,
                 fd_step=fd_step,
@@ -319,10 +320,10 @@ class TestSensitivity:
 class TestAlphaOptimisation:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_optimisation_returns_finite(self, N: int) -> None:
-        """Optimisation should return a finite Δθ."""
+        """Optimisation should return a finite Δω."""
         ops = _embed_ops_for_tests(N)
-        result = optimise_alpha_xx(N=N, theta=1.0, ops=ops, n_coarse=51)
-        assert np.isfinite(result["delta_theta_opt"]) or np.isnan(
+        result = optimise_alpha_xx(N=N, omega=1.0, ops=ops, n_coarse=51)
+        assert np.isfinite(result["delta_omega_opt"]) or np.isnan(
             result["alpha_xx_opt"]
         ), f"Non-finite result for N={N}"
 
@@ -330,7 +331,7 @@ class TestAlphaOptimisation:
     def test_optimisation_alpha_in_bounds(self, N: int) -> None:
         """α_xx* should be within [0, 20]."""
         ops = _embed_ops_for_tests(N)
-        result = optimise_alpha_xx(N=N, theta=1.0, ops=ops, n_coarse=51)
+        result = optimise_alpha_xx(N=N, omega=1.0, ops=ops, n_coarse=51)
         if np.isfinite(result["alpha_xx_opt"]):
             lo, hi = AXX_BOUNDS
             assert lo - 1e-6 <= result["alpha_xx_opt"] <= hi + 1e-6, (
@@ -341,62 +342,62 @@ class TestAlphaOptimisation:
         """Optimisation should run and store the correct SQL reference."""
         N = 3
         ops = _embed_ops_for_tests(N)
-        result = optimise_alpha_xx(N=N, theta=0.5, ops=ops, n_coarse=51)
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_H)
-        if np.isfinite(result["delta_theta_opt"]):
-            assert result["delta_theta_opt"] > 0
+        result = optimise_alpha_xx(N=N, omega=0.5, ops=ops, n_coarse=51)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        if np.isfinite(result["delta_omega_opt"]):
+            assert result["delta_omega_opt"] > 0
             assert result["sql"] == pytest.approx(sql)
 
-    def test_optimisation_theta_scan_small(self) -> None:
+    def test_optimisation_omega_scan_small(self) -> None:
         """Run a mini sweep to check the pipeline works."""
         N = 2
         ops = _embed_ops_for_tests(N)
-        for theta in [0.5, 1.0, 2.0]:
-            result = optimise_alpha_xx(N=N, theta=theta, ops=ops, n_coarse=31)
-            assert np.isfinite(result["delta_theta_opt"]) or np.isnan(
+        for omega in [0.5, 1.0, 2.0]:
+            result = optimise_alpha_xx(N=N, omega=omega, ops=ops, n_coarse=31)
+            assert np.isfinite(result["delta_omega_opt"]) or np.isnan(
                 result["alpha_xx_opt"]
             )
 
 
 class TestFullSweep:
     def test_small_sweep_runs(self) -> None:
-        """A small sweep (2 θ × 2 N) should complete without error."""
+        """A small sweep (2 ω × 2 N) should complete without error."""
         result = run_sweep(
-            theta_values=np.array([0.5, 1.0]),
+            omega_values=np.array([0.5, 1.0]),
             N_values=np.array([1, 2]),
         )
         assert result.n_points == 4
-        assert len(result.theta_values) == 4
+        assert len(result.omega_values) == 4
         assert len(result.alpha_xx_opt) == 4
 
     def test_sweep_contains_sql(self) -> None:
         result = run_sweep(
-            theta_values=np.array([1.0]),
+            omega_values=np.array([1.0]),
             N_values=np.array([1, 3]),
         )
         for i in range(result.n_points):
             N = result.N_values[i]
-            expected_sql = 1.0 / (np.sqrt(N) * DEFAULT_T_H)
+            expected_sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
             assert result.sql_values[i] == pytest.approx(expected_sql), (
                 f"SQL mismatch for N={N}: {result.sql_values[i]} != {expected_sql}"
             )
 
     def test_sweep_all_finite_or_inf(self) -> None:
-        """All Δθ values should be finite (or inf at fringe extremum)."""
+        """All Δω values should be finite (or inf at fringe extremum)."""
         result = run_sweep(
-            theta_values=np.array([0.5, 2.0]),
+            omega_values=np.array([0.5, 2.0]),
             N_values=np.array([1, 3]),
         )
-        for dt in result.delta_theta_opt:
-            assert np.isfinite(dt) or np.isinf(dt), f"Non-finite Δθ: {dt}"
+        for dt in result.delta_omega_opt:
+            assert np.isfinite(dt) or np.isinf(dt), f"Non-finite Δω: {dt}"
 
 
 class TestDecoupledBaseline:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_baseline_ratio_near_one(self, N: int) -> None:
-        """At α_xx = 0, Δθ/SQL should be very close to 1."""
+        """At α_xx = 0, Δω/SQL should be very close to 1."""
         result = compute_decoupled_baseline(
-            theta_values=np.array([0.5, 1.0]),
+            omega_values=np.array([0.5, 1.0]),
             N_values=np.array([N]),
         )
         valid = np.isfinite(result.ratio)
@@ -408,7 +409,7 @@ class TestDecoupledBaseline:
     def test_baseline_all_N(self) -> None:
         """Baseline for all N should have ratio ≈ 1."""
         result = compute_decoupled_baseline(
-            theta_values=np.array([1.0]),
+            omega_values=np.array([1.0]),
             N_values=np.arange(1, 11, dtype=int),
         )
         valid = np.isfinite(result.ratio)
@@ -419,16 +420,16 @@ class TestDecoupledBaseline:
 class TestScalingAnalysis:
     def test_scaling_decoupled_gives_sql_exponent(self) -> None:
         """For decoupled data, exponent should be close to -0.5 (SQL)."""
-        theta_vals = np.array([0.5, 1.0])
+        omega_vals = np.array([0.5, 1.0])
         N_vals = np.array([1, 2, 3, 5, 10, 15, 20])
         sweep = compute_decoupled_baseline(
-            theta_values=theta_vals,
+            omega_values=omega_vals,
             N_values=N_vals,
         )
         scaling = fit_scaling_exponents(
-            sweep.theta_values,
+            sweep.omega_values,
             sweep.N_values,
-            sweep.delta_theta_opt,
+            sweep.delta_omega_opt,
         )
         valid = np.isfinite(scaling.exponents)
         if np.any(valid):
@@ -438,19 +439,19 @@ class TestScalingAnalysis:
                 )
 
     def test_scaling_returns_correct_shape(self) -> None:
-        """Scaling analysis should return one exponent per θ."""
+        """Scaling analysis should return one exponent per ω."""
         N_vals = np.array([1, 2, 3, 5, 10], dtype=int)
-        theta_vals = np.array([0.5, 1.0, 2.0])
+        omega_vals = np.array([0.5, 1.0, 2.0])
         sweep = compute_decoupled_baseline(
-            theta_values=theta_vals,
+            omega_values=omega_vals,
             N_values=N_vals,
         )
         scaling = fit_scaling_exponents(
-            sweep.theta_values,
+            sweep.omega_values,
             sweep.N_values,
-            sweep.delta_theta_opt,
+            sweep.delta_omega_opt,
         )
-        assert len(scaling.theta_values) == 3
+        assert len(scaling.omega_values) == 3
         assert len(scaling.exponents) == 3
         assert len(scaling.prefactors) == 3
 
@@ -458,13 +459,13 @@ class TestScalingAnalysis:
         """For clean decoupled data, R² should be very high."""
         N_vals = np.array([1, 2, 3, 5, 10, 20], dtype=int)
         sweep = compute_decoupled_baseline(
-            theta_values=np.array([1.0]),
+            omega_values=np.array([1.0]),
             N_values=N_vals,
         )
         scaling = fit_scaling_exponents(
-            sweep.theta_values,
+            sweep.omega_values,
             sweep.N_values,
-            sweep.delta_theta_opt,
+            sweep.delta_omega_opt,
         )
         valid = np.isfinite(scaling.r_squared)
         if np.any(valid):
@@ -475,63 +476,63 @@ class TestParquetRoundtrip:
     def test_sweep_roundtrip(self, tmp_path: Path) -> None:
         """Basic roundtrip: save then load — all fields survive."""
         original = DualMZISweepResult(
-            theta_values=np.array([0.5, 0.5, 1.0, 1.0]),
+            omega_values=np.array([0.5, 0.5, 1.0, 1.0]),
             N_values=np.array([1, 2, 1, 2], dtype=int),
             alpha_xx_opt=np.array([0.0, 0.5, 1.0, 1.5]),
-            delta_theta_opt=np.array([0.1, 0.07, 0.09, 0.06]),
+            delta_omega_opt=np.array([0.1, 0.07, 0.09, 0.06]),
             sql_values=np.array([0.1, 0.07071, 0.1, 0.07071]),
             ratio=np.array([1.0, 0.9899, 0.9, 0.8485]),
             expectation_Jz=np.array([0.25, 0.2, 0.3, 0.15]),
             variance_Jz=np.array([0.05, 0.04, 0.06, 0.03]),
             d_expectation=np.array([-0.5, -0.4, -0.6, -0.3]),
-            T_H=10.0,
+            T_hold=10.0,
         )
         parquet_path = tmp_path / "test_sweep.parquet"
         original.save_parquet(parquet_path)
         loaded = DualMZISweepResult.from_parquet(parquet_path)
-        assert np.allclose(loaded.theta_values, original.theta_values)
+        assert np.allclose(loaded.omega_values, original.omega_values)
         assert np.array_equal(loaded.N_values, original.N_values)
         assert np.allclose(loaded.alpha_xx_opt, original.alpha_xx_opt)
-        assert np.allclose(loaded.delta_theta_opt, original.delta_theta_opt)
+        assert np.allclose(loaded.delta_omega_opt, original.delta_omega_opt)
         assert np.allclose(loaded.sql_values, original.sql_values)
         assert np.allclose(loaded.ratio, original.ratio)
         assert np.allclose(loaded.expectation_Jz, original.expectation_Jz)
         assert np.allclose(loaded.variance_Jz, original.variance_Jz)
         assert np.allclose(loaded.d_expectation, original.d_expectation)
-        assert pytest.approx(original.T_H) == loaded.T_H
+        assert pytest.approx(original.T_hold) == loaded.T_hold
 
     def test_sweep_roundtrip_metadata(self, tmp_path: Path) -> None:
         """All metadata fields survive roundtrip."""
         original = DualMZISweepResult(
-            theta_values=np.array([0.1, 0.5, 1.0]),
+            omega_values=np.array([0.1, 0.5, 1.0]),
             N_values=np.array([1, 3, 10], dtype=int),
             alpha_xx_opt=np.array([5.0, 10.0, 15.0]),
-            delta_theta_opt=np.array([0.05, 0.03, 0.015]),
+            delta_omega_opt=np.array([0.05, 0.03, 0.015]),
             sql_values=np.array([0.1, 0.05774, 0.03162]),
             ratio=np.array([0.5, 0.5196, 0.4743]),
             expectation_Jz=np.array([0.1, 0.2, 0.3]),
             variance_Jz=np.array([0.01, 0.02, 0.03]),
             d_expectation=np.array([-0.5, -0.3, -0.2]),
-            T_H=10.0,
+            T_hold=10.0,
         )
         parquet_path = tmp_path / "test_meta.parquet"
         original.save_parquet(parquet_path)
         loaded = DualMZISweepResult.from_parquet(parquet_path)
-        assert loaded.theta_values[0] == pytest.approx(0.1)
+        assert loaded.omega_values[0] == pytest.approx(0.1)
         assert loaded.alpha_xx_opt[1] == pytest.approx(10.0)
-        assert loaded.delta_theta_opt[2] == pytest.approx(0.015)
+        assert loaded.delta_omega_opt[2] == pytest.approx(0.015)
         assert loaded.sql_values[0] == pytest.approx(0.1)
         assert loaded.ratio[2] == pytest.approx(0.4743, rel=1e-3)
         assert loaded.expectation_Jz[1] == pytest.approx(0.2)
         assert loaded.variance_Jz[2] == pytest.approx(0.03)
         assert loaded.d_expectation[0] == pytest.approx(-0.5)
-        assert pytest.approx(10.0) == loaded.T_H
+        assert pytest.approx(10.0) == loaded.T_hold
 
     def test_from_parquet_missing_columns(self, tmp_path: Path) -> None:
         """from_parquet should fail fast when required columns missing."""
         import pandas as pd
 
-        df_bad = pd.DataFrame({"theta": [0.1, 0.5], "delta_theta_opt": [0.05, 0.06]})
+        df_bad = pd.DataFrame({"omega": [0.1, 0.5], "delta_omega_opt": [0.05, 0.06]})
         parquet_path = tmp_path / "bad.parquet"
         df_bad.to_parquet(parquet_path, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
@@ -540,7 +541,7 @@ class TestParquetRoundtrip:
     def test_scaling_roundtrip(self, tmp_path: Path) -> None:
         """ScalingAnalysisResult roundtrip."""
         original = ScalingAnalysisResult(
-            theta_values=np.array([0.5, 1.0, 2.0]),
+            omega_values=np.array([0.5, 1.0, 2.0]),
             exponents=np.array([-0.5, -0.48, -0.52]),
             prefactors=np.array([0.1, 0.12, 0.09]),
             r_squared=np.array([0.999, 0.998, 0.997]),
@@ -554,7 +555,7 @@ class TestParquetRoundtrip:
     def test_scaling_roundtrip_metadata(self, tmp_path: Path) -> None:
         """Scaling metadata survives roundtrip."""
         original = ScalingAnalysisResult(
-            theta_values=np.array([0.1, 1.0]),
+            omega_values=np.array([0.1, 1.0]),
             exponents=np.array([-0.5, -0.45]),
             prefactors=np.array([0.1, 0.15]),
             r_squared=np.array([0.99, 0.97]),
@@ -570,7 +571,7 @@ class TestParquetRoundtrip:
     def test_scaling_roundtrip_custom_sql_exponent(self, tmp_path: Path) -> None:
         """sql_exponent metadata survives roundtrip."""
         original = ScalingAnalysisResult(
-            theta_values=np.array([0.5]),
+            omega_values=np.array([0.5]),
             exponents=np.array([-0.3]),
             prefactors=np.array([0.2]),
             r_squared=np.array([0.95]),
@@ -585,7 +586,7 @@ class TestParquetRoundtrip:
         """from_parquet should fail fast when required columns missing."""
         import pandas as pd
 
-        df_bad = pd.DataFrame({"theta": [0.1], "exponent": [-0.5]})
+        df_bad = pd.DataFrame({"omega": [0.1], "exponent": [-0.5]})
         parquet_path = tmp_path / "bad_scaling.parquet"
         df_bad.to_parquet(parquet_path, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
@@ -595,12 +596,12 @@ class TestParquetRoundtrip:
 class TestPhysicalInvariants:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_var_positive_all_couplings(self, N: int) -> None:
-        """Var(J_z^S) >= 0 for all α_xx at representative θ."""
+        """Var(J_z^S) >= 0 for all α_xx at representative ω."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        Jz_single = jz_operator(N)
+        Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
         for alpha_xx in [0.0, 0.5, 2.0, 5.0, 10.0]:
-            psi = evolve_circuit(N, psi0, theta=1.0, alpha_xx=alpha_xx, ops=ops)
+            psi = evolve_circuit(N, psi0, omega=1.0, alpha_xx=alpha_xx, ops=ops)
             _, var = compute_reduced_expectation_and_variance(psi, N, Jz_single)
             assert var >= -1e-12, (
                 f"Negative Var(J_z^S)={var:.2e} at N={N}, α_xx={alpha_xx}"
@@ -611,17 +612,17 @@ class TestPhysicalInvariants:
         """At α_xx=0, must recover SQL exactly."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_H)
-        for theta in [0.1, 1.0, 5.0]:
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        for omega in [0.1, 1.0, 5.0]:
             dt, _, _, _ = compute_sensitivity(
                 N,
                 psi0,
-                theta_true=theta,
+                omega_true=omega,
                 alpha_xx=0.0,
                 ops=ops,
             )
             assert dt == pytest.approx(sql, rel=1e-5), (
-                f"N={N}, θ={theta}: Δθ={dt:.10f} != SQL={sql:.10f}"
+                f"N={N}, ω={omega}: Δω={dt:.10f} != SQL={sql:.10f}"
             )
 
     def test_single_bs_unitarity_all_N(self) -> None:
@@ -637,19 +638,19 @@ class TestPhysicalInvariants:
         """Total H is Hermitian for all tested parameters."""
         for N in [1, 2, 5, 10]:
             ops = _embed_ops_for_tests(N)
-            for theta in [0.1, 1.0, 5.0]:
+            for omega in [0.1, 1.0, 5.0]:
                 for alpha_xx in [0.0, 1.0, 10.0, 20.0]:
-                    H = build_hold_hamiltonian(N, theta, alpha_xx, ops)
+                    H = build_hold_hamiltonian(N, omega, alpha_xx, ops)
                     assert np.allclose(H, H.conj().T, atol=1e-12), (
-                        f"H not Hermitian at N={N}, θ={theta}, α_xx={alpha_xx}"
+                        f"H not Hermitian at N={N}, ω={omega}, α_xx={alpha_xx}"
                     )
 
 
 class TestSQLScaling:
     def test_sql_exponent_from_decoupled(self) -> None:
-        """Log-log fit of decoupled Δθ vs N should give α = -0.5."""
+        """Log-log fit of decoupled Δω vs N should give α = -0.5."""
         N_vals = np.array([1, 2, 3, 5, 10, 15, 20], dtype=int)
-        sql_vals = 1.0 / (np.sqrt(N_vals) * DEFAULT_T_H)
+        sql_vals = 1.0 / (np.sqrt(N_vals) * DEFAULT_T_hold)
         log_N = np.log(N_vals.astype(float))
         log_sql = np.log(sql_vals)
         A = np.vstack([log_N, np.ones_like(log_N)]).T
@@ -661,9 +662,9 @@ class TestSQLScaling:
 
 
 class TestConstants:
-    def test_theta_range(self) -> None:
-        assert THETA_MIN == 0.1
-        assert THETA_MAX == 5.0
+    def test_omega_range(self) -> None:
+        assert OMEGA_MIN == 0.1
+        assert OMEGA_MAX == 5.0
 
     def test_axx_bounds(self) -> None:
         lo, hi = AXX_BOUNDS
@@ -678,4 +679,4 @@ class TestConstants:
 
     def test_th_bs(self) -> None:
         assert pytest.approx(np.pi / 2.0) == DEFAULT_T_BS
-        assert DEFAULT_T_H == 10.0
+        assert DEFAULT_T_hold == 10.0

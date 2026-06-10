@@ -34,6 +34,8 @@ Functions:
 import numpy as np
 import scipy
 
+from src.utils.constants import SIGMA_X, SIGMA_Y, SIGMA_Z
+
 # =============================================================================
 # Spin Operators (Pauli matrices)
 # =============================================================================
@@ -41,17 +43,17 @@ import scipy
 
 def spin_operator_x() -> np.ndarray:
     """Return σ_x Pauli matrix."""
-    return np.array([[0, 1], [1, 0]], dtype=complex)
+    return SIGMA_X
 
 
 def spin_operator_y() -> np.ndarray:
     """Return σ_y Pauli matrix."""
-    return np.array([[0, -1j], [1j, 0]], dtype=complex)
+    return SIGMA_Y
 
 
 def spin_operator_z() -> np.ndarray:
     """Return σ_z Pauli matrix."""
-    return np.array([[1, 0], [0, -1]], dtype=complex)
+    return SIGMA_Z
 
 
 def spin_operator_phi(phi: float) -> np.ndarray:

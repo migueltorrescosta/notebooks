@@ -33,11 +33,11 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     AZZ_BOUNDS,
     REPORT_DATE,
     SQL,
-    T_H,
     EnvelopeResult,
     NormBallResult,
+    T_hold,
     _marsaglia_3ball_sample,
-    _sample_ball_for_theta,
+    _sample_ball_for_omega,
     compute_sensitivity_with_extra,
     extract_envelope_curve,
     norm_ball_sampling,
@@ -108,16 +108,16 @@ class TestMarsaglia3BallSample:
 # ============================================================================
 
 
-class TestSampleBallForTheta:
+class TestSampleBallForOmega:
     def test_marsaglia_default(self) -> None:
         rng = np.random.default_rng(42)
-        drive, azz = _sample_ball_for_theta(rng, 100, 10.0, -5.0, 5.0, "marsaglia", 1)
+        drive, azz = _sample_ball_for_omega(rng, 100, 10.0, -5.0, 5.0, "marsaglia", 1)
         assert drive.shape == (100, 3)
         assert azz.shape == (100,)
 
     def test_stratified_correct_shape(self) -> None:
         rng = np.random.default_rng(42)
-        drive, azz = _sample_ball_for_theta(
+        drive, azz = _sample_ball_for_omega(
             rng,
             100,
             10.0,
@@ -132,12 +132,12 @@ class TestSampleBallForTheta:
     def test_stratified_requires_divisible(self) -> None:
         rng = np.random.default_rng(42)
         with pytest.raises(ValueError, match="must be divisible by n_strata"):
-            _sample_ball_for_theta(rng, 101, 10.0, -5.0, 5.0, "stratified", 10)
+            _sample_ball_for_omega(rng, 101, 10.0, -5.0, 5.0, "stratified", 10)
 
     def test_unknown_method_raises(self) -> None:
         rng = np.random.default_rng(42)
         with pytest.raises(ValueError, match="Unknown sampling_method"):
-            _sample_ball_for_theta(rng, 100, 10.0, -5.0, 5.0, "invalid", 1)
+            _sample_ball_for_omega(rng, 100, 10.0, -5.0, 5.0, "invalid", 1)
 
 
 # ============================================================================
@@ -147,18 +147,18 @@ class TestSampleBallForTheta:
 
 class TestNormBallSamplingStratified:
     def test_stratified_correct_shape(self) -> None:
-        theta_vals = [0.5, 1.0]
+        omega_vals = [0.5, 1.0]
         result = norm_ball_sampling(
-            theta_values=theta_vals,
+            omega_values=omega_vals,
             n_samp=100,
             R=5.0,
             seed=42,
             sampling_method="stratified",
             n_strata=10,
         )
-        assert result.theta_values.shape == (2,)
+        assert result.omega_values.shape == (2,)
         assert result.samples.shape == (2, 100, 4)
-        assert result.delta_theta_values.shape == (2, 100)
+        assert result.delta_omega_values.shape == (2, 100)
         assert result.norms.shape == (2, 100)
 
     def test_stratified_norms_within_R(self) -> None:
@@ -203,7 +203,7 @@ class TestNormBallSamplingStratified:
             n_strata=10,
         )
         assert np.allclose(r1.samples, r2.samples)
-        assert np.allclose(r1.delta_theta_values, r2.delta_theta_values)
+        assert np.allclose(r1.delta_omega_values, r2.delta_omega_values)
 
     def test_stratified_some_finite(self) -> None:
         result = norm_ball_sampling(
@@ -214,7 +214,7 @@ class TestNormBallSamplingStratified:
             sampling_method="stratified",
             n_strata=10,
         )
-        finite_count = np.sum(np.isfinite(result.delta_theta_values))
+        finite_count = np.sum(np.isfinite(result.delta_omega_values))
         assert finite_count > 0
 
     def test_stratified_sql_bound_holds(self) -> None:
@@ -226,9 +226,9 @@ class TestNormBallSamplingStratified:
             sampling_method="stratified",
             n_strata=10,
         )
-        finite_mask = np.isfinite(result.delta_theta_values)
+        finite_mask = np.isfinite(result.delta_omega_values)
         if np.any(finite_mask):
-            min_dt = np.min(result.delta_theta_values[finite_mask])
+            min_dt = np.min(result.delta_omega_values[finite_mask])
             assert min_dt >= SQL - 1e-12
 
     def test_stratified_small_r_density(self) -> None:
@@ -287,16 +287,16 @@ class TestNormBallSamplingStratified:
 
 class TestComputeSensitivityWithExtra:
     def test_decoupled_baseline_returns_sql(self) -> None:
-        """At (0,0,0,0), Δθ should equal SQL = 0.1."""
-        dtheta, exp_val, var_val, _deriv, fringe = compute_sensitivity_with_extra(
+        """At (0,0,0,0), Δω should equal SQL = 0.1."""
+        domega, exp_val, var_val, _deriv, fringe = compute_sensitivity_with_extra(
             1.0,
             0.0,
             0.0,
             0.0,
             0.0,
         )
-        assert np.isclose(dtheta, SQL, rtol=1e-8), (
-            f"Decoupled Δθ={dtheta} should equal SQL={SQL}"
+        assert np.isclose(domega, SQL, rtol=1e-8), (
+            f"Decoupled Δω={domega} should equal SQL={SQL}"
         )
         assert not fringe
         assert isinstance(exp_val, float)
@@ -305,7 +305,7 @@ class TestComputeSensitivityWithExtra:
 
     def test_fringe_extremum_detected(self) -> None:
         """Some configurations give zero derivative → flagged as fringe."""
-        dtheta, _exp_val, _var_val, _deriv, fringe = compute_sensitivity_with_extra(
+        domega, _exp_val, _var_val, _deriv, fringe = compute_sensitivity_with_extra(
             1.0,
             5.0,
             0.0,
@@ -313,12 +313,12 @@ class TestComputeSensitivityWithExtra:
             5.0,
         )
         if fringe:
-            assert np.isinf(dtheta)
+            assert np.isinf(domega)
             assert abs(_deriv) < 1e-12
 
     def test_nonzero_drive_returns_finite(self) -> None:
-        """Most non-pathological configurations should give finite Δθ."""
-        dtheta, *_ = compute_sensitivity_with_extra(
+        """Most non-pathological configurations should give finite Δω."""
+        domega, *_ = compute_sensitivity_with_extra(
             1.0,
             1.0,
             0.5,
@@ -326,14 +326,14 @@ class TestComputeSensitivityWithExtra:
             2.0,
         )
         # May be inf at fringe extremum, but should be finite often
-        if np.isfinite(dtheta):
-            assert dtheta > 0.0
+        if np.isfinite(domega):
+            assert domega > 0.0
 
     def test_returns_four_values_and_fringe_flag(self) -> None:
         result = compute_sensitivity_with_extra(1.0, 0.0, 0.0, 0.0, 0.0)
         assert len(result) == 5
-        dtheta, exp_val, var_val, deriv, fringe = result
-        assert isinstance(dtheta, float)
+        domega, exp_val, var_val, deriv, fringe = result
+        assert isinstance(domega, float)
         assert isinstance(exp_val, float)
         assert isinstance(var_val, float)
         assert isinstance(deriv, float)
@@ -348,23 +348,23 @@ class TestComputeSensitivityWithExtra:
 class TestNormBallSampling:
     def test_small_returns_correct_shape(self) -> None:
         """Small run to verify shape."""
-        theta_vals = [0.5, 1.0]
+        omega_vals = [0.5, 1.0]
         result = norm_ball_sampling(
-            theta_values=theta_vals,
+            omega_values=omega_vals,
             n_samp=20,
             R=5.0,
             seed=42,
         )
-        assert result.theta_values.shape == (2,)
+        assert result.omega_values.shape == (2,)
         assert result.samples.shape == (2, 20, 4)
-        assert result.delta_theta_values.shape == (2, 20)
+        assert result.delta_omega_values.shape == (2, 20)
         assert result.norms.shape == (2, 20)
 
     def test_deterministic_with_seed(self) -> None:
         r1 = norm_ball_sampling([1.0], n_samp=10, R=5.0, seed=42)
         r2 = norm_ball_sampling([1.0], n_samp=10, R=5.0, seed=42)
         assert np.allclose(r1.samples, r2.samples)
-        assert np.allclose(r1.delta_theta_values, r2.delta_theta_values)
+        assert np.allclose(r1.delta_omega_values, r2.delta_omega_values)
 
     def test_norms_within_R(self) -> None:
         result = norm_ball_sampling([1.0], n_samp=100, R=5.0, seed=42)
@@ -377,19 +377,19 @@ class TestNormBallSampling:
         assert np.all(a_zz_vals <= AZZ_BOUNDS[1] + 1e-12)
 
     def test_some_finite_values(self) -> None:
-        """At least some samples should yield finite Δθ."""
+        """At least some samples should yield finite Δω."""
         result = norm_ball_sampling([1.0], n_samp=50, R=5.0, seed=42)
-        finite_count = np.sum(np.isfinite(result.delta_theta_values))
-        assert finite_count > 0, "No finite Δθ values found"
+        finite_count = np.sum(np.isfinite(result.delta_omega_values))
+        assert finite_count > 0, "No finite Δω values found"
         assert finite_count <= 50
 
     def test_sql_bound_holds(self) -> None:
         """No configuration should beat the SQL."""
         result = norm_ball_sampling([1.0], n_samp=50, R=5.0, seed=42)
-        finite_mask = np.isfinite(result.delta_theta_values)
+        finite_mask = np.isfinite(result.delta_omega_values)
         if np.any(finite_mask):
-            min_dt = np.min(result.delta_theta_values[finite_mask])
-            assert min_dt >= SQL - 1e-12, f"Min Δθ={min_dt} is below SQL={SQL}"
+            min_dt = np.min(result.delta_omega_values[finite_mask])
+            assert min_dt >= SQL - 1e-12, f"Min Δω={min_dt} is below SQL={SQL}"
 
 
 # ============================================================================
@@ -400,27 +400,27 @@ class TestNormBallSampling:
 class TestNormBallResultParquet:
     @pytest.fixture
     def make_result(self) -> NormBallResult:
-        theta_vals = np.array([0.5, 1.0], dtype=float)
-        n_theta = 2
+        omega_vals = np.array([0.5, 1.0], dtype=float)
+        n_omega = 2
         n_samp = 5
         return NormBallResult(
-            theta_values=theta_vals,
-            samples=np.random.default_rng(42).uniform(-5, 5, size=(n_theta, n_samp, 4)),
-            delta_theta_values=np.random.default_rng(42).uniform(
-                0.1, 2.0, size=(n_theta, n_samp)
+            omega_values=omega_vals,
+            samples=np.random.default_rng(42).uniform(-5, 5, size=(n_omega, n_samp, 4)),
+            delta_omega_values=np.random.default_rng(42).uniform(
+                0.1, 2.0, size=(n_omega, n_samp)
             ),
             expectation_values=np.random.default_rng(42).uniform(
-                -0.5, 0.5, size=(n_theta, n_samp)
+                -0.5, 0.5, size=(n_omega, n_samp)
             ),
             variance_values=np.random.default_rng(42).uniform(
-                0.0, 0.5, size=(n_theta, n_samp)
+                0.0, 0.5, size=(n_omega, n_samp)
             ),
             deriv_values=np.random.default_rng(42).uniform(
-                -1.0, 1.0, size=(n_theta, n_samp)
+                -1.0, 1.0, size=(n_omega, n_samp)
             ),
-            norms=np.random.default_rng(42).uniform(0.0, 5.0, size=(n_theta, n_samp)),
+            norms=np.random.default_rng(42).uniform(0.0, 5.0, size=(n_omega, n_samp)),
             sql=0.1,
-            T_H=10.0,
+            T_hold=10.0,
             R=5.0,
         )
 
@@ -428,15 +428,15 @@ class TestNormBallResultParquet:
         p = tmp_path / "normball.parquet"
         make_result.save_parquet(p)
         loaded = NormBallResult.from_parquet(p)
-        assert np.allclose(loaded.theta_values, make_result.theta_values)
+        assert np.allclose(loaded.omega_values, make_result.omega_values)
         assert np.allclose(loaded.samples, make_result.samples)
-        assert np.allclose(loaded.delta_theta_values, make_result.delta_theta_values)
+        assert np.allclose(loaded.delta_omega_values, make_result.delta_omega_values)
         assert np.allclose(loaded.expectation_values, make_result.expectation_values)
         assert np.allclose(loaded.variance_values, make_result.variance_values)
         assert np.allclose(loaded.deriv_values, make_result.deriv_values)
         assert np.allclose(loaded.norms, make_result.norms)
         assert loaded.sql == make_result.sql
-        assert loaded.T_H == make_result.T_H
+        assert loaded.T_hold == make_result.T_hold
         assert loaded.R == make_result.R
 
     def test_fail_fast_missing_column(
@@ -458,16 +458,16 @@ class TestNormBallResultParquet:
 class TestExtractEnvelopeCurve:
     @pytest.fixture
     def make_normball(self) -> NormBallResult:
-        """Simple norm-ball result with 2 θ values, 20 samples each."""
-        theta_vals = np.array([0.5, 1.0], dtype=float)
-        n_theta = 2
+        """Simple norm-ball result with 2 ω values, 20 samples each."""
+        omega_vals = np.array([0.5, 1.0], dtype=float)
+        n_omega = 2
         n_samp = 20
         rng = np.random.default_rng(42)
         # Build samples with norms uniformly in [0, 5]
-        samples = np.zeros((n_theta, n_samp, 4), dtype=float)
-        norms = np.zeros((n_theta, n_samp), dtype=float)
-        deltas = np.full((n_theta, n_samp), np.inf, dtype=float)
-        for ti in range(n_theta):
+        samples = np.zeros((n_omega, n_samp, 4), dtype=float)
+        norms = np.zeros((n_omega, n_samp), dtype=float)
+        deltas = np.full((n_omega, n_samp), np.inf, dtype=float)
+        for ti in range(n_omega):
             for si in range(n_samp):
                 r = rng.uniform(0.0, 5.0)
                 # Direction from unit sphere
@@ -476,52 +476,52 @@ class TestExtractEnvelopeCurve:
                 samples[ti, si, :3] = z * r
                 samples[ti, si, 3] = rng.uniform(-5.0, 5.0)
                 norms[ti, si] = r
-                # Δθ: SQL at r=0, degrades with r, plus some fringe
+                # Δω: SQL at r=0, degrades with r, plus some fringe
                 if si < 18:
                     deltas[ti, si] = SQL * (
                         1.0 + 0.1 * r + 0.01 * abs(samples[ti, si, 3])
                     )
         return NormBallResult(
-            theta_values=theta_vals,
+            omega_values=omega_vals,
             samples=samples,
-            delta_theta_values=deltas,
-            expectation_values=np.zeros((n_theta, n_samp)),
-            variance_values=np.ones((n_theta, n_samp)) * 0.01,
-            deriv_values=np.ones((n_theta, n_samp)) * 0.5,
+            delta_omega_values=deltas,
+            expectation_values=np.zeros((n_omega, n_samp)),
+            variance_values=np.ones((n_omega, n_samp)) * 0.01,
+            deriv_values=np.ones((n_omega, n_samp)) * 0.5,
             norms=norms,
             sql=SQL,
-            T_H=T_H,
+            T_hold=T_hold,
             R=5.0,
         )
 
     def test_envelope_shape(self, make_normball: NormBallResult) -> None:
         env = extract_envelope_curve(make_normball, n_r=50)
         assert env.r_values.shape == (50,)
-        assert env.best_ratio_per_theta.shape == (2, 50)
-        assert np.allclose(env.theta_values, make_normball.theta_values)
+        assert env.best_ratio_per_omega.shape == (2, 50)
+        assert np.allclose(env.omega_values, make_normball.omega_values)
 
     def test_envelope_monotonicity(self, make_normball: NormBallResult) -> None:
         """best_ratio(r) must be non-increasing."""
         env = extract_envelope_curve(make_normball, n_r=20)
-        for ti in range(len(env.theta_values)):
-            valid = np.isfinite(env.best_ratio_per_theta[ti])
+        for ti in range(len(env.omega_values)):
+            valid = np.isfinite(env.best_ratio_per_omega[ti])
             if np.any(valid):
-                ratios = env.best_ratio_per_theta[ti, valid]
+                ratios = env.best_ratio_per_omega[ti, valid]
                 diffs = np.diff(ratios)
                 # Allow tiny numerical increases (< 1e-12)
                 assert np.all(diffs <= 1e-12), (
-                    f"Envelope not non-increasing at θ={env.theta_values[ti]}: "
+                    f"Envelope not non-increasing at ω={env.omega_values[ti]}: "
                     f"diffs={diffs}"
                 )
 
     def test_sql_bound(self, make_normball: NormBallResult) -> None:
         """Envelope must be >= SQL at all r."""
         env = extract_envelope_curve(make_normball, n_r=20)
-        for ti in range(len(env.theta_values)):
-            valid = np.isfinite(env.best_ratio_per_theta[ti])
+        for ti in range(len(env.omega_values)):
+            valid = np.isfinite(env.best_ratio_per_omega[ti])
             if np.any(valid):
-                assert np.all(env.best_ratio_per_theta[ti, valid] >= 1.0 - 1e-12), (
-                    f"Envelope below SQL at θ={env.theta_values[ti]}"
+                assert np.all(env.best_ratio_per_omega[ti, valid] >= 1.0 - 1e-12), (
+                    f"Envelope below SQL at ω={env.omega_values[ti]}"
                 )
 
     def test_envelope_at_r_zero(self, make_normball: NormBallResult) -> None:
@@ -529,27 +529,27 @@ class TestExtractEnvelopeCurve:
         Since we have no exact zero-drive sample, the envelope may be inf at r=0."""
         env = extract_envelope_curve(make_normball, n_r=20)
         # r=0 is the first element
-        for ti in range(len(env.theta_values)):
-            if np.isfinite(env.best_ratio_per_theta[ti, 0]):
-                assert env.best_ratio_per_theta[ti, 0] >= 1.0 - 1e-12
+        for ti in range(len(env.omega_values)):
+            if np.isfinite(env.best_ratio_per_omega[ti, 0]):
+                assert env.best_ratio_per_omega[ti, 0] >= 1.0 - 1e-12
 
     def test_empty_ball_returns_inf(self) -> None:
         """If no samples have norm <= r, envelope should be inf."""
-        theta_vals = np.array([1.0], dtype=float)
+        omega_vals = np.array([1.0], dtype=float)
         result = NormBallResult(
-            theta_values=theta_vals,
+            omega_values=omega_vals,
             samples=np.zeros((1, 5, 4), dtype=float),
-            delta_theta_values=np.full((1, 5), np.inf, dtype=float),
+            delta_omega_values=np.full((1, 5), np.inf, dtype=float),
             expectation_values=np.zeros((1, 5)),
             variance_values=np.ones((1, 5)),
             deriv_values=np.ones((1, 5)),
             norms=np.full((1, 5), 10.0),
             sql=SQL,
-            T_H=T_H,
+            T_hold=T_hold,
             R=10.0,
         )
         env = extract_envelope_curve(result, n_r=10, r_max=5.0)
-        assert np.all(np.isinf(env.best_ratio_per_theta)), (
+        assert np.all(np.isinf(env.best_ratio_per_omega)), (
             "Envelope should be inf when no samples within ball"
         )
 
@@ -564,8 +564,8 @@ class TestEnvelopeResultParquet:
     def make_envelope(self) -> EnvelopeResult:
         return EnvelopeResult(
             r_values=np.linspace(0.0, 10.0, 20),
-            best_ratio_per_theta=np.ones((2, 20)),
-            theta_values=np.array([0.5, 1.0], dtype=float),
+            best_ratio_per_omega=np.ones((2, 20)),
+            omega_values=np.array([0.5, 1.0], dtype=float),
             sql=SQL,
         )
 
@@ -575,9 +575,9 @@ class TestEnvelopeResultParquet:
         loaded = EnvelopeResult.from_parquet(p)
         assert np.allclose(loaded.r_values, make_envelope.r_values)
         assert np.allclose(
-            loaded.best_ratio_per_theta, make_envelope.best_ratio_per_theta
+            loaded.best_ratio_per_omega, make_envelope.best_ratio_per_omega
         )
-        assert np.allclose(loaded.theta_values, make_envelope.theta_values)
+        assert np.allclose(loaded.omega_values, make_envelope.omega_values)
         assert loaded.sql == make_envelope.sql
 
     def test_fail_fast_missing_column(
@@ -599,54 +599,54 @@ class TestEnvelopeResultParquet:
 class TestDrive2DSliceAz:
     def test_az_slice_returns_correct_shape(self) -> None:
         result = drive_2d_slice(
-            theta=1.0,
+            omega=1.0,
             slice_type="az",
             n_drive=5,
             n_azz=5,
         )
-        assert result.delta_theta_grid.shape == (5, 5)
+        assert result.delta_omega_grid.shape == (5, 5)
         assert result.slice_type == "az"
 
     def test_az_slice_sql_bound_holds(self) -> None:
         result = drive_2d_slice(
-            theta=1.0,
+            omega=1.0,
             slice_type="az",
             n_drive=5,
             n_azz=5,
         )
-        finite_mask = np.isfinite(result.delta_theta_grid)
+        finite_mask = np.isfinite(result.delta_omega_grid)
         if np.any(finite_mask):
-            min_val = np.min(result.delta_theta_grid[finite_mask])
+            min_val = np.min(result.delta_omega_grid[finite_mask])
             assert min_val >= result.sql - 1e-10, (
-                f"Min Δθ={min_val} below SQL={result.sql} for (a_z, a_zz) slice"
+                f"Min Δω={min_val} below SQL={result.sql} for (a_z, a_zz) slice"
             )
 
     def test_az_slice_ax_symmetry_at_zero_azz(self) -> None:
         """At a_zz=0, the az slice should give the same result as ax at a_zz=0,
         since both are decoupled from the ancilla drive at zero interaction."""
-        res_ax = drive_2d_slice(theta=1.0, slice_type="ax", n_drive=5, n_azz=5)
-        res_az = drive_2d_slice(theta=1.0, slice_type="az", n_drive=5, n_azz=5)
+        res_ax = drive_2d_slice(omega=1.0, slice_type="ax", n_drive=5, n_azz=5)
+        res_az = drive_2d_slice(omega=1.0, slice_type="az", n_drive=5, n_azz=5)
         # Compare the a_zz=0 column (middle index since symmetric range)
         azz_mid = len(res_ax.azz_values) // 2
         assert np.allclose(
-            res_ax.delta_theta_grid[:, azz_mid],
-            res_az.delta_theta_grid[:, azz_mid],
+            res_ax.delta_omega_grid[:, azz_mid],
+            res_az.delta_omega_grid[:, azz_mid],
             atol=1e-10,
         ), "ax and az slices should match at a_zz=0"
 
     def test_az_slice_parquet_roundtrip(self, tmp_path: Path) -> None:
-        result = drive_2d_slice(theta=1.0, slice_type="az", n_drive=3, n_azz=3)
+        result = drive_2d_slice(omega=1.0, slice_type="az", n_drive=3, n_azz=3)
         p = tmp_path / "slice_az.parquet"
         result.save_parquet(p)
         loaded = Drive2DSliceResult.from_parquet(p)
         assert loaded.drive_values == pytest.approx(result.drive_values)
         assert loaded.azz_values == pytest.approx(result.azz_values)
-        assert loaded.delta_theta_grid == pytest.approx(
-            result.delta_theta_grid,
+        assert loaded.delta_omega_grid == pytest.approx(
+            result.delta_omega_grid,
             nan_ok=True,
         )
         assert loaded.slice_type == "az"
-        assert loaded.theta_value == pytest.approx(result.theta_value)
+        assert loaded.omega_value == pytest.approx(result.omega_value)
 
 
 # ============================================================================
@@ -657,17 +657,17 @@ class TestDrive2DSliceAz:
 class TestPlotFunctions:
     @pytest.fixture
     def make_normball_result(self) -> NormBallResult:
-        theta_vals = np.array([0.5, 1.0], dtype=float)
-        n_theta = 2
+        omega_vals = np.array([0.5, 1.0], dtype=float)
+        n_omega = 2
         n_samp = 20
         rng = np.random.default_rng(42)
-        samples = np.zeros((n_theta, n_samp, 4), dtype=float)
-        norms = np.zeros((n_theta, n_samp), dtype=float)
-        deltas = np.full((n_theta, n_samp), np.inf, dtype=float)
-        exps = np.zeros((n_theta, n_samp), dtype=float)
-        vars_ = np.ones((n_theta, n_samp), dtype=float) * 0.01
-        derivs = np.ones((n_theta, n_samp), dtype=float) * 0.5
-        for ti in range(n_theta):
+        samples = np.zeros((n_omega, n_samp, 4), dtype=float)
+        norms = np.zeros((n_omega, n_samp), dtype=float)
+        deltas = np.full((n_omega, n_samp), np.inf, dtype=float)
+        exps = np.zeros((n_omega, n_samp), dtype=float)
+        vars_ = np.ones((n_omega, n_samp), dtype=float) * 0.01
+        derivs = np.ones((n_omega, n_samp), dtype=float) * 0.5
+        for ti in range(n_omega):
             for si in range(n_samp):
                 r = rng.uniform(0.0, 5.0)
                 z = rng.normal(size=3)
@@ -680,15 +680,15 @@ class TestPlotFunctions:
                         1.0 + 0.1 * r + 0.01 * abs(samples[ti, si, 3])
                     )
         return NormBallResult(
-            theta_values=theta_vals,
+            omega_values=omega_vals,
             samples=samples,
-            delta_theta_values=deltas,
+            delta_omega_values=deltas,
             expectation_values=exps,
             variance_values=vars_,
             deriv_values=derivs,
             norms=norms,
             sql=SQL,
-            T_H=T_H,
+            T_hold=T_hold,
             R=5.0,
         )
 
@@ -707,7 +707,7 @@ class TestPlotFunctions:
     ) -> None:
         svg_p = tmp_path / "hist.svg"
         result = plot_normball_histogram(
-            make_normball_result, theta=0.5, save_path=svg_p
+            make_normball_result, omega=0.5, save_path=svg_p
         )
         assert result.exists()
         assert result.suffix == ".svg"
@@ -717,7 +717,7 @@ class TestPlotFunctions:
         """Use drive_2d_slice with small grids to create slice results."""
         slice_results: dict[str, Drive2DSliceResult] = {}
         for st in ("ax", "ay", "az"):
-            res = drive_2d_slice(theta=1.0, slice_type=st, n_drive=5, n_azz=5)
+            res = drive_2d_slice(omega=1.0, slice_type=st, n_drive=5, n_azz=5)
             slice_results[st] = res
         svg_p = tmp_path / "best_ratio.svg"
         result = plot_best_ratio_by_slice(slice_results, svg_p)
@@ -784,7 +784,7 @@ class TestEdgeCases:
     def test_zero_radius_ball(self) -> None:
         """R=0 should give all samples at origin."""
         result = norm_ball_sampling(
-            theta_values=[1.0],
+            omega_values=[1.0],
             n_samp=10,
             R=0.0,
             seed=42,
@@ -792,22 +792,22 @@ class TestEdgeCases:
         assert np.allclose(result.norms, 0.0)
         assert np.allclose(result.samples[:, :, :3], 0.0)
 
-    def test_small_theta_gives_finite(self) -> None:
-        """θ=0.1 should be well-behaved."""
-        dtheta, *_ = compute_sensitivity_with_extra(0.1, 0.0, 0.0, 0.0, 0.0)
-        assert np.isfinite(dtheta)
-        assert dtheta > 0.0
+    def test_small_omega_gives_finite(self) -> None:
+        """ω=0.1 should be well-behaved."""
+        domega, *_ = compute_sensitivity_with_extra(0.1, 0.0, 0.0, 0.0, 0.0)
+        assert np.isfinite(domega)
+        assert domega > 0.0
 
     def test_large_azz_gives_fringe_at_some_points(self) -> None:
-        """Large a_zz should produce fringe extremum for some θ."""
-        dtheta, *_ = compute_sensitivity_with_extra(1.0, 0.0, 0.0, 0.0, 10.0)
+        """Large a_zz should produce fringe extremum for some ω."""
+        domega, *_ = compute_sensitivity_with_extra(1.0, 0.0, 0.0, 0.0, 10.0)
         # May or may not be fringe — we just verify it runs without error
-        assert isinstance(dtheta, float)
+        assert isinstance(domega, float)
 
     def test_evolve_drive_circuit_preserves_norm(self, make_ops: dict) -> None:
         """Circuit evolution must preserve state norm."""
         psi0 = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)
         psi = evolve_drive_circuit(
-            psi0, np.pi / 2, T_H, 1.0, 1.0, 0.5, -0.3, 2.0, make_ops
+            psi0, np.pi / 2, T_hold, 1.0, 1.0, 0.5, -0.3, 2.0, make_ops
         )
         assert np.isclose(np.linalg.norm(psi), 1.0, atol=1e-12)

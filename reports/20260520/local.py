@@ -4,7 +4,7 @@ Local module for the 2026-05-20 XX-Coupling Ancilla Metrology report.
 Contains all code exclusive to this report:
 - Core physics simulation (XX coupling Hamiltonian, circuit evolution,
   sensitivity computation with ancilla trace-out)
-- 1D α_xx grid scan and θ-optimisation
+- 1D α_xx grid scan and ω-optimisation
 - Exclusive plot functions
 - Data and figure generation pipeline (``generate_xx_*`` functions)
 - CLI entry point for standalone execution
@@ -57,9 +57,9 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_H: float = 10.0  # Holding time (SQL = 0.1)
+DEFAULT_T_hold: float = 10.0  # Holding time (SQL = 0.1)
 DEFAULT_PSI0: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)  # |00⟩
-SQL_REFERENCE: float = 1.0 / DEFAULT_T_H  # Δθ_SQL = 0.1
+SQL_REFERENCE: float = 1.0 / DEFAULT_T_hold  # Δω_SQL = 0.1
 AXX_BOUNDS: tuple[float, float] = (0.0, 20.0)  # Range for α_xx
 N_GRID_POINTS: int = 2001  # Grid points for α_xx scan
 
@@ -89,7 +89,7 @@ def build_xx_interaction(alpha_xx: float, ops: dict[str, np.ndarray]) -> np.ndar
 
 
 def build_xx_hold_hamiltonian(
-    theta: float,
+    omega: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
@@ -97,48 +97,48 @@ def build_xx_hold_hamiltonian(
     and XX coupling.
 
     H = H_S + H_A + H_int
-      = θ J_z^S + θ J_z^A + α_xx J_x^S ⊗ J_x^A
-      = θ (J_z^S + J_z^A) + α_xx J_x^S ⊗ J_x^A
+      = ω J_z^S + ω J_z^A + α_xx J_x^S ⊗ J_x^A
+      = ω (J_z^S + J_z^A) + α_xx J_x^S ⊗ J_x^A
 
-    Both system and ancilla experience the same unknown phase θ.
+    Both system and ancilla experience the same unknown phase ω.
 
     Args:
-        theta: Unknown phase rate parameter.
+        omega: Unknown phase rate parameter.
         alpha_xx: XX coupling strength.
         ops: Two-qubit operators from build_two_qubit_operators().
 
     Returns:
         4×4 Hermitian Hamiltonian matrix.
     """
-    H = theta * (ops["Jz_S"] + ops["Jz_A"])
+    H = omega * (ops["Jz_S"] + ops["Jz_A"])
     H += build_xx_interaction(alpha_xx, ops)
     return 0.5 * (H + H.conj().T)
 
 
 def xx_hold_unitary(
-    T_H: float,
-    theta: float,
+    T_hold: float,
+    omega: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
     """Holding-time unitary for the XX-coupling protocol.
 
-    U_hold(T_H) = exp(-i T_H H)
-    where H = θ(J_z^S + J_z^A) + α_xx J_x^S ⊗ J_x^A.
+    U_hold(T_hold) = exp(-i T_hold H)
+    where H = ω(J_z^S + J_z^A) + α_xx J_x^S ⊗ J_x^A.
 
     Args:
-        T_H: Holding-time strength.
-        theta: True phase rate parameter.
+        T_hold: Holding-time strength.
+        omega: True phase rate parameter.
         alpha_xx: XX coupling strength.
         ops: Two-qubit operators from build_two_qubit_operators().
 
     Returns:
         4×4 unitary matrix.
     """
-    H = build_xx_hold_hamiltonian(theta, alpha_xx, ops)
-    U = expm(-1j * T_H * H)
+    H = build_xx_hold_hamiltonian(omega, alpha_xx, ops)
+    U = expm(-1j * T_hold * H)
     assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
-        f"XX hold unitary not unitary for T_H={T_H}, θ={theta}, α_xx={alpha_xx}"
+        f"XX hold unitary not unitary for T_hold={T_hold}, ω={omega}, α_xx={alpha_xx}"
     )
     return U
 
@@ -151,20 +151,20 @@ def xx_hold_unitary(
 def evolve_xx_circuit(
     psi0: np.ndarray,
     T_BS: float,
-    T_H: float,
-    theta: float,
+    T_hold: float,
+    omega: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
     """Run the full XX-coupling MZI circuit.
 
-    |ψ_final⟩ = U_BS_S · U_hold(T_H) · U_BS_S · |ψ₀⟩
+    |ψ_final⟩ = U_BS_S · U_hold(T_hold) · U_BS_S · |ψ₀⟩
 
     Args:
         psi0: Initial 4-vector (must be normalised).
         T_BS: Beam-splitter duration (both BS identical).
-        T_H: Holding-time strength.
-        theta: Phase rate parameter.
+        T_hold: Holding-time strength.
+        omega: Phase rate parameter.
         alpha_xx: XX coupling strength.
         ops: Two-qubit operators.
 
@@ -175,7 +175,7 @@ def evolve_xx_circuit(
 
     U_bs = system_only_bs_unitary(T_BS)
     psi = U_bs @ psi0
-    psi = xx_hold_unitary(T_H, theta, alpha_xx, ops) @ psi
+    psi = xx_hold_unitary(T_hold, omega, alpha_xx, ops) @ psi
     psi = U_bs @ psi
 
     assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
@@ -230,15 +230,15 @@ def compute_reduced_variance(psi: np.ndarray, meas_op: np.ndarray) -> float:
 def compute_xx_sensitivity(
     psi0: np.ndarray,
     T_BS: float,
-    T_H: float,
-    theta_true: float,
+    T_hold: float,
+    omega_true: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray],
     fd_step: float = 1e-6,
 ) -> float:
-    """Compute the error-propagation sensitivity Δθ.
+    """Compute the error-propagation sensitivity Δω.
 
-    Δθ = sqrt(Var(J_z^S)) / |∂⟨J_z^S⟩/∂θ|
+    Δω = sqrt(Var(J_z^S)) / |∂⟨J_z^S⟩/∂ω|
 
     Uses the reduced density matrix (trace out ancilla) for the variance,
     and central finite differences for the derivative of the expectation.
@@ -246,24 +246,28 @@ def compute_xx_sensitivity(
     Args:
         psi0: Initial 4-vector (product state).
         T_BS: Beam-splitter duration.
-        T_H: Holding-time strength.
-        theta_true: True phase rate parameter.
+        T_hold: Holding-time strength.
+        omega_true: True phase rate parameter.
         alpha_xx: XX coupling strength.
         ops: Two-qubit operators.
         fd_step: Finite-difference step size (default 1e-6).
 
     Returns:
-        Sensitivity Δθ (positive float). Returns inf if derivative is zero.
+        Sensitivity Δω (positive float). Returns inf if derivative is zero.
     """
     meas_op = ops["Jz_S"]
 
-    # Evaluate at theta_true
-    psi = evolve_xx_circuit(psi0, T_BS, T_H, theta_true, alpha_xx, ops)
+    # Evaluate at omega_true
+    psi = evolve_xx_circuit(psi0, T_BS, T_hold, omega_true, alpha_xx, ops)
     var = compute_reduced_variance(psi, meas_op)
 
-    # Central finite difference for ∂⟨J_z^S⟩/∂θ
-    psi_plus = evolve_xx_circuit(psi0, T_BS, T_H, theta_true + fd_step, alpha_xx, ops)
-    psi_minus = evolve_xx_circuit(psi0, T_BS, T_H, theta_true - fd_step, alpha_xx, ops)
+    # Central finite difference for ∂⟨J_z^S⟩/∂ω
+    psi_plus = evolve_xx_circuit(
+        psi0, T_BS, T_hold, omega_true + fd_step, alpha_xx, ops
+    )
+    psi_minus = evolve_xx_circuit(
+        psi0, T_BS, T_hold, omega_true - fd_step, alpha_xx, ops
+    )
 
     # Expectation from reduced state
     def _reduced_exp(psi_state: np.ndarray) -> float:
@@ -289,24 +293,24 @@ def compute_xx_sensitivity(
 
 @dataclass
 class XXGridScanResult:
-    """Result from a 1D α_xx grid scan at a fixed θ.
+    """Result from a 1D α_xx grid scan at a fixed ω.
 
     Attributes:
         alpha_xx_values: Array of α_xx values scanned.
-        delta_theta_values: Δθ at each α_xx value.
-        theta_value: θ at which the scan was performed.
-        alpha_xx_opt: α_xx value giving minimal Δθ.
-        delta_theta_opt: Minimal Δθ found.
-        sql: SQL = 1/T_H reference value.
+        delta_omega_values: Δω at each α_xx value.
+        omega_value: ω at which the scan was performed.
+        alpha_xx_opt: α_xx value giving minimal Δω.
+        delta_omega_opt: Minimal Δω found.
+        sql: SQL = 1/T_hold reference value.
         expectation_Jz: ⟨J_z^S⟩ at the optimal point.
         variance_Jz: Var(J_z^S) at the optimal point.
     """
 
     alpha_xx_values: np.ndarray
-    delta_theta_values: np.ndarray
-    theta_value: float
+    delta_omega_values: np.ndarray
+    omega_value: float
     alpha_xx_opt: float
-    delta_theta_opt: float
+    delta_omega_opt: float
     sql: float = 0.1
     expectation_Jz: float = 0.0
     variance_Jz: float = 0.0
@@ -315,11 +319,11 @@ class XXGridScanResult:
         return pd.DataFrame(
             {
                 "alpha_xx": self.alpha_xx_values,
-                "delta_theta": self.delta_theta_values,
-                "theta_value": [self.theta_value] * len(self.alpha_xx_values),
+                "delta_omega": self.delta_omega_values,
+                "omega_value": [self.omega_value] * len(self.alpha_xx_values),
                 "sql": [self.sql] * len(self.alpha_xx_values),
                 "alpha_xx_opt": [self.alpha_xx_opt] * len(self.alpha_xx_values),
-                "delta_theta_opt": [self.delta_theta_opt] * len(self.alpha_xx_values),
+                "delta_omega_opt": [self.delta_omega_opt] * len(self.alpha_xx_values),
                 "expectation_Jz": [self.expectation_Jz] * len(self.alpha_xx_values),
                 "variance_Jz": [self.variance_Jz] * len(self.alpha_xx_values),
             }
@@ -336,11 +340,11 @@ class XXGridScanResult:
         df = pd.read_parquet(path)
         required = {
             "alpha_xx",
-            "delta_theta",
-            "theta_value",
+            "delta_omega",
+            "omega_value",
             "sql",
             "alpha_xx_opt",
-            "delta_theta_opt",
+            "delta_omega_opt",
             "expectation_Jz",
             "variance_Jz",
         }
@@ -351,14 +355,14 @@ class XXGridScanResult:
                 "Regenerate the file with the current code."
             )
         alpha_xx_vals = df["alpha_xx"].to_numpy(dtype=float)
-        delta_vals = df["delta_theta"].to_numpy(dtype=float)
+        delta_vals = df["delta_omega"].to_numpy(dtype=float)
         # Find the unique metadata from the first row
         return cls(
             alpha_xx_values=alpha_xx_vals,
-            delta_theta_values=delta_vals,
-            theta_value=float(df["theta_value"].iloc[0]),
+            delta_omega_values=delta_vals,
+            omega_value=float(df["omega_value"].iloc[0]),
             alpha_xx_opt=float(df["alpha_xx_opt"].iloc[0]),
-            delta_theta_opt=float(df["delta_theta_opt"].iloc[0]),
+            delta_omega_opt=float(df["delta_omega_opt"].iloc[0]),
             sql=float(df["sql"].iloc[0]),
             expectation_Jz=float(df["expectation_Jz"].iloc[0]),
             variance_Jz=float(df["variance_Jz"].iloc[0]),
@@ -366,69 +370,69 @@ class XXGridScanResult:
 
 
 @dataclass
-class XXThetaScanResult:
-    """Results of a θ scan over α_xx-optimised sensitivities.
+class XXOmegaScanResult:
+    """Results of a ω scan over α_xx-optimised sensitivities.
 
     Attributes:
-        theta_values: Array of θ values scanned.
-        alpha_xx_opt_per_theta: Optimal α_xx for each θ value.
-        delta_theta_opt_per_theta: Optimal Δθ for each θ value.
-        sql_values: SQL = 1/T_H for each θ.
-        expectation_Jz_per_theta: ⟨J_z^S⟩ at each optimal point.
-        variance_Jz_per_theta: Var(J_z^S) at each optimal point.
-        count_below_sql_per_theta: Number of α_xx grid points below SQL at each θ.
-        total_points_per_theta: Total α_xx grid points at each θ.
+        omega_values: Array of ω values scanned.
+        alpha_xx_opt_per_omega: Optimal α_xx for each ω value.
+        delta_omega_opt_per_omega: Optimal Δω for each ω value.
+        sql_values: SQL = 1/T_hold for each ω.
+        expectation_Jz_per_omega: ⟨J_z^S⟩ at each optimal point.
+        variance_Jz_per_omega: Var(J_z^S) at each optimal point.
+        count_below_sql_per_omega: Number of α_xx grid points below SQL at each ω.
+        total_points_per_omega: Total α_xx grid points at each ω.
     """
 
-    theta_values: np.ndarray = field(default_factory=lambda: np.array([]))
-    alpha_xx_opt_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
-    delta_theta_opt_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
+    omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    alpha_xx_opt_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
+    delta_omega_opt_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
     sql_values: np.ndarray = field(default_factory=lambda: np.array([]))
-    expectation_Jz_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
-    variance_Jz_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
-    count_below_sql_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
-    total_points_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
+    expectation_Jz_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
+    variance_Jz_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
+    count_below_sql_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
+    total_points_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
 
     def to_dataframe(self) -> pd.DataFrame:
         rows: list[dict[str, float]] = []
-        for i in range(len(self.theta_values)):
-            theta = float(self.theta_values[i])
+        for i in range(len(self.omega_values)):
+            omega = float(self.omega_values[i])
             sql = float(self.sql_values[i]) if i < len(self.sql_values) else 0.1
             best = (
-                float(self.delta_theta_opt_per_theta[i])
-                if i < len(self.delta_theta_opt_per_theta)
+                float(self.delta_omega_opt_per_omega[i])
+                if i < len(self.delta_omega_opt_per_omega)
                 else float("inf")
             )
             alpha_opt = (
-                float(self.alpha_xx_opt_per_theta[i])
-                if i < len(self.alpha_xx_opt_per_theta)
+                float(self.alpha_xx_opt_per_omega[i])
+                if i < len(self.alpha_xx_opt_per_omega)
                 else float("nan")
             )
             exp_jz = (
-                float(self.expectation_Jz_per_theta[i])
-                if i < len(self.expectation_Jz_per_theta)
+                float(self.expectation_Jz_per_omega[i])
+                if i < len(self.expectation_Jz_per_omega)
                 else 0.0
             )
             var_jz = (
-                float(self.variance_Jz_per_theta[i])
-                if i < len(self.variance_Jz_per_theta)
+                float(self.variance_Jz_per_omega[i])
+                if i < len(self.variance_Jz_per_omega)
                 else 0.0
             )
             count_below = (
-                int(self.count_below_sql_per_theta[i])
-                if i < len(self.count_below_sql_per_theta)
+                int(self.count_below_sql_per_omega[i])
+                if i < len(self.count_below_sql_per_omega)
                 else 0
             )
             total = (
-                int(self.total_points_per_theta[i])
-                if i < len(self.total_points_per_theta)
+                int(self.total_points_per_omega[i])
+                if i < len(self.total_points_per_omega)
                 else 0
             )
             rows.append(
                 {
-                    "theta": theta,
+                    "omega": omega,
                     "alpha_xx_opt": alpha_opt,
-                    "best_delta_theta": best,
+                    "best_delta_omega": best,
                     "sql": sql,
                     "ratio": best / sql
                     if np.isfinite(best) and sql > 0
@@ -449,12 +453,12 @@ class XXThetaScanResult:
         return path
 
     @classmethod
-    def from_parquet(cls, path: str | Path) -> XXThetaScanResult:
+    def from_parquet(cls, path: str | Path) -> XXOmegaScanResult:
         df = pd.read_parquet(path)
         required = {
-            "theta",
+            "omega",
             "alpha_xx_opt",
-            "best_delta_theta",
+            "best_delta_omega",
             "sql",
             "expectation_Jz",
             "variance_Jz",
@@ -467,23 +471,23 @@ class XXThetaScanResult:
                 f"Parquet at {path} is missing required columns: {sorted(missing)}. "
                 "Regenerate the file with the current code."
             )
-        thetas = df["theta"].to_numpy(dtype=float)
+        omegas = df["omega"].to_numpy(dtype=float)
         alpha_opts = df["alpha_xx_opt"].to_numpy(dtype=float)
-        best = df["best_delta_theta"].to_numpy(dtype=float)
+        best = df["best_delta_omega"].to_numpy(dtype=float)
         sql = df["sql"].to_numpy(dtype=float)
         exps = df["expectation_Jz"].to_numpy(dtype=float)
         vars_ = df["variance_Jz"].to_numpy(dtype=float)
         count_below = df["count_below_sql"].to_numpy(dtype=float)
         total = df["total_points"].to_numpy(dtype=float)
         return cls(
-            theta_values=thetas,
-            alpha_xx_opt_per_theta=alpha_opts,
-            delta_theta_opt_per_theta=best,
+            omega_values=omegas,
+            alpha_xx_opt_per_omega=alpha_opts,
+            delta_omega_opt_per_omega=best,
             sql_values=sql,
-            expectation_Jz_per_theta=exps,
-            variance_Jz_per_theta=vars_,
-            count_below_sql_per_theta=count_below,
-            total_points_per_theta=total,
+            expectation_Jz_per_omega=exps,
+            variance_Jz_per_omega=vars_,
+            count_below_sql_per_omega=count_below,
+            total_points_per_omega=total,
         )
 
 
@@ -493,36 +497,36 @@ class XXThetaScanResult:
 
 
 def compute_xx_decoupled_baseline(
-    T_H: float = DEFAULT_T_H,
-    theta_true: float = 1.0,
+    T_hold: float = DEFAULT_T_hold,
+    omega_true: float = 1.0,
 ) -> DriveDecoupledBaselineResult:
-    """Compute the decoupled baseline sensitivity Δθ.
+    """Compute the decoupled baseline sensitivity Δω.
 
     At α_xx = 0, the circuit reduces to a standard single-qubit MZI
-    with |1,0⟩ input and 50/50 BS on the system, giving Δθ = 1/T_H.
-    The ancilla evolves independently under θ J_z^A and is traced out,
+    with |1,0⟩ input and 50/50 BS on the system, giving Δω = 1/T_hold.
+    The ancilla evolves independently under ω J_z^A and is traced out,
     contributing nothing.
 
     Args:
-        T_H: Holding-time strength.
-        theta_true: True phase rate.
+        T_hold: Holding-time strength.
+        omega_true: True phase rate.
 
     Returns:
         DriveDecoupledBaselineResult.
     """
     ops = build_two_qubit_operators()
-    dtheta = compute_xx_sensitivity(
+    domega = compute_xx_sensitivity(
         DEFAULT_PSI0,
         DEFAULT_T_BS,
-        T_H,
-        theta_true,
+        T_hold,
+        omega_true,
         0.0,
         ops,
     )
     return DriveDecoupledBaselineResult(
-        T_H_value=T_H,
-        delta_theta=dtheta,
-        sql=1.0 / T_H,
+        T_hold_value=T_hold,
+        delta_omega=domega,
+        sql=1.0 / T_hold,
     )
 
 
@@ -532,21 +536,21 @@ def compute_xx_decoupled_baseline(
 
 
 def xx_grid_scan(
-    theta: float,
+    omega: float,
     alpha_xx_range: tuple[float, float] = AXX_BOUNDS,
     n_points: int = N_GRID_POINTS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> XXGridScanResult:
-    """Run a 1D grid scan over α_xx at fixed θ.
+    """Run a 1D grid scan over α_xx at fixed ω.
 
-    Evaluates Δθ on a dense grid of α_xx values and records the minimum.
+    Evaluates Δω on a dense grid of α_xx values and records the minimum.
 
     Args:
-        theta: Phase rate value.
+        omega: Phase rate value.
         alpha_xx_range: (min, max) for α_xx.
         n_points: Number of grid points.
-        T_H: Holding time (default 10).
+        T_hold: Holding time (default 10).
         T_BS: Beam-splitter duration (default π/2).
 
     Returns:
@@ -557,15 +561,15 @@ def xx_grid_scan(
     delta_vals = np.full(n_points, np.inf, dtype=float)
 
     for i, a_val in enumerate(alpha_vals):
-        dtheta = compute_xx_sensitivity(
+        domega = compute_xx_sensitivity(
             DEFAULT_PSI0,
             T_BS,
-            T_H,
-            theta,
+            T_hold,
+            omega,
             a_val,
             ops,
         )
-        delta_vals[i] = dtheta
+        delta_vals[i] = domega
 
     # Find the finite minimum
     finite_mask = np.isfinite(delta_vals)
@@ -584,7 +588,7 @@ def xx_grid_scan(
     exp_val = 0.0
     var_val = 0.0
     if np.isfinite(alpha_opt):
-        psi = evolve_xx_circuit(DEFAULT_PSI0, T_BS, T_H, theta, alpha_opt, ops)
+        psi = evolve_xx_circuit(DEFAULT_PSI0, T_BS, T_hold, omega, alpha_opt, ops)
         meas_op = ops["Jz_S"]
         var_val = compute_reduced_variance(psi, meas_op)
         # Also compute expectation using the reduced state
@@ -595,79 +599,79 @@ def xx_grid_scan(
 
     return XXGridScanResult(
         alpha_xx_values=alpha_vals,
-        delta_theta_values=delta_vals,
-        theta_value=theta,
+        delta_omega_values=delta_vals,
+        omega_value=omega,
         alpha_xx_opt=alpha_opt,
-        delta_theta_opt=delta_opt,
-        sql=1.0 / T_H,
+        delta_omega_opt=delta_opt,
+        sql=1.0 / T_hold,
         expectation_Jz=exp_val,
         variance_Jz=var_val,
     )
 
 
 # ============================================================================
-# θ Scan: Grid scan at each θ
+# ω Scan: Grid scan at each ω
 # ============================================================================
 
 
-def run_xx_theta_scan(
-    theta_values: list[float] | np.ndarray,
+def run_xx_omega_scan(
+    omega_values: list[float] | np.ndarray,
     alpha_xx_range: tuple[float, float] = AXX_BOUNDS,
     n_points: int = N_GRID_POINTS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     T_BS: float = DEFAULT_T_BS,
-) -> XXThetaScanResult:
-    """Scan over θ values with full α_xx grid scan at each θ.
+) -> XXOmegaScanResult:
+    """Scan over ω values with full α_xx grid scan at each ω.
 
-    For each θ:
+    For each ω:
     1. Run a dense 1D α_xx grid scan.
-    2. Record the optimal α_xx and Δθ.
+    2. Record the optimal α_xx and Δω.
     3. Record how many grid points fall below SQL.
 
     Args:
-        theta_values: θ values to scan.
+        omega_values: ω values to scan.
         alpha_xx_range: (min, max) for α_xx.
-        n_points: Number of α_xx grid points per θ.
-        T_H: Holding time.
+        n_points: Number of α_xx grid points per ω.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
-        XXThetaScanResult with optimal parameters and sensitivities.
+        XXOmegaScanResult with optimal parameters and sensitivities.
     """
-    theta_arr = np.asarray(theta_values, dtype=float)
-    n_theta = len(theta_arr)
+    omega_arr = np.asarray(omega_values, dtype=float)
+    n_omega = len(omega_arr)
 
-    alpha_opts = np.full(n_theta, np.nan, dtype=float)
-    best_deltas = np.full(n_theta, np.inf, dtype=float)
-    sql_vals = np.full(n_theta, 1.0 / T_H, dtype=float)
-    exp_vals = np.zeros(n_theta, dtype=float)
-    var_vals = np.zeros(n_theta, dtype=float)
-    count_below = np.zeros(n_theta, dtype=float)
-    total_pts = np.full(n_theta, n_points, dtype=float)
+    alpha_opts = np.full(n_omega, np.nan, dtype=float)
+    best_deltas = np.full(n_omega, np.inf, dtype=float)
+    sql_vals = np.full(n_omega, 1.0 / T_hold, dtype=float)
+    exp_vals = np.zeros(n_omega, dtype=float)
+    var_vals = np.zeros(n_omega, dtype=float)
+    count_below = np.zeros(n_omega, dtype=float)
+    total_pts = np.full(n_omega, n_points, dtype=float)
 
-    for i, theta in enumerate(theta_arr):
+    for i, omega in enumerate(omega_arr):
         result = xx_grid_scan(
-            theta=theta,
+            omega=omega,
             alpha_xx_range=alpha_xx_range,
             n_points=n_points,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
         )
         alpha_opts[i] = result.alpha_xx_opt
-        best_deltas[i] = result.delta_theta_opt
+        best_deltas[i] = result.delta_omega_opt
         exp_vals[i] = result.expectation_Jz
         var_vals[i] = result.variance_Jz
-        count_below[i] = float(np.sum(result.delta_theta_values < result.sql))
+        count_below[i] = float(np.sum(result.delta_omega_values < result.sql))
 
-    return XXThetaScanResult(
-        theta_values=theta_arr,
-        alpha_xx_opt_per_theta=alpha_opts,
-        delta_theta_opt_per_theta=best_deltas,
+    return XXOmegaScanResult(
+        omega_values=omega_arr,
+        alpha_xx_opt_per_omega=alpha_opts,
+        delta_omega_opt_per_omega=best_deltas,
         sql_values=sql_vals,
-        expectation_Jz_per_theta=exp_vals,
-        variance_Jz_per_theta=var_vals,
-        count_below_sql_per_theta=count_below,
-        total_points_per_theta=total_pts,
+        expectation_Jz_per_omega=exp_vals,
+        variance_Jz_per_omega=var_vals,
+        count_below_sql_per_omega=count_below,
+        total_points_per_omega=total_pts,
     )
 
 
@@ -676,15 +680,15 @@ def run_xx_theta_scan(
 # ============================================================================
 
 
-def plot_xx_theta_scan(
-    result: XXThetaScanResult,
+def plot_xx_omega_scan(
+    result: XXOmegaScanResult,
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Plot Δθ vs θ with optimal α_xx as a secondary axis or annotation.
+    """Plot Δω vs ω with optimal α_xx as a secondary axis or annotation.
 
     Args:
-        result: XXThetaScanResult.
+        result: XXOmegaScanResult.
         save_path: Output SVG path.
         figsize: Figure size (width, height).
 
@@ -696,9 +700,9 @@ def plot_xx_theta_scan(
 
     fig, ax1 = plt.subplots(figsize=figsize)
 
-    theta = result.theta_values
+    omega = result.omega_values
     sql_vals = result.sql_values
-    best_deltas = result.delta_theta_opt_per_theta
+    best_deltas = result.delta_omega_opt_per_omega
 
     # SQL reference line
     sql_ref = float(sql_vals[0]) if len(sql_vals) > 0 else 0.1
@@ -711,28 +715,28 @@ def plot_xx_theta_scan(
         label=rf"SQL = {sql_ref:.4f}",
     )
 
-    # Δθ vs θ
+    # Δω vs ω
     valid = np.isfinite(best_deltas)
     if np.any(valid):
         ax1.plot(
-            theta[valid],
+            omega[valid],
             best_deltas[valid],
             "o-",
             color="C0",
             markersize=7,
             linewidth=1.8,
-            label=r"$\Delta\theta_{\mathrm{opt}}$",
+            label=r"$\Delta\omega_{\mathrm{opt}}$",
         )
         # Annotate best point
         best_idx = int(np.argmin(best_deltas[valid]))
-        best_theta = float(theta[valid][best_idx])
+        best_omega = float(omega[valid][best_idx])
         best_val = float(best_deltas[valid][best_idx])
         best_ratio = best_val / sql_ref if sql_ref > 0 else float("inf")
         ax1.annotate(
-            rf"Best: $\Delta\theta$={best_val:.5f} ({best_ratio:.3f}$\times$SQL)"
-            rf" at $\theta$={best_theta:.2f}",
-            xy=(best_theta, best_val),
-            xytext=(best_theta + 0.8, best_val + 0.02),
+            rf"Best: $\Delta\omega$={best_val:.5f} ({best_ratio:.3f}$\times$SQL)"
+            rf" at $\omega$={best_omega:.2f}",
+            xy=(best_omega, best_val),
+            xytext=(best_omega + 0.8, best_val + 0.02),
             arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
             fontsize=10,
             bbox={
@@ -742,20 +746,20 @@ def plot_xx_theta_scan(
             },
         )
 
-    ax1.set_xlabel(r"$\theta$")
-    ax1.set_ylabel(r"$\Delta\theta$")
+    ax1.set_xlabel(r"$\omega$")
+    ax1.set_ylabel(r"$\Delta\omega$")
     ax1.set_title(
-        "XX-Coupling Sensitivity vs $\\theta$:\n"
-        "Optimal $\\Delta\\theta$ over $\\alpha_{xx} \\in [0, 20]$"
+        "XX-Coupling Sensitivity vs $\\omega$:\n"
+        "Optimal $\\Delta\\omega$ over $\\alpha_{xx} \\in [0, 20]$"
     )
 
     # Secondary axis: optimal α_xx
     ax2 = ax1.twinx()
-    alpha_opts_valid = result.alpha_xx_opt_per_theta
+    alpha_opts_valid = result.alpha_xx_opt_per_omega
     valid_alpha = np.isfinite(alpha_opts_valid)
     if np.any(valid_alpha):
         ax2.plot(
-            theta[valid_alpha],
+            omega[valid_alpha],
             alpha_opts_valid[valid_alpha],
             "s--",
             color="C1",
@@ -779,14 +783,14 @@ def plot_xx_theta_scan(
 
 
 def plot_xx_optimal_params(
-    result: XXThetaScanResult,
+    result: XXOmegaScanResult,
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 5),
 ) -> Path:
-    """Plot optimal α_xx and the fraction below SQL vs θ.
+    """Plot optimal α_xx and the fraction below SQL vs ω.
 
     Args:
-        result: XXThetaScanResult.
+        result: XXOmegaScanResult.
         save_path: Output SVG path.
         figsize: Figure size (width, height).
 
@@ -798,29 +802,29 @@ def plot_xx_optimal_params(
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
-    theta = result.theta_values
+    omega = result.omega_values
 
-    # Left panel: optimal α_xx vs θ
-    valid_alpha = np.isfinite(result.alpha_xx_opt_per_theta)
+    # Left panel: optimal α_xx vs ω
+    valid_alpha = np.isfinite(result.alpha_xx_opt_per_omega)
     if np.any(valid_alpha):
         ax1.plot(
-            theta[valid_alpha],
-            result.alpha_xx_opt_per_theta[valid_alpha],
+            omega[valid_alpha],
+            result.alpha_xx_opt_per_omega[valid_alpha],
             "s-",
             color="C1",
             markersize=6,
             linewidth=1.5,
         )
-    ax1.set_xlabel(r"$\theta$")
+    ax1.set_xlabel(r"$\omega$")
     ax1.set_ylabel(r"$\alpha_{xx}^*$")
-    ax1.set_title(r"Optimal $\alpha_{xx}$ vs $\theta$")
+    ax1.set_title(r"Optimal $\alpha_{xx}$ vs $\omega$")
 
-    # Right panel: fraction below SQL vs θ
-    valid_frac = result.total_points_per_theta > 0
+    # Right panel: fraction below SQL vs ω
+    valid_frac = result.total_points_per_omega > 0
     if np.any(valid_frac):
-        fractions = result.count_below_sql_per_theta / result.total_points_per_theta
+        fractions = result.count_below_sql_per_omega / result.total_points_per_omega
         ax2.plot(
-            theta[valid_frac],
+            omega[valid_frac],
             fractions[valid_frac],
             "o-",
             color="C2",
@@ -828,7 +832,7 @@ def plot_xx_optimal_params(
             linewidth=1.5,
         )
     ax2.axhline(y=0, color="gray", linestyle="--", alpha=0.5, linewidth=1)
-    ax2.set_xlabel(r"$\theta$")
+    ax2.set_xlabel(r"$\omega$")
     ax2.set_ylabel("Fraction below SQL")
     ax2.set_title("Fraction of $\\alpha_{xx}$ grid below SQL")
     ax2.set_ylim(-0.05, 1.05)
@@ -844,10 +848,10 @@ def plot_xx_grid_scan_example(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 5),
 ) -> Path:
-    """Plot the Δθ vs α_xx curve for a single θ value.
+    """Plot the Δω vs α_xx curve for a single ω value.
 
     Args:
-        result: XXGridScanResult for a single θ.
+        result: XXGridScanResult for a single ω.
         save_path: Output SVG path.
         figsize: Figure size (width, height).
 
@@ -860,7 +864,7 @@ def plot_xx_grid_scan_example(
     fig, ax = plt.subplots(figsize=figsize)
 
     alpha = result.alpha_xx_values
-    delta = result.delta_theta_values
+    delta = result.delta_omega_values
 
     sql_ref = result.sql
 
@@ -883,24 +887,24 @@ def plot_xx_grid_scan_example(
             "-",
             color="C0",
             linewidth=1.2,
-            label=rf"$\Delta\theta$ at $\theta={result.theta_value}$",
+            label=rf"$\Delta\omega$ at $\omega={result.omega_value}$",
         )
 
     # Mark optimum
-    if np.isfinite(result.alpha_xx_opt) and np.isfinite(result.delta_theta_opt):
+    if np.isfinite(result.alpha_xx_opt) and np.isfinite(result.delta_omega_opt):
         ax.plot(
             result.alpha_xx_opt,
-            result.delta_theta_opt,
+            result.delta_omega_opt,
             "D",
             color="red",
             markersize=8,
             label=rf"Optimum: $\alpha_{{xx}}^*={result.alpha_xx_opt:.3f}$, "
-            rf"$\Delta\theta={result.delta_theta_opt:.5f}$",
+            rf"$\Delta\omega={result.delta_omega_opt:.5f}$",
         )
 
     ax.set_xlabel(r"$\alpha_{xx}$")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(rf"$\Delta\theta$ vs $\alpha_{{xx}}$ at $\theta={result.theta_value}$")
+    ax.set_ylabel(r"$\Delta\omega$")
+    ax.set_title(rf"$\Delta\omega$ vs $\alpha_{{xx}}$ at $\omega={result.omega_value}$")
     ax.legend(fontsize=9)
 
     fig.tight_layout()
@@ -915,7 +919,7 @@ def plot_xx_grid_scan_example(
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 XX_DATE = "20260520"
-XX_THETA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
+XX_OMEGA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
 XX_N_GRID = 2001
 
 
@@ -943,7 +947,7 @@ def _parallel_map(
 
     Args:
         worker_fn: Callable taking a single item argument.
-        items: Iterable of items (typically θ values).
+        items: Iterable of items (typically ω values).
         desc: Short description for progress logging.
         max_workers: Number of subprocess workers (default: CPU count).
     """
@@ -996,9 +1000,9 @@ def generate_xx_decoupled_baseline(force: bool = False) -> None:
         ax.axis("off")
         text = (
             f"Decoupled Baseline (α_xx = 0)\n"
-            f"Δθ = {result.delta_theta:.10f}\n"
+            f"Δω = {result.delta_omega:.10f}\n"
             f"SQL = {result.sql:.10f}\n"
-            f"Ratio = {result.delta_theta / result.sql:.6f}"
+            f"Ratio = {result.delta_omega / result.sql:.6f}"
         )
         ax.text(0.5, 0.5, text, ha="center", va="center", fontsize=14)
         fig.tight_layout()
@@ -1007,9 +1011,9 @@ def generate_xx_decoupled_baseline(force: bool = False) -> None:
         print(f"[fig]  {fig_p}")
 
 
-def _run_xx_grid_scan(theta: float, force: bool) -> None:
-    """Run an XX-coupling grid scan for a single θ value."""
-    tag = f"xx-grid-scan-theta{theta}"
+def _run_xx_grid_scan(omega: float, force: bool) -> None:
+    """Run an XX-coupling grid scan for a single ω value."""
+    tag = f"xx-grid-scan-omega{omega}"
     csv_p = _parquet_path(tag)
     fig_p = _fig_path(tag)
 
@@ -1017,9 +1021,9 @@ def _run_xx_grid_scan(theta: float, force: bool) -> None:
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
         result = XXGridScanResult.from_parquet(csv_p)
     else:
-        print(f"  [run]  Computing XX grid scan at θ={theta} ({XX_N_GRID} points)...")
+        print(f"  [run]  Computing XX grid scan at ω={omega} ({XX_N_GRID} points)...")
         result = xx_grid_scan(
-            theta=theta,
+            omega=omega,
             n_points=XX_N_GRID,
         )
         result.save_parquet(csv_p)
@@ -1030,45 +1034,45 @@ def _run_xx_grid_scan(theta: float, force: bool) -> None:
 
 
 def generate_xx_grid_scans(force: bool = False) -> None:
-    """XX-coupling grid scans at all θ values (parallel)."""
-    n = len(XX_THETA_VALS)
-    print(f"[run]  XX grid scans at {n} θ values (parallel)")
+    """XX-coupling grid scans at all ω values (parallel)."""
+    n = len(XX_OMEGA_VALS)
+    print(f"[run]  XX grid scans at {n} ω values (parallel)")
     worker = partial(_run_xx_grid_scan, force=force)
-    _parallel_map(worker, XX_THETA_VALS, desc="grid scans")
+    _parallel_map(worker, XX_OMEGA_VALS, desc="grid scans")
 
 
-def generate_xx_theta_scan(force: bool = False) -> None:
-    """XX-coupling θ-scan with α_xx optimisation at each θ."""
-    csv_p = _parquet_path("xx-theta-scan")
-    fig_p = _fig_path("xx-theta-scan")
+def generate_xx_omega_scan(force: bool = False) -> None:
+    """XX-coupling ω-scan with α_xx optimisation at each ω."""
+    csv_p = _parquet_path("xx-omega-scan")
+    fig_p = _fig_path("xx-omega-scan")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = XXThetaScanResult.from_parquet(csv_p)
+        result = XXOmegaScanResult.from_parquet(csv_p)
     else:
-        n = len(XX_THETA_VALS)
-        print(f"[run]  Computing XX θ-scan for {n} θ values ({XX_N_GRID} pts each)...")
-        result = run_xx_theta_scan(
-            theta_values=XX_THETA_VALS,
+        n = len(XX_OMEGA_VALS)
+        print(f"[run]  Computing XX ω-scan for {n} ω values ({XX_N_GRID} pts each)...")
+        result = run_xx_omega_scan(
+            omega_values=XX_OMEGA_VALS,
             n_points=XX_N_GRID,
         )
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    plot_xx_theta_scan(result, fig_p)
+    plot_xx_omega_scan(result, fig_p)
     print(f"[fig]  {fig_p}")
 
 
 def generate_xx_optimal_params(force: bool = False) -> None:
-    """Optimal parameter evolution (α_xx and fraction below SQL) vs θ."""
-    csv_p = _parquet_path("xx-theta-scan")
+    """Optimal parameter evolution (α_xx and fraction below SQL) vs ω."""
+    csv_p = _parquet_path("xx-omega-scan")
     fig_p = _fig_path("xx-optimal-params")
 
     if not csv_p.exists():
-        print("[skip] xx-theta-scan.parquet does not exist; run 'xx-theta-scan' first")
+        print("[skip] xx-omega-scan.parquet does not exist; run 'xx-omega-scan' first")
         return
 
-    result = XXThetaScanResult.from_parquet(csv_p)
+    result = XXOmegaScanResult.from_parquet(csv_p)
     plot_xx_optimal_params(result, fig_p)
     print(f"[fig]  {fig_p}")
 
@@ -1102,7 +1106,7 @@ def main() -> None:
     tasks = {
         "xx-decoupled-baseline": generate_xx_decoupled_baseline,
         "xx-grid-scans": generate_xx_grid_scans,
-        "xx-theta-scan": generate_xx_theta_scan,
+        "xx-omega-scan": generate_xx_omega_scan,
         "xx-optimal-params": generate_xx_optimal_params,
     }
 

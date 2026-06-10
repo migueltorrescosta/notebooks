@@ -35,6 +35,7 @@ import numpy as np
 import scipy.linalg
 
 from src.physics.dicke_basis import jx_operator, jz_operator
+from src.utils.enums import OperatorBasis
 from src.utils.validators import validate_partial_trace
 
 # Alias for backward compatibility
@@ -64,7 +65,10 @@ def local_hamiltonian(
         Hamiltonian matrix of shape (N, N).
 
     """
-    jx, jz = jx_operator(dimension - 1), jz_operator(dimension - 1)
+    jx, jz = (
+        jx_operator(dimension - 1, basis=OperatorBasis.DICKE),
+        jz_operator(dimension - 1, basis=OperatorBasis.DICKE),
+    )
     return -j * jx + u * jz @ jz + delta * jz
 
 
@@ -106,8 +110,14 @@ def build_bipartite_hamiltonian(
 
     """
     n_a, n_b = config.dim_a, config.dim_b
-    jx_a, jz_a = jx_operator(n_a - 1), jz_operator(n_a - 1)
-    jx_b, jz_b = jx_operator(n_b - 1), jz_operator(n_b - 1)
+    jx_a, jz_a = (
+        jx_operator(n_a - 1, basis=OperatorBasis.DICKE),
+        jz_operator(n_a - 1, basis=OperatorBasis.DICKE),
+    )
+    jx_b, jz_b = (
+        jx_operator(n_b - 1, basis=OperatorBasis.DICKE),
+        jz_operator(n_b - 1, basis=OperatorBasis.DICKE),
+    )
 
     # Local Hamiltonians
     h_a = -config.j_a * jx_a + config.u_a * jz_a @ jz_a + config.delta_a * jz_a
@@ -148,8 +158,14 @@ def build_bipartite_hamiltonian_components(
 
     """
     n_a, n_b = config.dim_a, config.dim_b
-    jx_a, jz_a = jx_operator(n_a - 1), jz_operator(n_a - 1)
-    jx_b, jz_b = jx_operator(n_b - 1), jz_operator(n_b - 1)
+    jx_a, jz_a = (
+        jx_operator(n_a - 1, basis=OperatorBasis.DICKE),
+        jz_operator(n_a - 1, basis=OperatorBasis.DICKE),
+    )
+    jx_b, jz_b = (
+        jx_operator(n_b - 1, basis=OperatorBasis.DICKE),
+        jz_operator(n_b - 1, basis=OperatorBasis.DICKE),
+    )
 
     # Local
     h_a = -config.j_a * jx_a + config.u_a * jz_a @ jz_a + config.delta_a * jz_a

@@ -57,13 +57,13 @@ sns.set_theme(style="whitegrid")
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260528"
-T_H: float = 10.0
-SQL: float = 1.0 / T_H  # 0.1
+T_hold: float = 10.0
+SQL: float = 1.0 / T_hold  # 0.1
 FD_STEP: float = 1e-6
 T_BS: float = np.pi / 2.0
 
-# θ values for the scan (5 values, matching the report)
-DRIVE_THETA_VALS: list[float] = [0.1, 0.5, 1.0, 2.0, 5.0]
+# ω values for the scan (5 values, matching the report)
+DRIVE_OMEGA_VALS: list[float] = [0.1, 0.5, 1.0, 2.0, 5.0]
 
 # Random-search sample counts
 N_SAMP_A: int = 500  # Scenario A (reproducing 20260518)
@@ -128,7 +128,7 @@ def free_ancilla_initial_state(theta_A: float, phi_A: float) -> np.ndarray:
 
 
 def compute_free_ancilla_sensitivity(
-    theta_true: float,
+    omega_true: float,
     theta_A: float,
     phi_A: float,
     a_x: float,
@@ -136,46 +136,46 @@ def compute_free_ancilla_sensitivity(
     a_z: float,
     a_zz: float,
     *,
-    T_H: float = T_H,
+    T_hold: float = T_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
 ) -> tuple[float, float, float, float, bool]:
-    r"""Compute the error-propagation sensitivity :math:`\Delta\theta`.
+    r"""Compute the error-propagation sensitivity :math:`\Delta\omega`.
 
     Uses the free-ancilla initial state :math:`|\Psi(\theta_A,\phi_A)\rangle`.
     Returns the same 5-tuple as ``compute_sensitivity_with_extra`` in
     ``20260527/local.py``.
 
     Args:
-        theta_true: True phase rate parameter.
+        omega_true: True phase rate parameter.
         theta_A: Ancilla polar angle.
         phi_A: Ancilla azimuthal angle.
         a_x: Ancilla J_x drive coefficient.
         a_y: Ancilla J_y drive coefficient.
         a_z: Ancilla J_z drive coefficient.
         a_zz: Ising interaction coefficient.
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
 
     Returns:
-        Tuple ``(delta_theta, expectation, variance, derivative, is_fringe)``.
+        Tuple ``(delta_omega, expectation, variance, derivative, is_fringe)``.
         Returns ``(inf, exp_val, var_val, 0.0, True)`` at a fringe extremum.
     """
     psi0 = free_ancilla_initial_state(theta_A, phi_A)
     ops = build_two_qubit_operators()
     meas_op = ops["Jz_S"]
 
-    # Evaluate at theta_true
-    psi = evolve_drive_circuit(psi0, T_BS, T_H, theta_true, a_x, a_y, a_z, a_zz, ops)
+    # Evaluate at omega_true
+    psi = evolve_drive_circuit(psi0, T_BS, T_hold, omega_true, a_x, a_y, a_z, a_zz, ops)
     exp_val, var_val = compute_expectation_and_variance(psi, meas_op)
 
     # Central finite difference for ∂⟨O⟩/∂θ
     psi_plus = evolve_drive_circuit(
         psi0,
         T_BS,
-        T_H,
-        theta_true + fd_step,
+        T_hold,
+        omega_true + fd_step,
         a_x,
         a_y,
         a_z,
@@ -185,8 +185,8 @@ def compute_free_ancilla_sensitivity(
     psi_minus = evolve_drive_circuit(
         psi0,
         T_BS,
-        T_H,
-        theta_true - fd_step,
+        T_hold,
+        omega_true - fd_step,
         a_x,
         a_y,
         a_z,
@@ -204,8 +204,8 @@ def compute_free_ancilla_sensitivity(
     if var_val < 1e-15:
         return float("inf"), exp_val, var_val, d_exp, True
 
-    delta_theta = float(np.sqrt(var_val) / abs(d_exp))
-    return delta_theta, exp_val, var_val, d_exp, False
+    delta_omega = float(np.sqrt(var_val) / abs(d_exp))
+    return delta_omega, exp_val, var_val, d_exp, False
 
 
 # ============================================================================
@@ -376,31 +376,31 @@ class FreeAncillaSearchResult:
     Attributes:
         samples: Parameter matrix, shape ``(N, 6)`` with columns
             ``[theta_A, phi_A, a_x, a_y, a_z, a_zz]``.
-        delta_theta_values: Sensitivity for each sample, shape ``(N,)``.
+        delta_omega_values: Sensitivity for each sample, shape ``(N,)``.
         expectation_values: :math:`\\langle J_z^S\rangle` for each sample.
         variance_values: :math:`\text{Var}(J_z^S)` for each sample.
-        deriv_values: :math:`\\partial\\langle J_z^S\rangle/\\partial\theta`.
+        deriv_values: :math:`\\partial\\langle J_z^S\rangle/\\partial\\omega`.
         is_fringe: Boolean flag per sample, shape ``(N,)``.
-        best_params: The 6-tuple giving the minimum :math:`\\Delta\theta`.
-        best_delta_theta: The minimum :math:`\\Delta\theta` found.
-        theta_value: :math:`\theta` at which the search was performed.
+        best_params: The 6-tuple giving the minimum :math:`\\Delta\\omega`.
+        best_delta_omega: The minimum :math:`\\Delta\\omega` found.
+        omega_value: :math:`\\omega` at which the search was performed.
         sql: SQL reference value.
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
         R: Norm-ball radius constraint.
         scenario: Scenario label (``'A'``, ``'B'``, ``'C'``, or ``'D'``).
     """
 
     samples: np.ndarray
-    delta_theta_values: np.ndarray
+    delta_omega_values: np.ndarray
     expectation_values: np.ndarray
     variance_values: np.ndarray
     deriv_values: np.ndarray
     is_fringe: np.ndarray
     best_params: tuple[float, float, float, float, float, float]
-    best_delta_theta: float
-    theta_value: float = 1.0
+    best_delta_omega: float
+    omega_value: float = 1.0
     sql: float = SQL
-    T_H: float = T_H
+    T_hold: float = T_hold
     R: float = R_MAX
     scenario: str = "B"
 
@@ -415,14 +415,14 @@ class FreeAncillaSearchResult:
             self.samples[:, 2] ** 2 + self.samples[:, 3] ** 2 + self.samples[:, 4] ** 2
         )
         ratios = np.where(
-            np.isfinite(self.delta_theta_values) & (self.sql > 0),
-            self.delta_theta_values / self.sql,
+            np.isfinite(self.delta_omega_values) & (self.sql > 0),
+            self.delta_omega_values / self.sql,
             float("inf"),
         )
         return pd.DataFrame(
             {
-                "theta_value": [self.theta_value] * n,
-                "T_H": [self.T_H] * n,
+                "omega_value": [self.omega_value] * n,
+                "T_hold": [self.T_hold] * n,
                 "sql": [self.sql] * n,
                 "scenario": [self.scenario] * n,
                 "R": [self.R] * n,
@@ -433,7 +433,7 @@ class FreeAncillaSearchResult:
                 "a_z": self.samples[:, 4],
                 "a_zz": self.samples[:, 5],
                 "norm_a": norms_a,
-                "delta_theta": self.delta_theta_values,
+                "delta_omega": self.delta_omega_values,
                 "expectation": self.expectation_values,
                 "variance": self.variance_values,
                 "derivative": self.deriv_values,
@@ -452,8 +452,8 @@ class FreeAncillaSearchResult:
     def from_parquet(cls, path: str | Path) -> FreeAncillaSearchResult:
         df = pd.read_parquet(path)
         required = {
-            "theta_value",
-            "T_H",
+            "omega_value",
+            "T_hold",
             "sql",
             "scenario",
             "R",
@@ -463,7 +463,7 @@ class FreeAncillaSearchResult:
             "a_y",
             "a_z",
             "a_zz",
-            "delta_theta",
+            "delta_omega",
             "expectation",
             "variance",
             "derivative",
@@ -478,7 +478,7 @@ class FreeAncillaSearchResult:
         samples = df[["theta_A", "phi_A", "a_x", "a_y", "a_z", "a_zz"]].to_numpy(
             dtype=float
         )
-        deltas = df["delta_theta"].to_numpy(dtype=float)
+        deltas = df["delta_omega"].to_numpy(dtype=float)
         exps = df["expectation"].to_numpy(dtype=float)
         vars_ = df["variance"].to_numpy(dtype=float)
         derivs = df["derivative"].to_numpy(dtype=float)
@@ -494,7 +494,7 @@ class FreeAncillaSearchResult:
         best_idx = int(np.nanargmin(deltas))
         return cls(
             samples=samples,
-            delta_theta_values=deltas,
+            delta_omega_values=deltas,
             expectation_values=exps,
             variance_values=vars_,
             deriv_values=derivs,
@@ -507,10 +507,10 @@ class FreeAncillaSearchResult:
                 float(samples[best_idx, 4]),
                 float(samples[best_idx, 5]),
             ),
-            best_delta_theta=float(deltas[best_idx]),
-            theta_value=float(df["theta_value"].iloc[0]),
+            best_delta_omega=float(deltas[best_idx]),
+            omega_value=float(df["omega_value"].iloc[0]),
             sql=float(df["sql"].iloc[0]),
-            T_H=float(df["T_H"].iloc[0]),
+            T_hold=float(df["T_hold"].iloc[0]),
             R=float(df["R"].iloc[0]),
             scenario=str(df["scenario"].iloc[0]),
         )
@@ -526,12 +526,12 @@ class FreeAncillaNelderMeadResult:
     """Result of a single Nelder--Mead run for the free-ancilla protocol.
 
     Attributes:
-        delta_theta_opt: Best sensitivity :math:`\\Delta\theta` found.
+        delta_omega_opt: Best sensitivity :math:`\\Delta\\omega` found.
         params_opt: Optimal parameter vector (length varies by scenario:
             4 for A, 6 for B, 3 for C, 5 for D).
         full_params_opt: Full 6-element parameter vector
             ``(theta_A, phi_A, a_x, a_y, a_z, a_zz)``.
-        theta_true: True :math:`\theta` used for this optimisation.
+        omega_true: True :math:`\\omega` used for this optimisation.
         scenario: Scenario label.
         success: Whether the optimiser reported success.
         nfev: Number of function evaluations.
@@ -541,10 +541,10 @@ class FreeAncillaNelderMeadResult:
         history: Objective function values at each iteration.
     """
 
-    delta_theta_opt: float
+    delta_omega_opt: float
     params_opt: np.ndarray
     full_params_opt: tuple[float, float, float, float, float, float]
-    theta_true: float
+    omega_true: float
     scenario: str
     success: bool
     nfev: int
@@ -556,8 +556,8 @@ class FreeAncillaNelderMeadResult:
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
             {
-                "delta_theta": [self.delta_theta_opt],
-                "theta_true": [self.theta_true],
+                "delta_omega": [self.delta_omega_opt],
+                "omega_true": [self.omega_true],
                 "scenario": [self.scenario],
                 "success": [int(self.success)],
                 "nfev": [self.nfev],
@@ -590,8 +590,8 @@ class FreeAncillaNelderMeadResult:
         path = Path(path)
         df = pd.read_parquet(path)
         required = {
-            "delta_theta",
-            "theta_true",
+            "delta_omega",
+            "omega_true",
             "scenario",
             "success",
             "nfev",
@@ -619,7 +619,7 @@ class FreeAncillaNelderMeadResult:
         else:
             history = []
         return cls(
-            delta_theta_opt=float(df["delta_theta"].iloc[0]),
+            delta_omega_opt=float(df["delta_omega"].iloc[0]),
             params_opt=np.array(
                 [
                     float(df["theta_A"].iloc[0]),
@@ -638,7 +638,7 @@ class FreeAncillaNelderMeadResult:
                 float(df["a_z"].iloc[0]),
                 float(df["a_zz"].iloc[0]),
             ),
-            theta_true=float(df["theta_true"].iloc[0]),
+            omega_true=float(df["omega_true"].iloc[0]),
             scenario=str(df["scenario"].iloc[0]),
             success=bool(int(df["success"].iloc[0])),
             nfev=int(df["nfev"].iloc[0]),
@@ -650,65 +650,65 @@ class FreeAncillaNelderMeadResult:
 
 
 # ============================================================================
-# FreeAncillaThetaScanResult Dataclass
+# FreeAncillaOmegaScanResult Dataclass
 # ============================================================================
 
 
 @dataclass
-class FreeAncillaThetaScanResult:
-    """Results of a :math:`\theta` scan for a free-ancilla scenario.
+class FreeAncillaOmegaScanResult:
+    """Results of a :math:`\\omega` scan for a free-ancilla scenario.
 
     Attributes:
-        theta_values: Array of :math:`\theta` values scanned.
-        best_params_per_theta: List of optimal full 6-param tuples.
-        best_delta_theta_per_theta: Optimal :math:`\\Delta\theta` for each
-            :math:`\theta`.
-        sql_values: SQL = 1/T_H for each :math:`\theta`.
-        expectation_Jz_per_theta: :math:`\\langle J_z^S\rangle` at each optimum.
-        variance_Jz_per_theta: :math:`\text{Var}(J_z^S)` at each optimum.
+        omega_values: Array of :math:`\\omega` values scanned.
+        best_params_per_omega: List of optimal full 6-param tuples.
+        best_delta_omega_per_omega: Optimal :math:`\\Delta\\omega` for each
+            :math:`\\omega`.
+        sql_values: SQL = 1/T_hold for each :math:`\\omega`.
+        expectation_Jz_per_omega: :math:`\\langle J_z^S\rangle` at each optimum.
+        variance_Jz_per_omega: :math:`\text{Var}(J_z^S)` at each optimum.
         scenario: Scenario label.
     """
 
-    theta_values: np.ndarray = field(default_factory=lambda: np.array([]))
-    best_params_per_theta: list[tuple[float, float, float, float, float, float]] = (
+    omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    best_params_per_omega: list[tuple[float, float, float, float, float, float]] = (
         field(
             default_factory=list,
         )
     )
-    best_delta_theta_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
+    best_delta_omega_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
     sql_values: np.ndarray = field(default_factory=lambda: np.array([]))
-    expectation_Jz_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
-    variance_Jz_per_theta: np.ndarray = field(default_factory=lambda: np.array([]))
+    expectation_Jz_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
+    variance_Jz_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
     scenario: str = "B"
 
     def to_dataframe(self) -> pd.DataFrame:
         rows: list[dict[str, float | str]] = []
-        for i, theta in enumerate(self.theta_values):
+        for i, omega in enumerate(self.omega_values):
             sql = float(self.sql_values[i]) if i < len(self.sql_values) else SQL
             best = (
-                self.best_delta_theta_per_theta[i]
-                if i < len(self.best_delta_theta_per_theta)
+                self.best_delta_omega_per_omega[i]
+                if i < len(self.best_delta_omega_per_omega)
                 else float("inf")
             )
             params = (
-                self.best_params_per_theta[i]
-                if i < len(self.best_params_per_theta)
+                self.best_params_per_omega[i]
+                if i < len(self.best_params_per_omega)
                 else (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
             )
             exp_jz = (
-                float(self.expectation_Jz_per_theta[i])
-                if i < len(self.expectation_Jz_per_theta)
+                float(self.expectation_Jz_per_omega[i])
+                if i < len(self.expectation_Jz_per_omega)
                 else 0.0
             )
             var_jz = (
-                float(self.variance_Jz_per_theta[i])
-                if i < len(self.variance_Jz_per_theta)
+                float(self.variance_Jz_per_omega[i])
+                if i < len(self.variance_Jz_per_omega)
                 else 0.0
             )
             rows.append(
                 {
-                    "theta": float(theta),
-                    "best_delta_theta": best,
+                    "omega": float(omega),
+                    "best_delta_omega": best,
                     "sql": sql,
                     "ratio": best / sql
                     if np.isfinite(best) and sql > 0
@@ -733,11 +733,11 @@ class FreeAncillaThetaScanResult:
         return path
 
     @classmethod
-    def from_parquet(cls, path: str | Path) -> FreeAncillaThetaScanResult:
+    def from_parquet(cls, path: str | Path) -> FreeAncillaOmegaScanResult:
         df = pd.read_parquet(path)
         required = {
-            "theta",
-            "best_delta_theta",
+            "omega",
+            "best_delta_omega",
             "sql",
             "theta_A",
             "phi_A",
@@ -755,8 +755,8 @@ class FreeAncillaThetaScanResult:
                 f"Parquet at {path} is missing required columns: "
                 f"{sorted(missing)}. Regenerate the file with the current code."
             )
-        thetas = df["theta"].to_numpy(dtype=float)
-        best = df["best_delta_theta"].to_numpy(dtype=float)
+        omegas = df["omega"].to_numpy(dtype=float)
+        best = df["best_delta_omega"].to_numpy(dtype=float)
         sql = df["sql"].to_numpy(dtype=float)
         exps = df["expectation_Jz"].to_numpy(dtype=float)
         vars_ = df["variance_Jz"].to_numpy(dtype=float)
@@ -774,12 +774,12 @@ class FreeAncillaThetaScanResult:
                 )
             )
         return cls(
-            theta_values=thetas,
-            best_params_per_theta=params_list,
-            best_delta_theta_per_theta=best,
+            omega_values=omegas,
+            best_params_per_omega=params_list,
+            best_delta_omega_per_omega=best,
             sql_values=sql,
-            expectation_Jz_per_theta=exps,
-            variance_Jz_per_theta=vars_,
+            expectation_Jz_per_omega=exps,
+            variance_Jz_per_omega=vars_,
             scenario=scenario,
         )
 
@@ -796,16 +796,16 @@ class FreeAncilla2DSliceResult:
     Attributes:
         theta_A_values: Array of :math:`\theta_A` values.
         azz_values: Array of :math:`a_{zz}` values.
-        delta_theta_grid: 2D array of :math:`\\Delta\theta`, shape
+        delta_omega_grid: 2D array of :math:`\\Delta\\omega`, shape
             ``(len(theta_A_values), len(azz_values))``.
-        theta_value: The :math:`\theta` value.
-        sql: SQL = 1/T_H reference.
+        omega_value: The :math:`\\omega` value.
+        sql: SQL = 1/T_hold reference.
     """
 
     theta_A_values: np.ndarray
     azz_values: np.ndarray
-    delta_theta_grid: np.ndarray
-    theta_value: float = 1.0
+    delta_omega_grid: np.ndarray
+    omega_value: float = 1.0
     sql: float = SQL
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -815,8 +815,8 @@ class FreeAncilla2DSliceResult:
             {
                 "theta_A": float(self.theta_A_values[i]),
                 "azz": float(self.azz_values[j]),
-                "delta_theta": float(self.delta_theta_grid[i, j]),
-                "theta_value": float(self.theta_value),
+                "delta_omega": float(self.delta_omega_grid[i, j]),
+                "omega_value": float(self.omega_value),
                 "sql": float(self.sql),
             }
             for i in range(n_t)
@@ -833,7 +833,7 @@ class FreeAncilla2DSliceResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> FreeAncilla2DSliceResult:
         df = pd.read_parquet(path)
-        required = {"theta_A", "azz", "delta_theta", "theta_value", "sql"}
+        required = {"theta_A", "azz", "delta_omega", "omega_value", "sql"}
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
@@ -848,12 +848,12 @@ class FreeAncilla2DSliceResult:
         for _, row in df.iterrows():
             i = theta_A_unique.index(row["theta_A"])
             j = azz_unique.index(row["azz"])
-            grid[i, j] = row["delta_theta"]
+            grid[i, j] = row["delta_omega"]
         return cls(
             theta_A_values=np.array(theta_A_unique, dtype=float),
             azz_values=np.array(azz_unique, dtype=float),
-            delta_theta_grid=grid,
-            theta_value=float(df["theta_value"].iloc[0]),
+            delta_omega_grid=grid,
+            omega_value=float(df["omega_value"].iloc[0]),
             sql=float(df["sql"].iloc[0]),
         )
 
@@ -864,13 +864,13 @@ class FreeAncilla2DSliceResult:
 
 
 def free_ancilla_random_search(
-    theta: float,
+    omega: float,
     scenario: str,
     n_samples: int = N_SAMP_BCD,
     *,
     R: float = R_MAX,
     azz_bounds: tuple[float, float] = AZZ_BOUNDS,
-    T_H: float = T_H,
+    T_hold: float = T_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     seed: int | None = 42,
@@ -878,12 +878,12 @@ def free_ancilla_random_search(
     """Random search over the free-ancilla parameter space.
 
     Args:
-        theta: Phase rate value.
+        omega: Phase rate value.
         scenario: ``'A'``, ``'B'``, ``'C'``, or ``'D'``.
         n_samples: Number of random points to evaluate.
         R: Norm-ball radius for (a_x, a_y, a_z).
         azz_bounds: (min, max) for a_zz.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         seed: Random seed for reproducibility.
@@ -914,19 +914,19 @@ def free_ancilla_random_search(
 
         samples[i, :] = [theta_A, phi_A, a_x, a_y, a_z, a_zz]
 
-        dtheta, exp_val, var_val, deriv, fringe = compute_free_ancilla_sensitivity(
-            theta,
+        domega, exp_val, var_val, deriv, fringe = compute_free_ancilla_sensitivity(
+            omega,
             theta_A,
             phi_A,
             a_x,
             a_y,
             a_z,
             a_zz,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
             fd_step=fd_step,
         )
-        deltas[i] = dtheta
+        deltas[i] = domega
         exps[i] = exp_val
         vars_[i] = var_val
         derivs[i] = deriv
@@ -944,16 +944,16 @@ def free_ancilla_random_search(
 
     return FreeAncillaSearchResult(
         samples=samples,
-        delta_theta_values=deltas,
+        delta_omega_values=deltas,
         expectation_values=exps,
         variance_values=vars_,
         deriv_values=derivs,
         is_fringe=fringes,
         best_params=best_params,
-        best_delta_theta=float(deltas[best_idx]),
-        theta_value=theta,
-        sql=1.0 / T_H,
-        T_H=T_H,
+        best_delta_omega=float(deltas[best_idx]),
+        omega_value=omega,
+        sql=1.0 / T_hold,
+        T_hold=T_hold,
         R=R,
         scenario=scenario,
     )
@@ -1014,30 +1014,30 @@ def _params_to_full(
 
 def _free_ancilla_objective(
     params: np.ndarray,
-    theta_true: float,
+    omega_true: float,
     scenario: str,
     ops: dict[str, np.ndarray],
-    T_H: float = T_H,
+    T_hold: float = T_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     bounds: tuple[float, float] = (-5.0, 5.0),
     penalty_scale: float = 1e6,
 ) -> float:
-    """Objective function for minimising :math:`\\Delta\theta`.
+    """Objective function for minimising :math:`\\Delta\\omega`.
 
     Args:
         params: Scenario-specific parameter vector.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         scenario: Scenario label.
         ops: Two-qubit operators.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step.
         bounds: (min, max) for any scalar parameter.
         penalty_scale: Scale for bound-violation penalty.
 
     Returns:
-        :math:`\\Delta\theta` (plus infinite penalty if bounds violated).
+        :math:`\\Delta\\omega` (plus infinite penalty if bounds violated).
     """
     theta_A, phi_A, a_x, a_y, a_z, a_zz = _params_to_full(params, scenario)
 
@@ -1064,23 +1064,23 @@ def _free_ancilla_objective(
     if penalty > 0.0:
         return float(1e10 + penalty)
 
-    dtheta, _, _, _, _ = compute_free_ancilla_sensitivity(
-        theta_true,
+    domega, _, _, _, _ = compute_free_ancilla_sensitivity(
+        omega_true,
         theta_A,
         phi_A,
         a_x,
         a_y,
         a_z,
         a_zz,
-        T_H=T_H,
+        T_hold=T_hold,
         T_BS=T_BS,
         fd_step=fd_step,
     )
-    return dtheta
+    return domega
 
 
 def run_free_ancilla_nelder_mead(
-    theta_true: float,
+    omega_true: float,
     scenario: str,
     x0: np.ndarray | None = None,
     seed: int | None = None,
@@ -1089,14 +1089,14 @@ def run_free_ancilla_nelder_mead(
     fatol: float = 1e-8,
     adaptive: bool = True,
     bounds: tuple[float, float] = (-5.0, 5.0),
-    T_H: float = T_H,
+    T_hold: float = T_hold,
     T_BS: float = T_BS,
     track_history: bool = False,
 ) -> FreeAncillaNelderMeadResult:
     """Run Nelder--Mead optimisation for the free-ancilla protocol.
 
     Args:
-        theta_true: True phase rate parameter.
+        omega_true: True phase rate parameter.
         scenario: Scenario label.
         x0: Initial parameter vector. Randomly generated if None.
         seed: Random seed (used if x0 is None).
@@ -1105,7 +1105,7 @@ def run_free_ancilla_nelder_mead(
         fatol: Absolute function tolerance.
         adaptive: Use adaptive Nelder--Mead parameters.
         bounds: (min, max) for all scalar parameters.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
         track_history: If True, record objective values per iteration.
 
@@ -1133,10 +1133,10 @@ def run_free_ancilla_nelder_mead(
     def objective(p: np.ndarray) -> float:
         return _free_ancilla_objective(
             p,
-            theta_true,
+            omega_true,
             scenario,
             ops,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
             bounds=bounds,
         )
@@ -1169,8 +1169,8 @@ def run_free_ancilla_nelder_mead(
     psi_final = evolve_drive_circuit(
         free_ancilla_initial_state(theta_A, phi_A),
         T_BS,
-        T_H,
-        theta_true,
+        T_hold,
+        omega_true,
         a_x,
         a_y,
         a_z,
@@ -1180,10 +1180,10 @@ def run_free_ancilla_nelder_mead(
     exp_val, var_val = compute_expectation_and_variance(psi_final, ops["Jz_S"])
 
     return FreeAncillaNelderMeadResult(
-        delta_theta_opt=float(result.fun),
+        delta_omega_opt=float(result.fun),
         params_opt=opt_params,
         full_params_opt=full_params,
-        theta_true=theta_true,
+        omega_true=omega_true,
         scenario=scenario,
         success=bool(result.success),
         nfev=int(result.nfev),
@@ -1195,12 +1195,12 @@ def run_free_ancilla_nelder_mead(
 
 
 # ============================================================================
-# Theta Scan with Random Search + Nelder--Mead Refinement
+# Omega Scan with Random Search + Nelder--Mead Refinement
 # ============================================================================
 
 
-def run_free_ancilla_theta_scan(
-    theta_values: list[float] | np.ndarray,
+def run_free_ancilla_omega_scan(
+    omega_values: list[float] | np.ndarray,
     scenario: str,
     n_random: int = N_SAMP_BCD,
     n_nm_refine: int = N_NM_REFINE,
@@ -1209,34 +1209,34 @@ def run_free_ancilla_theta_scan(
     bounds: tuple[float, float] = (-5.0, 5.0),
     R: float = R_MAX,
     azz_bounds: tuple[float, float] = AZZ_BOUNDS,
-    T_H: float = T_H,
+    T_hold: float = T_hold,
     T_BS: float = T_BS,
-) -> FreeAncillaThetaScanResult:
-    """Scan over :math:`\theta` values with random search + NM refinement.
+) -> FreeAncillaOmegaScanResult:
+    r"""Scan over :math:`\omega` values with random search + NM refinement.
 
-    For each :math:`\theta`:
+    For each :math:`\omega`:
     1. Run ``n_random`` random evaluations in the scenario-specific parameter space.
     2. Select the best ``n_nm_refine`` points.
     3. Run Nelder--Mead refinement from each selected point.
     4. Record the best overall result.
 
     Args:
-        theta_values: :math:`\theta` values to scan.
+        omega_values: :math:`\omega` values to scan.
         scenario: Scenario label.
-        n_random: Number of random search points per :math:`\theta`.
-        n_nm_refine: Number of NM refinements per :math:`\theta`.
-        seed: Base random seed (incremented per :math:`\theta`).
+        n_random: Number of random search points per :math:`\omega`.
+        n_nm_refine: Number of NM refinements per :math:`\omega`.
+        seed: Base random seed (incremented per :math:`\omega`).
         maxiter: Maximum NM iterations.
         bounds: (min, max) for all scalar parameters.
         R: Norm-ball radius.
         azz_bounds: (min, max) for a_zz.
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
-        FreeAncillaThetaScanResult.
+        FreeAncillaOmegaScanResult.
     """
-    theta_arr = np.asarray(theta_values, dtype=float)
+    omega_arr = np.asarray(omega_values, dtype=float)
     base_seed = seed if seed is not None else 42
 
     best_params_list: list[tuple[float, float, float, float, float, float]] = []
@@ -1245,21 +1245,21 @@ def run_free_ancilla_theta_scan(
     exp_vals: list[float] = []
     var_vals: list[float] = []
 
-    for theta in theta_arr:
+    for omega in omega_arr:
         # Stage 1: Random search
         rs_result = free_ancilla_random_search(
-            theta,
+            omega,
             scenario,
             n_samples=n_random,
             R=R,
             azz_bounds=azz_bounds,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
-            seed=base_seed + int(theta * 1000),
+            seed=base_seed + int(omega * 1000),
         )
 
-        # Sort random-search results by Δθ, take top n_nm_refine
-        sorted_indices = np.argsort(rs_result.delta_theta_values)
+        # Sort random-search results by Δω, take top n_nm_refine
+        sorted_indices = np.argsort(rs_result.delta_omega_values)
         top_indices = sorted_indices[:n_nm_refine]
 
         # Stage 2: Nelder--Mead refinement from each top point
@@ -1281,35 +1281,35 @@ def run_free_ancilla_theta_scan(
                 raise ValueError(f"Unknown scenario: {scenario}")
 
             nm = run_free_ancilla_nelder_mead(
-                theta_true=theta,
+                omega_true=omega,
                 scenario=scenario,
                 x0=x0,
-                seed=base_seed + int(theta * 1000) + 10000 + rank,
+                seed=base_seed + int(omega * 1000) + 10000 + rank,
                 maxiter=maxiter,
                 bounds=bounds,
-                T_H=T_H,
+                T_hold=T_hold,
                 T_BS=T_BS,
                 track_history=False,
             )
             nm_results.append(nm)
 
-        # Sort NM results by Δθ
-        nm_results.sort(key=lambda r: r.delta_theta_opt)
+        # Sort NM results by Δω
+        nm_results.sort(key=lambda r: r.delta_omega_opt)
         best_nm = nm_results[0]
 
         best_params_list.append(best_nm.full_params_opt)
-        best_deltas.append(best_nm.delta_theta_opt)
-        sql_vals.append(1.0 / T_H)
+        best_deltas.append(best_nm.delta_omega_opt)
+        sql_vals.append(1.0 / T_hold)
         exp_vals.append(best_nm.expectation_Jz)
         var_vals.append(best_nm.variance_Jz)
 
-    return FreeAncillaThetaScanResult(
-        theta_values=theta_arr,
-        best_params_per_theta=best_params_list,
-        best_delta_theta_per_theta=np.array(best_deltas, dtype=float),
+    return FreeAncillaOmegaScanResult(
+        omega_values=omega_arr,
+        best_params_per_omega=best_params_list,
+        best_delta_omega_per_omega=np.array(best_deltas, dtype=float),
         sql_values=np.array(sql_vals, dtype=float),
-        expectation_Jz_per_theta=np.array(exp_vals, dtype=float),
-        variance_Jz_per_theta=np.array(var_vals, dtype=float),
+        expectation_Jz_per_omega=np.array(exp_vals, dtype=float),
+        variance_Jz_per_omega=np.array(var_vals, dtype=float),
         scenario=scenario,
     )
 
@@ -1323,41 +1323,41 @@ def _free_ancilla_slice_worker(args: tuple) -> tuple[int, np.ndarray]:
     """Worker for parallel (theta_A, a_zz) slice evaluation.
 
     Args:
-        args: Tuple ``(theta, theta_A_chunk, azz_vals, T_H, T_BS, fd_step, start_idx)``.
+        args: Tuple ``(omega, theta_A_chunk, azz_vals, T_hold, T_BS, fd_step, start_idx)``.
 
     Returns:
         Tuple ``(start_idx, chunk_grid)`` where chunk_grid has shape
         ``(len(theta_A_chunk), len(azz_vals))``.
     """
-    theta, theta_A_chunk, azz_vals, T_H, T_BS, fd_step, start_idx = args
+    omega, theta_A_chunk, azz_vals, T_hold, T_BS, fd_step, start_idx = args
     n_t = len(theta_A_chunk)
     n_a = len(azz_vals)
     chunk_grid = np.full((n_t, n_a), np.inf, dtype=float)
     phi_A = 0.0  # Fixed azimuth for the slice
     for i, tA in enumerate(theta_A_chunk):
         for j, a_val in enumerate(azz_vals):
-            dtheta, _, _, _, _ = compute_free_ancilla_sensitivity(
-                theta,
+            domega, _, _, _, _ = compute_free_ancilla_sensitivity(
+                omega,
                 tA,
                 phi_A,
                 0.0,
                 0.0,
                 0.0,
                 a_val,
-                T_H=T_H,
+                T_hold=T_hold,
                 T_BS=T_BS,
                 fd_step=fd_step,
             )
-            chunk_grid[i, j] = dtheta
+            chunk_grid[i, j] = domega
     return start_idx, chunk_grid
 
 
 def free_ancilla_2d_slice(
-    theta: float,
+    omega: float,
     theta_A_range: tuple[float, float] = THETA_A_RANGE,
     azz_range: tuple[float, float] = AZZ_BOUNDS,
     n_grid: int = SLICE_N,
-    T_H: float = T_H,
+    T_hold: float = T_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     n_jobs: int | None = None,
@@ -1369,11 +1369,11 @@ def free_ancilla_2d_slice(
     When ``n_jobs > 1``, the grid is split across worker processes.
 
     Args:
-        theta: Phase rate value.
+        omega: Phase rate value.
         theta_A_range: (min, max) for :math:`\theta_A`.
         azz_range: (min, max) for :math:`a_{zz}`.
         n_grid: Number of points per axis (total grid = n_grid × n_grid).
-        T_H: Holding time.
+        T_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         n_jobs: Number of parallel workers. ``None`` (default) = sequential.
@@ -1390,26 +1390,26 @@ def free_ancilla_2d_slice(
         phi_A = 0.0
         for i in range(n_grid):
             for j in range(n_grid):
-                dtheta, _, _, _, _ = compute_free_ancilla_sensitivity(
-                    theta,
+                domega, _, _, _, _ = compute_free_ancilla_sensitivity(
+                    omega,
                     theta_A_vals[i],
                     phi_A,
                     0.0,
                     0.0,
                     0.0,
                     azz_vals[j],
-                    T_H=T_H,
+                    T_hold=T_hold,
                     T_BS=T_BS,
                     fd_step=fd_step,
                 )
-                grid[i, j] = dtheta
+                grid[i, j] = domega
     else:
         # Parallel path
         n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
         indices = np.arange(n_grid)
         chunks = np.array_split(indices, n_workers)
         worker_args = [
-            (theta, theta_A_vals[chunk], azz_vals, T_H, T_BS, fd_step, int(chunk[0]))
+            (omega, theta_A_vals[chunk], azz_vals, T_hold, T_BS, fd_step, int(chunk[0]))
             for chunk in chunks
         ]
 
@@ -1427,9 +1427,9 @@ def free_ancilla_2d_slice(
     return FreeAncilla2DSliceResult(
         theta_A_values=theta_A_vals,
         azz_values=azz_vals,
-        delta_theta_grid=grid,
-        theta_value=theta,
-        sql=1.0 / T_H,
+        delta_omega_grid=grid,
+        omega_value=omega,
+        sql=1.0 / T_hold,
     )
 
 
@@ -1439,36 +1439,36 @@ def free_ancilla_2d_slice(
 
 
 def build_cross_scenario_dataframe(
-    scan_results: dict[str, FreeAncillaThetaScanResult],
+    scan_results: dict[str, FreeAncillaOmegaScanResult],
 ) -> pd.DataFrame:
     """Build a long-format DataFrame comparing all scenarios.
 
     Args:
-        scan_results: Dict mapping scenario label to ThetaScanResult.
+        scan_results: Dict mapping scenario label to OmegaScanResult.
 
     Returns:
-        DataFrame with columns: ``theta``, ``scenario``, ``best_delta_theta``,
+        DataFrame with columns: ``omega``, ``scenario``, ``best_delta_omega``,
         ``ratio``, ``sql``, plus optimal parameters.
     """
     rows: list[dict[str, float | str]] = []
     for scenario, res in scan_results.items():
-        for i, theta in enumerate(res.theta_values):
+        for i, omega in enumerate(res.omega_values):
             best = (
-                res.best_delta_theta_per_theta[i]
-                if i < len(res.best_delta_theta_per_theta)
+                res.best_delta_omega_per_omega[i]
+                if i < len(res.best_delta_omega_per_omega)
                 else float("inf")
             )
             sql = float(res.sql_values[i]) if i < len(res.sql_values) else SQL
             params = (
-                res.best_params_per_theta[i]
-                if i < len(res.best_params_per_theta)
+                res.best_params_per_omega[i]
+                if i < len(res.best_params_per_omega)
                 else (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
             )
             rows.append(
                 {
-                    "theta": float(theta),
+                    "omega": float(omega),
                     "scenario": scenario,
-                    "best_delta_theta": best,
+                    "best_delta_omega": best,
                     "sql": sql,
                     "ratio": best / sql
                     if np.isfinite(best) and sql > 0
@@ -1494,8 +1494,8 @@ def plot_cross_scenario_comparison(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Grouped bar chart comparing best :math:`\\Delta\theta/\text{SQL}`
-    across scenarios for each :math:`\theta`.
+    """Grouped bar chart comparing best :math:`\\Delta\\omega/\text{SQL}`
+    across scenarios for each :math:`\\omega`.
 
     Args:
         comparison_df: DataFrame or path to Parquet file.
@@ -1513,18 +1513,18 @@ def plot_cross_scenario_comparison(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    thetas = sorted(comparison_df["theta"].unique())
+    omegas = sorted(comparison_df["omega"].unique())
     scenarios = ["A", "B", "C", "D"]
     colours = {"A": "gray", "B": "C0", "C": "C1", "D": "C2"}
 
-    n_groups = len(thetas)
+    n_groups = len(omegas)
     x = np.arange(n_groups)
     width = 0.2
 
     for idx, sc in enumerate(scenarios):
         vals: list[float] = []
-        for theta in thetas:
-            mask = (comparison_df["theta"] == theta) & (comparison_df["scenario"] == sc)
+        for omega in omegas:
+            mask = (comparison_df["omega"] == omega) & (comparison_df["scenario"] == sc)
             subset = comparison_df[mask]
             if len(subset) > 0:
                 r = float(subset["ratio"].iloc[0])
@@ -1542,11 +1542,11 @@ def plot_cross_scenario_comparison(
             label=f"Scenario {sc}",
         )
 
-    ax.set_xlabel(r"$\theta$")
-    ax.set_ylabel(r"$\min \Delta\theta \;/\; \mathrm{SQL}$")
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\min \Delta\omega \;/\; \mathrm{SQL}$")
     ax.set_title("Cross-scenario comparison of best sensitivity ratio")
     ax.set_xticks(x)
-    ax.set_xticklabels([rf"$\theta={t:.1f}$" for t in thetas])
+    ax.set_xticklabels([rf"$\omega={t:.1f}$" for t in omegas])
     ax.axhline(
         y=1.0, color="red", linestyle="--", linewidth=1.5, alpha=0.7, label="SQL"
     )
@@ -1558,15 +1558,15 @@ def plot_cross_scenario_comparison(
     return save_path
 
 
-def plot_scenario_best_ratio_by_theta(
-    scan_result: FreeAncillaThetaScanResult | str | Path,
+def plot_scenario_best_ratio_by_omega(
+    scan_result: FreeAncillaOmegaScanResult | str | Path,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
 ) -> Path:
-    """Line plot of best :math:`\\Delta\theta/\text{SQL}` vs :math:`\theta`.
+    """Line plot of best :math:`\\Delta\\omega/\text{SQL}` vs :math:`\\omega`.
 
     Args:
-        scan_result: ThetaScanResult or path to Parquet.
+        scan_result: OmegaScanResult or path to Parquet.
         save_path: Output SVG path.
         figsize: Figure size.
 
@@ -1574,22 +1574,22 @@ def plot_scenario_best_ratio_by_theta(
         Path to saved SVG.
     """
     if isinstance(scan_result, (str, Path)):
-        scan_result = FreeAncillaThetaScanResult.from_parquet(scan_result)
+        scan_result = FreeAncillaOmegaScanResult.from_parquet(scan_result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    thetas = scan_result.theta_values
-    ratios = scan_result.best_delta_theta_per_theta / scan_result.sql_values
+    omegas = scan_result.omega_values
+    ratios = scan_result.best_delta_omega_per_omega / scan_result.sql_values
 
-    ax.plot(thetas, ratios, "o-", color="C0", linewidth=2, markersize=6)
+    ax.plot(omegas, ratios, "o-", color="C0", linewidth=2, markersize=6)
     ax.axhline(
         y=1.0, color="red", linestyle="--", linewidth=1.5, alpha=0.7, label="SQL"
     )
-    ax.set_xlabel(r"$\theta$")
-    ax.set_ylabel(r"$\min \Delta\theta \;/\; \mathrm{SQL}$")
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\min \Delta\omega \;/\; \mathrm{SQL}$")
     ax.set_title(f"Best sensitivity ratio for Scenario {scan_result.scenario}")
     ax.legend(fontsize=9)
 
@@ -1599,12 +1599,12 @@ def plot_scenario_best_ratio_by_theta(
     return save_path
 
 
-def plot_theta_A_azz_slice_heatmap(
+def plot_omega_A_azz_slice_heatmap(
     result: FreeAncilla2DSliceResult | str | Path,
     save_path: str | Path,
     figsize: tuple[float, float] = (9, 7),
 ) -> Path:
-    """Heatmap of :math:`\\Delta\theta/\text{SQL}` over
+    """Heatmap of :math:`\\Delta\\omega/\text{SQL}` over
     :math:`(\theta_A, a_{zz})`.
 
     Args:
@@ -1621,7 +1621,7 @@ def plot_theta_A_azz_slice_heatmap(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    ratio_grid = result.delta_theta_grid / result.sql
+    ratio_grid = result.delta_omega_grid / result.sql
     finite_mask = np.isfinite(ratio_grid)
     vmin = 0.99
     vmax = 2.0
@@ -1637,13 +1637,13 @@ def plot_theta_A_azz_slice_heatmap(
         vmin=vmin,
         vmax=vmax,
     )
-    cbar = fig.colorbar(im, ax=ax, label=r"$\Delta\theta / \mathrm{SQL}$")
+    cbar = fig.colorbar(im, ax=ax, label=r"$\Delta\omega / \mathrm{SQL}$")
     cbar.set_ticks([1.0, 1.25, 1.5, 1.75, 2.0])
 
     ax.set_xlabel(r"$a_{zz}$")
     ax.set_ylabel(r"$\theta_A$")
     ax.set_title(
-        rf"($\theta_A$, $a_{{zz}}$) slice at $\theta={result.theta_value:.1f}$, "
+        rf"($\theta_A$, $a_{{zz}}$) slice at $\omega={result.omega_value:.1f}$, "
         rf"$a_x=a_y=a_z=0$"
     )
 
@@ -1667,19 +1667,19 @@ def plot_theta_A_azz_slice_heatmap(
 
 
 def plot_norm_envelope_comparison(
-    scenario_A_result: FreeAncillaThetaScanResult | str | Path,
-    scenario_B_result: FreeAncillaThetaScanResult | str | Path,
+    scenario_A_result: FreeAncillaOmegaScanResult | str | Path,
+    scenario_B_result: FreeAncillaOmegaScanResult | str | Path,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 6),
 ) -> Path:
     """Overlay of best-ratio vs :math:`\\|\\mathbf{a}\\|` for Scenarios A and B.
 
-    For each scenario, plots the optimal :math:`\\Delta\theta/\text{SQL}` at
-    each :math:`\theta` against the norm of the optimal drive vector.
+    For each scenario, plots the optimal :math:`\\Delta\\omega/\text{SQL}` at
+    each :math:`\\omega` against the norm of the optimal drive vector.
 
     Args:
-        scenario_A_result: ThetaScanResult for Scenario A.
-        scenario_B_result: ThetaScanResult for Scenario B.
+        scenario_A_result: OmegaScanResult for Scenario A.
+        scenario_B_result: OmegaScanResult for Scenario B.
         save_path: Output SVG path.
         figsize: Figure size.
 
@@ -1687,9 +1687,9 @@ def plot_norm_envelope_comparison(
         Path to saved SVG.
     """
     if isinstance(scenario_A_result, (str, Path)):
-        scenario_A_result = FreeAncillaThetaScanResult.from_parquet(scenario_A_result)
+        scenario_A_result = FreeAncillaOmegaScanResult.from_parquet(scenario_A_result)
     if isinstance(scenario_B_result, (str, Path)):
-        scenario_B_result = FreeAncillaThetaScanResult.from_parquet(scenario_B_result)
+        scenario_B_result = FreeAncillaOmegaScanResult.from_parquet(scenario_B_result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1703,10 +1703,10 @@ def plot_norm_envelope_comparison(
         norms = np.array(
             [
                 np.sqrt(p[2] ** 2 + p[3] ** 2 + p[4] ** 2)
-                for p in res.best_params_per_theta
+                for p in res.best_params_per_omega
             ]
         )
-        ratios = res.best_delta_theta_per_theta / res.sql_values
+        ratios = res.best_delta_omega_per_omega / res.sql_values
         finite = np.isfinite(ratios) & np.isfinite(norms)
         ax.scatter(
             norms[finite],
@@ -1725,7 +1725,7 @@ def plot_norm_envelope_comparison(
         y=1.0, color="red", linestyle="--", linewidth=1.5, alpha=0.7, label="SQL"
     )
     ax.set_xlabel(r"Optimal drive norm $\|\mathbf{a}\|$")
-    ax.set_ylabel(r"$\min \Delta\theta \;/\; \mathrm{SQL}$")
+    ax.set_ylabel(r"$\min \Delta\omega \;/\; \mathrm{SQL}$")
     ax.set_title("Norm-envelope comparison: fixed vs free ancilla")
     ax.legend(fontsize=9, loc="upper left")
 
@@ -1740,15 +1740,15 @@ def plot_norm_envelope_comparison(
 # ============================================================================
 
 
-def _run_scenario_theta_scan(
+def _run_scenario_omega_scan(
     scenario: str,
     force: bool,
     n_random: int | None = None,
     n_nm: int | None = None,
     R: float = R_MAX,
-) -> FreeAncillaThetaScanResult:
-    """Run full theta scan for a single scenario, with caching."""
-    tag = f"theta-scan-{scenario.lower()}"
+) -> FreeAncillaOmegaScanResult:
+    """Run full omega scan for a single scenario, with caching."""
+    tag = f"omega-scan-{scenario.lower()}"
     csv_p = _parquet_path(tag)
     fig_p = _fig_path(tag)
 
@@ -1760,65 +1760,65 @@ def _run_scenario_theta_scan(
 
     if csv_p.exists() and not force:
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
-        result = FreeAncillaThetaScanResult.from_parquet(csv_p)
+        result = FreeAncillaOmegaScanResult.from_parquet(csv_p)
     else:
         print(
-            f"  [run]  Scenario {scenario} theta scan "
-            f"({len(DRIVE_THETA_VALS)} θ × {n_random} random + {n_nm} NM)..."
+            f"  [run]  Scenario {scenario} omega scan "
+            f"({len(DRIVE_OMEGA_VALS)} θ × {n_random} random + {n_nm} NM)..."
         )
-        result = run_free_ancilla_theta_scan(
-            theta_values=DRIVE_THETA_VALS,
+        result = run_free_ancilla_omega_scan(
+            omega_values=DRIVE_OMEGA_VALS,
             scenario=scenario,
             n_random=n_random,
             n_nm_refine=n_nm,
             R=R,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
         )
         result.save_parquet(csv_p)
         print(f"  [save] {csv_p}")
 
-    plot_scenario_best_ratio_by_theta(result, fig_p)
+    plot_scenario_best_ratio_by_omega(result, fig_p)
     print(f"  [fig]  {fig_p}")
 
     return result
 
 
-def generate_scenario_A(force: bool = False) -> FreeAncillaThetaScanResult:
+def generate_scenario_A(force: bool = False) -> FreeAncillaOmegaScanResult:
     """Experiment 1: Scenario A baseline reproduction."""
     print("[run]  Scenario A (fixed ancilla, free drive + interaction)")
-    return _run_scenario_theta_scan("A", force=force, n_random=N_SAMP_A, n_nm=50)
+    return _run_scenario_omega_scan("A", force=force, n_random=N_SAMP_A, n_nm=50)
 
 
-def generate_scenario_B(force: bool = False) -> FreeAncillaThetaScanResult:
+def generate_scenario_B(force: bool = False) -> FreeAncillaOmegaScanResult:
     """Experiment 2: Scenario B (primary) — free ancilla, free drive,
     free interaction."""
     print("[run]  Scenario B (free ancilla, free drive, free interaction)")
-    return _run_scenario_theta_scan("B", force=force)
+    return _run_scenario_omega_scan("B", force=force)
 
 
-def generate_scenario_C(force: bool = False) -> FreeAncillaThetaScanResult:
+def generate_scenario_C(force: bool = False) -> FreeAncillaOmegaScanResult:
     """Experiment 3: Scenario C (control) — free ancilla, no drive,
     free interaction."""
     print("[run]  Scenario C (free ancilla, no drive, free interaction)")
-    return _run_scenario_theta_scan("C", force=force)
+    return _run_scenario_omega_scan("C", force=force)
 
 
-def generate_scenario_D(force: bool = False) -> FreeAncillaThetaScanResult:
+def generate_scenario_D(force: bool = False) -> FreeAncillaOmegaScanResult:
     """Experiment 4: Scenario D (control) — free ancilla, free drive,
     no interaction."""
     print("[run]  Scenario D (free ancilla, free drive, no interaction)")
-    return _run_scenario_theta_scan("D", force=force)
+    return _run_scenario_omega_scan("D", force=force)
 
 
-def generate_2d_slice_theta_A_azz(
+def generate_2d_slice_omega_A_azz(
     force: bool = False,
     n_jobs: int | None = None,
 ) -> None:
     """Experiment 5: 2D slice over :math:`(\theta_A, a_{zz})` at all θ values."""
-    print(f"[run]  (theta_A, a_zz) slice at {DRIVE_THETA_VALS}")
-    for theta in DRIVE_THETA_VALS:
-        tag = f"slice-thetaA-azz-theta{theta}"
+    print(f"[run]  (theta_A, a_zz) slice at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        tag = f"slice-omegaA-azz-omega{omega}"
         csv_p = _parquet_path(tag)
         fig_p = _fig_path(tag)
 
@@ -1826,41 +1826,41 @@ def generate_2d_slice_theta_A_azz(
             print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
             result = FreeAncilla2DSliceResult.from_parquet(csv_p)
         else:
-            print(f"  [run]  Computing (theta_A, a_zz) slice at θ={theta}...")
+            print(f"  [run]  Computing (theta_A, a_zz) slice at θ={omega}...")
             result = free_ancilla_2d_slice(
-                theta=theta,
+                omega=omega,
                 theta_A_range=THETA_A_RANGE,
                 azz_range=AZZ_BOUNDS,
                 n_grid=SLICE_N,
-                T_H=T_H,
+                T_hold=T_hold,
                 T_BS=T_BS,
                 n_jobs=n_jobs,
             )
             result.save_parquet(csv_p)
             print(f"  [save] {csv_p}")
 
-        plot_theta_A_azz_slice_heatmap(result, fig_p)
+        plot_omega_A_azz_slice_heatmap(result, fig_p)
         print(f"  [fig]  {fig_p}")
 
 
 def generate_cross_scenario_comparison(
     force: bool = False,
-) -> FreeAncillaThetaScanResult | None:
+) -> FreeAncillaOmegaScanResult | None:
     """Experiment 6: Cross-scenario comparison bar chart.
 
-    Loads existing theta-scan results from all four scenarios and produces
+    Loads existing omega-scan results from all four scenarios and produces
     the comparison plot.
     """
     fig_p = _fig_path("cross-scenario-comparison")
     env_fig_p = _fig_path("norm-envelope-comparison")
 
-    print("[run]  Loading theta-scan results for cross-scenario comparison...")
-    scan_results: dict[str, FreeAncillaThetaScanResult] = {}
+    print("[run]  Loading omega-scan results for cross-scenario comparison...")
+    scan_results: dict[str, FreeAncillaOmegaScanResult] = {}
     for sc in ("A", "B", "C", "D"):
-        tag = f"theta-scan-{sc.lower()}"
+        tag = f"omega-scan-{sc.lower()}"
         csv_p = _parquet_path(tag)
         if csv_p.exists():
-            scan_results[sc] = FreeAncillaThetaScanResult.from_parquet(csv_p)
+            scan_results[sc] = FreeAncillaOmegaScanResult.from_parquet(csv_p)
             print(f"  [load] {csv_p.name}")
         else:
             print(f"  [warn] {csv_p.name} not found — skipping scenario {sc}")
@@ -1928,7 +1928,7 @@ def main() -> None:
         "scenario-B": generate_scenario_B,
         "scenario-C": generate_scenario_C,
         "scenario-D": generate_scenario_D,
-        "slice-thetaA-azz": generate_2d_slice_theta_A_azz,
+        "slice-omegaA-azz": generate_2d_slice_omega_A_azz,
         "cross-scenario": generate_cross_scenario_comparison,
     }
 

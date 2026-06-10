@@ -17,8 +17,8 @@ import seaborn as sns
 from src.analysis.ancilla_drive_metrology import (
     Drive2DSliceResult,
     DriveDecoupledBaselineResult,
+    DriveOmegaScanResult,
     DriveRandomSearchResult,
-    DriveThetaScanResult,
 )
 
 sns.set_theme(style="whitegrid")
@@ -34,7 +34,7 @@ def plot_drive_decoupled_baseline(
     save_path: str | Path,
     figsize: tuple[float, float] = (6, 4),
 ) -> Path:
-    """Bar chart comparing Δθ to SQL for the decoupled (all-zero) configuration."""
+    """Bar chart comparing Δω to SQL for the decoupled (all-zero) configuration."""
     if isinstance(result, (str, Path)):
         result = DriveDecoupledBaselineResult.from_parquet(result)
 
@@ -43,8 +43,8 @@ def plot_drive_decoupled_baseline(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    labels = [r"$\Delta\theta$", r"SQL $= 1/T_H$"]
-    values = [result.delta_theta, result.sql]
+    labels = [r"$\Delta\omega$", r"SQL $= 1/T_hold$"]
+    values = [result.delta_omega, result.sql]
     colours = ["C0", "C1"]
 
     bars = ax.bar(labels, values, color=colours, width=0.5, edgecolor="black")
@@ -58,8 +58,8 @@ def plot_drive_decoupled_baseline(
             fontsize=10,
         )
 
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(f"Decoupled baseline at $T_H={result.T_H_value:.0f}$")
+    ax.set_ylabel(r"$\Delta\omega$")
+    ax.set_title(f"Decoupled baseline at $T_hold={result.T_hold_value:.0f}$")
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
     plt.close(fig)
@@ -87,7 +87,7 @@ def plot_drive_2d_slice_heatmap(
     sql = result.sql
     if vmax is None:
         # Clip to 3x SQL for colour scale
-        vmax = min(3.0 * sql, np.nanmax(result.delta_theta_grid))
+        vmax = min(3.0 * sql, np.nanmax(result.delta_omega_grid))
         if not np.isfinite(vmax):
             vmax = 3.0 * sql
 
@@ -96,19 +96,19 @@ def plot_drive_2d_slice_heatmap(
     im = ax.pcolormesh(
         result.azz_values,
         result.drive_values,
-        result.delta_theta_grid,
+        result.delta_omega_grid,
         shading="auto",
         cmap="viridis",
         vmin=0.0,
         vmax=vmax,
     )
-    _cbar = fig.colorbar(im, ax=ax, label=r"$\Delta\theta$")
+    _cbar = fig.colorbar(im, ax=ax, label=r"$\Delta\omega$")
 
     # SQL contour line
     cs = ax.contour(
         result.azz_values,
         result.drive_values,
-        result.delta_theta_grid,
+        result.delta_omega_grid,
         levels=[sql],
         colors="red",
         linewidths=1.5,
@@ -125,7 +125,7 @@ def plot_drive_2d_slice_heatmap(
     ax.set_xlabel(r"$a_{zz}$ (interaction)")
     ax.set_ylabel(drive_label + " (drive)")
     ax.set_title(
-        rf"$\Delta\theta$ vs {drive_label} and $a_{{zz}}$ at $\theta={result.theta_value:.1f}$"
+        rf"$\Delta\omega$ vs {drive_label} and $a_{{zz}}$ at $\omega={result.omega_value:.1f}$"
     )
 
     fig.tight_layout()
@@ -152,7 +152,7 @@ def plot_drive_random_search_histogram(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    finite = result.delta_theta_values[np.isfinite(result.delta_theta_values)]
+    finite = result.delta_omega_values[np.isfinite(result.delta_omega_values)]
     sql = result.sql
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -168,26 +168,26 @@ def plot_drive_random_search_histogram(
         label=rf"SQL = {sql:.4f}",
     )
     ax.axvline(
-        x=result.best_delta_theta,
+        x=result.best_delta_omega,
         color="red",
         linestyle=":",
         linewidth=1.5,
-        label=rf"Best = {result.best_delta_theta:.4f}",
+        label=rf"Best = {result.best_delta_omega:.4f}",
     )
 
     below_sql = np.sum(finite < sql)
     if below_sql > 0:
         ax.annotate(
             rf"{below_sql} / {len(finite)} below SQL",
-            xy=(result.best_delta_theta, 0.6 * ax.get_ylim()[1]),
+            xy=(result.best_delta_omega, 0.6 * ax.get_ylim()[1]),
             fontsize=10,
             color="red",
         )
 
-    ax.set_xlabel(r"$\Delta\theta$")
+    ax.set_xlabel(r"$\Delta\omega$")
     ax.set_ylabel("Count")
     ax.set_title(
-        rf"4D random search at $\theta={result.theta_value:.1f}$ "
+        rf"4D random search at $\omega={result.omega_value:.1f}$ "
         rf"({len(finite)} finite points)"
     )
     ax.legend()
@@ -199,25 +199,25 @@ def plot_drive_random_search_histogram(
 
 
 # ──────────────────────────────────────────────
-# 4. θ-scan line plot
+# 4. ω-scan line plot
 # ──────────────────────────────────────────────
 
 
-def plot_drive_theta_scan(
-    result: DriveThetaScanResult | str | Path,
+def plot_drive_omega_scan(
+    result: DriveOmegaScanResult | str | Path,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 7),
 ) -> Path:
-    """Two-panel figure: Δθ vs θ (top) and Δθ/SQL ratio (bottom)."""
+    """Two-panel figure: Δω vs ω (top) and Δω/SQL ratio (bottom)."""
     if isinstance(result, (str, Path)):
-        result = DriveThetaScanResult.from_parquet(result)
+        result = DriveOmegaScanResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
 
-    # ── Upper panel: Δθ vs θ ──────────────────────────────────────────
+    # ── Upper panel: Δω vs ω ──────────────────────────────────────────
     sql_vals = result.sql_values
     if len(sql_vals) == 0:
         raise ValueError(
@@ -235,22 +235,22 @@ def plot_drive_theta_scan(
     )
 
     ax1.plot(
-        result.theta_values,
-        result.best_delta_theta_per_theta,
+        result.omega_values,
+        result.best_delta_omega_per_omega,
         marker="o",
         linestyle="-",
         color="C0",
         markersize=8,
         linewidth=2,
-        label=r"$\Delta\theta$ (best)",
+        label=r"$\Delta\omega$ (best)",
     )
 
     # Highlight points below SQL
-    below_sql = result.best_delta_theta_per_theta < sql_vals
+    below_sql = result.best_delta_omega_per_omega < sql_vals
     if np.any(below_sql):
         ax1.scatter(
-            result.theta_values[below_sql],
-            result.best_delta_theta_per_theta[below_sql],
+            result.omega_values[below_sql],
+            result.best_delta_omega_per_omega[below_sql],
             marker="*",
             s=150,
             color="red",
@@ -258,15 +258,15 @@ def plot_drive_theta_scan(
             label="Below SQL",
         )
 
-    ax1.set_ylabel(r"$\Delta\theta$")
-    ax1.set_title(r"$\theta$-scan: driven-ancilla sensitivity")
+    ax1.set_ylabel(r"$\Delta\omega$")
+    ax1.set_title(r"$\omega$-scan: driven-ancilla sensitivity")
     ax1.legend()
 
-    # ── Lower panel: Δθ / SQL ratio ───────────────────────────────────
-    ratio = result.best_delta_theta_per_theta / sql_vals
+    # ── Lower panel: Δω / SQL ratio ───────────────────────────────────
+    ratio = result.best_delta_omega_per_omega / sql_vals
 
     ax2.plot(
-        result.theta_values,
+        result.omega_values,
         ratio,
         marker="o",
         linestyle="-",
@@ -275,18 +275,18 @@ def plot_drive_theta_scan(
         linewidth=2,
     )
     ax2.axhline(y=1.0, color="C1", linestyle="--", alpha=0.6, label="SQL")
-    ax2.set_xlabel(r"$\theta$")
-    ax2.set_ylabel(r"$\Delta\theta \;/\; \mathrm{SQL}$")
+    ax2.set_xlabel(r"$\omega$")
+    ax2.set_ylabel(r"$\Delta\omega \;/\; \mathrm{SQL}$")
     ax2.legend()
 
     # Annotate the minimum ratio
     min_idx = np.argmin(ratio)
     min_ratio = ratio[min_idx]
-    min_theta = result.theta_values[min_idx]
+    min_omega = result.omega_values[min_idx]
     ax2.annotate(
-        f"Best = {min_ratio:.3f}$\\times$ at $\\theta$={min_theta:.1f}",
-        xy=(min_theta, min_ratio),
-        xytext=(min_theta + 0.6, min_ratio + 0.15),
+        f"Best = {min_ratio:.3f}$\\times$ at $\\omega$={min_omega:.1f}",
+        xy=(min_omega, min_ratio),
+        xytext=(min_omega + 0.6, min_ratio + 0.15),
         arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
         fontsize=10,
         bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "gray"},
@@ -299,18 +299,18 @@ def plot_drive_theta_scan(
 
 
 # ──────────────────────────────────────────────
-# 5. Optimal parameters vs θ (bar or multi-line)
+# 5. Optimal parameters vs ω (bar or multi-line)
 # ──────────────────────────────────────────────
 
 
 def plot_drive_optimal_params(
-    result: DriveThetaScanResult | str | Path,
+    result: DriveOmegaScanResult | str | Path,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
 ) -> Path:
-    """Plot optimal drive parameters (a_x*, a_y*, a_z*, a_zz*) vs θ."""
+    """Plot optimal drive parameters (a_x*, a_y*, a_z*, a_zz*) vs ω."""
     if isinstance(result, (str, Path)):
-        result = DriveThetaScanResult.from_parquet(result)
+        result = DriveOmegaScanResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -324,10 +324,10 @@ def plot_drive_optimal_params(
     for idx in range(4):
         values = [
             params[idx] if len(params) > idx else 0.0
-            for params in result.best_params_per_theta
+            for params in result.best_params_per_omega
         ]
         ax.plot(
-            result.theta_values,
+            result.omega_values,
             values,
             marker=markers[idx],
             linestyle="-",
@@ -335,9 +335,9 @@ def plot_drive_optimal_params(
             label=params_names[idx],
         )
 
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel("Optimal parameter value")
-    ax.set_title("Optimal drive and interaction parameters vs $\\theta$")
+    ax.set_title("Optimal drive and interaction parameters vs $\\omega$")
     ax.legend()
 
     fig.tight_layout()
@@ -356,23 +356,23 @@ def plot_drive_optimal_params(
 
 
 # ──────────────────────────────────────────────
-# 7. NM expectation and variance of J_z vs θ
+# 7. NM expectation and variance of J_z vs ω
 # ──────────────────────────────────────────────
 
 
 def plot_drive_nm_expectation_variance(
-    theta_values: np.ndarray,
+    omega_values: np.ndarray,
     expectation_Jz: np.ndarray,
     variance_Jz: np.ndarray,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 4),
 ) -> Path:
-    """Side-by-side plot of ⟨J_z^S⟩ and Var(J_z^S) at the NM optimum vs θ.
+    """Side-by-side plot of ⟨J_z^S⟩ and Var(J_z^S) at the NM optimum vs ω.
 
     Args:
-        theta_values: Array of θ values.
-        expectation_Jz: ⟨J_z^S⟩ at NM optimum for each θ.
-        variance_Jz: Var(J_z^S) at NM optimum for each θ.
+        omega_values: Array of ω values.
+        expectation_Jz: ⟨J_z^S⟩ at NM optimum for each ω.
+        variance_Jz: Var(J_z^S) at NM optimum for each ω.
         save_path: Output SVG path.
         figsize: Figure size (width, height).
 
@@ -388,7 +388,7 @@ def plot_drive_nm_expectation_variance(
     valid_exp = np.isfinite(expectation_Jz)
     if np.any(valid_exp):
         ax1.plot(
-            theta_values[valid_exp],
+            omega_values[valid_exp],
             expectation_Jz[valid_exp],
             "o-",
             color="C0",
@@ -396,7 +396,7 @@ def plot_drive_nm_expectation_variance(
             linewidth=1.5,
         )
     ax1.axhline(y=0, color="gray", linestyle=":", alpha=0.5)
-    ax1.set_xlabel(r"$\theta$")
+    ax1.set_xlabel(r"$\omega$")
     ax1.set_ylabel(r"$\langle J_z^S \rangle$")
     ax1.set_title(r"Expectation $\langle J_z^S\rangle$ at NM optimum")
 
@@ -404,14 +404,14 @@ def plot_drive_nm_expectation_variance(
     valid_var = np.isfinite(variance_Jz)
     if np.any(valid_var):
         ax2.plot(
-            theta_values[valid_var],
+            omega_values[valid_var],
             variance_Jz[valid_var],
             "s-",
             color="C1",
             markersize=7,
             linewidth=1.5,
         )
-    ax2.set_xlabel(r"$\theta$")
+    ax2.set_xlabel(r"$\omega$")
     ax2.set_ylabel(r"$\mathrm{Var}(J_z^S)$")
     ax2.set_title(r"Variance $\mathrm{Var}(J_z^S)$ at NM optimum")
 
@@ -427,29 +427,29 @@ def plot_drive_nm_expectation_variance(
 
 
 def plot_drive_cross_experiment_comparison(
-    theta_values: np.ndarray,
+    omega_values: np.ndarray,
     best_delta_19: np.ndarray,
     best_delta_18: np.ndarray,
     sql_values: np.ndarray,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
 ) -> Path:
-    """Compare Δθ from the fixed-drive (20260518) and modulated-drive
+    """Compare Δω from the fixed-drive (20260518) and modulated-drive
     (20260519) experiments in a 2×1 vertically stacked figure.
 
-    Upper panel: Overlaid line plots of Δθ vs θ for both experiments,
+    Upper panel: Overlaid line plots of Δω vs ω for both experiments,
     with the SQL shown as a dashed reference line.
 
-    Lower panel: Ratio Δθ_19 / Δθ_18 vs θ. A horizontal line at y=1
+    Lower panel: Ratio Δω_19 / Δω_18 vs ω. A horizontal line at y=1
     separates regimes where the fixed drive (above 1) or modulated drive
     (below 1) performs better.
 
     Args:
-        theta_values: Common θ grid (50 points from the modulated-drive scan).
-        best_delta_19: Δθ from the modulated-drive scan (20260519).
-        best_delta_18: Δθ from the fixed-drive scan (20260518),
-            interpolated to the same θ grid.
-        sql_values: SQL reference values (constant, 0.1) at each θ.
+        omega_values: Common ω grid (50 points from the modulated-drive scan).
+        best_delta_19: Δω from the modulated-drive scan (20260519).
+        best_delta_18: Δω from the fixed-drive scan (20260518),
+            interpolated to the same ω grid.
+        sql_values: SQL reference values (constant, 0.1) at each ω.
         save_path: Output SVG path.
         figsize: Figure size (width, height).
 
@@ -461,7 +461,7 @@ def plot_drive_cross_experiment_comparison(
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
 
-    # ── Upper panel: Δθ vs θ ──────────────────────────────────────────
+    # ── Upper panel: Δω vs ω ──────────────────────────────────────────
     sql_ref = float(sql_values[0]) if len(sql_values) > 0 else 0.1
 
     ax1.axhline(
@@ -474,7 +474,7 @@ def plot_drive_cross_experiment_comparison(
     )
 
     ax1.plot(
-        theta_values,
+        omega_values,
         best_delta_18,
         marker="s",
         linestyle="-",
@@ -484,7 +484,7 @@ def plot_drive_cross_experiment_comparison(
         label=r"Fixed drive (20260518)",
     )
     ax1.plot(
-        theta_values,
+        omega_values,
         best_delta_19,
         marker="o",
         linestyle="-",
@@ -494,11 +494,11 @@ def plot_drive_cross_experiment_comparison(
         label=r"Modulated drive (20260519)",
     )
 
-    ax1.set_ylabel(r"$\Delta\theta$")
+    ax1.set_ylabel(r"$\Delta\omega$")
     ax1.set_title("Cross-experiment comparison: fixed vs modulated drive")
     ax1.legend(fontsize=9)
 
-    # ── Lower panel: ratio Δθ_19 / Δθ_18 ──────────────────────────────
+    # ── Lower panel: ratio Δω_19 / Δω_18 ──────────────────────────────
     # Guard against division by zero
     with np.errstate(divide="ignore", invalid="ignore"):
         ratio = np.where(
@@ -508,7 +508,7 @@ def plot_drive_cross_experiment_comparison(
         )
 
     ax2.plot(
-        theta_values,
+        omega_values,
         ratio,
         marker="o",
         linestyle="-",
@@ -525,11 +525,11 @@ def plot_drive_cross_experiment_comparison(
     if np.any(valid):
         min_idx = np.argmin(ratio[valid])
         min_ratio = float(ratio[valid][min_idx])
-        min_theta = float(theta_values[valid][min_idx])
+        min_omega = float(omega_values[valid][min_idx])
         ax2.annotate(
-            f"Best = {min_ratio:.3f}$\\times$ at $\\theta$={min_theta:.1f}",
-            xy=(min_theta, min_ratio),
-            xytext=(min_theta + 0.6, min_ratio + 0.15),
+            f"Best = {min_ratio:.3f}$\\times$ at $\\omega$={min_omega:.1f}",
+            xy=(min_omega, min_ratio),
+            xytext=(min_omega + 0.6, min_ratio + 0.15),
             arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
             fontsize=10,
             bbox={
@@ -539,8 +539,8 @@ def plot_drive_cross_experiment_comparison(
             },
         )
 
-    ax2.set_xlabel(r"$\theta$")
-    ax2.set_ylabel(r"$\Delta\theta_{19} \;/\; \Delta\theta_{18}$")
+    ax2.set_xlabel(r"$\omega$")
+    ax2.set_ylabel(r"$\Delta\omega_{19} \;/\; \Delta\omega_{18}$")
     ax2.legend(fontsize=9)
 
     fig.tight_layout()
@@ -550,25 +550,25 @@ def plot_drive_cross_experiment_comparison(
 
 
 # ──────────────────────────────────────────────
-# 9. Fraction below SQL vs θ
+# 9. Fraction below SQL vs ω
 # ──────────────────────────────────────────────
 
 
 def plot_drive_fraction_below_sql(
-    theta_values: np.ndarray,
+    omega_values: np.ndarray,
     fractions_2d_ax: np.ndarray,
     fractions_2d_ay: np.ndarray,
     fractions_random: np.ndarray,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
 ) -> Path:
-    """Line plot of the fraction of parameter space below SQL as a function of θ.
+    """Line plot of the fraction of parameter space below SQL as a function of ω.
 
     Args:
-        theta_values: Array of θ values.
-        fractions_2d_ax: Fraction below SQL from (a_x, a_zz) slices at each θ.
-        fractions_2d_ay: Fraction below SQL from (a_y, a_zz) slices at each θ.
-        fractions_random: Fraction below SQL from 4D random search at each θ.
+        omega_values: Array of ω values.
+        fractions_2d_ax: Fraction below SQL from (a_x, a_zz) slices at each ω.
+        fractions_2d_ay: Fraction below SQL from (a_y, a_zz) slices at each ω.
+        fractions_random: Fraction below SQL from 4D random search at each ω.
         save_path: Output SVG path.
         figsize: Figure size (width, height).
 
@@ -581,7 +581,7 @@ def plot_drive_fraction_below_sql(
     fig, ax = plt.subplots(figsize=figsize)
 
     ax.plot(
-        theta_values,
+        omega_values,
         fractions_2d_ax,
         "o-",
         color="C0",
@@ -590,7 +590,7 @@ def plot_drive_fraction_below_sql(
         linewidth=1.5,
     )
     ax.plot(
-        theta_values,
+        omega_values,
         fractions_2d_ay,
         "s-",
         color="C1",
@@ -599,7 +599,7 @@ def plot_drive_fraction_below_sql(
         linewidth=1.5,
     )
     ax.plot(
-        theta_values,
+        omega_values,
         fractions_random,
         "^-",
         color="C2",
@@ -612,7 +612,7 @@ def plot_drive_fraction_below_sql(
     ax.axhline(y=0, color="gray", linestyle="--", alpha=0.5, linewidth=1)
     ax.axhline(y=1, color="gray", linestyle="--", alpha=0.5, linewidth=1)
 
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel("Fraction below SQL")
     ax.set_title("Robustness of SQL violation: fraction of parameter space below SQL")
     ax.set_ylim(0, 1)

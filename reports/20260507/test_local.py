@@ -24,12 +24,14 @@ import scipy
 
 # ── Load local.py via importlib ──────────────────────────────────────────────
 _local_path = Path(__file__).resolve().parent / "local.py"
-_spec = importlib.util.spec_from_file_location("report_local", str(_local_path))
+_dirname = Path(__file__).resolve().parent.name
+_modname = f"report_local_{_dirname}"
+_spec = importlib.util.spec_from_file_location(_modname, str(_local_path))
 assert _spec is not None, f"Could not find local.py at {_local_path}"
 _report_local = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 # Register in sys.modules so dataclass decorator can resolve types
-sys.modules[_spec.name] = _report_local
+sys.modules[_modname] = _report_local
 _spec.loader.exec_module(_report_local)
 
 # Bind functions to local names for ergonomic access
@@ -383,7 +385,7 @@ class TestMZIOperators:
 
     def test_given_phase_shift_then_unitary(self) -> None:
         N = 5
-        ps = mzi_phase_shift(N, phi=0.5)
+        ps = mzi_phase_shift(N, phi_phase=0.5)
         assert validate_hybrid_unitary(ps, tol=1e-8)
 
     def test_given_phase_generator_then_hermitian(self) -> None:
@@ -401,21 +403,21 @@ class TestMZIEvolution:
     def test_given_evolution_then_normalized(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
-        output = evolve_hybrid_mzi(state, N, phi=0.5)
+        output = evolve_hybrid_mzi(state, N, phi_phase=0.5)
         norm = np.sum(np.abs(output) ** 2)
         assert norm == pytest.approx(1.0, abs=1e-6)
 
     def test_given_zero_phase_then_normalized(self) -> None:
         N = 3
         state = hybrid_vacuum_state(N, spin_state="down")
-        output = evolve_hybrid_mzi(state, N, phi=0.0)
+        output = evolve_hybrid_mzi(state, N, phi_phase=0.0)
         norm = np.sum(np.abs(output) ** 2)
         assert norm == pytest.approx(1.0, abs=1e-6)
 
     def test_given_evolution_then_correct_shape(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
-        output = evolve_hybrid_mzi(state, N, phi=1.0)
+        output = evolve_hybrid_mzi(state, N, phi_phase=1.0)
         expected_dim = 2 * (N + 1) ** 2
         assert output.shape == (expected_dim,)
 
@@ -424,14 +426,14 @@ class TestOutputProbabilities:
     def test_given_evolution_then_probabilities_sum_to_one(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
-        output = evolve_hybrid_mzi(state, N, phi=0.5)
+        output = evolve_hybrid_mzi(state, N, phi_phase=0.5)
         probs = mzi_output_probabilities(output, N)
         assert np.sum(probs) == pytest.approx(1.0, abs=1e-6)
 
     def test_given_evolution_then_marginals_sum_to_one(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
-        output = evolve_hybrid_mzi(state, N, phi=0.5)
+        output = evolve_hybrid_mzi(state, N, phi_phase=0.5)
         P1, P2 = mzi_marginal_photon_probs(output, N)
         assert np.sum(P1) == pytest.approx(1.0, abs=1e-6)
         assert np.sum(P2) == pytest.approx(1.0, abs=1e-6)
@@ -439,7 +441,7 @@ class TestOutputProbabilities:
     def test_given_evolution_then_marginals_have_correct_length(self) -> None:
         N = 5
         state = hybrid_vacuum_state(N, spin_state="down")
-        output = evolve_hybrid_mzi(state, N, phi=0.5)
+        output = evolve_hybrid_mzi(state, N, phi_phase=0.5)
         P1, P2 = mzi_marginal_photon_probs(output, N)
         assert len(P1) == N + 1
         assert len(P2) == N + 1
@@ -473,7 +475,7 @@ class TestHybridLindbladConfig:
         assert config.n == 2
         assert config.omega_n == 1.0
         assert config.theta_n == 0.0
-        assert config.phi == 0.0
+        assert config.phi_phase == 0.0
         assert config.gamma_1 == 0.0
         assert config.gamma_2 == 0.0
         assert config.gamma_phi == 0.0
@@ -485,7 +487,7 @@ class TestHybridLindbladConfig:
             n=3,
             omega_n=0.5,
             theta_n=np.pi / 4,
-            phi=0.1,
+            phi_phase=0.1,
             gamma_1=0.01,
             gamma_phi=0.02,
             t_squeeze=2.0,
@@ -493,7 +495,7 @@ class TestHybridLindbladConfig:
         assert config.N == 10
         assert config.n == 3
         assert config.omega_n == 0.5
-        assert config.phi == 0.1
+        assert config.phi_phase == 0.1
         assert config.gamma_1 == 0.01
 
 
@@ -607,7 +609,7 @@ class TestEvolveHybridLindblad:
         config = HybridLindbladConfig(N=N, gamma_1=0.1)
         psi0 = hybrid_vacuum_state(N, spin_state="down")
 
-        rho_final = evolve_hybrid_lindblad(psi0, config, T=0.0, dt=0.01)
+        rho_final = evolve_hybrid_lindblad(psi0, config, T_decay=0.0, dt=0.01)
 
         rho0 = np.outer(psi0, psi0.conj())
         assert rho_final == pytest.approx(rho0)
@@ -624,7 +626,9 @@ class TestEvolveHybridLindblad:
         U = scipy.linalg.expm(-1.0j * H * 1.0)
         rho_expected = U @ np.outer(psi0, psi0.conj()) @ U.conj().T
 
-        rho_final = evolve_hybrid_lindblad(psi0, config, T=1.0, dt=0.001, method="rk4")
+        rho_final = evolve_hybrid_lindblad(
+            psi0, config, T_decay=1.0, dt=0.001, method="rk4"
+        )
 
         assert rho_final == pytest.approx(rho_expected, abs=1e-4)
 
@@ -633,7 +637,7 @@ class TestEvolveHybridLindblad:
         config = HybridLindbladConfig(N=N, n=2, omega_n=0.5, gamma_1=0, gamma_phi=0)
         psi0 = hybrid_vacuum_state(N, spin_state="down")
 
-        rho_final = evolve_hybrid_lindblad(psi0, config, T=1.0, dt=0.01)
+        rho_final = evolve_hybrid_lindblad(psi0, config, T_decay=1.0, dt=0.01)
 
         assert np.trace(rho_final) == pytest.approx(1.0, abs=1e-6)
 
@@ -642,7 +646,7 @@ class TestEvolveHybridLindblad:
         config = HybridLindbladConfig(N=N, gamma_1=0.2)
         psi0 = hybrid_vacuum_state(N, spin_state="down")
 
-        rho_final = evolve_hybrid_lindblad(psi0, config, T=1.0, dt=0.01)
+        rho_final = evolve_hybrid_lindblad(psi0, config, T_decay=1.0, dt=0.01)
 
         assert np.trace(rho_final) <= 1.0 + 1e-6
 
@@ -657,7 +661,7 @@ class TestEvolveHybridLindblad:
         )
         psi0 = hybrid_vacuum_state(N, spin_state="down")
 
-        rho_final = evolve_hybrid_lindblad(psi0, config, T=0.5, dt=0.01)
+        rho_final = evolve_hybrid_lindblad(psi0, config, T_decay=0.5, dt=0.01)
 
         assert rho_final == pytest.approx(rho_final.conj().T, abs=1e-6)
 
@@ -666,7 +670,7 @@ class TestEvolveHybridLindblad:
         config = HybridLindbladConfig(N=N, gamma_1=0.1)
         psi0 = hybrid_vacuum_state(N, spin_state="down")
 
-        rho_final = evolve_hybrid_lindblad(psi0, config, T=0.5, dt=0.01)
+        rho_final = evolve_hybrid_lindblad(psi0, config, T_decay=0.5, dt=0.01)
 
         eigenvalues = np.linalg.eigvalsh(rho_final)
         assert np.min(eigenvalues.real) >= -1e-6
@@ -913,7 +917,7 @@ class TestEdgeCases:
     def test_given_minimal_dimension_then_evolves(self) -> None:
         config = HybridLindbladConfig(N=1, n=2, omega_n=0.5)
         psi0 = hybrid_vacuum_state(1, spin_state="down")
-        rho = evolve_hybrid_lindblad(psi0, config, T=0.1, dt=0.01)
+        rho = evolve_hybrid_lindblad(psi0, config, T_decay=0.1, dt=0.01)
         assert rho.shape == (4, 4)
 
     def test_large_gamma_decays_photon_number(self) -> None:
@@ -922,7 +926,7 @@ class TestEdgeCases:
         psi0 = hybrid_coherent_state(N, alpha=1.0 + 0j, spin_state="down")
 
         initial_n = hybrid_mean_photon(psi0, N)
-        rho = evolve_hybrid_lindblad(psi0, config, T=1.0, dt=0.01)
+        rho = evolve_hybrid_lindblad(psi0, config, T_decay=1.0, dt=0.01)
 
         dim_osc = N + 1
         n_op = np.zeros((dim_osc, dim_osc), dtype=complex)

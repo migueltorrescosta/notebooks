@@ -26,17 +26,6 @@ import numpy as np
 import qutip
 import scipy
 
-from src.utils.validators import (
-    validate_state_mzi,
-)
-
-# Aliases for backward compatibility
-# Agent Notes: validate_state is also defined as an alias for
-# validate_state_delta_estimation in src.analysis.delta_estimation.
-# These are DIFFERENT functions — do not merge them.
-validate_state = validate_state_mzi
-
-
 # =============================================================================
 # State Preparation
 # =============================================================================
@@ -181,7 +170,7 @@ def create_ancilla_operators(ancilla_dim: int) -> tuple[np.ndarray, np.ndarray]:
     return jx, jz
 
 
-def beam_splitter_unitary(theta: float, phi: float, max_photons: int) -> np.ndarray:
+def beam_splitter_unitary(theta: float, phi_bs: float, max_photons: int) -> np.ndarray:
     r"""Compute the beam splitter unitary transformation in Fock space.
 
     The beam splitter implements the mode transformation:
@@ -198,7 +187,7 @@ def beam_splitter_unitary(theta: float, phi: float, max_photons: int) -> np.ndar
     Args:
         theta: Beam splitter transmittance angle. θ = 0 gives identity,
             θ = π/4 gives 50/50 splitter.
-        phi: Phase shift applied to reflected photons.
+        phi_bs: Phase shift applied to reflected photons.
         max_photons: Maximum photon number per mode for truncation.
 
     Returns:
@@ -211,21 +200,12 @@ def beam_splitter_unitary(theta: float, phi: float, max_photons: int) -> np.ndar
         True
 
     """
-    a0, a1, a0_dag, a1_dag = create_system_operators(max_photons)
+    from src.physics.beam_splitter import bs_fock  # fmt: skip
 
-    # Beam splitter Hamiltonian: H = e^{iφ} a₁†a₂ + e^{-iφ} a₂†a₁
-    H_bs = np.exp(1j * phi) * (a0_dag @ a1) + np.exp(-1j * phi) * (a1_dag @ a0)
-
-    # Unitary: U = exp(-iθH)
-    U = scipy.linalg.expm(-1.0j * theta * H_bs)
-    _eye = np.eye(U.shape[0], dtype=U.dtype)
-    assert np.allclose(U @ U.conj().T, _eye, atol=1e-10), (
-        f"Beam splitter not unitary: max_dev={np.max(np.abs(U @ U.conj().T - _eye))}"
-    )
-    return U
+    return bs_fock(theta, phi_bs, max_photons)
 
 
-def phase_shift_unitary(phi: float, max_photons: int) -> np.ndarray:
+def phase_shift_unitary(phi_phase: float, max_photons: int) -> np.ndarray:
     r"""Compute the phase shift unitary on mode 1.
 
     Applies a phase shift proportional to the photon number in mode 1:
@@ -236,7 +216,7 @@ def phase_shift_unitary(phi: float, max_photons: int) -> np.ndarray:
     (phase shift) in one arm of the interferometer.
 
     Args:
-        phi: Phase shift in radians.
+        phi_phase: Phase shift in radians.
         max_photons: Maximum photon number per mode for truncation.
 
     Returns:
@@ -249,7 +229,7 @@ def phase_shift_unitary(phi: float, max_photons: int) -> np.ndarray:
     for n1 in range(max_photons + 1):
         for n2 in range(max_photons + 1):
             idx = n1 * (max_photons + 1) + n2
-            phase_op[idx, idx] = np.exp(1j * phi * n2)
+            phase_op[idx, idx] = np.exp(1j * phi_phase * n2)
 
     _eye = np.eye(phase_op.shape[0], dtype=phase_op.dtype)
     assert np.allclose(phase_op @ phase_op.conj().T, _eye, atol=1e-10), (
@@ -561,12 +541,12 @@ def compute_interference_fringe(
 
     """
     probs = []
-    for phi in phase_range:
+    for phi_phase in phase_range:
         state = evolve_mzi(
             initial_system_state,
             theta,
             phi_bs,
-            phi,
+            phi_phase,
             g,
             interaction_time,
             coupling_type,
@@ -788,7 +768,7 @@ def evolve_mzi_with_noise(
     noise_gamma_1: float = 0.0,
     noise_gamma_2: float = 0.0,
     noise_gamma_phi: float = 0.0,
-    noise_T: float = 1.0,
+    noise_T_decay: float = 1.0,
     noise_dt: float = 0.01,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Evolve state through a noisy Mach-Zehnder interferometer.
@@ -810,7 +790,7 @@ def evolve_mzi_with_noise(
         noise_gamma_1: One-body loss rate (γ₁) for mode 1.
         noise_gamma_2: Two-body loss rate (γ₂) for mode 1.
         noise_gamma_phi: Phase diffusion rate (γ_φ) between arms.
-        noise_T: Decoherence time (dimensionless).
+        noise_T_decay: Decoherence time (dimensionless).
         noise_dt: Time step for numerical integration.
 
     Returns:
@@ -822,7 +802,7 @@ def evolve_mzi_with_noise(
         initial_system_state must be normalized (pure) or trace-1 (density matrix).
         theta in [0, π].
         noise_gamma_{1,2,phi} >= 0 (non-negative rates).
-        noise_T > 0, noise_dt > 0.
+        noise_T_decay > 0, noise_dt > 0.
         Performance: O((N+1)⁴ · T/dt) due to Lindblad integration.
 
     Agent Notes:
@@ -840,7 +820,7 @@ def evolve_mzi_with_noise(
         gamma_1=noise_gamma_1,
         gamma_2=noise_gamma_2,
         gamma_phi=noise_gamma_phi,
-        T=noise_T,
+        T_decay=noise_T_decay,
         dt=noise_dt,
     )
 

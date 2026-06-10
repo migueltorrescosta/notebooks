@@ -174,7 +174,7 @@ class TestSingleBSUnitary:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_identity_at_zero(self, N: int) -> None:
         """T=0 should give the identity."""
-        U = single_bs_unitary(N, T=0.0)
+        U = single_bs_unitary(N, T_BS=0.0)
         eye = np.eye(N + 1, dtype=complex)
         assert np.allclose(U, eye, atol=1e-12), f"BS(T=0) != I for N={N}"
 
@@ -222,7 +222,7 @@ class TestDualBSUnitary:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_identity_at_zero(self, N: int) -> None:
         """T=0 should give the identity."""
-        U = dual_bs_unitary(N, T=0.0)
+        U = dual_bs_unitary(N, T_BS=0.0)
         dim = (N + 1) ** 2
         eye = np.eye(dim, dtype=complex)
         assert np.allclose(U, eye, atol=1e-12), f"Dual BS(T=0) != I for N={N}"

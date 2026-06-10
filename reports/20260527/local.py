@@ -64,16 +64,16 @@ sns.set_theme(style="whitegrid")
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260527"
-T_H: float = 10.0
-SQL: float = 1.0 / T_H  # 0.1
+T_hold: float = 10.0
+SQL: float = 1.0 / T_hold  # 0.1
 FD_STEP: float = 1e-6
 T_BS: float = np.pi / 2.0
 
-# θ values for the 2D slice heatmaps (5 values, matching original report)
-DRIVE_THETA_VALS: list[float] = [0.1, 0.5, 1.0, 2.0, 5.0]
+# ω values for the 2D slice heatmaps (5 values, matching original report)
+DRIVE_OMEGA_VALS: list[float] = [0.1, 0.5, 1.0, 2.0, 5.0]
 
-# θ values for the norm-ball scan (50 values, step 0.1)
-THETA_VALS: np.ndarray = np.arange(0.1, 5.05, 0.1)
+# ω values for the norm-ball scan (50 values, step 0.1)
+OMEGA_VALS: np.ndarray = np.arange(0.1, 5.05, 0.1)
 
 # Norm-ball parameters
 N_SAMP: int = 5000
@@ -111,30 +111,30 @@ def _fig_path(name: str) -> Path:
 
 
 def compute_sensitivity_with_extra(
-    theta_true: float,
+    omega_true: float,
     a_x: float,
     a_y: float,
     a_z: float,
     a_zz: float,
     *,
-    T_H: float = T_H,
+    T_hold: float = T_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
 ) -> tuple[float, float, float, float, bool]:
-    """Compute Δθ plus ⟨J_z^S⟩, Var(J_z^S), and d⟨J_z^S⟩/dθ.
+    """Compute Δω plus ⟨J_z^S⟩, Var(J_z^S), and d⟨J_z^S⟩/dω.
 
     Args:
-        theta_true: True phase rate parameter.
+        omega_true: True phase rate parameter.
         a_x: Ancilla J_x drive coefficient.
         a_y: Ancilla J_y drive coefficient.
         a_z: Ancilla J_z drive coefficient.
         a_zz: Ising interaction coefficient.
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
 
     Returns:
-        Tuple (delta_theta, expectation, variance, derivative, is_fringe_extremum).
+        Tuple (delta_omega, expectation, variance, derivative, is_fringe_extremum).
         Returns (inf, exp_val, var_val, 0.0, True) when the derivative is zero
         (fringe extremum).
     """
@@ -142,16 +142,16 @@ def compute_sensitivity_with_extra(
     ops = build_two_qubit_operators()
     meas_op = ops["Jz_S"]
 
-    # Evaluate at theta_true
-    psi = evolve_drive_circuit(psi0, T_BS, T_H, theta_true, a_x, a_y, a_z, a_zz, ops)
+    # Evaluate at omega_true
+    psi = evolve_drive_circuit(psi0, T_BS, T_hold, omega_true, a_x, a_y, a_z, a_zz, ops)
     exp_val, var_val = compute_expectation_and_variance(psi, meas_op)
 
-    # Central finite difference for ∂⟨O⟩/∂θ
+    # Central finite difference for ∂⟨O⟩/∂ω
     psi_plus = evolve_drive_circuit(
         psi0,
         T_BS,
-        T_H,
-        theta_true + fd_step,
+        T_hold,
+        omega_true + fd_step,
         a_x,
         a_y,
         a_z,
@@ -161,8 +161,8 @@ def compute_sensitivity_with_extra(
     psi_minus = evolve_drive_circuit(
         psi0,
         T_BS,
-        T_H,
-        theta_true - fd_step,
+        T_hold,
+        omega_true - fd_step,
         a_x,
         a_y,
         a_z,
@@ -178,13 +178,13 @@ def compute_sensitivity_with_extra(
 
     # Zero-variance case: the state is an eigenstate of the measurement
     # operator, giving a deterministic measurement outcome.  Error propagation
-    # would yield Δθ = 0 (unphysical), because a deterministic measurement
-    # provides zero information about θ.  Flag as fringe extremum.
+    # would yield Δω = 0 (unphysical), because a deterministic measurement
+    # provides zero information about ω.  Flag as fringe extremum.
     if var_val < 1e-15:
         return float("inf"), exp_val, var_val, d_exp, True
 
-    delta_theta = float(np.sqrt(var_val) / abs(d_exp))
-    return delta_theta, exp_val, var_val, d_exp, False
+    delta_omega = float(np.sqrt(var_val) / abs(d_exp))
+    return delta_omega, exp_val, var_val, d_exp, False
 
 
 # ============================================================================
@@ -197,51 +197,51 @@ class NormBallResult:
     """Result from norm-ball sampling over (a_x, a_y, a_z, a_zz).
 
     Attributes:
-        theta_values: Array of θ values scanned (N_theta,).
-        samples: Array of sampled parameters, shape (N_theta, N_samp, 4)
+        omega_values: Array of ω values scanned (N_omega,).
+        samples: Array of sampled parameters, shape (N_omega, N_samp, 4)
             ordered as [a_x, a_y, a_z, a_zz].
-        delta_theta_values: Δθ for each sample, shape (N_theta, N_samp).
-        expectation_values: ⟨J_z^S⟩ for each sample, shape (N_theta, N_samp).
-        variance_values: Var(J_z^S) for each sample, shape (N_theta, N_samp).
-        deriv_values: d⟨J_z^S⟩/dθ for each sample, shape (N_theta, N_samp).
-        norms: ‖a‖ for each sample, shape (N_theta, N_samp).
-        sql: SQL = 1/T_H reference value.
-        T_H: Holding-time strength.
+        delta_omega_values: Δω for each sample, shape (N_omega, N_samp).
+        expectation_values: ⟨J_z^S⟩ for each sample, shape (N_omega, N_samp).
+        variance_values: Var(J_z^S) for each sample, shape (N_omega, N_samp).
+        deriv_values: d⟨J_z^S⟩/dω for each sample, shape (N_omega, N_samp).
+        norms: ‖a‖ for each sample, shape (N_omega, N_samp).
+        sql: SQL = 1/T_hold reference value.
+        T_hold: Holding-time strength.
         R: Ball radius constraint.
     """
 
-    theta_values: np.ndarray
+    omega_values: np.ndarray
     samples: np.ndarray
-    delta_theta_values: np.ndarray
+    delta_omega_values: np.ndarray
     expectation_values: np.ndarray
     variance_values: np.ndarray
     deriv_values: np.ndarray
     norms: np.ndarray
     sql: float = SQL
-    T_H: float = T_H
+    T_hold: float = T_hold
     R: float = R_MAX
 
     def to_dataframe(self) -> pd.DataFrame:
         """Melt all data into a long-format DataFrame."""
-        n_theta = len(self.theta_values)
+        n_omega = len(self.omega_values)
         n_samp = self.samples.shape[1]
         rows: list[dict[str, float | str]] = [
             {
-                "theta": float(self.theta_values[ti]),
+                "omega": float(self.omega_values[ti]),
                 "a_x": float(self.samples[ti, si, 0]),
                 "a_y": float(self.samples[ti, si, 1]),
                 "a_z": float(self.samples[ti, si, 2]),
                 "a_zz": float(self.samples[ti, si, 3]),
                 "norm": float(self.norms[ti, si]),
-                "delta_theta": float(self.delta_theta_values[ti, si]),
+                "delta_omega": float(self.delta_omega_values[ti, si]),
                 "expectation": float(self.expectation_values[ti, si]),
                 "variance": float(self.variance_values[ti, si]),
                 "derivative": float(self.deriv_values[ti, si]),
                 "sql": float(self.sql),
-                "T_H": float(self.T_H),
+                "T_hold": float(self.T_hold),
                 "R": float(self.R),
             }
-            for ti in range(n_theta)
+            for ti in range(n_omega)
             for si in range(n_samp)
         ]
         return pd.DataFrame(rows)
@@ -256,18 +256,18 @@ class NormBallResult:
     def from_parquet(cls, path: str | Path) -> NormBallResult:
         df = pd.read_parquet(path)
         required = {
-            "theta",
+            "omega",
             "a_x",
             "a_y",
             "a_z",
             "a_zz",
             "norm",
-            "delta_theta",
+            "delta_omega",
             "expectation",
             "variance",
             "derivative",
             "sql",
-            "T_H",
+            "T_hold",
             "R",
         }
         missing = required - set(df.columns)
@@ -276,39 +276,39 @@ class NormBallResult:
                 f"Parquet at {path} is missing required columns: "
                 f"{sorted(missing)}. Regenerate the file with the current code."
             )
-        theta_values = np.array(sorted(df["theta"].unique()), dtype=float)
-        n_theta = len(theta_values)
+        omega_values = np.array(sorted(df["omega"].unique()), dtype=float)
+        n_omega = len(omega_values)
         # Infer n_samp from the data
-        n_samp = len(df) // n_theta
-        samples = np.zeros((n_theta, n_samp, 4), dtype=float)
-        deltas = np.zeros((n_theta, n_samp), dtype=float)
-        exps = np.zeros((n_theta, n_samp), dtype=float)
-        vars_ = np.zeros((n_theta, n_samp), dtype=float)
-        derivs = np.zeros((n_theta, n_samp), dtype=float)
-        norms = np.zeros((n_theta, n_samp), dtype=float)
-        for ti, theta in enumerate(theta_values):
-            mask = np.isclose(df["theta"].to_numpy(dtype=float), theta)
+        n_samp = len(df) // n_omega
+        samples = np.zeros((n_omega, n_samp, 4), dtype=float)
+        deltas = np.zeros((n_omega, n_samp), dtype=float)
+        exps = np.zeros((n_omega, n_samp), dtype=float)
+        vars_ = np.zeros((n_omega, n_samp), dtype=float)
+        derivs = np.zeros((n_omega, n_samp), dtype=float)
+        norms = np.zeros((n_omega, n_samp), dtype=float)
+        for ti, omega in enumerate(omega_values):
+            mask = np.isclose(df["omega"].to_numpy(dtype=float), omega)
             subset = df[mask]
             n_rows = np.sum(mask)
             samples[ti, :n_rows, 0] = subset["a_x"].to_numpy(dtype=float)
             samples[ti, :n_rows, 1] = subset["a_y"].to_numpy(dtype=float)
             samples[ti, :n_rows, 2] = subset["a_z"].to_numpy(dtype=float)
             samples[ti, :n_rows, 3] = subset["a_zz"].to_numpy(dtype=float)
-            deltas[ti, :n_rows] = subset["delta_theta"].to_numpy(dtype=float)
+            deltas[ti, :n_rows] = subset["delta_omega"].to_numpy(dtype=float)
             exps[ti, :n_rows] = subset["expectation"].to_numpy(dtype=float)
             vars_[ti, :n_rows] = subset["variance"].to_numpy(dtype=float)
             derivs[ti, :n_rows] = subset["derivative"].to_numpy(dtype=float)
             norms[ti, :n_rows] = subset["norm"].to_numpy(dtype=float)
         return cls(
-            theta_values=theta_values,
+            omega_values=omega_values,
             samples=samples,
-            delta_theta_values=deltas,
+            delta_omega_values=deltas,
             expectation_values=exps,
             variance_values=vars_,
             deriv_values=derivs,
             norms=norms,
             sql=float(df["sql"].iloc[0]),
-            T_H=float(df["T_H"].iloc[0]),
+            T_hold=float(df["T_hold"].iloc[0]),
             R=float(df["R"].iloc[0]),
         )
 
@@ -359,8 +359,8 @@ def _marsaglia_3ball_sample(
     return drive_samples, azz_samples
 
 
-def _sample_ball_for_theta(
-    theta_rng: np.random.Generator,
+def _sample_ball_for_omega(
+    omega_rng: np.random.Generator,
     n_samp: int,
     R: float,
     azz_lo: float,
@@ -371,7 +371,7 @@ def _sample_ball_for_theta(
     """Dispatch to the appropriate ball-sampling method.
 
     Args:
-        theta_rng: Random generator for this θ value.
+        omega_rng: Random generator for this ω value.
         n_samp: Total number of samples.
         R: Ball radius.
         azz_lo: Lower bound for a_zz.
@@ -387,7 +387,7 @@ def _sample_ball_for_theta(
         ValueError: If *sampling_method* is unknown.
     """
     if sampling_method == "marsaglia":
-        return _marsaglia_3ball_sample(theta_rng, n_samp, R, azz_lo, azz_hi)
+        return _marsaglia_3ball_sample(omega_rng, n_samp, R, azz_lo, azz_hi)
     if sampling_method == "stratified":
         if n_samp % n_strata != 0:
             raise ValueError(
@@ -396,7 +396,7 @@ def _sample_ball_for_theta(
             )
         n_per_stratum = n_samp // n_strata
         return stratified_ball_sample(
-            theta_rng,
+            omega_rng,
             n_per_stratum,
             n_strata,
             R,
@@ -409,44 +409,44 @@ def _sample_ball_for_theta(
     )
 
 
-def _normball_theta_chunk_worker(args: tuple) -> dict:
-    """Worker for parallel norm-ball θ chunk (module-level for pickling).
+def _normball_omega_chunk_worker(args: tuple) -> dict:
+    """Worker for parallel norm-ball ω chunk (module-level for pickling).
 
     Args:
-        args: Tuple (theta_list, n_samp, R, azz_lo, azz_hi, T_H, T_BS,
+        args: Tuple (omega_list, n_samp, R, azz_lo, azz_hi, T_hold, T_BS,
             fd_step, base_seed, sampling_method, n_strata).
 
     Returns:
-        Dict with keys 'theta_values', 'samples', 'deltas', 'exps',
+        Dict with keys 'omega_values', 'samples', 'deltas', 'exps',
         'vars_', 'derivs', 'norms', each a numpy array for the chunk.
     """
     (
-        theta_list,
+        omega_list,
         n_samp,
         R,
         azz_lo,
         azz_hi,
-        T_H,
+        T_hold,
         T_BS,
         fd_step,
         base_seed,
         sampling_method,
         n_strata,
     ) = args
-    n_theta = len(theta_list)
-    samples = np.zeros((n_theta, n_samp, 4), dtype=float)
-    deltas = np.full((n_theta, n_samp), np.inf, dtype=float)
-    exps = np.zeros((n_theta, n_samp), dtype=float)
-    vars_ = np.zeros((n_theta, n_samp), dtype=float)
-    derivs = np.zeros((n_theta, n_samp), dtype=float)
-    norms = np.zeros((n_theta, n_samp), dtype=float)
+    n_omega = len(omega_list)
+    samples = np.zeros((n_omega, n_samp, 4), dtype=float)
+    deltas = np.full((n_omega, n_samp), np.inf, dtype=float)
+    exps = np.zeros((n_omega, n_samp), dtype=float)
+    vars_ = np.zeros((n_omega, n_samp), dtype=float)
+    derivs = np.zeros((n_omega, n_samp), dtype=float)
+    norms = np.zeros((n_omega, n_samp), dtype=float)
 
-    for ti, theta in enumerate(theta_list):
-        theta_rng = np.random.default_rng(
-            base_seed + int(theta * 1000) if base_seed is not None else None
+    for ti, omega in enumerate(omega_list):
+        omega_rng = np.random.default_rng(
+            base_seed + int(omega * 1000) if base_seed is not None else None
         )
-        drive_samp, azz_samp = _sample_ball_for_theta(
-            theta_rng,
+        drive_samp, azz_samp = _sample_ball_for_omega(
+            omega_rng,
             n_samp,
             R,
             azz_lo,
@@ -460,26 +460,26 @@ def _normball_theta_chunk_worker(args: tuple) -> dict:
             az = float(drive_samp[si, 2])
             azz = float(azz_samp[si])
 
-            dtheta, exp_val, var_val, deriv, _ = compute_sensitivity_with_extra(
-                theta,
+            domega, exp_val, var_val, deriv, _ = compute_sensitivity_with_extra(
+                omega,
                 ax,
                 ay,
                 az,
                 azz,
-                T_H=T_H,
+                T_hold=T_hold,
                 T_BS=T_BS,
                 fd_step=fd_step,
             )
 
             samples[ti, si, :] = [ax, ay, az, azz]
-            deltas[ti, si] = dtheta
+            deltas[ti, si] = domega
             exps[ti, si] = exp_val
             vars_[ti, si] = var_val
             derivs[ti, si] = deriv
             norms[ti, si] = float(np.sqrt(ax**2 + ay**2 + az**2))
 
     return {
-        "theta_values": np.array(theta_list, dtype=float),
+        "omega_values": np.array(omega_list, dtype=float),
         "samples": samples,
         "deltas": deltas,
         "exps": exps,
@@ -490,12 +490,12 @@ def _normball_theta_chunk_worker(args: tuple) -> dict:
 
 
 def norm_ball_sampling(
-    theta_values: np.ndarray | list[float],
+    omega_values: np.ndarray | list[float],
     *,
     n_samp: int = N_SAMP,
     R: float = R_MAX,
     azz_bounds: tuple[float, float] = AZZ_BOUNDS,
-    T_H: float = T_H,
+    T_hold: float = T_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     seed: int | None = 42,
@@ -503,11 +503,11 @@ def norm_ball_sampling(
     sampling_method: str = "marsaglia",
     n_strata: int = 10,
 ) -> NormBallResult:
-    """Run norm-ball Monte Carlo sampling over multiple θ values.
+    """Run norm-ball Monte Carlo sampling over multiple ω values.
 
-    For each θ, generates ``n_samp`` configurations from the 3-ball
+    For each ω, generates ``n_samp`` configurations from the 3-ball
     ‖a‖ ≤ R with a_zz ~ U[azz_lo, azz_hi] independently, and evaluates
-    the sensitivity Δθ for each configuration.
+    the sensitivity Δω for each configuration.
 
     Two sampling methods are available:
 
@@ -518,15 +518,15 @@ def norm_ball_sampling(
       ``n_samp / n_strata`` samples.  Use this to resolve the small-r
       regime.
 
-    When ``n_jobs > 1``, θ values are split across worker processes.
+    When ``n_jobs > 1``, ω values are split across worker processes.
 
     Args:
-        theta_values: θ values to scan.
-        n_samp: Number of random samples per θ.  Must be divisible by
+        omega_values: ω values to scan.
+        n_samp: Number of random samples per ω.  Must be divisible by
             *n_strata* when using ``"stratified"``.
         R: Norm-ball radius.
         azz_bounds: (min, max) for a_zz.
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         seed: Random seed for reproducibility.
@@ -543,27 +543,27 @@ def norm_ball_sampling(
         ValueError: If *sampling_method* is unknown, or if *n_samp* is not
             divisible by *n_strata* for stratified sampling.
     """
-    theta_arr = np.asarray(theta_values, dtype=float)
-    n_theta = len(theta_arr)
+    omega_arr = np.asarray(omega_values, dtype=float)
+    n_omega = len(omega_arr)
     azz_lo, azz_hi = azz_bounds
 
     if n_jobs is None or n_jobs == 1:
         # ── Sequential path (with tqdm) ──────────────────────────────────
-        samples = np.zeros((n_theta, n_samp, 4), dtype=float)
-        deltas = np.full((n_theta, n_samp), np.inf, dtype=float)
-        exps = np.zeros((n_theta, n_samp), dtype=float)
-        vars_ = np.zeros((n_theta, n_samp), dtype=float)
-        derivs = np.zeros((n_theta, n_samp), dtype=float)
-        norms = np.zeros((n_theta, n_samp), dtype=float)
+        samples = np.zeros((n_omega, n_samp, 4), dtype=float)
+        deltas = np.full((n_omega, n_samp), np.inf, dtype=float)
+        exps = np.zeros((n_omega, n_samp), dtype=float)
+        vars_ = np.zeros((n_omega, n_samp), dtype=float)
+        derivs = np.zeros((n_omega, n_samp), dtype=float)
+        norms = np.zeros((n_omega, n_samp), dtype=float)
 
-        for ti, theta in enumerate(
-            tqdm(theta_arr, desc="Norm-ball sampling", unit="θ")
+        for ti, omega in enumerate(
+            tqdm(omega_arr, desc="Norm-ball sampling", unit="ω")
         ):
-            theta_rng = np.random.default_rng(
-                seed + int(theta * 1000) if seed is not None else None
+            omega_rng = np.random.default_rng(
+                seed + int(omega * 1000) if seed is not None else None
             )
-            drive_samp, azz_samp = _sample_ball_for_theta(
-                theta_rng,
+            drive_samp, azz_samp = _sample_ball_for_omega(
+                omega_rng,
                 n_samp,
                 R,
                 azz_lo,
@@ -578,19 +578,19 @@ def norm_ball_sampling(
                 az = float(drive_samp[si, 2])
                 azz = float(azz_samp[si])
 
-                dtheta, exp_val, var_val, deriv, _ = compute_sensitivity_with_extra(
-                    theta,
+                domega, exp_val, var_val, deriv, _ = compute_sensitivity_with_extra(
+                    omega,
                     ax,
                     ay,
                     az,
                     azz,
-                    T_H=T_H,
+                    T_hold=T_hold,
                     T_BS=T_BS,
                     fd_step=fd_step,
                 )
 
                 samples[ti, si, :] = [ax, ay, az, azz]
-                deltas[ti, si] = dtheta
+                deltas[ti, si] = domega
                 exps[ti, si] = exp_val
                 vars_[ti, si] = var_val
                 derivs[ti, si] = deriv
@@ -598,7 +598,7 @@ def norm_ball_sampling(
     else:
         # ── Parallel path ────────────────────────────────────────────────
         n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
-        chunks = np.array_split(theta_arr, n_workers)
+        chunks = np.array_split(omega_arr, n_workers)
         worker_args = [
             (
                 chunk.tolist(),
@@ -606,7 +606,7 @@ def norm_ball_sampling(
                 R,
                 azz_lo,
                 azz_hi,
-                T_H,
+                T_hold,
                 T_BS,
                 fd_step,
                 seed,
@@ -621,7 +621,7 @@ def norm_ball_sampling(
             max_workers=n_workers,
         ) as executor:
             futures = {
-                executor.submit(_normball_theta_chunk_worker, args): i
+                executor.submit(_normball_omega_chunk_worker, args): i
                 for i, args in enumerate(worker_args)
             }
             for future in concurrent.futures.as_completed(futures):
@@ -629,8 +629,8 @@ def norm_ball_sampling(
                 partials[idx] = future.result()
 
         # Concatenate results in original order
-        all_theta = np.concatenate([p["theta_values"] for p in partials])
-        sort_idx = np.argsort(all_theta)
+        all_omega = np.concatenate([p["omega_values"] for p in partials])
+        sort_idx = np.argsort(all_omega)
         samples = np.concatenate([p["samples"] for p in partials], axis=0)[sort_idx]
         deltas = np.concatenate([p["deltas"] for p in partials], axis=0)[sort_idx]
         exps = np.concatenate([p["exps"] for p in partials], axis=0)[sort_idx]
@@ -639,15 +639,15 @@ def norm_ball_sampling(
         norms = np.concatenate([p["norms"] for p in partials], axis=0)[sort_idx]
 
     return NormBallResult(
-        theta_values=theta_arr,
+        omega_values=omega_arr,
         samples=samples,
-        delta_theta_values=deltas,
+        delta_omega_values=deltas,
         expectation_values=exps,
         variance_values=vars_,
         deriv_values=derivs,
         norms=norms,
-        sql=1.0 / T_H,
-        T_H=T_H,
+        sql=1.0 / T_hold,
+        T_hold=T_hold,
         R=R,
     )
 
@@ -663,29 +663,29 @@ class EnvelopeResult:
 
     Attributes:
         r_values: Grid of drive-norm thresholds (N_r,).
-        best_ratio_per_theta: min Δθ/SQL for each θ and r, shape
-            (N_theta, N_r).
-        theta_values: θ values (N_theta,).
+        best_ratio_per_omega: min Δω/SQL for each ω and r, shape
+            (N_omega, N_r).
+        omega_values: ω values (N_omega,).
         sql: SQL reference value.
     """
 
     r_values: np.ndarray
-    best_ratio_per_theta: np.ndarray
-    theta_values: np.ndarray
+    best_ratio_per_omega: np.ndarray
+    omega_values: np.ndarray
     sql: float = SQL
 
     def to_dataframe(self) -> pd.DataFrame:
         """Melt the envelope into long-format DataFrame."""
-        n_theta = len(self.theta_values)
+        n_omega = len(self.omega_values)
         n_r = len(self.r_values)
         rows: list[dict[str, float]] = [
             {
-                "theta": float(self.theta_values[ti]),
+                "omega": float(self.omega_values[ti]),
                 "r": float(self.r_values[ri]),
-                "best_ratio": float(self.best_ratio_per_theta[ti, ri]),
+                "best_ratio": float(self.best_ratio_per_omega[ti, ri]),
                 "sql": float(self.sql),
             }
-            for ti in range(n_theta)
+            for ti in range(n_omega)
             for ri in range(n_r)
         ]
         return pd.DataFrame(rows)
@@ -699,26 +699,26 @@ class EnvelopeResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> EnvelopeResult:
         df = pd.read_parquet(path)
-        required = {"theta", "r", "best_ratio", "sql"}
+        required = {"omega", "r", "best_ratio", "sql"}
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
                 f"Parquet at {path} is missing required columns: "
                 f"{sorted(missing)}. Regenerate the file with the current code."
             )
-        theta_values = np.array(sorted(df["theta"].unique()), dtype=float)
+        omega_values = np.array(sorted(df["omega"].unique()), dtype=float)
         r_values = np.array(sorted(df["r"].unique()), dtype=float)
-        n_theta = len(theta_values)
+        n_omega = len(omega_values)
         n_r = len(r_values)
-        grid = np.full((n_theta, n_r), np.nan, dtype=float)
+        grid = np.full((n_omega, n_r), np.nan, dtype=float)
         for _, row in df.iterrows():
-            ti = int(np.searchsorted(theta_values, row["theta"]))
+            ti = int(np.searchsorted(omega_values, row["omega"]))
             ri = int(np.searchsorted(r_values, row["r"]))
             grid[ti, ri] = row["best_ratio"]
         return cls(
             r_values=r_values,
-            best_ratio_per_theta=grid,
-            theta_values=theta_values,
+            best_ratio_per_omega=grid,
+            omega_values=omega_values,
             sql=float(df["sql"].iloc[0]),
         )
 
@@ -735,7 +735,7 @@ def extract_envelope_curve(
 ) -> EnvelopeResult:
     """Compute the norm-constrained best-ratio envelope curve.
 
-    For each θ and each r in a fine grid, find the minimum Δθ/SQL among
+    For each ω and each r in a fine grid, find the minimum Δω/SQL among
     all samples whose drive norm does not exceed r.
 
     Args:
@@ -744,18 +744,18 @@ def extract_envelope_curve(
         r_max: Maximum r value (defaults to result.R).
 
     Returns:
-        EnvelopeResult with best_ratio(r) for each θ.
+        EnvelopeResult with best_ratio(r) for each ω.
     """
     if r_max is None:
         r_max = result.R
     r_values = np.linspace(0.0, r_max, n_r)
-    n_theta = len(result.theta_values)
-    best_ratio = np.full((n_theta, n_r), np.inf, dtype=float)
+    n_omega = len(result.omega_values)
+    best_ratio = np.full((n_omega, n_r), np.inf, dtype=float)
 
-    for ti in range(n_theta):
-        valid = np.isfinite(result.delta_theta_values[ti])
+    for ti in range(n_omega):
+        valid = np.isfinite(result.delta_omega_values[ti])
         the_norms = result.norms[ti, valid]
-        the_ratios = result.delta_theta_values[ti, valid] / result.sql
+        the_ratios = result.delta_omega_values[ti, valid] / result.sql
         n_valid = np.sum(valid)
         if n_valid == 0:
             best_ratio[ti, :] = float("inf")
@@ -768,8 +768,8 @@ def extract_envelope_curve(
 
     return EnvelopeResult(
         r_values=r_values,
-        best_ratio_per_theta=best_ratio,
-        theta_values=result.theta_values,
+        best_ratio_per_omega=best_ratio,
+        omega_values=result.omega_values,
         sql=result.sql,
     )
 
@@ -784,10 +784,10 @@ def plot_norm_envelope_curve(
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 6),
 ) -> Path:
-    """Plot min Δθ/SQL vs drive norm r for each θ.
+    """Plot min Δω/SQL vs drive norm r for each ω.
 
-    Shows individual curves for a subset of θ values (5 representative ones),
-    the overall minimum across θ as a thick line, and SQL reference at y=1.
+    Shows individual curves for a subset of ω values (5 representative ones),
+    the overall minimum across ω as a thick line, and SQL reference at y=1.
 
     Args:
         envelope: EnvelopeResult or path to Parquet file.
@@ -805,28 +805,28 @@ def plot_norm_envelope_curve(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Representative θ values for individual curves
-    show_thetas = [0.1, 0.5, 1.0, 2.0, 5.0]
+    # Representative ω values for individual curves
+    show_omegas = [0.1, 0.5, 1.0, 2.0, 5.0]
     colours = ["C0", "C1", "C2", "C3", "C4"]
 
-    for idx, theta_val in enumerate(show_thetas):
-        mask = np.isclose(envelope.theta_values, theta_val, atol=1e-6)
+    for idx, omega_val in enumerate(show_omegas):
+        mask = np.isclose(envelope.omega_values, omega_val, atol=1e-6)
         if not np.any(mask):
             continue
         ti = int(np.argmax(mask))
-        valid = np.isfinite(envelope.best_ratio_per_theta[ti])
+        valid = np.isfinite(envelope.best_ratio_per_omega[ti])
         ax.plot(
             envelope.r_values[valid],
-            envelope.best_ratio_per_theta[ti, valid],
+            envelope.best_ratio_per_omega[ti, valid],
             color=colours[idx % len(colours)],
             linestyle="-",
             linewidth=1.2,
             alpha=0.7,
-            label=rf"$\theta = {theta_val:.1f}$",
+            label=rf"$\omega = {omega_val:.1f}$",
         )
 
-    # Overall minimum across all θ
-    over_min = np.nanmin(envelope.best_ratio_per_theta, axis=0)
+    # Overall minimum across all ω
+    over_min = np.nanmin(envelope.best_ratio_per_omega, axis=0)
     valid_over = np.isfinite(over_min)
     ax.plot(
         envelope.r_values[valid_over],
@@ -843,7 +843,7 @@ def plot_norm_envelope_curve(
     )
 
     ax.set_xlabel(r"Drive norm $\|\mathbf{a}\|$")
-    ax.set_ylabel(r"$\min \Delta\theta \;/\; \mathrm{SQL}$")
+    ax.set_ylabel(r"$\min \Delta\omega \;/\; \mathrm{SQL}$")
     ax.set_title("Norm-constrained best sensitivity ratio")
     ax.set_ylim(0.95, 1.5)
     ax.legend(fontsize=9, loc="upper right")
@@ -870,7 +870,7 @@ def plot_best_ratio_by_slice(
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
 ) -> Path:
-    """Grouped bar chart comparing min Δθ/SQL across slice types.
+    """Grouped bar chart comparing min Δω/SQL across slice types.
 
     Args:
         slice_results: Dict mapping slice_type to Drive2DSliceResult.
@@ -885,20 +885,20 @@ def plot_best_ratio_by_slice(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Collect data by θ
-    all_thetas: list[float] = []
+    # Collect data by ω
+    all_omegas: list[float] = []
     ratios: dict[str, list[float]] = {"ax": [], "ay": [], "az": []}
 
-    # Collect all unique θ from all results
-    theta_set: set[float] = set()
+    # Collect all unique ω from all results
+    omega_set: set[float] = set()
     for res in slice_results.values():
-        theta_set.add(res.theta_value)
-    all_thetas = sorted(theta_set)
+        omega_set.add(res.omega_value)
+    all_omegas = sorted(omega_set)
 
-    for theta in all_thetas:
+    for omega in all_omegas:
         for st in ("ax", "ay", "az"):
-            if st in slice_results and np.isclose(slice_results[st].theta_value, theta):
-                grid = slice_results[st].delta_theta_grid
+            if st in slice_results and np.isclose(slice_results[st].omega_value, omega):
+                grid = slice_results[st].delta_omega_grid
                 finite_mask = np.isfinite(grid)
                 if np.any(finite_mask):
                     min_val = float(np.min(grid[finite_mask]))
@@ -909,7 +909,7 @@ def plot_best_ratio_by_slice(
                 ratios[st].append(float("nan"))
 
     # Grouped bar chart
-    n_groups = len(all_thetas)
+    n_groups = len(all_omegas)
     x = np.arange(n_groups)
     width = 0.25
     colours = {"ax": "C0", "ay": "C1", "az": "C2"}
@@ -932,11 +932,11 @@ def plot_best_ratio_by_slice(
             label=labels[st],
         )
 
-    ax.set_xlabel(r"$\theta$")
-    ax.set_ylabel(r"$\min \Delta\theta \;/\; \mathrm{SQL}$")
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\min \Delta\omega \;/\; \mathrm{SQL}$")
     ax.set_title("Best sensitivity ratio by slice type")
     ax.set_xticks(x)
-    ax.set_xticklabels([rf"$\theta={t:.1f}$" for t in all_thetas])
+    ax.set_xticklabels([rf"$\omega={t:.1f}$" for t in all_omegas])
     ax.axhline(
         y=1.0, color="red", linestyle="--", linewidth=1.5, alpha=0.7, label="SQL"
     )
@@ -949,18 +949,18 @@ def plot_best_ratio_by_slice(
 
 
 def plot_barycentric_sensitivity_heatmap(
-    theta: float,
+    omega: float,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 6),
 ) -> Path:
-    """Barycentric RGB heatmap combining all three 2D slices at given θ.
+    """Barycentric RGB heatmap combining all three 2D slices at given ω.
 
     For each (a_zz, a_drive) point, the RGB colour is the barycentric
-    weight of log₁₀(Δθ/SQL) from each slice:
+    weight of log₁₀(Δω/SQL) from each slice:
       R = w_x = S_x / (S_x + S_y + S_z)
       G = w_y = S_y / (S_x + S_y + S_z)
       B = w_z = S_z / (S_x + S_y + S_z)
-    where S_i = log₁₀(Δθ_i / SQL).
+    where S_i = log₁₀(Δω_i / SQL).
 
     Pure red   → (a_x, a_zz) slice dominates (most degradation).
     Pure green → (a_y, a_zz) slice dominates.
@@ -969,7 +969,7 @@ def plot_barycentric_sensitivity_heatmap(
     Grey       → fringe extremum in at least one slice.
 
     Args:
-        theta: θ value to plot.
+        omega: ω value to plot.
         save_path: Output SVG path.
         figsize: Figure size.
 
@@ -982,7 +982,7 @@ def plot_barycentric_sensitivity_heatmap(
     # Load the three slice Parquet files
     dfs: dict[str, pd.DataFrame] = {}
     for st in ("ax", "ay", "az"):
-        tag = f"drive-2d-slice-{st}-azz-theta{theta}"
+        tag = f"drive-2d-slice-{st}-azz-omega{omega}"
         csv_p = _parquet_path(tag)
         if not csv_p.exists():
             raise FileNotFoundError(
@@ -994,16 +994,16 @@ def plot_barycentric_sensitivity_heatmap(
     sql = float(dfs["ax"]["sql"].iloc[0])
 
     # Merge on (drive, azz) — all three share the same grid
-    merged = dfs["ax"].rename(columns={"delta_theta": "dt_ax"})
+    merged = dfs["ax"].rename(columns={"delta_omega": "dt_ax"})
     for st in ("ay", "az"):
         merged = merged.merge(
-            dfs[st][["drive", "azz", "delta_theta"]].rename(
-                columns={"delta_theta": f"dt_{st}"}
+            dfs[st][["drive", "azz", "delta_omega"]].rename(
+                columns={"delta_omega": f"dt_{st}"}
             ),
             on=["drive", "azz"],
         )
 
-    # Compute log₁₀(Δθ/SQL) for each slice
+    # Compute log₁₀(Δω/SQL) for each slice
     for st in ("ax", "ay", "az"):
         col = f"dt_{st}"
         ratio = merged[col].to_numpy(dtype=float) / sql
@@ -1068,8 +1068,8 @@ def plot_barycentric_sensitivity_heatmap(
     ax.set_xlabel(r"$a_{zz}$ (Ising interaction)")
     ax.set_ylabel("$a_{\\mathrm{drive}}$ (ancilla drive coefficient)")
     ax.set_title(
-        rf"Barycentric sensitivity: $\theta = {theta:.1f}$, "
-        r"$\log_{10}(\Delta\theta/\mathrm{SQL})$ weights"
+        rf"Barycentric sensitivity: $\omega = {omega:.1f}$, "
+        r"$\log_{10}(\Delta\omega/\mathrm{SQL})$ weights"
     )
 
     # Annotations / legend (manually placed)
@@ -1099,16 +1099,16 @@ def plot_barycentric_sensitivity_heatmap(
 
 def plot_normball_histogram(
     result: NormBallResult | str | Path,
-    theta: float,
+    omega: float,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
     n_bins: int = 50,
 ) -> Path:
-    """Histogram of Δθ values from norm-ball sampling at a specific θ.
+    """Histogram of Δω values from norm-ball sampling at a specific ω.
 
     Args:
         result: NormBallResult or path to Parquet file.
-        theta: θ value to plot.
+        omega: ω value to plot.
         save_path: Output SVG path.
         figsize: Figure size.
         n_bins: Number of histogram bins.
@@ -1122,12 +1122,12 @@ def plot_normball_histogram(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Find θ index
-    mask = np.isclose(result.theta_values, theta, atol=1e-6)
+    # Find ω index
+    mask = np.isclose(result.omega_values, omega, atol=1e-6)
     if not np.any(mask):
-        raise ValueError(f"θ={theta} not found in NormBallResult")
+        raise ValueError(f"ω={omega} not found in NormBallResult")
     ti = int(np.argmax(mask))
-    deltas = result.delta_theta_values[ti]
+    deltas = result.delta_omega_values[ti]
     finite = deltas[np.isfinite(deltas)]
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -1152,10 +1152,10 @@ def plot_normball_histogram(
         color="red",
     )
 
-    ax.set_xlabel(r"$\Delta\theta$")
+    ax.set_xlabel(r"$\Delta\omega$")
     ax.set_ylabel("Count")
     ax.set_title(
-        rf"Norm-ball sampling at $\theta={theta:.1f}$, "
+        rf"Norm-ball sampling at $\omega={omega:.1f}$, "
         rf"$R={result.R:.0f}$ ({total} finite points)"
     )
     ax.legend()
@@ -1172,13 +1172,13 @@ def plot_normball_histogram(
 
 
 def _run_2d_slice(
-    theta: float,
+    omega: float,
     slice_type: str,
     force: bool,
     n_jobs: int | None = None,
 ) -> None:
-    """Run a 2D slice scan for a single θ value and generate CSV + SVG."""
-    tag = f"drive-2d-slice-{slice_type}-azz-theta{theta}"
+    """Run a 2D slice scan for a single ω value and generate CSV + SVG."""
+    tag = f"drive-2d-slice-{slice_type}-azz-omega{omega}"
     csv_p = _parquet_path(tag)
     fig_p = _fig_path(tag)
 
@@ -1186,15 +1186,15 @@ def _run_2d_slice(
         print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
         result = Drive2DSliceResult.from_parquet(csv_p)
     else:
-        print(f"  [run]  Computing ({slice_type}, a_zz) slice at θ={theta}...")
+        print(f"  [run]  Computing ({slice_type}, a_zz) slice at ω={omega}...")
         result = drive_2d_slice(
-            theta=theta,
+            omega=omega,
             slice_type=slice_type,
             drive_range=DRIVE_RANGE,
             azz_range=AZZ_BOUNDS,
             n_drive=N_DRIVE,
             n_azz=N_AZZ,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
             n_jobs=n_jobs,
         )
@@ -1206,24 +1206,24 @@ def _run_2d_slice(
 
 
 def generate_2d_slice_ax_azz(force: bool = False, n_jobs: int | None = None) -> None:
-    """Experiment 1a: 2D slice scans over (a_x, a_zz) at all θ values."""
-    print(f"[run]  (a_x, a_zz) slice at {DRIVE_THETA_VALS}")
-    for theta in DRIVE_THETA_VALS:
-        _run_2d_slice(theta, slice_type="ax", force=force, n_jobs=n_jobs)
+    """Experiment 1a: 2D slice scans over (a_x, a_zz) at all ω values."""
+    print(f"[run]  (a_x, a_zz) slice at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        _run_2d_slice(omega, slice_type="ax", force=force, n_jobs=n_jobs)
 
 
 def generate_2d_slice_ay_azz(force: bool = False, n_jobs: int | None = None) -> None:
-    """Experiment 1b: 2D slice scans over (a_y, a_zz) at all θ values."""
-    print(f"[run]  (a_y, a_zz) slice at {DRIVE_THETA_VALS}")
-    for theta in DRIVE_THETA_VALS:
-        _run_2d_slice(theta, slice_type="ay", force=force, n_jobs=n_jobs)
+    """Experiment 1b: 2D slice scans over (a_y, a_zz) at all ω values."""
+    print(f"[run]  (a_y, a_zz) slice at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        _run_2d_slice(omega, slice_type="ay", force=force, n_jobs=n_jobs)
 
 
 def generate_2d_slice_az_azz(force: bool = False, n_jobs: int | None = None) -> None:
-    """Experiment 1c: 2D slice scans over (a_z, a_zz) at all θ values."""
-    print(f"[run]  (a_z, a_zz) slice at {DRIVE_THETA_VALS}")
-    for theta in DRIVE_THETA_VALS:
-        _run_2d_slice(theta, slice_type="az", force=force, n_jobs=n_jobs)
+    """Experiment 1c: 2D slice scans over (a_z, a_zz) at all ω values."""
+    print(f"[run]  (a_z, a_zz) slice at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        _run_2d_slice(omega, slice_type="az", force=force, n_jobs=n_jobs)
 
 
 def generate_norm_ball(
@@ -1231,7 +1231,7 @@ def generate_norm_ball(
     n_jobs: int | None = None,
     sampling_method: str = "marsaglia",
 ) -> None:
-    """Experiment 2: Norm-ball sampling at 50 θ values × 5000 samples.
+    """Experiment 2: Norm-ball sampling at 50 ω values × 5000 samples.
 
     Args:
         force: Re-run even if Parquet files exist.
@@ -1258,16 +1258,16 @@ def generate_norm_ball(
         )
         print(
             "[run]  Computing norm-ball sampling "
-            f"({len(THETA_VALS)} θ × {N_SAMP} samples = "
-            f"{len(THETA_VALS) * N_SAMP} evaluations, "
+            f"({len(OMEGA_VALS)} ω × {N_SAMP} samples = "
+            f"{len(OMEGA_VALS) * N_SAMP} evaluations, "
             f"method={method_label})..."
         )
         result = norm_ball_sampling(
-            theta_values=THETA_VALS,
+            omega_values=OMEGA_VALS,
             n_samp=N_SAMP,
             R=R_MAX,
             azz_bounds=AZZ_BOUNDS,
-            T_H=T_H,
+            T_hold=T_hold,
             T_BS=T_BS,
             fd_step=FD_STEP,
             seed=42,
@@ -1293,18 +1293,18 @@ def generate_norm_ball(
 
 
 def generate_best_ratio_comparison(force: bool = False) -> None:
-    """Experiment 3: Compare best ratio across slice types at a single θ."""
+    """Experiment 3: Compare best ratio across slice types at a single ω."""
     fig_p = _fig_path("best-ratio-by-slice")
 
     print("[run]  Loading slice results for best-ratio comparison...")
     slice_results: dict[str, Drive2DSliceResult] = {}
     for st in ("ax", "ay", "az"):
-        for theta in DRIVE_THETA_VALS:
-            tag = f"drive-2d-slice-{st}-azz-theta{theta}"
+        for omega in DRIVE_OMEGA_VALS:
+            tag = f"drive-2d-slice-{st}-azz-omega{omega}"
             csv_p = _parquet_path(tag)
             if csv_p.exists():
                 result = Drive2DSliceResult.from_parquet(csv_p)
-                # Simple keys — last θ loaded (theta=5.0) overwrites earlier ones
+                # Simple keys — last ω loaded (omega=5.0) overwrites earlier ones
                 slice_results[st] = result
 
     plot_best_ratio_by_slice(slice_results, fig_p)

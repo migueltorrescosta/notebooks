@@ -2,7 +2,7 @@
 Local module for the 2026-05-15 Ancilla-Assisted Metrology Joint-Measurement report.
 
 Contains all code exclusive to this report:
-- Plotting functions (decoupled baseline, theta scan, interaction robustness,
+- Plotting functions (decoupled baseline, omega scan, interaction robustness,
   alpha re-optimisation, covariance analysis)
 - Data generation and figure rendering for each of the five experiments
 
@@ -36,13 +36,13 @@ from src.analysis.ancilla_optimization import (
     CovarianceAnalysisResult,
     DecoupledBaselineResult,
     InteractionRobustnessResult,
-    ThetaScanResult,
+    OmegaScanResult,
     build_joint_operator,
     build_two_qubit_operators,
     compute_covariance_analysis,
     compute_decoupled_baseline,
     compute_interaction_robustness,
-    run_theta_scan,
+    run_omega_scan,
     scan_alpha_with_reoptimisation,
 )
 
@@ -62,7 +62,7 @@ def plot_decoupled_baseline(
     save_path: str | Path,
     figsize: tuple[float, float] = (6, 4),
 ) -> Path:
-    """Plot Δθ vs T_H on log-log axes with the 1/T_H SQL reference.
+    """Plot Δω vs T_hold on log-log axes with the 1/T_hold SQL reference.
 
     Both quantities overlap exactly in the decoupled baseline,
     confirming SQL saturation.
@@ -75,24 +75,24 @@ def plot_decoupled_baseline(
 
     fig, ax = plt.subplots(figsize=figsize)
     ax.loglog(
-        result.T_H_values,
-        result.delta_theta_values,
+        result.T_hold_values,
+        result.delta_omega_values,
         marker="o",
         linestyle="-",
         color="C0",
-        label=r"$\Delta\theta$ (joint / S-only)",
+        label=r"$\Delta\omega$ (joint / S-only)",
     )
     ax.loglog(
-        result.T_H_values,
+        result.T_hold_values,
         result.sql_values,
         marker="",
         linestyle="--",
         color="C1",
         alpha=0.7,
-        label=r"SQL $= 1/T_H$",
+        label=r"SQL $= 1/T_hold$",
     )
-    ax.set_xlabel(r"$T_H$")
-    ax.set_ylabel(r"$\Delta\theta$")
+    ax.set_xlabel(r"$T_hold$")
+    ax.set_ylabel(r"$\Delta\omega$")
     ax.set_title("Decoupled baseline: SQL saturation")
     ax.legend()
     fig.tight_layout()
@@ -102,21 +102,21 @@ def plot_decoupled_baseline(
 
 
 # ──────────────────────────────────────────────
-# 2. θ-scan (Sections 3 & 9)
+# 2. ω-scan (Sections 3 & 9)
 # ──────────────────────────────────────────────
 
 
-def plot_theta_scan(
-    result: ThetaScanResult | str | Path,
+def plot_omega_scan(
+    result: OmegaScanResult | str | Path,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
 ) -> Path:
-    """Scatter plot of Δθ vs θ with error bars (spread) and SQL reference.
+    """Scatter plot of Δω vs ω with error bars (spread) and SQL reference.
 
     Fringe-extremum points are highlighted in red.
     """
     if isinstance(result, (str, Path)):
-        result = ThetaScanResult.from_parquet(result)
+        result = OmegaScanResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -141,20 +141,20 @@ def plot_theta_scan(
     # OK points with error bars (spread)
     if not ok.empty:
         ax.errorbar(
-            ok["theta"],
-            ok["best_delta_theta"],
+            ok["omega"],
+            ok["best_delta_omega"],
             yerr=ok["spread"],
             fmt="o",
             color="C0",
             capsize=4,
-            label=r"$\Delta\theta$ (valid)",
+            label=r"$\Delta\omega$ (valid)",
         )
 
     # Fringe points highlighted
     if not fringe.empty:
         ax.scatter(
-            fringe["theta"],
-            fringe["best_delta_theta"],
+            fringe["omega"],
+            fringe["best_delta_omega"],
             marker="x",
             s=80,
             color="red",
@@ -162,9 +162,9 @@ def plot_theta_scan(
             label="fringe extremum",
         )
 
-    ax.set_xlabel(r"$\theta$")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(r"$\theta$-scan: sensitivity vs phase rate")
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\Delta\omega$")
+    ax.set_title(r"$\omega$-scan: sensitivity vs phase rate")
     ax.legend()
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
@@ -182,7 +182,7 @@ def plot_interaction_robustness(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Multi-panel plot of Δθ vs T_H for various α values.
+    """Multi-panel plot of Δω vs T_hold for various α values.
 
     Left panel: joint measurement.  Right panel: S-only measurement.
     Lines are grouped by α value with distinct colours.
@@ -193,7 +193,7 @@ def plot_interaction_robustness(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    T_H = result.T_H_values
+    T_hold = result.T_hold_values
     alphas = result.alpha_values
     n_a = len(alphas)
     palette = sns.color_palette("viridis", n_a)
@@ -203,33 +203,33 @@ def plot_interaction_robustness(
     for j, a_val in enumerate(alphas):
         label = rf"$\alpha={a_val:.1f}$"
         ax_j.loglog(
-            T_H,
-            result.delta_theta_joint[:, j],
+            T_hold,
+            result.delta_omega_joint[:, j],
             marker="o",
             color=palette[j],
             label=label,
         )
         ax_s.loglog(
-            T_H,
-            result.delta_theta_sonly[:, j],
+            T_hold,
+            result.delta_omega_sonly[:, j],
             marker="s",
             color=palette[j],
             label=label,
         )
 
     # SQL reference
-    sql_ref = 1.0 / T_H
+    sql_ref = 1.0 / T_hold
     for ax in (ax_j, ax_s):
-        ax.loglog(T_H, sql_ref, "k--", alpha=0.4, label=r"SQL $=1/T_H$")
-        ax.set_xlabel(r"$T_H$")
+        ax.loglog(T_hold, sql_ref, "k--", alpha=0.4, label=r"SQL $=1/T_hold$")
+        ax.set_xlabel(r"$T_hold$")
 
-    ax_j.set_ylabel(r"$\Delta\theta$")
+    ax_j.set_ylabel(r"$\Delta\omega$")
     ax_j.set_title("Joint measurement")
     ax_s.set_title("S-only measurement")
     ax_j.legend(fontsize="small", ncol=2)
     ax_s.legend(fontsize="small", ncol=2)
 
-    fig.suptitle(r"Interaction robustness: $\Delta\theta$ vs $T_H$", y=1.02)
+    fig.suptitle(r"Interaction robustness: $\Delta\omega$ vs $T_hold$", y=1.02)
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
     plt.close(fig)
@@ -246,7 +246,7 @@ def plot_alpha_reoptimisation(
     save_path: str | Path,
     figsize: tuple[float, float] = (6, 4),
 ) -> Path:
-    """Two-line plot of Δθ vs α with joint and S-only measurements.
+    """Two-line plot of Δω vs α with joint and S-only measurements.
 
     Includes a horizontal SQL reference line.
     """
@@ -260,7 +260,7 @@ def plot_alpha_reoptimisation(
 
     ax.plot(
         result.alpha_values,
-        result.delta_theta_joint,
+        result.delta_omega_joint,
         marker="o",
         linestyle="-",
         color="C0",
@@ -268,7 +268,7 @@ def plot_alpha_reoptimisation(
     )
     ax.plot(
         result.alpha_values,
-        result.delta_theta_sonly,
+        result.delta_omega_sonly,
         marker="s",
         linestyle="--",
         color="C1",
@@ -276,7 +276,7 @@ def plot_alpha_reoptimisation(
     )
 
     # SQL reference
-    sql_val = np.min(result.delta_theta_sonly)
+    sql_val = np.min(result.delta_omega_sonly)
     ax.axhline(
         y=sql_val,
         color="gray",
@@ -286,7 +286,7 @@ def plot_alpha_reoptimisation(
     )
 
     ax.set_xlabel(r"$\alpha$")
-    ax.set_ylabel(r"$\Delta\theta$")
+    ax.set_ylabel(r"$\Delta\omega$")
     ax.set_title(r"$\alpha$-scan with state re-optimisation")
     ax.legend()
     fig.tight_layout()
@@ -376,7 +376,7 @@ def _fig_path(name: str, date: str) -> Path:
 
 
 def generate_decoupled_baseline(force: bool = False) -> None:
-    """Sections 1 & 2: Decoupled baseline and expanded T_H bound."""
+    """Sections 1 & 2: Decoupled baseline and expanded T_hold bound."""
     csv_p = _parquet_path("decoupled-baseline", date=REPORT_DATE)
     fig_p = _fig_path("decoupled-baseline", date=REPORT_DATE)
 
@@ -385,8 +385,8 @@ def generate_decoupled_baseline(force: bool = False) -> None:
         result = DecoupledBaselineResult.from_parquet(csv_p)
     else:
         print("[run]  Computing decoupled baseline...")
-        T_H_vals = np.array([0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0])
-        result = compute_decoupled_baseline(T_H_vals)
+        T_hold_vals = np.array([0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0])
+        result = compute_decoupled_baseline(T_hold_vals)
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
@@ -394,20 +394,20 @@ def generate_decoupled_baseline(force: bool = False) -> None:
     print(f"[fig]  {fig_p}")
 
 
-def generate_theta_scan(force: bool = False) -> None:
-    """Sections 3 & 9: θ-scan with Nelder-Mead optimisation."""
-    csv_p = _parquet_path("theta-scan", date=REPORT_DATE)
-    fig_p = _fig_path("theta-scan", date=REPORT_DATE)
+def generate_omega_scan(force: bool = False) -> None:
+    """Sections 3 & 9: ω-scan with Nelder-Mead optimisation."""
+    csv_p = _parquet_path("omega-scan", date=REPORT_DATE)
+    fig_p = _fig_path("omega-scan", date=REPORT_DATE)
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
     else:
-        print("[run]  Computing θ-scan (may be slow)...")
+        print("[run]  Computing ω-scan (may be slow)...")
         ops = build_two_qubit_operators()
         M_op = build_joint_operator(ops)
-        theta_vals = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
-        result = run_theta_scan(
-            theta_vals,
+        omega_vals = [0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
+        result = run_omega_scan(
+            omega_vals,
             n_restarts=10,
             seed=42,
             maxiter=2000,
@@ -416,13 +416,13 @@ def generate_theta_scan(force: bool = False) -> None:
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    result = ThetaScanResult.from_parquet(csv_p)
-    plot_theta_scan(result, fig_p)
+    result = OmegaScanResult.from_parquet(csv_p)
+    plot_omega_scan(result, fig_p)
     print(f"[fig]  {fig_p}")
 
 
 def generate_interaction_robustness(force: bool = False) -> None:
-    """Section 8: T_H × α interaction robustness."""
+    """Section 8: T_hold × α interaction robustness."""
     csv_p = _parquet_path("interaction-robustness", date=REPORT_DATE)
     fig_p = _fig_path("interaction-robustness", date=REPORT_DATE)
 
@@ -430,12 +430,12 @@ def generate_interaction_robustness(force: bool = False) -> None:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
     else:
         print("[run]  Computing interaction robustness...")
-        T_H_vals = np.array([0.5, 1.0, 2.0])
+        T_hold_vals = np.array([0.5, 1.0, 2.0])
         alpha_vals = np.array([0.0, 1.0, 2.0])
         result = compute_interaction_robustness(
-            T_H_vals,
+            T_hold_vals,
             alpha_vals,
-            theta_true=1.0,
+            omega_true=1.0,
             alpha_name="xx",
         )
         result.save_parquet(csv_p)
@@ -517,7 +517,7 @@ def main() -> None:
 
     tasks = {
         "decoupled-baseline": generate_decoupled_baseline,
-        "theta-scan": generate_theta_scan,
+        "omega-scan": generate_omega_scan,
         "interaction-robustness": generate_interaction_robustness,
         "alpha-reoptimisation": generate_alpha_reoptimisation,
         "covariance-analysis": generate_covariance_analysis,

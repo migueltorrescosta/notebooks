@@ -49,7 +49,7 @@ class MziNoiseConfig:
         gamma_1: One-body loss rate for mode 1 (single-particle loss).
         gamma_2: Two-body loss rate for mode 1 (pair loss).
         gamma_phi: Phase diffusion rate (dephasing between arms).
-        T: Decoherence time (dimensionless).
+        T_decay: Decoherence time (dimensionless).
         dt: Time step for numerical integration.
         method: Integration method ('rk4' or 'scipy').
 
@@ -58,7 +58,7 @@ class MziNoiseConfig:
     gamma_1: float = 0.0
     gamma_2: float = 0.0
     gamma_phi: float = 0.0
-    T: float = 1.0
+    T_decay: float = 1.0
     dt: float = 0.01
     method: str = "rk4"
 
@@ -212,7 +212,7 @@ def evolve_mzi_lindblad(
 
         if not c_ops_qobj:
             # Unitary evolution only (no Lindblad terms)
-            U_qobj = (-1.0j * config.T * H_qobj).expm()
+            U_qobj = (-1.0j * config.T_decay * H_qobj).expm()
             rho_qobj = U_qobj @ rho_qobj @ U_qobj.dag()
             rho = rho_qobj.full()
         else:
@@ -220,7 +220,7 @@ def evolve_mzi_lindblad(
             result = qutip.mesolve(
                 H_qobj,
                 rho_qobj,
-                [0, config.T],
+                [0, config.T_decay],
                 c_ops_qobj,
                 e_ops=[],
             )
@@ -292,7 +292,7 @@ def run_noisy_mzi(
         initial_state must be normalized (1D) or trace-1 (2D).
         theta in [0, \pi] (beam splitter angle).
         noise_config rates (gamma_{1,2,phi}) must be >= 0.
-        noise_config.T > 0.
+        noise_config.T_decay > 0.
         ancilla_dim >= 1 (1 = no ancilla).
 
     Example:
@@ -300,7 +300,7 @@ def run_noisy_mzi(
         >>> from src.physics.mzi_lindblad import MziNoiseConfig, run_noisy_mzi
         >>> dim = 2 + 1
         >>> state = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
-        >>> config = MziNoiseConfig(gamma_1=0.1, T=0.5)
+        >>> config = MziNoiseConfig(gamma_1=0.1, T_decay=0.5)
         >>> rho = run_noisy_mzi(state, max_photons=2, theta=np.pi/4,
         ...     phi_bs=0, phi_phase=1.0, noise_config=config)
         >>> rho.shape

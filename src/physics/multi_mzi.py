@@ -9,9 +9,9 @@ Provides building blocks for constructing operators in the combined S⊗A
 - ``embed_combined_operators(N)``: returns the full (N+1)²×(N+1)²
   Kronecker-product operators J_k^S = J_k ⊗ I and J_k^A = I ⊗ J_k
   for k ∈ {x, y, z}.
-- ``single_bs_unitary(N, T)``: cached (N+1)×(N+1) beam-splitter unitary
-  U = exp(-i T J_x).
-- ``dual_bs_unitary(N, T)``: (N+1)²×(N+1)² dual beam-splitter unitary
+- ``single_bs_unitary(N, T_BS)``: cached (N+1)×(N+1) beam-splitter unitary
+  U = exp(-i T_BS J_x).
+- ``dual_bs_unitary(N, T_BS)``: (N+1)²×(N+1)² dual beam-splitter unitary
   U = U_single ⊗ U_single.
 
 Usage::
@@ -35,12 +35,11 @@ Usage::
 
 from __future__ import annotations
 
-from functools import cache
-
 import numpy as np
 from scipy.linalg import expm
 
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
+from src.utils.enums import OperatorBasis
 
 
 def dicke_single_operators(N: int) -> dict[str, np.ndarray]:
@@ -56,9 +55,9 @@ def dicke_single_operators(N: int) -> dict[str, np.ndarray]:
         Dict with keys ``'Jz'``, ``'Jx'``, ``'Jy'``.
     """
     return {
-        "Jz": jz_operator(N),
-        "Jx": jx_operator(N),
-        "Jy": jy_operator(N),
+        "Jz": jz_operator(N, basis=OperatorBasis.DICKE),
+        "Jx": jx_operator(N, basis=OperatorBasis.DICKE),
+        "Jy": jy_operator(N, basis=OperatorBasis.DICKE),
     }
 
 
@@ -93,17 +92,17 @@ def embed_combined_operators(N: int) -> dict[str, np.ndarray]:
 
 def build_hold_hamiltonian(
     N: int,
-    theta: float,
+    omega: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Build the total holding Hamiltonian in the combined S⊗A space.
 
-    H = θ (J_z^S + J_z^A) + α_xx J_x^S J_x^A
+    H = ω (J_z^S + J_z^A) + α_xx J_x^S J_x^A
 
     Args:
         N: Particle number per subsystem.
-        theta: Unknown phase rate.
+        omega: Unknown phase rate.
         alpha_xx: XX coupling strength.
         ops: Pre-computed embedded operators. If None, built fresh.
 
@@ -114,76 +113,73 @@ def build_hold_hamiltonian(
         ops = embed_combined_operators(N)
     dim = (N + 1) ** 2
     H = np.zeros((dim, dim), dtype=complex)
-    H += theta * (ops["Jz_S"] + ops["Jz_A"])
+    H += omega * (ops["Jz_S"] + ops["Jz_A"])
     if alpha_xx != 0.0:
         # J_x^S J_x^A = (J_x ⊗ I)(I ⊗ J_x) = J_x ⊗ J_x
         H += alpha_xx * (ops["Jx_S"] @ ops["Jx_A"])
     return 0.5 * (H + H.conj().T)
 
 
-def hold_unitary(
+def hold_unitary_dicke(
     N: int,
-    T_H: float,
-    theta: float,
+    T_hold: float,
+    omega: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray] | None = None,
 ) -> np.ndarray:
-    """Holding-time unitary in the combined S⊗A space.
+    """Holding-time unitary in the combined S⊗A space (Dicke basis).
 
-    U_hold(T_H) = exp(-i T_H H)
+    U_hold(T_hold) = exp(-i T_hold H)
 
     Args:
         N: Particle number per subsystem.
-        T_H: Holding time.
-        theta: Unknown phase rate.
+        T_hold: Holding time.
+        omega: Unknown phase rate.
         alpha_xx: XX coupling strength.
         ops: Pre-computed embedded operators.
 
     Returns:
         (N+1)² × (N+1)² unitary matrix.
     """
-    H = build_hold_hamiltonian(N, theta, alpha_xx, ops)
-    U = expm(-1j * T_H * H)
+    H = build_hold_hamiltonian(N, omega, alpha_xx, ops)
+    U = expm(-1j * T_hold * H)
     dim = (N + 1) ** 2
     assert np.allclose(U @ U.conj().T, np.eye(dim), atol=1e-12)
     return U
 
 
-@cache
-def single_bs_unitary(N: int, T: float = np.pi / 2.0) -> np.ndarray:
-    """Single-subsystem 50/50 beam-splitter unitary (cached by N and T).
+def single_bs_unitary(N: int, T_BS: float = np.pi / 2.0) -> np.ndarray:
+    """Single-subsystem 50/50 beam-splitter unitary (cached by N and T_BS).
 
-    U_BS = exp(-i T J_x)
+    U_BS = exp(-i T_BS J_x)
 
-    Results are cached by (N, T) to avoid repeated matrix exponentiation.
+    Results are cached by (N, T_BS) to avoid repeated matrix exponentiation.
 
     Args:
         N: Particle number (dim = N+1).
-        T: Beam-splitter angle (default π/2 for 50/50).
+        T_BS: Beam-splitter angle (default π/2 for 50/50).
 
     Returns:
         (N+1) × (N+1) unitary matrix.
     """
-    Jx = jx_operator(N)
-    U = expm(-1j * T * Jx)
-    assert np.allclose(U @ U.conj().T, np.eye(N + 1), atol=1e-12)
-    return U
+    from src.physics.beam_splitter import bs_dicke  # fmt: skip
+
+    return bs_dicke(N, T_BS)
 
 
-def dual_bs_unitary(N: int, T: float = np.pi / 2.0) -> np.ndarray:
+def dual_bs_unitary(N: int, T_BS: float = np.pi / 2.0) -> np.ndarray:
     """Dual beam-splitter unitary: BS on both S and A.
 
-    U_BS = exp(-i T J_x) ⊗ exp(-i T J_x)
+    U_BS = exp(-i T_BS J_x) ⊗ exp(-i T_BS J_x)
 
     Args:
         N: Particle number per subsystem.
-        T: Beam-splitter angle (default π/2 for 50/50).
+        T_BS: Beam-splitter angle (default π/2 for 50/50).
 
     Returns:
         (N+1)² × (N+1)² unitary matrix.
     """
-    U_single = single_bs_unitary(N, T)
-    return np.kron(U_single, U_single)
+    return np.kron(single_bs_unitary(N, T_BS), single_bs_unitary(N, T_BS))
 
 
 def compute_reduced_expectation_and_variance(
@@ -230,26 +226,26 @@ def compute_reduced_expectation_and_variance(
 def evolve_circuit(
     N: int,
     psi0: np.ndarray,
-    theta: float,
+    omega: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray],
     T_BS: float = np.pi / 2.0,
-    T_H: float = 10.0,
+    T_hold: float = 10.0,
 ) -> np.ndarray:
     """Run the full dual-MZI circuit.
 
-    |ψ_final⟩ = U_BS · U_hold(T_H) · U_BS · |ψ₀⟩
+    |ψ_final⟩ = U_BS · U_hold(T_hold) · U_BS · |ψ₀⟩
 
     where U_BS acts on both S and A (dual MZI).
 
     Args:
         N: Particle number per subsystem.
         psi0: Initial state vector (length (N+1)²).
-        theta: Unknown phase rate.
+        omega: Unknown phase rate.
         alpha_xx: XX coupling strength.
         ops: Embedded operators.
         T_BS: Beam-splitter angle (default π/2).
-        T_H: Holding time (default 10).
+        T_hold: Holding time (default 10).
 
     Returns:
         Final state vector (length (N+1)²).
@@ -257,7 +253,7 @@ def evolve_circuit(
     assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
     U_bs = dual_bs_unitary(N, T_BS)
     psi = U_bs @ psi0
-    psi = hold_unitary(N, T_H, theta, alpha_xx, ops) @ psi
+    psi = hold_unitary_dicke(N, T_hold, omega, alpha_xx, ops) @ psi
     psi = U_bs @ psi
     assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
     return psi

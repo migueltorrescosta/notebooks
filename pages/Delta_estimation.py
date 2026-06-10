@@ -16,6 +16,7 @@ from src.analysis.delta_estimation import (
     generate_hamiltonian,
 )
 from src.physics.dicke_basis import jx_operator, jz_operator
+from src.utils.enums import OperatorBasis
 from src.visualization.plotting import plot_array
 
 # Configure tqdm for pandas progress_apply (run once per session)
@@ -115,13 +116,15 @@ info_0, info_1, info_2, info_3, info_4 = st.tabs(
     [r"$\sigma_x$", r"$\sigma_z$", r"$J_x$", r"$J_z$", r"$H$"],
 )
 
-temp_sigma_x, temp_sigma_z = jx_operator(1), jz_operator(1)
+temp_sigma_x = jx_operator(1, basis=OperatorBasis.DICKE)
+temp_sigma_z = jz_operator(1, basis=OperatorBasis.DICKE)
 with info_0:
     plot_array(temp_sigma_x, key="system_jx")
 with info_1:
     plot_array(temp_sigma_z, key="system_jz")
 
-temp_jx, temp_jz = jx_operator(dim_a - 1), jz_operator(dim_a - 1)
+temp_jx = jx_operator(dim_a - 1, basis=OperatorBasis.DICKE)
+temp_jz = jz_operator(dim_a - 1, basis=OperatorBasis.DICKE)
 with info_2:
     plot_array(temp_jx)
 with info_3:

@@ -4,9 +4,9 @@ Kerr-nonlinear Mach-Zehnder Interferometer.
 Physical Model:
 - Standard MZI architecture (BS1 -> phase + Kerr -> BS2)
 - Kerr nonlinearity adds intensity-dependent phase shift in each arm:
-    H_Kerr = chi (a1dag a1)^2 + chi (a2dag a2)^2 = chi (n1^2 + n2^2)
+    H_Kerr = K (a1dag a1)^2 + K (a2dag a2)^2 = K (n1^2 + n2^2)
 - Combined phase + nonlinear evolution:
-    U = exp(i * [phi * n2 + chi * T * (n1^2 + n2^2)])
+    U = exp(i * [phi * n2 + K * T * (n1^2 + n2^2)])
   where n2 = a2dag a2 is the number operator for mode 1 (second arm)
 
 The Kerr term creates a photon-number-dependent phase that can
@@ -18,7 +18,7 @@ Hilbert Space:
 
 Units:
 - Dimensionless throughout. Phase phi in radians.
-- chi has units of 1/time (dimensionless when multiplied by T).
+- K has units of 1/time (dimensionless when multiplied by T).
 
 Conventions:
 - Beam splitter transformation: a -> cos(theta)a + i*e^{i*phi}*sin(theta)b
@@ -30,7 +30,7 @@ Conventions:
 
 import numpy as np
 
-from src.physics.mzi_simulation import beam_splitter_unitary
+from src.physics.beam_splitter import bs_fock
 from src.utils.validators import validate_state_mzi
 
 # =============================================================================
@@ -39,20 +39,20 @@ from src.utils.validators import validate_state_mzi
 
 
 def kerr_phase_shift_unitary(
-    phi: float,
-    chi: float,
-    T: float,
+    phi_phase: float,
+    K: float,
+    T_kerr: float,
     max_photons: int,
 ) -> np.ndarray:
     r"""Create combined linear phase shift and Kerr nonlinearity unitary.
 
     Constructs the diagonal unitary:
-        U = exp(i * [phi * n2 + chi * T * (n1^2 + n2^2)])
+        U = exp(i * [phi_phase * n2 + K * T_kerr * (n1^2 + n2^2)])
 
     where n1 = a1dag a1 is the number operator for mode 0 (first arm),
     and n2 = a2dag a2 is the number operator for mode 1 (second arm).
 
-    The linear phase phi * n2 is applied to the second mode, consistent
+    The linear phase is applied to the second mode, consistent
     with the standard MZI convention where the phase shift accumulates
     in one arm (see :func:`src.physics.mzi_simulation.phase_shift_unitary`).
     The Kerr terms add intensity-dependent phase shifts in each arm.
@@ -63,14 +63,14 @@ def kerr_phase_shift_unitary(
     with no population transfer between Fock states.
 
     Args:
-        phi: Linear phase shift applied to mode 1 (radians). This is
-            the parameter to be estimated. When chi=0, this reduces
+        phi_phase: Linear phase shift applied to mode 1 (radians). This is
+            the parameter to be estimated. When K=0, this reduces
             to the standard phase shift unitary.
-        chi: Kerr nonlinearity strength. Dimensionless when T is
+        K: Kerr nonlinearity strength. Dimensionless when T is
             also dimensionless. Controls the magnitude of the
             intensity-dependent phase per photon per unit time.
-        T: Evolution time. The product chi * T controls the total
-            nonlinear phase contribution.
+        T_kerr: Evolution time. The product K * T_kerr controls the
+            total nonlinear phase contribution.
         max_photons: Maximum photon number per mode for Hilbert
             space truncation. Determines the matrix dimension:
             (max_photons + 1)^2.
@@ -81,7 +81,7 @@ def kerr_phase_shift_unitary(
         nonlinear evolution.
 
     Raises:
-        ValueError: If max_photons is negative, or if chi or T are
+        ValueError: If max_photons is negative, or if K or T_kerr are
             negative (non-physical parameter values).
 
     Example:
@@ -95,7 +95,7 @@ def kerr_phase_shift_unitary(
         True
 
     Notes:
-        When chi = 0, this function reproduces the standard
+        When K = 0, this function reproduces the standard
         phase shift unitary from mzi_simulation:
         >>> U_lin = kerr_phase_shift_unitary(1.0, 0.0, 1.0, max_photons=2)
         >>> from src.physics.mzi_simulation import phase_shift_unitary
@@ -105,24 +105,24 @@ def kerr_phase_shift_unitary(
     """
     if max_photons < 0:
         raise ValueError(f"max_photons must be non-negative, got {max_photons}")
-    if chi < 0:
-        raise ValueError(f"Kerr nonlinearity chi must be non-negative, got {chi}")
-    if T < 0:
-        raise ValueError(f"Evolution time T must be non-negative, got {T}")
+    if K < 0:
+        raise ValueError(f"Kerr nonlinearity K must be non-negative, got {K}")
+    if T_kerr < 0:
+        raise ValueError(f"Evolution time T_kerr must be non-negative, got {T_kerr}")
 
     dim = (max_photons + 1) ** 2
     U = np.zeros((dim, dim), dtype=complex)
 
-    # Combined nonlinear coefficient: chi * T
-    kerr_coeff = chi * T
+    # Combined nonlinear coefficient: K * T_kerr
+    kerr_coeff = K * T_kerr
 
     for n1 in range(max_photons + 1):
         for n2 in range(max_photons + 1):
             idx = n1 * (max_photons + 1) + n2
 
-            # Linear phase: phi * n2 on mode 1 (second arm)
-            # Kerr phase: chi * T * (n1^2 + n2^2)
-            phase = phi * n2 + kerr_coeff * (n1**2 + n2**2)
+            # Linear phase: phi_phase * n2 on mode 1 (second arm)
+            # Kerr phase: K * T * (n1^2 + n2^2)
+            phase = phi_phase * n2 + kerr_coeff * (n1**2 + n2**2)
             U[idx, idx] = np.exp(1j * phase)
 
     return U
@@ -135,9 +135,9 @@ def kerr_phase_shift_unitary(
 
 def kerr_mzi(
     initial_state: np.ndarray,
-    phi: float,
-    chi: float,
-    T: float,
+    phi_phase: float,
+    K: float,
+    T_kerr: float,
     max_photons: int,
     theta: float = np.pi / 4,
     phi_bs: float = 0.0,
@@ -146,14 +146,14 @@ def kerr_mzi(
 
     Implements the circuit:
 
-        BS1(theta, phi_bs) -> U_kerr(phi, chi, T) -> BS2(theta, phi_bs)
+        BS1(theta, phi_bs) -> U_kerr(phi_phase, K, T_kerr) -> BS2(theta, phi_bs)
 
     where U_kerr combines the linear phase shift and Kerr nonlinearity:
 
-        U_kerr = exp(i * [phi * n2 + chi * T * (n1^2 + n2^2)])
+        U_kerr = exp(i * [phi_phase * n2 + K * T_kerr * (n1^2 + n2^2)])
 
     The beam splitters are implemented via the standard
-    :func:`src.physics.mzi_simulation.beam_splitter_unitary`.
+    :func:`src.physics.beam_splitter.bs_fock`.
 
     Circuit sequence:
         1. BS1: First beam splitter creates path entanglement / mode mixing.
@@ -166,11 +166,11 @@ def kerr_mzi(
             of dimension (max_photons + 1)^2. Common choices include
             NOON states, Twin-Fock states, Fock states, or coherent
             states.
-        phi: Linear phase shift (the parameter to estimate) applied
+        phi_phase: Linear phase shift (the parameter to estimate) applied
             to mode 1 (second arm). Measured in radians.
-        chi: Kerr nonlinearity strength. When chi = 0, the evolution
+        K: Kerr nonlinearity strength. When K = 0, the evolution
             reduces to the standard MZI with a linear phase shift.
-        T: Evolution time for the nonlinearity. The product chi * T
+        T_kerr: Evolution time for the nonlinearity. The product K * T_kerr
             controls the nonlinear phase contribution.
         max_photons: Maximum photon number per mode for Hilbert
             space truncation.
@@ -190,7 +190,7 @@ def kerr_mzi(
 
     Constraints:
         initial_state must be normalized (L2 norm = 1).
-        chi >= 0 (Kerr nonlinearity), T >= 0 (evolution time).
+        K >= 0 (Kerr nonlinearity), T_kerr >= 0 (evolution time).
         theta in [0, π] (beam splitter angle).
         Output dimension = (max_photons + 1)².
         Unitary evolution: norm is preserved.
@@ -198,11 +198,11 @@ def kerr_mzi(
     Example:
         >>> from src.physics.mzi_simulation import noon_state
         >>> state = noon_state(3, max_photons=3)
-        >>> final = kerr_mzi(state, phi=1.0, chi=0.1, T=1.0, max_photons=3)
+        >>> final = kerr_mzi(state, phi_phase=1.0, K=0.1, T_kerr=1.0, max_photons=3)
         >>> np.isclose(np.sum(np.abs(final) ** 2), 1.0)
         True
         >>> # Without Kerr, final state norm is still preserved
-        >>> final_lin = kerr_mzi(state, phi=1.0, chi=0.0, T=0.0, max_photons=3)
+        >>> final_lin = kerr_mzi(state, phi_phase=1.0, K=0.0, T_kerr=0.0, max_photons=3)
         >>> np.isclose(np.sum(np.abs(final_lin) ** 2), 1.0)
         True
 
@@ -221,11 +221,11 @@ def kerr_mzi(
         )
 
     # BS1: First beam splitter
-    bs = beam_splitter_unitary(theta, phi_bs, max_photons)
+    bs = bs_fock(theta, phi_bs, max_photons)
     state = bs @ initial_state
 
     # Combined phase shift + Kerr evolution (diagonal unitary)
-    U_kerr = kerr_phase_shift_unitary(phi, chi, T, max_photons)
+    U_kerr = kerr_phase_shift_unitary(phi_phase, K, T_kerr, max_photons)
     state = U_kerr @ state
 
     # BS2: Second beam splitter (identical to BS1)
@@ -298,8 +298,8 @@ def compute_kerr_output_probabilities(
 
 def compute_kerr_phase_sensitivity(
     N: int,
-    chi: float,
-    T: float,
+    K: float,
+    T_kerr: float,
     max_photons: int | None = None,
 ) -> float:
     r"""Compute the quantum Fisher information for Kerr MZI with NOON input.
@@ -329,11 +329,11 @@ def compute_kerr_phase_sensitivity(
     Args:
         N: Total photon number for the NOON input state. Must be
             non-negative.
-        chi: Kerr nonlinearity strength. Included for API consistency
+        K: Kerr nonlinearity strength. Included for API consistency
             with the full Kerr model. The QFI for the linear generator
-            n2 is independent of chi since the generator commutes with
+            n2 is independent of K since the generator commutes with
             the Kerr Hamiltonian (see notes above).
-        T: Evolution time. Included for API consistency.
+        T_kerr: Evolution time. Included for API consistency.
         max_photons: Maximum photon number per mode for Hilbert space
             truncation. If None, defaults to N (sufficient for NOON
             states with up to N photons per mode).
@@ -341,7 +341,7 @@ def compute_kerr_phase_sensitivity(
     Returns:
         Quantum Fisher information F_Q for estimating the linear phase
         shift phi. For a NOON state, this equals N^2 (Heisenberg limit)
-        regardless of chi and T, reflecting the fact that the generator
+        regardless of K and T, reflecting the fact that the generator
         n2 commutes with the Kerr diagonal.
 
     Example:
@@ -359,7 +359,7 @@ def compute_kerr_phase_sensitivity(
         True
 
     Notes:
-        The QFI being independent of chi is a consequence of the
+        The QFI being independent of K is a consequence of the
         generator n2 commuting with the Kerr Hamiltonian. In a more
         general nonlinear estimation scenario where the parameter
         couples through a nonlinear generator (e.g., n2^2), the QFI
@@ -412,8 +412,8 @@ def compute_kerr_phase_sensitivity(
 
 def compute_kerr_interference_fringe(
     phase_range: np.ndarray,
-    chi: float,
-    T: float,
+    K: float,
+    T_kerr: float,
     max_photons: int,
     initial_state: np.ndarray | None = None,
     N: int = 1,
@@ -433,8 +433,8 @@ def compute_kerr_interference_fringe(
     Args:
         phase_range: Array of phase values (radians) to evaluate.
             Typically np.linspace(0, 2*np.pi, num_points).
-        chi: Kerr nonlinearity strength.
-        T: Evolution time for the nonlinearity.
+        K: Kerr nonlinearity strength.
+        T_kerr: Evolution time for the nonlinearity.
         max_photons: Maximum photon number per mode.
         initial_state: Input state vector. If None, a NOON state
             with N photons is used as the default.
@@ -452,7 +452,7 @@ def compute_kerr_interference_fringe(
         >>> from src.physics.mzi_simulation import noon_state
         >>> state = noon_state(3, max_photons=3)
         >>> fringe = compute_kerr_interference_fringe(
-        ...     phases, chi=0.1, T=1.0, max_photons=3,
+        ...     phases, K=0.1, T_kerr=1.0, max_photons=3,
         ...     initial_state=state,
         ... )
         >>> fringe.shape
@@ -471,8 +471,8 @@ def compute_kerr_interference_fringe(
         state = kerr_mzi(
             initial_state,
             phi,
-            chi,
-            T,
+            K,
+            T_kerr,
             max_photons,
             theta,
             phi_bs,

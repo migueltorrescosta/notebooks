@@ -72,6 +72,8 @@ from src.physics.hybrid_mzi import (  # noqa: E402, F401
     mzi_output_probabilities,
     mzi_phase_generator,
     mzi_phase_shift,
+    wigner_from_hybrid_state,
+    wigner_function_single,
     wigner_is_negative,
 )
 from src.physics.hybrid_system import (  # noqa: E402, F401
@@ -96,7 +98,7 @@ class HybridLindbladConfig:
     n: int = 2
     omega_n: float = 1.0
     theta_n: float = 0.0
-    phi: float = 0.0
+    phi_phase: float = 0.0
     gamma_1: float = 0.0
     gamma_2: float = 0.0
     gamma_phi: float = 0.0
@@ -109,7 +111,7 @@ def build_hybrid_hamiltonian(config: HybridLindbladConfig) -> np.ndarray:
     n = config.n
     omega_n = config.omega_n
     theta_n = config.theta_n
-    phi = config.phi
+    phi_phase = config.phi_phase
 
     a = oscillator_annihilation(N)
     a_dag = oscillator_creation(N)
@@ -119,7 +121,7 @@ def build_hybrid_hamiltonian(config: HybridLindbladConfig) -> np.ndarray:
     if n in {2, 4}:
         spin_op = spin_operator_z()
     elif n == 3:
-        phi_shifted = phi + np.pi / 2
+        phi_shifted = phi_phase + np.pi / 2
         spin_op = spin_operator_phi(phi_shifted)
     else:
         raise ValueError(f"Unsupported order n={n}. Use 2, 3, or 4.")
@@ -170,7 +172,7 @@ def build_hybrid_lindblad_operators(
 def evolve_hybrid_lindblad(
     initial_state: np.ndarray,
     config: HybridLindbladConfig,
-    T: float,
+    T_decay: float,
     dt: float,
     method: str = "rk4",
 ) -> np.ndarray:
@@ -184,13 +186,13 @@ def evolve_hybrid_lindblad(
         rho0 = initial_state.copy()
 
     if len(L_ops) == 0:
-        U = scipy.linalg.expm(-1.0j * H * T)
+        U = scipy.linalg.expm(-1.0j * H * T_decay)
         return U @ rho0 @ U.conj().T
 
     if method == "rk4":
-        return evolve_lindblad_rk4(rho0, H, L_ops, gammas, T, dt)
+        return evolve_lindblad_rk4(rho0, H, L_ops, gammas, T_decay, dt)
     if method == "scipy":
-        return evolve_lindblad_scipy(rho0, H, L_ops, gammas, T)
+        return evolve_lindblad_scipy(rho0, H, L_ops, gammas, T_decay)
     raise ValueError(f"Unknown method: {method}")
 
 
@@ -224,7 +226,7 @@ def run_hybrid_simulation(
     final_rho = evolve_hybrid_lindblad(
         squeezed_state,
         config,
-        T=config.t_squeeze,
+        T_decay=config.t_squeeze,
         dt=0.01,
         method="rk4",
     )
@@ -252,7 +254,7 @@ def run_decoherence_sweep(
         n=config_base.n,
         omega_n=config_base.omega_n,
         theta_n=config_base.theta_n,
-        phi=config_base.phi,
+        phi_phase=config_base.phi_phase,
         t_squeeze=config_base.t_squeeze,
         gamma_1=0.0,
         gamma_2=0.0,
@@ -268,7 +270,7 @@ def run_decoherence_sweep(
             n=config_base.n,
             omega_n=config_base.omega_n,
             theta_n=config_base.theta_n,
-            phi=config_base.phi,
+            phi_phase=config_base.phi_phase,
             t_squeeze=0.0,
             gamma_1=gamma if gamma_type == "gamma_1" else 0.0,
             gamma_2=gamma if gamma_type == "gamma_2" else 0.0,
@@ -278,7 +280,7 @@ def run_decoherence_sweep(
         rho_final = evolve_hybrid_lindblad(
             psi_squeezed,
             config_g,
-            T=config_base.t_squeeze,
+            T_decay=config_base.t_squeeze,
             dt=0.01,
         )
 

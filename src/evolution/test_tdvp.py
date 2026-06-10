@@ -9,6 +9,8 @@ import numpy as np
 import pytest
 import quimb.tensor as qtn
 
+from src.utils.constants import EYE, SIGMA_X, SIGMA_Z
+
 from .tdvp import (
     TDVPConfig,
     TDVPResult,
@@ -24,12 +26,6 @@ from .tdvp import (
     tdvp_single_site,
     validate_tdvp_step,
 )
-
-# Pauli matrices
-SIGMA_X = np.array([[0, 1], [1, 0]], dtype=complex)
-SIGMA_Z = np.array([[1, 0], [0, -1]], dtype=complex)
-SIGMA_Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
-EYE = np.array([[1, 0], [0, 1]], dtype=complex)
 
 
 def _make_tensor(state: np.ndarray) -> qtn.Tensor:
@@ -212,7 +208,7 @@ class TestTDVPEvolution:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.1,
+            T_evo=0.1,
             dt=0.01,
             n_sites=1,
             config=config,
@@ -229,7 +225,7 @@ class TestTDVPEvolution:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.1,
+            T_evo=0.1,
             dt=0.01,
             n_sites=1,
             config=config,
@@ -244,7 +240,7 @@ class TestTDVPEvolution:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.1,
+            T_evo=0.1,
             dt=0.01,
             n_sites=1,
             config=config,
@@ -259,7 +255,7 @@ class TestTDVPEvolution:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.1,
+            T_evo=0.1,
             dt=0.01,
             n_sites=1,
             config=config,
@@ -294,7 +290,7 @@ class TestExactEvolution:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.1,
+            T_evo=0.1,
             dt=0.01,
             n_sites=1,
             config=TDVPConfig(dt=0.01, trotter_order=2),
@@ -376,7 +372,7 @@ class TestTDVPEnergyConservation:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.05,
+            T_evo=0.05,
             dt=0.001,
             n_sites=1,
             config=TDVPConfig(dt=0.001),
@@ -398,7 +394,7 @@ class TestTDVPAgainstExact:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.1,
+            T_evo=0.1,
             dt=0.005,
             n_sites=1,
             config=TDVPConfig(dt=0.005, trotter_order=2),
@@ -422,7 +418,7 @@ class TestTDVPAgainstExact:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.05,
+            T_evo=0.05,
             dt=0.001,
             n_sites=1,
             config=TDVPConfig(dt=0.001, trotter_order=2),
@@ -454,7 +450,7 @@ class TestTDVPSmallSystemComparison:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.02,
+            T_evo=0.02,
             dt=0.002,
             n_sites=1,
             config=TDVPConfig(dt=0.002, trotter_order=2),
@@ -473,7 +469,7 @@ class TestTDVPSmallSystemComparison:
         result = tdvp_evolution(
             tensor,
             H,
-            T=0.1,
+            T_evo=0.1,
             dt=0.01,
             n_sites=1,
             config=TDVPConfig(dt=0.01),
@@ -502,7 +498,7 @@ class TestTDVPPerformance:
         tdvp_evolution(
             tensor,
             H,
-            T=0.1,
+            T_evo=0.1,
             dt=0.01,
             n_sites=1,
             config=TDVPConfig(dt=0.01),
@@ -520,7 +516,7 @@ class TestTDVPPerformance:
         tdvp_evolution(
             tensor,
             H,
-            T=1.0,
+            T_evo=1.0,
             dt=0.01,
             n_sites=1,
             config=TDVPConfig(dt=0.01),

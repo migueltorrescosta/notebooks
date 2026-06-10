@@ -58,7 +58,7 @@ class PseudomodeConfig:
         g_sp: System-pseudomode coupling strength.
         omega_0: Bath central frequency (pseudomode free energy).
         lam: Bath correlation rate (pseudomode damping rate).
-        T: Decoherence evolution time.
+        T_decay: Decoherence evolution time.
         dt: Time step for RK4 integration.
 
     """
@@ -71,7 +71,7 @@ class PseudomodeConfig:
     g_sp: float = 0.5
     omega_0: float = 0.0
     lam: float = 1.0
-    T: float = 2.0
+    T_decay: float = 2.0
     dt: float = 0.01
 
     def __post_init__(self) -> None:
@@ -82,8 +82,8 @@ class PseudomodeConfig:
             raise ValueError(f"K must be non-negative, got {self.K}")
         if self.dt <= 0:
             raise ValueError(f"dt must be positive, got {self.dt}")
-        if self.T < 0:
-            raise ValueError(f"T must be non-negative, got {self.T}")
+        if self.T_decay < 0:
+            raise ValueError(f"T_decay must be non-negative, got {self.T_decay}")
         if self.tau < 0:
             raise ValueError(f"tau must be non-negative, got {self.tau}")
 
@@ -426,14 +426,14 @@ def evolve_pseudomode(
 
     # No dissipation: use unitary evolution
     if len(L_ops) == 0:
-        U = scipy.linalg.expm(-1.0j * H * config.T)
+        U = scipy.linalg.expm(-1.0j * H * config.T_decay)
         return U @ rho0 @ U.conj().T
 
     # Dissipative evolution
     if method == "rk4":
-        return evolve_lindblad_rk4(rho0, H, L_ops, gammas, config.T, config.dt)
+        return evolve_lindblad_rk4(rho0, H, L_ops, gammas, config.T_decay, config.dt)
     if method == "scipy":
-        return evolve_lindblad_scipy(rho0, H, L_ops, gammas, config.T)
+        return evolve_lindblad_scipy(rho0, H, L_ops, gammas, config.T_decay)
     raise ValueError(f"Unknown method '{method}'. Use 'rk4' or 'scipy'.")
 
 

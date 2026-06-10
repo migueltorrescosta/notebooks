@@ -35,8 +35,9 @@ class TestGenerateTwinFockState:
         # Dicke basis: index i has m = N/2 - i
         # For m=0 at index N/2, ⟨J_z⟩ = 0
         from src.physics.dicke_basis import jz_operator
+        from src.utils.enums import OperatorBasis
 
-        jz = jz_operator(N)
+        jz = jz_operator(N, basis=OperatorBasis.DICKE)
         jz_mean = np.real(np.conj(state) @ jz @ state)
         assert jz_mean == pytest.approx(0.0, abs=1e-10)
 
@@ -77,8 +78,9 @@ class TestGenerateNOONState:
         N = 4
         state = generate_noon_state(N)
         from src.physics.dicke_basis import jz_operator
+        from src.utils.enums import OperatorBasis
 
-        jz = jz_operator(N)
+        jz = jz_operator(N, basis=OperatorBasis.DICKE)
         jz_mean = np.real(np.conj(state) @ jz @ state)
         assert jz_mean == pytest.approx(0.0, abs=1e-10)
 
@@ -86,8 +88,9 @@ class TestGenerateNOONState:
     def test_noon_variance_n_squared_over_4(self, N: int) -> None:
         state = generate_noon_state(N)
         from src.physics.dicke_basis import jz_operator
+        from src.utils.enums import OperatorBasis
 
-        jz = jz_operator(N)
+        jz = jz_operator(N, basis=OperatorBasis.DICKE)
         jz_sq = jz @ jz
         mean = np.real(np.conj(state) @ jz @ state)
         mean_sq = np.real(np.conj(state) @ jz_sq @ state)

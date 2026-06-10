@@ -28,33 +28,33 @@ class TestGenerateSystemState:
 
     @pytest.mark.parametrize("N", [1, 5, 10, 20], ids=["1", "5", "10", "20"])
     def test_given_coherent_then_have_correct_dimension(self, N: int) -> None:
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         assert state.shape == (N + 1,), (
             f"N={N}: expected dim {N + 1}, got {state.shape}"
         )
 
     @pytest.mark.parametrize("N", [1, 5, 10], ids=["1", "5", "10"])
     def test_given_coherent_then_be_normalised(self, N: int) -> None:
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         norm = np.sum(np.abs(state) ** 2)
         assert np.isclose(norm, 1.0, atol=1e-10), f"N={N}: norm={norm:.2e}"
 
     @pytest.mark.parametrize("N", [2, 5, 10], ids=["2", "5", "10"])
     def test_given_noon_then_have_correct_dimension(self, N: int) -> None:
-        state = generate_system_state(N, "noon", chi=1.0, T=1.0)
+        state = generate_system_state(N, "noon", chi=1.0, T_evo=1.0)
         assert state.shape == (N + 1,), (
             f"N={N}: expected dim {N + 1}, got {state.shape}"
         )
 
     @pytest.mark.parametrize("N", [2, 5, 10], ids=["2", "5", "10"])
     def test_given_noon_then_be_normalised(self, N: int) -> None:
-        state = generate_system_state(N, "noon", chi=1.0, T=1.0)
+        state = generate_system_state(N, "noon", chi=1.0, T_evo=1.0)
         norm = np.sum(np.abs(state) ** 2)
         assert np.isclose(norm, 1.0, atol=1e-10), f"N={N}: norm={norm:.2e}"
 
     @pytest.mark.parametrize("N", [2, 5, 10], ids=["2", "5", "10"])
     def test_given_noon_then_have_equal_amplitudes_at_extremes(self, N: int) -> None:
-        state = generate_system_state(N, "noon", chi=1.0, T=1.0)
+        state = generate_system_state(N, "noon", chi=1.0, T_evo=1.0)
         expected = 1.0 / np.sqrt(2)
         assert np.isclose(np.abs(state[0]), expected, atol=1e-10), (
             f"N={N}: expected |state[0]| = {expected:.4f}, got {np.abs(state[0]):.4f}"
@@ -65,7 +65,7 @@ class TestGenerateSystemState:
 
     def test_given_noon_then_have_zero_amplitudes_in_between(self) -> None:
         N = 5
-        state = generate_system_state(N, "noon", chi=1.0, T=1.0)
+        state = generate_system_state(N, "noon", chi=1.0, T_evo=1.0)
         for i in range(1, N):  # middle indices should be zero
             assert np.abs(state[i]) < 1e-15, (
                 f"index {i} should be zero, got {np.abs(state[i]):.2e}"
@@ -73,7 +73,7 @@ class TestGenerateSystemState:
 
     @pytest.mark.parametrize("N", [2, 5, 10], ids=["2", "5", "10"])
     def test_given_hybrid_then_have_correct_dimension(self, N: int) -> None:
-        state = generate_system_state(N, "hybrid", chi=1.0, T=1.0)
+        state = generate_system_state(N, "hybrid", chi=1.0, T_evo=1.0)
         assert state.shape == (N + 1,), (
             f"N={N}: expected dim {N + 1}, got {state.shape}"
         )
@@ -83,7 +83,7 @@ class TestGenerateSystemState:
         # Note: (squeezed + coherent)/√2 is not exactly normalized because
         # the squeezed and CSS states are not orthogonal. This matches the
         # original page code.
-        state = generate_system_state(N, "hybrid", chi=1.0, T=1.0)
+        state = generate_system_state(N, "hybrid", chi=1.0, T_evo=1.0)
         norm = np.sum(np.abs(state) ** 2)
         assert norm > 0.5, f"N={N}: norm={norm:.2e} (should be nonzero)"
 
@@ -92,20 +92,20 @@ class TestGenerateSystemState:
         # Just verify no crash for various N values. Note: the hybrid
         # state (squeezed + coherent)/√2 is not exactly normalized
         # because the squeezed and CSS states overlap.
-        state = generate_system_state(N, "hybrid", chi=1.0, T=1.0)
+        state = generate_system_state(N, "hybrid", chi=1.0, T_evo=1.0)
         assert state.shape == (N + 1,), f"N={N}: dim mismatch"
 
     def test_given_invalid_state_type_then_raise(self) -> None:
         with pytest.raises(ValueError, match="Unknown state type"):
-            generate_system_state(10, "invalid", chi=1.0, T=1.0)
+            generate_system_state(10, "invalid", chi=1.0, T_evo=1.0)
 
     def test_given_coherent_given_n_1_then_be_valid(self) -> None:
-        state = generate_system_state(1, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(1, "coherent", chi=1.0, T_evo=1.0)
         assert state.shape == (2,)
         assert np.isclose(np.sum(np.abs(state) ** 2), 1.0, atol=1e-10)
 
     def test_given_noon_given_n_1_then_have_two_terms(self) -> None:
-        state = generate_system_state(1, "noon", chi=1.0, T=1.0)
+        state = generate_system_state(1, "noon", chi=1.0, T_evo=1.0)
         expected = 1.0 / np.sqrt(2)
         assert np.isclose(np.abs(state[0]), expected, atol=1e-10)
         assert np.isclose(np.abs(state[1]), expected, atol=1e-10)
@@ -119,12 +119,12 @@ class TestComputePhaseSensitivity:
 
     def test_returns_dict_with_expected_keys(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=0.0,
             has_ancilla=False,
             noise_config=self._noise_config(),
@@ -144,12 +144,12 @@ class TestComputePhaseSensitivity:
 
     def test_given_delta_phi_then_be_positive(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=0.0,
             has_ancilla=False,
             noise_config=self._noise_config(),
@@ -159,12 +159,12 @@ class TestComputePhaseSensitivity:
 
     def test_given_sql_and_hl_bounds_then_be_correct(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=0.0,
             has_ancilla=False,
             noise_config=self._noise_config(),
@@ -176,12 +176,12 @@ class TestComputePhaseSensitivity:
 
     def test_given_without_ancilla_enhancement_then_be_1(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=1.0,
             has_ancilla=False,
             noise_config=self._noise_config(),
@@ -193,12 +193,12 @@ class TestComputePhaseSensitivity:
 
     def test_given_with_ancilla_and_lambda_zero_then_have_no_enhancement(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=0.0,
             has_ancilla=True,
             noise_config=self._noise_config(),
@@ -208,12 +208,12 @@ class TestComputePhaseSensitivity:
     def test_given_with_ancilla_enhancement_then_be_correct(self) -> None:
         N = 5
         lambda_coupling = 2.0
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=lambda_coupling,
             has_ancilla=True,
             noise_config=self._noise_config(),
@@ -225,12 +225,12 @@ class TestComputePhaseSensitivity:
 
     def test_given_with_ancilla_delta_phi_then_be_smaller(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result_no = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=1.0,
             has_ancilla=False,
             noise_config=self._noise_config(),
@@ -239,7 +239,7 @@ class TestComputePhaseSensitivity:
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=1.0,
             has_ancilla=True,
             noise_config=self._noise_config(),
@@ -250,12 +250,12 @@ class TestComputePhaseSensitivity:
 
     def test_given_jz_mean_then_be_real(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=0.0,
             has_ancilla=False,
             noise_config=self._noise_config(),
@@ -266,12 +266,12 @@ class TestComputePhaseSensitivity:
 
     def test_given_jz_var_then_be_non_negative(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=0.0,
             has_ancilla=False,
             noise_config=self._noise_config(),
@@ -282,12 +282,12 @@ class TestComputePhaseSensitivity:
 
     def test_given_delta_phi_then_be_between_sql_and_hl_for_low_noise(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=0.0,
             has_ancilla=False,
             noise_config=self._noise_config(),
@@ -302,12 +302,12 @@ class TestComputePhaseSensitivity:
         )
 
     def test_given_n_1_then_not_raise(self) -> None:
-        state = generate_system_state(1, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(1, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=1,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=0.0,
             has_ancilla=False,
             noise_config=self._noise_config(),
@@ -319,12 +319,12 @@ class TestComputePhaseSensitivity:
     ) -> None:
         noisy_config = NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.01)
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_phase_sensitivity(
             N=N,
             state=state,
             chi=1.0,
-            T=1.0,
+            T_decay=1.0,
             lambda_coupling=0.0,
             has_ancilla=False,
             noise_config=noisy_config,
@@ -337,7 +337,7 @@ class TestComputeTtnBondGrowth:
 
     def test_returns_dict_with_expected_keys(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_ttn_bond_growth(N, state)
         expected_keys = {"N", "max_bond_dim", "epsilons", "bond_dims"}
         assert set(result.keys()) == expected_keys, (
@@ -346,13 +346,13 @@ class TestComputeTtnBondGrowth:
 
     def test_given_n_then_match_input(self) -> None:
         N = 7
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_ttn_bond_growth(N, state)
         assert result["N"] == N, f"N mismatch: {result['N']} != {N}"
 
     def test_given_coherent_css_then_have_small_bond_dim(self) -> None:
         N = 10
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_ttn_bond_growth(N, state)
         # CSS is a product state, so bond dimension should be small
         assert result["max_bond_dim"] <= 3, (
@@ -361,7 +361,7 @@ class TestComputeTtnBondGrowth:
 
     def test_given_noon_then_have_bond_dim_geq_1(self) -> None:
         N = 10
-        noon = generate_system_state(N, "noon", chi=1.0, T=1.0)
+        noon = generate_system_state(N, "noon", chi=1.0, T_evo=1.0)
         noon_result = compute_ttn_bond_growth(N, noon)
         # NOON has two non-zero components, so PR=2, sqrt(PR)≈1.4, int=1.
         assert noon_result["max_bond_dim"] >= 1, (
@@ -370,7 +370,7 @@ class TestComputeTtnBondGrowth:
 
     def test_given_epsilons_then_have_four_elements(self) -> None:
         N = 5
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_ttn_bond_growth(N, state)
         assert len(result["epsilons"]) == 4, (
             f"Expected 4 epsilons, got {len(result['epsilons'])}"
@@ -381,7 +381,7 @@ class TestComputeTtnBondGrowth:
 
     def test_given_bond_dims_then_be_monotonic_decreasing(self) -> None:
         N = 10
-        state = generate_system_state(N, "noon", chi=1.0, T=1.0)
+        state = generate_system_state(N, "noon", chi=1.0, T_evo=1.0)
         result = compute_ttn_bond_growth(N, state)
         for i in range(len(result["bond_dims"]) - 1):
             assert result["bond_dims"][i] >= result["bond_dims"][i + 1], (
@@ -390,7 +390,7 @@ class TestComputeTtnBondGrowth:
 
     @pytest.mark.parametrize("N", [1, 5, 10, 20], ids=["1", "5", "10", "20"])
     def test_given_max_bond_dim_then_not_exceed_n(self, N: int) -> None:
-        state = generate_system_state(N, "noon", chi=1.0, T=1.0)
+        state = generate_system_state(N, "noon", chi=1.0, T_evo=1.0)
         result = compute_ttn_bond_growth(N, state)
         assert result["max_bond_dim"] <= N, (
             f"N={N}: max_bond_dim {result['max_bond_dim']} > N"
@@ -398,13 +398,13 @@ class TestComputeTtnBondGrowth:
 
     @pytest.mark.parametrize("N", [1, 5, 10], ids=["1", "5", "10"])
     def test_given_max_bond_dim_then_be_at_least_1(self, N: int) -> None:
-        state = generate_system_state(N, "coherent", chi=1.0, T=1.0)
+        state = generate_system_state(N, "coherent", chi=1.0, T_evo=1.0)
         result = compute_ttn_bond_growth(N, state)
         assert result["max_bond_dim"] >= 1, f"N={N}: max_bond_dim < 1"
 
     def test_same_state_gives_same_result(self) -> None:
         N = 5
-        state = generate_system_state(N, "hybrid", chi=1.0, T=1.0)
+        state = generate_system_state(N, "hybrid", chi=1.0, T_evo=1.0)
         result1 = compute_ttn_bond_growth(N, state)
         result2 = compute_ttn_bond_growth(N, state)
         assert result1["max_bond_dim"] == result2["max_bond_dim"]

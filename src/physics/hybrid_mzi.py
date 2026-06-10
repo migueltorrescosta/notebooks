@@ -256,14 +256,14 @@ def mzi_beam_splitter(N: int, theta: float = np.pi / 4) -> np.ndarray:
     return np.kron(bs_modes, np.eye(2, dtype=complex))
 
 
-def mzi_phase_shift(N: int, phi: float) -> np.ndarray:
+def mzi_phase_shift(N: int, phi_phase: float) -> np.ndarray:
     """Construct phase shift unitary on mode 1.
 
     U_phase = exp(i φ n₁) ⊗ I_mode2 ⊗ I_spin
 
     Args:
         N: Maximum photon number.
-        phi: Phase shift in radians.
+        phi_phase: Phase shift in radians.
 
     Returns:
         Unitary of shape (2(N+1)², 2(N+1)²).
@@ -277,7 +277,7 @@ def mzi_phase_shift(N: int, phi: float) -> np.ndarray:
     for n1 in range(dim_osc):
         for n2 in range(dim_osc):
             idx = n1 * dim_osc + n2
-            phase_op[idx, idx] = np.exp(1j * phi * n1)
+            phase_op[idx, idx] = np.exp(1j * phi_phase * n1)
 
     # Embed with spin identity
     return np.kron(phase_op, np.eye(2, dtype=complex))
@@ -312,7 +312,7 @@ def mzi_phase_generator(N: int) -> np.ndarray:
 def evolve_hybrid_mzi(
     hybrid_state: np.ndarray,
     N: int,
-    phi: float,
+    phi_phase: float,
     theta: float = np.pi / 4,
 ) -> np.ndarray:
     """Evolve hybrid state through MZI.
@@ -322,7 +322,7 @@ def evolve_hybrid_mzi(
     Args:
         hybrid_state: Input hybrid state of shape (2(N+1),).
         N: Maximum photon number.
-        phi: Phase shift in mode 1 (unknown parameter).
+        phi_phase: Phase shift in mode 1 (unknown parameter).
         theta: Beam splitter angle (default π/4 = 50/50).
 
     Returns:
@@ -337,7 +337,7 @@ def evolve_hybrid_mzi(
     state = bs @ state
 
     # Phase shift
-    ps = mzi_phase_shift(N, phi)
+    ps = mzi_phase_shift(N, phi_phase)
     state = ps @ state
 
     # BS2

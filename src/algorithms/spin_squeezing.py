@@ -212,10 +212,11 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
 
     # Import J operators from dicke_basis
     from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
+    from src.utils.enums import OperatorBasis
 
-    J_x = Qobj(jx_operator(N))
-    J_y = Qobj(jy_operator(N))
-    J_z = Qobj(jz_operator(N))
+    J_x = Qobj(jx_operator(N, basis=OperatorBasis.DICKE))
+    J_y = Qobj(jy_operator(N, basis=OperatorBasis.DICKE))
+    J_z = Qobj(jz_operator(N, basis=OperatorBasis.DICKE))
 
     # Mean values using qutip.expect
     jx_mean = float(expect(J_x, rho).real)

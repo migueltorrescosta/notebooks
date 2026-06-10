@@ -152,40 +152,29 @@ class TestJzOperator:
         "N", [1, 2, 3, 5, 10], ids=["N=1", "N=2", "N=3", "N=5", "N=10"]
     )
     def test_jz_is_diagonal(self, N: int) -> None:
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
         off_diagonal = J_z - np.diag(np.diag(J_z))
         assert off_diagonal == pytest.approx(0)
 
     @pytest.mark.parametrize("N", [1, 2, 5, 10], ids=["N=1", "N=2", "N=5", "N=10"])
     def test_jz_diagonal_matches_eigenvalues(self, N: int) -> None:
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
         eigenvalues = np.arange(N / 2.0, -N / 2.0 - 1, -1)
         assert J_z.diagonal() == pytest.approx(eigenvalues)
 
     @pytest.mark.parametrize("N", [1, 2, 5], ids=["N=1", "N=2", "N=5"])
     def test_jz_is_hermitian(self, N: int) -> None:
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
         assert J_z == pytest.approx(J_z.T.conj())
 
     @pytest.mark.parametrize("N", [1, 2, 5, 10], ids=["N=1", "N=2", "N=5", "N=10"])
     def test_jz_dimension_is_n_plus_one(self, N: int) -> None:
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
         assert J_z.shape == (N + 1, N + 1)
 
 
 class TestJzBasisConventions:
     """Verify jz_operator basis conventions are consistent."""
-
-    @pytest.mark.parametrize("N", [2, 4, 10])
-    def test_given_dicke_basis_explicit_vs_default_then_match(self, N: int) -> None:
-        mat_default = jz_operator(N)
-        mat_explicit = jz_operator(N, basis=OperatorBasis.DICKE)
-        np.testing.assert_allclose(
-            mat_default,
-            mat_explicit,
-            rtol=1e-12,
-            err_msg=f"Default basis does not match explicit DICKE for N={N}",
-        )
 
     @pytest.mark.parametrize("N", [2, 4, 10])
     def test_given_fock_basis_is_reversed_dicke_then_have_reversed_eigenvalues(
@@ -209,12 +198,12 @@ class TestJxOperator:
         "N", [1, 2, 3, 5, 10], ids=["N=1", "N=2", "N=3", "N=5", "N=10"]
     )
     def test_jx_is_real_symmetric(self, N: int) -> None:
-        J_x = jx_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
         assert J_x == pytest.approx(J_x.T)
 
     def test_jx_nonzero_only_on_first_off_diagonals(self) -> None:
         N = 5
-        J_x = jx_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
         for i in range(N + 1):
             for j in range(N + 1):
                 if abs(i - j) > 1:
@@ -223,7 +212,7 @@ class TestJxOperator:
     def test_jx_matrix_elements_match_analytical_formula(self) -> None:
         N = 4
         J = N / 2.0
-        J_x = jx_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
 
         for i in range(N):
             m = J - i
@@ -233,21 +222,21 @@ class TestJxOperator:
 
     @pytest.mark.parametrize("N", [1, 2, 5], ids=["N=1", "N=2", "N=5"])
     def test_jx_is_hermitian(self, N: int) -> None:
-        J_x = jx_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
         assert J_x == pytest.approx(J_x.conj().T)
 
     @pytest.mark.parametrize("N", [1, 2, 5, 10], ids=["N=1", "N=2", "N=5", "N=10"])
     def test_jx_dimension_is_n_plus_one(self, N: int) -> None:
-        J_x = jx_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
         assert J_x.shape == (N + 1, N + 1)
 
 
 class TestCommutationRelations:
     @pytest.mark.parametrize("N", [1, 2, 3, 5], ids=["N=1", "N=2", "N=3", "N=5"])
     def test_commutator_jx_jy_equals_i_jz(self, N: int) -> None:
-        J_x = jx_operator(N)
-        J_y = jy_operator(N)
-        J_z = jz_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
+        J_y = jy_operator(N, basis=OperatorBasis.DICKE)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
 
         commutator = J_x @ J_y - J_y @ J_x
         expected = 1j * J_z
@@ -255,9 +244,9 @@ class TestCommutationRelations:
 
     @pytest.mark.parametrize("N", [1, 2, 3, 5], ids=["N=1", "N=2", "N=3", "N=5"])
     def test_commutator_jy_jz_equals_i_jx(self, N: int) -> None:
-        J_x = jx_operator(N)
-        J_y = jy_operator(N)
-        J_z = jz_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
+        J_y = jy_operator(N, basis=OperatorBasis.DICKE)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
 
         commutator = J_y @ J_z - J_z @ J_y
         expected = 1j * J_x
@@ -265,9 +254,9 @@ class TestCommutationRelations:
 
     @pytest.mark.parametrize("N", [1, 2, 3, 5], ids=["N=1", "N=2", "N=3", "N=5"])
     def test_commutator_jz_jx_equals_i_jy(self, N: int) -> None:
-        J_x = jx_operator(N)
-        J_y = jy_operator(N)
-        J_z = jz_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
+        J_y = jy_operator(N, basis=OperatorBasis.DICKE)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
 
         commutator = J_z @ J_x - J_x @ J_z
         expected = 1j * J_y
@@ -279,37 +268,37 @@ class TestPhysicalInvariants:
         "N", [1, 2, 3, 4, 5], ids=["N=1", "N=2", "N=3", "N=4", "N=5"]
     )
     def test_jz_trace_is_zero(self, N: int) -> None:
-        J_z = jz_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
         trace = np.trace(J_z)
         assert trace == pytest.approx(0, abs=1e-10)
 
     @pytest.mark.parametrize("N", [1, 2, 5], ids=["N=1", "N=2", "N=5"])
     def test_jx_is_real_valued(self, N: int) -> None:
-        J_x = jx_operator(N)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
         assert np.isrealobj(J_x)
 
     @pytest.mark.parametrize("N", [1, 2, 3, 5], ids=["N=1", "N=2", "N=3", "N=5"])
     def test_jy_is_hermitian(self, N: int) -> None:
-        J_y = jy_operator(N)
+        J_y = jy_operator(N, basis=OperatorBasis.DICKE)
         assert J_y == pytest.approx(J_y.T.conj())
 
 
 class TestEdgeCases:
     def test_given_n0_then_jz_is_1x1_zero(self) -> None:
-        J_z = jz_operator(0)
+        J_z = jz_operator(0, basis=OperatorBasis.DICKE)
         assert J_z.shape == (1, 1)
         assert J_z[0, 0] == pytest.approx(0.0)
 
     def test_given_n1_then_operators_match_spin_half(self) -> None:
-        J_z = jz_operator(1)
-        J_x = jx_operator(1)
+        J_z = jz_operator(1, basis=OperatorBasis.DICKE)
+        J_x = jx_operator(1, basis=OperatorBasis.DICKE)
 
         assert np.allclose(J_z, [[0.5, 0], [0, -0.5]])
         assert np.allclose(J_x, [[0, 0.5], [0.5, 0]])
 
     def test_given_n2_then_operators_match_spin_one(self) -> None:
-        J_z = jz_operator(2)
-        J_x = jx_operator(2)
+        J_z = jz_operator(2, basis=OperatorBasis.DICKE)
+        J_x = jx_operator(2, basis=OperatorBasis.DICKE)
 
         assert np.allclose(J_z, [[1, 0, 0], [0, 0, 0], [0, 0, -1]])
         sqrt2 = np.sqrt(2)
@@ -324,9 +313,9 @@ class TestEdgeCases:
 class TestNumericalStability:
     def test_given_n100_then_operators_have_correct_shape(self) -> None:
         N = 100
-        J_z = jz_operator(N)
-        J_x = jx_operator(N)
-        J_y = jy_operator(N)
+        J_z = jz_operator(N, basis=OperatorBasis.DICKE)
+        J_x = jx_operator(N, basis=OperatorBasis.DICKE)
+        J_y = jy_operator(N, basis=OperatorBasis.DICKE)
 
         assert J_z.shape == (N + 1, N + 1)
         assert J_x.shape == (N + 1, N + 1)

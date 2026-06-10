@@ -30,11 +30,11 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     AZZ_BOUNDS,
     R_MAX,
     SQL,
-    T_H,
     FreeAncilla2DSliceResult,
     FreeAncillaNelderMeadResult,
+    FreeAncillaOmegaScanResult,
     FreeAncillaSearchResult,
-    FreeAncillaThetaScanResult,
+    T_hold,
     _marsaglia_3ball_sample,
     _params_to_full,
     _sample_scenario_A,
@@ -47,10 +47,10 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     free_ancilla_random_search,
     plot_cross_scenario_comparison,
     plot_norm_envelope_comparison,
-    plot_scenario_best_ratio_by_theta,
-    plot_theta_A_azz_slice_heatmap,
+    plot_omega_A_azz_slice_heatmap,
+    plot_scenario_best_ratio_by_omega,
     run_free_ancilla_nelder_mead,
-    run_free_ancilla_theta_scan,
+    run_free_ancilla_omega_scan,
 )
 
 # ============================================================================
@@ -73,13 +73,13 @@ class TestFreeAncillaInitialState:
         state = free_ancilla_initial_state(0.0, 0.0)
         assert np.isclose(np.linalg.norm(state), 1.0)
 
-    def test_theta_zero_gives_00(self) -> None:
+    def test_omega_zero_gives_00(self) -> None:
         """At theta_A=0, the state should be |00⟩."""
         state = free_ancilla_initial_state(0.0, 0.0)
         expected = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)
         assert np.allclose(state, expected)
 
-    def test_theta_pi_gives_01_superposition(self) -> None:
+    def test_omega_pi_gives_01_superposition(self) -> None:
         """At theta_A=π, the state should be |0⟩(|0⟩+|1⟩)/√2."""
         state = free_ancilla_initial_state(np.pi, 0.0)
         # |1,0⟩_S ⊗ (cos(π/2)|1,0⟩_A + sin(π/2)|0,1⟩_A)
@@ -87,7 +87,7 @@ class TestFreeAncillaInitialState:
         expected = np.array([0.0, 1.0, 0.0, 0.0], dtype=complex)
         assert np.allclose(state, expected)
 
-    def test_theta_pi_over_2_gives_equal_superposition(self) -> None:
+    def test_omega_pi_over_2_gives_equal_superposition(self) -> None:
         """At theta_A=π/2, phi_A=0, the ancilla is in (|0⟩+|1⟩)/√2."""
         state = free_ancilla_initial_state(np.pi / 2, 0.0)
         # |1,0⟩_S ⊗ (cos(π/4)|1,0⟩_A + sin(π/4)|0,1⟩_A)
@@ -227,8 +227,8 @@ class TestParamsToFull:
 
 class TestComputeFreeAncillaSensitivity:
     def test_decoupled_baseline_returns_sql(self) -> None:
-        """At all-zero parameters with theta_A=0, Δθ should equal SQL."""
-        dtheta, exp_val, var_val, _deriv, fringe = compute_free_ancilla_sensitivity(
+        """At all-zero parameters with theta_A=0, Δω should equal SQL."""
+        domega, exp_val, var_val, _deriv, fringe = compute_free_ancilla_sensitivity(
             1.0,
             0.0,
             0.0,
@@ -237,8 +237,8 @@ class TestComputeFreeAncillaSensitivity:
             0.0,
             0.0,
         )
-        assert np.isclose(dtheta, SQL, rtol=1e-8), (
-            f"Decoupled Δθ={dtheta} should equal SQL={SQL}"
+        assert np.isclose(domega, SQL, rtol=1e-8), (
+            f"Decoupled Δω={domega} should equal SQL={SQL}"
         )
         assert not fringe
         assert var_val >= 0.0
@@ -246,7 +246,7 @@ class TestComputeFreeAncillaSensitivity:
 
     def test_fringe_extremum_detected(self) -> None:
         """Some configurations give zero derivative → flagged as fringe."""
-        dtheta, _exp, _var, _deriv, fringe = compute_free_ancilla_sensitivity(
+        domega, _exp, _var, _deriv, fringe = compute_free_ancilla_sensitivity(
             1.0,
             0.0,
             0.0,
@@ -256,11 +256,11 @@ class TestComputeFreeAncillaSensitivity:
             5.0,
         )
         if fringe:
-            assert np.isinf(dtheta)
+            assert np.isinf(domega)
 
     def test_nonzero_drive_returns_finite(self) -> None:
-        """Most non-pathological configurations should give finite Δθ."""
-        dtheta, *_ = compute_free_ancilla_sensitivity(
+        """Most non-pathological configurations should give finite Δω."""
+        domega, *_ = compute_free_ancilla_sensitivity(
             1.0,
             np.pi / 4,
             0.0,
@@ -269,8 +269,8 @@ class TestComputeFreeAncillaSensitivity:
             -0.3,
             2.0,
         )
-        if np.isfinite(dtheta):
-            assert dtheta > 0.0
+        if np.isfinite(domega):
+            assert domega > 0.0
 
     def test_returns_five_values(self) -> None:
         result = compute_free_ancilla_sensitivity(
@@ -283,8 +283,8 @@ class TestComputeFreeAncillaSensitivity:
             0.0,
         )
         assert len(result) == 5
-        dtheta, exp_val, var_val, deriv, fringe = result
-        assert isinstance(dtheta, float)
+        domega, exp_val, var_val, deriv, fringe = result
+        assert isinstance(domega, float)
         assert isinstance(exp_val, float)
         assert isinstance(var_val, float)
         assert isinstance(deriv, float)
@@ -299,34 +299,34 @@ class TestComputeFreeAncillaSensitivity:
 class TestFreeAncillaRandomSearch:
     def test_small_run_shape(self) -> None:
         result = free_ancilla_random_search(
-            theta=1.0,
+            omega=1.0,
             scenario="B",
             n_samples=10,
             seed=42,
         )
         assert result.samples.shape == (10, 6)
-        assert result.delta_theta_values.shape == (10,)
+        assert result.delta_omega_values.shape == (10,)
         assert result.scenario == "B"
 
     def test_deterministic_with_seed(self) -> None:
         r1 = free_ancilla_random_search(1.0, "B", n_samples=10, seed=42)
         r2 = free_ancilla_random_search(1.0, "B", n_samples=10, seed=42)
         assert np.allclose(r1.samples, r2.samples)
-        assert np.allclose(r1.delta_theta_values, r2.delta_theta_values)
+        assert np.allclose(r1.delta_omega_values, r2.delta_omega_values)
 
     def test_some_finite_values(self) -> None:
         result = free_ancilla_random_search(1.0, "B", n_samples=20, seed=42)
-        finite_count = np.sum(np.isfinite(result.delta_theta_values))
-        assert finite_count > 0, "No finite Δθ values found"
+        finite_count = np.sum(np.isfinite(result.delta_omega_values))
+        assert finite_count > 0, "No finite Δω values found"
 
     def test_scenario_A_baseline(self) -> None:
         """Scenario A should not beat SQL."""
         result = free_ancilla_random_search(1.0, "A", n_samples=20, seed=42)
-        finite_mask = np.isfinite(result.delta_theta_values)
+        finite_mask = np.isfinite(result.delta_omega_values)
         if np.any(finite_mask):
-            min_dt = np.min(result.delta_theta_values[finite_mask])
+            min_dt = np.min(result.delta_omega_values[finite_mask])
             assert min_dt >= SQL - 1e-10, (
-                f"Scenario A min Δθ={min_dt} is below SQL={SQL}"
+                f"Scenario A min Δω={min_dt} is below SQL={SQL}"
             )
 
     def test_norms_within_R(self) -> None:
@@ -379,7 +379,7 @@ class TestFreeAncillaSearchResultParquet:
         deltas[1] = 0.42  # the minimum
         return FreeAncillaSearchResult(
             samples=samples,
-            delta_theta_values=deltas,
+            delta_omega_values=deltas,
             expectation_values=rng.uniform(-0.5, 0.5, n_samp),
             variance_values=rng.uniform(0.0, 0.5, n_samp),
             deriv_values=rng.uniform(-1.0, 1.0, n_samp),
@@ -392,10 +392,10 @@ class TestFreeAncillaSearchResultParquet:
                 float(samples[1, 4]),
                 float(samples[1, 5]),
             ),
-            best_delta_theta=float(deltas[1]),
-            theta_value=1.0,
+            best_delta_omega=float(deltas[1]),
+            omega_value=1.0,
             sql=0.1,
-            T_H=10.0,
+            T_hold=10.0,
             R=5.0,
             scenario="B",
         )
@@ -408,8 +408,8 @@ class TestFreeAncillaSearchResultParquet:
         loaded = FreeAncillaSearchResult.from_parquet(p)
         assert np.allclose(loaded.samples, make_result.samples)
         assert np.allclose(
-            loaded.delta_theta_values,
-            make_result.delta_theta_values,
+            loaded.delta_omega_values,
+            make_result.delta_omega_values,
             equal_nan=True,
         )
         assert np.allclose(loaded.expectation_values, make_result.expectation_values)
@@ -417,10 +417,10 @@ class TestFreeAncillaSearchResultParquet:
         assert np.allclose(loaded.deriv_values, make_result.deriv_values)
         assert np.array_equal(loaded.is_fringe, make_result.is_fringe)
         assert loaded.best_params == make_result.best_params
-        assert np.isclose(loaded.best_delta_theta, make_result.best_delta_theta)
-        assert loaded.theta_value == make_result.theta_value
+        assert np.isclose(loaded.best_delta_omega, make_result.best_delta_omega)
+        assert loaded.omega_value == make_result.omega_value
         assert loaded.sql == make_result.sql
-        assert loaded.T_H == make_result.T_H
+        assert loaded.T_hold == make_result.T_hold
         assert loaded.R == make_result.R
         assert loaded.scenario == make_result.scenario
 
@@ -444,10 +444,10 @@ class TestFreeAncillaNelderMeadResultParquet:
     @pytest.fixture
     def make_result(self) -> FreeAncillaNelderMeadResult:
         return FreeAncillaNelderMeadResult(
-            delta_theta_opt=0.09,
+            delta_omega_opt=0.09,
             params_opt=np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0]),
             full_params_opt=(0.5, 1.0, 2.0, 3.0, 4.0, 5.0),
-            theta_true=1.0,
+            omega_true=1.0,
             scenario="B",
             success=True,
             nfev=100,
@@ -462,10 +462,10 @@ class TestFreeAncillaNelderMeadResultParquet:
         p = tmp_path / "nm.parquet"
         make_result.save_parquet(p)
         loaded = FreeAncillaNelderMeadResult.from_parquet(p)
-        assert np.isclose(loaded.delta_theta_opt, make_result.delta_theta_opt)
+        assert np.isclose(loaded.delta_omega_opt, make_result.delta_omega_opt)
         assert np.allclose(loaded.params_opt, make_result.params_opt)
         assert loaded.full_params_opt == make_result.full_params_opt
-        assert loaded.theta_true == make_result.theta_true
+        assert loaded.omega_true == make_result.omega_true
         assert loaded.scenario == make_result.scenario
         assert loaded.success == make_result.success
         assert loaded.nfev == make_result.nfev
@@ -477,63 +477,63 @@ class TestFreeAncillaNelderMeadResultParquet:
     ) -> None:
         p = tmp_path / "bad.parquet"
         df = make_result.to_dataframe()
-        df = df.drop(columns=["theta_true"])
+        df = df.drop(columns=["omega_true"])
         df.to_parquet(p, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
             FreeAncillaNelderMeadResult.from_parquet(p)
 
 
 # ============================================================================
-# FreeAncillaThetaScanResult — Parquet Roundtrip
+# FreeAncillaOmegaScanResult — Parquet Roundtrip
 # ============================================================================
 
 
-class TestFreeAncillaThetaScanResultParquet:
+class TestFreeAncillaOmegaScanResultParquet:
     @pytest.fixture
-    def make_result(self) -> FreeAncillaThetaScanResult:
-        return FreeAncillaThetaScanResult(
-            theta_values=np.array([0.1, 1.0, 5.0], dtype=float),
-            best_params_per_theta=[
+    def make_result(self) -> FreeAncillaOmegaScanResult:
+        return FreeAncillaOmegaScanResult(
+            omega_values=np.array([0.1, 1.0, 5.0], dtype=float),
+            best_params_per_omega=[
                 (0.0, 0.0, 1.0, 2.0, 3.0, 4.0),
                 (0.5, 1.0, 2.0, 3.0, 4.0, 5.0),
                 (1.0, 2.0, 3.0, 4.0, 5.0, 6.0),
             ],
-            best_delta_theta_per_theta=np.array([0.1, 0.09, 0.08], dtype=float),
+            best_delta_omega_per_omega=np.array([0.1, 0.09, 0.08], dtype=float),
             sql_values=np.array([0.1, 0.1, 0.1], dtype=float),
-            expectation_Jz_per_theta=np.array([0.0, 0.25, -0.1], dtype=float),
-            variance_Jz_per_theta=np.array([0.01, 0.1, 0.05], dtype=float),
+            expectation_Jz_per_omega=np.array([0.0, 0.25, -0.1], dtype=float),
+            variance_Jz_per_omega=np.array([0.01, 0.1, 0.05], dtype=float),
             scenario="B",
         )
 
     def test_roundtrip(
-        self, make_result: FreeAncillaThetaScanResult, tmp_path: Path
+        self, make_result: FreeAncillaOmegaScanResult, tmp_path: Path
     ) -> None:
         p = tmp_path / "scan.parquet"
         make_result.save_parquet(p)
-        loaded = FreeAncillaThetaScanResult.from_parquet(p)
-        assert np.allclose(loaded.theta_values, make_result.theta_values)
-        assert loaded.best_params_per_theta == make_result.best_params_per_theta
+        loaded = FreeAncillaOmegaScanResult.from_parquet(p)
+        assert np.allclose(loaded.omega_values, make_result.omega_values)
+        assert loaded.best_params_per_omega == make_result.best_params_per_omega
         assert np.allclose(
-            loaded.best_delta_theta_per_theta, make_result.best_delta_theta_per_theta
+            loaded.best_delta_omega_per_omega, make_result.best_delta_omega_per_omega
         )
         assert np.allclose(loaded.sql_values, make_result.sql_values)
         assert np.allclose(
-            loaded.expectation_Jz_per_theta, make_result.expectation_Jz_per_theta
+            loaded.expectation_Jz_per_omega, make_result.expectation_Jz_per_omega
         )
         assert np.allclose(
-            loaded.variance_Jz_per_theta, make_result.variance_Jz_per_theta
+            loaded.variance_Jz_per_omega, make_result.variance_Jz_per_omega
         )
         assert loaded.scenario == make_result.scenario
 
     def test_fail_fast_missing_column(
-        self, make_result: FreeAncillaThetaScanResult, tmp_path: Path
+        self, make_result: FreeAncillaOmegaScanResult, tmp_path: Path
     ) -> None:
         p = tmp_path / "bad.parquet"
         df = make_result.to_dataframe()
         df = df.drop(columns=["scenario"])
         df.to_parquet(p, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
-            FreeAncillaThetaScanResult.from_parquet(p)
+            FreeAncillaOmegaScanResult.from_parquet(p)
 
 
 # ============================================================================
@@ -543,44 +543,44 @@ class TestFreeAncillaThetaScanResultParquet:
 
 class TestFreeAncilla2DSlice:
     def test_slice_returns_correct_shape(self) -> None:
-        result = free_ancilla_2d_slice(theta=1.0, n_grid=5)
-        assert result.delta_theta_grid.shape == (5, 5)
+        result = free_ancilla_2d_slice(omega=1.0, n_grid=5)
+        assert result.delta_omega_grid.shape == (5, 5)
         assert len(result.theta_A_values) == 5
         assert len(result.azz_values) == 5
 
     def test_slice_sql_bound_holds(self) -> None:
-        result = free_ancilla_2d_slice(theta=1.0, n_grid=5)
-        finite_mask = np.isfinite(result.delta_theta_grid)
+        result = free_ancilla_2d_slice(omega=1.0, n_grid=5)
+        finite_mask = np.isfinite(result.delta_omega_grid)
         if np.any(finite_mask):
-            min_val = np.min(result.delta_theta_grid[finite_mask])
+            min_val = np.min(result.delta_omega_grid[finite_mask])
             assert min_val >= result.sql - 1e-10, (
-                f"Min Δθ={min_val} below SQL={result.sql}"
+                f"Min Δω={min_val} below SQL={result.sql}"
             )
 
-    def test_slice_baseline_at_theta_A_zero(self) -> None:
+    def test_slice_baseline_at_omega_A_zero(self) -> None:
         """At theta_A=0, the slice should reproduce the decoupled baseline
-        (Δθ = SQL) for all a_zz, matching 20260527 results."""
-        result = free_ancilla_2d_slice(theta=1.0, n_grid=5)
+        (Δω = SQL) for all a_zz, matching 20260527 results."""
+        result = free_ancilla_2d_slice(omega=1.0, n_grid=5)
         # theta_A=0 is the first row
         for j in range(len(result.azz_values)):
-            dtheta = result.delta_theta_grid[0, j]
-            if np.isfinite(dtheta):
-                assert np.isclose(dtheta, result.sql, rtol=1e-8), (
+            domega = result.delta_omega_grid[0, j]
+            if np.isfinite(domega):
+                assert np.isclose(domega, result.sql, rtol=1e-8), (
                     f"At theta_A=0, a_zz={result.azz_values[j]}: "
-                    f"Δθ={dtheta} should equal SQL={result.sql}"
+                    f"Δω={domega} should equal SQL={result.sql}"
                 )
 
     def test_slice_parquet_roundtrip(self, tmp_path: Path) -> None:
-        result = free_ancilla_2d_slice(theta=1.0, n_grid=3)
+        result = free_ancilla_2d_slice(omega=1.0, n_grid=3)
         p = tmp_path / "slice.parquet"
         result.save_parquet(p)
         loaded = FreeAncilla2DSliceResult.from_parquet(p)
         assert np.allclose(loaded.theta_A_values, result.theta_A_values)
         assert np.allclose(loaded.azz_values, result.azz_values)
         assert np.allclose(
-            loaded.delta_theta_grid, result.delta_theta_grid, equal_nan=True
+            loaded.delta_omega_grid, result.delta_omega_grid, equal_nan=True
         )
-        assert np.isclose(loaded.theta_value, result.theta_value)
+        assert np.isclose(loaded.omega_value, result.omega_value)
         assert np.isclose(loaded.sql, result.sql)
 
 
@@ -595,8 +595,8 @@ class TestFreeAncilla2DSliceResultParquet:
         return FreeAncilla2DSliceResult(
             theta_A_values=np.linspace(0.0, np.pi, 5),
             azz_values=np.linspace(-5.0, 5.0, 5),
-            delta_theta_grid=np.ones((5, 5)) * 0.1,
-            theta_value=1.0,
+            delta_omega_grid=np.ones((5, 5)) * 0.1,
+            omega_value=1.0,
             sql=0.1,
         )
 
@@ -608,8 +608,8 @@ class TestFreeAncilla2DSliceResultParquet:
         loaded = FreeAncilla2DSliceResult.from_parquet(p)
         assert np.allclose(loaded.theta_A_values, make_result.theta_A_values)
         assert np.allclose(loaded.azz_values, make_result.azz_values)
-        assert np.allclose(loaded.delta_theta_grid, make_result.delta_theta_grid)
-        assert np.isclose(loaded.theta_value, make_result.theta_value)
+        assert np.allclose(loaded.delta_omega_grid, make_result.delta_omega_grid)
+        assert np.isclose(loaded.omega_value, make_result.omega_value)
         assert np.isclose(loaded.sql, make_result.sql)
 
     def test_fail_fast_missing_column(
@@ -617,7 +617,7 @@ class TestFreeAncilla2DSliceResultParquet:
     ) -> None:
         p = tmp_path / "bad.parquet"
         df = make_result.to_dataframe()
-        df = df.drop(columns=["theta_value"])
+        df = df.drop(columns=["omega_value"])
         df.to_parquet(p, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
             FreeAncilla2DSliceResult.from_parquet(p)
@@ -632,86 +632,86 @@ class TestFreeAncillaNelderMead:
     def test_basic_run_scenario_A(self) -> None:
         """Nelder-Mead from a known good starting point."""
         result = run_free_ancilla_nelder_mead(
-            theta_true=1.0,
+            omega_true=1.0,
             scenario="A",
             x0=np.array([0.0, 0.0, 0.0, 0.0]),
             maxiter=10,
             fatol=1e-6,
         )
-        assert np.isfinite(result.delta_theta_opt)
+        assert np.isfinite(result.delta_omega_opt)
         assert result.scenario == "A"
 
     def test_basic_run_scenario_B(self) -> None:
         result = run_free_ancilla_nelder_mead(
-            theta_true=1.0,
+            omega_true=1.0,
             scenario="B",
             x0=np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
             maxiter=10,
             fatol=1e-6,
         )
-        assert np.isfinite(result.delta_theta_opt)
+        assert np.isfinite(result.delta_omega_opt)
         assert result.scenario == "B"
 
     def test_basic_run_scenario_C(self) -> None:
         result = run_free_ancilla_nelder_mead(
-            theta_true=1.0,
+            omega_true=1.0,
             scenario="C",
             x0=np.array([0.0, 0.0, 0.0]),
             maxiter=10,
             fatol=1e-6,
         )
-        assert np.isfinite(result.delta_theta_opt)
+        assert np.isfinite(result.delta_omega_opt)
         assert result.scenario == "C"
 
     def test_basic_run_scenario_D(self) -> None:
         result = run_free_ancilla_nelder_mead(
-            theta_true=1.0,
+            omega_true=1.0,
             scenario="D",
             x0=np.array([0.0, 0.0, 0.0, 0.0, 0.0]),
             maxiter=10,
             fatol=1e-6,
         )
-        assert np.isfinite(result.delta_theta_opt)
+        assert np.isfinite(result.delta_omega_opt)
         assert result.scenario == "D"
 
 
 # ============================================================================
-# Theta Scan (small test)
+# Omega Scan (small test)
 # ============================================================================
 
 
-class TestRunFreeAncillaThetaScan:
+class TestRunFreeAncillaOmegaScan:
     def test_small_scan_produces_correct_shape(self) -> None:
-        result = run_free_ancilla_theta_scan(
-            theta_values=[1.0],
+        result = run_free_ancilla_omega_scan(
+            omega_values=[1.0],
             scenario="B",
             n_random=10,
             n_nm_refine=3,
             seed=42,
         )
-        assert len(result.theta_values) == 1
-        assert len(result.best_params_per_theta) == 1
+        assert len(result.omega_values) == 1
+        assert len(result.best_params_per_omega) == 1
         assert result.scenario == "B"
-        assert np.isfinite(result.best_delta_theta_per_theta[0]) or np.isinf(
-            result.best_delta_theta_per_theta[0]
+        assert np.isfinite(result.best_delta_omega_per_omega[0]) or np.isinf(
+            result.best_delta_omega_per_omega[0]
         )
 
     def test_deterministic_with_seed(self) -> None:
-        r1 = run_free_ancilla_theta_scan(
+        r1 = run_free_ancilla_omega_scan(
             [1.0],
             "B",
             n_random=10,
             n_nm_refine=2,
             seed=42,
         )
-        r2 = run_free_ancilla_theta_scan(
+        r2 = run_free_ancilla_omega_scan(
             [1.0],
             "B",
             n_random=10,
             n_nm_refine=2,
             seed=42,
         )
-        assert np.allclose(r1.best_delta_theta_per_theta, r2.best_delta_theta_per_theta)
+        assert np.allclose(r1.best_delta_omega_per_omega, r2.best_delta_omega_per_omega)
 
 
 # ============================================================================
@@ -721,18 +721,18 @@ class TestRunFreeAncillaThetaScan:
 
 class TestPlotFunctions:
     @pytest.fixture
-    def make_scan_result(self) -> FreeAncillaThetaScanResult:
-        return FreeAncillaThetaScanResult(
-            theta_values=np.array([0.1, 1.0, 5.0], dtype=float),
-            best_params_per_theta=[
+    def make_scan_result(self) -> FreeAncillaOmegaScanResult:
+        return FreeAncillaOmegaScanResult(
+            omega_values=np.array([0.1, 1.0, 5.0], dtype=float),
+            best_params_per_omega=[
                 (0.0, 0.0, 1.0, 2.0, 3.0, 4.0),
                 (0.5, 1.0, 2.0, 3.0, 4.0, 5.0),
                 (1.0, 2.0, 3.0, 4.0, 5.0, 6.0),
             ],
-            best_delta_theta_per_theta=np.array([0.1, 0.09, 0.08], dtype=float),
+            best_delta_omega_per_omega=np.array([0.1, 0.09, 0.08], dtype=float),
             sql_values=np.array([0.1, 0.1, 0.1], dtype=float),
-            expectation_Jz_per_theta=np.array([0.0, 0.25, -0.1], dtype=float),
-            variance_Jz_per_theta=np.array([0.01, 0.1, 0.05], dtype=float),
+            expectation_Jz_per_omega=np.array([0.0, 0.25, -0.1], dtype=float),
+            variance_Jz_per_omega=np.array([0.01, 0.1, 0.05], dtype=float),
             scenario="B",
         )
 
@@ -741,47 +741,47 @@ class TestPlotFunctions:
         return FreeAncilla2DSliceResult(
             theta_A_values=np.linspace(0.0, np.pi, 10),
             azz_values=np.linspace(-5.0, 5.0, 10),
-            delta_theta_grid=np.ones((10, 10)) * 0.1,
-            theta_value=1.0,
+            delta_omega_grid=np.ones((10, 10)) * 0.1,
+            omega_value=1.0,
             sql=0.1,
         )
 
-    def test_plot_scenario_best_ratio_by_theta_saves_svg(
-        self, make_scan_result: FreeAncillaThetaScanResult, tmp_path: Path
+    def test_plot_scenario_best_ratio_by_omega_saves_svg(
+        self, make_scan_result: FreeAncillaOmegaScanResult, tmp_path: Path
     ) -> None:
         svg_p = tmp_path / "ratio.svg"
-        result = plot_scenario_best_ratio_by_theta(make_scan_result, svg_p)
+        result = plot_scenario_best_ratio_by_omega(make_scan_result, svg_p)
         assert result.exists()
         assert result.suffix == ".svg"
         assert result.stat().st_size > 0
 
-    def test_plot_theta_A_azz_slice_heatmap_saves_svg(
+    def test_plot_omega_A_azz_slice_heatmap_saves_svg(
         self, make_slice_result: FreeAncilla2DSliceResult, tmp_path: Path
     ) -> None:
         svg_p = tmp_path / "slice.svg"
-        result = plot_theta_A_azz_slice_heatmap(make_slice_result, svg_p)
+        result = plot_omega_A_azz_slice_heatmap(make_slice_result, svg_p)
         assert result.exists()
         assert result.suffix == ".svg"
         assert result.stat().st_size > 0
 
     def test_plot_cross_scenario_comparison_saves_svg(
-        self, make_scan_result: FreeAncillaThetaScanResult, tmp_path: Path
+        self, make_scan_result: FreeAncillaOmegaScanResult, tmp_path: Path
     ) -> None:
         """Create comparison DataFrame from mock scan results."""
         import pandas as pd
 
         data = []
         for sc in ("A", "B", "C", "D"):
-            for theta, ratio in zip(
-                make_scan_result.theta_values,
+            for omega, ratio in zip(
+                make_scan_result.omega_values,
                 [1.0, 0.99, 0.98] if sc == "B" else [1.0, 1.0, 1.0],
                 strict=True,
             ):
                 data.append(
                     {
-                        "theta": theta,
+                        "omega": omega,
                         "scenario": sc,
-                        "best_delta_theta": ratio * 0.1,
+                        "best_delta_omega": ratio * 0.1,
                         "sql": 0.1,
                         "ratio": ratio,
                         "theta_A": 0.0,
@@ -802,20 +802,20 @@ class TestPlotFunctions:
         assert result.stat().st_size > 0
 
     def test_plot_norm_envelope_comparison_saves_svg(
-        self, make_scan_result: FreeAncillaThetaScanResult, tmp_path: Path
+        self, make_scan_result: FreeAncillaOmegaScanResult, tmp_path: Path
     ) -> None:
         """Create two scan results (A and B) and plot their envelope comparison."""
-        scan_A = FreeAncillaThetaScanResult(
-            theta_values=make_scan_result.theta_values.copy(),
-            best_params_per_theta=[
+        scan_A = FreeAncillaOmegaScanResult(
+            omega_values=make_scan_result.omega_values.copy(),
+            best_params_per_omega=[
                 (0.0, 0.0, 1.0, 2.0, 3.0, 4.0),
                 (0.0, 0.0, 2.0, 3.0, 4.0, 5.0),
                 (0.0, 0.0, 3.0, 4.0, 5.0, 6.0),
             ],
-            best_delta_theta_per_theta=np.array([0.1, 0.1, 0.1], dtype=float),
+            best_delta_omega_per_omega=np.array([0.1, 0.1, 0.1], dtype=float),
             sql_values=np.array([0.1, 0.1, 0.1], dtype=float),
-            expectation_Jz_per_theta=np.array([0.0, 0.0, 0.0], dtype=float),
-            variance_Jz_per_theta=np.array([0.01, 0.01, 0.01], dtype=float),
+            expectation_Jz_per_omega=np.array([0.0, 0.0, 0.0], dtype=float),
+            variance_Jz_per_omega=np.array([0.01, 0.01, 0.01], dtype=float),
             scenario="A",
         )
         svg_p = tmp_path / "envelope.svg"
@@ -833,12 +833,12 @@ class TestPlotFunctions:
 class TestEdgeCases:
     def test_zero_drive_zero_interaction_equals_sql(self) -> None:
         """When a_x=a_y=a_z=a_zz=0 regardless of ancilla state,
-        Δθ should equal SQL (the ancilla is decoupled)."""
+        Δω should equal SQL (the ancilla is decoupled)."""
         rng = np.random.default_rng(42)
         for _ in range(5):
             theta_A = rng.uniform(0.0, np.pi)
             phi_A = rng.uniform(0.0, 2.0 * np.pi)
-            dtheta, *_ = compute_free_ancilla_sensitivity(
+            domega, *_ = compute_free_ancilla_sensitivity(
                 1.0,
                 theta_A,
                 phi_A,
@@ -847,14 +847,14 @@ class TestEdgeCases:
                 0.0,
                 0.0,
             )
-            assert np.isclose(dtheta, SQL, rtol=1e-8), (
+            assert np.isclose(domega, SQL, rtol=1e-8), (
                 f"Decoupled sensitivity at theta_A={theta_A}, phi_A={phi_A}: "
-                f"Δθ={dtheta} should equal SQL={SQL}"
+                f"Δω={domega} should equal SQL={SQL}"
             )
 
-    def test_small_theta_gives_finite(self) -> None:
+    def test_small_omega_gives_finite(self) -> None:
         """θ=0.1 should be well-behaved."""
-        dtheta, *_ = compute_free_ancilla_sensitivity(
+        domega, *_ = compute_free_ancilla_sensitivity(
             0.1,
             0.0,
             0.0,
@@ -863,8 +863,8 @@ class TestEdgeCases:
             0.0,
             0.0,
         )
-        assert np.isfinite(dtheta)
-        assert dtheta > 0.0
+        assert np.isfinite(domega)
+        assert domega > 0.0
 
     def test_evolve_circuit_preserves_norm(
         self, make_ops: dict[str, np.ndarray]
@@ -873,7 +873,7 @@ class TestEdgeCases:
         psi = evolve_drive_circuit(
             psi0,
             np.pi / 2,
-            T_H,
+            T_hold,
             1.0,
             1.0,
             0.5,
@@ -884,8 +884,8 @@ class TestEdgeCases:
         assert np.isclose(np.linalg.norm(psi), 1.0, atol=1e-12)
 
     def test_inf_sensitivity_at_fringe(self) -> None:
-        """Some symmetric configurations give fringe extremum (inf Δθ)."""
-        dtheta, *_ = compute_free_ancilla_sensitivity(
+        """Some symmetric configurations give fringe extremum (inf Δω)."""
+        domega, *_ = compute_free_ancilla_sensitivity(
             1.0,
             0.0,
             0.0,
@@ -895,7 +895,7 @@ class TestEdgeCases:
             0.0,
         )
         # The decoupled baseline should be finite at 0.1
-        assert np.isfinite(dtheta)
+        assert np.isfinite(domega)
 
     def test_zero_radius_ball_in_scenario_B(self) -> None:
         """With R=0, drive is always zero (like scenario C but with a_zz free)."""

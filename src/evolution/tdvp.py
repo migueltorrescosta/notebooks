@@ -23,6 +23,8 @@ import numpy as np
 import quimb.tensor as qtn
 import scipy.linalg
 
+from src.utils.constants import SIGMA_Z
+
 # =============================================================================
 # TDVP Configuration
 # =============================================================================
@@ -342,7 +344,7 @@ def compute_energy_variance(
 def tdvp_evolution(
     tensor: qtn.Tensor,
     H: np.ndarray,
-    T: float,
+    T_evo: float,
     dt: float,
     n_sites: int,
     config: TDVPConfig | None = None,
@@ -357,7 +359,7 @@ def tdvp_evolution(
     Args:
         tensor: Initial tensor state.
         H: Full Hamiltonian matrix.
-        T: Total evolution time.
+        T_evo: Total evolution time.
         dt: Time step.
         n_sites: Number of sites in the system.
         config: TDVP configuration (optional).
@@ -368,7 +370,7 @@ def tdvp_evolution(
         TDVPResult with evolved state and diagnostics.
 
     Raises:
-        ValueError: If dt is not positive or T is negative.
+        ValueError: If dt is not positive or T_evo is negative.
     """
     if config is None:
         config = TDVPConfig(dt=dt)
@@ -376,8 +378,8 @@ def tdvp_evolution(
     if dt <= 0:
         raise ValueError("dt must be positive")
 
-    if T < 0:
-        raise ValueError("T must be non-negative")
+    if T_evo < 0:
+        raise ValueError("T_evo must be non-negative")
 
     # Initialize RNG
     _rng = np.random.default_rng(seed)
@@ -400,7 +402,7 @@ def tdvp_evolution(
     # Current state
     current_tensor = tensor
     current_time = 0.0
-    n_steps = int(np.round(T / dt))
+    n_steps = int(np.round(T_evo / dt))
 
     # Track norm preservation
     norm_preserved = True
@@ -483,8 +485,7 @@ def decompose_hamiltonian_local(
         return [np.zeros((local_dim, local_dim), dtype=complex)]
 
     # For full Hamiltonian, return a simple local term
-    sigma_z = np.array([[1, 0], [0, -1]], dtype=complex)
-    return [sigma_z]
+    return [SIGMA_Z]
 
 
 def evolve_exact(

@@ -36,7 +36,8 @@ from scipy.linalg import expm
 
 from src.analysis.ancilla_optimization import J_X, J_Z
 from src.analysis.fisher_information import quantum_fisher_information_dm
-from src.physics.mzi_simulation import beam_splitter_unitary, create_system_operators
+from src.physics.beam_splitter import bs_fock
+from src.physics.mzi_simulation import create_system_operators
 from src.physics.mzi_states import two_mode_jz_operator
 
 # =============================================================================
@@ -112,15 +113,15 @@ def build_interaction_hamiltonian(
 # =============================================================================
 
 
-def compute_generator_B(T_H: float, N_max: int) -> np.ndarray:
+def compute_generator_B(T_hold: float, N_max: int) -> np.ndarray:
     """Compute the effective generator G_B for Case B (2 particles, no ancilla).
 
-    G_B = T_H * BS^dagger * J_z * BS
+    G_B = T_hold * BS^dagger * J_z * BS
 
-    With the BS convention (theta_BS = pi/4, phi_BS = 0), this equals -T_H * J_y.
+    With the BS convention (theta_BS = pi/4, phi_BS = 0), this equals -T_hold * J_y.
 
     Args:
-        T_H: Holding-time strength parameter.
+        T_hold: Holding-time strength parameter.
         N_max: Maximum photon number per mode.
 
     Returns:
@@ -128,30 +129,30 @@ def compute_generator_B(T_H: float, N_max: int) -> np.ndarray:
 
     """
     J_z_sys, _ = build_system_jz_jx(N_max)
-    BS = beam_splitter_unitary(np.pi / 4, 0.0, N_max)
+    BS = bs_fock(np.pi / 4, 0.0, N_max)
 
-    return T_H * BS.conj().T @ J_z_sys @ BS
+    return T_hold * BS.conj().T @ J_z_sys @ BS
 
 
 def compute_generator_A(
-    T_H: float,
+    T_hold: float,
     alphas: tuple[float, float, float, float],
     N_max: int,
     n_quadrature: int = 50,
 ) -> np.ndarray:
     """Compute G_A for Case A (1 system particle + ancilla) at reference theta = 0.
 
-    G_A = T_H * (BS^dagger x I_anc) * [integral_0^1 J_z(s) ds] * (BS x I_anc)
+    G_A = T_hold * (BS^dagger x I_anc) * [integral_0^1 J_z(s) ds] * (BS x I_anc)
 
-    where J_z(s) = exp(i s T_H H_int) * (J_z x I) * exp(-i s T_H H_int).
+    where J_z(s) = exp(i s T_hold H_int) * (J_z x I) * exp(-i s T_hold H_int).
 
     When [J_z, H_int] = 0 (only alpha_zz, alpha_zx terms), J_z(s) = J_z x I
-    is independent of s, and G_A = T_H * (BS^dagger * J_z * BS) x I = -T_H * J_y x I.
+    is independent of s, and G_A = T_hold * (BS^dagger * J_z * BS) x I = -T_hold * J_y x I.
 
     When [J_z, H_int] != 0, the integral mixes components and G_A differs.
 
     Args:
-        T_H: Holding-time strength parameter.
+        T_hold: Holding-time strength parameter.
         alphas: (alpha_xx, alpha_xz, alpha_zx, alpha_zz) coupling coefficients.
         N_max: Maximum photon number per mode for the system.
         n_quadrature: Number of quadrature points for the integral (default 50).
@@ -175,7 +176,7 @@ def compute_generator_A(
     H_int = build_interaction_hamiltonian(alphas, J_z_sys, J_x_sys, J_z_anc, J_x_anc)
 
     # BS on system, identity on ancilla
-    BS = beam_splitter_unitary(np.pi / 4, 0.0, N_max)
+    BS = bs_fock(np.pi / 4, 0.0, N_max)
     BS_full = np.kron(BS, I_anc)
 
     # Compute integral_0^1 J_z(s) ds via numerical quadrature (Simpson's rule)
@@ -183,7 +184,7 @@ def compute_generator_A(
     J_z_vals = np.zeros((n_quadrature, dim_full, dim_full), dtype=complex)
 
     for k, s in enumerate(s_points):
-        U_s = expm(1j * s * T_H * H_int)
+        U_s = expm(1j * s * T_hold * H_int)
         J_z_vals[k] = U_s @ J_z_full @ U_s.conj().T
 
     # Simpson integration
@@ -194,36 +195,36 @@ def compute_generator_A(
     J_z_integral += 2.0 * np.sum(J_z_vals[2:-1:2], axis=0)  # even
     J_z_integral *= h / 3.0
 
-    # G_A = T_H * BS_full^dagger * J_z_integral * BS_full
-    G_A = T_H * BS_full.conj().T @ J_z_integral @ BS_full
+    # G_A = T_hold * BS_full^dagger * J_z_integral * BS_full
+    G_A = T_hold * BS_full.conj().T @ J_z_integral @ BS_full
 
     # Ensure Hermiticity
     return 0.5 * (G_A + G_A.conj().T)
 
 
-def compute_generator_A_at_theta(
-    T_H: float,
-    theta: float,
+def compute_generator_A_at_omega(
+    T_hold: float,
+    omega: float,
     alphas: tuple[float, float, float, float],
     N_max: int,
     n_quadrature: int = 50,
 ) -> np.ndarray:
-    """Compute G_A at a non-zero reference theta.
+    """Compute G_A at a non-zero reference omega.
 
-    Same as compute_generator_A but with the full theta-dependent Hamiltonian:
-      J_z(s) = exp(i s T_H (theta * J_z + H_int))
+    Same as compute_generator_A but with the full omega-dependent Hamiltonian:
+      J_z(s) = exp(i s T_hold (omega * J_z + H_int))
                * (J_z x I)
-               * exp(-i s T_H (theta * J_z + H_int))
+               * exp(-i s T_hold (omega * J_z + H_int))
 
     Args:
-        T_H: Holding-time strength parameter.
-        theta: Reference phase value.
+        T_hold: Holding-time strength parameter.
+        omega: Reference phase rate value.
         alphas: (alpha_xx, alpha_xz, alpha_zx, alpha_zz) coupling coefficients.
         N_max: Maximum photon number per mode.
         n_quadrature: Number of quadrature points (default 50).
 
     Returns:
-        Generator matrix for Case A at given theta.
+        Generator matrix for Case A at given omega.
 
     """
     J_z_sys, J_x_sys = build_system_jz_jx(N_max)
@@ -236,16 +237,16 @@ def compute_generator_A_at_theta(
 
     J_z_full = np.kron(J_z_sys, I_anc)
     H_int = build_interaction_hamiltonian(alphas, J_z_sys, J_x_sys, J_z_anc, J_x_anc)
-    H_total = theta * J_z_full + H_int
+    H_total = omega * J_z_full + H_int
 
-    BS = beam_splitter_unitary(np.pi / 4, 0.0, N_max)
+    BS = bs_fock(np.pi / 4, 0.0, N_max)
     BS_full = np.kron(BS, I_anc)
 
     s_points = np.linspace(0, 1, n_quadrature)
     J_z_vals = np.zeros((n_quadrature, dim_full, dim_full), dtype=complex)
 
     for k, s in enumerate(s_points):
-        U_s = expm(1j * s * T_H * H_total)
+        U_s = expm(1j * s * T_hold * H_total)
         J_z_vals[k] = U_s @ J_z_full @ U_s.conj().T
 
     h = 1.0 / (n_quadrature - 1)
@@ -255,7 +256,7 @@ def compute_generator_A_at_theta(
     J_z_integral += 2.0 * np.sum(J_z_vals[2:-1:2], axis=0)
     J_z_integral *= h / 3.0
 
-    G_A = T_H * BS_full.conj().T @ J_z_integral @ BS_full
+    G_A = T_hold * BS_full.conj().T @ J_z_integral @ BS_full
     return 0.5 * (G_A + G_A.conj().T)
 
 
@@ -418,28 +419,28 @@ def check_particle_number(
 
 def evaluate_qfi_case_B(
     rho: np.ndarray,
-    T_H: float,
+    T_hold: float,
     N_max: int,
 ) -> float:
     """Evaluate Quantum Fisher Information for Case B.
 
     Args:
         rho: Density matrix of dimension (N_max+1)^2.
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
         N_max: Maximum photon number per mode.
 
     Returns:
         QFI value F_Q.
 
     """
-    G_B = compute_generator_B(T_H, N_max)
+    G_B = compute_generator_B(T_hold, N_max)
     F_Q = quantum_fisher_information_dm(rho, G_B)
     return float(F_Q)
 
 
 def evaluate_qfi_case_A(
     rho: np.ndarray,
-    T_H: float,
+    T_hold: float,
     alphas: tuple[float, float, float, float],
     N_max: int,
     n_quadrature: int = 50,
@@ -448,7 +449,7 @@ def evaluate_qfi_case_A(
 
     Args:
         rho: Density matrix of dimension (N_max+1)^2 * 2.
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
         alphas: (alpha_xx, alpha_xz, alpha_zx, alpha_zz) coupling coefficients.
         N_max: Maximum photon number per mode for the system.
         n_quadrature: Quadrature points for integral.
@@ -457,7 +458,7 @@ def evaluate_qfi_case_A(
         QFI value F_Q.
 
     """
-    G_A = compute_generator_A(T_H, alphas, N_max, n_quadrature)
+    G_A = compute_generator_A(T_hold, alphas, N_max, n_quadrature)
     F_Q = quantum_fisher_information_dm(rho, G_A)
     return float(F_Q)
 
@@ -576,7 +577,7 @@ class RandomSearchResult:
 
 
 def optimize_qfi_case_B(
-    T_H: float,
+    T_hold: float,
     N_max: int,
     n_samples: int = 1000,
     pure_only: bool = False,
@@ -586,7 +587,7 @@ def optimize_qfi_case_B(
     """Optimise QFI for Case B via random search.
 
     Args:
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
         N_max: Maximum photon number per mode.
         n_samples: Number of random states to evaluate.
         pure_only: If True, restrict to pure states.
@@ -600,7 +601,7 @@ def optimize_qfi_case_B(
     """
     rng = np.random.default_rng(seed)
     dim = (N_max + 1) ** 2
-    G_B = compute_generator_B(T_H, N_max)
+    G_B = compute_generator_B(T_hold, N_max)
 
     # Pre-compute subspace indices if requested
     sub_idx = _subspace_indices(N_max, subspace_N) if subspace_N is not None else None
@@ -640,7 +641,7 @@ def optimize_qfi_case_B(
 
 
 def optimize_qfi_case_A(
-    T_H: float,
+    T_hold: float,
     N_max: int,
     n_samples: int = 2000,
     n_alpha_samples: int = 100,
@@ -654,7 +655,7 @@ def optimize_qfi_case_A(
     Imposes a particle-number penalty to ensure <N> approx 1.
 
     Args:
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
         N_max: Maximum photon number per mode for the system.
         n_samples: Number of random states per alpha sample.
         n_alpha_samples: Number of random alpha vectors to try.
@@ -686,7 +687,7 @@ def optimize_qfi_case_A(
     J_z_anc, J_x_anc = J_Z, J_X
 
     # Pre-compute the BS unitary
-    BS = beam_splitter_unitary(np.pi / 4, 0.0, N_max)
+    BS = bs_fock(np.pi / 4, 0.0, N_max)
     I_anc = np.eye(2, dtype=complex)
     BS_full = np.kron(BS, I_anc)
 
@@ -710,7 +711,7 @@ def optimize_qfi_case_A(
         s_points = np.linspace(0, 1, 50)
         J_z_vals = np.zeros((50, dim_full, dim_full), dtype=complex)
         for k, s in enumerate(s_points):
-            U_s = expm(1j * s * T_H * H_total)
+            U_s = expm(1j * s * T_hold * H_total)
             J_z_vals[k] = U_s @ J_z_full @ U_s.conj().T
 
         h = 1.0 / 49.0
@@ -720,7 +721,7 @@ def optimize_qfi_case_A(
         J_z_integral *= h / 3.0
 
         # G_A for this alpha
-        G_A = T_H * BS_full.conj().T @ J_z_integral @ BS_full
+        G_A = T_hold * BS_full.conj().T @ J_z_integral @ BS_full
         G_A = 0.5 * (G_A + G_A.conj().T)
 
         # Sample random states for this alpha
@@ -807,7 +808,7 @@ class ComparisonResult:
         fq_B_max: Best QFI found for Case B (two-particle system).
         fq_A_zero: QFI for Case A with alpha = 0 (baseline).
         ratio: sqrt(F_B / F_A) = Dtheta_A / Dtheta_B.
-        fq_A_theta: QFI at different reference theta values (optional).
+        fq_A_omega: QFI at different reference omega values (optional).
 
     """
 
@@ -815,7 +816,7 @@ class ComparisonResult:
     fq_B_max: float
     fq_A_zero: float
     ratio: float
-    fq_A_theta: dict[float, float] = field(default_factory=dict)
+    fq_A_omega: dict[float, float] = field(default_factory=dict)
     fq_A_all: np.ndarray = field(default_factory=lambda: np.array([]))
     fq_B_all: np.ndarray = field(default_factory=lambda: np.array([]))
     best_alphas_A: tuple[float, float, float, float] | None = None
@@ -833,7 +834,7 @@ class ComparisonResult:
             "fq_B_max": [self.fq_B_max],
             "fq_A_zero": [self.fq_A_zero],
             "ratio": [self.ratio],
-            "fq_A_theta": [json.dumps(self.fq_A_theta)],
+            "fq_A_omega": [json.dumps(self.fq_A_omega)],
             "mean_N_A": [self.mean_N_A],
             "pop_00_A": [self.pop_00_A],
             "pop_NN_A": [self.pop_NN_A],
@@ -875,7 +876,7 @@ class ComparisonResult:
             "fq_B_max",
             "fq_A_zero",
             "ratio",
-            "fq_A_theta",
+            "fq_A_omega",
             "mean_N_A",
             "pop_00_A",
             "pop_NN_A",
@@ -912,7 +913,7 @@ class ComparisonResult:
             fq_B_max=float(df["fq_B_max"].iloc[0]),
             fq_A_zero=float(df["fq_A_zero"].iloc[0]),
             ratio=float(df["ratio"].iloc[0]),
-            fq_A_theta=json.loads(str(df["fq_A_theta"].iloc[0])),
+            fq_A_omega=json.loads(str(df["fq_A_omega"].iloc[0])),
             fq_A_all=fq_A_all,
             fq_B_all=fq_B_all,
             best_alphas_A=best_alphas_A,
@@ -926,14 +927,14 @@ class ComparisonResult:
 
 
 def run_comparison(
-    T_H: float = 1.0,
+    T_hold: float = 1.0,
     n_samples_B: int = 2000,
     n_samples_A: int = 3000,
     n_alpha_samples: int = 50,
     n_quadrature: int = 50,
     pure_only: bool = False,
     particle_penalty: float = 100.0,
-    theta_values: tuple[float, ...] = (0.0, 0.1, 0.5),
+    omega_values: tuple[float, ...] = (0.0, 0.1, 0.5),
     seed: int | None = 42,
 ) -> ComparisonResult:
     """Run the full comparison between Case A and Case B.
@@ -942,14 +943,14 @@ def run_comparison(
     Case A restricts to N=1 subspace for the system.
 
     Args:
-        T_H: Holding-time strength (default 1.0).
+        T_hold: Holding-time strength (default 1.0).
         n_samples_B: Number of random states for Case B optimisation.
         n_samples_A: Number of random states for Case A optimisation.
         n_alpha_samples: Number of random alpha vectors for Case A.
         n_quadrature: Quadrature points for the integral.
         pure_only: Restrict to pure states.
         particle_penalty: Penalty strength for <N> != 1.
-        theta_values: Reference theta values for theta-dependence check.
+        omega_values: Reference omega values for omega-dependence check.
         seed: Random seed (default 42 for reproducibility).
 
     Returns:
@@ -959,7 +960,7 @@ def run_comparison(
     """
     # Case B: 2 particles, N_max = 2, restrict to N=2 subspace
     result_B = optimize_qfi_case_B(
-        T_H=T_H,
+        T_hold=T_hold,
         N_max=2,
         n_samples=n_samples_B,
         pure_only=True,
@@ -969,7 +970,7 @@ def run_comparison(
 
     # Case A: 1 system particle + ancilla, N_max = 1, restrict to N=1 subspace
     result_A = optimize_qfi_case_A(
-        T_H=T_H,
+        T_hold=T_hold,
         N_max=1,
         n_samples=n_samples_A,
         n_alpha_samples=n_alpha_samples,
@@ -982,7 +983,7 @@ def run_comparison(
     # Case A baseline: alpha = 0 (no interaction), N=1 subspace
     dim_sys = (1 + 1) ** 2  # N_max = 1 -> dim 4
     rng = np.random.default_rng(seed if seed is None else seed + 2)
-    G_A_zero = compute_generator_A(T_H, (0.0, 0.0, 0.0, 0.0), 1, n_quadrature)
+    G_A_zero = compute_generator_A(T_hold, (0.0, 0.0, 0.0, 0.0), 1, n_quadrature)
     sub_idx = _subspace_indices(1, 1)
 
     best_fq_A_zero = -1.0
@@ -993,28 +994,28 @@ def run_comparison(
         F_Q = quantum_fisher_information_dm(rho, G_A_zero)
         best_fq_A_zero = max(best_fq_A_zero, F_Q)
 
-    # theta-dependence check
-    fq_A_theta: dict[float, float] = {}
+    # omega-dependence check
+    fq_A_omega: dict[float, float] = {}
     if result_A.best_alphas is not None:
         best_rho_A = result_A.best_rho
-        for theta_val in theta_values:
-            if theta_val == 0.0:
-                G_A_theta = compute_generator_A(
-                    T_H,
+        for omega_val in omega_values:
+            if omega_val == 0.0:
+                G_A_omega = compute_generator_A(
+                    T_hold,
                     result_A.best_alphas,
                     1,
                     n_quadrature,
                 )
             else:
-                G_A_theta = compute_generator_A_at_theta(
-                    T_H,
-                    theta_val,
+                G_A_omega = compute_generator_A_at_omega(
+                    T_hold,
+                    omega_val,
                     result_A.best_alphas,
                     1,
                     n_quadrature,
                 )
-            F_Q = quantum_fisher_information_dm(best_rho_A, G_A_theta)
-            fq_A_theta[theta_val] = float(F_Q)
+            F_Q = quantum_fisher_information_dm(best_rho_A, G_A_omega)
+            fq_A_omega[omega_val] = float(F_Q)
 
     # Ratio
     ratio = (
@@ -1028,7 +1029,7 @@ def run_comparison(
         fq_B_max=result_B.max_fq,
         fq_A_zero=best_fq_A_zero,
         ratio=ratio,
-        fq_A_theta=fq_A_theta,
+        fq_A_omega=fq_A_omega,
         fq_A_all=result_A.all_fq,
         fq_B_all=result_B.all_fq,
         best_alphas_A=result_A.best_alphas,
@@ -1046,35 +1047,35 @@ def run_comparison(
 # =============================================================================
 
 
-def analytical_fq_B_max(T_H: float) -> float:
+def analytical_fq_B_max(T_hold: float) -> float:
     """Theoretical maximum QFI for Case B (2-particle system).
 
     For J = 1 (2 particles), J_y has eigenvalues {-1, 0, +1}.
-    With optimal pure state: max F_Q = T_H^2 (lambda_max - lambda_min)^2
-    = 4 * T_H^2.
+    With optimal pure state: max F_Q = T_hold^2 (lambda_max - lambda_min)^2
+    = 4 * T_hold^2.
 
     Args:
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
 
     Returns:
         Theoretical maximum QFI.
 
     """
-    return 4.0 * T_H**2
+    return 4.0 * T_hold**2
 
 
-def analytical_fq_A_zero(T_H: float) -> float:
+def analytical_fq_A_zero(T_hold: float) -> float:
     """Theoretical QFI for Case A with alpha = 0 (uncoupled ancilla).
 
-    With alpha = 0, G_A = -T_H * J_y x I. For the 1-particle system (J = 1/2),
+    With alpha = 0, G_A = -T_hold * J_y x I. For the 1-particle system (J = 1/2),
     J_y has eigenvalues {-1/2, +1/2}, so:
-    max F_Q = T_H^2 (1/2 - (-1/2))^2 = T_H^2.
+    max F_Q = T_hold^2 (1/2 - (-1/2))^2 = T_hold^2.
 
     Args:
-        T_H: Holding-time strength.
+        T_hold: Holding-time strength.
 
     Returns:
         Theoretical maximum QFI with zero interaction.
 
     """
-    return 1.0 * T_H**2
+    return 1.0 * T_hold**2

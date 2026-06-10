@@ -8,10 +8,10 @@ Contains all code exclusive to this report:
                                    + α_zx J_z^S J_x^A + α_zz J_z^S J_z^A
 - Sensitivity via error propagation with central finite differences
 - Multi-start L-BFGS-B optimisation over (α_xx, α_xz, α_zx, α_zz)
-- Sweeps over θ ∈ [0.5, 5.0], N ∈ [1, 10] (dual MZI) and N ∈ {1, 5, 10} (S-only)
-- Scaling analysis (log-log fit Δθ ∝ N^α)
+- Sweeps over ω ∈ [0.5, 5.0], N ∈ [1, 10] (dual MZI) and N ∈ {1, 5, 10} (S-only)
+- Scaling analysis (log-log fit Δω ∝ N^α)
 - JSON/manual reproduction of the 2026-05-21 result (S-only MZI, N=1)
-- Exclusive plot functions for heatmaps, scaling curves, and θ-dependence
+- Exclusive plot functions for heatmaps, scaling curves, and ω-dependence
 - Data and figure generation pipeline (``generate_*`` functions)
 - CLI entry point for standalone execution
 
@@ -55,6 +55,7 @@ from src.physics.multi_mzi import (
     embed_combined_operators,
     single_bs_unitary,
 )
+from src.utils.enums import OperatorBasis
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -66,13 +67,13 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_H: float = 10.0  # Holding time (SQL reference)
+DEFAULT_T_hold: float = 10.0  # Holding time (SQL reference)
 ALPHA_BOUND: float = 20.0  # |α_ij| ≤ 20 for optimisation bounds
 N_LBFGS_STARTS: int = 25  # Number of L-BFGS-B random starts (20-30 per report)
 FD_STEP: float = 1e-6  # Central finite-difference step
 
-# θ and N sweep ranges (from report)
-THETA_VALS: list[float] = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
+# ω and N sweep ranges (from report)
+OMEGA_VALS: list[float] = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 DUAL_MZI_N_VALS: list[int] = list(range(1, 11))
 SONLY_MZI_N_VALS: list[int] = [1, 5, 10]
 
@@ -105,19 +106,19 @@ def _n_starts_for_N(N: int) -> int:
 
 def build_hold_hamiltonian(
     N: int,
-    theta: float,
+    omega: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Build the total holding Hamiltonian in the combined S⊗A space.
 
-    H = θ (J_z^S + J_z^A)
+    H = ω (J_z^S + J_z^A)
         + α_xx J_x^S J_x^A + α_xz J_x^S J_z^A
         + α_zx J_z^S J_x^A + α_zz J_z^S J_z^A
 
     Args:
         N: Particle number per subsystem.
-        theta: Unknown phase rate.
+        omega: Unknown phase rate.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Pre-computed embedded operators. If None, built fresh.
 
@@ -132,7 +133,7 @@ def build_hold_hamiltonian(
     H = np.zeros((dim, dim), dtype=complex)
 
     # Phase-encoding terms
-    H += theta * (ops["Jz_S"] + ops["Jz_A"])
+    H += omega * (ops["Jz_S"] + ops["Jz_A"])
 
     # Interaction terms
     if a_xx != 0.0:
@@ -150,22 +151,22 @@ def build_hold_hamiltonian(
 def protocol_bs_unitary(
     N: int,
     protocol: str = "dual",
-    T: float = DEFAULT_T_BS,
+    T_BS: float = DEFAULT_T_BS,
 ) -> np.ndarray:
     """Beam-splitter unitary based on protocol.
 
-    Dual MZI: U_BS = exp(-i T J_x) ⊗ exp(-i T J_x)
-    S-only MZI: U_BS = exp(-i T J_x) ⊗ I_{N+1}
+    Dual MZI: U_BS = exp(-i T_BS J_x) ⊗ exp(-i T_BS J_x)
+    S-only MZI: U_BS = exp(-i T_BS J_x) ⊗ I_{N+1}
 
     Args:
         N: Particle number per subsystem.
         protocol: 'dual' or 'S-only'.
-        T: Beam-splitter angle (default π/2 for 50/50).
+        T_BS: Beam-splitter angle (default π/2 for 50/50).
 
     Returns:
         (N+1)² × (N+1)² unitary matrix.
     """
-    U_single = single_bs_unitary(N, T)
+    U_single = single_bs_unitary(N, T_BS)
     if protocol == "dual":
         U = np.kron(U_single, U_single)
     elif protocol == "S-only":
@@ -177,27 +178,27 @@ def protocol_bs_unitary(
 
 def hold_unitary(
     N: int,
-    T_H: float,
-    theta: float,
+    T_hold: float,
+    omega: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Holding-time unitary in the combined S⊗A space.
 
-    U_hold(T_H) = exp(-i T_H H)
+    U_hold(T_hold) = exp(-i T_hold H)
 
     Args:
         N: Particle number per subsystem.
-        T_H: Holding time.
-        theta: Unknown phase rate.
+        T_hold: Holding time.
+        omega: Unknown phase rate.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Pre-computed operators.
 
     Returns:
         (N+1)² × (N+1)² unitary matrix.
     """
-    H = build_hold_hamiltonian(N, theta, alpha, ops)
-    return expm(-1j * T_H * H)
+    H = build_hold_hamiltonian(N, omega, alpha, ops)
+    return expm(-1j * T_hold * H)
 
 
 # ============================================================================
@@ -225,35 +226,35 @@ def initial_state(N: int) -> np.ndarray:
 def evolve_circuit(
     N: int,
     psi0: np.ndarray,
-    theta: float,
+    omega: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
     protocol: str = "dual",
     T_BS: float = DEFAULT_T_BS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
 ) -> np.ndarray:
     """Run the full MZI circuit for the given protocol.
 
-    |ψ_final⟩ = U_BS · U_hold(T_H) · U_BS · |ψ₀⟩
+    |ψ_final⟩ = U_BS · U_hold(T_hold) · U_BS · |ψ₀⟩
 
     where U_BS depends on the protocol (dual or S-only).
 
     Args:
         N: Particle number per subsystem.
         psi0: Initial state vector (length (N+1)²).
-        theta: Unknown phase rate.
+        omega: Unknown phase rate.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Embedded operators.
         protocol: 'dual' (BS on both) or 'S-only' (BS on system only).
         T_BS: Beam-splitter angle (default π/2).
-        T_H: Holding time (default 10).
+        T_hold: Holding time (default 10).
 
     Returns:
         Final state vector (length (N+1)²).
     """
     U_bs = protocol_bs_unitary(N, protocol, T_BS)
     psi = U_bs @ psi0
-    psi = hold_unitary(N, T_H, theta, alpha, ops) @ psi
+    psi = hold_unitary(N, T_hold, omega, alpha, ops) @ psi
     return U_bs @ psi
 
 
@@ -273,66 +274,66 @@ def evolve_circuit(
 def compute_sensitivity(
     N: int,
     psi0: np.ndarray,
-    theta_true: float,
+    omega_true: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
     protocol: str = "dual",
     meas_op: np.ndarray | None = None,
     fd_step: float = FD_STEP,
     T_BS: float = DEFAULT_T_BS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
 ) -> tuple[float, float, float, float]:
-    """Compute the error-propagation sensitivity Δθ.
+    """Compute the error-propagation sensitivity Δω.
 
-    Δθ = √Var(J_z^S) / |∂⟨J_z^S⟩/∂θ|
+    Δω = √Var(J_z^S) / |∂⟨J_z^S⟩/∂ω|
 
-    Also returns ⟨J_z^S⟩, Var(J_z^S), and ∂⟨J_z^S⟩/∂θ at theta_true.
+    Also returns ⟨J_z^S⟩, Var(J_z^S), and ∂⟨J_z^S⟩/∂ω at omega_true.
 
     Args:
         N: Particle number per subsystem.
         psi0: Initial state vector.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Embedded operators.
         protocol: 'dual' or 'S-only'.
         meas_op: (N+1)×(N+1) measurement operator (default = J_z).
         fd_step: Central finite-difference step size.
         T_BS: Beam-splitter angle.
-        T_H: Holding time.
+        T_hold: Holding time.
 
     Returns:
-        Tuple (delta_theta, expectation, variance, derivative).
+        Tuple (delta_omega, expectation, variance, derivative).
         Returns (inf, exp, var, 0.0) if derivative is zero.
     """
     if meas_op is None:
-        Jz_single = jz_operator(N)
+        Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
     else:
         Jz_single = meas_op
 
-    # Evaluate at theta_true
-    psi = evolve_circuit(N, psi0, theta_true, alpha, ops, protocol, T_BS, T_H)
+    # Evaluate at omega_true
+    psi = evolve_circuit(N, psi0, omega_true, alpha, ops, protocol, T_BS, T_hold)
     exp_val, var_val = compute_reduced_expectation_and_variance(psi, N, Jz_single)
 
-    # Central finite difference for ∂⟨J_z^S⟩/∂θ
+    # Central finite difference for ∂⟨J_z^S⟩/∂ω
     psi_plus = evolve_circuit(
         N,
         psi0,
-        theta_true + fd_step,
+        omega_true + fd_step,
         alpha,
         ops,
         protocol,
         T_BS,
-        T_H,
+        T_hold,
     )
     psi_minus = evolve_circuit(
         N,
         psi0,
-        theta_true - fd_step,
+        omega_true - fd_step,
         alpha,
         ops,
         protocol,
         T_BS,
-        T_H,
+        T_hold,
     )
 
     exp_plus, _ = compute_reduced_expectation_and_variance(psi_plus, N, Jz_single)
@@ -342,8 +343,8 @@ def compute_sensitivity(
     if abs(d_exp) < 1e-12:
         return float("inf"), exp_val, var_val, 0.0
 
-    delta_theta = float(np.sqrt(var_val) / abs(d_exp))
-    return delta_theta, exp_val, var_val, d_exp
+    delta_omega = float(np.sqrt(var_val) / abs(d_exp))
+    return delta_omega, exp_val, var_val, d_exp
 
 
 # ============================================================================
@@ -354,31 +355,31 @@ def compute_sensitivity(
 def _sensitivity_objective(
     alpha_params: np.ndarray,
     N: int,
-    theta_true: float,
+    omega_true: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray,
     protocol: str,
     T_BS: float,
-    T_H: float,
+    T_hold: float,
     fd_step: float,
 ) -> float:
     """Objective function for L-BFGS-B optimisation.
 
-    f(α) = Δθ(α; θ_true, N, protocol)
+    f(α) = Δω(α; ω_true, N, protocol)
 
     Args:
         alpha_params: 4-element array [α_xx, α_xz, α_zx, α_zz].
         N: Particle number per subsystem.
-        theta_true: True phase rate.
+        omega_true: True phase rate.
         ops: Embedded operators.
         psi0: Initial state.
         protocol: 'dual' or 'S-only'.
         T_BS: Beam-splitter angle.
-        T_H: Holding time.
+        T_hold: Holding time.
         fd_step: Finite-difference step.
 
     Returns:
-        Δθ (positive float). Returns large number if fringe extremum.
+        Δω (positive float). Returns large number if fringe extremum.
     """
     alpha = (
         float(alpha_params[0]),
@@ -389,49 +390,49 @@ def _sensitivity_objective(
     dt, _, _, _ = compute_sensitivity(
         N,
         psi0,
-        theta_true,
+        omega_true,
         alpha,
         ops,
         protocol,
         fd_step=fd_step,
         T_BS=T_BS,
-        T_H=T_H,
+        T_hold=T_hold,
     )
     return dt if np.isfinite(dt) else 1e10
 
 
 def optimise_four_params(
     N: int,
-    theta: float,
+    omega: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray | None = None,
     protocol: str = "dual",
     alpha_bounds: tuple[float, float] = (-ALPHA_BOUND, ALPHA_BOUND),
     n_starts: int = N_LBFGS_STARTS,
     T_BS: float = DEFAULT_T_BS,
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     fd_step: float = FD_STEP,
     seed: int | None = 42,
     maxiter: int = 1000,
     gtol: float = 1e-6,
 ) -> FourParamOptResult:
-    """Run multi-start L-BFGS-B optimisation for a given (θ, N, protocol).
+    """Run multi-start L-BFGS-B optimisation for a given (ω, N, protocol).
 
     For each start:
     1. Generate random initial α in [alpha_bounds]^4.
     2. Run L-BFGS-B with bounded optimisation.
-    3. Select the run with lowest Δθ.
+    3. Select the run with lowest Δω.
 
     Args:
         N: Particle number per subsystem.
-        theta: Phase rate.
+        omega: Phase rate.
         ops: Embedded operators.
         psi0: Initial state (default: built fresh).
         protocol: 'dual' or 'S-only'.
         alpha_bounds: (min, max) for all α coefficients.
         n_starts: Number of random starts.
         T_BS: Beam-splitter angle.
-        T_H: Holding time.
+        T_hold: Holding time.
         fd_step: Finite-difference step.
         seed: Base random seed (incremented per start).
         maxiter: Maximum L-BFGS-B iterations.
@@ -446,7 +447,7 @@ def optimise_four_params(
     lo, hi = alpha_bounds
     base_seed = seed if seed is not None else 42
     bounds_ls = [(lo, hi)] * 4
-    sql = 1.0 / (np.sqrt(N) * T_H)
+    sql = 1.0 / (np.sqrt(N) * T_hold)
 
     best_delta = float("inf")
     best_alpha: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
@@ -457,13 +458,13 @@ def optimise_four_params(
     n_converged = 0
 
     for start in range(n_starts):
-        rng = np.random.default_rng(base_seed + int(theta * 1000) + start * 7)
+        rng = np.random.default_rng(base_seed + int(omega * 1000) + start * 7)
         x0 = rng.uniform(lo, hi, size=4)
 
         result = minimize(
             _sensitivity_objective,
             x0,
-            args=(N, theta, ops, psi0, protocol, T_BS, T_H, fd_step),
+            args=(N, omega, ops, psi0, protocol, T_BS, T_hold, fd_step),
             method="L-BFGS-B",
             bounds=bounds_ls,
             options={
@@ -494,22 +495,22 @@ def optimise_four_params(
             _, exp_val, var_val, d_exp = compute_sensitivity(
                 N,
                 psi0,
-                theta,
+                omega,
                 best_alpha,
                 ops,
                 protocol,
                 fd_step=fd_step,
                 T_BS=T_BS,
-                T_H=T_H,
+                T_hold=T_hold,
             )
             best_exp, best_var, best_d_exp = exp_val, var_val, d_exp
 
     return FourParamOptResult(
-        theta_value=theta,
+        omega_value=omega,
         N=N,
         protocol=protocol,
         alpha_opt=best_alpha,
-        delta_theta_opt=best_delta,
+        delta_omega_opt=best_delta,
         sql=sql,
         expectation_Jz=best_exp,
         variance_Jz=best_var,
@@ -527,28 +528,28 @@ def optimise_four_params(
 
 @dataclass
 class FourParamOptResult:
-    """Result from a multi-start L-BFGS-B optimisation at a single (θ, N, protocol).
+    """Result from a multi-start L-BFGS-B optimisation at a single (ω, N, protocol).
 
     Attributes:
-        theta_value: θ at which the optimisation was performed.
+        omega_value: ω at which the optimisation was performed.
         N: Particle number per subsystem.
         protocol: 'dual' or 'S-only'.
         alpha_opt: Optimal (α_xx, α_xz, α_zx, α_zz) found.
-        delta_theta_opt: Minimal Δθ found.
-        sql: SQL = 1/(√N T_H) reference value.
+        delta_omega_opt: Minimal Δω found.
+        sql: SQL = 1/(√N T_hold) reference value.
         expectation_Jz: ⟨J_z^S⟩ at the optimal point.
         variance_Jz: Var(J_z^S) at the optimal point.
-        d_expectation: ∂⟨J_z^S⟩/∂θ at the optimal point.
+        d_expectation: ∂⟨J_z^S⟩/∂ω at the optimal point.
         n_starts: Number of random starts used.
         n_converged: Number of starts that converged successfully.
         gradient_norm: L-BFGS-B projected gradient norm at optimum.
     """
 
-    theta_value: float
+    omega_value: float
     N: int
     protocol: str = "dual"
     alpha_opt: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
-    delta_theta_opt: float = float("inf")
+    delta_omega_opt: float = float("inf")
     sql: float = 0.1
     expectation_Jz: float = 0.0
     variance_Jz: float = 0.0
@@ -561,19 +562,19 @@ class FourParamOptResult:
         """Single-row DataFrame with all metadata."""
         return pd.DataFrame(
             {
-                "theta": [self.theta_value],
+                "omega": [self.omega_value],
                 "N": [self.N],
                 "protocol": [self.protocol],
-                "T_H": [DEFAULT_T_H],
+                "T_hold": [DEFAULT_T_hold],
                 "alpha_xx_opt": [self.alpha_opt[0]],
                 "alpha_xz_opt": [self.alpha_opt[1]],
                 "alpha_zx_opt": [self.alpha_opt[2]],
                 "alpha_zz_opt": [self.alpha_opt[3]],
-                "delta_theta_opt": [self.delta_theta_opt],
+                "delta_omega_opt": [self.delta_omega_opt],
                 "sql": [self.sql],
                 "ratio": [
-                    self.delta_theta_opt / self.sql
-                    if np.isfinite(self.delta_theta_opt) and self.sql > 0
+                    self.delta_omega_opt / self.sql
+                    if np.isfinite(self.delta_omega_opt) and self.sql > 0
                     else float("inf")
                 ],
                 "expectation_Jz": [self.expectation_Jz],
@@ -594,39 +595,39 @@ class FourParamOptResult:
 
 @dataclass
 class FourParamSweepResult:
-    """Full sweep over (θ, N, protocol) with optimisation per point.
+    """Full sweep over (ω, N, protocol) with optimisation per point.
 
     All array fields have the same length (n_points), stored in row-major
-    order (θ varies fastest, then N).
+    order (ω varies fastest, then N).
 
     Attributes:
-        theta_values: θ values for each point.
+        omega_values: ω values for each point.
         N_values: N values for each point.
         protocol: Protocol string for each point (list of str).
         alpha_xx_opt: Optimal α_xx at each point.
         alpha_xz_opt: Optimal α_xz at each point.
         alpha_zx_opt: Optimal α_zx at each point.
         alpha_zz_opt: Optimal α_zz at each point.
-        delta_theta_opt: Minimal Δθ at each point.
-        sql_values: SQL = 1/(√N T_H) at each point.
-        ratio: Δθ_opt / SQL at each point.
+        delta_omega_opt: Minimal Δω at each point.
+        sql_values: SQL = 1/(√N T_hold) at each point.
+        ratio: Δω_opt / SQL at each point.
         expectation_Jz: ⟨J_z^S⟩ at optimum.
         variance_Jz: Var(J_z^S) at optimum.
-        d_expectation: ∂⟨J_z^S⟩/∂θ at optimum.
+        d_expectation: ∂⟨J_z^S⟩/∂ω at optimum.
         n_starts: Number of random starts per point.
         n_converged: Number of converged starts per point.
         gradient_norm: L-BFGS-B projected gradient norm at optimum per point.
-        T_H: Holding time (scalar).
+        T_hold: Holding time (scalar).
     """
 
-    theta_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
     N_values: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
     protocol: list[str] = field(default_factory=list)
     alpha_xx_opt: np.ndarray = field(default_factory=lambda: np.array([]))
     alpha_xz_opt: np.ndarray = field(default_factory=lambda: np.array([]))
     alpha_zx_opt: np.ndarray = field(default_factory=lambda: np.array([]))
     alpha_zz_opt: np.ndarray = field(default_factory=lambda: np.array([]))
-    delta_theta_opt: np.ndarray = field(default_factory=lambda: np.array([]))
+    delta_omega_opt: np.ndarray = field(default_factory=lambda: np.array([]))
     sql_values: np.ndarray = field(default_factory=lambda: np.array([]))
     ratio: np.ndarray = field(default_factory=lambda: np.array([]))
     expectation_Jz: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -635,7 +636,7 @@ class FourParamSweepResult:
     n_starts: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
     n_converged: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
     gradient_norm: np.ndarray = field(default_factory=lambda: np.array([]))
-    T_H: float = DEFAULT_T_H
+    T_hold: float = DEFAULT_T_hold
 
     def __post_init__(self) -> None:
         # Ensure int dtype for integer arrays
@@ -647,22 +648,22 @@ class FourParamSweepResult:
             self.n_converged = self.n_converged.astype(int)
 
     def to_dataframe(self) -> pd.DataFrame:
-        n = len(self.theta_values)
+        n = len(self.omega_values)
         # Pad protocol list if needed
         protocol_list = self.protocol
         if len(protocol_list) < n:
             protocol_list = protocol_list + ["unknown"] * (n - len(protocol_list))
         return pd.DataFrame(
             {
-                "theta": self.theta_values,
+                "omega": self.omega_values,
                 "N": self.N_values,
                 "protocol": protocol_list[:n],
-                "T_H": np.full(n, self.T_H),
+                "T_hold": np.full(n, self.T_hold),
                 "alpha_xx_opt": self.alpha_xx_opt,
                 "alpha_xz_opt": self.alpha_xz_opt,
                 "alpha_zx_opt": self.alpha_zx_opt,
                 "alpha_zz_opt": self.alpha_zz_opt,
-                "delta_theta_opt": self.delta_theta_opt,
+                "delta_omega_opt": self.delta_omega_opt,
                 "sql": self.sql_values,
                 "ratio": self.ratio,
                 "expectation_Jz": self.expectation_Jz,
@@ -684,15 +685,15 @@ class FourParamSweepResult:
     def from_parquet(cls, path: str | Path) -> FourParamSweepResult:
         df = pd.read_parquet(path)
         required = {
-            "theta",
+            "omega",
             "N",
             "protocol",
-            "T_H",
+            "T_hold",
             "alpha_xx_opt",
             "alpha_xz_opt",
             "alpha_zx_opt",
             "alpha_zz_opt",
-            "delta_theta_opt",
+            "delta_omega_opt",
             "sql",
             "ratio",
             "expectation_Jz",
@@ -710,14 +711,14 @@ class FourParamSweepResult:
             )
 
         return cls(
-            theta_values=df["theta"].to_numpy(dtype=float),
+            omega_values=df["omega"].to_numpy(dtype=float),
             N_values=df["N"].to_numpy(dtype=int),
             protocol=df["protocol"].tolist(),
             alpha_xx_opt=df["alpha_xx_opt"].to_numpy(dtype=float),
             alpha_xz_opt=df["alpha_xz_opt"].to_numpy(dtype=float),
             alpha_zx_opt=df["alpha_zx_opt"].to_numpy(dtype=float),
             alpha_zz_opt=df["alpha_zz_opt"].to_numpy(dtype=float),
-            delta_theta_opt=df["delta_theta_opt"].to_numpy(dtype=float),
+            delta_omega_opt=df["delta_omega_opt"].to_numpy(dtype=float),
             sql_values=df["sql"].to_numpy(dtype=float),
             ratio=df["ratio"].to_numpy(dtype=float),
             expectation_Jz=df["expectation_Jz"].to_numpy(dtype=float),
@@ -726,16 +727,16 @@ class FourParamSweepResult:
             n_starts=df["n_starts"].to_numpy(dtype=int),
             n_converged=df["n_converged"].to_numpy(dtype=int),
             gradient_norm=df["gradient_norm"].to_numpy(dtype=float),
-            T_H=float(df["T_H"].iloc[0]),
+            T_hold=float(df["T_hold"].iloc[0]),
         )
 
     @property
     def n_points(self) -> int:
-        return len(self.theta_values)
+        return len(self.omega_values)
 
     @property
-    def n_theta_unique(self) -> int:
-        return len(np.unique(self.theta_values))
+    def n_omega_unique(self) -> int:
+        return len(np.unique(self.omega_values))
 
     @property
     def n_N_unique(self) -> int:
@@ -745,14 +746,14 @@ class FourParamSweepResult:
         """Return a new result filtered to a single protocol."""
         mask = [p == protocol for p in self.protocol]
         return FourParamSweepResult(
-            theta_values=self.theta_values[mask],
+            omega_values=self.omega_values[mask],
             N_values=self.N_values[mask],
             protocol=[self.protocol[i] for i in range(len(mask)) if mask[i]],
             alpha_xx_opt=self.alpha_xx_opt[mask],
             alpha_xz_opt=self.alpha_xz_opt[mask],
             alpha_zx_opt=self.alpha_zx_opt[mask],
             alpha_zz_opt=self.alpha_zz_opt[mask],
-            delta_theta_opt=self.delta_theta_opt[mask],
+            delta_omega_opt=self.delta_omega_opt[mask],
             sql_values=self.sql_values[mask],
             ratio=self.ratio[mask],
             expectation_Jz=self.expectation_Jz[mask],
@@ -761,21 +762,21 @@ class FourParamSweepResult:
             n_starts=self.n_starts[mask],
             n_converged=self.n_converged[mask],
             gradient_norm=self.gradient_norm[mask],
-            T_H=self.T_H,
+            T_hold=self.T_hold,
         )
 
-    def filter_theta(self, theta: float) -> FourParamSweepResult:
-        """Return a new result filtered to a single θ value."""
-        mask = np.isclose(self.theta_values, theta)
+    def filter_omega(self, omega: float) -> FourParamSweepResult:
+        """Return a new result filtered to a single ω value."""
+        mask = np.isclose(self.omega_values, omega)
         return FourParamSweepResult(
-            theta_values=self.theta_values[mask],
+            omega_values=self.omega_values[mask],
             N_values=self.N_values[mask],
             protocol=[self.protocol[i] for i in range(len(mask)) if mask[i]],
             alpha_xx_opt=self.alpha_xx_opt[mask],
             alpha_xz_opt=self.alpha_xz_opt[mask],
             alpha_zx_opt=self.alpha_zx_opt[mask],
             alpha_zz_opt=self.alpha_zz_opt[mask],
-            delta_theta_opt=self.delta_theta_opt[mask],
+            delta_omega_opt=self.delta_omega_opt[mask],
             sql_values=self.sql_values[mask],
             ratio=self.ratio[mask],
             expectation_Jz=self.expectation_Jz[mask],
@@ -784,21 +785,21 @@ class FourParamSweepResult:
             n_starts=self.n_starts[mask],
             n_converged=self.n_converged[mask],
             gradient_norm=self.gradient_norm[mask],
-            T_H=self.T_H,
+            T_hold=self.T_hold,
         )
 
     def filter_N(self, N: int) -> FourParamSweepResult:
         """Return a new result filtered to a single N value."""
         mask = self.N_values == N
         return FourParamSweepResult(
-            theta_values=self.theta_values[mask],
+            omega_values=self.omega_values[mask],
             N_values=self.N_values[mask],
             protocol=[self.protocol[i] for i in range(len(mask)) if mask[i]],
             alpha_xx_opt=self.alpha_xx_opt[mask],
             alpha_xz_opt=self.alpha_xz_opt[mask],
             alpha_zx_opt=self.alpha_zx_opt[mask],
             alpha_zz_opt=self.alpha_zz_opt[mask],
-            delta_theta_opt=self.delta_theta_opt[mask],
+            delta_omega_opt=self.delta_omega_opt[mask],
             sql_values=self.sql_values[mask],
             ratio=self.ratio[mask],
             expectation_Jz=self.expectation_Jz[mask],
@@ -807,7 +808,7 @@ class FourParamSweepResult:
             n_starts=self.n_starts[mask],
             n_converged=self.n_converged[mask],
             gradient_norm=self.gradient_norm[mask],
-            T_H=self.T_H,
+            T_hold=self.T_hold,
         )
 
 
@@ -817,32 +818,32 @@ class FourParamSweepResult:
 
 
 def run_sweep(
-    theta_values: np.ndarray | None = None,
+    omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
     protocol: str = "dual",
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     n_starts: int | None = None,
     progress_callback: Callable[[int, int], None] | None = None,
 ) -> FourParamSweepResult:
-    """Run the full sweep over θ and N with four-parameter optimisation.
+    """Run the full sweep over ω and N with four-parameter optimisation.
 
     Args:
-        theta_values: θ values to sweep (default: [0.5, 1.0, ..., 5.0]).
+        omega_values: ω values to sweep (default: [0.5, 1.0, ..., 5.0]).
         N_values: N values to sweep (default: 1 to 20 for dual, 1/5/10 for S-only).
         protocol: 'dual' or 'S-only'.
-        T_H: Holding time.
+        T_hold: Holding time.
         n_starts: Number of L-BFGS-B random starts per point.
         progress_callback: Optional callback (current, total).
 
     Returns:
         FourParamSweepResult with all optimised points.
     """
-    if theta_values is None:
-        theta_values = np.array(THETA_VALS, dtype=float)
+    if omega_values is None:
+        omega_values = np.array(OMEGA_VALS, dtype=float)
 
-    n_theta = len(theta_values)
+    n_omega = len(omega_values)
     n_N = len(N_values) if N_values is not None else 0
-    total = n_theta * n_N
+    total = n_omega * n_N
 
     # Choose default N values based on protocol
     if N_values is None:
@@ -851,7 +852,7 @@ def run_sweep(
         else:
             N_values = np.array(SONLY_MZI_N_VALS, dtype=int)
 
-    thetas = np.zeros(total, dtype=float)
+    omegas = np.zeros(total, dtype=float)
     Ns = np.zeros(total, dtype=int)
     protos: list[str] = []
     a_xx_opts = np.full(total, np.nan, dtype=float)
@@ -873,29 +874,29 @@ def run_sweep(
         ops = embed_combined_operators(N_val)
         psi0 = initial_state(N_val)
         actual_starts = _n_starts_for_N(N_val) if n_starts is None else n_starts
-        for theta_val in theta_values:
-            thetas[idx] = theta_val
+        for omega_val in omega_values:
+            omegas[idx] = omega_val
             Ns[idx] = N_val
             protos.append(protocol)
 
             opt_result = optimise_four_params(
                 N=N_val,
-                theta=theta_val,
+                omega=omega_val,
                 ops=ops,
                 psi0=psi0,
                 protocol=protocol,
                 n_starts=actual_starts,
-                T_H=T_H,
+                T_hold=T_hold,
             )
             a_xx_opts[idx] = opt_result.alpha_opt[0]
             a_xz_opts[idx] = opt_result.alpha_opt[1]
             a_zx_opts[idx] = opt_result.alpha_opt[2]
             a_zz_opts[idx] = opt_result.alpha_opt[3]
-            delta_opts[idx] = opt_result.delta_theta_opt
+            delta_opts[idx] = opt_result.delta_omega_opt
             sqls[idx] = opt_result.sql
             ratios[idx] = (
-                opt_result.delta_theta_opt / opt_result.sql
-                if np.isfinite(opt_result.delta_theta_opt) and opt_result.sql > 0
+                opt_result.delta_omega_opt / opt_result.sql
+                if np.isfinite(opt_result.delta_omega_opt) and opt_result.sql > 0
                 else float("inf")
             )
             exps[idx] = opt_result.expectation_Jz
@@ -910,14 +911,14 @@ def run_sweep(
                 progress_callback(idx, total)
 
     return FourParamSweepResult(
-        theta_values=thetas,
+        omega_values=omegas,
         N_values=Ns,
         protocol=protos,
         alpha_xx_opt=a_xx_opts,
         alpha_xz_opt=a_xz_opts,
         alpha_zx_opt=a_zx_opts,
         alpha_zz_opt=a_zz_opts,
-        delta_theta_opt=delta_opts,
+        delta_omega_opt=delta_opts,
         sql_values=sqls,
         ratio=ratios,
         expectation_Jz=exps,
@@ -926,7 +927,7 @@ def run_sweep(
         n_starts=n_starts_arr,
         n_converged=n_conv_arr,
         gradient_norm=grad_norm_arr,
-        T_H=T_H,
+        T_hold=T_hold,
     )
 
 
@@ -936,38 +937,38 @@ def run_sweep(
 
 
 def compute_decoupled_baseline(
-    theta_values: np.ndarray | None = None,
+    omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
     protocol: str = "dual",
-    T_H: float = DEFAULT_T_H,
+    T_hold: float = DEFAULT_T_hold,
     fd_step: float = FD_STEP,
 ) -> FourParamSweepResult:
-    """Verify the decoupled baseline (α = 0) for all (θ, N, protocol) pairs.
+    """Verify the decoupled baseline (α = 0) for all (ω, N, protocol) pairs.
 
-    At α = (0,0,0,0), the sensitivity should equal SQL = 1/(√N T_H).
+    At α = (0,0,0,0), the sensitivity should equal SQL = 1/(√N T_hold).
 
     Args:
-        theta_values: θ values (default: sweep range).
+        omega_values: ω values (default: sweep range).
         N_values: N values (default: 1 to 20 for dual).
         protocol: 'dual' or 'S-only'.
-        T_H: Holding time.
+        T_hold: Holding time.
 
     Returns:
         FourParamSweepResult with α = 0 results.
     """
-    if theta_values is None:
-        theta_values = np.array(THETA_VALS, dtype=float)
+    if omega_values is None:
+        omega_values = np.array(OMEGA_VALS, dtype=float)
     if N_values is None:
         if protocol == "dual":
             N_values = np.array(DUAL_MZI_N_VALS, dtype=int)
         else:
             N_values = np.array(SONLY_MZI_N_VALS, dtype=int)
 
-    n_theta = len(theta_values)
+    n_omega = len(omega_values)
     n_N = len(N_values)
-    total = n_theta * n_N
+    total = n_omega * n_N
 
-    thetas = np.zeros(total, dtype=float)
+    omegas = np.zeros(total, dtype=float)
     Ns = np.zeros(total, dtype=int)
     protos: list[str] = []
     sqls = np.zeros(total, dtype=float)
@@ -990,21 +991,21 @@ def compute_decoupled_baseline(
     for N_val in N_values:
         ops = embed_combined_operators(N_val)
         psi0 = initial_state(N_val)
-        for theta_val in theta_values:
-            thetas[idx] = theta_val
+        for omega_val in omega_values:
+            omegas[idx] = omega_val
             Ns[idx] = N_val
             protos.append(protocol)
-            sql = 1.0 / (np.sqrt(N_val) * T_H)
+            sql = 1.0 / (np.sqrt(N_val) * T_hold)
             sqls[idx] = sql
 
             dt, exp_val, var_val, d_exp_val = compute_sensitivity(
                 N_val,
                 psi0,
-                theta_val,
+                omega_val,
                 zero_alpha,
                 ops,
                 protocol=protocol,
-                T_H=T_H,
+                T_hold=T_hold,
                 fd_step=fd_step,
             )
             delta_opts[idx] = dt
@@ -1016,14 +1017,14 @@ def compute_decoupled_baseline(
             idx += 1
 
     return FourParamSweepResult(
-        theta_values=thetas,
+        omega_values=omegas,
         N_values=Ns,
         protocol=protos,
         alpha_xx_opt=a_xx_opts,
         alpha_xz_opt=a_xz_opts,
         alpha_zx_opt=a_zx_opts,
         alpha_zz_opt=a_zz_opts,
-        delta_theta_opt=delta_opts,
+        delta_omega_opt=delta_opts,
         sql_values=sqls,
         ratio=ratios,
         expectation_Jz=exps,
@@ -1032,7 +1033,7 @@ def compute_decoupled_baseline(
         n_starts=n_starts_arr,
         n_converged=n_conv_arr,
         gradient_norm=grad_norm_arr,
-        T_H=T_H,
+        T_hold=T_hold,
     )
 
 
@@ -1052,7 +1053,7 @@ def plot_ratio_heatmap(
     figsize: tuple[float, float] = (10, 7),
     title_suffix: str = "",
 ) -> Path:
-    """Plot a heatmap of Δθ_opt / SQL ratio across (θ, N).
+    """Plot a heatmap of Δω_opt / SQL ratio across (ω, N).
 
     Args:
         sweep: Sweep result.
@@ -1066,13 +1067,13 @@ def plot_ratio_heatmap(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    theta_vals = np.unique(sweep.theta_values)
+    omega_vals = np.unique(sweep.omega_values)
     N_vals = np.unique(sweep.N_values)
-    ratio_map = np.full((len(N_vals), len(theta_vals)), np.nan, dtype=float)
+    ratio_map = np.full((len(N_vals), len(omega_vals)), np.nan, dtype=float)
 
-    for i, theta in enumerate(theta_vals):
+    for i, omega in enumerate(omega_vals):
         for j, N_val in enumerate(N_vals):
-            mask = np.isclose(sweep.theta_values, theta) & (sweep.N_values == N_val)
+            mask = np.isclose(sweep.omega_values, omega) & (sweep.N_values == N_val)
             if np.any(mask):
                 ratio_map[j, i] = float(sweep.ratio[mask][0])
 
@@ -1085,7 +1086,7 @@ def plot_ratio_heatmap(
         vmax = 2.0
 
     im = ax.pcolormesh(
-        theta_vals,
+        omega_vals,
         N_vals,
         ratio_map,
         shading="nearest",
@@ -1094,11 +1095,11 @@ def plot_ratio_heatmap(
         vmax=vmax,
     )
     cbar = fig.colorbar(
-        im, ax=ax, label=r"$\Delta\theta_{\mathrm{opt}} / \Delta\theta_{\mathrm{SQL}}$"
+        im, ax=ax, label=r"$\Delta\omega_{\mathrm{opt}} / \Delta\omega_{\mathrm{SQL}}$"
     )
     cbar.ax.axhline(y=1.0, color="black", linewidth=1.5, linestyle="--")
 
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$N$ (particles per subsystem)")
     title = "Sensitivity Ratio: 4-Parameter Interaction"
     if title_suffix:
@@ -1120,7 +1121,7 @@ def plot_alpha_opt_heatmap(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 7),
 ) -> Path:
-    """Plot a heatmap of optimal α values across (θ, N).
+    """Plot a heatmap of optimal α values across (ω, N).
 
     Args:
         sweep: Sweep result.
@@ -1135,13 +1136,13 @@ def plot_alpha_opt_heatmap(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    theta_vals = np.unique(sweep.theta_values)
+    omega_vals = np.unique(sweep.omega_values)
     N_vals = np.unique(sweep.N_values)
-    alpha_map = np.full((len(N_vals), len(theta_vals)), np.nan, dtype=float)
+    alpha_map = np.full((len(N_vals), len(omega_vals)), np.nan, dtype=float)
 
-    for i, theta in enumerate(theta_vals):
+    for i, omega in enumerate(omega_vals):
         for j, N_val in enumerate(N_vals):
-            mask = np.isclose(sweep.theta_values, theta) & (sweep.N_values == N_val)
+            mask = np.isclose(sweep.omega_values, omega) & (sweep.N_values == N_val)
             if np.any(mask):
                 alpha_map[j, i] = float(alpha_values[mask][0])
 
@@ -1156,7 +1157,7 @@ def plot_alpha_opt_heatmap(
         vmin, vmax = -1.0, 1.0
 
     im = ax.pcolormesh(
-        theta_vals,
+        omega_vals,
         N_vals,
         alpha_map,
         shading="nearest",
@@ -1165,7 +1166,7 @@ def plot_alpha_opt_heatmap(
         vmax=vmax,
     )
     fig.colorbar(im, ax=ax, label=alpha_label)
-    ax.set_xlabel(r"$\theta$")
+    ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$N$ (particles per subsystem)")
     ax.set_title(f"Optimal {alpha_label}")
 
@@ -1178,15 +1179,15 @@ def plot_alpha_opt_heatmap(
 def plot_n_scaling(
     sweep: FourParamSweepResult,
     save_path: str | Path,
-    theta_fixed: float | None = None,
+    omega_fixed: float | None = None,
     figsize: tuple[float, float] = (8, 6),
 ) -> Path:
-    """Plot Δθ_opt vs N at a fixed θ, with SQL and HL reference lines.
+    """Plot Δω_opt vs N at a fixed ω, with SQL and HL reference lines.
 
     Args:
         sweep: Sweep result.
         save_path: Output SVG path.
-        theta_fixed: θ value to plot. If None, uses the first θ.
+        omega_fixed: ω value to plot. If None, uses the first ω.
         figsize: Figure size.
 
     Returns:
@@ -1195,21 +1196,21 @@ def plot_n_scaling(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if theta_fixed is None:
-        theta_fixed = float(np.unique(sweep.theta_values)[0])
+    if omega_fixed is None:
+        omega_fixed = float(np.unique(sweep.omega_values)[0])
 
-    mask = np.isclose(sweep.theta_values, theta_fixed)
+    mask = np.isclose(sweep.omega_values, omega_fixed)
     N_vals = sweep.N_values[mask].astype(float)
-    delta_vals = sweep.delta_theta_opt[mask]
+    delta_vals = sweep.delta_omega_opt[mask]
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # SQL reference: Δθ = 1/(√N T_H)
+    # SQL reference: Δω = 1/(√N T_hold)
     N_dense = np.logspace(
         np.log10(1), np.log10(max(N_vals) if len(N_vals) > 0 else 20), 100
     )
-    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.T_H)
-    hl_dense = 1.0 / (N_dense * sweep.T_H)
+    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.T_hold)
+    hl_dense = 1.0 / (N_dense * sweep.T_hold)
 
     ax.loglog(N_dense, sql_dense, "--", color="gray", alpha=0.7, label="SQL")
     ax.loglog(N_dense, hl_dense, ":", color="gray", alpha=0.5, label="HL")
@@ -1224,13 +1225,13 @@ def plot_n_scaling(
             color="C0",
             markersize=8,
             linewidth=1.8,
-            label=rf"$\Delta\theta_{{\mathrm{{opt}}}}(\theta={theta_fixed:.2f})$",
+            label=rf"$\Delta\omega_{{\mathrm{{opt}}}}(\omega={omega_fixed:.2f})$",
         )
 
     protocol_label = sweep.protocol[0] if sweep.protocol else "dual"
     ax.set_xlabel(r"$N$ (particles per subsystem)")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(f"N-Scaling at $\\theta={theta_fixed:.2f}$:\n{protocol_label} MZI")
+    ax.set_ylabel(r"$\Delta\omega$")
+    ax.set_title(f"N-Scaling at $\\omega={omega_fixed:.2f}$:\n{protocol_label} MZI")
     ax.legend(fontsize=10)
     ax.grid(True, which="both", alpha=0.3)
 
@@ -1240,13 +1241,13 @@ def plot_n_scaling(
     return save_path
 
 
-def plot_theta_dependence(
+def plot_omega_dependence(
     sweep: FourParamSweepResult,
     save_path: str | Path,
     N_fixed: int | None = None,
     figsize: tuple[float, float] = (8, 6),
 ) -> Path:
-    """Plot Δθ_opt vs θ at fixed N, with SQL reference line.
+    """Plot Δω_opt vs ω at fixed N, with SQL reference line.
 
     Args:
         sweep: Sweep result.
@@ -1264,14 +1265,14 @@ def plot_theta_dependence(
         N_fixed = int(np.unique(sweep.N_values)[0])
 
     mask = sweep.N_values == N_fixed
-    theta_vals = sweep.theta_values[mask]
-    delta_vals = sweep.delta_theta_opt[mask]
+    omega_vals = sweep.omega_values[mask]
+    delta_vals = sweep.delta_omega_opt[mask]
     sql_vals = sweep.sql_values[mask]
 
     fig, ax = plt.subplots(figsize=figsize)
 
     # SQL reference (flat line for fixed N)
-    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.T_H) if len(sql_vals) > 0 else 0.1
+    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.T_hold) if len(sql_vals) > 0 else 0.1
     ax.axhline(
         y=sql_val,
         color="gray",
@@ -1284,19 +1285,19 @@ def plot_theta_dependence(
     finite_mask = np.isfinite(delta_vals)
     if np.any(finite_mask):
         ax.plot(
-            theta_vals[finite_mask],
+            omega_vals[finite_mask],
             delta_vals[finite_mask],
             "o-",
             color="C0",
             markersize=6,
             linewidth=1.5,
-            label=rf"$\Delta\theta_{{\mathrm{{opt}}}}(N={N_fixed})$",
+            label=rf"$\Delta\omega_{{\mathrm{{opt}}}}(N={N_fixed})$",
         )
 
     protocol_label = sweep.protocol[0] if sweep.protocol else "dual"
-    ax.set_xlabel(r"$\theta$")
-    ax.set_ylabel(r"$\Delta\theta$")
-    ax.set_title(f"$\\theta$-Dependence at $N={N_fixed}$:\n{protocol_label} MZI")
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\Delta\omega$")
+    ax.set_title(f"$\\omega$-Dependence at $N={N_fixed}$:\n{protocol_label} MZI")
     ax.legend(fontsize=10)
 
     fig.tight_layout()
@@ -1310,7 +1311,7 @@ def plot_scaling_exponents(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Plot the scaling exponent α vs θ from log-log fits.
+    """Plot the scaling exponent α vs ω from log-log fits.
 
     Args:
         scaling: Scaling analysis result.
@@ -1325,11 +1326,11 @@ def plot_scaling_exponents(
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
-    # Left: exponent vs θ
+    # Left: exponent vs ω
     valid_exp = np.isfinite(scaling.exponents)
     if np.any(valid_exp):
         ax1.plot(
-            scaling.theta_values[valid_exp],
+            scaling.omega_values[valid_exp],
             scaling.exponents[valid_exp],
             "o-",
             color="C1",
@@ -1350,16 +1351,16 @@ def plot_scaling_exponents(
         alpha=0.5,
         label="HL (α = −1.0)",
     )
-    ax1.set_xlabel(r"$\theta$")
+    ax1.set_xlabel(r"$\omega$")
     ax1.set_ylabel(r"Scaling exponent $\alpha$")
-    ax1.set_title("Exponent $\\alpha$ from\n$\\Delta\\theta = C N^{\\alpha}$")
+    ax1.set_title("Exponent $\\alpha$ from\n$\\Delta\\omega = C N^{\\alpha}$")
     ax1.legend(fontsize=9)
 
-    # Right: R² vs θ
+    # Right: R² vs ω
     valid_r2 = np.isfinite(scaling.r_squared)
     if np.any(valid_r2):
         ax2.plot(
-            scaling.theta_values[valid_r2],
+            scaling.omega_values[valid_r2],
             scaling.r_squared[valid_r2],
             "s-",
             color="C2",
@@ -1367,7 +1368,7 @@ def plot_scaling_exponents(
             linewidth=1.5,
         )
     ax2.axhline(y=0.95, color="gray", linestyle="--", alpha=0.5)
-    ax2.set_xlabel(r"$\theta$")
+    ax2.set_xlabel(r"$\omega$")
     ax2.set_ylabel(r"$R^2$")
     ax2.set_title("Goodness of Fit")
     ax2.set_ylim(-0.05, 1.05)
@@ -1378,13 +1379,13 @@ def plot_scaling_exponents(
     return save_path
 
 
-def plot_theta_scan(
+def plot_omega_scan(
     sweep: FourParamSweepResult,
     save_path: str | Path,
     N_fixed: int | None = None,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Plot Δθ_opt vs θ with SQL reference and optimal α parameters as secondary axis.
+    """Plot Δω_opt vs ω with SQL reference and optimal α parameters as secondary axis.
 
     Args:
         sweep: Sweep result.
@@ -1402,8 +1403,8 @@ def plot_theta_scan(
         N_fixed = int(np.unique(sweep.N_values)[0])
 
     filtered = sweep.filter_N(N_fixed)
-    theta = filtered.theta_values
-    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.T_H)
+    omega = filtered.omega_values
+    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.T_hold)
 
     fig, ax1 = plt.subplots(figsize=figsize)
 
@@ -1417,28 +1418,28 @@ def plot_theta_scan(
         label=rf"SQL = {sql_val:.4f}",
     )
 
-    # Δθ vs θ
-    valid = np.isfinite(filtered.delta_theta_opt)
+    # Δω vs ω
+    valid = np.isfinite(filtered.delta_omega_opt)
     if np.any(valid):
         ax1.plot(
-            theta[valid],
-            filtered.delta_theta_opt[valid],
+            omega[valid],
+            filtered.delta_omega_opt[valid],
             "o-",
             color="C0",
             markersize=7,
             linewidth=1.8,
-            label=r"$\Delta\theta_{\mathrm{opt}}$",
+            label=r"$\Delta\omega_{\mathrm{opt}}$",
         )
         # Annotate best point
-        best_idx = int(np.argmin(filtered.delta_theta_opt[valid]))
-        best_theta = float(theta[valid][best_idx])
-        best_val = float(filtered.delta_theta_opt[valid][best_idx])
+        best_idx = int(np.argmin(filtered.delta_omega_opt[valid]))
+        best_omega = float(omega[valid][best_idx])
+        best_val = float(filtered.delta_omega_opt[valid][best_idx])
         best_ratio = best_val / sql_val if sql_val > 0 else float("inf")
         ax1.annotate(
-            rf"Best: $\Delta\theta$={best_val:.5f} ({best_ratio:.3f}$\times$SQL)"
-            rf" at $\theta$={best_theta:.2f}",
-            xy=(best_theta, best_val),
-            xytext=(best_theta + 0.8, best_val + 0.02),
+            rf"Best: $\Delta\omega$={best_val:.5f} ({best_ratio:.3f}$\times$SQL)"
+            rf" at $\omega$={best_omega:.2f}",
+            xy=(best_omega, best_val),
+            xytext=(best_omega + 0.8, best_val + 0.02),
             arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
             fontsize=10,
             bbox={
@@ -1449,10 +1450,10 @@ def plot_theta_scan(
         )
 
     protocol_label = filtered.protocol[0] if filtered.protocol else "dual"
-    ax1.set_xlabel(r"$\theta$")
-    ax1.set_ylabel(r"$\Delta\theta$")
+    ax1.set_xlabel(r"$\omega$")
+    ax1.set_ylabel(r"$\Delta\omega$")
     ax1.set_title(
-        f"4-Parameter Sensitivity vs $\\theta$ at $N={N_fixed}$:\n{protocol_label} MZI"
+        f"4-Parameter Sensitivity vs $\\omega$ at $N={N_fixed}$:\n{protocol_label} MZI"
     )
 
     # Secondary axis: optimal α parameters
@@ -1466,7 +1467,7 @@ def plot_theta_scan(
         valid_a = np.isfinite(arr)
         if np.any(valid_a):
             ax2.plot(
-                theta[valid_a],
+                omega[valid_a],
                 arr[valid_a],
                 marker + "-",
                 color=color,
@@ -1506,29 +1507,29 @@ def fig_path(name: str) -> Path:
 
 
 def generate_dual_sweep(force: bool = False) -> None:
-    """Run the dual MZI full sweep (N=1-20, θ from 0.5 to 5.0)."""
+    """Run the dual MZI full sweep (N=1-20, ω from 0.5 to 5.0)."""
     csv_p = parquet_path("dual-mzi-sweep")
     fig_ratio = fig_path("dual-mzi-ratio-heatmap")
-    fig_theta_scan = fig_path("dual-mzi-theta-scan-N5")
+    fig_omega_scan = fig_path("dual-mzi-omega-scan-N5")
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
         result = FourParamSweepResult.from_parquet(csv_p)
     else:
         N_arr = np.array(DUAL_MZI_N_VALS, dtype=int)
-        theta_arr = np.array(THETA_VALS, dtype=float)
+        omega_arr = np.array(OMEGA_VALS, dtype=float)
         print(
             f"[run]  Computing dual MZI sweep "
-            f"({len(theta_arr)}×{len(N_arr)} = {len(theta_arr) * len(N_arr)} points)..."
+            f"({len(omega_arr)}×{len(N_arr)} = {len(omega_arr) * len(N_arr)} points)..."
         )
-        result = run_sweep(theta_values=theta_arr, N_values=N_arr, protocol="dual")
+        result = run_sweep(omega_values=omega_arr, N_values=N_arr, protocol="dual")
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
     plot_ratio_heatmap(result, fig_ratio, title_suffix="Dual MZI")
     print(f"[fig]  {fig_ratio}")
-    plot_theta_scan(result, fig_theta_scan, N_fixed=5)
-    print(f"[fig]  {fig_theta_scan}")
+    plot_omega_scan(result, fig_omega_scan, N_fixed=5)
+    print(f"[fig]  {fig_omega_scan}")
 
 
 def generate_sonly_sweep(force: bool = False) -> None:
@@ -1541,12 +1542,12 @@ def generate_sonly_sweep(force: bool = False) -> None:
         result = FourParamSweepResult.from_parquet(csv_p)
     else:
         N_arr = np.array(SONLY_MZI_N_VALS, dtype=int)
-        theta_arr = np.array(THETA_VALS, dtype=float)
+        omega_arr = np.array(OMEGA_VALS, dtype=float)
         print(
             f"[run]  Computing S-only MZI sweep "
-            f"({len(theta_arr)}×{len(N_arr)} = {len(theta_arr) * len(N_arr)} points)..."
+            f"({len(omega_arr)}×{len(N_arr)} = {len(omega_arr) * len(N_arr)} points)..."
         )
-        result = run_sweep(theta_values=theta_arr, N_values=N_arr, protocol="S-only")
+        result = run_sweep(omega_values=omega_arr, N_values=N_arr, protocol="S-only")
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
@@ -1555,22 +1556,22 @@ def generate_sonly_sweep(force: bool = False) -> None:
 
 
 def generate_sonly_reproduction(force: bool = False) -> None:
-    """Reproduce the 2026-05-21 result: S-only MZI, N=1, θ=3.8.
+    """Reproduce the 2026-05-21 result: S-only MZI, N=1, ω=3.8.
 
-    Expected: Δθ/Δθ_SQL ≤ 0.690 (i.e., Δθ ≤ 0.0690 at T_H=10).
+    Expected: Δω/Δω_SQL ≤ 0.690 (i.e., Δω ≤ 0.0690 at T_hold=10).
     """
     csv_p = parquet_path("sonly-reproduction-n1")
     N_val = 1
-    theta_val = 3.8
-    sql = 1.0 / (np.sqrt(N_val) * DEFAULT_T_H)
+    omega_val = 3.8
+    sql = 1.0 / (np.sqrt(N_val) * DEFAULT_T_hold)
 
-    print("[run]  2026-05-21 reproduction: S-only MZI, N=1, θ=3.8")
+    print("[run]  2026-05-21 reproduction: S-only MZI, N=1, ω=3.8")
 
     ops = embed_combined_operators(N_val)
     psi0 = initial_state(N_val)
     result = optimise_four_params(
         N=N_val,
-        theta=theta_val,
+        omega=omega_val,
         ops=ops,
         psi0=psi0,
         protocol="S-only",
@@ -1578,12 +1579,12 @@ def generate_sonly_reproduction(force: bool = False) -> None:
     )
 
     ratio = (
-        result.delta_theta_opt / sql
-        if np.isfinite(result.delta_theta_opt)
+        result.delta_omega_opt / sql
+        if np.isfinite(result.delta_omega_opt)
         else float("inf")
     )
     print(
-        f"  Δθ_opt = {result.delta_theta_opt:.6f}, SQL = {sql:.6f}, ratio = {ratio:.4f}"
+        f"  Δω_opt = {result.delta_omega_opt:.6f}, SQL = {sql:.6f}, ratio = {ratio:.4f}"
     )
     print(
         f"  α* = ({result.alpha_opt[0]:.4f}, {result.alpha_opt[1]:.4f}, "
@@ -1598,8 +1599,8 @@ def generate_sonly_reproduction(force: bool = False) -> None:
     # Create verification figure
     fig_p = fig_path("sonly-reproduction-n1")
     text = (
-        f"2026-05-21 Reproduction (S-only MZI, N=1, θ=3.8)\n"
-        f"Δθ_opt = {result.delta_theta_opt:.6f}\n"
+        f"2026-05-21 Reproduction (S-only MZI, N=1, ω=3.8)\n"
+        f"Δω_opt = {result.delta_omega_opt:.6f}\n"
         f"SQL = {sql:.6f}\n"
         f"Ratio = {ratio:.4f}\n"
         f"Expected ratio ≤ 0.690\n"
@@ -1628,9 +1629,9 @@ def generate_decoupled_baseline(force: bool = False) -> None:
     else:
         print("[run]  Computing decoupled baseline (dual MZI)...")
         N_arr = np.array(DUAL_MZI_N_VALS, dtype=int)
-        theta_subset = np.array(THETA_VALS, dtype=float)
+        omega_subset = np.array(OMEGA_VALS, dtype=float)
         result_dual = compute_decoupled_baseline(
-            theta_values=theta_subset,
+            omega_values=omega_subset,
             N_values=N_arr,
             protocol="dual",
         )
@@ -1644,9 +1645,9 @@ def generate_decoupled_baseline(force: bool = False) -> None:
     else:
         print("[run]  Computing decoupled baseline (S-only MZI)...")
         N_arr = np.array(SONLY_MZI_N_VALS, dtype=int)
-        theta_subset = np.array(THETA_VALS, dtype=float)
+        omega_subset = np.array(OMEGA_VALS, dtype=float)
         result_sonly = compute_decoupled_baseline(
-            theta_values=theta_subset,
+            omega_values=omega_subset,
             N_values=N_arr,
             protocol="S-only",
         )
@@ -1657,13 +1658,13 @@ def generate_decoupled_baseline(force: bool = False) -> None:
     from matplotlib.colors import LogNorm
 
     for protocol, result in [("dual", result_dual), ("S-only", result_sonly)]:
-        theta_vals = np.unique(result.theta_values)
+        omega_vals = np.unique(result.omega_values)
         N_vals = np.unique(result.N_values)
-        dev_map = np.full((len(N_vals), len(theta_vals)), np.nan, dtype=float)
+        dev_map = np.full((len(N_vals), len(omega_vals)), np.nan, dtype=float)
 
-        for i, theta in enumerate(theta_vals):
+        for i, omega in enumerate(omega_vals):
             for j, N_val in enumerate(N_vals):
-                mask = np.isclose(result.theta_values, theta) & (
+                mask = np.isclose(result.omega_values, omega) & (
                     result.N_values == N_val
                 )
                 if np.any(mask):
@@ -1680,7 +1681,7 @@ def generate_decoupled_baseline(force: bool = False) -> None:
             vmin, vmax = 1e-15, 1.0
 
         im = ax.pcolormesh(
-            theta_vals,
+            omega_vals,
             N_vals,
             dev_map,
             shading="nearest",
@@ -1688,17 +1689,17 @@ def generate_decoupled_baseline(force: bool = False) -> None:
             norm=LogNorm(vmin=max(vmin, 1e-16), vmax=vmax),
         )
         fig.colorbar(
-            im, ax=ax, label=r"$|\Delta\theta/\Delta\theta_{\mathrm{SQL}} - 1|$"
+            im, ax=ax, label=r"$|\Delta\omega/\Delta\omega_{\mathrm{SQL}} - 1|$"
         )
 
         max_dev = float(np.max(finite)) if len(finite) > 0 else 0.0
         protocol_label = "dual" if protocol == "dual" else "S-only"
-        ax.set_xlabel(r"$\theta$")
+        ax.set_xlabel(r"$\omega$")
         ax.set_ylabel(r"$N$ (particles per subsystem)")
         ax.set_title(
             f"Decoupled Baseline Verification ($\\alpha = 0$, {protocol_label} MZI, "
-            f"$T_H = {result.T_H}$)\n"
-            f"Max $|\\Delta\\theta/\\mathrm{{SQL}} - 1| = {max_dev:.2e}$, "
+            f"$T_hold = {result.T_hold}$)\n"
+            f"Max $|\\Delta\\omega/\\mathrm{{SQL}} - 1| = {max_dev:.2e}$, "
             f"points checked: {len(finite)}"
         )
 
@@ -1718,22 +1719,22 @@ def generate_n_scaling(force: bool = False) -> None:
 
     result = FourParamSweepResult.from_parquet(csv_p)
 
-    # Plot at three representative θ values
-    for theta_val in [0.5, 2.5, 5.0]:
-        fig_p = fig_path(f"dual-mzi-n-scaling-theta{theta_val:.1f}")
-        plot_n_scaling(result, fig_p, theta_fixed=theta_val)
+    # Plot at three representative ω values
+    for omega_val in [0.5, 2.5, 5.0]:
+        fig_p = fig_path(f"dual-mzi-n-scaling-omega{omega_val:.1f}")
+        plot_n_scaling(result, fig_p, omega_fixed=omega_val)
         print(f"[fig]  {fig_p}")
 
 
-def generate_theta_dependence(force: bool = False) -> None:
-    """θ-dependence plots at fixed N values from sweep data."""
+def generate_omega_dependence(force: bool = False) -> None:
+    """ω-dependence plots at fixed N values from sweep data."""
     csv_dual = parquet_path("dual-mzi-sweep")
 
     if csv_dual.exists():
         result_dual = FourParamSweepResult.from_parquet(csv_dual)
         for N_fixed in [1, 5, 10, 20]:
-            fig_p = fig_path(f"dual-mzi-theta-N{N_fixed}")
-            plot_theta_dependence(result_dual, fig_p, N_fixed=N_fixed)
+            fig_p = fig_path(f"dual-mzi-omega-N{N_fixed}")
+            plot_omega_dependence(result_dual, fig_p, N_fixed=N_fixed)
             print(f"[fig]  {fig_p}")
 
 
@@ -1755,9 +1756,9 @@ def generate_scaling_analysis(force: bool = False) -> None:
     else:
         print("[run]  Fitting scaling exponents...")
         scaling = fit_scaling_exponents(
-            result.theta_values,
+            result.omega_values,
             result.N_values,
-            result.delta_theta_opt,
+            result.delta_omega_opt,
         )
         scaling.save_parquet(scaling_csv)
         print(f"[save] {scaling_csv}")
@@ -1798,7 +1799,7 @@ def main() -> None:
         "dual-sweep": generate_dual_sweep,
         "sonly-sweep": generate_sonly_sweep,
         "n-scaling": generate_n_scaling,
-        "theta-dependence": generate_theta_dependence,
+        "omega-dependence": generate_omega_dependence,
         "scaling-analysis": generate_scaling_analysis,
     }
 

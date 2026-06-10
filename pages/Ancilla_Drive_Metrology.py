@@ -28,7 +28,7 @@ from src.analysis.ancilla_drive_metrology import (
     drive_random_search,
     evolve_drive_circuit,
     run_drive_nelder_mead,
-    run_drive_theta_scan,
+    run_drive_omega_scan,
     system_only_bs_unitary,
 )
 from src.analysis.ancilla_optimization import (
@@ -37,6 +37,7 @@ from src.analysis.ancilla_optimization import (
     validate_bs_unitarity,
     validate_operators,
 )
+from src.utils.constants import I_4
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -49,9 +50,9 @@ st.title("⚡ Ancilla-Drive-Enhanced Metrology")
 st.markdown(
     r"""
     **Testing whether an actively driven ancilla can beat the standard quantum limit
-    $\Delta\theta_{\text{SQL}} = 1/T_H$ using only a single particle in the interferometer.**
+    $\Delta\omega_{\text{SQL}} = 1/T_hold$ using only a single particle in the interferometer.**
 
-    The circuit: BS$_S$ → Hold($\theta, H_A, H_{\text{int}}$) → BS$_S$ → Measure $J_z^S$.
+    The circuit: BS$_S$ → Hold($\omega, H_A, H_{\text{int}}$) → BS$_S$ → Measure $J_z^S$.
     """,
 )
 
@@ -64,7 +65,6 @@ with st.expander("🔧 Validation Checks", expanded=False):
 
     # System-only BS unitarity
     U_bs_sys = system_only_bs_unitary(np.pi / 2)
-    I_4 = np.eye(4, dtype=complex)
     bs_sys_ok = bool(np.allclose(U_bs_sys @ U_bs_sys.conj().T, I_4, atol=1e-12))
 
     vcol1.success("✅ Operators Hermitian & SU(2)") if ops_ok else vcol1.error("❌")
@@ -73,9 +73,9 @@ with st.expander("🔧 Validation Checks", expanded=False):
 
     # Decoupled baseline check
     baseline = compute_drive_decoupled_baseline()
-    ratio = baseline.delta_theta / baseline.sql
+    ratio = baseline.delta_omega / baseline.sql
     st.markdown(
-        rf"**Decoupled baseline**: $\Delta\theta = {baseline.delta_theta:.6f}$, "
+        rf"**Decoupled baseline**: $\Delta\omega = {baseline.delta_omega:.6f}$, "
         rf"SQL $= {baseline.sql:.6f}$, ratio $= {ratio:.6f}$ "
         + ("✅" if abs(ratio - 1.0) < 0.05 else "❌"),
     )
@@ -84,8 +84,8 @@ with st.expander("🔧 Validation Checks", expanded=False):
 with st.sidebar:
     st.header("Circuit Parameters")
 
-    theta = st.number_input(
-        r"$\theta$ (phase rate)",
+    omega = st.number_input(
+        r"$\omega$ (phase rate)",
         min_value=0.01,
         max_value=10.0,
         value=1.0,
@@ -93,14 +93,14 @@ with st.sidebar:
         format="%.2f",
         help="Unknown phase rate parameter being estimated.",
     )
-    T_H = st.number_input(
-        r"$T_H$ (holding time)",
+    T_hold = st.number_input(
+        r"$T_hold$ (holding time)",
         min_value=0.1,
         max_value=50.0,
         value=10.0,
         step=1.0,
         format="%.1f",
-        help="Holding time: SQL reference Δθ_SQL = 1/T_H.",
+        help="Holding time: SQL reference Δω_SQL = 1/T_hold.",
     )
     T_BS = st.number_input(
         r"$T_{\mathrm{BS}}$ (BS duration)",
@@ -152,7 +152,7 @@ tab_single, tab_2d, tab_search, tab_theta, tab_about = st.tabs(
         "🎯 Single Point",
         "📊 2D Slice",
         "🎲 Random Search",
-        "📈 θ Scan",
+        "📈 ω Scan",
         "📖 About",
     ]
 )
@@ -167,10 +167,10 @@ with tab_single:
         st.markdown(
             rf"""
             **Current configuration:**
-            - $\theta = {theta:.2f}$
+            - $\omega = {omega:.2f}$
             - $a_x = {a_x:.2f}$, $a_y = {a_y:.2f}$, $a_z = {a_z:.2f}$
             - $a_{{zz}} = {a_zz:.2f}$
-            - $T_H = {T_H:.1f}$, SQL $= 1/T_H = {1.0 / T_H:.4f}$
+            - $T_hold = {T_hold:.1f}$, SQL $= 1/T_hold = {1.0 / T_hold:.4f}$
             """,
         )
 
@@ -178,11 +178,11 @@ with tab_single:
         with st.spinner("Computing..."):
             t0 = time.time()
             ops_local = build_two_qubit_operators()
-            dtheta = compute_drive_sensitivity(
+            domega = compute_drive_sensitivity(
                 np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
                 T_BS,
-                T_H,
-                theta,
+                T_hold,
+                omega,
                 a_x,
                 a_y,
                 a_z,
@@ -195,8 +195,8 @@ with tab_single:
             psi_final = evolve_drive_circuit(
                 np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
                 T_BS,
-                T_H,
-                theta,
+                T_hold,
+                omega,
                 a_x,
                 a_y,
                 a_z,
@@ -207,40 +207,40 @@ with tab_single:
                 psi_final, ops_local["Jz_S"]
             )
 
-        sql = 1.0 / T_H
-        ratio = dtheta / sql if np.isfinite(dtheta) else float("inf")
+        sql = 1.0 / T_hold
+        ratio = domega / sql if np.isfinite(domega) else float("inf")
 
         col2.metric(
-            r"$\Delta\theta$",
-            f"{dtheta:.6f}" if np.isfinite(dtheta) else "∞ (fringe extremum)",
-            delta=f"vs SQL: {ratio:.4f}x" if np.isfinite(dtheta) else "",
+            r"$\Delta\omega$",
+            f"{domega:.6f}" if np.isfinite(domega) else "∞ (fringe extremum)",
+            delta=f"vs SQL: {ratio:.4f}x" if np.isfinite(domega) else "",
         )
 
         st.markdown(
             rf"""
             | Quantity | Value |
             |----------|-------|
-            | $\Delta\theta$ | {dtheta:.6f} |
-            | SQL $= 1/T_H$ | {sql:.6f} |
-            | Ratio $\Delta\theta / \text{{SQL}}$ | {ratio:.4f} |
+            | $\Delta\omega$ | {domega:.6f} |
+            | SQL $= 1/T_hold$ | {sql:.6f} |
+            | Ratio $\Delta\omega / \text{{SQL}}$ | {ratio:.4f} |
             | $\langle J_z^S \rangle$ | {exp_val:.6f} |
             | $\text{{Var}}(J_z^S)$ | {var_val:.10f} |
             | Computation time | {t_elapsed:.3f}s |
             """,
         )
 
-        if np.isfinite(dtheta) and dtheta < sql:
-            st.success(f"🎉 **Below SQL!** Δθ = {dtheta:.6f} < SQL = {sql:.6f}")
-        elif np.isfinite(dtheta):
-            st.info(f"Δθ = {dtheta:.6f} ≥ SQL = {sql:.6f}")
+        if np.isfinite(domega) and domega < sql:
+            st.success(f"🎉 **Below SQL!** Δω = {domega:.6f} < SQL = {sql:.6f}")
+        elif np.isfinite(domega):
+            st.info(f"Δω = {domega:.6f} ≥ SQL = {sql:.6f}")
 
     # Display the hold Hamiltonian
     with st.expander("🔬 Hold Hamiltonian", expanded=False):
         ops_h = build_two_qubit_operators()
-        H_full = build_drive_hold_hamiltonian(theta, a_x, a_y, a_z, a_zz, ops_h)
-        st.markdown(r"$H = \theta J_z^S + H_A + H_{\mathrm{int}}$")
+        H_full = build_drive_hold_hamiltonian(omega, a_x, a_y, a_z, a_zz, ops_h)
+        st.markdown(r"$H = \omega J_z^S + H_A + H_{\mathrm{int}}$")
         st.latex(
-            rf"H = {theta:.2f}\,J_z^S + ({a_x:.2f})\,J_x^A + ({a_y:.2f})\,J_y^A + ({a_z:.2f})\,J_z^A + ({a_zz:.2f})\,J_z^S \otimes J_z^A"
+            rf"H = {omega:.2f}\,J_z^S + ({a_x:.2f})\,J_x^A + ({a_y:.2f})\,J_y^A + ({a_z:.2f})\,J_z^A + ({a_zz:.2f})\,J_z^S \otimes J_z^A"
         )
         st.write("Matrix representation (4×4):")
         st.dataframe(np.real_if_close(H_full))
@@ -250,9 +250,9 @@ with tab_2d:
     st.subheader("2D Parameter Slice Scan")
     st.markdown(
         r"""
-        Scan over $(a_{\text{drive}}, a_{zz})$ at fixed $\theta$ to identify
+        Scan over $(a_{\text{drive}}, a_{zz})$ at fixed $\omega$ to identify
         promising parameter regions. The red contour marks the SQL bound
-        $\Delta\theta = 1/T_H$. Points below this contour beat the SQL.
+        $\Delta\omega = 1/T_hold$. Points below this contour beat the SQL.
         """,
     )
 
@@ -265,8 +265,8 @@ with tab_2d:
             horizontal=True,
             help="Which drive coefficient to scan.",
         )
-        slice_theta = st.number_input(
-            r"$\theta$ for slice",
+        slice_omega = st.number_input(
+            r"$\omega$ for slice",
             0.1,
             10.0,
             1.0,
@@ -283,11 +283,11 @@ with tab_2d:
             with st.spinner("Computing 2D slice..."):
                 t0 = time.time()
                 result = drive_2d_slice(
-                    theta=slice_theta,
+                    omega=slice_omega,
                     slice_type="ax" if slice_type == "a_x" else "ay",
                     n_drive=n_grid,
                     n_azz=n_grid,
-                    T_H=T_H,
+                    T_hold=T_hold,
                     T_BS=T_BS,
                 )
                 t_elapsed = time.time() - t0
@@ -295,16 +295,16 @@ with tab_2d:
             st.success(f"Computed {n_grid}×{n_grid} grid in {t_elapsed:.2f}s")
 
             # Find best point in the grid
-            flat_idx = np.argmin(result.delta_theta_grid)
-            best_i, best_j = np.unravel_index(flat_idx, result.delta_theta_grid.shape)
-            best_dt = result.delta_theta_grid[best_i, best_j]
+            flat_idx = np.argmin(result.delta_omega_grid)
+            best_i, best_j = np.unravel_index(flat_idx, result.delta_omega_grid.shape)
+            best_dt = result.delta_omega_grid[best_i, best_j]
             best_drive = result.drive_values[best_i]
             best_azz = result.azz_values[best_j]
 
             st.markdown(
                 rf"""
                 **Best point**: ${slice_type}^* = {best_drive:.3f}$, $a_{{zz}}^* = {best_azz:.3f}$,
-                $\Delta\theta = {best_dt:.6f}$ (SQL $= {1.0 / T_H:.4f}$)
+                $\Delta\omega = {best_dt:.6f}$ (SQL $= {1.0 / T_hold:.4f}$)
                 """,
             )
 
@@ -313,15 +313,15 @@ with tab_2d:
                 data=go.Heatmap(
                     x=result.azz_values,
                     y=result.drive_values,
-                    z=result.delta_theta_grid,
+                    z=result.delta_omega_grid,
                     colorscale="Viridis",
                     zmin=0.0,
-                    zmax=min(3.0 * result.sql, np.nanmax(result.delta_theta_grid)),
-                    colorbar={"title": r"$\Delta\theta$"},
+                    zmax=min(3.0 * result.sql, np.nanmax(result.delta_omega_grid)),
+                    colorbar={"title": r"$\Delta\omega$"},
                 ),
             )
             # SQL contour (approximate via scatter of near-SQL points)
-            sql_mask = np.abs(result.delta_theta_grid - result.sql) < 0.02
+            sql_mask = np.abs(result.delta_omega_grid - result.sql) < 0.02
             if np.any(sql_mask):
                 sql_x, sql_y = np.meshgrid(result.azz_values, result.drive_values)
                 fig.add_trace(
@@ -336,7 +336,7 @@ with tab_2d:
             fig.update_layout(
                 xaxis_title=r"$a_{zz}$",
                 yaxis_title=rf"${slice_type}$",
-                title=rf"$\Delta\theta$ at $\theta={slice_theta:.1f}$",
+                title=rf"$\Delta\omega$ at $\omega={slice_omega:.1f}$",
                 width=600,
                 height=500,
             )
@@ -347,7 +347,7 @@ with tab_search:
     st.subheader("4D Random Search over $(a_x, a_y, a_z, a_{zz})$")
     st.markdown(
         r"""
-        Random sampling in $[-5, 5]^4$ at fixed $\theta$ to find candidates
+        Random sampling in $[-5, 5]^4$ at fixed $\omega$ to find candidates
         that beat the SQL. Follow up with Nelder--Mead refinement.
         """,
     )
@@ -355,8 +355,8 @@ with tab_search:
     col_rs, col_rs_params = st.columns([1, 2])
 
     with col_rs_params:
-        rs_theta = st.number_input(
-            r"$\theta$ for search",
+        rs_omega = st.number_input(
+            r"$\omega$ for search",
             0.1,
             10.0,
             1.0,
@@ -377,21 +377,21 @@ with tab_search:
             with st.spinner(f"Running {rs_n} random evaluations..."):
                 t0 = time.time()
                 rs_result = drive_random_search(
-                    theta=rs_theta,
+                    omega=rs_omega,
                     n_samples=rs_n,
                     seed=42,
-                    T_H=T_H,
+                    T_hold=T_hold,
                     T_BS=T_BS,
                 )
                 t_elapsed = time.time() - t0
 
-            sql = 1.0 / T_H
-            best = rs_result.best_delta_theta
-            n_below_sql = int(np.sum(rs_result.delta_theta_values < sql))
+            sql = 1.0 / T_hold
+            best = rs_result.best_delta_omega
+            n_below_sql = int(np.sum(rs_result.delta_omega_values < sql))
 
             st.success(
                 f"Evaluated {rs_n} points in {t_elapsed:.2f}s. "
-                f"Best Δθ = {best:.6f} ({best / sql:.3f}× SQL). "
+                f"Best Δω = {best:.6f} ({best / sql:.3f}× SQL). "
                 f"{n_below_sql} / {rs_n} below SQL.",
             )
 
@@ -409,15 +409,15 @@ with tab_search:
             if st.button("🔧 Refine Best", key="btn_refine"):
                 with st.spinner("Running Nelder--Mead refinement..."):
                     nm_result = run_drive_nelder_mead(
-                        theta_true=rs_theta,
+                        omega_true=rs_omega,
                         x0=np.array(rs_result.best_params),
-                        T_H=T_H,
+                        T_hold=T_hold,
                         T_BS=T_BS,
                         maxiter=2000,
                     )
                 st.success(
-                    f"Nelder--Mead: Δθ = {nm_result.delta_theta_opt:.6f} "
-                    f"({nm_result.delta_theta_opt / sql:.3f}× SQL). "
+                    f"Nelder--Mead: Δω = {nm_result.delta_omega_opt:.6f} "
+                    f"({nm_result.delta_omega_opt / sql:.3f}× SQL). "
                     f"nfev = {nm_result.nfev}.",
                 )
                 st.markdown(
@@ -431,15 +431,15 @@ with tab_search:
                 )
 
             # Histogram
-            finite = rs_result.delta_theta_values[
-                np.isfinite(rs_result.delta_theta_values)
+            finite = rs_result.delta_omega_values[
+                np.isfinite(rs_result.delta_omega_values)
             ]
             fig = go.Figure()
             fig.add_trace(
                 go.Histogram(
                     x=finite,
                     nbinsx=40,
-                    name="Δθ distribution",
+                    name="Δω distribution",
                     marker_color="royalblue",
                     opacity=0.7,
                 )
@@ -457,7 +457,7 @@ with tab_search:
                 annotation_text=f"Best = {best:.4f}",
             )
             fig.update_layout(
-                xaxis_title=r"$\Delta\theta$",
+                xaxis_title=r"$\Delta\omega$",
                 yaxis_title="Count",
                 title=f"Random search: {len(finite)} finite points",
                 width=700,
@@ -467,24 +467,24 @@ with tab_search:
 
 # ── Tab 4: θ Scan ────────────────────────────────────────────────────────────
 with tab_theta:
-    st.subheader("θ Scan with Nelder--Mead Refinement")
+    st.subheader("ω Scan with Nelder--Mead Refinement")
     st.markdown(
         r"""
-        For each $\theta$ value, run a 4D random search followed by
+        For each $\omega$ value, run a 4D random search followed by
         Nelder--Mead refinement from the best points. Determine whether
-        the optimal $\Delta\theta$ can beat the SQL for any $\theta$.
+        the optimal $\Delta\omega$ can beat the SQL for any $\omega$.
         """,
     )
 
     col_ts, col_ts_params = st.columns([1, 2])
 
     with col_ts_params:
-        theta_vals_input = st.text_input(
-            r"$\theta$ values (comma-separated)",
+        omega_vals_input = st.text_input(
+            r"$\omega$ values (comma-separated)",
             "0.1, 0.5, 1.0, 2.0, 5.0",
         )
         ts_n_random = st.number_input(
-            "Random samples per θ",
+            "Random samples per ω",
             50,
             1000,
             200,
@@ -492,7 +492,7 @@ with tab_theta:
             key="ts_nr",
         )
         ts_n_refine = st.number_input(
-            "Nelder--Mead refinements per θ",
+            "Nelder--Mead refinements per ω",
             2,
             100,
             10,
@@ -501,47 +501,47 @@ with tab_theta:
         )
 
     with col_ts:
-        if st.button("📈 Run θ Scan", type="primary", key="btn_ts"):
+        if st.button("📈 Run ω Scan", type="primary", key="btn_ts"):
             try:
-                theta_list = [float(x.strip()) for x in theta_vals_input.split(",")]
+                omega_list = [float(x.strip()) for x in omega_vals_input.split(",")]
             except ValueError:
-                st.error("Invalid θ values. Use comma-separated numbers.")
+                st.error("Invalid ω values. Use comma-separated numbers.")
                 st.stop()
 
             with st.spinner(
-                f"Scanning {len(theta_list)} θ values (may take a while)..."
+                f"Scanning {len(omega_list)} ω values (may take a while)..."
             ):
                 t0 = time.time()
-                ts_result = run_drive_theta_scan(
-                    theta_values=theta_list,
+                ts_result = run_drive_omega_scan(
+                    omega_values=omega_list,
                     n_random=ts_n_random,
                     n_nm_refine=ts_n_refine,
                     seed=42,
                     maxiter=2000,
-                    T_H=T_H,
+                    T_hold=T_hold,
                     T_BS=T_BS,
                 )
                 t_elapsed = time.time() - t0
 
-            sql = 1.0 / T_H
+            sql = 1.0 / T_hold
             st.success(f"Completed in {t_elapsed:.1f}s")
 
             # Results table
-            st.markdown("#### Optimal parameters per θ")
+            st.markdown("#### Optimal parameters per ω")
             rows = []
-            for i, th in enumerate(ts_result.theta_values):
-                params = ts_result.best_params_per_theta[i]
-                dt = ts_result.best_delta_theta_per_theta[i]
+            for i, omega_val in enumerate(ts_result.omega_values):
+                params = ts_result.best_params_per_omega[i]
+                dt = ts_result.best_delta_omega_per_omega[i]
                 ratio = dt / sql if np.isfinite(dt) else float("inf")
                 rows.append(
                     {
-                        r"$\theta$": f"{th:.1f}",
+                        r"$\omega$": f"{omega_val:.1f}",
                         r"$a_x^*$": f"{params[0]:.3f}",
                         r"$a_y^*$": f"{params[1]:.3f}",
                         r"$a_z^*$": f"{params[2]:.3f}",
                         r"$a_{zz}^*$": f"{params[3]:.3f}",
-                        r"$\Delta\theta$": f"{dt:.6f}" if np.isfinite(dt) else "∞",
-                        r"Δθ/SQL": f"{ratio:.4f}",
+                        r"$\Delta\omega$": f"{dt:.6f}" if np.isfinite(dt) else "∞",
+                        r"Δω/SQL": f"{ratio:.4f}",
                         "Below SQL": "✅" if (np.isfinite(dt) and dt < sql) else "❌",
                     },
                 )
@@ -551,10 +551,10 @@ with tab_theta:
             fig = go.Figure()
             fig.add_trace(
                 go.Scatter(
-                    x=ts_result.theta_values,
-                    y=ts_result.best_delta_theta_per_theta,
+                    x=ts_result.omega_values,
+                    y=ts_result.best_delta_omega_per_omega,
                     mode="lines+markers",
-                    name=r"$\Delta\theta$",
+                    name=r"$\Delta\omega$",
                     marker={"size": 10, "color": "royalblue"},
                     line={"width": 2},
                 )
@@ -566,9 +566,9 @@ with tab_theta:
                 annotation_text=f"SQL = {sql:.4f}",
             )
             fig.update_layout(
-                xaxis_title=r"$\theta$",
-                yaxis_title=r"$\Delta\theta$",
-                title=r"θ-scan: best $\Delta\theta$",
+                xaxis_title=r"$\omega$",
+                yaxis_title=r"$\Delta\omega$",
+                title=r"ω-scan: best $\Delta\omega$",
                 width=700,
                 height=400,
             )
@@ -586,7 +586,7 @@ with tab_about:
         **Circuit**:
         $$
         |\Psi_{\text{final}}\rangle = U_{\text{BS}}^{(S)} \,
-        e^{-i T_H (\theta J_z^S + H_A + H_{\text{int}})} \,
+        e^{-i T_hold (\omega J_z^S + H_A + H_{\text{int}})} \,
         U_{\text{BS}}^{(S)} \, |00\rangle
         $$
 
@@ -595,11 +595,11 @@ with tab_about:
 
         **Hypothesis**: An actively driven ancilla ($H_A \neq 0$ with at least
         one non-commuting component $a_x \neq 0$ or $a_y \neq 0$) can generate
-        $\Delta\theta < 1/T_H$ (beating the SQL) even with only $N=1$ particle
+        $\Delta\omega < 1/T_hold$ (beating the SQL) even with only $N=1$ particle
         in the interferometer.
 
         **Key predictions**:
-        1. SQL violation requires $H_A \neq 0$, $a_{zz} \neq 0$, and $\theta \neq 0$.
+        1. SQL violation requires $H_A \neq 0$, $a_{zz} \neq 0$, and $\omega \neq 0$.
         2. Non-commuting drive ($a_x \neq 0$ or $a_y \neq 0$) is essential.
         3. Purely commuting drive ($a_x = a_y = 0$, $a_z \neq 0$) provides no benefit.
 
@@ -623,7 +623,7 @@ with tab_about:
             - **Unitarity**: $U^\dagger U = \mathbb{1}$ for BS and hold unitaries
             - **Hermiticity**: $H^\dagger = H$ for all Hamiltonians
             - **Variance positivity**: $\text{Var}(J_z^S) \geq 0$
-            - **SQL baseline recovery**: $\Delta\theta = 1/T_H$ exactly at
+            - **SQL baseline recovery**: $\Delta\omega = 1/T_hold$ exactly at
               $(a_x, a_y, a_z, a_{zz}) = (0, 0, 0, 0)$
             """,
         )

@@ -7,6 +7,11 @@ import time
 import numpy as np
 import pytest
 
+from src.utils.validators import (
+    validate_hamiltonian_delta_estimation,
+    validate_state_delta_estimation,
+)
+
 from .delta_estimation import (
     DeltaEstimationConfig,
     compute_observables,
@@ -15,8 +20,6 @@ from .delta_estimation import (
     generate_hamiltonian,
     generate_initial_state,
     partial_trace_b,
-    validate_hamiltonian,
-    validate_state,
 )
 
 RunOptions = DeltaEstimationConfig
@@ -241,16 +244,16 @@ class TestObservables:
 class TestValidation:
     def test_given_valid_density_matrix_then_passes(self) -> None:
         rho = np.array([[1, 0], [0, 0]], dtype=complex)
-        assert validate_state(rho, (2, 2))
+        assert validate_state_delta_estimation(rho, (2, 2))
 
     def test_given_wrong_trace_then_fails(self) -> None:
         rho = np.array([[0.5, 0], [0, 0]], dtype=complex)
-        assert not validate_state(rho, (2, 2))
+        assert not validate_state_delta_estimation(rho, (2, 2))
 
     def test_given_valid_hamiltonian_then_passes(self) -> None:
         config = DeltaEstimationConfig()
         H = generate_hamiltonian(config)
-        assert validate_hamiltonian(H)
+        assert validate_hamiltonian_delta_estimation(H)
 
 
 class TestPerformance:
