@@ -153,6 +153,31 @@ def two_qubit_state(
     return np.kron(psi_S, psi_A)
 
 
+def free_ancilla_initial_state(theta_A: float, phi_A: float) -> np.ndarray:
+    r"""Construct the system--ancilla product initial state.
+
+    :math:`|\Psi_0\rangle = |1,0\rangle_S \otimes |\psi_A(\theta_A, \phi_A)\rangle`
+
+    where :math:`|\psi_A\rangle = \cos(\theta_A/2)\,|1,0\rangle_A
+    + e^{i\phi_A}\sin(\theta_A/2)\,|0,1\rangle_A`.
+
+    Args:
+        theta_A: Ancilla polar angle :math:`\in [0, \pi]`.
+        phi_A: Ancilla azimuthal angle :math:`\in [0, 2\pi)`.
+
+    Returns:
+        Normalised 4-vector in the :math:`\{|00\rangle, |01\rangle, |10\rangle,
+        |11\rangle\}` basis.
+    """
+    psi_S = np.array([1.0, 0.0], dtype=complex)  # |1,0⟩_S
+    psi_A = single_qubit_state(theta_A, phi_A)
+    state = np.kron(psi_S, psi_A)
+    assert np.isclose(np.linalg.norm(state), 1.0), (
+        "Free-ancilla initial state must be normalised"
+    )
+    return state
+
+
 # ============================================================================
 # Beam-Splitter Unitaries
 # ============================================================================

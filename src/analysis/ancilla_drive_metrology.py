@@ -125,6 +125,244 @@ def build_iszz_interaction(
     return H
 
 
+def build_phase_modulated_drive_hamiltonian(
+    omega: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    ops: dict[str, np.ndarray],
+) -> np.ndarray:
+    r"""Build the :math:`\omega`-modulated ancilla drive Hamiltonian.
+
+    :math:`H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)`
+
+    The leading :math:`\omega` factor means
+    :math:`\partial H/\partial\omega = J_z^S + H_A^{\text{norm}}`, providing an
+    extra channel for :math:`\omega`-dependence via the ancilla operators.
+
+    Args:
+        omega: Unknown phase rate parameter (scales the whole drive).
+        a_x: Coefficient for :math:`J_x^A`.
+        a_y: Coefficient for :math:`J_y^A`.
+        a_z: Coefficient for :math:`J_z^A`.
+        ops: Two-qubit operators from :func:`build_two_qubit_operators`.
+
+    Returns:
+        4×4 Hermitian matrix representing the :math:`\omega`-modulated ancilla drive.
+    """
+    H = np.zeros((4, 4), dtype=complex)
+    if a_x != 0.0:
+        H += a_x * ops["Jx_A"]
+    if a_y != 0.0:
+        H += a_y * ops["Jy_A"]
+    if a_z != 0.0:
+        H += a_z * ops["Jz_A"]
+    H = omega * H
+    return 0.5 * (H + H.conj().T)
+
+
+def build_phase_modulated_hold_hamiltonian(
+    omega: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    ops: dict[str, np.ndarray],
+) -> np.ndarray:
+    r"""Build the total holding Hamiltonian with :math:`\omega`-modulated ancilla drive.
+
+    :math:`H = \omega J_z^S + \omega (a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_{zz} J_z^S \otimes J_z^A`
+
+    The :math:`\omega` factor on the drive terms means
+    :math:`\partial H/\partial\omega = J_z^S + a_x J_x^A + a_y J_y^A + a_z J_z^A`,
+    which includes ancilla operators.
+
+    Args:
+        omega: Unknown phase rate parameter.
+        a_x: Ancilla :math:`J_x` drive coefficient.
+        a_y: Ancilla :math:`J_y` drive coefficient.
+        a_z: Ancilla :math:`J_z` drive coefficient.
+        a_zz: Ising interaction coefficient.
+        ops: Two-qubit operators from :func:`build_two_qubit_operators`.
+
+    Returns:
+        4×4 Hermitian Hamiltonian matrix.
+    """
+    H = omega * ops["Jz_S"]
+    H += build_phase_modulated_drive_hamiltonian(omega, a_x, a_y, a_z, ops)
+    H += build_iszz_interaction(a_zz, ops)
+    return 0.5 * (H + H.conj().T)
+
+
+def phase_modulated_hold_unitary(
+    T_hold: float,
+    omega: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    ops: dict[str, np.ndarray],
+) -> np.ndarray:
+    r"""Holding-time unitary for the :math:`\omega`-modulated ancilla protocol.
+
+    :math:`U_{\text{hold}}(T_{\text{hold}}) = \exp(-i T_{\text{hold}} H)`
+    where :math:`H = \omega J_z^S + \omega(a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_{zz} J_z^S \otimes J_z^A`.
+
+    Args:
+        T_hold: Holding-time strength.
+        omega: True phase rate parameter.
+        a_x: Ancilla :math:`J_x` drive coefficient.
+        a_y: Ancilla :math:`J_y` drive coefficient.
+        a_z: Ancilla :math:`J_z` drive coefficient.
+        a_zz: Ising interaction coefficient.
+        ops: Two-qubit operators from :func:`build_two_qubit_operators`.
+
+    Returns:
+        4×4 unitary matrix.
+    """
+    H = build_phase_modulated_hold_hamiltonian(omega, a_x, a_y, a_z, a_zz, ops)
+    U = expm(-1j * T_hold * H)
+    assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
+        f"Phase-modulated hold unitary not unitary for T_hold={T_hold}, ω={omega}"
+    )
+    return U
+
+
+def evolve_phase_modulated_circuit(
+    psi0: np.ndarray,
+    T_BS: float,
+    T_hold: float,
+    omega: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    ops: dict[str, np.ndarray],
+) -> np.ndarray:
+    r"""Run the full :math:`\omega`-modulated ancilla MZI circuit.
+
+    :math:`|\psi_{\text{final}}\rangle = U_{\text{BS}}^{(S)} \,
+    U_{\text{hold}}(T_{\text{hold}}) \, U_{\text{BS}}^{(S)} \, |\psi_0\rangle`
+
+    The hold unitary uses the :math:`\omega`-modulated
+    :math:`H_A = \omega (a_x J_x^A + a_y J_y^A + a_z J_z^A)`.
+
+    Args:
+        psi0: Initial 4-vector (must be normalised).
+        T_BS: Beam-splitter duration (both BS identical).
+        T_hold: Holding-time strength.
+        omega: Phase rate parameter.
+        a_x: Ancilla :math:`J_x` drive coefficient.
+        a_y: Ancilla :math:`J_y` drive coefficient.
+        a_z: Ancilla :math:`J_z` drive coefficient.
+        a_zz: Ising interaction coefficient.
+        ops: Two-qubit operators.
+
+    Returns:
+        Final normalised 4-vector state.
+    """
+    assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
+
+    U_bs = system_only_bs_unitary(T_BS)
+    psi = U_bs @ psi0
+    psi = phase_modulated_hold_unitary(T_hold, omega, a_x, a_y, a_z, a_zz, ops) @ psi
+    psi = U_bs @ psi
+
+    assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
+    return psi
+
+
+def compute_phase_modulated_sensitivity(
+    psi0: np.ndarray,
+    T_BS: float,
+    T_hold: float,
+    omega_true: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    ops: dict[str, np.ndarray],
+    fd_step: float = 1e-6,
+    meas_op: np.ndarray | None = None,
+) -> float:
+    r"""Compute the error-propagation sensitivity :math:`\Delta\omega`.
+
+    :math:`\Delta\omega = \sqrt{\mathrm{Var}(O)} / |\partial\langle O\rangle/\partial\omega|`
+
+    Because :math:`\omega` appears in both :math:`H_S = \omega J_z^S` and
+    :math:`H_A = \omega (a_x J_x^A + a_y J_y^A + a_z J_z^A)`, the central
+    finite-difference step captures the full :math:`\omega`-dependence.
+
+    Args:
+        psi0: Initial 4-vector (product state).
+        T_BS: Beam-splitter duration.
+        T_hold: Holding-time strength.
+        omega_true: True phase rate parameter.
+        a_x: Ancilla :math:`J_x` drive coefficient.
+        a_y: Ancilla :math:`J_y` drive coefficient.
+        a_z: Ancilla :math:`J_z` drive coefficient.
+        a_zz: Ising interaction coefficient.
+        ops: Two-qubit operators (must contain ``'Jz_S'``).
+        fd_step: Finite-difference step size (default ``1e-6``).
+        meas_op: Measurement operator. Defaults to ``ops['Jz_S']`` (S-only).
+
+    Returns:
+        Sensitivity :math:`\Delta\omega` (positive float). Returns ``inf``
+        if derivative is zero (fringe extremum).
+    """
+    if meas_op is None:
+        meas_op = ops["Jz_S"]
+
+    # Evaluate at omega_true
+    psi = evolve_phase_modulated_circuit(
+        psi0,
+        T_BS,
+        T_hold,
+        omega_true,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
+    )
+    _, var = compute_expectation_and_variance(psi, meas_op)
+
+    # Central finite difference for ∂⟨O⟩/∂ω
+    psi_plus = evolve_phase_modulated_circuit(
+        psi0,
+        T_BS,
+        T_hold,
+        omega_true + fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
+    )
+    psi_minus = evolve_phase_modulated_circuit(
+        psi0,
+        T_BS,
+        T_hold,
+        omega_true - fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
+    )
+    exp_plus = np.real(psi_plus.conj() @ meas_op @ psi_plus)
+    exp_minus = np.real(psi_minus.conj() @ meas_op @ psi_minus)
+    d_exp = (exp_plus - exp_minus) / (2.0 * fd_step)
+
+    if abs(d_exp) < 1e-12:
+        return float("inf")
+
+    if var < 1e-15:
+        return float("inf")
+
+    return float(np.sqrt(var) / abs(d_exp))
+
+
 def build_drive_hold_hamiltonian(
     omega: float,
     a_x: float,
