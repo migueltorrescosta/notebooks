@@ -1320,9 +1320,7 @@ def plot_slice_heatmap(
     tick_values = [1.0]
     if vmin < 0.99:
         tick_values.insert(0, round(vmin, 2))
-    for val in [1.25, 1.5, 1.75, 2.0]:
-        if val <= vmax:
-            tick_values.append(val)
+    tick_values.extend(val for val in [1.25, 1.5, 1.75, 2.0] if val <= vmax)
     cbar.set_ticks(tick_values)
 
     ax.set_xlabel(r"$a_{zz}$")

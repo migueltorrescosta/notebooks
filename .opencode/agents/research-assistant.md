@@ -305,7 +305,7 @@ All reports MUST include sections in the following order:
 
 ### Formatting Rules
 
-1. Every report filename MUST follow `YYYY-MM-DD-{title}.md`.
+1. Every report filename MUST follow `YYYYMMDD/{title}.md`.
 2. Inline annotations use **bold text** instead of emojis. Use only: **Key Finding**, **Open items**, **See**, **Validation**.
 3. Status columns in tables use only text: `PASS`, `FAIL`, `PENDING`, `PARTIAL`.
 4. Section header emoji goes after `## ` and before the title text: `## 🧪 Hypothesis` (not `## Hypothesis 🧪`).
