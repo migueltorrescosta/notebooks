@@ -1,7 +1,7 @@
 """Single-Particle MZI: Sensitivity Scaling with Holding Time.
 
 This page simulates a single-particle Mach-Zehnder interferometer and
-verifies the Δω ∝ 1/T_hold scaling (exponent α = -1) via log-log analysis.
+verifies the Δω ∝ 1/t_hold scaling (exponent α = -1) via log-log analysis.
 
 Imports simulation functions from src/ modules directly.
 """
@@ -37,18 +37,18 @@ with st.expander("📖 Methodology", expanded=False):
 
     A single particle ($N = 1$, spin-$1/2$ equivalent) in a Mach-Zehnder
     interferometer with Hamiltonian $H = \omega J_z$ applied during a
-    holding time $T_hold$.
+    holding time $t_hold$.
 
     **Circuit:**
     ```
-    |1,0⟩ → U_BS → exp(-i ω T_hold J_z) → U_BS → ⟨J_z⟩
+    |1,0⟩ → U_BS → exp(-i ω t_hold J_z) → U_BS → ⟨J_z⟩
     ```
 
     **Analytical Result:**
-    - $\langle J_z \rangle = -\frac{1}{2} \cos(\omega T_hold)$
-    - $\mathrm{Var}(J_z) = \frac{1}{4} \sin^2(\omega T_hold)$
-    - $\partial\langle J_z\rangle/\partial\omega = \frac{T_hold}{2} \sin(\omega T_hold)$
-    - $\boxed{\Delta\omega = \sqrt{\mathrm{Var}(J_z)} / |\partial\langle J_z\rangle/\partial\omega| = 1/T_hold}$
+    - $\langle J_z \rangle = -\frac{1}{2} \cos(\omega t_hold)$
+    - $\mathrm{Var}(J_z) = \frac{1}{4} \sin^2(\omega t_hold)$
+    - $\partial\langle J_z\rangle/\partial\omega = \frac{t_hold}{2} \sin(\omega t_hold)$
+    - $\boxed{\Delta\omega = \sqrt{\mathrm{Var}(J_z)} / |\partial\langle J_z\rangle/\partial\omega| = 1/t_hold}$
     - Scaling exponent: $\alpha = -1$ (standard quantum limit)
 
     **Key Assumptions:** Pure states, no decoherence, instantaneous beam
@@ -71,9 +71,9 @@ with st.sidebar:
         format="%.2f",
     )
 
-    st.subheader("T_hold Sweep")
+    st.subheader("t_hold Sweep")
     t_h_min = st.number_input(
-        "Min T_hold",
+        "Min t_hold",
         value=0.1,
         min_value=0.01,
         max_value=10.0,
@@ -81,7 +81,7 @@ with st.sidebar:
         format="%.2f",
     )
     t_h_max = st.number_input(
-        "Max T_hold",
+        "Max t_hold",
         value=100.0,
         min_value=1.0,
         max_value=1000.0,
@@ -135,10 +135,10 @@ with validation_cols[1]:
 
 with validation_cols[2]:
     st.metric(
-        "Δω = 1/T_hold",
+        "Δω = 1/t_hold",
         "✅" if val["delta_omega_matches_theory"] else "❌",
         help=f"Δω = {val['delta_omega_analytical']:.6e}, "
-        f"1/T_hold = {val['delta_omega_theory']:.6e}",
+        f"1/t_hold = {val['delta_omega_theory']:.6e}",
     )
 
 with validation_cols[3]:
@@ -222,14 +222,14 @@ if run_btn:
     )
 
     # -------------------------------------------------------------------------
-    # Plot 1: log-log Δθ vs T_hold
+    # Plot 1: log-log Δθ vs t_hold
     # -------------------------------------------------------------------------
 
-    st.subheader("Δω vs T_hold (Log-Log)")
+    st.subheader("Δω vs t_hold (Log-Log)")
 
     fig1 = go.Figure()
 
-    # Theory reference: 1/T_hold
+    # Theory reference: 1/t_hold
     t_ref = np.array([t_h_min, t_h_max])
     dt_ref = 1.0 / t_ref
     fig1.add_trace(
@@ -237,7 +237,7 @@ if run_btn:
             x=t_ref,
             y=dt_ref,
             mode="lines",
-            name=r"$1/T_hold$ (theory, α=-1)",
+            name=r"$1/t_hold$ (theory, α=-1)",
             line={"dash": "dash", "color": "gray", "width": 2},
         ),
     )
@@ -248,7 +248,7 @@ if run_btn:
 
     fig1.add_trace(
         go.Scatter(
-            x=clean_points["T_hold"],
+            x=clean_points["t_hold"],
             y=clean_points["delta_omega_analytical"],
             mode="markers",
             name=r"Δω (analytical ∂⟨J_z⟩/∂ω)",
@@ -258,7 +258,7 @@ if run_btn:
 
     fig1.add_trace(
         go.Scatter(
-            x=clean_points["T_hold"],
+            x=clean_points["t_hold"],
             y=clean_points["delta_omega_numerical"],
             mode="markers",
             name=r"Δω (numerical ∂⟨J_z⟩/∂ω)",
@@ -269,7 +269,7 @@ if run_btn:
     if not fringe_points.empty:
         fig1.add_trace(
             go.Scatter(
-                x=fringe_points["T_hold"],
+                x=fringe_points["t_hold"],
                 y=fringe_points["delta_omega_analytical"],
                 mode="markers",
                 name="Fringe extremum (excluded)",
@@ -285,7 +285,7 @@ if run_btn:
     fig1.update_layout(
         xaxis_type="log",
         yaxis_type="log",
-        xaxis_title="Holding Time T_hold",
+        xaxis_title="Holding Time t_hold",
         yaxis_title="Δω (sensitivity)",
         template="plotly_white",
         height=400,
@@ -296,10 +296,10 @@ if run_btn:
     st.plotly_chart(fig1, use_container_width=True)
 
     # -------------------------------------------------------------------------
-    # Plot 2: ⟨J_z⟩ vs T_hold (oscillatory signal)
+    # Plot 2: ⟨J_z⟩ vs t_hold (oscillatory signal)
     # -------------------------------------------------------------------------
 
-    st.subheader("⟨J_z⟩ vs T_hold")
+    st.subheader("⟨J_z⟩ vs t_hold")
 
     fig2 = go.Figure()
 
@@ -321,14 +321,14 @@ if run_btn:
             x=t_dense,
             y=-0.5 * np.cos(omega_true * t_dense),
             mode="lines",
-            name=r"$-\frac{1}{2}\cos(\omega T_hold)$",
+            name=r"$-\frac{1}{2}\cos(\omega t_hold)$",
             line={"dash": "dot", "color": "gray", "width": 1},
         ),
     )
 
     fig2.update_layout(
         xaxis_type="log",
-        xaxis_title="Holding Time T_hold",
+        xaxis_title="Holding Time t_hold",
         yaxis_title=r"⟨J_z⟩",
         template="plotly_white",
         height=300,
@@ -350,7 +350,7 @@ if run_btn:
             x=df["t_hold"],
             y=df["d_jz_analytical"],
             mode="lines+markers",
-            name=r"Analytical: $\frac{T_hold}{2}\sin(\omega T_hold)$",
+            name=r"Analytical: $\frac{t_hold}{2}\sin(\omega t_hold)$",
             line={"color": "#1f77b4", "width": 2},
             marker={"size": 5},
         ),
@@ -386,7 +386,7 @@ if run_btn:
     fig3.update_layout(
         xaxis_type="log",
         yaxis_type="log" if len(df) > 0 and np.min(rel_diff) > 0 else "linear",
-        xaxis_title="Holding Time T_hold",
+        xaxis_title="Holding Time t_hold",
         yaxis_title="∂⟨J_z⟩/∂ω",
         template="plotly_white",
         height=350,

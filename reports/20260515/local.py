@@ -62,7 +62,7 @@ def plot_decoupled_baseline(
     save_path: str | Path,
     figsize: tuple[float, float] = (6, 4),
 ) -> Path:
-    """Plot Δω vs T_hold on log-log axes with the 1/T_hold SQL reference.
+    """Plot Δω vs t_hold on log-log axes with the 1/t_hold SQL reference.
 
     Both quantities overlap exactly in the decoupled baseline,
     confirming SQL saturation.
@@ -75,7 +75,7 @@ def plot_decoupled_baseline(
 
     fig, ax = plt.subplots(figsize=figsize)
     ax.loglog(
-        result.T_hold_values,
+        result.t_hold_values,
         result.delta_omega_values,
         marker="o",
         linestyle="-",
@@ -83,15 +83,15 @@ def plot_decoupled_baseline(
         label=r"$\Delta\omega$ (joint / S-only)",
     )
     ax.loglog(
-        result.T_hold_values,
+        result.t_hold_values,
         result.sql_values,
         marker="",
         linestyle="--",
         color="C1",
         alpha=0.7,
-        label=r"SQL $= 1/T_hold$",
+        label=r"SQL $= 1/t_hold$",
     )
-    ax.set_xlabel(r"$T_hold$")
+    ax.set_xlabel(r"$t_hold$")
     ax.set_ylabel(r"$\Delta\omega$")
     ax.set_title("Decoupled baseline: SQL saturation")
     ax.legend()
@@ -182,7 +182,7 @@ def plot_interaction_robustness(
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 6),
 ) -> Path:
-    """Multi-panel plot of Δω vs T_hold for various α values.
+    """Multi-panel plot of Δω vs t_hold for various α values.
 
     Left panel: joint measurement.  Right panel: S-only measurement.
     Lines are grouped by α value with distinct colours.
@@ -193,7 +193,7 @@ def plot_interaction_robustness(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    T_hold = result.T_hold_values
+    t_hold = result.t_hold_values
     alphas = result.alpha_values
     n_a = len(alphas)
     palette = sns.color_palette("viridis", n_a)
@@ -203,14 +203,14 @@ def plot_interaction_robustness(
     for j, a_val in enumerate(alphas):
         label = rf"$\alpha={a_val:.1f}$"
         ax_j.loglog(
-            T_hold,
+            t_hold,
             result.delta_omega_joint[:, j],
             marker="o",
             color=palette[j],
             label=label,
         )
         ax_s.loglog(
-            T_hold,
+            t_hold,
             result.delta_omega_sonly[:, j],
             marker="s",
             color=palette[j],
@@ -218,10 +218,10 @@ def plot_interaction_robustness(
         )
 
     # SQL reference
-    sql_ref = 1.0 / T_hold
+    sql_ref = 1.0 / t_hold
     for ax in (ax_j, ax_s):
-        ax.loglog(T_hold, sql_ref, "k--", alpha=0.4, label=r"SQL $=1/T_hold$")
-        ax.set_xlabel(r"$T_hold$")
+        ax.loglog(t_hold, sql_ref, "k--", alpha=0.4, label=r"SQL $=1/t_hold$")
+        ax.set_xlabel(r"$t_hold$")
 
     ax_j.set_ylabel(r"$\Delta\omega$")
     ax_j.set_title("Joint measurement")
@@ -229,7 +229,7 @@ def plot_interaction_robustness(
     ax_j.legend(fontsize="small", ncol=2)
     ax_s.legend(fontsize="small", ncol=2)
 
-    fig.suptitle(r"Interaction robustness: $\Delta\omega$ vs $T_hold$", y=1.02)
+    fig.suptitle(r"Interaction robustness: $\Delta\omega$ vs $t_hold$", y=1.02)
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
     plt.close(fig)
@@ -376,7 +376,7 @@ def _fig_path(name: str, date: str) -> Path:
 
 
 def generate_decoupled_baseline(force: bool = False) -> None:
-    """Sections 1 & 2: Decoupled baseline and expanded T_hold bound."""
+    """Sections 1 & 2: Decoupled baseline and expanded t_hold bound."""
     csv_p = _parquet_path("decoupled-baseline", date=REPORT_DATE)
     fig_p = _fig_path("decoupled-baseline", date=REPORT_DATE)
 
@@ -385,8 +385,8 @@ def generate_decoupled_baseline(force: bool = False) -> None:
         result = DecoupledBaselineResult.from_parquet(csv_p)
     else:
         print("[run]  Computing decoupled baseline...")
-        T_hold_vals = np.array([0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0])
-        result = compute_decoupled_baseline(T_hold_vals)
+        t_hold_vals = np.array([0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0])
+        result = compute_decoupled_baseline(t_hold_vals)
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
@@ -422,7 +422,7 @@ def generate_omega_scan(force: bool = False) -> None:
 
 
 def generate_interaction_robustness(force: bool = False) -> None:
-    """Section 8: T_hold × α interaction robustness."""
+    """Section 8: t_hold × α interaction robustness."""
     csv_p = _parquet_path("interaction-robustness", date=REPORT_DATE)
     fig_p = _fig_path("interaction-robustness", date=REPORT_DATE)
 
@@ -430,10 +430,10 @@ def generate_interaction_robustness(force: bool = False) -> None:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
     else:
         print("[run]  Computing interaction robustness...")
-        T_hold_vals = np.array([0.5, 1.0, 2.0])
+        t_hold_vals = np.array([0.5, 1.0, 2.0])
         alpha_vals = np.array([0.0, 1.0, 2.0])
         result = compute_interaction_robustness(
-            T_hold_vals,
+            t_hold_vals,
             alpha_vals,
             omega_true=1.0,
             alpha_name="xx",

@@ -54,7 +54,7 @@ st.markdown(
     **Nelder–Mead optimisation of sensitivity $\Delta\omega$ for a two-qubit
     (system + ancilla) Mach–Zehnder interferometer.** 11 free parameters:
     4 for the initial product state $|\psi_S\rangle \otimes |\psi_A\rangle$,
-    2 beam-splitter durations, holding time $T_hold$, and 4 interaction coefficients
+    2 beam-splitter durations, holding time $t_hold$, and 4 interaction coefficients
     $\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz}$.
     Choose between **S-only** ($J_z^S$) and **joint** ($M = J_z^S + J_z^A$)
     measurement operators from the sidebar.
@@ -78,7 +78,7 @@ with st.expander("🔧 Validation Checks", expanded=False):
             psi0=psi0_check,
             T_BS1=np.pi / 2,
             T_BS2=np.pi / 2,
-            T_hold=1.0,
+            t_hold=1.0,
             omega_true=1.0,
             alpha=alpha_check,
             ops=ops,
@@ -142,10 +142,10 @@ with st.sidebar:
 
     with st.expander("📐 Advanced: Bounds", expanded=False):
         st.markdown(
-            "Adjust parameter search bounds. Use `T_hold max = 20.0` to replicate the expanded-range investigation in the report.",
+            "Adjust parameter search bounds. Use `t_hold max = 20.0` to replicate the expanded-range investigation in the report.",
         )
         t_h_min = st.number_input(
-            "T_hold min",
+            "t_hold min",
             value=0.0,
             min_value=0.0,
             max_value=50.0,
@@ -153,7 +153,7 @@ with st.sidebar:
             format="%.1f",
         )
         t_h_max = st.number_input(
-            "T_hold max",
+            "t_hold max",
             value=5.0,
             min_value=0.1,
             max_value=50.0,
@@ -202,7 +202,7 @@ with tab1:
         For a **decoupled system** ($\alpha = 0$) with an optimal initial state
         and 50/50 beam splitters, both S-only and joint measurements saturate
         $$
-        \Delta\omega_{{\text{{SQL}}}} = \frac{{1}}{{T_hold}}
+        \Delta\omega_{{\text{{SQL}}}} = \frac{{1}}{{t_hold}}
         $$
         The Nelder–Mead optimiser explores the full 11-parameter space, seeking
         $\Delta\omega < \Delta\omega_{{\text{{SQL}}}}$ via ancilla interaction.
@@ -214,10 +214,10 @@ with tab1:
     omega_values = np.linspace(omega_min, omega_max, n_omega)
     st.caption(f"ω scan: {n_omega} values from {omega_min:.2f} to {omega_max:.2f}")
 
-    # Build bounds dict (override T_hold only if user changed it)
+    # Build bounds dict (override t_hold only if user changed it)
     bounds = get_default_bounds()
     if "t_h_min" in locals() and "t_h_max" in locals():
-        bounds["T_hold"] = (float(t_h_min), float(t_h_max))
+        bounds["t_hold"] = (float(t_h_min), float(t_h_max))
 
     # Select measurement operator based on sidebar choice
     ops = build_two_qubit_operators()
@@ -230,7 +230,7 @@ with tab1:
         with st.spinner(
             f"Running Nelder–Mead optimisation over {n_omega} ω values "
             f"× {n_restarts} restarts = {n_omega * n_restarts} runs... "
-            f"(T_hold ∈ [{bounds['T_hold'][0]:.1f}, {bounds['T_hold'][1]:.1f}], "
+            f"(t_hold ∈ [{bounds['t_hold'][0]:.1f}, {bounds['t_hold'][1]:.1f}], "
             f"measurement: {meas_label_short})",
         ):
             start = time.time()
@@ -317,7 +317,7 @@ with tab1:
         with mcol3:
             st.metric("Mean Δω", f"{mean_overall:.4f}")
         with mcol4:
-            # Best improvement over the SQL for the optimal T_hold*
+            # Best improvement over the SQL for the optimal t_hold*
             best_result = min(
                 (r for results in scan_result.all_results.values() for r in results),
                 key=lambda r: r.delta_omega_opt,
@@ -351,7 +351,7 @@ with tab1:
             "Δω_SQL": [],
             "vs SQL": [],
             "Spread": [],
-            "T_hold*": [],
+            "t_hold*": [],
             "Purity": [],
             "⟨M⟩": [],
             "Cov": [],
@@ -380,7 +380,7 @@ with tab1:
             )
             table_data["vs SQL"].append(imp_str)
             table_data["Spread"].append(spread_str)
-            table_data["T_hold*"].append(f"{t_h_star:.4f}")
+            table_data["t_hold*"].append(f"{t_h_star:.4f}")
             table_data["Purity"].append(f"{r.purity_S:.3f}")
             # Joint measurement diagnostics (always computed by the backend)
             table_data["⟨M⟩"].append(f"{r.expectation_M:.4f}")
@@ -411,7 +411,7 @@ with tab1:
             ),
         )
 
-        # SQL reference: dynamic per-θ based on optimal T_hold*
+        # SQL reference: dynamic per-θ based on optimal t_hold*
         sql_y = [
             1.0 / best_results[i].params_opt[6]
             if best_results[i].params_opt[6] > 0
@@ -423,7 +423,7 @@ with tab1:
                 x=omega_values,
                 y=sql_y,
                 mode="lines",
-                name="SQL (1/T_hold*)",
+                name="SQL (1/t_hold*)",
                 line={"color": "gray", "width": 2, "dash": "dash"},
             ),
         )
@@ -468,7 +468,7 @@ with tab1:
                 "φ_A",
                 "T_BS1",
                 "T_BS2",
-                "T_hold",
+                "t_hold",
                 "α_xx",
                 "α_xz",
                 "α_zx",
@@ -537,7 +537,7 @@ with tab1:
             with col2:
                 T_BS1_test = st.slider("T_BS1", 0.0, np.pi, np.pi / 2, 0.01)
                 T_BS2_test = st.slider("T_BS2", 0.0, np.pi, np.pi / 2, 0.01)
-                T_hold_test = st.slider("T_hold", 0.0, 5.0, 1.0, 0.1)
+                t_hold_test = st.slider("t_hold", 0.0, 5.0, 1.0, 0.1)
                 omega_test = st.slider("True ω", 0.1, 5.0, 1.0, 0.1)
             with col3:
                 a_xx_test = st.slider("α_xx", -2.0, 2.0, 0.0, 0.01)
@@ -553,7 +553,7 @@ with tab1:
                     phi_A_test,
                     T_BS1_test,
                     T_BS2_test,
-                    T_hold_test,
+                    t_hold_test,
                     a_xx_test,
                     a_xz_test,
                     a_zx_test,
@@ -573,7 +573,7 @@ with tab1:
                         psi0_test,
                         T_BS1_test,
                         T_BS2_test,
-                        T_hold_test,
+                        t_hold_test,
                         omega_test,
                         (a_xx_test, a_xz_test, a_zx_test, a_zz_test),
                         ops_test,
@@ -592,7 +592,7 @@ with tab1:
                         psi0_test,
                         T_BS1_test,
                         T_BS2_test,
-                        T_hold_test,
+                        t_hold_test,
                         omega_test,
                         (a_xx_test, a_xz_test, a_zx_test, a_zz_test),
                         ops_test,
@@ -602,13 +602,13 @@ with tab1:
                         psi0_test,
                         T_BS1_test,
                         T_BS2_test,
-                        T_hold_test,
+                        t_hold_test,
                         omega_test,
                         (a_xx_test, a_xz_test, a_zx_test, a_zz_test),
                         ops_test,
                         meas_op=M_op_test,
                     )
-                    sql_ref = 1.0 / T_hold_test
+                    sql_ref = 1.0 / t_hold_test
 
                 dcol1, dcol2, dcol3 = st.columns(3)
                 with dcol1:
@@ -643,12 +643,12 @@ with tab1:
                     diag_col2.metric("Var(M)", f"{var_M:.4f}")
                     diag_col3.metric("Cov(J_z^S, J_z^A)", f"{cov_SA:.4f}")
                     diag_col3.metric("⟨J_z^A⟩", f"{exp_M - exp_S:.4f}")
-                    diag_col4.metric("T_hold", f"{T_hold_test:.2f}")
+                    diag_col4.metric("t_hold", f"{t_hold_test:.2f}")
                     diag_col4.metric("SQL ref", f"{sql_ref:.4f}")
 
         # ── Conclusion ────────────────────────────────────────────────────────
         st.subheader("Summary")
-        # Compute improvement relative to the SQL at the best T_hold*
+        # Compute improvement relative to the SQL at the best t_hold*
         best_omega = min(
             (r for results in scan_result.all_results.values() for r in results),
             key=lambda r: r.delta_omega_opt,
@@ -786,8 +786,8 @@ with tab2:
                 key="alpha_scan_npts",
             )
         with acol2:
-            T_hold_alpha = st.slider(
-                "T_hold",
+            t_hold_alpha = st.slider(
+                "t_hold",
                 0.1,
                 10.0,
                 1.0,
@@ -803,8 +803,8 @@ with tab2:
                 key="alpha_scan_theta",
             )
         with acol3:
-            sql_ref_alpha = 1.0 / T_hold_alpha if T_hold_alpha > 0 else float("inf")
-            st.metric("SQL Δω = 1/T_hold", f"{sql_ref_alpha:.4f}")
+            sql_ref_alpha = 1.0 / t_hold_alpha if t_hold_alpha > 0 else float("inf")
+            st.metric("SQL Δω = 1/t_hold", f"{sql_ref_alpha:.4f}")
 
         if st.button("▶ Run Scan", key="alpha_scan_btn"):
             ops_alpha = build_two_qubit_operators()
@@ -816,7 +816,7 @@ with tab2:
                     alpha_min=alpha_min,
                     alpha_max=alpha_max,
                     n_points=n_points,
-                    T_hold=T_hold_alpha,
+                    t_hold=t_hold_alpha,
                     omega_true=omega_true_alpha,
                     meas_op=None,
                 )
@@ -827,7 +827,7 @@ with tab2:
                     alpha_min=alpha_min,
                     alpha_max=alpha_max,
                     n_points=n_points,
-                    T_hold=T_hold_alpha,
+                    t_hold=t_hold_alpha,
                     omega_true=omega_true_alpha,
                     meas_op=M_op_alpha,
                 )
@@ -888,8 +888,8 @@ with tab2:
                 10,
                 key="alpha_rnd_nsamples",
             )
-            T_hold_rnd = st.slider(
-                "T_hold",
+            t_hold_rnd = st.slider(
+                "t_hold",
                 0.1,
                 10.0,
                 1.0,
@@ -912,7 +912,7 @@ with tab2:
             with st.spinner(f"Random search over {n_samples} samples (S-only)..."):
                 rnd_sonly = random_search_alpha(
                     n_samples=n_samples,
-                    T_hold=T_hold_rnd,
+                    t_hold=t_hold_rnd,
                     omega_true=omega_true_rnd,
                     meas_op=None,
                     seed=int(seed),
@@ -921,13 +921,13 @@ with tab2:
             with st.spinner(f"Random search over {n_samples} samples (Joint)..."):
                 rnd_joint = random_search_alpha(
                     n_samples=n_samples,
-                    T_hold=T_hold_rnd,
+                    t_hold=t_hold_rnd,
                     omega_true=omega_true_rnd,
                     meas_op=M_op_rnd,
                     seed=int(seed),
                 )
 
-            sql_ref_rnd = 1.0 / T_hold_rnd if T_hold_rnd > 0 else float("inf")
+            sql_ref_rnd = 1.0 / t_hold_rnd if t_hold_rnd > 0 else float("inf")
 
             scol1, scol2, scol3 = st.columns(3)
             scol1.metric(
@@ -1042,7 +1042,7 @@ with tab3:
         )
         st.caption(
             "Re-optimises 7 state parameters (θ_S, φ_S, θ_A, φ_A, "
-            "T_BS1, T_BS2, T_hold) at each α value.",
+            "T_BS1, T_BS2, t_hold) at each α value.",
         )
 
     if st.button("▶ Run Re-optimisation Scan", key="alpha_reopt_btn"):

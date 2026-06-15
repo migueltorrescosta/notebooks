@@ -64,8 +64,8 @@ sns.set_theme(style="whitegrid")
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260527"
-T_hold: float = 10.0
-SQL: float = 1.0 / T_hold  # 0.1
+t_hold: float = 10.0
+SQL: float = 1.0 / t_hold  # 0.1
 FD_STEP: float = 1e-6
 T_BS: float = np.pi / 2.0
 
@@ -117,7 +117,7 @@ def compute_sensitivity_with_extra(
     a_z: float,
     a_zz: float,
     *,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
 ) -> tuple[float, float, float, float, bool]:
@@ -129,7 +129,7 @@ def compute_sensitivity_with_extra(
         a_y: Ancilla J_y drive coefficient.
         a_z: Ancilla J_z drive coefficient.
         a_zz: Ising interaction coefficient.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
 
@@ -143,14 +143,14 @@ def compute_sensitivity_with_extra(
     meas_op = ops["Jz_S"]
 
     # Evaluate at omega_true
-    psi = evolve_drive_circuit(psi0, T_BS, T_hold, omega_true, a_x, a_y, a_z, a_zz, ops)
+    psi = evolve_drive_circuit(psi0, T_BS, t_hold, omega_true, a_x, a_y, a_z, a_zz, ops)
     exp_val, var_val = compute_expectation_and_variance(psi, meas_op)
 
     # Central finite difference for ∂⟨O⟩/∂ω
     psi_plus = evolve_drive_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         a_x,
         a_y,
@@ -161,7 +161,7 @@ def compute_sensitivity_with_extra(
     psi_minus = evolve_drive_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         a_x,
         a_y,
@@ -205,8 +205,8 @@ class NormBallResult:
         variance_values: Var(J_z^S) for each sample, shape (N_omega, N_samp).
         deriv_values: d⟨J_z^S⟩/dω for each sample, shape (N_omega, N_samp).
         norms: ‖a‖ for each sample, shape (N_omega, N_samp).
-        sql: SQL = 1/T_hold reference value.
-        T_hold: Holding-time strength.
+        sql: SQL = 1/t_hold reference value.
+        t_hold: Holding-time strength.
         R: Ball radius constraint.
     """
 
@@ -218,7 +218,7 @@ class NormBallResult:
     deriv_values: np.ndarray
     norms: np.ndarray
     sql: float = SQL
-    T_hold: float = T_hold
+    t_hold: float = t_hold
     R: float = R_MAX
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -238,7 +238,7 @@ class NormBallResult:
                 "variance": float(self.variance_values[ti, si]),
                 "derivative": float(self.deriv_values[ti, si]),
                 "sql": float(self.sql),
-                "T_hold": float(self.T_hold),
+                "t_hold": float(self.t_hold),
                 "R": float(self.R),
             }
             for ti in range(n_omega)
@@ -267,7 +267,7 @@ class NormBallResult:
             "variance",
             "derivative",
             "sql",
-            "T_hold",
+            "t_hold",
             "R",
         }
         missing = required - set(df.columns)
@@ -308,7 +308,7 @@ class NormBallResult:
             deriv_values=derivs,
             norms=norms,
             sql=float(df["sql"].iloc[0]),
-            T_hold=float(df["T_hold"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
             R=float(df["R"].iloc[0]),
         )
 
@@ -413,7 +413,7 @@ def _normball_omega_chunk_worker(args: tuple) -> dict:
     """Worker for parallel norm-ball ω chunk (module-level for pickling).
 
     Args:
-        args: Tuple (omega_list, n_samp, R, azz_lo, azz_hi, T_hold, T_BS,
+        args: Tuple (omega_list, n_samp, R, azz_lo, azz_hi, t_hold, T_BS,
             fd_step, base_seed, sampling_method, n_strata).
 
     Returns:
@@ -426,7 +426,7 @@ def _normball_omega_chunk_worker(args: tuple) -> dict:
         R,
         azz_lo,
         azz_hi,
-        T_hold,
+        t_hold,
         T_BS,
         fd_step,
         base_seed,
@@ -466,7 +466,7 @@ def _normball_omega_chunk_worker(args: tuple) -> dict:
                 ay,
                 az,
                 azz,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 T_BS=T_BS,
                 fd_step=fd_step,
             )
@@ -495,7 +495,7 @@ def norm_ball_sampling(
     n_samp: int = N_SAMP,
     R: float = R_MAX,
     azz_bounds: tuple[float, float] = AZZ_BOUNDS,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     seed: int | None = 42,
@@ -526,7 +526,7 @@ def norm_ball_sampling(
             *n_strata* when using ``"stratified"``.
         R: Norm-ball radius.
         azz_bounds: (min, max) for a_zz.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         seed: Random seed for reproducibility.
@@ -584,7 +584,7 @@ def norm_ball_sampling(
                     ay,
                     az,
                     azz,
-                    T_hold=T_hold,
+                    t_hold=t_hold,
                     T_BS=T_BS,
                     fd_step=fd_step,
                 )
@@ -606,7 +606,7 @@ def norm_ball_sampling(
                 R,
                 azz_lo,
                 azz_hi,
-                T_hold,
+                t_hold,
                 T_BS,
                 fd_step,
                 seed,
@@ -646,8 +646,8 @@ def norm_ball_sampling(
         variance_values=vars_,
         deriv_values=derivs,
         norms=norms,
-        sql=1.0 / T_hold,
-        T_hold=T_hold,
+        sql=1.0 / t_hold,
+        t_hold=t_hold,
         R=R,
     )
 
@@ -1194,7 +1194,7 @@ def _run_2d_slice(
             azz_range=AZZ_BOUNDS,
             n_drive=N_DRIVE,
             n_azz=N_AZZ,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             n_jobs=n_jobs,
         )
@@ -1267,7 +1267,7 @@ def generate_norm_ball(
             n_samp=N_SAMP,
             R=R_MAX,
             azz_bounds=AZZ_BOUNDS,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             fd_step=FD_STEP,
             seed=42,

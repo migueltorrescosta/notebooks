@@ -148,7 +148,7 @@ class TestEvolveDriveCircuit:
         assert np.isclose(np.linalg.norm(psi), 1.0, atol=1e-12)
 
     def test_given_zero_drive_then_sql_sensitivity(self, make_ops: dict) -> None:
-        """At zero drive and zero interaction, Δω should equal 1/T_hold."""
+        """At zero drive and zero interaction, Δω should equal 1/t_hold."""
         domega = compute_drive_sensitivity(
             np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
             np.pi / 2.0,
@@ -196,7 +196,7 @@ class TestDriveDecoupledBaseline:
         parquet_p = tmp_path / "baseline.parquet"
         result.save_parquet(parquet_p)
         loaded = DriveDecoupledBaselineResult.from_parquet(parquet_p)
-        assert loaded.T_hold_value == result.T_hold_value
+        assert loaded.t_hold_value == result.t_hold_value
         assert np.isclose(loaded.delta_omega, result.delta_omega)
 
 

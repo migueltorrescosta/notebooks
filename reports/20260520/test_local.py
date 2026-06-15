@@ -36,7 +36,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     DEFAULT_T_BS,
     N_GRID_POINTS,
     SQL_REFERENCE,
-    DEFAULT_T_hold,
+    DEFAULT_t_hold,
     XXGridScanResult,
     XXOmegaScanResult,
     build_xx_hold_hamiltonian,
@@ -87,7 +87,7 @@ class TestOperatorConstruction:
         assert np.allclose(H, expected, atol=1e-12)
 
     def test_hold_unitary(self, make_ops: dict) -> None:
-        U = xx_hold_unitary(T_hold=1.0, omega=0.5, alpha_xx=2.0, ops=make_ops)
+        U = xx_hold_unitary(t_hold=1.0, omega=0.5, alpha_xx=2.0, ops=make_ops)
         assert np.allclose(U @ U.conj().T, np.eye(4), atol=1e-12)
 
     def test_commutation_jz_jx(self, make_ops: dict) -> None:
@@ -103,14 +103,14 @@ class TestOperatorConstruction:
     def test_decoupled_hold_reduces_to_phase_shift(self, make_ops: dict) -> None:
         """At α_xx = 0, the hold should factorise into independent phase shifts.
 
-        exp(-i T_hold ω (J_z^S + J_z^A)) = exp(-i T_hold ω J_z) ⊗ exp(-i T_hold ω J_z)
+        exp(-i t_hold ω (J_z^S + J_z^A)) = exp(-i t_hold ω J_z) ⊗ exp(-i t_hold ω J_z)
         since [J_z^S, J_z^A] = 0.
         """
         omega = 0.5
-        T_hold = 2.0
-        U = xx_hold_unitary(T_hold=T_hold, omega=omega, alpha_xx=0.0, ops=make_ops)
+        t_hold = 2.0
+        U = xx_hold_unitary(t_hold=t_hold, omega=omega, alpha_xx=0.0, ops=make_ops)
         J_z = np.array([[0.5, 0], [0, -0.5]], dtype=complex)
-        U_single = expm(-1j * T_hold * omega * J_z)
+        U_single = expm(-1j * t_hold * omega * J_z)
         expected = np.kron(U_single, U_single)
         assert np.allclose(U, expected, atol=1e-12)
 
@@ -139,12 +139,12 @@ class TestCircuitEvolution:
         self, alpha_xx: float, make_ops: dict
     ) -> None:
         psi = evolve_xx_circuit(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 0.5, alpha_xx, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 0.5, alpha_xx, make_ops
         )
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
     def test_no_op_identity(self, make_ops: dict) -> None:
-        """T_BS=0, T_hold=0 should give the initial state back."""
+        """T_BS=0, t_hold=0 should give the initial state back."""
         psi = evolve_xx_circuit(DEFAULT_PSI0, 0.0, 0.0, 0.0, 0.0, make_ops)
         assert np.allclose(psi, DEFAULT_PSI0, atol=1e-12)
 
@@ -176,7 +176,7 @@ class TestReducedVariance:
         """Variance should always be non-negative."""
         for alpha_xx in [0.0, 0.5, 2.0, 10.0]:
             psi = evolve_xx_circuit(
-                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 0.5, alpha_xx, make_ops
+                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 0.5, alpha_xx, make_ops
             )
             var = compute_reduced_variance(psi, make_ops["Jz_S"])
             assert var >= -1e-12, f"Negative variance at alpha_xx={alpha_xx}: {var}"
@@ -189,11 +189,11 @@ class TestReducedVariance:
 
 class TestSensitivity:
     def test_decoupled_sensitivity(self, make_ops: dict) -> None:
-        """At α_xx = 0, Δω should equal SQL = 1/T_hold."""
+        """At α_xx = 0, Δω should equal SQL = 1/t_hold."""
         domega = compute_xx_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, 0.0, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, 0.0, make_ops
         )
-        sql = 1.0 / DEFAULT_T_hold
+        sql = 1.0 / DEFAULT_t_hold
         assert domega == pytest.approx(sql, rel=1e-6), (
             f"Δω={domega:.10f} != SQL={sql:.10f} at α_xx=0"
         )
@@ -202,9 +202,9 @@ class TestSensitivity:
     def test_decoupled_all_omega(self, omega_true: float, make_ops: dict) -> None:
         """At α_xx = 0, Δω = SQL for any ω."""
         domega = compute_xx_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, omega_true, 0.0, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, omega_true, 0.0, make_ops
         )
-        sql = 1.0 / DEFAULT_T_hold
+        sql = 1.0 / DEFAULT_t_hold
         assert domega == pytest.approx(sql, rel=1e-5), (
             f"ω={omega_true}: Δω={domega:.10f} != SQL={sql:.10f}"
         )
@@ -213,7 +213,7 @@ class TestSensitivity:
         """With non-zero α_xx, sensitivity should be finite."""
         for alpha_xx in [0.1, 1.0, 5.0, 10.0, 20.0]:
             domega = compute_xx_sensitivity(
-                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha_xx, make_ops
+                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha_xx, make_ops
             )
             assert np.isfinite(domega), f"Non-finite Δω={domega} at α_xx={alpha_xx}"
 
@@ -221,19 +221,19 @@ class TestSensitivity:
         """Sensitivity should always be positive."""
         for alpha_xx in [0.0, 0.5, 2.0, 10.0]:
             domega = compute_xx_sensitivity(
-                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha_xx, make_ops
+                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha_xx, make_ops
             )
             assert domega > 0, f"Non-positive Δω={domega} at α_xx={alpha_xx}"
 
     def test_sensitivity_derivative_near_zero(self, make_ops: dict) -> None:
         """At a fringe extremum, Δω should be inf."""
-        # ω = π/T_hold ≈ 0.314 should be near a fringe extremum
+        # ω = π/t_hold ≈ 0.314 should be near a fringe extremum
         # for the standard single-qubit MZI
         domega = compute_xx_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
-            np.pi / DEFAULT_T_hold,
+            DEFAULT_t_hold,
+            np.pi / DEFAULT_t_hold,
             0.0,
             make_ops,
         )
@@ -279,7 +279,7 @@ class TestGridScan:
         result = xx_grid_scan(omega=1.0, n_points=11)
         # Find α_xx=0 index (should be first point)
         assert np.isclose(result.alpha_xx_values[0], 0.0, atol=1e-10)
-        sql = 1.0 / DEFAULT_T_hold
+        sql = 1.0 / DEFAULT_t_hold
         assert result.delta_omega_values[0] == pytest.approx(sql, rel=1e-6)
 
     def test_grid_scan_sql_below_at_some_omega(self) -> None:
@@ -294,9 +294,9 @@ class TestGridScan:
         assert np.isfinite(result.alpha_xx_opt) or np.isnan(result.alpha_xx_opt)
 
     def test_grid_scan_sql_boundary(self) -> None:
-        """The sql field should equal 1/T_hold."""
+        """The sql field should equal 1/t_hold."""
         result = xx_grid_scan(omega=0.5, n_points=51)
-        assert result.sql == pytest.approx(1.0 / DEFAULT_T_hold)
+        assert result.sql == pytest.approx(1.0 / DEFAULT_t_hold)
 
 
 # ============================================================================
@@ -490,7 +490,7 @@ class TestPhysicalInvariants:
         ops = build_two_qubit_operators()
         for alpha_xx in [0.0, 0.5, 2.0, 5.0, 10.0, 15.0, 20.0]:
             psi = evolve_xx_circuit(
-                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha_xx, ops
+                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha_xx, ops
             )
             var = compute_reduced_variance(psi, ops["Jz_S"])
             assert var >= -1e-12, f"Negative Var(J_z^S)={var:.2e} at α_xx={alpha_xx}"
@@ -513,7 +513,7 @@ class TestPhysicalInvariants:
 
 class TestConstants:
     def test_sql_reference_correct(self) -> None:
-        assert pytest.approx(1.0 / DEFAULT_T_hold) == SQL_REFERENCE
+        assert pytest.approx(1.0 / DEFAULT_t_hold) == SQL_REFERENCE
 
     def test_axx_bounds(self) -> None:
         lo, hi = AXX_BOUNDS

@@ -35,7 +35,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     SQL,
     EnvelopeResult,
     NormBallResult,
-    T_hold,
     _marsaglia_3ball_sample,
     _sample_ball_for_omega,
     compute_sensitivity_with_extra,
@@ -44,6 +43,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     plot_best_ratio_by_slice,
     plot_norm_envelope_curve,
     plot_normball_histogram,
+    t_hold,
 )
 
 # ============================================================================
@@ -420,7 +420,7 @@ class TestNormBallResultParquet:
             ),
             norms=np.random.default_rng(42).uniform(0.0, 5.0, size=(n_omega, n_samp)),
             sql=0.1,
-            T_hold=10.0,
+            t_hold=10.0,
             R=5.0,
         )
 
@@ -436,7 +436,7 @@ class TestNormBallResultParquet:
         assert np.allclose(loaded.deriv_values, make_result.deriv_values)
         assert np.allclose(loaded.norms, make_result.norms)
         assert loaded.sql == make_result.sql
-        assert loaded.T_hold == make_result.T_hold
+        assert loaded.t_hold == make_result.t_hold
         assert loaded.R == make_result.R
 
     def test_fail_fast_missing_column(
@@ -490,7 +490,7 @@ class TestExtractEnvelopeCurve:
             deriv_values=np.ones((n_omega, n_samp)) * 0.5,
             norms=norms,
             sql=SQL,
-            T_hold=T_hold,
+            t_hold=t_hold,
             R=5.0,
         )
 
@@ -545,7 +545,7 @@ class TestExtractEnvelopeCurve:
             deriv_values=np.ones((1, 5)),
             norms=np.full((1, 5), 10.0),
             sql=SQL,
-            T_hold=T_hold,
+            t_hold=t_hold,
             R=10.0,
         )
         env = extract_envelope_curve(result, n_r=10, r_max=5.0)
@@ -688,7 +688,7 @@ class TestPlotFunctions:
             deriv_values=derivs,
             norms=norms,
             sql=SQL,
-            T_hold=T_hold,
+            t_hold=t_hold,
             R=5.0,
         )
 
@@ -808,6 +808,6 @@ class TestEdgeCases:
         """Circuit evolution must preserve state norm."""
         psi0 = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)
         psi = evolve_drive_circuit(
-            psi0, np.pi / 2, T_hold, 1.0, 1.0, 0.5, -0.3, 2.0, make_ops
+            psi0, np.pi / 2, t_hold, 1.0, 1.0, 0.5, -0.3, 2.0, make_ops
         )
         assert np.isclose(np.linalg.norm(psi), 1.0, atol=1e-12)

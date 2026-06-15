@@ -49,7 +49,7 @@ del _sys, _Path, _report_dir
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     DEFAULT_PSI0,
     DEFAULT_T_BS,
-    DEFAULT_T_hold,
+    DEFAULT_t_hold,
     build_iszz_interaction,
     build_phase_modulated_drive_hamiltonian,
     build_phase_modulated_hold_hamiltonian,
@@ -212,7 +212,7 @@ class TestEvolvePhaseModulatedCircuit:
         psi = evolve_phase_modulated_circuit(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             0.0,
             0.0,
@@ -223,11 +223,11 @@ class TestEvolvePhaseModulatedCircuit:
         assert np.isclose(np.linalg.norm(psi), 1.0, atol=1e-12)
 
     def test_given_zero_drive_then_sql_sensitivity(self, make_ops: dict) -> None:
-        """At zero drive and zero interaction, Δω should equal 1/T_hold."""
+        """At zero drive and zero interaction, Δω should equal 1/t_hold."""
         domega = compute_phase_modulated_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             0.0,
             0.0,
@@ -235,7 +235,7 @@ class TestEvolvePhaseModulatedCircuit:
             0.0,
             make_ops,
         )
-        expected = 1.0 / DEFAULT_T_hold
+        expected = 1.0 / DEFAULT_t_hold
         assert np.isclose(domega, expected, rtol=0.05), (
             f"Δω = {domega:.6f}, expected ≈ {expected:.6f}"
         )
@@ -244,7 +244,7 @@ class TestEvolvePhaseModulatedCircuit:
         domega = compute_phase_modulated_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             2.0,
             0.0,
@@ -267,7 +267,7 @@ class TestEvolvePhaseModulatedCircuit:
         domega = compute_phase_modulated_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             0.0,
             1.0,
             0.0,
@@ -288,7 +288,7 @@ class TestEvolvePhaseModulatedCircuit:
             domega = compute_phase_modulated_sensitivity(
                 DEFAULT_PSI0,
                 DEFAULT_T_BS,
-                DEFAULT_T_hold,
+                DEFAULT_t_hold,
                 1.0,
                 a_x,
                 a_y,
@@ -296,7 +296,7 @@ class TestEvolvePhaseModulatedCircuit:
                 0.0,  # a_zz = 0 → decoupled
                 make_ops,
             )
-            expected = 1.0 / DEFAULT_T_hold
+            expected = 1.0 / DEFAULT_t_hold
             assert np.isclose(domega, expected, rtol=0.05), (
                 f"At (a_x={a_x}, a_y={a_y}, a_z={a_z}, a_zz=0): "
                 f"Δω = {domega:.6f}, expected ≈ {expected:.6f}"
@@ -318,7 +318,7 @@ class TestPhaseModulatedDecoupledBaseline:
         parquet_p = tmp_path / "baseline.parquet"
         result.save_parquet(parquet_p)
         loaded = DriveDecoupledBaselineResult.from_parquet(parquet_p)
-        assert loaded.T_hold_value == result.T_hold_value
+        assert loaded.t_hold_value == result.t_hold_value
         assert np.isclose(loaded.delta_omega, result.delta_omega)
 
 
@@ -564,7 +564,7 @@ class TestPhaseModulatedValidation:
         dt_1 = compute_phase_modulated_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             2.0,
             0.0,
@@ -575,7 +575,7 @@ class TestPhaseModulatedValidation:
         dt_2 = compute_phase_modulated_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             2.0,
             2.0,
             0.0,
@@ -606,7 +606,7 @@ class TestPhaseModulatedValidation:
         dt_fixed = fixed_drive_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             omega_val,
             params["a_x"],
             params["a_y"],
@@ -617,7 +617,7 @@ class TestPhaseModulatedValidation:
         dt_phase = compute_phase_modulated_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             omega_val,
             params["a_x"],
             params["a_y"],

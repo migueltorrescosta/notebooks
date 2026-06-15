@@ -33,7 +33,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     DRIVE_BOUNDS,
     FD_STEP,
     SQL_REFERENCE,
-    DEFAULT_T_hold,
+    DEFAULT_t_hold,
     DriveNoiseScanResult,
     build_liouvillian,
     build_noise_drive_hamiltonian,
@@ -221,7 +221,7 @@ class TestLiouvillian:
         L = build_liouvillian(H, lindblad)
 
         rho_vec = vectorise_rho(DEFAULT_RHO0)
-        rho_evolved = unvectorise_rho(expm(L * DEFAULT_T_hold) @ rho_vec)
+        rho_evolved = unvectorise_rho(expm(L * DEFAULT_t_hold) @ rho_vec)
         trace = float(np.real(np.trace(rho_evolved)))
         assert np.isclose(trace, 1.0, atol=1e-10)
 
@@ -259,7 +259,7 @@ class TestNoisyCircuit:
         rho_noiseless = evolve_noisy_drive_circuit(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             0.0,
             0.0,
@@ -271,7 +271,7 @@ class TestNoisyCircuit:
 
         # Pure unitary evolution
         H = build_noise_hold_hamiltonian(1.0, 0.0, 0.0, 0.0, 0.0, ops)
-        U_hold = expm(-1j * DEFAULT_T_hold * H)
+        U_hold = expm(-1j * DEFAULT_t_hold * H)
         from src.analysis.ancilla_drive_metrology import system_only_bs_unitary
 
         U_bs = system_only_bs_unitary(DEFAULT_T_BS)
@@ -291,7 +291,7 @@ class TestNoisyCircuit:
             rho = evolve_noisy_drive_circuit(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_hold,
+                DEFAULT_t_hold,
                 1.0,
                 gamma,
                 2.0,
@@ -310,7 +310,7 @@ class TestNoisyCircuit:
             rho = evolve_noisy_drive_circuit(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_hold,
+                DEFAULT_t_hold,
                 0.5,
                 gamma,
                 1.0,
@@ -327,7 +327,7 @@ class TestNoisyCircuit:
             rho = evolve_noisy_drive_circuit(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_hold,
+                DEFAULT_t_hold,
                 1.0,
                 gamma,
                 0.0,
@@ -348,7 +348,7 @@ class TestNoisyCircuit:
         rho = evolve_noisy_drive_circuit(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             omega,
             gamma,
             0.0,
@@ -362,7 +362,7 @@ class TestNoisyCircuit:
         from src.analysis.ancilla_drive_metrology import system_only_bs_unitary
 
         U_bs = system_only_bs_unitary(DEFAULT_T_BS)
-        U_phase = expm(-1j * DEFAULT_T_hold * omega * Jz_S)
+        U_phase = expm(-1j * DEFAULT_t_hold * omega * Jz_S)
         rho_manual = (
             U_bs
             @ U_phase
@@ -378,7 +378,7 @@ class TestNoisyCircuit:
         rho1 = evolve_noisy_drive_circuit(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             0.1,
             2.0,
@@ -390,7 +390,7 @@ class TestNoisyCircuit:
         rho2 = evolve_noisy_drive_circuit(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             0.1,
             2.0,
@@ -413,7 +413,7 @@ class TestNoisySensitivity:
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             0.0,
             0.0,
@@ -434,7 +434,7 @@ class TestNoisySensitivity:
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             gamma_phi,
             2.0,
@@ -451,7 +451,7 @@ class TestNoisySensitivity:
             dt = compute_noisy_sensitivity(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_hold,
+                DEFAULT_t_hold,
                 0.5,
                 gamma,
                 1.0,
@@ -472,7 +472,7 @@ class TestNoisySensitivity:
             dt = compute_noisy_sensitivity(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_hold,
+                DEFAULT_t_hold,
                 omegas[0],
                 gamma,
                 *fixed_params,
@@ -495,7 +495,7 @@ class TestNoisySensitivity:
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             100.0,
             0.0,
@@ -520,7 +520,7 @@ class TestSensitivityWithDiagnostics:
         dt1 = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             0.5,
             0.01,
             1.0,
@@ -532,7 +532,7 @@ class TestSensitivityWithDiagnostics:
         dt2, exp_val, var_val, d_exp = compute_noisy_sensitivity_with_diagnostics(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             0.5,
             0.01,
             1.0,
@@ -551,7 +551,7 @@ class TestSensitivityWithDiagnostics:
         _, exp_val, var_val, d_exp = compute_noisy_sensitivity_with_diagnostics(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             0.0,
             0.0,
@@ -822,7 +822,7 @@ class TestParquetRoundtrip:
             variance_Jz_per_pair=np.array([[0.05, 0.06, 0.08], [0.04, 0.05, 0.07]]),
             d_exp_d_omega_per_pair=np.array([[-0.5, -0.4, -0.3], [-0.6, -0.5, -0.4]]),
             sql=0.1,
-            T_hold=10.0,
+            t_hold=10.0,
             n_random=500,
             n_nm_refine=10,
             maxiter=2000,
@@ -843,7 +843,7 @@ class TestParquetRoundtrip:
         )
         assert np.allclose(loaded.variance_Jz_per_pair, original.variance_Jz_per_pair)
         assert loaded.sql == pytest.approx(original.sql)
-        assert pytest.approx(original.T_hold) == loaded.T_hold
+        assert pytest.approx(original.t_hold) == loaded.t_hold
         # Verify hyperparameter metadata roundtrip
         assert loaded.n_random == 500
         assert loaded.n_nm_refine == 10
@@ -864,7 +864,7 @@ class TestParquetRoundtrip:
             variance_Jz_per_pair=np.array([[0.06, 0.09]]),
             d_exp_d_omega_per_pair=np.array([[-0.3, -0.2]]),
             sql=0.1,
-            T_hold=10.0,
+            t_hold=10.0,
             n_random=100,
             n_nm_refine=5,
             maxiter=1000,
@@ -881,7 +881,7 @@ class TestParquetRoundtrip:
         assert loaded.gamma_phi_values[0] == pytest.approx(1e-3)
         assert loaded.delta_omega_per_pair[0, 0] == pytest.approx(0.04)
         assert loaded.sql == pytest.approx(0.1)
-        assert pytest.approx(10.0) == loaded.T_hold
+        assert pytest.approx(10.0) == loaded.t_hold
         assert loaded.n_random == 100
         assert loaded.n_nm_refine == 5
         assert loaded.maxiter == 1000
@@ -902,7 +902,7 @@ class TestParquetRoundtrip:
                 "a_y": [0.0],
                 "a_z": [0.0],
                 # missing a_zz, delta_omega, expectation_Jz, variance_Jz,
-                # d_exp_d_omega, sql, T_hold, n_random, n_nm_refine, maxiter,
+                # d_exp_d_omega, sql, t_hold, n_random, n_nm_refine, maxiter,
                 # bounds_lo, bounds_hi, fd_step, seed
             }
         )
@@ -929,7 +929,7 @@ class TestParquetRoundtrip:
                 "a_zz": [0.5],
                 "delta_omega": [0.05],
                 "sql": [0.1],
-                "T_hold": [10.0],
+                "t_hold": [10.0],
                 "n_random": [1000],
                 "n_nm_refine": [25],
                 "maxiter": [5000],
@@ -966,7 +966,7 @@ class TestPhysicalInvariants:
                     rho = evolve_noisy_drive_circuit(
                         DEFAULT_RHO0,
                         DEFAULT_T_BS,
-                        DEFAULT_T_hold,
+                        DEFAULT_t_hold,
                         omega,
                         gamma,
                         ax,
@@ -995,7 +995,7 @@ class TestPhysicalInvariants:
                     rho = evolve_noisy_drive_circuit(
                         DEFAULT_RHO0,
                         DEFAULT_T_BS,
-                        DEFAULT_T_hold,
+                        DEFAULT_t_hold,
                         omega,
                         gamma,
                         ax,
@@ -1021,7 +1021,7 @@ class TestPhysicalInvariants:
                     rho = evolve_noisy_drive_circuit(
                         DEFAULT_RHO0,
                         DEFAULT_T_BS,
-                        DEFAULT_T_hold,
+                        DEFAULT_t_hold,
                         omega,
                         gamma,
                         ax,
@@ -1042,7 +1042,7 @@ class TestPhysicalInvariants:
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             0.0,
             0.0,
@@ -1063,7 +1063,7 @@ class TestPhysicalInvariants:
             dt = compute_noisy_sensitivity(
                 DEFAULT_RHO0,
                 DEFAULT_T_BS,
-                DEFAULT_T_hold,
+                DEFAULT_t_hold,
                 1.0,
                 gamma,
                 0.0,
@@ -1114,7 +1114,7 @@ class TestPhysicalInvariants:
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
+            DEFAULT_t_hold,
             1.0,
             1e6,
             0.0,
@@ -1135,7 +1135,7 @@ class TestPhysicalInvariants:
 
 class TestConstants:
     def test_sql_reference_correct(self) -> None:
-        assert pytest.approx(1.0 / DEFAULT_T_hold) == SQL_REFERENCE
+        assert pytest.approx(1.0 / DEFAULT_t_hold) == SQL_REFERENCE
 
     def test_drive_bounds(self) -> None:
         lo, hi = DRIVE_BOUNDS

@@ -67,7 +67,7 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_hold: float = 10.0  # Holding time (SQL reference)
+DEFAULT_t_hold: float = 10.0  # Holding time (SQL reference)
 ALPHA_BOUND: float = 20.0  # |α_ij| ≤ 20 for optimisation bounds
 N_LBFGS_STARTS: int = 25  # Number of L-BFGS-B random starts (20-30 per report)
 FD_STEP: float = 1e-6  # Central finite-difference step
@@ -178,18 +178,18 @@ def protocol_bs_unitary(
 
 def hold_unitary(
     N: int,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Holding-time unitary in the combined S⊗A space.
 
-    U_hold(T_hold) = exp(-i T_hold H)
+    U_hold(t_hold) = exp(-i t_hold H)
 
     Args:
         N: Particle number per subsystem.
-        T_hold: Holding time.
+        t_hold: Holding time.
         omega: Unknown phase rate.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Pre-computed operators.
@@ -198,7 +198,7 @@ def hold_unitary(
         (N+1)² × (N+1)² unitary matrix.
     """
     H = build_hold_hamiltonian(N, omega, alpha, ops)
-    return expm(-1j * T_hold * H)
+    return expm(-1j * t_hold * H)
 
 
 # ============================================================================
@@ -231,11 +231,11 @@ def evolve_circuit(
     ops: dict[str, np.ndarray],
     protocol: str = "dual",
     T_BS: float = DEFAULT_T_BS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
 ) -> np.ndarray:
     """Run the full MZI circuit for the given protocol.
 
-    |ψ_final⟩ = U_BS · U_hold(T_hold) · U_BS · |ψ₀⟩
+    |ψ_final⟩ = U_BS · U_hold(t_hold) · U_BS · |ψ₀⟩
 
     where U_BS depends on the protocol (dual or S-only).
 
@@ -247,14 +247,14 @@ def evolve_circuit(
         ops: Embedded operators.
         protocol: 'dual' (BS on both) or 'S-only' (BS on system only).
         T_BS: Beam-splitter angle (default π/2).
-        T_hold: Holding time (default 10).
+        t_hold: Holding time (default 10).
 
     Returns:
         Final state vector (length (N+1)²).
     """
     U_bs = protocol_bs_unitary(N, protocol, T_BS)
     psi = U_bs @ psi0
-    psi = hold_unitary(N, T_hold, omega, alpha, ops) @ psi
+    psi = hold_unitary(N, t_hold, omega, alpha, ops) @ psi
     return U_bs @ psi
 
 
@@ -281,7 +281,7 @@ def compute_sensitivity(
     meas_op: np.ndarray | None = None,
     fd_step: float = FD_STEP,
     T_BS: float = DEFAULT_T_BS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
 ) -> tuple[float, float, float, float]:
     """Compute the error-propagation sensitivity Δω.
 
@@ -299,7 +299,7 @@ def compute_sensitivity(
         meas_op: (N+1)×(N+1) measurement operator (default = J_z).
         fd_step: Central finite-difference step size.
         T_BS: Beam-splitter angle.
-        T_hold: Holding time.
+        t_hold: Holding time.
 
     Returns:
         Tuple (delta_omega, expectation, variance, derivative).
@@ -311,7 +311,7 @@ def compute_sensitivity(
         Jz_single = meas_op
 
     # Evaluate at omega_true
-    psi = evolve_circuit(N, psi0, omega_true, alpha, ops, protocol, T_BS, T_hold)
+    psi = evolve_circuit(N, psi0, omega_true, alpha, ops, protocol, T_BS, t_hold)
     exp_val, var_val = compute_reduced_expectation_and_variance(psi, N, Jz_single)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂ω
@@ -323,7 +323,7 @@ def compute_sensitivity(
         ops,
         protocol,
         T_BS,
-        T_hold,
+        t_hold,
     )
     psi_minus = evolve_circuit(
         N,
@@ -333,7 +333,7 @@ def compute_sensitivity(
         ops,
         protocol,
         T_BS,
-        T_hold,
+        t_hold,
     )
 
     exp_plus, _ = compute_reduced_expectation_and_variance(psi_plus, N, Jz_single)
@@ -360,7 +360,7 @@ def _sensitivity_objective(
     psi0: np.ndarray,
     protocol: str,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     fd_step: float,
 ) -> float:
     """Objective function for L-BFGS-B optimisation.
@@ -375,7 +375,7 @@ def _sensitivity_objective(
         psi0: Initial state.
         protocol: 'dual' or 'S-only'.
         T_BS: Beam-splitter angle.
-        T_hold: Holding time.
+        t_hold: Holding time.
         fd_step: Finite-difference step.
 
     Returns:
@@ -396,7 +396,7 @@ def _sensitivity_objective(
         protocol,
         fd_step=fd_step,
         T_BS=T_BS,
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
     return dt if np.isfinite(dt) else 1e10
 
@@ -410,7 +410,7 @@ def optimise_four_params(
     alpha_bounds: tuple[float, float] = (-ALPHA_BOUND, ALPHA_BOUND),
     n_starts: int = N_LBFGS_STARTS,
     T_BS: float = DEFAULT_T_BS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     fd_step: float = FD_STEP,
     seed: int | None = 42,
     maxiter: int = 1000,
@@ -432,7 +432,7 @@ def optimise_four_params(
         alpha_bounds: (min, max) for all α coefficients.
         n_starts: Number of random starts.
         T_BS: Beam-splitter angle.
-        T_hold: Holding time.
+        t_hold: Holding time.
         fd_step: Finite-difference step.
         seed: Base random seed (incremented per start).
         maxiter: Maximum L-BFGS-B iterations.
@@ -447,7 +447,7 @@ def optimise_four_params(
     lo, hi = alpha_bounds
     base_seed = seed if seed is not None else 42
     bounds_ls = [(lo, hi)] * 4
-    sql = 1.0 / (np.sqrt(N) * T_hold)
+    sql = 1.0 / (np.sqrt(N) * t_hold)
 
     best_delta = float("inf")
     best_alpha: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
@@ -464,7 +464,7 @@ def optimise_four_params(
         result = minimize(
             _sensitivity_objective,
             x0,
-            args=(N, omega, ops, psi0, protocol, T_BS, T_hold, fd_step),
+            args=(N, omega, ops, psi0, protocol, T_BS, t_hold, fd_step),
             method="L-BFGS-B",
             bounds=bounds_ls,
             options={
@@ -501,7 +501,7 @@ def optimise_four_params(
                 protocol,
                 fd_step=fd_step,
                 T_BS=T_BS,
-                T_hold=T_hold,
+                t_hold=t_hold,
             )
             best_exp, best_var, best_d_exp = exp_val, var_val, d_exp
 
@@ -536,7 +536,7 @@ class FourParamOptResult:
         protocol: 'dual' or 'S-only'.
         alpha_opt: Optimal (α_xx, α_xz, α_zx, α_zz) found.
         delta_omega_opt: Minimal Δω found.
-        sql: SQL = 1/(√N T_hold) reference value.
+        sql: SQL = 1/(√N t_hold) reference value.
         expectation_Jz: ⟨J_z^S⟩ at the optimal point.
         variance_Jz: Var(J_z^S) at the optimal point.
         d_expectation: ∂⟨J_z^S⟩/∂ω at the optimal point.
@@ -565,7 +565,7 @@ class FourParamOptResult:
                 "omega": [self.omega_value],
                 "N": [self.N],
                 "protocol": [self.protocol],
-                "T_hold": [DEFAULT_T_hold],
+                "t_hold": [DEFAULT_t_hold],
                 "alpha_xx_opt": [self.alpha_opt[0]],
                 "alpha_xz_opt": [self.alpha_opt[1]],
                 "alpha_zx_opt": [self.alpha_opt[2]],
@@ -609,7 +609,7 @@ class FourParamSweepResult:
         alpha_zx_opt: Optimal α_zx at each point.
         alpha_zz_opt: Optimal α_zz at each point.
         delta_omega_opt: Minimal Δω at each point.
-        sql_values: SQL = 1/(√N T_hold) at each point.
+        sql_values: SQL = 1/(√N t_hold) at each point.
         ratio: Δω_opt / SQL at each point.
         expectation_Jz: ⟨J_z^S⟩ at optimum.
         variance_Jz: Var(J_z^S) at optimum.
@@ -617,7 +617,7 @@ class FourParamSweepResult:
         n_starts: Number of random starts per point.
         n_converged: Number of converged starts per point.
         gradient_norm: L-BFGS-B projected gradient norm at optimum per point.
-        T_hold: Holding time (scalar).
+        t_hold: Holding time (scalar).
     """
 
     omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -636,7 +636,7 @@ class FourParamSweepResult:
     n_starts: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
     n_converged: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
     gradient_norm: np.ndarray = field(default_factory=lambda: np.array([]))
-    T_hold: float = DEFAULT_T_hold
+    t_hold: float = DEFAULT_t_hold
 
     def __post_init__(self) -> None:
         # Ensure int dtype for integer arrays
@@ -658,7 +658,7 @@ class FourParamSweepResult:
                 "omega": self.omega_values,
                 "N": self.N_values,
                 "protocol": protocol_list[:n],
-                "T_hold": np.full(n, self.T_hold),
+                "t_hold": np.full(n, self.t_hold),
                 "alpha_xx_opt": self.alpha_xx_opt,
                 "alpha_xz_opt": self.alpha_xz_opt,
                 "alpha_zx_opt": self.alpha_zx_opt,
@@ -688,7 +688,7 @@ class FourParamSweepResult:
             "omega",
             "N",
             "protocol",
-            "T_hold",
+            "t_hold",
             "alpha_xx_opt",
             "alpha_xz_opt",
             "alpha_zx_opt",
@@ -727,7 +727,7 @@ class FourParamSweepResult:
             n_starts=df["n_starts"].to_numpy(dtype=int),
             n_converged=df["n_converged"].to_numpy(dtype=int),
             gradient_norm=df["gradient_norm"].to_numpy(dtype=float),
-            T_hold=float(df["T_hold"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
         )
 
     @property
@@ -762,7 +762,7 @@ class FourParamSweepResult:
             n_starts=self.n_starts[mask],
             n_converged=self.n_converged[mask],
             gradient_norm=self.gradient_norm[mask],
-            T_hold=self.T_hold,
+            t_hold=self.t_hold,
         )
 
     def filter_omega(self, omega: float) -> FourParamSweepResult:
@@ -785,7 +785,7 @@ class FourParamSweepResult:
             n_starts=self.n_starts[mask],
             n_converged=self.n_converged[mask],
             gradient_norm=self.gradient_norm[mask],
-            T_hold=self.T_hold,
+            t_hold=self.t_hold,
         )
 
     def filter_N(self, N: int) -> FourParamSweepResult:
@@ -808,7 +808,7 @@ class FourParamSweepResult:
             n_starts=self.n_starts[mask],
             n_converged=self.n_converged[mask],
             gradient_norm=self.gradient_norm[mask],
-            T_hold=self.T_hold,
+            t_hold=self.t_hold,
         )
 
 
@@ -821,7 +821,7 @@ def run_sweep(
     omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
     protocol: str = "dual",
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     n_starts: int | None = None,
     progress_callback: Callable[[int, int], None] | None = None,
 ) -> FourParamSweepResult:
@@ -831,7 +831,7 @@ def run_sweep(
         omega_values: ω values to sweep (default: [0.5, 1.0, ..., 5.0]).
         N_values: N values to sweep (default: 1 to 20 for dual, 1/5/10 for S-only).
         protocol: 'dual' or 'S-only'.
-        T_hold: Holding time.
+        t_hold: Holding time.
         n_starts: Number of L-BFGS-B random starts per point.
         progress_callback: Optional callback (current, total).
 
@@ -886,7 +886,7 @@ def run_sweep(
                 psi0=psi0,
                 protocol=protocol,
                 n_starts=actual_starts,
-                T_hold=T_hold,
+                t_hold=t_hold,
             )
             a_xx_opts[idx] = opt_result.alpha_opt[0]
             a_xz_opts[idx] = opt_result.alpha_opt[1]
@@ -927,7 +927,7 @@ def run_sweep(
         n_starts=n_starts_arr,
         n_converged=n_conv_arr,
         gradient_norm=grad_norm_arr,
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
 
 
@@ -940,18 +940,18 @@ def compute_decoupled_baseline(
     omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
     protocol: str = "dual",
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     fd_step: float = FD_STEP,
 ) -> FourParamSweepResult:
     """Verify the decoupled baseline (α = 0) for all (ω, N, protocol) pairs.
 
-    At α = (0,0,0,0), the sensitivity should equal SQL = 1/(√N T_hold).
+    At α = (0,0,0,0), the sensitivity should equal SQL = 1/(√N t_hold).
 
     Args:
         omega_values: ω values (default: sweep range).
         N_values: N values (default: 1 to 20 for dual).
         protocol: 'dual' or 'S-only'.
-        T_hold: Holding time.
+        t_hold: Holding time.
 
     Returns:
         FourParamSweepResult with α = 0 results.
@@ -995,7 +995,7 @@ def compute_decoupled_baseline(
             omegas[idx] = omega_val
             Ns[idx] = N_val
             protos.append(protocol)
-            sql = 1.0 / (np.sqrt(N_val) * T_hold)
+            sql = 1.0 / (np.sqrt(N_val) * t_hold)
             sqls[idx] = sql
 
             dt, exp_val, var_val, d_exp_val = compute_sensitivity(
@@ -1005,7 +1005,7 @@ def compute_decoupled_baseline(
                 zero_alpha,
                 ops,
                 protocol=protocol,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 fd_step=fd_step,
             )
             delta_opts[idx] = dt
@@ -1033,7 +1033,7 @@ def compute_decoupled_baseline(
         n_starts=n_starts_arr,
         n_converged=n_conv_arr,
         gradient_norm=grad_norm_arr,
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
 
 
@@ -1205,12 +1205,12 @@ def plot_n_scaling(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # SQL reference: Δω = 1/(√N T_hold)
+    # SQL reference: Δω = 1/(√N t_hold)
     N_dense = np.logspace(
         np.log10(1), np.log10(max(N_vals) if len(N_vals) > 0 else 20), 100
     )
-    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.T_hold)
-    hl_dense = 1.0 / (N_dense * sweep.T_hold)
+    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.t_hold)
+    hl_dense = 1.0 / (N_dense * sweep.t_hold)
 
     ax.loglog(N_dense, sql_dense, "--", color="gray", alpha=0.7, label="SQL")
     ax.loglog(N_dense, hl_dense, ":", color="gray", alpha=0.5, label="HL")
@@ -1272,7 +1272,7 @@ def plot_omega_dependence(
     fig, ax = plt.subplots(figsize=figsize)
 
     # SQL reference (flat line for fixed N)
-    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.T_hold) if len(sql_vals) > 0 else 0.1
+    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.t_hold) if len(sql_vals) > 0 else 0.1
     ax.axhline(
         y=sql_val,
         color="gray",
@@ -1404,7 +1404,7 @@ def plot_omega_scan(
 
     filtered = sweep.filter_N(N_fixed)
     omega = filtered.omega_values
-    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.T_hold)
+    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.t_hold)
 
     fig, ax1 = plt.subplots(figsize=figsize)
 
@@ -1558,12 +1558,12 @@ def generate_sonly_sweep(force: bool = False) -> None:
 def generate_sonly_reproduction(force: bool = False) -> None:
     """Reproduce the 2026-05-21 result: S-only MZI, N=1, ω=3.8.
 
-    Expected: Δω/Δω_SQL ≤ 0.690 (i.e., Δω ≤ 0.0690 at T_hold=10).
+    Expected: Δω/Δω_SQL ≤ 0.690 (i.e., Δω ≤ 0.0690 at t_hold=10).
     """
     csv_p = parquet_path("sonly-reproduction-n1")
     N_val = 1
     omega_val = 3.8
-    sql = 1.0 / (np.sqrt(N_val) * DEFAULT_T_hold)
+    sql = 1.0 / (np.sqrt(N_val) * DEFAULT_t_hold)
 
     print("[run]  2026-05-21 reproduction: S-only MZI, N=1, ω=3.8")
 
@@ -1698,7 +1698,7 @@ def generate_decoupled_baseline(force: bool = False) -> None:
         ax.set_ylabel(r"$N$ (particles per subsystem)")
         ax.set_title(
             f"Decoupled Baseline Verification ($\\alpha = 0$, {protocol_label} MZI, "
-            f"$T_hold = {result.T_hold}$)\n"
+            f"$t_hold = {result.t_hold}$)\n"
             f"Max $|\\Delta\\omega/\\mathrm{{SQL}} - 1| = {max_dev:.2e}$, "
             f"points checked: {len(finite)}"
         )

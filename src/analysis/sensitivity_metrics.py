@@ -57,19 +57,19 @@ StateType = np.ndarray  # Pure state vector
 SensitivityResult = dict[str, float]  # {"delta_phi": float, ...}
 
 
-def sql_reference(N: int, T_hold: float = 10.0) -> float:
-    """Standard quantum limit for N particles with holding time T_hold.
+def sql_reference(N: int, t_hold: float = 10.0) -> float:
+    """Standard quantum limit for N particles with holding time t_hold.
 
-    Δω_SQL = 1 / (√N × T_HOLD)
+    Δω_SQL = 1 / (√N × t_hold)
 
     Args:
         N: Number of particles in the probe.
-        T_hold: Holding/evolution time (dimensionless).
+        t_hold: Holding/evolution time (dimensionless).
 
     Returns:
         SQL sensitivity value.
     """
-    return 1.0 / (np.sqrt(N) * T_hold)
+    return 1.0 / (np.sqrt(N) * t_hold)
 
 
 # =============================================================================

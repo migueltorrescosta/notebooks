@@ -1,7 +1,7 @@
 """End-to-end tests for the joint measurement optimisation pipeline.
 
 Validates that the full Nelder-Mead optimisation using M = J_z^S + J_z^A
-respects the QFI bound Δθ ≥ 1/T_hold and runs without errors.
+respects the QFI bound Δθ ≥ 1/t_hold and runs without errors.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class TestJointMeasurementE2E:
             "bloch_theta": (0.0, np.pi),
             "phi": (0.0, 2.0 * np.pi),
             "T_BS": (0.0, np.pi),
-            "T_hold": (0.0, 5.0),
+            "t_hold": (0.0, 5.0),
             "alpha": (-2.0, 2.0),
         }
         result = run_omega_scan(
@@ -57,7 +57,7 @@ class TestJointMeasurementE2E:
             "bloch_theta": (0.0, np.pi),
             "phi": (0.0, 2.0 * np.pi),
             "T_BS": (0.0, np.pi),
-            "T_hold": (0.0, 20.0),
+            "t_hold": (0.0, 20.0),
             "alpha": (-2.0, 2.0),
         }
         result = run_omega_scan(
@@ -70,5 +70,5 @@ class TestJointMeasurementE2E:
         )
         assert len(result.results) == 1
         assert np.isfinite(result.results[0].delta_omega_opt)
-        # With wider T_hold bound, the optimiser should drive T_hold up
+        # With wider t_hold bound, the optimiser should drive t_hold up
         assert result.results[0].params_opt[6] > 15.0

@@ -71,4 +71,10 @@ description: Reference for consistent physics symbol usage across the codebase. 
 - **r_n** — High-order squeezing parameter `r_n = Ω_n · t_sqz`. Only in `High_Order_Squeezing.py`.
 - **Ω_n** — High-order squeezing rate (Hamiltonian strength). Only in `High_Order_Squeezing.py`.
 
+# Known Inconsistencies
 
+Tracked symbol violations that have been resolved or are deferred. Entries removed once fully fixed.
+
+| Symbol | Preferred | Location(s) | Status | Notes |
+|--------|-----------|-------------|--------|-------|
+| `T_hold` | `t_hold` | Full codebase (src/, pages/, reports/) | Resolved 2026-06-15 | Lower-case for PEP 8 compliance. Parquet column `"T_hold"` → `"t_hold"` (fail-fast breakage accepted). |

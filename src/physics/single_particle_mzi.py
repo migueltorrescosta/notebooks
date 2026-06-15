@@ -3,20 +3,20 @@ Single-Particle MZI Simulation: Sensitivity Scaling with Holding Time.
 
 Implements the exact analytical model for a single-particle (spin-1/2
 equivalent) Mach-Zehnder interferometer where the parameter ω is encoded
-via H = ω J_z during a holding time T_hold.
+via H = ω J_z during a holding time t_hold.
 
 Physical Model:
 - Hilbert space: two-mode bosonic Fock space truncated at max_photons = 1.
   Only two basis states are physical: |1,0⟩ and |0,1⟩ (dimension 2).
 - Beam splitter: 50:50, U_BS = exp(-i(π/4)(a_0^† a_1 + a_1^† a_0)).
-- Holding: U_hold(T_hold) = exp(-i ω T_hold J_z), with J_z = (n_1 - n_2)/2.
+- Holding: U_hold(t_hold) = exp(-i ω t_hold J_z), with J_z = (n_1 - n_2)/2.
 - State: |1,0⟩ → U_BS → U_hold → U_BS → measurement of J_z.
 
 Analytical result:
-- ⟨J_z⟩ = -(1/2) cos(ω T_hold)
-- Var(J_z) = (1/4) sin²(ω T_hold)
-- ∂⟨J_z⟩/∂ω = (T_hold/2) sin(ω T_hold)
-- Δω = 1/T_hold  (independent of ω, away from sin(ω T_hold) = 0)
+- ⟨J_z⟩ = -(1/2) cos(ω t_hold)
+- Var(J_z) = (1/4) sin²(ω t_hold)
+- ∂⟨J_z⟩/∂ω = (t_hold/2) sin(ω t_hold)
+- Δω = 1/t_hold  (independent of ω, away from sin(ω t_hold) = 0)
 
 Units: Dimensionless throughout.
 Conventions: J_z = (n_1 - n_2)/2, beam-splitter generator = a_0^† a_1 + a_1^† a_0.
@@ -34,11 +34,11 @@ from src.physics.mzi_states import compute_jz_variance, two_mode_jz_operator
 
 
 def build_holding_unitary(omega: float, t_hold: float, jz: np.ndarray) -> np.ndarray:
-    """Build holding unitary U_hold = exp(-i ω T_hold J_z).
+    """Build holding unitary U_hold = exp(-i ω t_hold J_z).
 
     Args:
         omega: True value of the rate parameter ω.
-        t_hold: Holding time T_hold.
+        t_hold: Holding time t_hold.
         jz: J_z operator.
 
     Returns:
@@ -57,11 +57,11 @@ def evolve_single_particle_mzi(
 ) -> np.ndarray:
     """Evolve a single-particle state through the MZI circuit.
 
-    Circuit: |ψ_in⟩ → U_BS → U_hold(T_hold) → U_BS → |ψ_out⟩
+    Circuit: |ψ_in⟩ → U_BS → U_hold(t_hold) → U_BS → |ψ_out⟩
 
     Args:
         omega: True value of the rate parameter ω.
-        t_hold: Holding time T_hold.
+        t_hold: Holding time t_hold.
         u_bs: Beam-splitter unitary.
         jz: J_z operator.
         input_state: Input state (default: |1,0⟩).
@@ -82,10 +82,10 @@ def evolve_single_particle_mzi(
 def compute_analytical_derivative(t_hold: float, omega: float) -> float:
     """Compute ∂⟨J_z⟩/∂ω analytically.
 
-    ∂⟨J_z⟩/∂ω = (T_hold/2) · sin(ω T_hold)
+    ∂⟨J_z⟩/∂ω = (t_hold/2) · sin(ω t_hold)
 
     Args:
-        t_hold: Holding time T_hold.
+        t_hold: Holding time t_hold.
         omega: True value of ω.
 
     Returns:
@@ -108,7 +108,7 @@ def compute_numerical_derivative(
 
     Args:
         omega: True value of ω (center point).
-        t_hold: Holding time T_hold.
+        t_hold: Holding time t_hold.
         u_bs: Beam-splitter unitary.
         jz: J_z operator.
         fd_step: Finite-difference step size (default 1e-6).
@@ -134,12 +134,12 @@ def compute_delta_omega_from_propagation(
     use_numerical: bool = False,
     fd_step: float = 1e-6,
 ) -> tuple[float, float, float, float, float]:
-    """Compute sensitivity Δω via error propagation for a single T_hold.
+    """Compute sensitivity Δω via error propagation for a single t_hold.
 
     Δω = √Var(J_z) / |∂⟨J_z⟩/∂ω|
 
     Args:
-        t_hold: Holding time T_hold.
+        t_hold: Holding time t_hold.
         omega: True value of ω.
         u_bs: Beam-splitter unitary.
         jz: J_z operator.
@@ -176,13 +176,13 @@ def compute_sensitivity_sweep(
     n_points: int = 50,
     delta_fd: float = 1e-6,
 ) -> pd.DataFrame:
-    """Sweep over T_hold and compute sensitivity from both analytical and numerical derivatives.
+    """Sweep over t_hold and compute sensitivity from both analytical and numerical derivatives.
 
     Args:
         omega: True value of ω (radians per unit time).
         t_hold_min: Minimum holding time.
         t_hold_max: Maximum holding time.
-        n_points: Number of log-spaced T_hold points.
+        n_points: Number of log-spaced t_hold points.
         delta_fd: Finite-difference step size.
 
     Returns:
@@ -190,7 +190,7 @@ def compute_sensitivity_sweep(
             t_hold, omega, jz_mean, jz_var,
             d_jz_analytical, d_jz_numerical,
             delta_omega_analytical, delta_omega_numerical,
-            delta_omega_theory (1/T_hold),
+            delta_omega_theory (1/t_hold),
             is_fringe_extremum, abs_sin
 
     """
@@ -247,7 +247,7 @@ def run_validation(omega: float = 1.0, t_hold: float = 1.0) -> dict:
 
     Args:
         omega: True value of ω.
-        t_hold: Holding time T_hold.
+        t_hold: Holding time t_hold.
 
     Returns:
         Dictionary with validation results:

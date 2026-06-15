@@ -31,7 +31,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     N_COARSE_GRID,
     OMEGA_MAX,
     OMEGA_MIN,
-    DEFAULT_T_hold,
+    DEFAULT_t_hold,
     DualMZISweepResult,
     ScalingAnalysisResult,
     build_hold_hamiltonian,
@@ -135,7 +135,7 @@ class TestUnitarity:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_hold_unitary_dicke(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
-        U = hold_unitary_dicke(N, T_hold=1.0, omega=0.5, alpha_xx=2.0, ops=ops)
+        U = hold_unitary_dicke(N, t_hold=1.0, omega=0.5, alpha_xx=2.0, ops=ops)
         dim = (N + 1) ** 2
         eye = np.eye(dim, dtype=complex)
         assert np.allclose(U @ U.conj().T, eye, atol=1e-12), (
@@ -144,13 +144,13 @@ class TestUnitarity:
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_hold_unitary_decoupled_factorizes(self, N: int) -> None:
-        """At α_xx = 0, U_hold = exp(-i T_hold ω J_z) ⊗ exp(-i T_hold ω J_z)."""
+        """At α_xx = 0, U_hold = exp(-i t_hold ω J_z) ⊗ exp(-i t_hold ω J_z)."""
         ops = _embed_ops_for_tests(N)
         omega = 0.5
-        T_hold = 2.0
-        U = hold_unitary_dicke(N, T_hold, omega, 0.0, ops)
+        t_hold = 2.0
+        U = hold_unitary_dicke(N, t_hold, omega, 0.0, ops)
         Jz = jz_operator(N, basis=OperatorBasis.DICKE)
-        U_single = expm(-1j * T_hold * omega * Jz)
+        U_single = expm(-1j * t_hold * omega * Jz)
         expected = np.kron(U_single, U_single)
         assert np.allclose(U, expected, atol=1e-12), (
             f"Decoupled hold does not factorize for N={N}"
@@ -181,13 +181,13 @@ class TestCircuitEvolution:
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_no_op_identity(self, N: int) -> None:
-        """T_BS=0, T_hold=0 should give the initial state back."""
+        """T_BS=0, t_hold=0 should give the initial state back."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        # T_BS=0 is identity, T_hold=0 is identity
+        # T_BS=0 is identity, t_hold=0 is identity
         U_bs_zero = dual_bs_unitary(N, T_BS=0.0)
         psi = U_bs_zero @ psi0
-        psi = hold_unitary_dicke(N, T_hold=0.0, omega=0.0, alpha_xx=0.0, ops=ops) @ psi
+        psi = hold_unitary_dicke(N, t_hold=0.0, omega=0.0, alpha_xx=0.0, ops=ops) @ psi
         psi = U_bs_zero @ psi
         assert np.allclose(psi, psi0, atol=1e-12), f"Identity failed for N={N}"
 
@@ -227,7 +227,7 @@ class TestReducedVariance:
 class TestSensitivity:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_decoupled_sensitivity_matches_sql(self, N: int) -> None:
-        """At α_xx = 0, Δω should equal SQL = 1/(√N T_hold)."""
+        """At α_xx = 0, Δω should equal SQL = 1/(√N t_hold)."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
         omega = 1.0
@@ -238,7 +238,7 @@ class TestSensitivity:
             alpha_xx=0.0,
             ops=ops,
         )
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         assert dt == pytest.approx(sql, rel=1e-5), (
             f"N={N}: Δω={dt:.10f} != SQL={sql:.10f}"
         )
@@ -255,7 +255,7 @@ class TestSensitivity:
             alpha_xx=0.0,
             ops=ops,
         )
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         assert dt == pytest.approx(sql, rel=1e-5), (
             f"N={N}, ω={omega}: Δω={dt:.10f} != SQL={sql:.10f}"
         )
@@ -343,7 +343,7 @@ class TestAlphaOptimisation:
         N = 3
         ops = _embed_ops_for_tests(N)
         result = optimise_alpha_xx(N=N, omega=0.5, ops=ops, n_coarse=51)
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         if np.isfinite(result["delta_omega_opt"]):
             assert result["delta_omega_opt"] > 0
             assert result["sql"] == pytest.approx(sql)
@@ -377,7 +377,7 @@ class TestFullSweep:
         )
         for i in range(result.n_points):
             N = result.N_values[i]
-            expected_sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+            expected_sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
             assert result.sql_values[i] == pytest.approx(expected_sql), (
                 f"SQL mismatch for N={N}: {result.sql_values[i]} != {expected_sql}"
             )
@@ -485,7 +485,7 @@ class TestParquetRoundtrip:
             expectation_Jz=np.array([0.25, 0.2, 0.3, 0.15]),
             variance_Jz=np.array([0.05, 0.04, 0.06, 0.03]),
             d_expectation=np.array([-0.5, -0.4, -0.6, -0.3]),
-            T_hold=10.0,
+            t_hold=10.0,
         )
         parquet_path = tmp_path / "test_sweep.parquet"
         original.save_parquet(parquet_path)
@@ -499,7 +499,7 @@ class TestParquetRoundtrip:
         assert np.allclose(loaded.expectation_Jz, original.expectation_Jz)
         assert np.allclose(loaded.variance_Jz, original.variance_Jz)
         assert np.allclose(loaded.d_expectation, original.d_expectation)
-        assert pytest.approx(original.T_hold) == loaded.T_hold
+        assert pytest.approx(original.t_hold) == loaded.t_hold
 
     def test_sweep_roundtrip_metadata(self, tmp_path: Path) -> None:
         """All metadata fields survive roundtrip."""
@@ -513,7 +513,7 @@ class TestParquetRoundtrip:
             expectation_Jz=np.array([0.1, 0.2, 0.3]),
             variance_Jz=np.array([0.01, 0.02, 0.03]),
             d_expectation=np.array([-0.5, -0.3, -0.2]),
-            T_hold=10.0,
+            t_hold=10.0,
         )
         parquet_path = tmp_path / "test_meta.parquet"
         original.save_parquet(parquet_path)
@@ -526,7 +526,7 @@ class TestParquetRoundtrip:
         assert loaded.expectation_Jz[1] == pytest.approx(0.2)
         assert loaded.variance_Jz[2] == pytest.approx(0.03)
         assert loaded.d_expectation[0] == pytest.approx(-0.5)
-        assert pytest.approx(10.0) == loaded.T_hold
+        assert pytest.approx(10.0) == loaded.t_hold
 
     def test_from_parquet_missing_columns(self, tmp_path: Path) -> None:
         """from_parquet should fail fast when required columns missing."""
@@ -612,7 +612,7 @@ class TestPhysicalInvariants:
         """At α_xx=0, must recover SQL exactly."""
         ops = _embed_ops_for_tests(N)
         psi0 = initial_state(N)
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         for omega in [0.1, 1.0, 5.0]:
             dt, _, _, _ = compute_sensitivity(
                 N,
@@ -650,7 +650,7 @@ class TestSQLScaling:
     def test_sql_exponent_from_decoupled(self) -> None:
         """Log-log fit of decoupled Δω vs N should give α = -0.5."""
         N_vals = np.array([1, 2, 3, 5, 10, 15, 20], dtype=int)
-        sql_vals = 1.0 / (np.sqrt(N_vals) * DEFAULT_T_hold)
+        sql_vals = 1.0 / (np.sqrt(N_vals) * DEFAULT_t_hold)
         log_N = np.log(N_vals.astype(float))
         log_sql = np.log(sql_vals)
         A = np.vstack([log_N, np.ones_like(log_N)]).T
@@ -679,4 +679,4 @@ class TestConstants:
 
     def test_th_bs(self) -> None:
         assert pytest.approx(np.pi / 2.0) == DEFAULT_T_BS
-        assert DEFAULT_T_hold == 10.0
+        assert DEFAULT_t_hold == 10.0

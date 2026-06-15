@@ -229,7 +229,7 @@ def compute_parity_sensitivity(
     N: int,
     psi0: np.ndarray,
     T_bs: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     a_x: float,
     a_y: float,
@@ -248,7 +248,7 @@ def compute_parity_sensitivity(
         N: Number of system particles (must be even).
         psi0: Initial state vector.
         T_bs: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         a_x: J_x^A drive coefficient.
         a_y: J_y^A drive coefficient.
@@ -270,7 +270,7 @@ def compute_parity_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true,
         a_x,
         a_y,
@@ -292,7 +292,7 @@ def compute_parity_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         a_x,
         a_y,
@@ -304,7 +304,7 @@ def compute_parity_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         a_x,
         a_y,
@@ -327,7 +327,7 @@ def compute_cfi_sensitivity(
     N: int,
     psi0: np.ndarray,
     T_bs: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     a_x: float,
     a_y: float,
@@ -348,7 +348,7 @@ def compute_cfi_sensitivity(
         N: Number of system particles.
         psi0: Initial state vector.
         T_bs: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         a_x: J_x^A drive coefficient.
         a_y: J_y^A drive coefficient.
@@ -371,7 +371,7 @@ def compute_cfi_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true,
         a_x,
         a_y,
@@ -383,7 +383,7 @@ def compute_cfi_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         a_x,
         a_y,
@@ -395,7 +395,7 @@ def compute_cfi_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         a_x,
         a_y,
@@ -429,7 +429,7 @@ def compute_protocol_sensitivity(
     N: int,
     psi0: np.ndarray,
     T_bs: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     a_x: float,
     a_y: float,
@@ -459,7 +459,7 @@ def compute_protocol_sensitivity(
             N,
             psi0,
             T_bs,
-            T_hold,
+            t_hold,
             omega_true,
             a_x,
             a_y,
@@ -475,7 +475,7 @@ def compute_protocol_sensitivity(
             N,
             psi0,
             T_bs,
-            T_hold,
+            t_hold,
             omega_true,
             a_x,
             a_y,
@@ -490,7 +490,7 @@ def compute_protocol_sensitivity(
             N,
             psi0,
             T_bs,
-            T_hold,
+            t_hold,
             omega_true,
             a_x,
             a_y,
@@ -1233,7 +1233,7 @@ class NonLinearResult:
         ratio_cfi: SQL / delta_omega_cfi.
         parity_expectation: ⟨Π_S⟩ at the operating point.
         sql: Standard Quantum Limit = 1/(√N × T_HOLD).
-        T_hold: Holding time.
+        t_hold: Holding time.
         fd_step: Finite-difference step size.
         success: Whether optimisation succeeded.
         nfev: Number of function evaluations.
@@ -1254,7 +1254,7 @@ class NonLinearResult:
     ratio_cfi: float
     parity_expectation: float
     sql: float
-    T_hold: float = T_HOLD
+    t_hold: float = T_HOLD
     fd_step: float = FD_STEP
     success: bool = True
     nfev: int = 0
@@ -1275,7 +1275,7 @@ class NonLinearResult:
         "ratio_cfi",
         "parity_expectation",
         "sql",
-        "T_hold",
+        "t_hold",
         "fd_step",
         "success",
         "nfev",
@@ -1299,7 +1299,7 @@ class NonLinearResult:
                 "ratio_cfi": [self.ratio_cfi],
                 "parity_expectation": [self.parity_expectation],
                 "sql": [self.sql],
-                "T_hold": [self.T_hold],
+                "t_hold": [self.t_hold],
                 "fd_step": [self.fd_step],
                 "success": [int(self.success)],
                 "nfev": [self.nfev],
@@ -1339,7 +1339,7 @@ class NonLinearResult:
             ratio_cfi=float(row["ratio_cfi"]),
             parity_expectation=float(row["parity_expectation"]),
             sql=float(row["sql"]),
-            T_hold=float(row["T_hold"]),
+            t_hold=float(row["t_hold"]),
             fd_step=float(row["fd_step"]),
             success=bool(int(row["success"])),
             nfev=int(row["nfev"]),
@@ -1393,7 +1393,7 @@ class NonLinearScanResult:
                     ratio_cfi=float(row["ratio_cfi"]),
                     parity_expectation=float(row["parity_expectation"]),
                     sql=float(row["sql"]),
-                    T_hold=float(row["T_hold"]),
+                    t_hold=float(row["t_hold"]),
                     fd_step=float(row["fd_step"]),
                     success=bool(int(row["success"])),
                     nfev=int(row["nfev"]),
@@ -1467,10 +1467,10 @@ def plot_protocol_comparison(
                 )
 
         N_range = np.linspace(1, 20, 100)
-        T_hold = T_HOLD
-        sql_line = 1.0 / (np.sqrt(N_range) * T_hold)
+        t_hold = T_HOLD
+        sql_line = 1.0 / (np.sqrt(N_range) * t_hold)
         ax.loglog(N_range, sql_line, "k--", alpha=0.7, linewidth=1.2, label="SQL")
-        hl_line = 1.0 / (N_range * T_hold)
+        hl_line = 1.0 / (N_range * t_hold)
         ax.loglog(N_range, hl_line, "k:", alpha=0.5, linewidth=1.0, label="HL")
         ax.set_xlabel(r"$N$")
         ax.set_ylabel(ylabel)

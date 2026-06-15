@@ -94,7 +94,7 @@ def plot_n_scaling_sensitivity(
     df: pd.DataFrame,
     save_path: str | Path,
     figsize: tuple[float, float] = (10, 6),
-    T_hold: float = 10.0,
+    t_hold: float = 10.0,
 ) -> Path:
     """Plot Δω_opt vs N on log-log axes, coloured by ω.
 
@@ -104,7 +104,7 @@ def plot_n_scaling_sensitivity(
         df: DataFrame with columns 'N', 'omega', 'delta_omega_opt'.
         save_path: Output SVG path.
         figsize: Figure size.
-        T_hold: Holding time for reference lines.
+        t_hold: Holding time for reference lines.
 
     Returns:
         Path to saved SVG.
@@ -137,24 +137,24 @@ def plot_n_scaling_sensitivity(
             )
 
     N_range = np.linspace(1, 20, 100)
-    sql_line = 1.0 / (np.sqrt(N_range) * T_hold)
+    sql_line = 1.0 / (np.sqrt(N_range) * t_hold)
     ax.loglog(
         N_range,
         sql_line,
         "k--",
         alpha=0.7,
         linewidth=1.5,
-        label=r"SQL $1/(\sqrt{N}T_H)$",
+        label=r"SQL $1/(\sqrt{N}t_hold)$",
     )
 
-    hl_line = 1.0 / (N_range * T_hold)
+    hl_line = 1.0 / (N_range * t_hold)
     ax.loglog(
         N_range,
         hl_line,
         "k:",
         alpha=0.5,
         linewidth=1.2,
-        label=r"HL $1/(N T_H)$",
+        label=r"HL $1/(N t_hold)$",
     )
 
     ax.set_xlabel(r"$N$ (system particles)")

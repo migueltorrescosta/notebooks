@@ -57,9 +57,9 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_hold: float = 10.0  # Holding time (SQL = 0.1)
+DEFAULT_t_hold: float = 10.0  # Holding time (SQL = 0.1)
 DEFAULT_PSI0: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)  # |00⟩
-SQL_REFERENCE: float = 1.0 / DEFAULT_T_hold  # Δω_SQL = 0.1
+SQL_REFERENCE: float = 1.0 / DEFAULT_t_hold  # Δω_SQL = 0.1
 AXX_BOUNDS: tuple[float, float] = (0.0, 20.0)  # Range for α_xx
 N_GRID_POINTS: int = 2001  # Grid points for α_xx scan
 
@@ -116,18 +116,18 @@ def build_xx_hold_hamiltonian(
 
 
 def xx_hold_unitary(
-    T_hold: float,
+    t_hold: float,
     omega: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
     """Holding-time unitary for the XX-coupling protocol.
 
-    U_hold(T_hold) = exp(-i T_hold H)
+    U_hold(t_hold) = exp(-i t_hold H)
     where H = ω(J_z^S + J_z^A) + α_xx J_x^S ⊗ J_x^A.
 
     Args:
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: True phase rate parameter.
         alpha_xx: XX coupling strength.
         ops: Two-qubit operators from build_two_qubit_operators().
@@ -136,9 +136,9 @@ def xx_hold_unitary(
         4×4 unitary matrix.
     """
     H = build_xx_hold_hamiltonian(omega, alpha_xx, ops)
-    U = expm(-1j * T_hold * H)
+    U = expm(-1j * t_hold * H)
     assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
-        f"XX hold unitary not unitary for T_hold={T_hold}, ω={omega}, α_xx={alpha_xx}"
+        f"XX hold unitary not unitary for t_hold={t_hold}, ω={omega}, α_xx={alpha_xx}"
     )
     return U
 
@@ -151,19 +151,19 @@ def xx_hold_unitary(
 def evolve_xx_circuit(
     psi0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
     """Run the full XX-coupling MZI circuit.
 
-    |ψ_final⟩ = U_BS_S · U_hold(T_hold) · U_BS_S · |ψ₀⟩
+    |ψ_final⟩ = U_BS_S · U_hold(t_hold) · U_BS_S · |ψ₀⟩
 
     Args:
         psi0: Initial 4-vector (must be normalised).
         T_BS: Beam-splitter duration (both BS identical).
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: Phase rate parameter.
         alpha_xx: XX coupling strength.
         ops: Two-qubit operators.
@@ -175,7 +175,7 @@ def evolve_xx_circuit(
 
     U_bs = system_only_bs_unitary(T_BS)
     psi = U_bs @ psi0
-    psi = xx_hold_unitary(T_hold, omega, alpha_xx, ops) @ psi
+    psi = xx_hold_unitary(t_hold, omega, alpha_xx, ops) @ psi
     psi = U_bs @ psi
 
     assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
@@ -230,7 +230,7 @@ def compute_reduced_variance(psi: np.ndarray, meas_op: np.ndarray) -> float:
 def compute_xx_sensitivity(
     psi0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray],
@@ -246,7 +246,7 @@ def compute_xx_sensitivity(
     Args:
         psi0: Initial 4-vector (product state).
         T_BS: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         alpha_xx: XX coupling strength.
         ops: Two-qubit operators.
@@ -258,15 +258,15 @@ def compute_xx_sensitivity(
     meas_op = ops["Jz_S"]
 
     # Evaluate at omega_true
-    psi = evolve_xx_circuit(psi0, T_BS, T_hold, omega_true, alpha_xx, ops)
+    psi = evolve_xx_circuit(psi0, T_BS, t_hold, omega_true, alpha_xx, ops)
     var = compute_reduced_variance(psi, meas_op)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂ω
     psi_plus = evolve_xx_circuit(
-        psi0, T_BS, T_hold, omega_true + fd_step, alpha_xx, ops
+        psi0, T_BS, t_hold, omega_true + fd_step, alpha_xx, ops
     )
     psi_minus = evolve_xx_circuit(
-        psi0, T_BS, T_hold, omega_true - fd_step, alpha_xx, ops
+        psi0, T_BS, t_hold, omega_true - fd_step, alpha_xx, ops
     )
 
     # Expectation from reduced state
@@ -301,7 +301,7 @@ class XXGridScanResult:
         omega_value: ω at which the scan was performed.
         alpha_xx_opt: α_xx value giving minimal Δω.
         delta_omega_opt: Minimal Δω found.
-        sql: SQL = 1/T_hold reference value.
+        sql: SQL = 1/t_hold reference value.
         expectation_Jz: ⟨J_z^S⟩ at the optimal point.
         variance_Jz: Var(J_z^S) at the optimal point.
     """
@@ -377,7 +377,7 @@ class XXOmegaScanResult:
         omega_values: Array of ω values scanned.
         alpha_xx_opt_per_omega: Optimal α_xx for each ω value.
         delta_omega_opt_per_omega: Optimal Δω for each ω value.
-        sql_values: SQL = 1/T_hold for each ω.
+        sql_values: SQL = 1/t_hold for each ω.
         expectation_Jz_per_omega: ⟨J_z^S⟩ at each optimal point.
         variance_Jz_per_omega: Var(J_z^S) at each optimal point.
         count_below_sql_per_omega: Number of α_xx grid points below SQL at each ω.
@@ -497,18 +497,18 @@ class XXOmegaScanResult:
 
 
 def compute_xx_decoupled_baseline(
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     omega_true: float = 1.0,
 ) -> DriveDecoupledBaselineResult:
     """Compute the decoupled baseline sensitivity Δω.
 
     At α_xx = 0, the circuit reduces to a standard single-qubit MZI
-    with |1,0⟩ input and 50/50 BS on the system, giving Δω = 1/T_hold.
+    with |1,0⟩ input and 50/50 BS on the system, giving Δω = 1/t_hold.
     The ancilla evolves independently under ω J_z^A and is traced out,
     contributing nothing.
 
     Args:
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate.
 
     Returns:
@@ -518,15 +518,15 @@ def compute_xx_decoupled_baseline(
     domega = compute_xx_sensitivity(
         DEFAULT_PSI0,
         DEFAULT_T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         0.0,
         ops,
     )
     return DriveDecoupledBaselineResult(
-        T_hold_value=T_hold,
+        t_hold_value=t_hold,
         delta_omega=domega,
-        sql=1.0 / T_hold,
+        sql=1.0 / t_hold,
     )
 
 
@@ -539,7 +539,7 @@ def xx_grid_scan(
     omega: float,
     alpha_xx_range: tuple[float, float] = AXX_BOUNDS,
     n_points: int = N_GRID_POINTS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> XXGridScanResult:
     """Run a 1D grid scan over α_xx at fixed ω.
@@ -550,7 +550,7 @@ def xx_grid_scan(
         omega: Phase rate value.
         alpha_xx_range: (min, max) for α_xx.
         n_points: Number of grid points.
-        T_hold: Holding time (default 10).
+        t_hold: Holding time (default 10).
         T_BS: Beam-splitter duration (default π/2).
 
     Returns:
@@ -564,7 +564,7 @@ def xx_grid_scan(
         domega = compute_xx_sensitivity(
             DEFAULT_PSI0,
             T_BS,
-            T_hold,
+            t_hold,
             omega,
             a_val,
             ops,
@@ -588,7 +588,7 @@ def xx_grid_scan(
     exp_val = 0.0
     var_val = 0.0
     if np.isfinite(alpha_opt):
-        psi = evolve_xx_circuit(DEFAULT_PSI0, T_BS, T_hold, omega, alpha_opt, ops)
+        psi = evolve_xx_circuit(DEFAULT_PSI0, T_BS, t_hold, omega, alpha_opt, ops)
         meas_op = ops["Jz_S"]
         var_val = compute_reduced_variance(psi, meas_op)
         # Also compute expectation using the reduced state
@@ -603,7 +603,7 @@ def xx_grid_scan(
         omega_value=omega,
         alpha_xx_opt=alpha_opt,
         delta_omega_opt=delta_opt,
-        sql=1.0 / T_hold,
+        sql=1.0 / t_hold,
         expectation_Jz=exp_val,
         variance_Jz=var_val,
     )
@@ -618,7 +618,7 @@ def run_xx_omega_scan(
     omega_values: list[float] | np.ndarray,
     alpha_xx_range: tuple[float, float] = AXX_BOUNDS,
     n_points: int = N_GRID_POINTS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> XXOmegaScanResult:
     """Scan over ω values with full α_xx grid scan at each ω.
@@ -632,7 +632,7 @@ def run_xx_omega_scan(
         omega_values: ω values to scan.
         alpha_xx_range: (min, max) for α_xx.
         n_points: Number of α_xx grid points per ω.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
@@ -643,7 +643,7 @@ def run_xx_omega_scan(
 
     alpha_opts = np.full(n_omega, np.nan, dtype=float)
     best_deltas = np.full(n_omega, np.inf, dtype=float)
-    sql_vals = np.full(n_omega, 1.0 / T_hold, dtype=float)
+    sql_vals = np.full(n_omega, 1.0 / t_hold, dtype=float)
     exp_vals = np.zeros(n_omega, dtype=float)
     var_vals = np.zeros(n_omega, dtype=float)
     count_below = np.zeros(n_omega, dtype=float)
@@ -654,7 +654,7 @@ def run_xx_omega_scan(
             omega=omega,
             alpha_xx_range=alpha_xx_range,
             n_points=n_points,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
         )
         alpha_opts[i] = result.alpha_xx_opt

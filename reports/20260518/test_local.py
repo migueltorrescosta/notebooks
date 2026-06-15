@@ -341,7 +341,7 @@ class TestCircuitEvolution:
         """Verify hold unitary consistency with scipy for small N, M."""
         N, M = 1, 1
         ops = build_collective_operators(N, M)
-        T_hold, omega_true = 1.0, 1.0
+        t_hold, omega_true = 1.0, 1.0
         alpha = (0.1, 0.2, -0.1, 0.3)
 
         psi0 = product_css_state_np(0.0, 0.0, N, M)
@@ -350,14 +350,14 @@ class TestCircuitEvolution:
 
         # Our evolution
         psi_ours = evolve_full_np(
-            psi0, np.pi / 4, np.pi / 4, T_hold, omega_true, alpha, ops, N, M
+            psi0, np.pi / 4, np.pi / 4, t_hold, omega_true, alpha, ops, N, M
         )
 
         # Manual scipy evolution
         H_int = build_interaction_hamiltonian_np(alpha, ops)
         H_hold = omega_true * ops["Jz_S"] + H_int
         H_hold = 0.5 * (H_hold + H_hold.conj().T)
-        U_hold = expm(-1j * T_hold * H_hold)
+        U_hold = expm(-1j * t_hold * H_hold)
         psi_manual = U_BS2 @ U_hold @ U_BS1 @ psi0
         psi_manual /= np.linalg.norm(psi_manual)
 
@@ -398,9 +398,9 @@ class TestMomentsAndSensitivity:
         assert var_val == pytest.approx(max(0.0, var_direct), abs=1e-12)
 
     @pytest.mark.parametrize("N", [1, 2, 3])
-    @pytest.mark.parametrize("T_hold", [0.5, 1.0, 2.0])
+    @pytest.mark.parametrize("t_hold", [0.5, 1.0, 2.0])
     def test_decoupled_sensitivity_finite_and_positive(
-        self, N: int, T_hold: float
+        self, N: int, t_hold: float
     ) -> None:
         """In the decoupled case, sensitivity should be finite and positive."""
         M = N
@@ -408,7 +408,7 @@ class TestMomentsAndSensitivity:
         psi0 = product_css_state_np(0.0, 0.0, N, M)
         alpha = (0.0, 0.0, 0.0, 0.0)
         dt = compute_sensitivity_weighted(
-            psi0, np.pi / 2, np.pi / 2, T_hold, 1.0, alpha, ops, N, M
+            psi0, np.pi / 2, np.pi / 2, t_hold, 1.0, alpha, ops, N, M
         )
         assert np.isfinite(dt) and dt > 0
 
@@ -545,19 +545,19 @@ class TestWeightOptimisation:
 
 class TestAnalyticalBenchmarks:
     @pytest.mark.parametrize("N", [1, 2, 4, 8])
-    @pytest.mark.parametrize("T_hold", [0.5, 1.0, 2.0])
-    def test_zero_interaction_benchmark(self, N: int, T_hold: float) -> None:
+    @pytest.mark.parametrize("t_hold", [0.5, 1.0, 2.0])
+    def test_zero_interaction_benchmark(self, N: int, t_hold: float) -> None:
         """Zero interaction: numerical result must match exact closed-form
         expression (SO(3) rotation formulas) to within 10^{-10} relative error.
 
         The exact formula for \u03b1=0 uses the fact that the system evolves as
-        R_x(T_BS2) R_z(T_hold \u03b8) R_x(T_BS1) R_y(\u0398_S) |J_S, -J_S\u27e9, which is a CSS
+        R_x(T_BS2) R_z(t_hold \u03b8) R_x(T_BS1) R_y(\u0398_S) |J_S, -J_S\u27e9, which is a CSS
         at a known Bloch-sphere point. The ancilla evolves independently."""
         M = N
         result = analytical_benchmark_zero_interaction(
             N,
             M,
-            T_hold,
+            t_hold,
             omega_true=1.0,
         )
         dt = result["delta_omega_numerical"]
@@ -565,16 +565,16 @@ class TestAnalyticalBenchmarks:
 
         rel_error = result["relative_error_to_exact"]
         assert rel_error < 1e-10, (
-            f"N={N}, T_hold={T_hold}: relative error to exact = {rel_error:.2e} "
+            f"N={N}, t_hold={t_hold}: relative error to exact = {rel_error:.2e} "
             f"(threshold 1e-10)\n"
             f"  numerical \u0394\u03b8 = {result['delta_omega_numerical']:.15e}\n"
             f"  exact \u0394\u03b8     = {result['delta_omega_exact']:.15e}"
         )
 
-        # SQL formula 1/(sqrt(N) T_hold) is exact for default parameters
+        # SQL formula 1/(sqrt(N) t_hold) is exact for default parameters
         expected_sql = result["expected_sql"]
         assert result["delta_omega_exact"] == pytest.approx(expected_sql, rel=1e-14), (
-            f"N={N}, T_hold={T_hold}: exact \u0394\u03b8 {result['delta_omega_exact']:.10e} "
+            f"N={N}, t_hold={t_hold}: exact \u0394\u03b8 {result['delta_omega_exact']:.10e} "
             f"!= SQL {expected_sql:.10e}"
         )
 
@@ -600,7 +600,7 @@ class TestAnalyticalBenchmarks:
             N,
             M,
             alpha_zz,
-            T_hold=1.0,
+            t_hold=1.0,
             omega_true=1.0,
         )
 
@@ -617,8 +617,8 @@ class TestAnalyticalBenchmarks:
 
         rel_error = result["relative_error_to_exact"]
         # For well-conditioned cases (derivative not near zero), \u0394\u03b8
-        # should match to 10^{-10}. The derivative scales as N*T_hold \u2248 N,
-        # so for N\u22658 at \u03b1_zz=2 with T_hold=1, the interaction can dephase
+        # should match to 10^{-10}. The derivative scales as N*t_hold \u2248 N,
+        # so for N\u22658 at \u03b1_zz=2 with t_hold=1, the interaction can dephase
         # the signal making \u0394\u03b8 >> 1. In such cases accept 10^{-8}.
         dt_threshold = 1e-10 if dt < 100.0 else 1e-8
         assert rel_error < dt_threshold, (
@@ -667,7 +667,7 @@ class TestAnalyticalBenchmarks:
 
 class TestHLBound:
     def test_hl_bound_respected(self) -> None:
-        # \u0394\u03b8 = 0.6, HL = 1/(N*T_hold) = 1/(1*2) = 0.5, so 0.6 \u2265 0.5
+        # \u0394\u03b8 = 0.6, HL = 1/(N*t_hold) = 1/(1*2) = 0.5, so 0.6 \u2265 0.5
         assert validate_hl_bound(0.6, 1, 2.0) is True
 
     def test_hl_bound_violation_raises(self) -> None:
@@ -689,7 +689,7 @@ class TestOptimisation:
         assert np.all(params[:2] >= 0.0) and np.all(params[:2] <= np.pi)
         # BS params in [0, pi]
         assert np.all(params[2:4] >= 0.0) and np.all(params[2:4] <= np.pi)
-        # T_hold in [0.1, 20]
+        # t_hold in [0.1, 20]
         assert 0.1 <= params[4] <= 20.0
         # Alpha in [-2, 2]
         assert np.all(np.abs(params[5:]) <= 2.0)
@@ -721,12 +721,12 @@ class TestOptimisation:
             maxiter=20,
         )
         N_val = result["N"]
-        T_hold_opt = result["params_opt"][4]
+        t_hold_opt = result["params_opt"][4]
         dt = result["delta_omega_opt"]
-        if np.isfinite(dt) and T_hold_opt > 0:
-            hl = 1.0 / (N_val * T_hold_opt)
+        if np.isfinite(dt) and t_hold_opt > 0:
+            hl = 1.0 / (N_val * t_hold_opt)
             assert dt >= hl - 0.1 * hl, (
-                f"HL bound violated: \u0394\u03b8={dt:.6f} < 1/(N T_hold)={hl:.6f}"
+                f"HL bound violated: \u0394\u03b8={dt:.6f} < 1/(N t_hold)={hl:.6f}"
             )
 
 

@@ -40,7 +40,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     DEFAULT_T_BS,
     N_BFGS_STARTS,
     SQL_REFERENCE,
-    DEFAULT_T_hold,
+    DEFAULT_t_hold,
     GeneralBFGSOptimizationResult,
     GeneralOmegaScanResult,
     _upsert_bfgs_result,
@@ -97,13 +97,13 @@ class TestOperatorConstruction:
 
     def test_hold_unitary(self, make_ops: dict) -> None:
         alpha = (1.0, -0.5, 2.0, 1.5)
-        U = general_hold_unitary(T_hold=1.0, omega=0.5, alpha=alpha, ops=make_ops)
+        U = general_hold_unitary(t_hold=1.0, omega=0.5, alpha=alpha, ops=make_ops)
         assert np.allclose(U @ U.conj().T, np.eye(4), atol=1e-12)
 
     def test_hold_unitary_identity_at_zero(self, make_ops: dict) -> None:
-        """At T_hold=0, the hold unitary should be identity."""
+        """At t_hold=0, the hold unitary should be identity."""
         alpha = (1.0, 2.0, 3.0, 4.0)
-        U = general_hold_unitary(T_hold=0.0, omega=0.5, alpha=alpha, ops=make_ops)
+        U = general_hold_unitary(t_hold=0.0, omega=0.5, alpha=alpha, ops=make_ops)
         assert np.allclose(U, np.eye(4), atol=1e-12)
 
     @pytest.mark.parametrize("omega", [0.0, 0.5, 1.0, 2.0])
@@ -126,15 +126,15 @@ class TestOperatorConstruction:
     def test_decoupled_hold_reduces_to_factorised(self, make_ops: dict) -> None:
         """At α = (0,0,0,0), the hold should factorise.
 
-        exp(-i T_hold ω (J_z^S + J_z^A)) = exp(-i T_hold ω J_z) ⊗ exp(-i T_hold ω J_z)
+        exp(-i t_hold ω (J_z^S + J_z^A)) = exp(-i t_hold ω J_z) ⊗ exp(-i t_hold ω J_z)
         since [J_z^S, J_z^A] = 0.
         """
         omega = 0.5
-        T_hold = 2.0
+        t_hold = 2.0
         alpha = (0.0, 0.0, 0.0, 0.0)
-        U = general_hold_unitary(T_hold=T_hold, omega=omega, alpha=alpha, ops=make_ops)
+        U = general_hold_unitary(t_hold=t_hold, omega=omega, alpha=alpha, ops=make_ops)
         J_z = np.array([[0.5, 0], [0, -0.5]], dtype=complex)
-        U_single = expm(-1j * T_hold * omega * J_z)
+        U_single = expm(-1j * t_hold * omega * J_z)
         expected = np.kron(U_single, U_single)
         assert np.allclose(U, expected, atol=1e-12)
 
@@ -176,12 +176,12 @@ class TestCircuitEvolution:
         self, alpha: tuple[float, float, float, float], make_ops: dict
     ) -> None:
         psi = evolve_general_circuit(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 0.5, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 0.5, alpha, make_ops
         )
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
     def test_no_op_identity(self, make_ops: dict) -> None:
-        """T_BS=0, T_hold=0, ω=0 should give the initial state back."""
+        """T_BS=0, t_hold=0, ω=0 should give the initial state back."""
         alpha = (0.0, 0.0, 0.0, 0.0)
         psi = evolve_general_circuit(DEFAULT_PSI0, 0.0, 0.0, 0.0, alpha, make_ops)
         assert np.allclose(psi, DEFAULT_PSI0, atol=1e-12)
@@ -191,10 +191,10 @@ class TestCircuitEvolution:
     ) -> None:
         """At α=0, the system and ancilla evolve independently."""
         T_BS = 0.0  # No BS to entangle them
-        T_hold = 5.0
+        t_hold = 5.0
         omega = 1.0
         alpha = (0.0, 0.0, 0.0, 0.0)
-        psi = evolve_general_circuit(DEFAULT_PSI0, T_BS, T_hold, omega, alpha, make_ops)
+        psi = evolve_general_circuit(DEFAULT_PSI0, T_BS, t_hold, omega, alpha, make_ops)
         # State should be a product state: |ψ_S⟩ ⊗ |ψ_A⟩
         psi_mat = psi.reshape(2, 2)
         # Check that it's rank-1 (product state)
@@ -241,7 +241,7 @@ class TestReducedVariance:
     ) -> None:
         """Variance should always be non-negative."""
         psi = evolve_general_circuit(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 0.5, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 0.5, alpha, make_ops
         )
         var = compute_reduced_variance(psi)
         assert var >= -1e-12, f"Negative variance at α={alpha}: {var}"
@@ -250,7 +250,7 @@ class TestReducedVariance:
         """⟨J_z^S⟩ via reduced state should match full-state expectation."""
         alpha = (3.0, -2.0, 1.0, 4.0)
         psi = evolve_general_circuit(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 0.5, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 0.5, alpha, make_ops
         )
         exp_reduced = compute_reduced_expectation(psi)
         Jz_S = make_ops["Jz_S"]
@@ -265,12 +265,12 @@ class TestReducedVariance:
 
 class TestSensitivity:
     def test_decoupled_sensitivity(self, make_ops: dict) -> None:
-        """At α = (0,0,0,0), Δω should equal SQL = 1/T_hold."""
+        """At α = (0,0,0,0), Δω should equal SQL = 1/t_hold."""
         alpha = (0.0, 0.0, 0.0, 0.0)
         domega = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha, make_ops
         )
-        sql = 1.0 / DEFAULT_T_hold
+        sql = 1.0 / DEFAULT_t_hold
         assert domega == pytest.approx(sql, rel=1e-6), (
             f"Δω={domega:.10f} != SQL={sql:.10f} at α=0"
         )
@@ -280,9 +280,9 @@ class TestSensitivity:
         """At α = (0,0,0,0), Δω = SQL for any ω."""
         alpha = (0.0, 0.0, 0.0, 0.0)
         domega = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, omega_true, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, omega_true, alpha, make_ops
         )
-        sql = 1.0 / DEFAULT_T_hold
+        sql = 1.0 / DEFAULT_t_hold
         assert domega == pytest.approx(sql, rel=1e-5), (
             f"ω={omega_true}: Δω={domega:.10f} != SQL={sql:.10f}"
         )
@@ -307,7 +307,7 @@ class TestSensitivity:
     ) -> None:
         """With non-zero α, sensitivity should be finite."""
         domega = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha, make_ops
         )
         assert np.isfinite(domega), f"Non-finite Δω={domega} at α={alpha}"
 
@@ -322,7 +322,7 @@ class TestSensitivity:
             (1.0, -1.0, 1.0, -1.0),
         ]:
             domega = compute_general_sensitivity(
-                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, a_vals, make_ops
+                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, a_vals, make_ops
             )
             assert domega > 0, f"Non-positive Δω={domega} at α={a_vals}"
 
@@ -331,10 +331,10 @@ class TestSensitivity:
         alpha = (2.0, -1.0, 3.0, -2.0)
         omega = 0.5
         domega1 = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, omega, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, omega, alpha, make_ops
         )
         domega2, exp_val, var_val, d_exp = compute_general_sensitivity_with_diagnostics(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, omega, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, omega, alpha, make_ops
         )
         assert domega1 == pytest.approx(domega2, rel=1e-12)
         assert np.isfinite(exp_val)
@@ -342,13 +342,13 @@ class TestSensitivity:
         assert np.isfinite(d_exp)
 
     def test_fringe_extremum(self, make_ops: dict) -> None:
-        """At ω = π/T_hold with α=0, derivative should vanish (fringe extremum)."""
+        """At ω = π/t_hold with α=0, derivative should vanish (fringe extremum)."""
         alpha = (0.0, 0.0, 0.0, 0.0)
         domega = compute_general_sensitivity(
             DEFAULT_PSI0,
             DEFAULT_T_BS,
-            DEFAULT_T_hold,
-            np.pi / DEFAULT_T_hold,
+            DEFAULT_t_hold,
+            np.pi / DEFAULT_t_hold,
             alpha,
             make_ops,
         )
@@ -660,7 +660,7 @@ class TestPhysicalInvariants:
         ]
         for alpha in alpha_list:
             psi = evolve_general_circuit(
-                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, ops
+                DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha, ops
             )
             var = compute_reduced_variance(psi)
             assert var >= -1e-12, f"Negative Var(J_z^S)={var:.2e} at α={alpha}"
@@ -694,7 +694,7 @@ class TestPhysicalInvariants:
                 (5.0, -5.0, 5.0, -5.0),
             ]:
                 U = general_hold_unitary(
-                    T_hold=DEFAULT_T_hold, omega=omega, alpha=alpha, ops=ops
+                    t_hold=DEFAULT_t_hold, omega=omega, alpha=alpha, ops=ops
                 )
                 assert np.allclose(U @ U.conj().T, np.eye(4), atol=1e-12), (
                     f"Hold unitary not unitary at ω={omega}, α={alpha}"
@@ -704,9 +704,9 @@ class TestPhysicalInvariants:
         """α_zz-only interaction should give Δω = SQL."""
         alpha = (0.0, 0.0, 0.0, 10.0)
         domega = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha, make_ops
         )
-        sql = 1.0 / DEFAULT_T_hold
+        sql = 1.0 / DEFAULT_t_hold
         assert domega == pytest.approx(sql, rel=1e-6), (
             f"α_zz-only: Δω={domega:.10f} != SQL={sql:.10f}"
         )
@@ -715,7 +715,7 @@ class TestPhysicalInvariants:
         """α_zx-only interaction should produce finite Δω (BCH corrections)."""
         alpha = (0.0, 0.0, 10.0, 0.0)
         domega = compute_general_sensitivity(
-            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_T_hold, 1.0, alpha, make_ops
+            DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha, make_ops
         )
         assert np.isfinite(domega), f"Non-finite Δω={domega} for α_zx-only"
         assert domega > 0, f"Non-positive Δω={domega} for α_zx-only"
@@ -729,7 +729,7 @@ class TestPhysicalInvariants:
             domega = compute_general_sensitivity(
                 DEFAULT_PSI0,
                 DEFAULT_T_BS,
-                DEFAULT_T_hold,
+                DEFAULT_t_hold,
                 omega,
                 alpha,
                 make_ops,
@@ -758,7 +758,7 @@ class TestPhysicalInvariants:
 
 class TestConstants:
     def test_sql_reference_correct(self) -> None:
-        assert pytest.approx(1.0 / DEFAULT_T_hold) == SQL_REFERENCE
+        assert pytest.approx(1.0 / DEFAULT_t_hold) == SQL_REFERENCE
 
     def test_alpha_bounds(self) -> None:
         lo, hi = ALPHA_BOUNDS

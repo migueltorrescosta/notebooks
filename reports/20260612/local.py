@@ -347,7 +347,7 @@ def multi_particle_initial_state(N: int) -> np.ndarray:
 
 def multi_particle_hold_unitary(
     N: int,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     a_x: float,
     a_y: float,
@@ -357,12 +357,12 @@ def multi_particle_hold_unitary(
 ) -> np.ndarray:
     """Holding-time unitary for the multi-particle omega-modulated protocol.
 
-    U_hold(T_hold) = exp(-i T_hold H)
+    U_hold(t_hold) = exp(-i t_hold H)
     where H = omega J_z^S + omega(a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_zz J_z^S J_z^A.
 
     Args:
         N: Number of particles per subsystem.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: Phase rate parameter.
         a_x: J_x^A drive coefficient.
         a_y: J_y^A drive coefficient.
@@ -374,11 +374,11 @@ def multi_particle_hold_unitary(
         (N+1)^2 x (N+1)^2 unitary matrix.
     """
     H = build_multi_particle_hold_hamiltonian(N, omega, a_x, a_y, a_z, a_zz, ops)
-    U = expm(-1j * T_hold * H)
+    U = expm(-1j * t_hold * H)
     d_tot = (N + 1) ** 2
     I_full = np.eye(d_tot, dtype=complex)
     assert np.allclose(U @ U.conj().T, I_full, atol=1e-12), (
-        f"Hold unitary not unitary for N={N}, T_hold={T_hold}, omega={omega}"
+        f"Hold unitary not unitary for N={N}, t_hold={t_hold}, omega={omega}"
     )
     return U
 
@@ -387,7 +387,7 @@ def evolve_multi_particle_circuit(
     N: int,
     psi0: np.ndarray,
     T_bs: float,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     a_x: float,
     a_y: float,
@@ -397,13 +397,13 @@ def evolve_multi_particle_circuit(
 ) -> np.ndarray:
     """Run the full multi-particle omega-modulated ancilla MZI circuit.
 
-    |psi_final> = U_BS_S * U_hold(T_hold) * U_BS_S * |psi_0>
+    |psi_final> = U_BS_S * U_hold(t_hold) * U_BS_S * |psi_0>
 
     Args:
         N: Number of particles per subsystem.
         psi0: Initial state vector (must be normalised).
         T_bs: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: Phase rate parameter.
         a_x: J_x^A drive coefficient.
         a_y: J_y^A drive coefficient.
@@ -422,7 +422,7 @@ def evolve_multi_particle_circuit(
     psi = (
         multi_particle_hold_unitary(
             N,
-            T_hold,
+            t_hold,
             omega,
             a_x,
             a_y,
@@ -441,7 +441,7 @@ def compute_multi_particle_sensitivity(
     N: int,
     psi0: np.ndarray,
     T_bs: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     a_x: float,
     a_y: float,
@@ -464,7 +464,7 @@ def compute_multi_particle_sensitivity(
         N: Number of particles per subsystem.
         psi0: Initial state vector.
         T_bs: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         a_x: J_x^A drive coefficient.
         a_y: J_y^A drive coefficient.
@@ -485,7 +485,7 @@ def compute_multi_particle_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true,
         a_x,
         a_y,
@@ -500,7 +500,7 @@ def compute_multi_particle_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         a_x,
         a_y,
@@ -512,7 +512,7 @@ def compute_multi_particle_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         a_x,
         a_y,
@@ -667,7 +667,7 @@ def multi_particle_random_search(
         best_delta_omega=float(deltas[best_idx]),
         omega_value=omega,
         sql=sql_reference(N),
-        T_hold=T_HOLD,
+        t_hold=T_HOLD,
     )
 
 
@@ -682,7 +682,7 @@ def multi_particle_sensitivity_objective(
     omega_true: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray,
-    T_hold: float = T_HOLD,
+    t_hold: float = T_HOLD,
     T_bs: float = T_BS,
     fd_step: float = FD_STEP,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
@@ -698,7 +698,7 @@ def multi_particle_sensitivity_objective(
         omega_true: True phase rate.
         ops: Multi-particle operators.
         psi0: Initial state vector.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_bs: Beam-splitter duration.
         fd_step: Finite-difference step.
         bounds: (min, max) for all parameters.
@@ -728,7 +728,7 @@ def multi_particle_sensitivity_objective(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true,
         ax,
         ay,
@@ -1096,7 +1096,7 @@ def generate_n_scaling_scan(force: bool = False) -> None:
     df = summary.to_dataframe()
     plot_n_scaling_ratio(df, fig_ratio_p)
     print(f"[fig]  {fig_ratio_p}")
-    plot_n_scaling_sensitivity(df, fig_sensitivity_p, T_hold=T_HOLD)
+    plot_n_scaling_sensitivity(df, fig_sensitivity_p, t_hold=T_HOLD)
     print(f"[fig]  {fig_sensitivity_p}")
     plot_n_scaling_optimal_params(df, fig_params_p)
     print(f"[fig]  {fig_params_p}")

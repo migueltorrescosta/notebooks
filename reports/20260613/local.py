@@ -173,7 +173,7 @@ def joint_2d_psi_azz_slice(
     azz_range: tuple[float, float] = DRIVE_BOUNDS,
     n_psi: int = 101,
     n_azz: int = 101,
-    T_hold: float = T_HOLD,
+    t_hold: float = T_HOLD,
     T_bs: float = T_BS,
 ) -> Joint2DSliceResult:
     """Run a 2D slice scan over (ψ, a_zz) with fixed a_x=a_y=a_z=0.
@@ -185,7 +185,7 @@ def joint_2d_psi_azz_slice(
         azz_range: (min, max) for a_zz.
         n_psi: Number of ψ points.
         n_azz: Number of a_zz points.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_bs: Beam-splitter duration.
 
     Returns:
@@ -204,7 +204,7 @@ def joint_2d_psi_azz_slice(
                 N,
                 psi0,
                 T_bs,
-                T_hold,
+                t_hold,
                 omega,
                 0.0,
                 0.0,
@@ -234,7 +234,7 @@ def compute_joint_sensitivity(
     N: int,
     psi0: np.ndarray,
     T_bs: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     a_x: float,
     a_y: float,
@@ -252,7 +252,7 @@ def compute_joint_sensitivity(
         N: Number of system particles.
         psi0: Initial state vector.
         T_bs: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         a_x: J_x^A drive coefficient.
         a_y: J_y^A drive coefficient.
@@ -270,7 +270,7 @@ def compute_joint_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true,
         a_x,
         a_y,
@@ -298,7 +298,7 @@ class JointRandomSearchResult:
         best_delta_omega: Best Δω found.
         omega_value: Phase rate value.
         sql: SQL reference value.
-        T_hold: Holding time.
+        t_hold: Holding time.
     """
 
     samples: np.ndarray
@@ -307,7 +307,7 @@ class JointRandomSearchResult:
     best_delta_omega: float
     omega_value: float
     sql: float
-    T_hold: float
+    t_hold: float
 
 
 def joint_random_search(
@@ -316,7 +316,7 @@ def joint_random_search(
     n_samples: int = N_RANDOM,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
     psi_bounds: tuple[float, float] = PSI_BOUNDS,
-    T_hold: float = T_HOLD,
+    t_hold: float = T_HOLD,
     T_bs: float = T_BS,
     seed: int | None = 42,
 ) -> JointRandomSearchResult:
@@ -328,7 +328,7 @@ def joint_random_search(
         n_samples: Number of random points to evaluate.
         bounds: (min, max) for all four drive coefficients.
         psi_bounds: (min, max) for ψ.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_bs: Beam-splitter duration.
         seed: Random seed for reproducibility.
 
@@ -359,7 +359,7 @@ def joint_random_search(
             N,
             psi0,
             T_bs,
-            T_hold,
+            t_hold,
             omega,
             ax,
             ay,
@@ -386,7 +386,7 @@ def joint_random_search(
         best_delta_omega=float(deltas[best_idx]),
         omega_value=omega,
         sql=sql_reference(N),
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
 
 
@@ -401,7 +401,7 @@ def joint_sensitivity_objective(
     omega_true: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray,
-    T_hold: float = T_HOLD,
+    t_hold: float = T_HOLD,
     T_bs: float = T_BS,
     fd_step: float = FD_STEP,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
@@ -418,7 +418,7 @@ def joint_sensitivity_objective(
         omega_true: True phase rate.
         ops: N-particle operators.
         psi0: Initial state vector.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_bs: Beam-splitter duration.
         fd_step: Finite-difference step.
         bounds: (min, max) for drive parameters.
@@ -454,7 +454,7 @@ def joint_sensitivity_objective(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true,
         ax,
         ay,
@@ -710,7 +710,7 @@ def run_single_joint_n_omega(
         expectation_M=nm_result.expectation_M,
         variance_M=nm_result.variance_M,
         d_expectation=nm_result.d_expectation,
-        T_hold=T_HOLD,
+        t_hold=T_HOLD,
         success=nm_result.success,
         nfev=nm_result.nfev,
     )
@@ -824,7 +824,7 @@ def run_single_sonly_n_omega(
         psi_opt=0.0,
         expectation_Jz=float(exp_val),
         variance_Jz=float(var_val),
-        T_hold=T_HOLD,
+        t_hold=T_HOLD,
         success=bool(result.success),
         nfev=int(result.nfev),
     )
@@ -855,7 +855,7 @@ class JointNScalingResult:
         expectation_M: ⟨M⟩ at optimum.
         variance_M: Var(M) at optimum.
         d_expectation: ∂⟨M⟩/∂ω at optimum.
-        T_hold: Holding time used.
+        t_hold: Holding time used.
         success: NM convergence flag.
         nfev: Number of function evaluations.
     """
@@ -875,7 +875,7 @@ class JointNScalingResult:
     expectation_M: float = 0.0
     variance_M: float = 0.0
     d_expectation: float = 0.0
-    T_hold: float = T_HOLD
+    t_hold: float = T_HOLD
     success: bool = False
     nfev: int = 0
 
@@ -899,7 +899,7 @@ class JointNScalingResult:
                     "expectation_M": self.expectation_M,
                     "variance_M": self.variance_M,
                     "d_expectation": self.d_expectation,
-                    "T_hold": self.T_hold,
+                    "t_hold": self.t_hold,
                     "success": int(self.success),
                     "nfev": self.nfev,
                 }
@@ -933,7 +933,7 @@ class JointNScalingResult:
             "expectation_M",
             "variance_M",
             "d_expectation",
-            "T_hold",
+            "t_hold",
             "success",
             "nfev",
         }
@@ -961,7 +961,7 @@ class JointNScalingResult:
             expectation_M=float(row["expectation_M"]),
             variance_M=float(row["variance_M"]),
             d_expectation=float(row["d_expectation"]),
-            T_hold=float(row["T_hold"]),
+            t_hold=float(row["t_hold"]),
             success=bool(row["success"]),
             nfev=int(row["nfev"]),
         )
@@ -997,7 +997,7 @@ class JointNScalingScanResult:
                     "expectation_M": r.expectation_M,
                     "variance_M": r.variance_M,
                     "d_expectation": r.d_expectation,
-                    "T_hold": r.T_hold,
+                    "t_hold": r.t_hold,
                     "success": int(r.success),
                     "nfev": r.nfev,
                 }
@@ -1032,7 +1032,7 @@ class JointNScalingScanResult:
             "expectation_M",
             "variance_M",
             "d_expectation",
-            "T_hold",
+            "t_hold",
             "success",
             "nfev",
         }
@@ -1062,7 +1062,7 @@ class JointNScalingScanResult:
                     expectation_M=float(row["expectation_M"]),
                     variance_M=float(row["variance_M"]),
                     d_expectation=float(row["d_expectation"]),
-                    T_hold=float(row["T_hold"]),
+                    t_hold=float(row["t_hold"]),
                     success=bool(row["success"]),
                     nfev=int(row["nfev"]),
                 )
@@ -1093,7 +1093,7 @@ class JointNScalingScanResult:
             "expectation_M": [],
             "variance_M": [],
             "d_expectation": [],
-            "T_hold": [],
+            "t_hold": [],
             "success": [],
             "nfev": [],
         }

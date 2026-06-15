@@ -41,13 +41,13 @@ st.markdown(
 with st.sidebar:
     st.header("Simulation Parameters")
 
-    T_hold = st.slider(
-        "Holding-time strength T_hold",
+    t_hold = st.slider(
+        "Holding-time strength t_hold",
         min_value=0.1,
         max_value=5.0,
         value=1.0,
         step=0.1,
-        help="Controls how strongly the phase and interaction act. QFI scales as T_hold².",
+        help="Controls how strongly the phase and interaction act. QFI scales as t_hold².",
     )
 
     n_samples_B = st.slider(
@@ -95,19 +95,19 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(
         "Case B (2 particles, no ancilla)",
-        f"F_Q = {analytical_fq_B_max(T_hold):.0f}",
-        f"Δω = 1/√{analytical_fq_B_max(T_hold):.0f}",
+        f"F_Q = {analytical_fq_B_max(t_hold):.0f}",
+        f"Δω = 1/√{analytical_fq_B_max(t_hold):.0f}",
     )
 
 with col2:
     st.metric(
         "Case A (1 particle + ancilla, α = 0)",
-        f"F_Q = {analytical_fq_A_zero(T_hold):.0f}",
+        f"F_Q = {analytical_fq_A_zero(t_hold):.0f}",
         "Δω = 1",
     )
 
 with col3:
-    ratio_theory = np.sqrt(analytical_fq_B_max(T_hold) / analytical_fq_A_zero(T_hold))
+    ratio_theory = np.sqrt(analytical_fq_B_max(t_hold) / analytical_fq_A_zero(t_hold))
     st.metric(
         "Ratio ℛ = Δω_A / Δω_B",
         f"{ratio_theory:.2f}",
@@ -129,7 +129,7 @@ if run_button:
     with st.spinner("Running comparison simulation..."):
         start = time.time()
         result = run_comparison(
-            T_hold=T_hold,
+            t_hold=t_hold,
             n_samples_B=n_samples_B,
             n_samples_A=n_samples_A,
             n_alpha_samples=n_alpha_samples,
@@ -147,8 +147,8 @@ if run_button:
     with mcol2:
         st.metric(
             "Case B F_Q (theory)",
-            f"{analytical_fq_B_max(T_hold):.4f}",
-            delta=f"{(result.fq_B_max / analytical_fq_B_max(T_hold) - 1) * 100:.2f}%",
+            f"{analytical_fq_B_max(t_hold):.4f}",
+            delta=f"{(result.fq_B_max / analytical_fq_B_max(t_hold) - 1) * 100:.2f}%",
         )
     with mcol3:
         st.metric(
@@ -241,9 +241,9 @@ if run_button:
             **ℛ = {result.ratio:.3f} ≥ 2** — The ancilla-assisted configuration
             **cannot beat** the two-particle system at fixed resource of 2
             particles. The 2-particle probe (J = 1, generator eigenvalue range
-            ±1) achieves up to **F_Q = {analytical_fq_B_max(T_hold):.0f}**, while
+            ±1) achieves up to **F_Q = {analytical_fq_B_max(t_hold):.0f}**, while
             the ancilla-assisted probe (J = ½, generator eigenvalue range ±½)
-            is bounded by **F_Q = {analytical_fq_A_zero(T_hold):.0f}**.
+            is bounded by **F_Q = {analytical_fq_A_zero(t_hold):.0f}**.
             """,
         )
     else:

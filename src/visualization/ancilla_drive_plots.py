@@ -43,7 +43,7 @@ def plot_drive_decoupled_baseline(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    labels = [r"$\Delta\omega$", r"SQL $= 1/T_hold$"]
+    labels = [r"$\Delta\omega$", r"SQL $= 1/t_hold$"]
     values = [result.delta_omega, result.sql]
     colours = ["C0", "C1"]
 
@@ -59,7 +59,7 @@ def plot_drive_decoupled_baseline(
         )
 
     ax.set_ylabel(r"$\Delta\omega$")
-    ax.set_title(f"Decoupled baseline at $T_hold={result.T_hold_value:.0f}$")
+    ax.set_title(f"Decoupled baseline at $t_hold={result.t_hold_value:.0f}$")
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
     plt.close(fig)

@@ -72,7 +72,7 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_hold: float = 10.0  # Holding time (SQL reference)
+DEFAULT_t_hold: float = 10.0  # Holding time (SQL reference)
 AXX_BOUNDS: tuple[float, float] = (0.0, 20.0)  # α_xx optimisation range
 PSI_BOUNDS: tuple[float, float] = (-np.pi, np.pi)  # ψ optimisation range
 N_RANDOM_STARTS: int = 20  # L-BFGS-B random starts per (ω, N) for small N
@@ -180,7 +180,7 @@ def compute_sensitivity_full(
     meas_op: np.ndarray | None = None,
     fd_step: float = FD_STEP,
     T_BS: float = DEFAULT_T_BS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
 ) -> tuple[float, float, float, float]:
     """Compute the error-propagation sensitivity Δω with full-state measurement.
 
@@ -200,7 +200,7 @@ def compute_sensitivity_full(
         meas_op: Pre-computed measurement operator (default: built from psi).
         fd_step: Central finite-difference step size.
         T_BS: Beam-splitter angle.
-        T_hold: Holding time.
+        t_hold: Holding time.
 
     Returns:
         Tuple (delta_omega, expectation, variance, derivative).
@@ -210,15 +210,15 @@ def compute_sensitivity_full(
         meas_op = build_measurement_operator(N, psi, ops)
 
     # Evaluate at omega_true
-    state = evolve_circuit(N, psi0, omega_true, alpha_xx, ops, T_BS, T_hold)
+    state = evolve_circuit(N, psi0, omega_true, alpha_xx, ops, T_BS, t_hold)
     exp_val, var_val = full_state_expectation_and_variance(state, meas_op)
 
     # Central finite difference for ∂⟨M⟩/∂ω
     psi_plus = evolve_circuit(
-        N, psi0, omega_true + fd_step, alpha_xx, ops, T_BS, T_hold
+        N, psi0, omega_true + fd_step, alpha_xx, ops, T_BS, t_hold
     )
     psi_minus = evolve_circuit(
-        N, psi0, omega_true - fd_step, alpha_xx, ops, T_BS, T_hold
+        N, psi0, omega_true - fd_step, alpha_xx, ops, T_BS, t_hold
     )
 
     exp_plus = full_state_expectation_and_variance(psi_plus, meas_op)[0]
@@ -243,7 +243,7 @@ def _objective_joint(
     psi0: np.ndarray,
     omega: float,
     ops: dict[str, np.ndarray],
-    T_hold: float,
+    t_hold: float,
     fd_step: float,
 ) -> float:
     """Objective function for joint (α_xx, ψ) optimisation.
@@ -257,7 +257,7 @@ def _objective_joint(
         psi0: Initial state.
         omega: Phase rate.
         ops: Embedded operators.
-        T_hold: Holding time.
+        t_hold: Holding time.
         fd_step: Finite-difference step.
 
     Returns:
@@ -265,7 +265,7 @@ def _objective_joint(
     """
     alpha_xx, psi = float(params[0]), float(params[1])
     dt, _, _, _ = compute_sensitivity_full(
-        N, psi0, omega, alpha_xx, psi, ops, T_hold=T_hold, fd_step=fd_step
+        N, psi0, omega, alpha_xx, psi, ops, t_hold=t_hold, fd_step=fd_step
     )
     if np.isfinite(dt) and dt > 0:
         return dt
@@ -301,7 +301,7 @@ def optimise_joint(
     n_starts: int = N_RANDOM_STARTS,
     maxiter: int | None = None,
     T_BS: float = DEFAULT_T_BS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     fd_step: float = FD_STEP,
     rng_seed: int | None = None,
 ) -> dict[str, float]:
@@ -318,7 +318,7 @@ def optimise_joint(
         psi_bounds: (min, max) for ψ.
         n_starts: Number of random starting points.
         T_BS: Beam-splitter angle.
-        T_hold: Holding time.
+        t_hold: Holding time.
         fd_step: Finite-difference step.
         rng_seed: Optional seed for reproducibility.
 
@@ -332,7 +332,7 @@ def optimise_joint(
             'expectation_M': ⟨M⟩ at optimum.
             'variance_M': Var(M) at optimum.
             'd_expectation': ∂⟨M⟩/∂ω at optimum.
-            'sql_2n': SQL = 1/(√(2N) * T_hold) reference.
+            'sql_2n': SQL = 1/(√(2N) * t_hold) reference.
             'n_starts_converged': number of starts that converged.
             'n_starts_at_best': number of starts that reached the best optimum
                 (within 1% relative tolerance of delta_omega_opt).
@@ -340,7 +340,7 @@ def optimise_joint(
     if psi0 is None:
         psi0 = initial_state(N)
 
-    sql_2n = 1.0 / (np.sqrt(2 * N) * T_hold)
+    sql_2n = 1.0 / (np.sqrt(2 * N) * t_hold)
     rng = np.random.default_rng(rng_seed)
 
     if maxiter is None:
@@ -374,7 +374,7 @@ def optimise_joint(
             result = minimize(
                 _objective_joint,
                 x0,
-                args=(N, psi0, omega, ops, T_hold, fd_step),
+                args=(N, psi0, omega, ops, t_hold, fd_step),
                 method="L-BFGS-B",
                 bounds=bounds,
                 options={"ftol": 1e-12, "gtol": 1e-8, "maxiter": maxiter},
@@ -391,7 +391,7 @@ def optimise_joint(
             alpha_opt = np.clip(alpha_opt, axx_bounds[0], axx_bounds[1])
 
             dt_opt, exp_opt, var_opt, d_exp_opt = compute_sensitivity_full(
-                N, psi0, omega, alpha_opt, psi_opt, ops, T_hold=T_hold, fd_step=fd_step
+                N, psi0, omega, alpha_opt, psi_opt, ops, t_hold=t_hold, fd_step=fd_step
             )
 
             if np.isfinite(dt_opt):
@@ -442,7 +442,7 @@ class DualMZIOptimisedResult:
         ms_opt: m_s = cos(ψ*) at each point.
         ma_opt: m_a = sin(ψ*) at each point.
         delta_omega_opt: Minimal Δω at each point.
-        sql_2n: 2N-SQL = 1/(√(2N) T_hold) at each point.
+        sql_2n: 2N-SQL = 1/(√(2N) t_hold) at each point.
         ratio: Δω_opt / SQL_2N at each point.
         expectation_M: ⟨M⟩ at optimum.
         variance_M: Var(M) at optimum.
@@ -450,7 +450,7 @@ class DualMZIOptimisedResult:
         n_starts_converged: Number of L-BFGS-B starts that converged per point.
         n_starts_at_best: Number of starts that reached the best optimum
             (within 1% relative tolerance of delta_omega_opt).
-        T_hold: Holding time (scalar).
+        t_hold: Holding time (scalar).
     """
 
     omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -471,7 +471,7 @@ class DualMZIOptimisedResult:
     n_starts_at_best: np.ndarray = field(
         default_factory=lambda: np.array([], dtype=int)
     )
-    T_hold: float = DEFAULT_T_hold
+    t_hold: float = DEFAULT_t_hold
 
     def __post_init__(self) -> None:
         # Ensure int dtype for N_values
@@ -483,7 +483,7 @@ class DualMZIOptimisedResult:
             {
                 "omega": self.omega_values,
                 "N": self.N_values,
-                "T_hold": np.full(len(self.omega_values), self.T_hold),
+                "t_hold": np.full(len(self.omega_values), self.t_hold),
                 "alpha_xx_opt": self.alpha_xx_opt,
                 "psi_opt": self.psi_opt,
                 "ms_opt": self.ms_opt,
@@ -511,7 +511,7 @@ class DualMZIOptimisedResult:
         required = {
             "omega",
             "N",
-            "T_hold",
+            "t_hold",
             "alpha_xx_opt",
             "psi_opt",
             "ms_opt",
@@ -547,7 +547,7 @@ class DualMZIOptimisedResult:
             d_expectation=df["d_expectation"].to_numpy(dtype=float),
             n_starts_converged=df["n_starts_converged"].to_numpy(dtype=int),
             n_starts_at_best=df["n_starts_at_best"].to_numpy(dtype=int),
-            T_hold=float(df["T_hold"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
         )
 
     @property
@@ -614,12 +614,12 @@ def _optimise_one_point(
     """Worker function (picklable) for per-point parallel sweep.
 
     Args:
-        args: Tuple (N, omega, T_hold, n_starts, fd_step, seed).
+        args: Tuple (N, omega, t_hold, n_starts, fd_step, seed).
 
     Returns:
         Dict with keys: 'N', 'omega', plus all optimise_joint result keys.
     """
-    N, omega, T_hold, n_starts, fd_step, seed = args
+    N, omega, t_hold, n_starts, fd_step, seed = args
     ops = embed_combined_operators(N)
     psi0 = initial_state(N)
     result = optimise_joint(
@@ -628,7 +628,7 @@ def _optimise_one_point(
         ops=ops,
         psi0=psi0,
         n_starts=n_starts,
-        T_hold=T_hold,
+        t_hold=t_hold,
         fd_step=fd_step,
         rng_seed=seed,
     )
@@ -645,7 +645,7 @@ def _optimise_one_point(
 def run_sweep(
     omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     n_starts: int = N_RANDOM_STARTS,
     progress_callback: Callable[[int, int], None] | None = None,
     seed: int | None = None,
@@ -656,7 +656,7 @@ def run_sweep(
     Args:
         omega_values: ω values to sweep (default: 0.1 to 5.0 step 0.1).
         N_values: N values to sweep (default: 1 to 20 inclusive).
-        T_hold: Holding time.
+        t_hold: Holding time.
         n_starts: Random starts per (ω, N) pair.
         progress_callback: Optional callback (current, total).
         seed: Optional seed for reproducibility.
@@ -700,7 +700,7 @@ def run_sweep(
             (
                 int(N_i),
                 float(omega_i),
-                T_hold,
+                t_hold,
                 _n_starts_for_n(N_i),
                 FD_STEP,
                 global_start_seed,
@@ -763,7 +763,7 @@ def run_sweep(
                     ops=ops,
                     psi0=psi0,
                     n_starts=_n_starts_for_n(N),
-                    T_hold=T_hold,
+                    t_hold=t_hold,
                     rng_seed=global_start_seed + idx if seed is not None else None,
                 )
 
@@ -813,7 +813,7 @@ def run_sweep(
         d_expectation=d_exps,
         n_starts_converged=n_converged_arr,
         n_starts_at_best=n_best_arr,
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
 
 
@@ -828,14 +828,14 @@ def compute_sensitivity_at_psi(
     psi: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray | None = None,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     fd_step: float = FD_STEP,
 ) -> tuple[float, float, float, float]:
     """Compute sensitivity at α_xx=0 with a given ψ.
 
     At α_xx = 0, this should give:
-    - ψ = 0:     Δω = 1/(√N T_hold) (the N-SQL, worse than 2N-SQL by √2)
-    - ψ = π/4:   Δω = 1/(√(2N) T_hold) = Δω_SQL (the 2N-SQL, optimal separable)
+    - ψ = 0:     Δω = 1/(√N t_hold) (the N-SQL, worse than 2N-SQL by √2)
+    - ψ = π/4:   Δω = 1/(√(2N) t_hold) = Δω_SQL (the 2N-SQL, optimal separable)
 
     Args:
         N: Particle number per subsystem.
@@ -843,7 +843,7 @@ def compute_sensitivity_at_psi(
         psi: Measurement weight angle.
         ops: Embedded operators.
         psi0: Initial state (default: built fresh).
-        T_hold: Holding time.
+        t_hold: Holding time.
         fd_step: Finite-difference step.
 
     Returns:
@@ -860,7 +860,7 @@ def compute_sensitivity_at_psi(
         psi=psi,
         ops=ops,
         meas_op=meas_op,
-        T_hold=T_hold,
+        t_hold=t_hold,
         fd_step=fd_step,
     )
 
@@ -868,18 +868,18 @@ def compute_sensitivity_at_psi(
 def compute_decoupled_baseline(
     omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     fd_step: float = FD_STEP,
 ) -> DualMZIOptimisedResult:
     """Verify the decoupled baseline (α_xx = 0) at the analytically optimal φ = π/4.
 
     At α_xx = 0, the optimal measurement is φ = π/4, giving
-    Δω = 1/(√(2N) T_hold) = Δω_SQL (the 2N-SQL).
+    Δω = 1/(√(2N) t_hold) = Δω_SQL (the 2N-SQL).
 
     Args:
         omega_values: ω values (default: sweep range).
         N_values: N values (default: 1 to 20).
-        T_hold: Holding time.
+        t_hold: Holding time.
 
     Returns:
         DualMZIOptimisedResult with α_xx=0, φ=π/4 results.
@@ -915,7 +915,7 @@ def compute_decoupled_baseline(
         for omega in omega_values:
             omegas[idx] = omega
             Ns[idx] = N
-            sql = 1.0 / (np.sqrt(2 * N) * T_hold)
+            sql = 1.0 / (np.sqrt(2 * N) * t_hold)
             sqls[idx] = sql
 
             dt, exp_val, var_val, d_exp_val = compute_sensitivity_at_psi(
@@ -924,7 +924,7 @@ def compute_decoupled_baseline(
                 psi=np.pi / 4.0,
                 ops=ops,
                 psi0=psi0,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 fd_step=fd_step,
             )
             delta_opts[idx] = dt
@@ -950,7 +950,7 @@ def compute_decoupled_baseline(
         d_expectation=d_exps,
         n_starts_converged=n_converged_arr,
         n_starts_at_best=n_best_arr,
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
 
 
@@ -1154,9 +1154,9 @@ def plot_n_scaling(
 
     # Reference lines
     N_dense = np.logspace(np.log10(1), np.log10(20), 100)
-    sql_2n_dense = 1.0 / (np.sqrt(2 * N_dense) * sweep.T_hold)
-    sql_n_dense = 1.0 / (np.sqrt(N_dense) * sweep.T_hold)
-    hl_dense = 1.0 / (N_dense * sweep.T_hold)
+    sql_2n_dense = 1.0 / (np.sqrt(2 * N_dense) * sweep.t_hold)
+    sql_n_dense = 1.0 / (np.sqrt(N_dense) * sweep.t_hold)
+    hl_dense = 1.0 / (N_dense * sweep.t_hold)
 
     ax.loglog(N_dense, sql_2n_dense, "--", color="gray", alpha=0.7, label="2N-SQL")
     ax.loglog(N_dense, sql_n_dense, "-.", color="gray", alpha=0.5, label="N-SQL")
@@ -1375,7 +1375,7 @@ def plot_comparison_traced_out(
 ) -> Path:
     """Plot comparison between optimised joint measurement and traced-out protocol.
 
-    Shows r_joint = Δω_opt / (1/√(2N) T_hold) vs r_trace = Δω_trace / (1/√N T_hold).
+    Shows r_joint = Δω_opt / (1/√(2N) t_hold) vs r_trace = Δω_trace / (1/√N t_hold).
 
     Args:
         sweep_joint: This report's sweep result.
@@ -1572,7 +1572,7 @@ def generate_decoupled_baseline(force: bool = False) -> None:
     ax.set_ylabel(r"$N$ (particles per subsystem)")
     ax.set_title(
         f"Decoupled Baseline Verification ($\\alpha_{{xx}} = 0$, $\\psi = \\pi/4$, "
-        f"$T_hold = {result.T_hold}$)\n"
+        f"$t_hold = {result.t_hold}$)\n"
         f"Max $|\\Delta\\omega/\\mathrm{{SQL}}^{{2N}} - 1| = {max_dev:.2e}$, "
         f"points checked: {len(finite)}"
     )
@@ -1644,7 +1644,7 @@ def evaluate_coarse_grid(
     n_axx: int = 21,
     n_psi: int = 21,
     fd_step: float = FD_STEP,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     """Evaluate Δω on a coarse 2D grid of (α_xx, ψ) for landscape validation.
 
@@ -1654,7 +1654,7 @@ def evaluate_coarse_grid(
         n_axx: Number of α_xx grid points.
         n_psi: Number of ψ grid points.
         fd_step: Finite-difference step.
-        T_hold: Holding time.
+        t_hold: Holding time.
 
     Returns:
         Tuple (axx_vals, psi_vals, delta_map, grid_best_dt) where
@@ -1680,7 +1680,7 @@ def evaluate_coarse_grid(
                 axx,
                 psi,
                 ops,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 fd_step=fd_step,
             )
             delta_map[i, j] = dt
@@ -1720,7 +1720,7 @@ def generate_landscapes(force: bool = False) -> None:
         print(f"[run]  Computing landscape for N={N}, ω={omega:.1f} (21×21 grid)...")
         axx_vals, psi_vals, delta_map, grid_best = evaluate_coarse_grid(N, omega)
 
-        sql_2n = 1.0 / (np.sqrt(2 * N) * DEFAULT_T_hold)
+        sql_2n = 1.0 / (np.sqrt(2 * N) * DEFAULT_t_hold)
 
         plot_landscape(N, omega, axx_vals, psi_vals, delta_map, sql_2n, fig_p)
         print(f"[fig]  {fig_p}")

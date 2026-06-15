@@ -68,8 +68,8 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_hold: float = 10.0  # Holding time (SQL = 0.1)
-SQL_REFERENCE: float = 1.0 / DEFAULT_T_hold  # Δω_SQL = 0.1
+DEFAULT_t_hold: float = 10.0  # Holding time (SQL = 0.1)
+SQL_REFERENCE: float = 1.0 / DEFAULT_t_hold  # Δω_SQL = 0.1
 DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Range for all coefficients
 FD_STEP: float = 1e-6  # Finite-difference step for omega derivative
 
@@ -264,7 +264,7 @@ def validate_density(rho: np.ndarray, atol: float = 1e-8) -> None:
 def evolve_noisy_drive_circuit(
     rho0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     gamma_phi: float,
     a_x: float,
@@ -275,14 +275,14 @@ def evolve_noisy_drive_circuit(
 ) -> np.ndarray:
     """Run the full noisy MZI circuit with phase diffusion.
 
-    ρ_final = U_BS_S · exp(ℒ T_hold)(U_BS_S · ρ₀ · U_BS_S^†) · U_BS_S^†
+    ρ_final = U_BS_S · exp(ℒ t_hold)(U_BS_S · ρ₀ · U_BS_S^†) · U_BS_S^†
 
     where ℒ is the Lindblad Liouvillian with phase diffusion.
 
     Args:
         rho0: Initial 4×4 density matrix.
         T_BS: Beam-splitter duration (both BS identical).
-        T_hold: Holding time.
+        t_hold: Holding time.
         omega: Phase rate parameter.
         gamma_phi: Phase diffusion rate.
         a_x: Ancilla J_x drive coefficient.
@@ -309,7 +309,7 @@ def evolve_noisy_drive_circuit(
 
     # Vectorise, exponentiate, unvectorise
     rho_vec = vectorise_rho(rho)
-    rho_vec_evolved = expm(L * T_hold) @ rho_vec
+    rho_vec_evolved = expm(L * t_hold) @ rho_vec
     rho = unvectorise_rho(rho_vec_evolved)
 
     # BS2
@@ -329,7 +329,7 @@ def evolve_noisy_drive_circuit(
 def compute_noisy_sensitivity(
     rho0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     gamma_phi: float,
     a_x: float,
@@ -349,7 +349,7 @@ def compute_noisy_sensitivity(
     Args:
         rho0: Initial 4×4 density matrix.
         T_BS: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         gamma_phi: Phase diffusion rate.
         a_x: Ancilla J_x drive coefficient.
@@ -366,16 +366,16 @@ def compute_noisy_sensitivity(
 
     # Evaluate at omega_true
     rho = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_hold, omega_true, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, t_hold, omega_true, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
     var = density_variance(rho, meas_op)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂ω
     rho_plus = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_hold, omega_true + fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, t_hold, omega_true + fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
     rho_minus = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_hold, omega_true - fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, t_hold, omega_true - fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
 
     exp_plus = density_expectation(rho_plus, meas_op)
@@ -391,7 +391,7 @@ def compute_noisy_sensitivity(
 def compute_noisy_sensitivity_with_diagnostics(
     rho0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     gamma_phi: float,
     a_x: float,
@@ -410,17 +410,17 @@ def compute_noisy_sensitivity_with_diagnostics(
 
     # Evaluate at omega_true
     rho = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_hold, omega_true, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, t_hold, omega_true, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
     exp_val = density_expectation(rho, meas_op)
     var = density_variance(rho, meas_op)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂ω
     rho_plus = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_hold, omega_true + fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, t_hold, omega_true + fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
     rho_minus = evolve_noisy_drive_circuit(
-        rho0, T_BS, T_hold, omega_true - fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
+        rho0, T_BS, t_hold, omega_true - fd_step, gamma_phi, a_x, a_y, a_z, a_zz, ops
     )
 
     exp_plus = density_expectation(rho_plus, meas_op)
@@ -456,8 +456,8 @@ class DriveNoiseScanResult:
             shaped (n_omega, n_gamma).
         d_exp_d_omega_per_pair: ∂⟨J_z^S⟩/∂ω at each optimal point,
             shaped (n_omega, n_gamma).
-        sql: SQL = 1/T_hold reference value.
-        T_hold: Holding time used.
+        sql: SQL = 1/t_hold reference value.
+        t_hold: Holding time used.
         n_random: Number of random search points per (ω, γ_φ) pair.
         n_nm_refine: Number of Nelder-Mead refinements per pair.
         maxiter: Maximum Nelder-Mead iterations.
@@ -477,7 +477,7 @@ class DriveNoiseScanResult:
     variance_Jz_per_pair: np.ndarray = field(default_factory=lambda: np.array([]))
     d_exp_d_omega_per_pair: np.ndarray = field(default_factory=lambda: np.array([]))
     sql: float = SQL_REFERENCE
-    T_hold: float = DEFAULT_T_hold
+    t_hold: float = DEFAULT_t_hold
     n_random: int = 1000
     n_nm_refine: int = 25
     maxiter: int = 5000
@@ -532,7 +532,7 @@ class DriveNoiseScanResult:
                         "variance_Jz": var_val,
                         "d_exp_d_omega": d_exp,
                         "sql": float(self.sql),
-                        "T_hold": float(self.T_hold),
+                        "t_hold": float(self.t_hold),
                         "n_random": int(self.n_random),
                         "n_nm_refine": int(self.n_nm_refine),
                         "maxiter": int(self.maxiter),
@@ -565,7 +565,7 @@ class DriveNoiseScanResult:
             "variance_Jz",
             "d_exp_d_omega",
             "sql",
-            "T_hold",
+            "t_hold",
             "n_random",
             "n_nm_refine",
             "maxiter",
@@ -633,7 +633,7 @@ class DriveNoiseScanResult:
             variance_Jz_per_pair=var_arr,
             d_exp_d_omega_per_pair=d_exp_arr,
             sql=float(df["sql"].iloc[0]),
-            T_hold=float(df["T_hold"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
             n_random=int(df["n_random"].iloc[0]),
             n_nm_refine=int(df["n_nm_refine"].iloc[0]),
             maxiter=int(df["maxiter"].iloc[0]),
@@ -651,7 +651,7 @@ class DriveNoiseScanResult:
 
 def compute_noisy_decoupled_baseline(
     gamma_phi: float = 0.0,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     omega_true: float = 1.0,
 ) -> float:
     """Compute the decoupled baseline sensitivity with phase diffusion.
@@ -663,17 +663,17 @@ def compute_noisy_decoupled_baseline(
 
     Args:
         gamma_phi: Phase diffusion rate.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate.
 
     Returns:
-        Δω (should equal 1/T_hold = SQL for any γ_φ).
+        Δω (should equal 1/t_hold = SQL for any γ_φ).
     """
     ops = build_two_qubit_operators()
     return compute_noisy_sensitivity(
         DEFAULT_RHO0,
         DEFAULT_T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         gamma_phi,
         0.0,
@@ -694,7 +694,7 @@ def noisy_sensitivity_objective(
     omega_true: float,
     gamma_phi: float,
     ops: dict[str, np.ndarray],
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
     fd_step: float = FD_STEP,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
@@ -702,7 +702,7 @@ def noisy_sensitivity_objective(
 ) -> float:
     """Objective function for minimising Δω under phase diffusion.
 
-    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed T_hold.
+    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed t_hold.
     params = [a_x, a_y, a_z, a_zz] (4 elements).
 
     Args:
@@ -710,7 +710,7 @@ def noisy_sensitivity_objective(
         omega_true: True phase rate.
         gamma_phi: Phase diffusion rate.
         ops: Two-qubit operators.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step.
         bounds: (min, max) for all parameters.
@@ -739,7 +739,7 @@ def noisy_sensitivity_objective(
     return compute_noisy_sensitivity(
         DEFAULT_RHO0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         gamma_phi,
         ax,
@@ -761,7 +761,7 @@ def run_noisy_random_search(
     gamma_phi: float,
     n_samples: int = 500,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
     seed: int | None = 42,
 ) -> tuple[np.ndarray, np.ndarray, tuple[float, float, float, float], float]:
@@ -772,7 +772,7 @@ def run_noisy_random_search(
         gamma_phi: Phase diffusion rate.
         n_samples: Number of random points to evaluate.
         bounds: (min, max) for all four coefficients.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         seed: Random seed for reproducibility.
 
@@ -795,7 +795,7 @@ def run_noisy_random_search(
         domega = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             T_BS,
-            T_hold,
+            t_hold,
             omega,
             gamma_phi,
             ax,
@@ -883,7 +883,7 @@ def run_noisy_nelder_mead(
     fatol: float = 1e-8,
     adaptive: bool = True,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
     early_stop_patience: int = 200,
 ) -> dict[str, Any]:
@@ -902,7 +902,7 @@ def run_noisy_nelder_mead(
         fatol: Absolute function tolerance.
         adaptive: Use adaptive Nelder-Mead parameters.
         bounds: (min, max) for all four parameters.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         early_stop_patience: Consecutive non-improving calls before stopping.
 
@@ -926,7 +926,7 @@ def run_noisy_nelder_mead(
             omega_true,
             gamma_phi,
             ops,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             bounds=bounds,
         )
@@ -952,7 +952,7 @@ def run_noisy_nelder_mead(
     _, exp_val, var_val, d_exp = compute_noisy_sensitivity_with_diagnostics(
         DEFAULT_RHO0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         gamma_phi,
         float(opt_params[0]),
@@ -988,7 +988,7 @@ def _run_single_noise_pair(
     maxiter: int = 2000,
     early_stop_patience: int = 200,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> dict[str, Any]:
     """Run random search + Nelder-Mead refinement for a single (ω, γ_φ) pair.
@@ -1002,7 +1002,7 @@ def _run_single_noise_pair(
         maxiter: Maximum Nelder-Mead iterations.
         early_stop_patience: Consecutive non-improving NM iterations before stop.
         bounds: (min, max) for all four coefficients.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
@@ -1018,7 +1018,7 @@ def _run_single_noise_pair(
         gamma_phi,
         n_samples=n_random,
         bounds=bounds,
-        T_hold=T_hold,
+        t_hold=t_hold,
         T_BS=T_BS,
         seed=seed_val,
     )
@@ -1045,7 +1045,7 @@ def _run_single_noise_pair(
             maxiter=maxiter,
             early_stop_patience=early_stop_patience,
             bounds=bounds,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
         )
 
@@ -1087,7 +1087,7 @@ def run_noise_scan(
     maxiter: int = 2000,
     early_stop_patience: int = 200,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> DriveNoiseScanResult:
     """Scan over (ω, γ_φ) pairs with random search + Nelder-Mead refinement.
@@ -1106,7 +1106,7 @@ def run_noise_scan(
         seed: Base random seed.
         maxiter: Maximum Nelder-Mead iterations.
         bounds: (min, max) for all parameters.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
@@ -1130,7 +1130,7 @@ def run_noise_scan(
                 maxiter=maxiter,
                 early_stop_patience=early_stop_patience,
                 bounds=bounds,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 T_BS=T_BS,
             )
             all_results.append(result)
@@ -1169,8 +1169,8 @@ def run_noise_scan(
         expectation_Jz_per_pair=exp_arr,
         variance_Jz_per_pair=var_arr,
         d_exp_d_omega_per_pair=d_exp_arr,
-        sql=1.0 / T_hold,
-        T_hold=T_hold,
+        sql=1.0 / t_hold,
+        t_hold=t_hold,
         n_random=n_random,
         n_nm_refine=n_nm_refine,
         maxiter=maxiter,
@@ -1190,7 +1190,7 @@ def evaluate_fixed_params_scan(
     omega_values: list[float] | np.ndarray,
     gamma_phi_values: list[float] | np.ndarray,
     noise_free_params: dict[float, tuple[float, float, float, float]],
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> np.ndarray:
     """Evaluate Δω at noise-free optimal params for each (ω, γ_φ) pair.
@@ -1200,7 +1200,7 @@ def evaluate_fixed_params_scan(
         gamma_phi_values: γ_φ values.
         noise_free_params: Dict mapping ω → (a_x*, a_y*, a_z*, a_zz*)
             from the noise-free (γ_φ = 0) optimum.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
@@ -1222,7 +1222,7 @@ def evaluate_fixed_params_scan(
             dt = compute_noisy_sensitivity(
                 DEFAULT_RHO0,
                 T_BS,
-                T_hold,
+                t_hold,
                 omega,
                 gamma,
                 ax,
@@ -1472,7 +1472,7 @@ def _optimise_noise_free_single_omega(
     maxiter: int = 2000,
     early_stop_patience: int = 200,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> tuple[float, tuple[float, float, float, float]]:
     """Optimise noise-free sensitivity for a single ω value.
@@ -1494,7 +1494,7 @@ def _optimise_noise_free_single_omega(
         dt = compute_noisy_sensitivity(
             DEFAULT_RHO0,
             T_BS,
-            T_hold,
+            t_hold,
             omega,
             0.0,
             float(samples[i, 0]),
@@ -1526,7 +1526,7 @@ def _optimise_noise_free_single_omega(
             maxiter=maxiter,
             early_stop_patience=early_stop_patience,
             bounds=bounds,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
         )
         dt_nm = float(nm["delta_omega_opt"])
@@ -1550,7 +1550,7 @@ def compute_noise_free_optimal_params(
     maxiter: int = 2000,
     early_stop_patience: int = 200,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> dict[float, tuple[float, float, float, float]]:
     """Compute noise-free optimal parameters (γ_φ = 0) for each ω value.
@@ -1567,7 +1567,7 @@ def compute_noise_free_optimal_params(
         maxiter: Maximum Nelder-Mead iterations.
         early_stop_patience: Consecutive non-improving NM iterations before stop.
         bounds: (min, max) for all parameters.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
@@ -1587,7 +1587,7 @@ def compute_noise_free_optimal_params(
                 maxiter,
                 early_stop_patience,
                 bounds,
-                T_hold,
+                t_hold,
                 T_BS,
             ): float(t)
             for t in omega_values
@@ -2155,7 +2155,7 @@ def _run_single_pair_worker(args: dict[str, Any]) -> None:
                 "variance_Jz": result.get("variance_Jz", 0.0),
                 "d_exp_d_omega": result.get("d_exp_d_omega", 0.0),
                 "sql": SQL_REFERENCE,
-                "T_hold": DEFAULT_T_hold,
+                "t_hold": DEFAULT_t_hold,
                 "n_random": n_random,
                 "n_nm_refine": n_nm_refine,
                 "maxiter": maxiter,
@@ -2280,7 +2280,7 @@ def generate_noise_scan(force: bool = False) -> None:
             variance_Jz_per_pair=var_arr,
             d_exp_d_omega_per_pair=d_exp_arr,
             sql=SQL_REFERENCE,
-            T_hold=DEFAULT_T_hold,
+            t_hold=DEFAULT_t_hold,
             n_random=int(first_row.get("n_random", 1000)),
             n_nm_refine=int(first_row.get("n_nm_refine", 25)),
             maxiter=int(first_row.get("maxiter", 5000)),
@@ -2382,7 +2382,7 @@ def generate_noise_decoupled_baseline(force: bool = False) -> None:
                     "gamma_phi": g,
                     "delta_omega": dt,
                     "sql": SQL_REFERENCE,
-                    "T_hold": DEFAULT_T_hold,
+                    "t_hold": DEFAULT_t_hold,
                 }
             )
         df = pd.DataFrame(rows)
@@ -2474,7 +2474,7 @@ def generate_noise_fixed_params_scan(force: bool = False) -> None:
                     "gamma_phi": g,
                     "delta_omega": float(delta[i, j]),
                     "sql": SQL_REFERENCE,
-                    "T_hold": DEFAULT_T_hold,
+                    "t_hold": DEFAULT_t_hold,
                 }
             )
     df = pd.DataFrame(rows)
@@ -2507,7 +2507,7 @@ def generate_noise_validation(force: bool = False) -> None:
                     rho = evolve_noisy_drive_circuit(
                         DEFAULT_RHO0,
                         DEFAULT_T_BS,
-                        DEFAULT_T_hold,
+                        DEFAULT_t_hold,
                         omega,
                         gamma,
                         ax,
@@ -2534,7 +2534,7 @@ def generate_noise_validation(force: bool = False) -> None:
                 dt = compute_noisy_sensitivity(
                     DEFAULT_RHO0,
                     DEFAULT_T_BS,
-                    DEFAULT_T_hold,
+                    DEFAULT_t_hold,
                     omega,
                     gamma,
                     ax,

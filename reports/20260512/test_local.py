@@ -121,7 +121,7 @@ def test_holding_unitary_is_unitary() -> None:
 @pytest.mark.parametrize(
     ("omega", "t_hold"),
     _MZI_PARAMS,
-    ids=[f"ω={t}, T_hold={h}" for t, h in _MZI_PARAMS],
+    ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS],
 )
 def test_given_mzi_circuit_then_state_remains_normalized(
     omega: float, t_h: float
@@ -135,7 +135,7 @@ def test_given_mzi_circuit_then_state_remains_normalized(
 @pytest.mark.parametrize(
     ("omega", "t_hold"),
     _MZI_PARAMS_WIDE,
-    ids=[f"ω={t}, T_hold={h}" for t, h in _MZI_PARAMS_WIDE],
+    ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS_WIDE],
 )
 def test_given_error_propagation_then_delta_omega_equals_one_over_t_h(
     omega: float, t_h: float
@@ -153,7 +153,7 @@ def test_given_error_propagation_then_delta_omega_equals_one_over_t_h(
 @pytest.mark.parametrize(
     ("omega", "t_hold"),
     _MZI_PARAMS,
-    ids=[f"ω={t}, T_hold={h}" for t, h in _MZI_PARAMS],
+    ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS],
 )
 def test_given_mzi_circuit_then_jz_expectation_matches_cos(
     omega: float, t_h: float
@@ -168,7 +168,7 @@ def test_given_mzi_circuit_then_jz_expectation_matches_cos(
 @pytest.mark.parametrize(
     ("omega", "t_hold"),
     _MZI_PARAMS,
-    ids=[f"ω={t}, T_hold={h}" for t, h in _MZI_PARAMS],
+    ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS],
 )
 def test_given_mzi_circuit_then_jz_variance_matches_sin_squared(
     omega: float, t_h: float
@@ -183,7 +183,7 @@ def test_given_mzi_circuit_then_jz_variance_matches_sin_squared(
 @pytest.mark.parametrize(
     ("omega", "t_hold"),
     _MZI_PARAMS,
-    ids=[f"ω={t}, T_hold={h}" for t, h in _MZI_PARAMS],
+    ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS],
 )
 def test_given_analytical_derivative_then_matches_expected_form(
     omega: float, t_h: float
@@ -195,7 +195,7 @@ def test_given_analytical_derivative_then_matches_expected_form(
 @pytest.mark.parametrize(
     ("omega", "t_hold"),
     _MZI_PARAMS_WIDE,
-    ids=[f"ω={t}, T_hold={h}" for t, h in _MZI_PARAMS_WIDE],
+    ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS_WIDE],
 )
 def test_given_numerical_and_analytical_derivatives_then_agree_within_tolerance(
     omega: float, t_h: float
@@ -209,7 +209,7 @@ def test_given_numerical_and_analytical_derivatives_then_agree_within_tolerance(
     denom = max(abs(d_a), 1e-15)
     rel_diff = abs(d_a - d_n) / denom
     assert rel_diff < 1e-6, (
-        f"Derivative mismatch at ω={omega}, T_hold={t_h}: "
+        f"Derivative mismatch at ω={omega}, t_hold={t_h}: "
         f"analytical={d_a:.10e}, numerical={d_n:.10e}, "
         f"rel_diff={rel_diff:.2e}"
     )
@@ -224,9 +224,9 @@ def test_given_non_singular_point_then_all_validation_checks_pass() -> None:
 
 
 def test_given_fringe_extremum_then_point_is_flagged() -> None:
-    """At sin(ω T_hold) = 0, the point should be flagged as fringe extremum.
+    """At sin(ω t_hold) = 0, the point should be flagged as fringe extremum.
 
-    The analytical limit Δω → 1/T_hold holds via continuity (L'Hôpital's rule),
+    The analytical limit Δω → 1/t_hold holds via continuity (L'Hôpital's rule),
     but direct numerical evaluation hits 0/0, so delta_omega_matches_theory
     is expected to be False at exactly the singular point.
     """
@@ -363,19 +363,19 @@ def test_validate_hold_unitarity_default() -> None:
 def test_validate_hold_unitarity_zero_interaction() -> None:
     """Zero interaction should still be unitary."""
     assert (
-        validate_hold_unitarity(T_hold=2.0, omega=0.5, alpha=(0.0, 0.0, 0.0, 0.0))
+        validate_hold_unitarity(t_hold=2.0, omega=0.5, alpha=(0.0, 0.0, 0.0, 0.0))
         is True
     )
 
 
 def test_validate_hold_unitarity_various_params() -> None:
     """Various parameter combinations should produce unitary matrices."""
-    for T_hold in [0.5, 1.0, 3.0]:
+    for t_hold in [0.5, 1.0, 3.0]:
         for omega in [0.1, 1.0, 2.0]:
-            assert validate_hold_unitarity(T_hold=T_hold, omega=omega) is True
+            assert validate_hold_unitarity(t_hold=t_hold, omega=omega) is True
 
 
 def test_validate_hold_unitarity_negative_alpha() -> None:
     """Negative alpha values should still produce a unitary."""
     alpha = (-0.5, 0.3, -0.2, 0.1)
-    assert validate_hold_unitarity(T_hold=1.0, omega=1.0, alpha=alpha) is True
+    assert validate_hold_unitarity(t_hold=1.0, omega=1.0, alpha=alpha) is True

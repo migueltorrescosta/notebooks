@@ -454,18 +454,18 @@ class TestGeneratorB:
     """Test G_B for the 2-particle system."""
 
     def test_generator_b_hermitian(self) -> None:
-        G_B = _report_local.compute_generator_B(T_hold=1.0, N_max=2)
+        G_B = _report_local.compute_generator_B(t_hold=1.0, N_max=2)
         assert pytest.approx(G_B.conj().T) == G_B
 
     def test_generator_b_eigenvalues_bounded(self) -> None:
-        G_B = _report_local.compute_generator_B(T_hold=1.0, N_max=2)
+        G_B = _report_local.compute_generator_B(t_hold=1.0, N_max=2)
         evals = np.linalg.eigvalsh(G_B)
         assert np.min(evals) >= -1.0 - 1e-10
         assert np.max(evals) <= 1.0 + 1e-10
 
     def test_generator_b_scales_linearly(self) -> None:
-        G_B_1 = _report_local.compute_generator_B(T_hold=1.0, N_max=2)
-        G_B_2 = _report_local.compute_generator_B(T_hold=2.0, N_max=2)
+        G_B_1 = _report_local.compute_generator_B(t_hold=1.0, N_max=2)
+        G_B_2 = _report_local.compute_generator_B(t_hold=2.0, N_max=2)
         assert pytest.approx(2.0 * G_B_1) == G_B_2
 
 
@@ -491,7 +491,7 @@ class TestComparisonPipeline:
 
     def test_run_comparison_returns_comparisonresult(self) -> None:
         result = _report_local.run_comparison(
-            T_hold=1.0,
+            t_hold=1.0,
             n_samples_B=100,
             n_samples_A=100,
             n_alpha_samples=5,
@@ -502,7 +502,7 @@ class TestComparisonPipeline:
 
     def test_fq_b_positive(self) -> None:
         result = _report_local.run_comparison(
-            T_hold=1.0,
+            t_hold=1.0,
             n_samples_B=100,
             n_samples_A=100,
             n_alpha_samples=5,
@@ -513,7 +513,7 @@ class TestComparisonPipeline:
 
     def test_fq_a_positive(self) -> None:
         result = _report_local.run_comparison(
-            T_hold=1.0,
+            t_hold=1.0,
             n_samples_B=100,
             n_samples_A=100,
             n_alpha_samples=5,

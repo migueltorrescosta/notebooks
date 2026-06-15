@@ -12,6 +12,7 @@ with weekly groupings corresponding to experimental campaigns.
 
 ### Infrastructure
 - **Canonical functions promoted to shared `src/` modules** — Three physics-correctness guardrails implemented: (1) `build_vectorized_liouvillian(H, lindblad_ops)` promoted from `reports/20260524/local.py` to `src/evolution/lindblad_solver.py` along with `vectorise_rho`/`unvectorise_rho` helpers, using the correct column-major formula ($L_k^* \otimes L_k$, not $L_k^\dagger \otimes L_k$); (2) `sensitivity_from_error_propagation(O_mean, O_var, dO_dphi)` added to `src/analysis/sensitivity_metrics.py` with `var_tolerance` (default `1e-15`) and `deriv_tolerance` (default `1e-12`) parameters returning `inf` at fringe extrema; (3) Post-BS variance reference table added to `src/physics/beam_splitter.py` module docstring documenting NOON ($N/4$), Twin-Fock ($N(N+2)/8$), and Coherent ($|\alpha|^2/2$) variances after a 50/50 beam splitter. 20 new tests across all three modules. Backlog item closed. See `reports/20260524/local.py`, `src/analysis/sensitivity_metrics.py`, `src/physics/beam_splitter.py`.
+- **`T_hold` → `t_hold` rename** — PEP 8 compliance rename of holding-time parameter across the full codebase: 10 `src/` modules, 4 page files, 17 `reports/*/local.py`, 21 test files, 3 runner scripts. Applied `git replaceAll("T_hold","t_hold")` pattern (~1200 occurrences). Updated Parquet column keys (`"T_hold"` → `"t_hold"`) accepting backward incompatibility. Updated SKILL.md Known Inconsistencies table. 1719 tests all passing, 0 ruff errors introduced. Backlog item closed.
 
 ## Week 24 (Jun 8–14)
 
@@ -114,8 +115,6 @@ Reports that have been started but are not yet fully complete (i.e., not all pip
 - 🟢 **Advanced architecture simulation functions** — Implement six model-specific simulators and figure generators for the PENDING advanced architecture surveys (non-Markovian bath, thermal noise, cavity-enhanced MZI, distributed arrays, dynamical decoupling, tilt-to-length noise).
 
 - 🟠 **Automated quality guardrails** — (a) CI lint rule flagging module-level numeric/string constants in `src/`; (b) abstract base class `ParquetSerializable` in `src/utils/serialization.py` enforcing fail-fast `from_parquet()`; (c) `pytest` check warning when tests >5s lack `@pytest.mark.slow`; (d) project-wide `plt.cm.` → `plt.colormaps["..."]` migration. See Phase 1 Data Integrity audit (May 2026).
-
-- 🟡 **`T_hold` → `t_hold` rename** — Resolve remaining naming inconsistency across the full codebase. See Known Inconsistencies in `SKILL.md` (added Jun 2026).
 
 - 🟢 **Audit skill: shared-infrastructure-first** — Modify `audit-code` skill to add an explicit step: "Identify functions/constants duplicated across ≥2 reports and promote to `src/` before fixing cosmetic lint issues." Add a `grep -r "def " reports/*/local.py` pattern to the checklist. See `mem_mqcewkd9` (Jun 2026).
 

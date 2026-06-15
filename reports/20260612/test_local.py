@@ -618,7 +618,7 @@ class TestMultiNScalingResultParquet:
         assert loaded.a_zz_opt == make_result.a_zz_opt
         assert loaded.expectation_Jz == make_result.expectation_Jz
         assert loaded.variance_Jz == make_result.variance_Jz
-        assert loaded.T_hold == make_result.T_hold
+        assert loaded.t_hold == make_result.t_hold
         assert loaded.fd_step == make_result.fd_step
         assert loaded.success == make_result.success
         assert loaded.nfev == make_result.nfev
@@ -645,7 +645,7 @@ class TestMultiNScalingResultParquet:
                 "a_zz_opt": [0.0],
                 "expectation_Jz": [0.0],
                 "variance_Jz": [0.0],
-                "T_hold": [10.0],
+                "t_hold": [10.0],
                 "fd_step": [1e-6],
                 "success": [1],
                 "nfev": [0],

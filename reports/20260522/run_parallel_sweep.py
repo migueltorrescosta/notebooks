@@ -26,7 +26,7 @@ del _report_dir
 
 def _worker(args):
     """Optimise a single (N, omega) pair."""
-    N, omega, n_coarse, T_hold = args
+    N, omega, n_coarse, t_hold = args
     import os
 
     os.environ["OMP_NUM_THREADS"] = "1"
@@ -44,7 +44,7 @@ def _worker(args):
         ops=ops,
         psi0=psi0,
         n_coarse=n_coarse,
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
     r["N"] = N
     r["omega"] = omega
@@ -54,13 +54,13 @@ def _worker(args):
 def run_sweep(
     omega_vals: np.ndarray,
     N_vals: np.ndarray,
-    T_hold: float = 10.0,
+    t_hold: float = 10.0,
     n_coarse: int = 11,
     max_workers: int = 16,
 ) -> list[dict]:
     """Parallel sweep over (ω, N)."""
     tasks = [
-        (int(N), float(omega), int(n_coarse), float(T_hold))
+        (int(N), float(omega), int(n_coarse), float(t_hold))
         for N in N_vals
         for omega in omega_vals
     ]
@@ -90,7 +90,7 @@ def run_sweep(
                         "expectation_Jz": 0.0,
                         "variance_Jz": 0.0,
                         "d_expectation": 0.0,
-                        "sql": 1.0 / (np.sqrt(task[0]) * T_hold),
+                        "sql": 1.0 / (np.sqrt(task[0]) * t_hold),
                     }
                 )
 
@@ -165,7 +165,7 @@ def main() -> None:
         expectation_Jz=np.array([r["expectation_Jz"] for r in results]),
         variance_Jz=np.array([r["variance_Jz"] for r in results]),
         d_expectation=np.array([r["d_expectation"] for r in results]),
-        T_hold=10.0,
+        t_hold=10.0,
     )
     sweep.save_parquet(sweep_path)
     print(f"[save] {sweep_path}")

@@ -26,7 +26,7 @@ class NScalingResult:
         N: Number of system particles.
         omega: Phase rate value.
         delta_omega_opt: Best sensitivity Δω found.
-        sql: SQL = 1/(√N × T_HOLD).
+        sql: SQL = 1/(√N × t_hold).
         ratio: SQL / Δω_opt (ratio > 1 means beating SQL).
         a_x_opt: Optimal J_x^A drive coefficient.
         a_y_opt: Optimal J_y^A drive coefficient.
@@ -34,7 +34,7 @@ class NScalingResult:
         a_zz_opt: Optimal Ising interaction coefficient.
         expectation_Jz: ⟨J_z^S⟩ at the optimal operating point.
         variance_Jz: Var(J_z^S) at the optimal operating point.
-        T_hold: Holding time (fixed at 10.0).
+        t_hold: Holding time (fixed at 10.0).
         fd_step: Finite-difference step.
         success: Whether Nelder-Mead reported success.
         nfev: Number of function evaluations.
@@ -51,7 +51,7 @@ class NScalingResult:
     a_zz_opt: float
     expectation_Jz: float = 0.0
     variance_Jz: float = 0.0
-    T_hold: float = 10.0
+    t_hold: float = 10.0
     fd_step: float = 1e-6
     success: bool = False
     nfev: int = 0
@@ -68,7 +68,7 @@ class NScalingResult:
         "a_zz_opt",
         "expectation_Jz",
         "variance_Jz",
-        "T_hold",
+        "t_hold",
         "fd_step",
         "success",
         "nfev",
@@ -88,7 +88,7 @@ class NScalingResult:
                 "a_zz_opt": [self.a_zz_opt],
                 "expectation_Jz": [self.expectation_Jz],
                 "variance_Jz": [self.variance_Jz],
-                "T_hold": [self.T_hold],
+                "t_hold": [self.t_hold],
                 "fd_step": [self.fd_step],
                 "success": [int(self.success)],
                 "nfev": [self.nfev],
@@ -124,7 +124,7 @@ class NScalingResult:
             a_zz_opt=float(row["a_zz_opt"]),
             expectation_Jz=float(row["expectation_Jz"]),
             variance_Jz=float(row["variance_Jz"]),
-            T_hold=float(row["T_hold"]),
+            t_hold=float(row["t_hold"]),
             fd_step=float(row["fd_step"]),
             success=bool(int(row["success"])),
             nfev=int(row["nfev"]),
@@ -180,7 +180,7 @@ class NScalingScanResult:
                     a_zz_opt=float(row["a_zz_opt"]),
                     expectation_Jz=float(row["expectation_Jz"]),
                     variance_Jz=float(row["variance_Jz"]),
-                    T_hold=float(row["T_hold"]),
+                    t_hold=float(row["t_hold"]),
                     fd_step=float(row["fd_step"]),
                     success=bool(int(row["success"])),
                     nfev=int(row["nfev"]),

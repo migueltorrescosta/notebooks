@@ -52,20 +52,20 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent
 #
 # Implements the exact analytical model for a single-particle (spin-1/2
 # equivalent) Mach-Zehnder interferometer where the parameter ω is encoded
-# via H = ω J_z during a holding time T_hold.
+# via H = ω J_z during a holding time t_hold.
 #
 # Physical Model:
 # - Hilbert space: two-mode bosonic Fock space truncated at max_photons = 1.
 #   Only two basis states are physical: |1,0⟩ and |0,1⟩ (dimension 2).
 # - Beam splitter: 50:50, U_BS = exp(-i(π/4)(a₀†a₁ + a₁†a₀)).
-# - Holding: U_hold(T_hold) = exp(-i ω T_hold J_z), with J_z = (n₁ - n₂)/2.
+# - Holding: U_hold(t_hold) = exp(-i ω t_hold J_z), with J_z = (n₁ - n₂)/2.
 # - State: |1,0⟩ → U_BS → U_hold → U_BS → measurement of J_z.
 #
 # Analytical result:
-# ⟨J_z⟩ = -(1/2) cos(ω T_hold)
-# Var(J_z) = (1/4) sin²(ω T_hold)
-# ∂⟨J_z⟩/∂ω = (T_hold/2) sin(ω T_hold)
-# ⇒ Δω = 1/T_hold  (independent of ω, away from sin(ω T_hold) = 0)
+# ⟨J_z⟩ = -(1/2) cos(ω t_hold)
+# Var(J_z) = (1/4) sin²(ω t_hold)
+# ∂⟨J_z⟩/∂ω = (t_hold/2) sin(ω t_hold)
+# ⇒ Δω = 1/t_hold  (independent of ω, away from sin(ω t_hold) = 0)
 #
 # Units: Dimensionless throughout.
 # Conventions: J_z = (n₁ - n₂)/2, beam-splitter generator = a₀†a₁ + a₁†a₀.
@@ -93,7 +93,7 @@ def generate_single_particle_raw_data(force: bool = False) -> Path:
 
     Uses the report's standard parameters:
         omega = 1.0
-        T_hold range: 0.1 to 100, 500 log-spaced points
+        t_hold range: 0.1 to 100, 500 log-spaced points
         Also runs multi-omega sweep at [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]
 
     Args:
@@ -206,8 +206,8 @@ def generate_single_particle_figures(force: bool = False) -> Path:
     """Generate figures for the single-particle MZI report.
 
     Creates:
-        1. log-log Δω vs T_hold with analytical and numerical traces
-        2. ⟨J_z⟩ vs T_hold oscillatory signal
+        1. log-log Δω vs t_hold with analytical and numerical traces
+        2. ⟨J_z⟩ vs t_hold oscillatory signal
         3. ∂⟨J_z⟩/∂ω analytical vs numerical comparison
 
     Args:
@@ -230,13 +230,13 @@ def generate_single_particle_figures(force: bool = False) -> Path:
     t_h_min = float(df["t_hold"].min())
     t_h_max = float(df["t_hold"].max())
 
-    # ── Figure 1: log-log Δθ vs T_hold ──
+    # ── Figure 1: log-log Δθ vs t_hold ──
     fig1_path = fig_dir / f"{REPORT_DATE}-single-particle-scaling.svg"
     if not fig1_path.exists() or force:
         print(f"  Generating {fig1_path.name} ...")
         fig, ax = plt.subplots(figsize=(8, 5))
 
-        # Theory reference: 1/T_hold
+        # Theory reference: 1/t_hold
         t_ref = np.array([t_h_min, t_h_max])
         dt_ref = 1.0 / t_ref
         ax.loglog(
@@ -245,13 +245,13 @@ def generate_single_particle_figures(force: bool = False) -> Path:
             "--",
             color="gray",
             linewidth=2,
-            label=r"$1/T_hold$ (theory, $\alpha=-1$)",
+            label=r"$1/t_hold$ (theory, $\alpha=-1$)",
         )
 
         # Clean (non-fringe) points
         clean = df[~df["is_fringe_extremum"]]
         ax.loglog(
-            clean["T_hold"],
+            clean["t_hold"],
             clean["delta_omega_analytical"],
             "o",
             color="#1f77b4",
@@ -259,7 +259,7 @@ def generate_single_particle_figures(force: bool = False) -> Path:
             label=r"$\Delta\omega$ (analytical)",
         )
         ax.loglog(
-            clean["T_hold"],
+            clean["t_hold"],
             clean["delta_omega_numerical"],
             "x",
             color="#ff7f0e",
@@ -271,7 +271,7 @@ def generate_single_particle_figures(force: bool = False) -> Path:
         fringe = df[df["is_fringe_extremum"]]
         if not fringe.empty:
             ax.loglog(
-                fringe["T_hold"],
+                fringe["t_hold"],
                 fringe["delta_omega_analytical"],
                 "r*",
                 markersize=8,
@@ -279,15 +279,15 @@ def generate_single_particle_figures(force: bool = False) -> Path:
                 label="Fringe extremum (excluded)",
             )
 
-        ax.set_xlabel(r"$T_hold$")
+        ax.set_xlabel(r"$t_hold$")
         ax.set_ylabel(r"$\Delta\omega$")
-        ax.set_title("Single-Particle MZI: Sensitivity Scaling with $T_hold$")
+        ax.set_title("Single-Particle MZI: Sensitivity Scaling with $t_hold$")
         ax.legend()
         fig.tight_layout()
         fig.savefig(fig1_path, format="svg", bbox_inches="tight")
         plt.close(fig)
 
-    # ── Figure 2: ⟨J_z⟩ vs T_hold ──
+    # ── Figure 2: ⟨J_z⟩ vs t_hold ──
     fig2_path = fig_dir / f"{REPORT_DATE}-single-particle-jz-mean.svg"
     if not fig2_path.exists() or force:
         print(f"  Generating {fig2_path.name} ...")
@@ -309,10 +309,10 @@ def generate_single_particle_figures(force: bool = False) -> Path:
             ":",
             color="gray",
             linewidth=1,
-            label=r"$-\frac{1}{2}\cos(\omega T_hold)$",
+            label=r"$-\frac{1}{2}\cos(\omega t_hold)$",
         )
 
-        ax.set_xlabel(r"$T_hold$")
+        ax.set_xlabel(r"$t_hold$")
         ax.set_ylabel(r"$\langle J_z \rangle$")
         ax.set_title("Single-Particle MZI: Signal Oscillation")
         ax.legend()
@@ -332,7 +332,7 @@ def generate_single_particle_figures(force: bool = False) -> Path:
             "-",
             color="#1f77b4",
             linewidth=2,
-            label=r"Analytical: $\frac{T_hold}{2}\sin(\omega T_hold)$",
+            label=r"Analytical: $\frac{t_hold}{2}\sin(\omega t_hold)$",
         )
         ax1.loglog(
             df["t_hold"],
@@ -342,7 +342,7 @@ def generate_single_particle_figures(force: bool = False) -> Path:
             markersize=3,
             label=r"Numerical ($\delta = 10^{-6}$)",
         )
-        ax1.set_xlabel(r"$T_hold$")
+        ax1.set_xlabel(r"$t_hold$")
         ax1.set_ylabel(r"$\partial\langle J_z \rangle / \partial\omega$")
         ax1.set_title("Derivative Comparison: Analytical vs Numerical")
         ax1.legend(loc="upper left")
@@ -412,7 +412,7 @@ def generate_ancilla_figures(force: bool = False) -> Path:
             label="Best Δθ (Nelder–Mead)",
         )
 
-        # SQL reference (1/T_hold with optimal T_hold from each ω)
+        # SQL reference (1/t_hold with optimal t_hold from each ω)
         sql_vals = []
         for omega in omega_values:
             results = scan_result.all_results.get(omega, [])
@@ -428,7 +428,7 @@ def generate_ancilla_figures(force: bool = False) -> Path:
             "--",
             color="gray",
             linewidth=2,
-            label="SQL (1/T_hold*)",
+            label="SQL (1/t_hold*)",
         )
 
         ax.set_xlabel(r"True $\omega$")

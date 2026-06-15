@@ -349,7 +349,7 @@ def evolve_full_np(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
@@ -358,13 +358,13 @@ def evolve_full_np(
 ) -> np.ndarray:
     """Run the full MZI circuit in numpy.
 
-    |psi_final> = U_BS(T_BS2) · U_hold(T_hold, omega_true, alpha) · U_BS(T_BS1) · |psi0>
+    |psi_final> = U_BS(T_BS2) · U_hold(t_hold, omega_true, alpha) · U_BS(T_BS1) · |psi0>
 
     Args:
         psi0: Initial state vector of dimension (N+1)(M+1).
         T_BS1: First beam-splitter duration.
         T_BS2: Second beam-splitter duration.
-        T_hold: Holding time.
+        t_hold: Holding time.
         omega_true: True phase rate parameter.
         alpha: (alpha_xx, alpha_xz, alpha_zx, alpha_zz).
         ops_np: Operators from build_collective_operators().
@@ -387,7 +387,7 @@ def evolve_full_np(
 
     from scipy.linalg import expm as scipy_expm
 
-    U_hold = scipy_expm(-1j * T_hold * H_hold)
+    U_hold = scipy_expm(-1j * t_hold * H_hold)
     d = ops_np["Jz_S"].shape[0]
     assert np.allclose(U_hold @ U_hold.conj().T, np.eye(d), atol=1e-12), (
         "Hold unitary not unitary"
@@ -478,7 +478,7 @@ def evolve_full_torch(
     psi0: torch.Tensor,
     T_BS1: torch.Tensor,
     T_BS2: torch.Tensor,
-    T_hold: torch.Tensor,
+    t_hold: torch.Tensor,
     omega_true: torch.Tensor,
     alpha: tuple[
         float | torch.Tensor,
@@ -503,7 +503,7 @@ def evolve_full_torch(
         psi0: Initial state vector (torch tensor, complex128).
         T_BS1: First beam-splitter duration (torch scalar).
         T_BS2: Second beam-splitter duration (torch scalar).
-        T_hold: Holding time (torch scalar).
+        t_hold: Holding time (torch scalar).
         omega_true: True phase rate parameter (torch scalar).
         alpha: (alpha_xx, alpha_xz, alpha_zx, alpha_zz).
         ops_torch: Torch operators.
@@ -529,7 +529,7 @@ def evolve_full_torch(
         else omega_true
     )
     H_hold = build_hold_hamiltonian_torch(omega_scalar, alpha, ops_torch)
-    U_hold = torch.linalg.matrix_exp(-1j * T_hold * H_hold)
+    U_hold = torch.linalg.matrix_exp(-1j * t_hold * H_hold)
     psi = U_hold @ psi
 
     # BS2: use torch-based expm if T_BS2 requires grad
@@ -729,7 +729,7 @@ def compute_weighted_delta_omega(
     # numerical noise (~1e-10 for finite differences through expm).
     # A hard threshold of 1e-8 ensures we don't treat numerical noise
     # as a signal, while remaining well below any physical derivative
-    # (which scales as ~N * T_hold, typically >= 0.1 for our test cases).
+    # (which scales as ~N * t_hold, typically >= 0.1 for our test cases).
     if abs(d_exp_M) < 1e-8:
         return float("inf")
 
@@ -854,7 +854,7 @@ def compute_moments_and_derivatives(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
@@ -871,7 +871,7 @@ def compute_moments_and_derivatives(
         psi0: Initial state vector.
         T_BS1: First beam-splitter duration.
         T_BS2: Second beam-splitter duration.
-        T_hold: Holding time.
+        t_hold: Holding time.
         omega_true: True phase rate parameter.
         alpha: (alpha_xx, alpha_xz, alpha_zx, alpha_zz).
         ops_np: Operators from build_collective_operators().
@@ -883,18 +883,18 @@ def compute_moments_and_derivatives(
         Tuple (moments, d_moments) each as (exp_S, exp_A, var_S, var_A, cov, norm).
     """
     # Moments at omega_true
-    psi = evolve_full_np(psi0, T_BS1, T_BS2, T_hold, omega_true, alpha, ops_np, N, M)
+    psi = evolve_full_np(psi0, T_BS1, T_BS2, t_hold, omega_true, alpha, ops_np, N, M)
     moments = compute_six_moments(psi, ops_np)
 
     # Moments at omega_true + fd_step
     psi_plus = evolve_full_np(
-        psi0, T_BS1, T_BS2, T_hold, omega_true + fd_step, alpha, ops_np, N, M
+        psi0, T_BS1, T_BS2, t_hold, omega_true + fd_step, alpha, ops_np, N, M
     )
     moments_plus = compute_six_moments(psi_plus, ops_np)
 
     # Moments at omega_true - fd_step
     psi_minus = evolve_full_np(
-        psi0, T_BS1, T_BS2, T_hold, omega_true - fd_step, alpha, ops_np, N, M
+        psi0, T_BS1, T_BS2, t_hold, omega_true - fd_step, alpha, ops_np, N, M
     )
     moments_minus = compute_six_moments(psi_minus, ops_np)
 
@@ -913,7 +913,7 @@ def compute_sensitivity_weighted(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
@@ -929,7 +929,7 @@ def compute_sensitivity_weighted(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
@@ -944,7 +944,7 @@ def compute_sensitivity_weighted(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
@@ -959,7 +959,7 @@ def compute_sensitivity_weighted(
         psi0: Initial state vector.
         T_BS1: First beam-splitter duration.
         T_BS2: Second beam-splitter duration.
-        T_hold: Holding time.
+        t_hold: Holding time.
         omega_true: True phase rate parameter.
         alpha: (alpha_xx, alpha_xz, alpha_zx, alpha_zz).
         ops_np: Operators from build_collective_operators().
@@ -973,7 +973,7 @@ def compute_sensitivity_weighted(
         If True: tuple (psi_opt, a_opt, b_opt, delta_omega_opt).
     """
     moments, d_moments = compute_moments_and_derivatives(
-        psi0, T_BS1, T_BS2, T_hold, omega_true, alpha, ops_np, N, M, fd_step
+        psi0, T_BS1, T_BS2, t_hold, omega_true, alpha, ops_np, N, M, fd_step
     )
 
     psi_opt, delta_omega_opt, a_opt, b_opt = optimize_weight_psi(moments, d_moments)
@@ -987,7 +987,7 @@ def compute_sensitivity_sonly(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops_np: dict[str, np.ndarray],
@@ -1004,7 +1004,7 @@ def compute_sensitivity_sonly(
         Δθ (positive float).
     """
     moments, d_moments = compute_moments_and_derivatives(
-        psi0, T_BS1, T_BS2, T_hold, omega_true, alpha, ops_np, N, M, fd_step
+        psi0, T_BS1, T_BS2, t_hold, omega_true, alpha, ops_np, N, M, fd_step
     )
     # S-only: a=1, b=0 → psi=0
     return compute_weighted_delta_omega(1.0, 0.0, moments, d_moments)
@@ -1039,7 +1039,7 @@ def _so3_rotate_x(point: np.ndarray, angle: float) -> np.ndarray:
 def _exact_zero_interaction_moments(
     N: int,
     M: int,
-    T_hold: float,
+    t_hold: float,
     omega_true: float = 1.0,
     theta_S: float = 0.0,
     theta_A: float = 0.0,
@@ -1052,7 +1052,7 @@ def _exact_zero_interaction_moments(
     """Exact closed-form moments and omega-derivatives for α=0 (zero interaction).
 
     Uses SO(3) rotation formulas: the system evolves as
-    R_x(T_BS2) R_z(T_hold θ) R_x(T_BS1) R_y(Θ_S) |J_S, -J_S⟩,
+    R_x(T_BS2) R_z(t_hold θ) R_x(T_BS1) R_y(Θ_S) |J_S, -J_S⟩,
     which is a CSS at a known Bloch-sphere point. The ancilla evolves
     independently as R_x(T_BS1+T_BS2) R_y(Θ_A) |J_A, -J_A⟩.
 
@@ -1065,7 +1065,7 @@ def _exact_zero_interaction_moments(
     """
     J_S = N / 2.0
     J_A = M / 2.0
-    phi = T_hold * omega_true
+    phi = t_hold * omega_true
 
     # --- System: SO(3) rotation sequence ---
     # Start from south pole (0, 0, -1)
@@ -1075,7 +1075,7 @@ def _exact_zero_interaction_moments(
     r = _so3_rotate_y(r, -theta_S)  # CSS uses exp(-i Θ J_y), which in SO(3) is R_y(-Θ)
     # Apply R_x(T_BS1)
     r = _so3_rotate_x(r, -T_BS1)  # exp(-i T J_x) in SO(3) is R_x(-T)
-    # Apply R_z(φ) where φ = T_hold θ
+    # Apply R_z(φ) where φ = t_hold θ
     r = _so3_rotate_z(r, -phi)  # exp(-i φ J_z) in SO(3) is R_z(-φ)
     # Apply R_x(T_BS2)
     r = _so3_rotate_x(r, -T_BS2)  # exp(-i T J_x) in SO(3) is R_x(-T)
@@ -1096,7 +1096,7 @@ def _exact_zero_interaction_moments(
     s_phi = np.sin(phi)
 
     # Verified derivation: r_z matches the SO(3) rotation chain result
-    dr_z_domega = T_hold * (
+    dr_z_domega = t_hold * (
         s_theta_S * s_BS2 * c_phi + s_BS1 * c_theta_S * s_BS2 * s_phi
     )
     d_exp_S = float(J_S * dr_z_domega)
@@ -1124,7 +1124,7 @@ def _exact_alpha_zz_moments(
     N: int,
     M: int,
     alpha_zz: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float = 1.0,
     theta_S: float = 0.0,
     theta_A: float = 0.0,
@@ -1194,11 +1194,11 @@ def _exact_alpha_zz_moments(
     def _compute_moments_at_omega(
         omega_val: float,
     ) -> tuple[float, float, float, float, float, float]:
-        phi = T_hold * omega_val
+        phi = t_hold * omega_val
 
         # Apply diagonal hold phase elementwise
-        # phase = exp(-i T_hold (θ m_S + α_zz m_S m_A))
-        phase = np.exp(-1j * (phi * m_S_mat + T_hold * alpha_zz * m_S_mat * m_A_mat))
+        # phase = exp(-i t_hold (θ m_S + α_zz m_S m_A))
+        phase = np.exp(-1j * (phi * m_S_mat + t_hold * alpha_zz * m_S_mat * m_A_mat))
         psi_hold_phased = psi_hold * phase
 
         # Apply BS2 via Kronecker product: R_S ⊗ R_A
@@ -1246,7 +1246,7 @@ def _exact_alpha_zz_moments(
 def analytical_benchmark_zero_interaction(
     N: int,
     M: int,
-    T_hold: float,
+    t_hold: float,
     omega_true: float = 1.0,
     theta_S: float = 0.0,
     theta_A: float = 0.0,
@@ -1266,7 +1266,7 @@ def analytical_benchmark_zero_interaction(
     Args:
         N: System particle number.
         M: Ancilla particle number.
-        T_hold: Holding time.
+        t_hold: Holding time.
         omega_true: True phase rate (default 1.0).
         theta_S: System CSS angle (default 0.0).
         theta_A: Ancilla CSS angle (default 0.0).
@@ -1291,7 +1291,7 @@ def analytical_benchmark_zero_interaction(
         psi0,
         T_BS1,
         T_BS2,
-        T_hold,
+        t_hold,
         omega_true,
         alpha,
         ops_np,
@@ -1305,7 +1305,7 @@ def analytical_benchmark_zero_interaction(
     exact_moments, exact_d_moments = _exact_zero_interaction_moments(
         N,
         M,
-        T_hold,
+        t_hold,
         omega_true,
         theta_S,
         theta_A,
@@ -1327,13 +1327,13 @@ def analytical_benchmark_zero_interaction(
         else float("inf")
     )
 
-    # Expected SQL: for CSS at optimal, Δθ_SQL = 1/(sqrt(N) T_hold)
-    expected_sql = 1.0 / (np.sqrt(N) * T_hold)
+    # Expected SQL: for CSS at optimal, Δθ_SQL = 1/(sqrt(N) t_hold)
+    expected_sql = 1.0 / (np.sqrt(N) * t_hold)
 
     return {
         "N": N,
         "M": M,
-        "T_hold": T_hold,
+        "t_hold": t_hold,
         "delta_omega_numerical": delta_omega_opt,
         "delta_omega_exact": delta_omega_exact,
         "relative_error_to_exact": relative_error_to_exact,
@@ -1348,7 +1348,7 @@ def analytical_benchmark_alpha_zz_only(
     N: int,
     M: int,
     alpha_zz: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float = 1.0,
     theta_S: float = 0.0,
     theta_A: float = 0.0,
@@ -1372,7 +1372,7 @@ def analytical_benchmark_alpha_zz_only(
         N: System particle number.
         M: Ancilla particle number.
         alpha_zz: ZZ interaction strength.
-        T_hold: Holding time.
+        t_hold: Holding time.
         omega_true: True phase rate (default 1.0).
         theta_S: System CSS angle (default 0.0).
         theta_A: Ancilla CSS angle (default 0.0).
@@ -1396,7 +1396,7 @@ def analytical_benchmark_alpha_zz_only(
         psi0,
         T_BS1,
         T_BS2,
-        T_hold,
+        t_hold,
         omega_true,
         alpha,
         ops_np,
@@ -1423,7 +1423,7 @@ def analytical_benchmark_alpha_zz_only(
         N,
         M,
         alpha_zz,
-        T_hold,
+        t_hold,
         omega_true,
         theta_S,
         theta_A,
@@ -1474,7 +1474,7 @@ def analytical_benchmark_alpha_zz_only(
         "N": N,
         "M": M,
         "alpha_zz": alpha_zz,
-        "T_hold": T_hold,
+        "t_hold": t_hold,
         # S-only comparison (best-conditioned)
         "delta_omega_numerical": dt_sonly,
         "delta_omega_exact": dt_sonly_exact,
@@ -1511,7 +1511,7 @@ def _objective_and_gradient_fd(
     """Objective and gradient via finite differences for L-BFGS-B.
 
     Parameter vector (9 elements):
-        [theta_S, theta_A, T_BS1, T_BS2, T_hold, alpha_xx, alpha_xz, alpha_zx, alpha_zz]
+        [theta_S, theta_A, T_BS1, T_BS2, t_hold, alpha_xx, alpha_xz, alpha_zx, alpha_zz]
 
     Args:
         params: 9-element parameter vector.
@@ -1525,7 +1525,7 @@ def _objective_and_gradient_fd(
     Returns:
         Tuple (objective_value, gradient_vector).
     """
-    theta_S, theta_A, T_BS1, T_BS2, T_hold = params[:5]
+    theta_S, theta_A, T_BS1, T_BS2, t_hold = params[:5]
     alpha = (float(params[5]), float(params[6]), float(params[7]), float(params[8]))
 
     # Objective at the current point
@@ -1535,7 +1535,7 @@ def _objective_and_gradient_fd(
             psi0,
             float(T_BS1),
             float(T_BS2),
-            float(T_hold),
+            float(t_hold),
             omega_true,
             alpha,
             ops_np,
@@ -1551,7 +1551,7 @@ def _objective_and_gradient_fd(
     for i in range(9):
         params_plus = params.copy()
         params_plus[i] += grad_step
-        theta_S_p, theta_A_p, T_BS1_p, T_BS2_p, T_hold_p = params_plus[:5]
+        theta_S_p, theta_A_p, T_BS1_p, T_BS2_p, t_hold_p = params_plus[:5]
         alpha_p = (
             float(params_plus[5]),
             float(params_plus[6]),
@@ -1564,7 +1564,7 @@ def _objective_and_gradient_fd(
                 psi0_p,
                 float(T_BS1_p),
                 float(T_BS2_p),
-                float(T_hold_p),
+                float(t_hold_p),
                 omega_true,
                 alpha_p,
                 ops_np,
@@ -1577,7 +1577,7 @@ def _objective_and_gradient_fd(
 
         params_minus = params.copy()
         params_minus[i] -= grad_step
-        theta_S_m, theta_A_m, T_BS1_m, T_BS2_m, T_hold_m = params_minus[:5]
+        theta_S_m, theta_A_m, T_BS1_m, T_BS2_m, t_hold_m = params_minus[:5]
         alpha_m = (
             float(params_minus[5]),
             float(params_minus[6]),
@@ -1590,7 +1590,7 @@ def _objective_and_gradient_fd(
                 psi0_m,
                 float(T_BS1_m),
                 float(T_BS2_m),
-                float(T_hold_m),
+                float(t_hold_m),
                 omega_true,
                 alpha_m,
                 ops_np,
@@ -1629,7 +1629,7 @@ def _objective_and_gradient_ad(
     so the psi-subproblem is evaluated via numpy on detached values.
 
     Parameter vector (9 elements):
-        [theta_S, theta_A, T_BS1, T_BS2, T_hold, alpha_xx, alpha_xz, alpha_zx, alpha_zz]
+        [theta_S, theta_A, T_BS1, T_BS2, t_hold, alpha_xx, alpha_xz, alpha_zx, alpha_zz]
 
     Args:
         params: 9-element parameter vector.
@@ -1650,7 +1650,7 @@ def _objective_and_gradient_ad(
     theta_A_t = p_torch[1]
     T_BS1_t = p_torch[2]
     T_BS2_t = p_torch[3]
-    T_hold_t = p_torch[4]
+    t_hold_t = p_torch[4]
     alpha_t: tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor] = (
         p_torch[5],
         p_torch[6],
@@ -1670,7 +1670,7 @@ def _objective_and_gradient_ad(
         psi0,
         T_BS1_t,
         T_BS2_t,
-        T_hold_t,
+        t_hold_t,
         omega_t,
         alpha_t,
         ops_torch,
@@ -1681,7 +1681,7 @@ def _objective_and_gradient_ad(
         psi0,
         T_BS1_t,
         T_BS2_t,
-        T_hold_t,
+        t_hold_t,
         omega_plus_t,
         alpha_t,
         ops_torch,
@@ -1692,7 +1692,7 @@ def _objective_and_gradient_ad(
         psi0,
         T_BS1_t,
         T_BS2_t,
-        T_hold_t,
+        t_hold_t,
         omega_minus_t,
         alpha_t,
         ops_torch,
@@ -1781,7 +1781,7 @@ def get_bounds_nm(N: int, M: int) -> dict[str, tuple[float, float]]:
     return {
         "bloch_theta": (0.0, np.pi),  # theta_S, theta_A
         "T_BS": (0.0, np.pi),  # T_BS1, T_BS2
-        "T_hold": (0.1, 20.0),  # T_hold
+        "t_hold": (0.1, 20.0),  # t_hold
         "alpha": (-2.0, 2.0),  # alpha_xx, _xz, _zx, _zz
     }
 
@@ -1801,7 +1801,7 @@ def random_params_nm(
         bounds: Optional custom bounds (uses defaults if None).
 
     Returns:
-        9-element array: [theta_S, theta_A, T_BS1, T_BS2, T_hold,
+        9-element array: [theta_S, theta_A, T_BS1, T_BS2, t_hold,
                          alpha_xx, alpha_xz, alpha_zx, alpha_zz].
     """
     if bounds is None:
@@ -1809,18 +1809,18 @@ def random_params_nm(
 
     theta_lo, theta_hi = bounds["bloch_theta"]
     tbs_lo, tbs_hi = bounds["T_BS"]
-    th_lo, th_hi = bounds["T_hold"]
+    th_lo, th_hi = bounds["t_hold"]
     alpha_lo, alpha_hi = bounds["alpha"]
 
     theta_S = rng.uniform(theta_lo, theta_hi)
     theta_A = rng.uniform(theta_lo, theta_hi)
     T_BS1 = rng.uniform(tbs_lo, tbs_hi)
     T_BS2 = rng.uniform(tbs_lo, tbs_hi)
-    T_hold = rng.uniform(th_lo, th_hi)
+    t_hold = rng.uniform(th_lo, th_hi)
     alpha = rng.uniform(alpha_lo, alpha_hi, size=4)
 
     return np.array(
-        [theta_S, theta_A, T_BS1, T_BS2, T_hold, *alpha],
+        [theta_S, theta_A, T_BS1, T_BS2, t_hold, *alpha],
         dtype=float,
     )
 
@@ -1879,7 +1879,7 @@ def run_lbfgsb_optimisation(
         bounds_dict["bloch_theta"],  # theta_A
         bounds_dict["T_BS"],  # T_BS1
         bounds_dict["T_BS"],  # T_BS2
-        bounds_dict["T_hold"],  # T_hold
+        bounds_dict["t_hold"],  # t_hold
         bounds_dict["alpha"],  # alpha_xx
         bounds_dict["alpha"],  # alpha_xz
         bounds_dict["alpha"],  # alpha_zx
@@ -1927,7 +1927,7 @@ def run_lbfgsb_optimisation(
     )
 
     opt_params = result.x
-    theta_S_opt, theta_A_opt, T_BS1_opt, T_BS2_opt, T_hold_opt = opt_params[:5]
+    theta_S_opt, theta_A_opt, T_BS1_opt, T_BS2_opt, t_hold_opt = opt_params[:5]
     alpha_opt = (
         float(opt_params[5]),
         float(opt_params[6]),
@@ -1943,7 +1943,7 @@ def run_lbfgsb_optimisation(
             psi0_opt,
             float(T_BS1_opt),
             float(T_BS2_opt),
-            float(T_hold_opt),
+            float(t_hold_opt),
             omega_true,
             alpha_opt,
             ops_np,
@@ -1962,7 +1962,7 @@ def run_lbfgsb_optimisation(
         psi0_opt,
         float(T_BS1_opt),
         float(T_BS2_opt),
-        float(T_hold_opt),
+        float(t_hold_opt),
         omega_true,
         alpha_opt,
         ops_np,
@@ -2789,7 +2789,7 @@ def run_alpha_scan_with_reoptimisation(
                 (0.0, np.pi),  # theta_A
                 (0.0, np.pi),  # T_BS1
                 (0.0, np.pi),  # T_BS2
-                (0.1, 20.0),  # T_hold
+                (0.1, 20.0),  # t_hold
             ]
             obj_w = make_obj(fixed_alpha)
             res_w = minimize(
@@ -2921,20 +2921,20 @@ def validate_css_state(N: int, theta: float) -> bool:
     return True
 
 
-def validate_hl_bound(delta_omega: float, N: int, T_hold: float) -> bool:
-    """Validate Heisenberg limit: Δθ ≥ 1/(N * T_hold).
+def validate_hl_bound(delta_omega: float, N: int, t_hold: float) -> bool:
+    """Validate Heisenberg limit: Δθ ≥ 1/(N * t_hold).
 
     Args:
         delta_omega: Sensitivity value.
         N: System particle number.
-        T_hold: Holding time.
+        t_hold: Holding time.
 
     Returns:
         True if bound holds (with 1e-6 tolerance).
     """
-    hl = 1.0 / (N * T_hold)
+    hl = 1.0 / (N * t_hold)
     assert delta_omega >= hl - 1e-6, (
-        f"HL bound violated: Δθ={delta_omega:.6e} < 1/(N T_hold)={hl:.6e}"
+        f"HL bound violated: Δθ={delta_omega:.6e} < 1/(N t_hold)={hl:.6e}"
     )
     return True
 
@@ -2949,8 +2949,8 @@ def plot_n_scaling(
     Shows:
     - Mean Δθ per N with error bars (std across seeds)
     - Weighted log-log linear fit line with shaded 95% bootstrap CI
-    - SQL reference: Δθ_SQL = 1/(√N · T_hold)
-    - Heisenberg limit reference: Δθ_HL = 1/(N · T_hold)
+    - SQL reference: Δθ_SQL = 1/(√N · t_hold)
+    - Heisenberg limit reference: Δθ_HL = 1/(N · t_hold)
     """
     if isinstance(result, (str, Path)):
         result = NScalingResult.from_parquet(result)
@@ -2960,10 +2960,10 @@ def plot_n_scaling(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Use an effective T_hold for reference lines. Since T_hold is optimised
-    # per N and varies, show the SQL/HL lines using the maximum T_hold
+    # Use an effective t_hold for reference lines. Since t_hold is optimised
+    # per N and varies, show the SQL/HL lines using the maximum t_hold
     # from the bounds (20.0), giving the most optimistic reference.
-    T_hold_ref = 20.0
+    t_hold_ref = 20.0
 
     # Data points with error bars
     ax.errorbar(
@@ -3028,7 +3028,7 @@ def plot_n_scaling(
             label=rf"95% CI: $[{nu_lo:.3f}, {nu_hi:.3f}]$",
         )
 
-    # SQL and HL reference lines (using T_hold_ref)
+    # SQL and HL reference lines (using t_hold_ref)
     N_range = np.logspace(
         np.log10(max(result.N_values.min(), 1)),
         np.log10(result.N_values.max()),
@@ -3036,19 +3036,19 @@ def plot_n_scaling(
     )
     ax.loglog(
         N_range,
-        1.0 / (np.sqrt(N_range) * T_hold_ref),
+        1.0 / (np.sqrt(N_range) * t_hold_ref),
         ":",
         color="C2",
         alpha=0.6,
-        label=r"SQL: $1/(\sqrt{N}\,T_hold)$",
+        label=r"SQL: $1/(\sqrt{N}\,t_hold)$",
     )
     ax.loglog(
         N_range,
-        1.0 / (N_range * T_hold_ref),
+        1.0 / (N_range * t_hold_ref),
         ":",
         color="C4",
         alpha=0.6,
-        label=r"HL: $1/(N\,T_hold)$",
+        label=r"HL: $1/(N\,t_hold)$",
     )
 
     ax.set_xlabel(r"$N$ (system particles)")
@@ -3099,14 +3099,14 @@ def plot_m_scaling(
     )
 
     # SQL reference for N=4
-    T_hold_ref = 20.0
-    sql = 1.0 / (np.sqrt(result.N_value) * T_hold_ref)
+    t_hold_ref = 20.0
+    sql = 1.0 / (np.sqrt(result.N_value) * t_hold_ref)
     ax1.axhline(
         y=sql,
         color="C2",
         linestyle=":",
         alpha=0.6,
-        label=rf"SQL: $1/(\sqrt{{{result.N_value}}}\,T_hold)$",
+        label=rf"SQL: $1/(\sqrt{{{result.N_value}}}\,t_hold)$",
     )
 
     # Ensure all data points are within the plotted y-range

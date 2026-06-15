@@ -67,9 +67,9 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_hold: float = 10.0  # Holding time (SQL = 0.1)
+DEFAULT_t_hold: float = 10.0  # Holding time (SQL = 0.1)
 DEFAULT_PSI0: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)  # |00⟩
-SQL_REFERENCE: float = 1.0 / DEFAULT_T_hold  # Δω_SQL = 0.1
+SQL_REFERENCE: float = 1.0 / DEFAULT_t_hold  # Δω_SQL = 0.1
 DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Range for all coefficients
 
 # ============================================================================
@@ -149,7 +149,7 @@ def build_phase_modulated_hold_hamiltonian(
 
 
 def phase_modulated_hold_unitary(
-    T_hold: float,
+    t_hold: float,
     omega: float,
     a_x: float,
     a_y: float,
@@ -159,11 +159,11 @@ def phase_modulated_hold_unitary(
 ) -> np.ndarray:
     """Holding-time unitary for the ω-modulated ancilla protocol.
 
-    U_hold(T_hold) = exp(-i T_hold H)
+    U_hold(t_hold) = exp(-i t_hold H)
     where H = ω J_z^S + ω(a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_zz J_z^S ⊗ J_z^A.
 
     Args:
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: True phase rate parameter.
         a_x: Ancilla J_x drive coefficient.
         a_y: Ancilla J_y drive coefficient.
@@ -175,9 +175,9 @@ def phase_modulated_hold_unitary(
         4×4 unitary matrix.
     """
     H = build_phase_modulated_hold_hamiltonian(omega, a_x, a_y, a_z, a_zz, ops)
-    U = expm(-1j * T_hold * H)
+    U = expm(-1j * t_hold * H)
     assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
-        f"Phase-modulated hold unitary not unitary for T_hold={T_hold}, ω={omega}"
+        f"Phase-modulated hold unitary not unitary for t_hold={t_hold}, ω={omega}"
     )
     return U
 
@@ -185,7 +185,7 @@ def phase_modulated_hold_unitary(
 def evolve_phase_modulated_circuit(
     psi0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     a_x: float,
     a_y: float,
@@ -195,14 +195,14 @@ def evolve_phase_modulated_circuit(
 ) -> np.ndarray:
     """Run the full ω-modulated ancilla MZI circuit.
 
-    |ψ_final⟩ = U_BS_S · U_hold(T_hold) · U_BS_S · |ψ₀⟩
+    |ψ_final⟩ = U_BS_S · U_hold(t_hold) · U_BS_S · |ψ₀⟩
 
     The hold unitary uses the ω-modulated H_A = ω (a_x J_x^A + ...).
 
     Args:
         psi0: Initial 4-vector (must be normalised).
         T_BS: Beam-splitter duration (both BS identical).
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: Phase rate parameter.
         a_x: Ancilla J_x drive coefficient.
         a_y: Ancilla J_y drive coefficient.
@@ -217,7 +217,7 @@ def evolve_phase_modulated_circuit(
 
     U_bs = system_only_bs_unitary(T_BS)
     psi = U_bs @ psi0
-    psi = phase_modulated_hold_unitary(T_hold, omega, a_x, a_y, a_z, a_zz, ops) @ psi
+    psi = phase_modulated_hold_unitary(t_hold, omega, a_x, a_y, a_z, a_zz, ops) @ psi
     psi = U_bs @ psi
 
     assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
@@ -227,7 +227,7 @@ def evolve_phase_modulated_circuit(
 def compute_phase_modulated_sensitivity(
     psi0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     a_x: float,
     a_y: float,
@@ -251,7 +251,7 @@ def compute_phase_modulated_sensitivity(
     Args:
         psi0: Initial 4-vector (product state).
         T_BS: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         a_x: Ancilla J_x drive coefficient.
         a_y: Ancilla J_y drive coefficient.
@@ -272,7 +272,7 @@ def compute_phase_modulated_sensitivity(
     psi = evolve_phase_modulated_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         a_x,
         a_y,
@@ -286,7 +286,7 @@ def compute_phase_modulated_sensitivity(
     psi_plus = evolve_phase_modulated_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         a_x,
         a_y,
@@ -297,7 +297,7 @@ def compute_phase_modulated_sensitivity(
     psi_minus = evolve_phase_modulated_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         a_x,
         a_y,
@@ -321,17 +321,17 @@ def compute_phase_modulated_sensitivity(
 
 
 def compute_phase_modulated_decoupled_baseline(
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     omega_true: float = 1.0,
 ) -> DriveDecoupledBaselineResult:
     """Compute the decoupled baseline sensitivity Δω.
 
     At (a_x = a_y = a_z = a_zz = 0), the ω-modulated ancilla circuit reduces
     to a standard single-qubit MZI with |1,0⟩ input and 50/50 BS,
-    giving Δω = 1/T_hold. The ω factor in H_A is irrelevant when all a_k = 0.
+    giving Δω = 1/t_hold. The ω factor in H_A is irrelevant when all a_k = 0.
 
     Args:
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate.
 
     Returns:
@@ -341,7 +341,7 @@ def compute_phase_modulated_decoupled_baseline(
     domega = compute_phase_modulated_sensitivity(
         DEFAULT_PSI0,
         DEFAULT_T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         0.0,
         0.0,
@@ -350,9 +350,9 @@ def compute_phase_modulated_decoupled_baseline(
         ops,
     )
     return DriveDecoupledBaselineResult(
-        T_hold_value=T_hold,
+        t_hold_value=t_hold,
         delta_omega=domega,
-        sql=1.0 / T_hold,
+        sql=1.0 / t_hold,
     )
 
 
@@ -368,7 +368,7 @@ def phase_modulated_2d_slice(
     n_drive: int = 201,
     n_azz: int = 201,
     slice_type: str = "ax",
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> Drive2DSliceResult:
     """Run a 2D slice scan over (a_drive, a_zz) with ω-modulated ancilla drive.
@@ -383,7 +383,7 @@ def phase_modulated_2d_slice(
         n_drive: Number of drive-coefficient points.
         n_azz: Number of a_zz points.
         slice_type: 'ax' or 'ay'.
-        T_hold: Holding time (default 10).
+        t_hold: Holding time (default 10).
         T_BS: Beam-splitter duration (default π/2).
 
     Returns:
@@ -407,7 +407,7 @@ def phase_modulated_2d_slice(
             domega = compute_phase_modulated_sensitivity(
                 DEFAULT_PSI0,
                 T_BS,
-                T_hold,
+                t_hold,
                 omega,
                 ax,
                 ay,
@@ -423,7 +423,7 @@ def phase_modulated_2d_slice(
         delta_omega_grid=grid,
         omega_value=omega,
         slice_type=slice_type,
-        sql=1.0 / T_hold,
+        sql=1.0 / t_hold,
     )
 
 
@@ -436,7 +436,7 @@ def phase_modulated_random_search(
     omega: float,
     n_samples: int = 500,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
     seed: int | None = 42,
 ) -> DriveRandomSearchResult:
@@ -448,7 +448,7 @@ def phase_modulated_random_search(
         omega: Phase rate value.
         n_samples: Number of random points to evaluate.
         bounds: (min, max) for all four coefficients.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         seed: Random seed for reproducibility.
 
@@ -471,7 +471,7 @@ def phase_modulated_random_search(
         domega = compute_phase_modulated_sensitivity(
             DEFAULT_PSI0,
             T_BS,
-            T_hold,
+            t_hold,
             omega,
             ax,
             ay,
@@ -495,8 +495,8 @@ def phase_modulated_random_search(
         best_params=best_params,
         best_delta_omega=float(deltas[best_idx]),
         omega_value=omega,
-        sql=1.0 / T_hold,
-        T_hold=T_hold,
+        sql=1.0 / t_hold,
+        t_hold=t_hold,
     )
 
 
@@ -509,7 +509,7 @@ def phase_modulated_sensitivity_objective(
     params: np.ndarray,
     omega_true: float,
     ops: dict[str, np.ndarray],
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
     fd_step: float = 1e-6,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
@@ -517,14 +517,14 @@ def phase_modulated_sensitivity_objective(
 ) -> float:
     """Objective function for minimising Δω in the ω-modulated protocol.
 
-    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed T_hold.
+    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed t_hold.
     params = [a_x, a_y, a_z, a_zz] (4 elements).
 
     Args:
         params: 4-element parameter vector.
         omega_true: True phase rate.
         ops: Two-qubit operators.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step.
         bounds: (min, max) for all parameters.
@@ -553,7 +553,7 @@ def phase_modulated_sensitivity_objective(
     return compute_phase_modulated_sensitivity(
         DEFAULT_PSI0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         ax,
         ay,
@@ -573,7 +573,7 @@ def run_phase_modulated_nelder_mead(
     fatol: float = 1e-8,
     adaptive: bool = True,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
     track_history: bool = False,
 ) -> DriveNelderMeadResult:
@@ -588,7 +588,7 @@ def run_phase_modulated_nelder_mead(
         fatol: Absolute function tolerance.
         adaptive: Use adaptive Nelder--Mead parameters.
         bounds: (min, max) for all four parameters.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         track_history: If True, record objective values per iteration.
 
@@ -610,7 +610,7 @@ def run_phase_modulated_nelder_mead(
             p,
             omega_true,
             ops,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             bounds=bounds,
         )
@@ -641,7 +641,7 @@ def run_phase_modulated_nelder_mead(
     psi_final = evolve_phase_modulated_circuit(
         DEFAULT_PSI0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         float(opt_params[0]),
         float(opt_params[1]),
@@ -676,7 +676,7 @@ def run_phase_modulated_omega_scan(
     seed: int | None = 42,
     maxiter: int = 5000,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> DriveOmegaScanResult:
     """Scan over ω values with 4D random search and Nelder--Mead refinement.
@@ -694,7 +694,7 @@ def run_phase_modulated_omega_scan(
         seed: Base random seed (incremented per ω).
         maxiter: Maximum Nelder--Mead iterations.
         bounds: (min, max) for all parameters.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
@@ -716,7 +716,7 @@ def run_phase_modulated_omega_scan(
             omega,
             n_samples=n_random,
             bounds=bounds,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             seed=base_seed + int(omega * 1000),
         )
@@ -735,7 +735,7 @@ def run_phase_modulated_omega_scan(
                 seed=base_seed + int(omega * 1000) + 10000 + rank,
                 maxiter=maxiter,
                 bounds=bounds,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 T_BS=T_BS,
                 track_history=False,
             )
@@ -754,7 +754,7 @@ def run_phase_modulated_omega_scan(
             )
         )
         best_deltas.append(best_nm.delta_omega_opt)
-        sql_vals.append(1.0 / T_hold)
+        sql_vals.append(1.0 / t_hold)
         exp_vals.append(best_nm.expectation_Jz)
         var_vals.append(best_nm.variance_Jz)
         all_results_dict[float(omega)] = nm_results

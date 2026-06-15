@@ -122,18 +122,18 @@ def build_hold_hamiltonian(
 
 def hold_unitary_dicke(
     N: int,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     alpha_xx: float,
     ops: dict[str, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Holding-time unitary in the combined S⊗A space (Dicke basis).
 
-    U_hold(T_hold) = exp(-i T_hold H)
+    U_hold(t_hold) = exp(-i t_hold H)
 
     Args:
         N: Particle number per subsystem.
-        T_hold: Holding time.
+        t_hold: Holding time.
         omega: Unknown phase rate.
         alpha_xx: XX coupling strength.
         ops: Pre-computed embedded operators.
@@ -142,7 +142,7 @@ def hold_unitary_dicke(
         (N+1)² × (N+1)² unitary matrix.
     """
     H = build_hold_hamiltonian(N, omega, alpha_xx, ops)
-    U = expm(-1j * T_hold * H)
+    U = expm(-1j * t_hold * H)
     dim = (N + 1) ** 2
     assert np.allclose(U @ U.conj().T, np.eye(dim), atol=1e-12)
     return U
@@ -230,11 +230,11 @@ def evolve_circuit(
     alpha_xx: float,
     ops: dict[str, np.ndarray],
     T_BS: float = np.pi / 2.0,
-    T_hold: float = 10.0,
+    t_hold: float = 10.0,
 ) -> np.ndarray:
     """Run the full dual-MZI circuit.
 
-    |ψ_final⟩ = U_BS · U_hold(T_hold) · U_BS · |ψ₀⟩
+    |ψ_final⟩ = U_BS · U_hold(t_hold) · U_BS · |ψ₀⟩
 
     where U_BS acts on both S and A (dual MZI).
 
@@ -245,7 +245,7 @@ def evolve_circuit(
         alpha_xx: XX coupling strength.
         ops: Embedded operators.
         T_BS: Beam-splitter angle (default π/2).
-        T_hold: Holding time (default 10).
+        t_hold: Holding time (default 10).
 
     Returns:
         Final state vector (length (N+1)²).
@@ -253,7 +253,7 @@ def evolve_circuit(
     assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
     U_bs = dual_bs_unitary(N, T_BS)
     psi = U_bs @ psi0
-    psi = hold_unitary_dicke(N, T_hold, omega, alpha_xx, ops) @ psi
+    psi = hold_unitary_dicke(N, t_hold, omega, alpha_xx, ops) @ psi
     psi = U_bs @ psi
     assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
     return psi

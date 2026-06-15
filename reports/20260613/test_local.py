@@ -664,7 +664,7 @@ class TestJointNScalingResultParquet:
             expectation_M=0.3,
             variance_M=0.18,
             d_expectation=0.05,
-            T_hold=T_HOLD,
+            t_hold=T_HOLD,
             success=True,
             nfev=100,
         )
@@ -688,7 +688,7 @@ class TestJointNScalingResultParquet:
         assert loaded.expectation_M == make_result.expectation_M
         assert loaded.variance_M == make_result.variance_M
         assert loaded.d_expectation == make_result.d_expectation
-        assert loaded.T_hold == make_result.T_hold
+        assert loaded.t_hold == make_result.t_hold
         assert loaded.success == make_result.success
         assert loaded.nfev == make_result.nfev
 
@@ -717,7 +717,7 @@ class TestJointNScalingResultParquet:
                 "expectation_M": [0.0],
                 "variance_M": [0.0],
                 "d_expectation": [0.0],
-                "T_hold": [10.0],
+                "t_hold": [10.0],
                 "fd_step": [1e-6],
                 "success": [1],
                 "nfev": [0],

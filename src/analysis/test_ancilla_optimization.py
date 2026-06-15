@@ -250,14 +250,14 @@ class TestHold:
         U = hold_unitary_two_qubit(1.0, 1.0, (0.1, 0.0, 0.0, 0.0), make_ops)
         assert pytest.approx(I_4, abs=1e-12) == U @ U.conj().T
 
-    @pytest.mark.parametrize("T_hold", [0.0, 0.5, 2.0])
+    @pytest.mark.parametrize("t_hold", [0.0, 0.5, 2.0])
     def test_given_hold_unitary_then_matches_scipy_exponential(
-        self, T_hold: float, make_ops: dict[str, np.ndarray]
+        self, t_hold: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         omega, alpha = 1.0, (0.1, 0.2, -0.1, 0.3)
         H = build_hold_hamiltonian(omega, alpha, make_ops)
-        assert hold_unitary_two_qubit(T_hold, omega, alpha, make_ops) == pytest.approx(
-            expm(-1j * T_hold * H), abs=1e-12
+        assert hold_unitary_two_qubit(t_hold, omega, alpha, make_ops) == pytest.approx(
+            expm(-1j * t_hold * H), abs=1e-12
         )
 
     def test_zero_hold_identity(self, make_ops: dict[str, np.ndarray]) -> None:
@@ -265,23 +265,23 @@ class TestHold:
             0.0, 1.0, (0.1, 0.0, 0.0, 0.0), make_ops
         ) == pytest.approx(I_4, abs=1e-12)
 
-    @pytest.mark.parametrize("T_hold", [0.0, 0.5, 1.0, 2.0])
+    @pytest.mark.parametrize("t_hold", [0.0, 0.5, 1.0, 2.0])
     def test_given_hold_unitary_then_shape_is_4x4(
-        self, T_hold: float, make_ops: dict[str, np.ndarray]
+        self, t_hold: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         assert hold_unitary_two_qubit(
-            T_hold, 1.0, (0.1, 0.0, -0.2, 0.3), make_ops
+            t_hold, 1.0, (0.1, 0.0, -0.2, 0.3), make_ops
         ).shape == (4, 4)
 
 
 class TestCircuitEvolution:
-    @pytest.mark.parametrize("T_hold", [0.0, 0.5, 1.0])
+    @pytest.mark.parametrize("t_hold", [0.0, 0.5, 1.0])
     def test_normalisation_preserved(
-        self, T_hold: float, make_ops: dict[str, np.ndarray]
+        self, t_hold: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         psi = evolve_full(
-            psi0, np.pi / 4, np.pi / 4, T_hold, 1.0, (0.0, 0.0, 0.0, 0.0), make_ops
+            psi0, np.pi / 4, np.pi / 4, t_hold, 1.0, (0.0, 0.0, 0.0, 0.0), make_ops
         )
         assert np.linalg.norm(psi) == pytest.approx(1.0, abs=1e-12)
 
@@ -331,15 +331,15 @@ class TestSensitivity:
         assert exp_val == pytest.approx(exp_direct)
         assert var_val == pytest.approx(max(0.0, var_direct))
 
-    @pytest.mark.parametrize("T_hold", [0.5, 1.0, 2.0])
+    @pytest.mark.parametrize("t_hold", [0.5, 1.0, 2.0])
     def test_decoupled_sensitivity_sql(
-        self, T_hold: float, make_ops: dict[str, np.ndarray]
+        self, t_hold: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         domega = compute_sensitivity(
-            psi0, np.pi / 2, np.pi / 2, T_hold, 1.0, self._alpha_zero, make_ops
+            psi0, np.pi / 2, np.pi / 2, t_hold, 1.0, self._alpha_zero, make_ops
         )
-        assert domega == pytest.approx(1.0 / T_hold, rel=0.05)
+        assert domega == pytest.approx(1.0 / t_hold, rel=0.05)
 
     def test_fringe_extremum_returns_inf(self, make_ops: dict[str, np.ndarray]) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
@@ -350,35 +350,35 @@ class TestSensitivity:
         )
 
     @pytest.mark.parametrize(
-        ("T_hold", "omega_true"), itertools.product([0.5, 1.0, 2.0], [0.5, 1.0, 1.5])
+        ("t_hold", "omega_true"), itertools.product([0.5, 1.0, 2.0], [0.5, 1.0, 1.5])
     )
     def test_finite_away_from_fringe(
-        self, T_hold: float, omega_true: float, make_ops: dict[str, np.ndarray]
+        self, t_hold: float, omega_true: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         domega = compute_sensitivity(
-            psi0, np.pi / 2, np.pi / 2, T_hold, omega_true, self._alpha_zero, make_ops
+            psi0, np.pi / 2, np.pi / 2, t_hold, omega_true, self._alpha_zero, make_ops
         )
         assert np.isfinite(domega) and domega > 0
 
-    @pytest.mark.parametrize("T_hold", [0.5, 1.0, 2.0])
-    def test_get_decoupled_sensitivity_sql(self, T_hold: float) -> None:
-        assert get_decoupled_sensitivity(T_hold, omega_true=1.0) == pytest.approx(
-            1.0 / T_hold, rel=0.05
+    @pytest.mark.parametrize("t_hold", [0.5, 1.0, 2.0])
+    def test_get_decoupled_sensitivity_sql(self, t_hold: float) -> None:
+        assert get_decoupled_sensitivity(t_hold, omega_true=1.0) == pytest.approx(
+            1.0 / t_hold, rel=0.05
         )
 
     @pytest.mark.parametrize(
-        ("omega_true", "T_hold"),
+        ("omega_true", "t_hold"),
         list(itertools.product([0.3, 0.7, 1.0, 1.3, 1.7], [0.5, 1.0, 1.5, 2.0])),
     )
     def test_decoupled_sensitivity_analytical(
-        self, omega_true: float, T_hold: float, make_ops: dict[str, np.ndarray]
+        self, omega_true: float, t_hold: float, make_ops: dict[str, np.ndarray]
     ) -> None:
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         domega = compute_sensitivity(
-            psi0, np.pi / 2, np.pi / 2, T_hold, omega_true, self._alpha_zero, make_ops
+            psi0, np.pi / 2, np.pi / 2, t_hold, omega_true, self._alpha_zero, make_ops
         )
-        assert domega == pytest.approx(1.0 / T_hold, rel=5e-3)
+        assert domega == pytest.approx(1.0 / t_hold, rel=5e-3)
 
     @pytest.mark.parametrize("seed", range(20), ids=[f"seed_{s}" for s in range(20)])
     def test_variance_nonnegative(
@@ -430,22 +430,22 @@ class TestSensitivity:
             is True
         )
 
-    @pytest.mark.parametrize("T_hold", [0.5, 1.0, 2.0])
+    @pytest.mark.parametrize("t_hold", [0.5, 1.0, 2.0])
     def test_joint_measurement_sensitivity_sql(
-        self, T_hold: float, make_ops: dict[str, np.ndarray]
+        self, t_hold: float, make_ops: dict[str, np.ndarray]
     ) -> None:
-        """Joint measurement must achieve Δθ = 1/T_hold at α=0, matching SQL."""
+        """Joint measurement must achieve Δθ = 1/t_hold at α=0, matching SQL."""
         M_op = build_joint_operator(make_ops)
         psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)
         T_BS = np.pi / 2.0
         omega_true = 1.0
         alpha = (0.0, 0.0, 0.0, 0.0)
         domega = compute_sensitivity(
-            psi0, T_BS, T_BS, T_hold, omega_true, alpha, make_ops, meas_op=M_op
+            psi0, T_BS, T_BS, t_hold, omega_true, alpha, make_ops, meas_op=M_op
         )
-        assert domega == pytest.approx(1.0 / T_hold, rel=0.05), (
-            f"Joint measurement Δθ={domega:.6f} for T_hold={T_hold},"
-            f" expected SQL={1.0 / T_hold:.6f}"
+        assert domega == pytest.approx(1.0 / t_hold, rel=0.05), (
+            f"Joint measurement Δθ={domega:.6f} for t_hold={t_hold},"
+            f" expected SQL={1.0 / t_hold:.6f}"
         )
 
 
@@ -546,9 +546,9 @@ class TestOptimisation:
         result = run_optimisation(
             omega_true=1.0, ops=make_ops, x0=_make_default_params(), maxiter=200
         )
-        T_hold_opt = result.params_opt[6]
-        assert T_hold_opt > 1.5
-        assert result.delta_omega_opt == pytest.approx(1.0 / T_hold_opt, rel=0.15)
+        t_hold_opt = result.params_opt[6]
+        assert t_hold_opt > 1.5
+        assert result.delta_omega_opt == pytest.approx(1.0 / t_hold_opt, rel=0.15)
 
     def test_convergence_fewer_than_two(self) -> None:
         r = OptimisationResult(
@@ -595,7 +595,7 @@ class TestOptimisation:
 
 
 class TestBounds:
-    @pytest.mark.parametrize("key", ["bloch_theta", "phi", "T_BS", "T_hold", "alpha"])
+    @pytest.mark.parametrize("key", ["bloch_theta", "phi", "T_BS", "t_hold", "alpha"])
     def test_default_bounds_structure(self, key: str) -> None:
         bounds = get_default_bounds()
         assert key in bounds
@@ -607,7 +607,7 @@ class TestBounds:
             ("bloch_theta", (0.0, np.pi)),
             ("phi", (0.0, 2.0 * np.pi)),
             ("T_BS", (0.0, np.pi)),
-            ("T_hold", (0.0, 5.0)),
+            ("t_hold", (0.0, 5.0)),
             ("alpha", (-2.0, 2.0)),
         ],
     )
@@ -631,7 +631,7 @@ class TestBounds:
     def test_random_initial_params_respects_custom_bounds(self) -> None:
         rng = np.random.default_rng(42)
         custom_bounds = get_default_bounds()
-        custom_bounds["T_hold"] = (0.0, 20.0)
+        custom_bounds["t_hold"] = (0.0, 20.0)
         for _ in range(50):
             params = random_initial_params(rng, custom_bounds)
             assert params.shape == (11,)
@@ -706,7 +706,7 @@ class TestAlphaScans:
 
     def test_single_parameter_sql_at_zero(self) -> None:
         result = scan_alpha_single_parameter(
-            "xx", alpha_min=-0.2, alpha_max=0.2, n_points=5, T_hold=1.0, omega_true=1.0
+            "xx", alpha_min=-0.2, alpha_max=0.2, n_points=5, t_hold=1.0, omega_true=1.0
         )
         idx_mid = 2
         assert result.alpha_values[idx_mid] == 0.0
@@ -737,16 +737,16 @@ class TestAlphaScans:
     def test_alpha_nonzero_does_not_beat_sql_when_measuring_jz_s(
         self, name: str
     ) -> None:
-        T_hold, sql = 1.0, 1.0
+        t_hold, sql = 1.0, 1.0
         result = scan_alpha_single_parameter(
-            name, alpha_min=-1.5, alpha_max=1.5, n_points=11, T_hold=T_hold
+            name, alpha_min=-1.5, alpha_max=1.5, n_points=11, t_hold=t_hold
         )
         finite = np.isfinite(result.delta_omega_values)
         assert np.min(result.delta_omega_values[finite]) >= sql - 1e-8
 
     @pytest.mark.slow
     def test_random_search_does_not_beat_sql(self) -> None:
-        result = random_search_alpha(n_samples=100, T_hold=1.0, seed=42)
+        result = random_search_alpha(n_samples=100, t_hold=1.0, seed=42)
         finite = np.isfinite(result.delta_omega_values)
         assert np.min(result.delta_omega_values[finite]) >= 1.0 - 1e-8
 
@@ -830,39 +830,39 @@ class TestAlphaScans:
 class TestInteractionRobustness:
     def test_result_dataclass_defaults(self) -> None:
         r = InteractionRobustnessResult()
-        assert len(r.T_hold_values) == 0
+        assert len(r.t_hold_values) == 0
         assert len(r.alpha_values) == 0
         assert r.delta_omega_joint.shape == (0,)
         assert r.delta_omega_sonly.shape == (0,)
 
     def test_result_dataclass_with_values(self) -> None:
-        T_hold = np.array([0.5, 1.0])
+        t_hold = np.array([0.5, 1.0])
         alpha = np.array([-1.0, 0.0, 1.0])
         domega_j = np.array([[0.8, 0.6, 0.8], [0.4, 0.3, 0.4]])
         domega_s = np.array([[1.0, 0.9, 1.0], [0.5, 0.4, 0.5]])
         r = InteractionRobustnessResult(
-            T_hold_values=T_hold,
+            t_hold_values=t_hold,
             alpha_values=alpha,
             delta_omega_joint=domega_j,
             delta_omega_sonly=domega_s,
         )
-        assert r.T_hold_values == pytest.approx(T_hold)
+        assert r.t_hold_values == pytest.approx(t_hold)
         assert r.alpha_values == pytest.approx(alpha)
         assert r.delta_omega_joint == pytest.approx(domega_j)
         assert r.delta_omega_sonly == pytest.approx(domega_s)
         assert r.delta_omega_joint.shape == (2, 3)
 
     def test_basic_smoke(self) -> None:
-        T_hold_vals = np.array([0.5, 1.0])
+        t_hold_vals = np.array([0.5, 1.0])
         alpha_vals = np.array([-0.2, 0.0, 0.2])
         result = compute_interaction_robustness(
-            T_hold_vals,
+            t_hold_vals,
             alpha_vals,
             omega_true=1.0,
             alpha_name="xx",
         )
         assert isinstance(result, InteractionRobustnessResult)
-        assert result.T_hold_values == pytest.approx(T_hold_vals)
+        assert result.t_hold_values == pytest.approx(t_hold_vals)
         assert result.alpha_values == pytest.approx(alpha_vals)
         assert result.delta_omega_joint.shape == (2, 3)
         assert result.delta_omega_sonly.shape == (2, 3)
@@ -870,11 +870,11 @@ class TestInteractionRobustness:
         assert np.all(np.isfinite(result.delta_omega_sonly))
 
     def test_sql_at_zero_alpha(self) -> None:
-        """At α=0, both joint and S-only sensitivity ≈ 1/T_hold."""
-        T_hold_vals = np.array([0.5, 1.0, 2.0])
+        """At α=0, both joint and S-only sensitivity ≈ 1/t_hold."""
+        t_hold_vals = np.array([0.5, 1.0, 2.0])
         alpha_vals = np.array([0.0])
         result = compute_interaction_robustness(
-            T_hold_vals,
+            t_hold_vals,
             alpha_vals,
             omega_true=1.0,
             alpha_name="xx",
@@ -884,17 +884,17 @@ class TestInteractionRobustness:
             phi_A=0.0,
             T_BS=np.pi / 2,
         )
-        for i, T_hold in enumerate(T_hold_vals):
-            expected = 1.0 / T_hold
+        for i, t_hold in enumerate(t_hold_vals):
+            expected = 1.0 / t_hold
             assert result.delta_omega_sonly[i, 0] == pytest.approx(expected, rel=0.05)
             assert result.delta_omega_joint[i, 0] == pytest.approx(expected, rel=0.05)
 
     @pytest.mark.parametrize("name", ["xx", "xz", "zx", "zz"])
     def test_all_alpha_names(self, name: str) -> None:
-        T_hold_vals = np.array([1.0])
+        t_hold_vals = np.array([1.0])
         alpha_vals = np.array([-0.1, 0.0, 0.1])
         result = compute_interaction_robustness(
-            T_hold_vals,
+            t_hold_vals,
             alpha_vals,
             omega_true=1.0,
             alpha_name=name,
@@ -902,20 +902,20 @@ class TestInteractionRobustness:
         assert result.delta_omega_joint.shape == (1, 3)
 
     def test_invalid_alpha_name_raises(self) -> None:
-        T_hold_vals = np.array([1.0])
+        t_hold_vals = np.array([1.0])
         alpha_vals = np.array([0.0])
         with pytest.raises(ValueError):
             compute_interaction_robustness(
-                T_hold_vals,
+                t_hold_vals,
                 alpha_vals,
                 alpha_name="invalid",
             )
 
     def test_larger_scan(self) -> None:
-        T_hold_vals = np.linspace(0.5, 2.0, 4)
+        t_hold_vals = np.linspace(0.5, 2.0, 4)
         alpha_vals = np.linspace(-1.0, 1.0, 5)
         result = compute_interaction_robustness(
-            T_hold_vals,
+            t_hold_vals,
             alpha_vals,
             omega_true=1.0,
             alpha_name="zz",
@@ -924,9 +924,9 @@ class TestInteractionRobustness:
         assert result.delta_omega_sonly.shape == (4, 5)
         assert np.all(np.isfinite(result.delta_omega_joint))
         assert np.all(np.isfinite(result.delta_omega_sonly))
-        # At α=0 (index 2), sensitivity should approximately equal 1/T_hold
-        for i, T_hold in enumerate(T_hold_vals):
-            expected = 1.0 / T_hold
+        # At α=0 (index 2), sensitivity should approximately equal 1/t_hold
+        for i, t_hold in enumerate(t_hold_vals):
+            expected = 1.0 / t_hold
             assert result.delta_omega_sonly[i, 2] == pytest.approx(expected, rel=0.05)
             assert result.delta_omega_joint[i, 2] == pytest.approx(expected, rel=0.05)
 
@@ -935,17 +935,17 @@ class TestParquetRoundtrip:
     """Verify that each plottable dataclass can roundtrip through Parquet."""
 
     def test_decoupled_baseline_roundtrip(self, tmp_path: Path) -> None:
-        T_hold = np.array([0.5, 1.0, 2.0, 5.0])
-        sql = 1.0 / T_hold
+        t_hold = np.array([0.5, 1.0, 2.0, 5.0])
+        sql = 1.0 / t_hold
         original = DecoupledBaselineResult(
-            T_hold_values=T_hold,
+            t_hold_values=t_hold,
             delta_omega_values=sql.copy(),
             sql_values=sql.copy(),
         )
         parquet_path = tmp_path / "test.parquet"
         original.save_parquet(parquet_path)
         loaded = DecoupledBaselineResult.from_parquet(parquet_path)
-        assert loaded.T_hold_values == pytest.approx(original.T_hold_values)
+        assert loaded.t_hold_values == pytest.approx(original.t_hold_values)
         assert loaded.delta_omega_values == pytest.approx(original.delta_omega_values)
         assert loaded.sql_values == pytest.approx(original.sql_values)
 
@@ -1003,7 +1003,7 @@ class TestParquetRoundtrip:
 
     def test_interaction_robustness_roundtrip(self, tmp_path: Path) -> None:
         original = InteractionRobustnessResult(
-            T_hold_values=np.array([0.5, 1.0]),
+            t_hold_values=np.array([0.5, 1.0]),
             alpha_values=np.array([-1.0, 0.0, 1.0]),
             delta_omega_joint=np.array([[0.8, 0.6, 0.8], [0.4, 0.3, 0.4]]),
             delta_omega_sonly=np.array([[1.0, 0.9, 1.0], [0.5, 0.4, 0.5]]),
@@ -1011,7 +1011,7 @@ class TestParquetRoundtrip:
         parquet_path = tmp_path / "test.parquet"
         original.save_parquet(parquet_path)
         loaded = InteractionRobustnessResult.from_parquet(parquet_path)
-        assert loaded.T_hold_values == pytest.approx(original.T_hold_values)
+        assert loaded.t_hold_values == pytest.approx(original.t_hold_values)
         assert loaded.alpha_values == pytest.approx(original.alpha_values)
         assert loaded.delta_omega_joint == pytest.approx(original.delta_omega_joint)
         assert loaded.delta_omega_sonly == pytest.approx(original.delta_omega_sonly)

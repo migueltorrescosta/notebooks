@@ -34,7 +34,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     FreeAncillaNelderMeadResult,
     FreeAncillaOmegaScanResult,
     FreeAncillaSearchResult,
-    T_hold,
     _marsaglia_3ball_sample,
     _params_to_full,
     _sample_scenario_A,
@@ -51,6 +50,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     plot_scenario_best_ratio_by_omega,
     run_free_ancilla_nelder_mead,
     run_free_ancilla_omega_scan,
+    t_hold,
 )
 
 # ============================================================================
@@ -395,7 +395,7 @@ class TestFreeAncillaSearchResultParquet:
             best_delta_omega=float(deltas[1]),
             omega_value=1.0,
             sql=0.1,
-            T_hold=10.0,
+            t_hold=10.0,
             R=5.0,
             scenario="B",
         )
@@ -420,7 +420,7 @@ class TestFreeAncillaSearchResultParquet:
         assert np.isclose(loaded.best_delta_omega, make_result.best_delta_omega)
         assert loaded.omega_value == make_result.omega_value
         assert loaded.sql == make_result.sql
-        assert loaded.T_hold == make_result.T_hold
+        assert loaded.t_hold == make_result.t_hold
         assert loaded.R == make_result.R
         assert loaded.scenario == make_result.scenario
 
@@ -873,7 +873,7 @@ class TestEdgeCases:
         psi = evolve_drive_circuit(
             psi0,
             np.pi / 2,
-            T_hold,
+            t_hold,
             1.0,
             1.0,
             0.5,

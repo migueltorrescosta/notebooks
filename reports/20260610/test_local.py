@@ -34,7 +34,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     FreeAncillaModulatedNelderMeadResult,
     FreeAncillaModulatedOmegaScanResult,
     FreeAncillaModulatedSearchResult,
-    T_hold,
     _modulated_6d_objective,
     _sample_6d_config,
     compute_free_ancilla_modulated_sensitivity,
@@ -46,6 +45,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     plot_slice_heatmap,
     run_modulated_nelder_mead,
     run_modulated_omega_scan,
+    t_hold,
 )
 
 # ============================================================================
@@ -371,7 +371,7 @@ class TestSearchResultParquet:
             best_delta_omega=float(deltas[1]),
             omega_value=1.0,
             sql=0.1,
-            T_hold=10.0,
+            t_hold=10.0,
             R=5.0,
         )
 
@@ -397,7 +397,7 @@ class TestSearchResultParquet:
         assert np.isclose(loaded.best_delta_omega, make_result.best_delta_omega)
         assert loaded.omega_value == make_result.omega_value
         assert loaded.sql == make_result.sql
-        assert loaded.T_hold == make_result.T_hold
+        assert loaded.t_hold == make_result.t_hold
         assert loaded.R == make_result.R
 
     def test_fail_fast_missing_column(
@@ -430,7 +430,7 @@ class TestNelderMeadResultParquet:
             message="OK",
             expectation_Jz=0.25,
             variance_Jz=0.1,
-            T_hold=10.0,
+            t_hold=10.0,
             sql=0.1,
             T_BS=1.5707963267948966,
             fd_step=1e-6,
@@ -451,7 +451,7 @@ class TestNelderMeadResultParquet:
         assert loaded.nfev == make_result.nfev
         assert np.isclose(loaded.expectation_Jz, make_result.expectation_Jz)
         assert np.isclose(loaded.variance_Jz, make_result.variance_Jz)
-        assert np.isclose(loaded.T_hold, make_result.T_hold)
+        assert np.isclose(loaded.t_hold, make_result.t_hold)
         assert np.isclose(loaded.sql, make_result.sql)
         assert np.isclose(loaded.T_BS, make_result.T_BS)
         assert np.isclose(loaded.fd_step, make_result.fd_step)
@@ -463,7 +463,7 @@ class TestNelderMeadResultParquet:
     ) -> None:
         p = tmp_path / "bad.parquet"
         df = make_result.to_dataframe()
-        df = df.drop(columns=["T_hold"])
+        df = df.drop(columns=["t_hold"])
         df.to_parquet(p, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
             FreeAncillaModulatedNelderMeadResult.from_parquet(p)
@@ -488,7 +488,7 @@ class TestOmegaScanResultParquet:
             sql_values=np.array([0.1, 0.1, 0.1], dtype=float),
             expectation_Jz_per_omega=np.array([0.0, 0.25, -0.1], dtype=float),
             variance_Jz_per_omega=np.array([0.01, 0.1, 0.05], dtype=float),
-            T_hold=10.0,
+            t_hold=10.0,
         )
 
     def test_roundtrip(
@@ -514,7 +514,7 @@ class TestOmegaScanResultParquet:
             loaded.variance_Jz_per_omega,
             make_result.variance_Jz_per_omega,
         )
-        assert np.isclose(loaded.T_hold, make_result.T_hold)
+        assert np.isclose(loaded.t_hold, make_result.t_hold)
 
     def test_fail_fast_missing_column(
         self,
@@ -523,7 +523,7 @@ class TestOmegaScanResultParquet:
     ) -> None:
         p = tmp_path / "bad.parquet"
         df = make_result.to_dataframe()
-        df = df.drop(columns=["T_hold"])
+        df = df.drop(columns=["t_hold"])
         df.to_parquet(p, index=False)
         with pytest.raises(ValueError, match="missing required columns"):
             FreeAncillaModulatedOmegaScanResult.from_parquet(p)
@@ -816,7 +816,7 @@ class TestEdgeCases:
         psi = evolve_phase_modulated_circuit(
             psi0,
             np.pi / 2,
-            T_hold,
+            t_hold,
             1.0,
             1.0,
             0.5,
@@ -892,7 +892,7 @@ class TestPhysicalInvariants:
             a_y = rng.uniform(-5.0, 5.0)
             a_z = rng.uniform(-5.0, 5.0)
             a_zz = rng.uniform(-5.0, 5.0)
-            U = phase_modulated_hold_unitary(T_hold, omega, a_x, a_y, a_z, a_zz, ops)
+            U = phase_modulated_hold_unitary(t_hold, omega, a_x, a_y, a_z, a_zz, ops)
             assert np.allclose(U @ U.conj().T, np.eye(4), atol=1e-12), (
                 f"Hold unitary not unitary at ω={omega}"
             )

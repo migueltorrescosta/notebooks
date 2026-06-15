@@ -48,7 +48,7 @@ def tmp_svg() -> Generator[Path, None, None]:
 class TestPlotDriveDecoupledBaseline:
     def test_creates_svg_file(self, tmp_svg: Path) -> None:
         result = DriveDecoupledBaselineResult(
-            T_hold_value=10.0,
+            t_hold_value=10.0,
             delta_omega=0.12,
             sql=0.1,
         )
@@ -84,7 +84,7 @@ class TestPlotDriveRandomSearchHistogram:
             best_delta_omega=0.06,
             omega_value=1.0,
             sql=0.1,
-            T_hold=10.0,
+            t_hold=10.0,
         )
         out = plot_drive_random_search_histogram(result, tmp_svg)
         assert out.exists()

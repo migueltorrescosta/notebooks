@@ -67,7 +67,7 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_hold: float = 10.0  # Holding time (SQL reference)
+DEFAULT_t_hold: float = 10.0  # Holding time (SQL reference)
 AXX_BOUNDS: tuple[float, float] = (0.0, 20.0)  # α_xx optimisation range
 N_COARSE_GRID: int = 101  # Coarse grid points for α_xx scan
 FD_STEP: float = 1e-6  # Central finite-difference step
@@ -124,7 +124,7 @@ def compute_sensitivity(
     meas_op: np.ndarray | None = None,
     fd_step: float = FD_STEP,
     T_BS: float = DEFAULT_T_BS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
 ) -> tuple[float, float, float, float]:
     """Compute the error-propagation sensitivity Δω.
 
@@ -141,7 +141,7 @@ def compute_sensitivity(
         meas_op: (N+1)×(N+1) measurement operator (default = J_z^S single).
         fd_step: Central finite-difference step size.
         T_BS: Beam-splitter angle.
-        T_hold: Holding time.
+        t_hold: Holding time.
 
     Returns:
         Tuple (delta_omega, expectation, variance, derivative).
@@ -151,17 +151,17 @@ def compute_sensitivity(
         meas_op = ops["Jz_S"]
 
     # Evaluate at omega_true
-    psi = evolve_circuit(N, psi0, omega_true, alpha_xx, ops, T_BS, T_hold)
+    psi = evolve_circuit(N, psi0, omega_true, alpha_xx, ops, T_BS, t_hold)
     # Use single-subsystem J_z for the reduced expectation/variance
     Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
     exp_val, var_val = compute_reduced_expectation_and_variance(psi, N, Jz_single)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂ω
     psi_plus = evolve_circuit(
-        N, psi0, omega_true + fd_step, alpha_xx, ops, T_BS, T_hold
+        N, psi0, omega_true + fd_step, alpha_xx, ops, T_BS, t_hold
     )
     psi_minus = evolve_circuit(
-        N, psi0, omega_true - fd_step, alpha_xx, ops, T_BS, T_hold
+        N, psi0, omega_true - fd_step, alpha_xx, ops, T_BS, t_hold
     )
 
     exp_plus, _ = compute_reduced_expectation_and_variance(psi_plus, N, Jz_single)
@@ -188,7 +188,7 @@ def optimise_alpha_xx(
     axx_bounds: tuple[float, float] = AXX_BOUNDS,
     n_coarse: int = N_COARSE_GRID,
     T_BS: float = DEFAULT_T_BS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     fd_step: float = FD_STEP,
 ) -> dict[str, float]:
     """Optimise Δω over α_xx for a given (ω, N) pair.
@@ -206,7 +206,7 @@ def optimise_alpha_xx(
         axx_bounds: (min, max) for α_xx.
         n_coarse: Number of coarse grid points.
         T_BS: Beam-splitter angle.
-        T_hold: Holding time.
+        t_hold: Holding time.
         fd_step: Finite-difference step.
 
     Returns:
@@ -216,12 +216,12 @@ def optimise_alpha_xx(
             'expectation_Jz': ⟨J_z^S⟩ at optimum.
             'variance_Jz': Var(J_z^S) at optimum.
             'd_expectation': ∂⟨J_z^S⟩/∂ω at optimum.
-            'sql': SQL = 1/(√N * T_hold) reference.
+            'sql': SQL = 1/(√N * t_hold) reference.
     """
     if psi0 is None:
         psi0 = initial_state(N)
 
-    sql = 1.0 / (np.sqrt(N) * T_hold)
+    sql = 1.0 / (np.sqrt(N) * t_hold)
 
     # Stage 1: coarse grid
     alpha_vals = np.linspace(axx_bounds[0], axx_bounds[1], n_coarse)
@@ -302,12 +302,12 @@ class DualMZISweepResult:
         N_values: N values for each point.
         alpha_xx_opt: Optimal α_xx at each point.
         delta_omega_opt: Minimal Δω at each point.
-        sql_values: SQL = 1/(√N T_hold) at each point.
+        sql_values: SQL = 1/(√N t_hold) at each point.
         ratio: Δω_opt / SQL at each point.
         expectation_Jz: ⟨J_z^S⟩ at optimum.
         variance_Jz: Var(J_z^S) at optimum.
         d_expectation: ∂⟨J_z^S⟩/∂ω at optimum.
-        T_hold: Holding time (scalar).
+        t_hold: Holding time (scalar).
     """
 
     omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -319,7 +319,7 @@ class DualMZISweepResult:
     expectation_Jz: np.ndarray = field(default_factory=lambda: np.array([]))
     variance_Jz: np.ndarray = field(default_factory=lambda: np.array([]))
     d_expectation: np.ndarray = field(default_factory=lambda: np.array([]))
-    T_hold: float = DEFAULT_T_hold
+    t_hold: float = DEFAULT_t_hold
 
     def __post_init__(self) -> None:
         # Ensure int dtype for N_values
@@ -331,7 +331,7 @@ class DualMZISweepResult:
             {
                 "omega": self.omega_values,
                 "N": self.N_values,
-                "T_hold": np.full(len(self.omega_values), self.T_hold),
+                "t_hold": np.full(len(self.omega_values), self.t_hold),
                 "alpha_xx_opt": self.alpha_xx_opt,
                 "delta_omega_opt": self.delta_omega_opt,
                 "sql": self.sql_values,
@@ -354,7 +354,7 @@ class DualMZISweepResult:
         required = {
             "omega",
             "N",
-            "T_hold",
+            "t_hold",
             "alpha_xx_opt",
             "delta_omega_opt",
             "sql",
@@ -380,7 +380,7 @@ class DualMZISweepResult:
             expectation_Jz=df["expectation_Jz"].to_numpy(dtype=float),
             variance_Jz=df["variance_Jz"].to_numpy(dtype=float),
             d_expectation=df["d_expectation"].to_numpy(dtype=float),
-            T_hold=float(df["T_hold"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
         )
 
     @property
@@ -404,7 +404,7 @@ class DualMZISweepResult:
 def run_sweep(
     omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     progress_callback: Callable[[int, int], None] | None = None,
 ) -> DualMZISweepResult:
     """Run the full 2D sweep over ω and N with α_xx optimisation.
@@ -412,7 +412,7 @@ def run_sweep(
     Args:
         omega_values: ω values to sweep (default: 0.1 to 5.0 step 0.1).
         N_values: N values to sweep (default: 1 to 20 inclusive).
-        T_hold: Holding time.
+        t_hold: Holding time.
         progress_callback: Optional callback (current, total).
 
     Returns:
@@ -450,7 +450,7 @@ def run_sweep(
                 omega=omega,
                 ops=ops,
                 psi0=psi0,
-                T_hold=T_hold,
+                t_hold=t_hold,
             )
             alpha_opts[idx] = opt_result["alpha_xx_opt"]
             delta_opts[idx] = opt_result["delta_omega_opt"]
@@ -478,7 +478,7 @@ def run_sweep(
         expectation_Jz=exps,
         variance_Jz=vars_,
         d_expectation=d_exps,
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
 
 
@@ -490,17 +490,17 @@ def run_sweep(
 def compute_decoupled_baseline(
     omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     fd_step: float = FD_STEP,
 ) -> DualMZISweepResult:
     """Verify the decoupled baseline (α_xx = 0) for all (ω, N) pairs.
 
-    At α_xx = 0, the sensitivity should equal SQL = 1/(√N T_hold).
+    At α_xx = 0, the sensitivity should equal SQL = 1/(√N t_hold).
 
     Args:
         omega_values: ω values (default: sweep range).
         N_values: N values (default: 1 to 20).
-        T_hold: Holding time.
+        t_hold: Holding time.
 
     Returns:
         DualMZISweepResult with α_xx=0 results.
@@ -531,11 +531,11 @@ def compute_decoupled_baseline(
         for omega in omega_values:
             omegas[idx] = omega
             Ns[idx] = N
-            sql = 1.0 / (np.sqrt(N) * T_hold)
+            sql = 1.0 / (np.sqrt(N) * t_hold)
             sqls[idx] = sql
 
             dt, exp_val, var_val, d_exp_val = compute_sensitivity(
-                N, psi0, omega, 0.0, ops, T_hold=T_hold, fd_step=fd_step
+                N, psi0, omega, 0.0, ops, t_hold=t_hold, fd_step=fd_step
             )
             delta_opts[idx] = dt
             ratios[idx] = dt / sql if np.isfinite(dt) and sql > 0 else float("inf")
@@ -555,7 +555,7 @@ def compute_decoupled_baseline(
         expectation_Jz=exps,
         variance_Jz=vars_,
         d_expectation=d_exps,
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
 
 
@@ -705,10 +705,10 @@ def plot_n_scaling(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # SQL reference: Δω = 1/(√N T_hold)
+    # SQL reference: Δω = 1/(√N t_hold)
     N_dense = np.logspace(np.log10(1), np.log10(20), 100)
-    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.T_hold)
-    hl_dense = 1.0 / (N_dense * sweep.T_hold)
+    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.t_hold)
+    hl_dense = 1.0 / (N_dense * sweep.t_hold)
 
     ax.loglog(N_dense, sql_dense, "--", color="gray", alpha=0.7, label="SQL")
     ax.loglog(N_dense, hl_dense, ":", color="gray", alpha=0.5, label="HL")
@@ -769,7 +769,7 @@ def plot_omega_dependence(
     fig, ax = plt.subplots(figsize=figsize)
 
     # SQL reference (flat line for fixed N)
-    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.T_hold) if len(sql_vals) > 0 else 0.1
+    sql_val = 1.0 / (np.sqrt(N_fixed) * sweep.t_hold) if len(sql_vals) > 0 else 0.1
     ax.axhline(
         y=sql_val,
         color="gray",
@@ -985,7 +985,7 @@ def generate_decoupled_baseline(force: bool = False) -> None:
     ax.set_xlabel(r"$\omega$")
     ax.set_ylabel(r"$N$ (particles per subsystem)")
     ax.set_title(
-        f"Decoupled Baseline Verification ($\\alpha_{{xx}} = 0$, $T_hold = {result.T_hold}$)\n"
+        f"Decoupled Baseline Verification ($\\alpha_{{xx}} = 0$, $t_hold = {result.t_hold}$)\n"
         f"Max $|\\Delta\\omega/\\mathrm{{SQL}} - 1| = {max_dev:.2e}$, "
         f"points checked: {len(finite)}"
     )

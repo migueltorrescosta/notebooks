@@ -31,7 +31,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     DEFAULT_T_BS,
     FD_STEP,
     N_LBFGS_STARTS,
-    DEFAULT_T_hold,
+    DEFAULT_t_hold,
     FourParamSweepResult,
     ScalingAnalysisResult,
     build_hold_hamiltonian,
@@ -154,7 +154,7 @@ class TestUnitarity:
     def test_hold_unitary(self, N: int) -> None:
         ops = _embed_ops(N)
         alpha = (1.0, 2.0, -0.5, 0.3)
-        U = hold_unitary(N, T_hold=1.0, omega=0.5, alpha=alpha, ops=ops)
+        U = hold_unitary(N, t_hold=1.0, omega=0.5, alpha=alpha, ops=ops)
         dim = (N + 1) ** 2
         eye = np.eye(dim, dtype=complex)
         assert np.allclose(U @ U.conj().T, eye, atol=1e-12), (
@@ -163,13 +163,13 @@ class TestUnitarity:
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_hold_unitary_decoupled_factorises(self, N: int) -> None:
-        """At α = (0,0,0,0), U_hold = exp(-i T_hold ω J_z) ⊗ exp(-i T_hold ω J_z)."""
+        """At α = (0,0,0,0), U_hold = exp(-i t_hold ω J_z) ⊗ exp(-i t_hold ω J_z)."""
         ops = _embed_ops(N)
         omega = 0.5
-        T_hold = 2.0
-        U = hold_unitary(N, T_hold, omega, (0.0, 0.0, 0.0, 0.0), ops)
+        t_hold = 2.0
+        U = hold_unitary(N, t_hold, omega, (0.0, 0.0, 0.0, 0.0), ops)
         Jz = jz_operator(N, basis=OperatorBasis.DICKE)
-        U_single = expm(-1j * T_hold * omega * Jz)
+        U_single = expm(-1j * t_hold * omega * Jz)
         expected = np.kron(U_single, U_single)
         assert np.allclose(U, expected, atol=1e-12), (
             f"Decoupled hold does not factorise for N={N}"
@@ -219,13 +219,13 @@ class TestCircuitEvolution:
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_no_op_identity(self, N: int) -> None:
-        """T_BS=0, T_hold=0, omega=0 should give the initial state back."""
+        """T_BS=0, t_hold=0, omega=0 should give the initial state back."""
         ops = _embed_ops(N)
         psi0 = initial_state(N)
         U_bs_zero = protocol_bs_unitary(N, "dual", T_BS=0.0)
         psi = U_bs_zero @ psi0
         psi = (
-            hold_unitary(N, T_hold=0.0, omega=0.0, alpha=(0.0, 0.0, 0.0, 0.0), ops=ops)
+            hold_unitary(N, t_hold=0.0, omega=0.0, alpha=(0.0, 0.0, 0.0, 0.0), ops=ops)
             @ psi
         )
         psi = U_bs_zero @ psi
@@ -287,7 +287,7 @@ class TestSensitivity:
         ("N", "protocol"), [(1, "dual"), (2, "S-only"), (3, "dual"), (5, "S-only")]
     )
     def test_decoupled_sensitivity_matches_sql(self, N: int, protocol: str) -> None:
-        """At α = (0,0,0,0), Δω should equal SQL = 1/(√N T_hold)."""
+        """At α = (0,0,0,0), Δω should equal SQL = 1/(√N t_hold)."""
         ops = _embed_ops(N)
         psi0 = initial_state(N)
         omega = 1.0
@@ -299,7 +299,7 @@ class TestSensitivity:
             ops=ops,
             protocol=protocol,
         )
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         assert dt == pytest.approx(sql, rel=1e-5), (
             f"N={N}, protocol={protocol}: Δω={dt:.10f} != SQL={sql:.10f}"
         )
@@ -326,7 +326,7 @@ class TestSensitivity:
             ops=ops,
             protocol=protocol,
         )
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         assert dt == pytest.approx(sql, rel=1e-5), (
             f"N={N}, ω={omega}, protocol={protocol}: Δω={dt:.10f} != SQL={sql:.10f}"
         )
@@ -501,7 +501,7 @@ class TestFourParamOptimiser:
         result = optimise_four_params(
             N=N, omega=0.5, ops=ops, protocol="dual", n_starts=10
         )
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         assert result.sql == pytest.approx(sql)
 
     @pytest.mark.slow
@@ -519,7 +519,7 @@ class TestFourParamOptimiser:
             protocol="S-only",
             n_starts=N_LBFGS_STARTS,
         )
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         ratio = (
             result.delta_omega_opt / sql
             if np.isfinite(result.delta_omega_opt)
@@ -592,7 +592,7 @@ class TestSweeps:
         )
         for i in range(result.n_points):
             N = result.N_values[i]
-            expected_sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+            expected_sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
             assert result.sql_values[i] == pytest.approx(expected_sql), (
                 f"SQL mismatch for N={N}: {result.sql_values[i]} != {expected_sql}"
             )
@@ -752,7 +752,7 @@ class TestParquetRoundtrip:
             n_starts=np.array([25, 25, 25, 25], dtype=int),
             n_converged=np.array([15, 12, 18, 14], dtype=int),
             gradient_norm=np.array([1e-8, 2e-7, 5e-9, 3e-6], dtype=float),
-            T_hold=10.0,
+            t_hold=10.0,
         )
         parquet_path = tmp_path / "test_sweep.parquet"
         original.save_parquet(parquet_path)
@@ -773,7 +773,7 @@ class TestParquetRoundtrip:
         assert np.array_equal(loaded.n_starts, original.n_starts)
         assert np.array_equal(loaded.n_converged, original.n_converged)
         assert np.allclose(loaded.gradient_norm, original.gradient_norm)
-        assert pytest.approx(original.T_hold) == loaded.T_hold
+        assert pytest.approx(original.t_hold) == loaded.t_hold
 
     def test_sweep_roundtrip_metadata(self, tmp_path: Path) -> None:
         """All metadata fields survive roundtrip."""
@@ -794,7 +794,7 @@ class TestParquetRoundtrip:
             n_starts=np.array([25, 25], dtype=int),
             n_converged=np.array([12, 10], dtype=int),
             gradient_norm=np.array([1e-8, 2e-7], dtype=float),
-            T_hold=10.0,
+            t_hold=10.0,
         )
         parquet_path = tmp_path / "test_meta.parquet"
         original.save_parquet(parquet_path)
@@ -912,7 +912,7 @@ class TestPhysicalInvariants:
         """At α = 0, must recover SQL exactly for both protocols."""
         ops = _embed_ops(N)
         psi0 = initial_state(N)
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         for protocol in ("dual", "S-only"):
             for omega in [0.1, 1.0, 5.0]:
                 dt, _, _, _ = compute_sensitivity(
@@ -965,7 +965,7 @@ class TestPhysicalInvariants:
         N = 3
         ops = _embed_ops(N)
         psi0 = initial_state(N)
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         for alpha_zz in [0.0, 2.0, 5.0, 10.0]:
             dt, _, _, _ = compute_sensitivity(
                 N,
@@ -989,7 +989,7 @@ class TestPhysicalInvariants:
         N = 3
         ops = _embed_ops(N)
         psi0 = initial_state(N)
-        sql = 1.0 / (np.sqrt(N) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         # At α_zz=0, must recover SQL
         dt0, _, _, _ = compute_sensitivity(
             N,
@@ -1031,7 +1031,7 @@ class TestConstants:
         assert pytest.approx(np.pi / 2.0) == DEFAULT_T_BS
 
     def test_th_default(self) -> None:
-        assert DEFAULT_T_hold == 10.0
+        assert DEFAULT_t_hold == 10.0
 
     def test_alpha_bound(self) -> None:
         assert ALPHA_BOUND == 20.0

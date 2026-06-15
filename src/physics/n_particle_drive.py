@@ -247,7 +247,7 @@ def n_particle_initial_state(N: int) -> np.ndarray:
 
 def n_particle_hold_unitary(
     N: int,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     a_x: float,
     a_y: float,
@@ -257,12 +257,12 @@ def n_particle_hold_unitary(
 ) -> np.ndarray:
     """Holding-time unitary for the N-particle ω-modulated protocol.
 
-    U_hold(T_hold) = exp(-i T_hold H)
+    U_hold(t_hold) = exp(-i t_hold H)
     where H = ω J_z^S + ω(a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_zz J_z^S ⊗ J_z^A.
 
     Args:
         N: Number of system particles.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: Phase rate parameter.
         a_x: J_x^A drive coefficient.
         a_y: J_y^A drive coefficient.
@@ -274,11 +274,11 @@ def n_particle_hold_unitary(
         2(N+1) × 2(N+1) unitary matrix.
     """
     H = build_n_particle_hold_hamiltonian(N, omega, a_x, a_y, a_z, a_zz, ops)
-    U = expm(-1j * T_hold * H)
+    U = expm(-1j * t_hold * H)
     d_tot = 2 * (N + 1)
     I_full = np.eye(d_tot, dtype=complex)
     assert np.allclose(U @ U.conj().T, I_full, atol=1e-12), (
-        f"Hold unitary not unitary for N={N}, T_hold={T_hold}, ω={omega}"
+        f"Hold unitary not unitary for N={N}, t_hold={t_hold}, ω={omega}"
     )
     return U
 
@@ -287,7 +287,7 @@ def evolve_n_particle_circuit(
     N: int,
     psi0: np.ndarray,
     T_bs: float,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     a_x: float,
     a_y: float,
@@ -297,13 +297,13 @@ def evolve_n_particle_circuit(
 ) -> np.ndarray:
     """Run the full N-particle ω-modulated ancilla MZI circuit.
 
-    |ψ_final⟩ = U_BS_S · U_hold(T_hold) · U_BS_S · |ψ₀⟩
+    |ψ_final⟩ = U_BS_S · U_hold(t_hold) · U_BS_S · |ψ₀⟩
 
     Args:
         N: Number of system particles.
         psi0: Initial state vector (must be normalised).
         T_bs: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: Phase rate parameter.
         a_x: J_x^A drive coefficient.
         a_y: J_y^A drive coefficient.
@@ -319,7 +319,7 @@ def evolve_n_particle_circuit(
     )
     U_bs = build_n_particle_system_only_bs_unitary(N, T_bs)
     psi = U_bs @ psi0
-    psi = n_particle_hold_unitary(N, T_hold, omega, a_x, a_y, a_z, a_zz, ops) @ psi
+    psi = n_particle_hold_unitary(N, t_hold, omega, a_x, a_y, a_z, a_zz, ops) @ psi
     psi = U_bs @ psi
     assert np.isclose(np.linalg.norm(psi), 1.0), f"Final state not normalised for N={N}"
     return psi
@@ -329,7 +329,7 @@ def compute_n_particle_sensitivity(
     N: int,
     psi0: np.ndarray,
     T_bs: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     a_x: float,
     a_y: float,
@@ -352,7 +352,7 @@ def compute_n_particle_sensitivity(
         N: Number of system particles.
         psi0: Initial state vector.
         T_bs: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         a_x: J_x^A drive coefficient.
         a_y: J_y^A drive coefficient.
@@ -372,7 +372,7 @@ def compute_n_particle_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true,
         a_x,
         a_y,
@@ -387,7 +387,7 @@ def compute_n_particle_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         a_x,
         a_y,
@@ -399,7 +399,7 @@ def compute_n_particle_sensitivity(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         a_x,
         a_y,
@@ -432,7 +432,7 @@ def compute_n_particle_decoupled_baseline(
     """Compute the decoupled baseline sensitivity Δω for N particles.
 
     At (a_x = a_y = a_z = a_zz = 0), the circuit reduces to a standard
-    N-particle MZI with CSS input, giving Δω = 1/(√N × T_HOLD).
+    N-particle MZI with CSS input, giving Δω = 1/(√N × t_hold).
 
     Args:
         N: Number of system particles.

@@ -32,7 +32,7 @@ from local import (
     DUAL_MZI_N_VALS,
     OMEGA_VALS,
     SONLY_MZI_N_VALS,
-    DEFAULT_T_hold,
+    DEFAULT_t_hold,
     FourParamSweepResult,
     _n_starts_for_N,
     embed_combined_operators,
@@ -82,10 +82,10 @@ def _run_N_batch(
             psi0=psi0,
             protocol=protocol,
             n_starts=n_starts,
-            T_hold=DEFAULT_T_hold,
+            t_hold=DEFAULT_t_hold,
         )
         t1 = time.time()
-        sql = 1.0 / (np.sqrt(N_val) * DEFAULT_T_hold)
+        sql = 1.0 / (np.sqrt(N_val) * DEFAULT_t_hold)
 
         omegas[i] = omega_val
         a_xx[i] = opt_result.alpha_opt[0]
@@ -130,7 +130,7 @@ def _run_N_batch(
         n_starts=n_starts_arr,
         n_converged=n_conv_arr,
         gradient_norm=grad_norm_arr,
-        T_hold=DEFAULT_T_hold,
+        t_hold=DEFAULT_t_hold,
     )
 
 
@@ -230,7 +230,7 @@ def run_dual_sweep_parallel(force: bool = False, workers: int = 8) -> None:
         n_starts=np.array(all_nstarts, dtype=int),
         n_converged=np.array(all_nconv, dtype=int),
         gradient_norm=np.array(all_gnorm, dtype=float),
-        T_hold=DEFAULT_T_hold,
+        t_hold=DEFAULT_t_hold,
     )
 
     combined.save_parquet(csv_p)
@@ -351,7 +351,7 @@ def _run_single_sweep(protocol: str, force: bool = False) -> None:
                 psi0=psi0,
                 protocol=protocol,
                 n_starts=n_starts,
-                T_hold=DEFAULT_T_hold,
+                t_hold=DEFAULT_t_hold,
             )
             t_elapsed = time.time() - t_start
             point_count += 1
@@ -412,7 +412,7 @@ def _run_single_sweep(protocol: str, force: bool = False) -> None:
         n_starts=df["n_starts"].to_numpy(dtype=int),
         n_converged=df["n_converged"].to_numpy(dtype=int),
         gradient_norm=df["gradient_norm"].to_numpy(dtype=float),
-        T_hold=DEFAULT_T_hold,
+        t_hold=DEFAULT_t_hold,
     )
     result.save_parquet(csv_p)
     print(f"[save] {csv_p}")

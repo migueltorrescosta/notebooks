@@ -16,7 +16,7 @@ Physical Model:
 
 Units:
 - Dimensionless throughout. ω is the unknown phase rate (radians per unit time).
-- T_hold: holding-time strength (dimensionless).
+- t_hold: holding-time strength (dimensionless).
 - α coefficients: real coupling strengths.
 
 References:
@@ -245,17 +245,17 @@ def build_hold_hamiltonian(
 
 
 def hold_unitary_two_qubit(
-    T_hold: float,
+    t_hold: float,
     omega: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
     """Holding-time unitary for the 2-qubit ancilla system.
 
-    U_hold(T_hold) = exp(-i T_hold H_hold)
+    U_hold(t_hold) = exp(-i t_hold H_hold)
 
     Args:
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: True phase rate parameter.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Two-qubit operators from build_two_qubit_operators().
@@ -265,9 +265,9 @@ def hold_unitary_two_qubit(
 
     """
     H = build_hold_hamiltonian(omega, alpha, ops)
-    U = expm(-1j * T_hold * H)
+    U = expm(-1j * t_hold * H)
     assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
-        f"Hold unitary not unitary for T_hold={T_hold}, ω={omega}, α={alpha}"
+        f"Hold unitary not unitary for t_hold={t_hold}, ω={omega}, α={alpha}"
     )
     return U
 
@@ -281,20 +281,20 @@ def evolve_full(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
     """Run the full MZI circuit.
 
-    |ψ_final⟩ = U_BS(T_BS2) · U_hold(T_hold, ω, α) · U_BS(T_BS1) · |ψ₀⟩
+    |ψ_final⟩ = U_BS(T_BS2) · U_hold(t_hold, ω, α) · U_BS(T_BS1) · |ψ₀⟩
 
     Args:
         psi0: Initial 4-vector (product state).
         T_BS1: First beam-splitter duration.
         T_BS2: Second beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: True phase rate parameter.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Two-qubit operators.
@@ -307,7 +307,7 @@ def evolve_full(
 
     Constraints:
         psi0 must be normalized 4-vector.
-        T_BS1, T_BS2, T_hold > 0.
+        T_BS1, T_BS2, t_hold > 0.
         omega real (phase rate parameter).
         alpha tuple must be length 4: (α_xx, α_xz, α_zx, α_zz).
         ops must contain keys for all required two-qubit operators.
@@ -316,7 +316,7 @@ def evolve_full(
     assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
 
     psi = two_qubit_bs_unitary(T_BS1) @ psi0
-    psi = hold_unitary_two_qubit(T_hold, omega, alpha, ops) @ psi
+    psi = hold_unitary_two_qubit(t_hold, omega, alpha, ops) @ psi
     psi = two_qubit_bs_unitary(T_BS2) @ psi
 
     assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
@@ -436,7 +436,7 @@ def compute_sensitivity(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
@@ -455,7 +455,7 @@ def compute_sensitivity(
         psi0: Initial 4-vector (product state).
         T_BS1: First beam-splitter duration.
         T_BS2: Second beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Two-qubit operators (must contain 'Jz_S').
@@ -473,13 +473,13 @@ def compute_sensitivity(
         meas_op = ops["Jz_S"]
 
     # Evaluate at omega_true
-    psi = evolve_full(psi0, T_BS1, T_BS2, T_hold, omega_true, alpha, ops)
+    psi = evolve_full(psi0, T_BS1, T_BS2, t_hold, omega_true, alpha, ops)
     _, var = compute_expectation_and_variance(psi, meas_op)
 
     # Central finite difference for ∂⟨O⟩/∂θ
-    psi_plus = evolve_full(psi0, T_BS1, T_BS2, T_hold, omega_true + fd_step, alpha, ops)
+    psi_plus = evolve_full(psi0, T_BS1, T_BS2, t_hold, omega_true + fd_step, alpha, ops)
     psi_minus = evolve_full(
-        psi0, T_BS1, T_BS2, T_hold, omega_true - fd_step, alpha, ops
+        psi0, T_BS1, T_BS2, t_hold, omega_true - fd_step, alpha, ops
     )
     exp_plus = np.real(psi_plus.conj() @ meas_op @ psi_plus)
     exp_minus = np.real(psi_minus.conj() @ meas_op @ psi_minus)
@@ -512,14 +512,14 @@ def _params_to_components(
     """Unpack the 11-element parameter vector into named components.
 
     Parameter order:
-        [θ_S, φ_S, θ_A, φ_A, T_BS1, T_BS2, T_hold, α_xx, α_xz, α_zx, α_zz]
+        [θ_S, φ_S, θ_A, φ_A, T_BS1, T_BS2, t_hold, α_xx, α_xz, α_zx, α_zz]
         Note: θ_S, θ_A are Bloch sphere polar angles, NOT the phase rate ω.
 
     Args:
         params: 11-element array of optimisation parameters.
 
     Returns:
-        Tuple (theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_hold, alpha).
+        Tuple (theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, t_hold, alpha).
 
     """
     theta_S = float(params[0])
@@ -528,14 +528,14 @@ def _params_to_components(
     phi_A = float(params[3])
     T_BS1 = float(params[4])
     T_BS2 = float(params[5])
-    T_hold = float(params[6])
+    t_hold = float(params[6])
     alpha: tuple[float, float, float, float] = (
         float(params[7]),
         float(params[8]),
         float(params[9]),
         float(params[10]),
     )
-    return theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_hold, alpha
+    return theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, t_hold, alpha
 
 
 def sensitivity_objective(
@@ -576,7 +576,7 @@ def sensitivity_objective(
     if fixed_alpha is not None:
         params = np.concatenate([params, np.asarray(fixed_alpha, dtype=float)])
 
-    theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_hold, alpha = _params_to_components(
+    theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, t_hold, alpha = _params_to_components(
         params,
     )
 
@@ -589,7 +589,7 @@ def sensitivity_objective(
         (phi_A, "phi"),
         (T_BS1, "T_BS"),
         (T_BS2, "T_BS"),
-        (T_hold, "T_hold"),
+        (t_hold, "t_hold"),
     ]:
         lo, hi = bounds[key]
         if val < lo:
@@ -615,7 +615,7 @@ def sensitivity_objective(
         psi0,
         T_BS1,
         T_BS2,
-        T_hold,
+        t_hold,
         omega_true,
         alpha,
         ops,
@@ -691,7 +691,7 @@ class OptimisationResult:
         "phi_A",
         "T_BS1",
         "T_BS2",
-        "T_hold",
+        "t_hold",
         "alpha_xx",
         "alpha_xz",
         "alpha_zx",
@@ -726,7 +726,7 @@ class OptimisationResult:
                 "phi_A": [float(self.params_opt[3])],
                 "T_BS1": [float(self.params_opt[4])],
                 "T_BS2": [float(self.params_opt[5])],
-                "T_hold": [float(self.params_opt[6])],
+                "t_hold": [float(self.params_opt[6])],
                 "alpha_xx": [float(self.params_opt[7])],
                 "alpha_xz": [float(self.params_opt[8])],
                 "alpha_zx": [float(self.params_opt[9])],
@@ -782,7 +782,7 @@ class OptimisationResult:
                 float(df["phi_A"].iloc[0]),
                 float(df["T_BS1"].iloc[0]),
                 float(df["T_BS2"].iloc[0]),
-                float(df["T_hold"].iloc[0]),
+                float(df["t_hold"].iloc[0]),
                 float(df["alpha_xx"].iloc[0]),
                 float(df["alpha_xz"].iloc[0]),
                 float(df["alpha_zx"].iloc[0]),
@@ -838,7 +838,7 @@ class OmegaScanResult:
 
         Returns:
             DataFrame with columns: omega, best_delta_omega, sql, vs_sql,
-            spread, T_hold_star, covariance, expectation_M, flag.
+            spread, t_hold_star, covariance, expectation_M, flag.
         """
         rows: list[dict[str, float | str]] = []
         for i, omega_val in enumerate(self.omega_values):
@@ -847,24 +847,24 @@ class OmegaScanResult:
                 best = restarts[0]
                 best_delta_omega = float(best.delta_omega_opt)
                 spread = compute_convergence_metric(restarts)
-                T_hold_star = float(best.params_opt[6])
+                t_hold_star = float(best.params_opt[6])
                 cov_val = float(best.covariance_SA)
                 exp_m = float(best.expectation_M)
                 vs_sql = (
-                    float(best.delta_omega_opt / T_hold_star)
-                    if T_hold_star > 0 and np.isfinite(1.0 / T_hold_star)
+                    float(best.delta_omega_opt / t_hold_star)
+                    if t_hold_star > 0 and np.isfinite(1.0 / t_hold_star)
                     else float("inf")
                 )
             else:
                 # Summary-only mode (loaded from CSV)
                 best_delta_omega = float(self.best_per_omega[i])
                 spread = 0.0
-                T_hold_star = 0.0
+                t_hold_star = 0.0
                 cov_val = 0.0
                 exp_m = 0.0
                 vs_sql = float("inf")
 
-            sql = 1.0 / T_hold_star if T_hold_star > 0 else float("inf")
+            sql = 1.0 / t_hold_star if t_hold_star > 0 else float("inf")
             flag = "fringe" if abs(exp_m) < 1e-10 else "ok"
 
             rows.append(
@@ -874,7 +874,7 @@ class OmegaScanResult:
                     "sql": sql,
                     "vs_sql": vs_sql,
                     "spread": spread,
-                    "T_hold_star": T_hold_star,
+                    "t_hold_star": t_hold_star,
                     "covariance": cov_val,
                     "expectation_M": exp_m,
                     "flag": flag,
@@ -951,7 +951,7 @@ class OmegaScanResult:
         "phi_A",
         "T_BS1",
         "T_BS2",
-        "T_hold",
+        "t_hold",
         "alpha_xx",
         "alpha_xz",
         "alpha_zx",
@@ -994,7 +994,7 @@ class OmegaScanResult:
                         "phi_A": float(params[3]),
                         "T_BS1": float(params[4]),
                         "T_BS2": float(params[5]),
-                        "T_hold": float(params[6]),
+                        "t_hold": float(params[6]),
                         "alpha_xx": float(params[7]),
                         "alpha_xz": float(params[8]),
                         "alpha_zx": float(params[9]),
@@ -1055,7 +1055,7 @@ class OmegaScanResult:
                         float(row["phi_A"]),
                         float(row["T_BS1"]),
                         float(row["T_BS2"]),
-                        float(row["T_hold"]),
+                        float(row["t_hold"]),
                         float(row["alpha_xx"]),
                         float(row["alpha_xz"]),
                         float(row["alpha_zx"]),
@@ -1101,7 +1101,7 @@ def get_default_bounds() -> dict[str, tuple[float, float]]:
     """Get the default parameter bounds.
 
     Returns:
-        Dict with keys 'theta', 'phi', 'T_BS', 'T_hold', 'alpha' mapping to
+        Dict with keys 'theta', 'phi', 'T_BS', 't_hold', 'alpha' mapping to
         (min, max) tuples.
 
     """
@@ -1109,7 +1109,7 @@ def get_default_bounds() -> dict[str, tuple[float, float]]:
         "bloch_theta": (0.0, np.pi),
         "phi": (0.0, 2.0 * np.pi),
         "T_BS": (0.0, np.pi),
-        "T_hold": (0.0, 5.0),
+        "t_hold": (0.0, 5.0),
         "alpha": (-2.0, 2.0),
     }
 
@@ -1136,16 +1136,16 @@ def random_initial_params(
     theta_lo, theta_hi = bounds["bloch_theta"]
     phi_lo, phi_hi = bounds["phi"]
     tbs_lo, tbs_hi = bounds["T_BS"]
-    th_lo, th_hi = bounds["T_hold"]
+    th_lo, th_hi = bounds["t_hold"]
     alpha_lo, alpha_hi = bounds["alpha"]
 
     theta_S, theta_A = rng.uniform(theta_lo, theta_hi, size=2)
     phi_S, phi_A = rng.uniform(phi_lo, phi_hi, size=2)
     T_BS1, T_BS2 = rng.uniform(tbs_lo, tbs_hi, size=2)
-    T_hold = rng.uniform(th_lo, th_hi)
+    t_hold = rng.uniform(th_lo, th_hi)
     alpha = rng.uniform(alpha_lo, alpha_hi, size=4)
     return np.array(
-        [theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, T_hold, *alpha],
+        [theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, t_hold, *alpha],
         dtype=float,
     )
 
@@ -1212,7 +1212,7 @@ def diagnostics_from_params(
     """Compute diagnostics (expectations, variances, covariance, purity) at a given parameter vector.
 
     Args:
-        params: 11-element parameter vector (θ_S, φ_S, θ_A, φ_A, T_BS1, T_BS2, T_hold, α_xx, α_xz, α_zx, α_zz).
+        params: 11-element parameter vector (θ_S, φ_S, θ_A, φ_A, T_BS1, T_BS2, t_hold, α_xx, α_xz, α_zx, α_zz).
         omega_true: True phase rate parameter.
         ops: Two-qubit operators from build_two_qubit_operators().
 
@@ -1227,7 +1227,7 @@ def diagnostics_from_params(
         opt_phi_A,
         opt_T_BS1,
         opt_T_BS2,
-        opt_T_hold,
+        opt_t_hold,
         opt_alpha,
     ) = _params_to_components(params)
     opt_psi0 = two_qubit_state(opt_theta_S, opt_phi_S, opt_theta_A, opt_phi_A)
@@ -1235,7 +1235,7 @@ def diagnostics_from_params(
         opt_psi0,
         opt_T_BS1,
         opt_T_BS2,
-        opt_T_hold,
+        opt_t_hold,
         omega_true,
         opt_alpha,
         ops,
@@ -1391,8 +1391,8 @@ def run_omega_scan(
         xatol: Absolute parameter tolerance.
         fatol: Absolute function tolerance.
         adaptive: Use adaptive Nelder–Mead parameters.
-        bounds: Custom parameter bounds (e.g., to expand T_hold range).
-            Default: T_hold ∈ [0, 5]. Use bounds={"T_hold": (0, 20), ...} for
+        bounds: Custom parameter bounds (e.g., to expand t_hold range).
+            Default: t_hold ∈ [0, 5]. Use bounds={"t_hold": (0, 20), ...} for
             expanded-range experiments.
         track_history: If True, record convergence history per run.
         meas_op: Measurement operator for the objective.
@@ -1474,7 +1474,7 @@ class AlphaReoptScanResult:
         "phi_A",
         "T_BS1",
         "T_BS2",
-        "T_hold",
+        "t_hold",
         "alpha_xx",
         "alpha_xz",
         "alpha_zx",
@@ -1585,7 +1585,7 @@ def scan_alpha_with_reoptimisation(
     """Scan a single α coefficient with state re-optimisation at each point.
 
     For each α value, the state parameters (θ_S, φ_S, θ_A, φ_A, T_BS1,
-    T_BS2, T_hold) are re-optimised via Nelder–Mead while the interaction
+    T_BS2, t_hold) are re-optimised via Nelder–Mead while the interaction
     coefficients are held fixed.  Both joint and S-only measurement
     operators are evaluated independently.
 
@@ -1694,14 +1694,14 @@ class DecoupledBaselineResult:
     Here α refers to the Ising coupling coefficient α_{zz} (not the scaling exponent).
 
     Attributes:
-        T_hold_values: Array of holding-time values.
+        t_hold_values: Array of holding-time values.
         delta_omega_values: Corresponding Δω (both joint and S-only give
             the same value in the decoupled case).
-        sql_values: SQL = 1/T_hold values (time-based SQL; not particle-number SQL 1/√N).
+        sql_values: SQL = 1/t_hold values (time-based SQL; not particle-number SQL 1/√N).
 
     """
 
-    T_hold_values: np.ndarray
+    t_hold_values: np.ndarray
     delta_omega_values: np.ndarray
     sql_values: np.ndarray
 
@@ -1709,11 +1709,11 @@ class DecoupledBaselineResult:
         """Flatten into a DataFrame.
 
         Returns:
-            DataFrame with columns: T_hold, delta_omega, sql, ratio.
+            DataFrame with columns: t_hold, delta_omega, sql, ratio.
         """
         return pd.DataFrame(
             {
-                "T_hold": self.T_hold_values,
+                "t_hold": self.t_hold_values,
                 "delta_omega": self.delta_omega_values,
                 "sql": self.sql_values,
                 "ratio": np.where(
@@ -1733,7 +1733,7 @@ class DecoupledBaselineResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> DecoupledBaselineResult:
         df = pd.read_parquet(path)
-        required = {"T_hold", "delta_omega", "sql"}
+        required = {"t_hold", "delta_omega", "sql"}
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
@@ -1741,36 +1741,36 @@ class DecoupledBaselineResult:
                 f"{sorted(missing)}. Regenerate the file with the current code."
             )
         return cls(
-            T_hold_values=df["T_hold"].to_numpy(dtype=float),
+            t_hold_values=df["t_hold"].to_numpy(dtype=float),
             delta_omega_values=df["delta_omega"].to_numpy(dtype=float),
             sql_values=df["sql"].to_numpy(dtype=float),
         )
 
 
 def compute_decoupled_baseline(
-    T_hold_values: np.ndarray,
+    t_hold_values: np.ndarray,
     omega_true: float = 1.0,
 ) -> DecoupledBaselineResult:
-    """Compute the decoupled baseline sensitivity Δω for a range of T_hold values.
+    """Compute the decoupled baseline sensitivity Δω for a range of t_hold values.
 
     The optimal decoupled configuration is: system in |1,0⟩, ancilla in |1,0⟩,
-    50/50 beam splitters, α=0.  At this configuration, Δω = 1/T_hold exactly.
+    50/50 beam splitters, α=0.  At this configuration, Δω = 1/t_hold exactly.
 
     Args:
-        T_hold_values: Array of holding-time strengths to evaluate.
+        t_hold_values: Array of holding-time strengths to evaluate.
         omega_true: True phase rate (default 1.0).
 
     Returns:
         DecoupledBaselineResult with computed sensitivities.
     """
-    T_hold_arr = np.asarray(T_hold_values, dtype=float)
+    t_hold_arr = np.asarray(t_hold_values, dtype=float)
     delta_omega = np.array(
-        [get_decoupled_sensitivity(T_hold, omega_true) for T_hold in T_hold_arr],
+        [get_decoupled_sensitivity(t_hold, omega_true) for t_hold in t_hold_arr],
         dtype=float,
     )
-    sql = 1.0 / T_hold_arr
+    sql = 1.0 / t_hold_arr
     return DecoupledBaselineResult(
-        T_hold_values=T_hold_arr,
+        t_hold_values=t_hold_arr,
         delta_omega_values=delta_omega,
         sql_values=sql,
     )
@@ -1838,7 +1838,7 @@ class CovarianceAnalysisResult:
 def compute_covariance_analysis(
     alpha_range: tuple[float, float] = (-2.0, 2.0),
     n_points: int = 101,
-    T_hold: float = 1.0,
+    t_hold: float = 1.0,
     omega_true: float = 1.0,
 ) -> CovarianceAnalysisResult:
     """Compute max |Cov(J_z^S, J_z^A)| for each α coefficient type.
@@ -1851,7 +1851,7 @@ def compute_covariance_analysis(
     Args:
         alpha_range: (min, max) for scanning each α coefficient.
         n_points: Number of points per scan.
-        T_hold: Holding-time strength (default 1.0).
+        t_hold: Holding-time strength (default 1.0).
         omega_true: True phase rate (default 1.0).
 
     Returns:
@@ -1878,7 +1878,7 @@ def compute_covariance_analysis(
                 alpha_list[3],
             )
             psi = evolve_full(
-                psi0, np.pi / 2, np.pi / 2, T_hold, omega_true, alpha, ops
+                psi0, np.pi / 2, np.pi / 2, t_hold, omega_true, alpha, ops
             )
             covs[j] = compute_covariance(psi, ops)
         max_idx = int(np.argmax(np.abs(covs)))
@@ -1963,14 +1963,14 @@ def validate_two_qubit_bs_unitarity(T_BS: float = np.pi / 4) -> bool:
 
 
 def validate_hold_unitarity(
-    T_hold: float = 1.0,
+    t_hold: float = 1.0,
     omega: float = 1.0,
     alpha: tuple[float, float, float, float] = (0.1, 0.0, 0.0, 0.0),
 ) -> bool:
     """Validate the hold unitary.
 
     Args:
-        T_hold: Holding time.
+        t_hold: Holding time.
         omega: Phase rate.
         alpha: Interaction coefficients.
 
@@ -1979,28 +1979,28 @@ def validate_hold_unitarity(
 
     """
     ops = build_two_qubit_operators()
-    U = hold_unitary_two_qubit(T_hold, omega, alpha, ops)
+    U = hold_unitary_two_qubit(t_hold, omega, alpha, ops)
     assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), "Hold must be unitary"
     return True
 
 
 def validate_sensitivity_reasonable(
-    T_hold_vals: list[float] | None = None,
+    t_hold_vals: list[float] | None = None,
 ) -> bool:
-    """Verify that sensitivity Δω ≈ 1/T_hold in the decoupled (α=0) case.
+    """Verify that sensitivity Δω ≈ 1/t_hold in the decoupled (α=0) case.
 
-    Checks that the analytically optimal configuration achieves Δω ≈ 1/T_hold
+    Checks that the analytically optimal configuration achieves Δω ≈ 1/t_hold
     when the interaction is off.
 
     Args:
-        T_hold_vals: Holding-time values to check.
+        t_hold_vals: Holding-time values to check.
 
     Returns:
         True if all checks pass.
 
     """
-    if T_hold_vals is None:
-        T_hold_vals = [0.5, 1.0, 2.0]
+    if t_hold_vals is None:
+        t_hold_vals = [0.5, 1.0, 2.0]
 
     ops = build_two_qubit_operators()
 
@@ -2013,14 +2013,14 @@ def validate_sensitivity_reasonable(
 
     psi0 = two_qubit_state(theta_S, phi_S, theta_A, phi_A)
 
-    for T_hold in T_hold_vals:
+    for t_hold in t_hold_vals:
         # Use θ_true = 1.0 (away from fringe extremum)
-        domega = compute_sensitivity(psi0, T_BS, T_BS, T_hold, 1.0, alpha, ops)
-        expected = 1.0 / T_hold
+        domega = compute_sensitivity(psi0, T_BS, T_BS, t_hold, 1.0, alpha, ops)
+        expected = 1.0 / t_hold
         # Relative tolerance 5% to account for finite-difference and
         # residual fringe effects
         assert np.isclose(domega, expected, rtol=0.05), (
-            f"Δω = {domega:.6f} for T_hold={T_hold}, expected ≈ {expected:.6f}"
+            f"Δω = {domega:.6f} for t_hold={t_hold}, expected ≈ {expected:.6f}"
         )
 
     return True
@@ -2057,7 +2057,7 @@ def validate_derivative_stability(
     psi0: np.ndarray,
     T_BS1: float,
     T_BS2: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
@@ -2074,7 +2074,7 @@ def validate_derivative_stability(
         psi0: Initial 4-vector (product state).
         T_BS1: First beam-splitter duration.
         T_BS2: Second beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Two-qubit operators (must contain 'Jz_S').
@@ -2094,7 +2094,7 @@ def validate_derivative_stability(
             psi0,
             T_BS1,
             T_BS2,
-            T_hold,
+            t_hold,
             omega_true,
             alpha,
             ops,
@@ -2157,24 +2157,24 @@ def compute_convergence_metric(
     return float(np.std(finite, ddof=1) / mean_val)
 
 
-def get_decoupled_sensitivity(T_hold: float, omega_true: float = 1.0) -> float:
+def get_decoupled_sensitivity(t_hold: float, omega_true: float = 1.0) -> float:
     """Compute the SQL sensitivity for the decoupled (α=0) case.
 
     Optimal configuration: system in |1,0⟩, 50/50 beam splitters, no interaction.
 
     Args:
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate.
 
     Returns:
-        Δω (ideally = 1/T_hold).
+        Δω (ideally = 1/t_hold).
 
     """
     ops = build_two_qubit_operators()
     psi0 = two_qubit_state(0.0, 0.0, 0.0, 0.0)  # both in |1,0⟩
     T_BS = np.pi / 2.0
     alpha = (0.0, 0.0, 0.0, 0.0)
-    return compute_sensitivity(psi0, T_BS, T_BS, T_hold, omega_true, alpha, ops)
+    return compute_sensitivity(psi0, T_BS, T_BS, t_hold, omega_true, alpha, ops)
 
 
 # ============================================================================
@@ -2334,7 +2334,7 @@ def scan_alpha_single_parameter(
     phi_A: float = 0.0,
     T_BS1: float = np.pi / 2,
     T_BS2: float = np.pi / 2,
-    T_hold: float = 1.0,
+    t_hold: float = 1.0,
     omega_true: float = 1.0,
     meas_op: np.ndarray | None = None,
 ) -> AlphaSingleScanResult:
@@ -2348,7 +2348,7 @@ def scan_alpha_single_parameter(
         - System: |ψ_S⟩ = (|0⟩ + |1⟩)/√2 (θ_S = π/2)
         - Ancilla: |ψ_A⟩ = |0⟩ (θ_A = 0)
         - Beam splitters: 50/50 (T_BS1 = T_BS2 = π/2)
-        - T_hold = 1.0, ω_true = 1.0
+        - t_hold = 1.0, ω_true = 1.0
 
     Args:
         alpha_name: Which coefficient to scan: 'xx', 'xz', 'zx', or 'zz'.
@@ -2361,7 +2361,7 @@ def scan_alpha_single_parameter(
         phi_A: Ancilla azimuthal angle (default 0.0).
         T_BS1: First beam-splitter duration (default π/2).
         T_BS2: Second beam-splitter duration (default π/2).
-        T_hold: Holding time (default 1.0).
+        t_hold: Holding time (default 1.0).
         omega_true: True phase rate (default 1.0).
         meas_op: Measurement operator. Defaults to ops['Jz_S'] (S-only).
 
@@ -2400,7 +2400,7 @@ def scan_alpha_single_parameter(
             psi0,
             T_BS1,
             T_BS2,
-            T_hold,
+            t_hold,
             omega_true,
             alpha,
             ops,
@@ -2415,7 +2415,7 @@ def scan_alpha_single_parameter(
         "phi_A": phi_A,
         "T_BS1": T_BS1,
         "T_BS2": T_BS2,
-        "T_hold": T_hold,
+        "t_hold": t_hold,
         "omega_true": omega_true,
     }
 
@@ -2438,7 +2438,7 @@ def random_search_alpha(
     phi_A: float = 0.0,
     T_BS1: float = np.pi / 2,
     T_BS2: float = np.pi / 2,
-    T_hold: float = 1.0,
+    t_hold: float = 1.0,
     omega_true: float = 1.0,
     seed: int | None = 42,
     meas_op: np.ndarray | None = None,
@@ -2447,7 +2447,7 @@ def random_search_alpha(
 
     This replicates the random search described in the report: "200 samples
     over the full 4D α space" to verify that no combination achieves
-    Δω < 1/T_hold (SQL).
+    Δω < 1/t_hold (SQL).
 
     Args:
         n_samples: Number of random α samples to evaluate (default 200).
@@ -2459,7 +2459,7 @@ def random_search_alpha(
         phi_A: Ancilla azimuthal angle (default 0.0).
         T_BS1: First beam-splitter duration (default π/2).
         T_BS2: Second beam-splitter duration (default π/2).
-        T_hold: Holding time (default 1.0).
+        t_hold: Holding time (default 1.0).
         omega_true: True phase rate (default 1.0).
         seed: Random seed for reproducibility (default 42).
         meas_op: Measurement operator. Defaults to ops['Jz_S'] (S-only).
@@ -2489,7 +2489,7 @@ def random_search_alpha(
             psi0,
             T_BS1,
             T_BS2,
-            T_hold,
+            t_hold,
             omega_true,
             alpha,
             ops,
@@ -2514,7 +2514,7 @@ def random_search_alpha(
         "phi_A": phi_A,
         "T_BS1": T_BS1,
         "T_BS2": T_BS2,
-        "T_hold": T_hold,
+        "t_hold": t_hold,
         "omega_true": omega_true,
     }
 
@@ -2528,25 +2528,25 @@ def random_search_alpha(
 
 
 # ============================================================================
-# Interaction Robustness Scan (T_hold × α)
+# Interaction Robustness Scan (t_hold × α)
 # ============================================================================
 
 
 @dataclass
 class InteractionRobustnessResult:
-    """Result from a 2D scan over T_hold and α values.
+    """Result from a 2D scan over t_hold and α values.
 
     Attributes:
-        T_hold_values: Array of T_hold holding-time values scanned.
+        t_hold_values: Array of t_hold holding-time values scanned.
         alpha_values: Array of α coefficient values scanned.
         delta_omega_joint: 2D array of Δω (joint measurement) for each
-            (T_hold, α) pair, shape (len(T_hold_values), len(alpha_values)).
+            (t_hold, α) pair, shape (len(t_hold_values), len(alpha_values)).
         delta_omega_sonly: 2D array of Δω (S-only measurement) for each
-            (T_hold, α) pair, shape (len(T_hold_values), len(alpha_values)).
+            (t_hold, α) pair, shape (len(t_hold_values), len(alpha_values)).
 
     """
 
-    T_hold_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    t_hold_values: np.ndarray = field(default_factory=lambda: np.array([]))
     alpha_values: np.ndarray = field(default_factory=lambda: np.array([]))
     delta_omega_joint: np.ndarray = field(default_factory=lambda: np.array([]))
     delta_omega_sonly: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -2555,16 +2555,16 @@ class InteractionRobustnessResult:
         """Melt the 2D arrays into a long-format DataFrame.
 
         Returns:
-            DataFrame with columns: T_hold, alpha, measurement, delta_omega.
+            DataFrame with columns: t_hold, alpha, measurement, delta_omega.
         """
-        n_T = len(self.T_hold_values)
+        n_T = len(self.t_hold_values)
         n_a = len(self.alpha_values)
         rows: list[dict[str, float | str]] = []
         for i in range(n_T):
             for j in range(n_a):
                 rows.append(
                     {
-                        "T_hold": float(self.T_hold_values[i]),
+                        "t_hold": float(self.t_hold_values[i]),
                         "alpha": float(self.alpha_values[j]),
                         "measurement": "joint",
                         "delta_omega": float(self.delta_omega_joint[i, j]),
@@ -2572,7 +2572,7 @@ class InteractionRobustnessResult:
                 )
                 rows.append(
                     {
-                        "T_hold": float(self.T_hold_values[i]),
+                        "t_hold": float(self.t_hold_values[i]),
                         "alpha": float(self.alpha_values[j]),
                         "measurement": "sonly",
                         "delta_omega": float(self.delta_omega_sonly[i, j]),
@@ -2589,28 +2589,28 @@ class InteractionRobustnessResult:
     @classmethod
     def from_parquet(cls, path: str | Path) -> InteractionRobustnessResult:
         df = pd.read_parquet(path)
-        required = {"T_hold", "alpha", "measurement", "delta_omega"}
+        required = {"t_hold", "alpha", "measurement", "delta_omega"}
         missing = required - set(df.columns)
         if missing:
             raise ValueError(
                 f"Parquet at {path} is missing required columns: "
                 f"{sorted(missing)}. Regenerate the file with the current code."
             )
-        T_hold_unique = sorted(df["T_hold"].unique())
+        t_hold_unique = sorted(df["t_hold"].unique())
         alpha_unique = sorted(df["alpha"].unique())
-        n_T = len(T_hold_unique)
+        n_T = len(t_hold_unique)
         n_a = len(alpha_unique)
         dtheta_j = np.full((n_T, n_a), np.nan)
         dtheta_s = np.full((n_T, n_a), np.nan)
         for _, row in df.iterrows():
-            i = T_hold_unique.index(row["T_hold"])
+            i = t_hold_unique.index(row["t_hold"])
             j = alpha_unique.index(row["alpha"])
             if row["measurement"] == "joint":
                 dtheta_j[i, j] = row["delta_omega"]
             else:
                 dtheta_s[i, j] = row["delta_omega"]
         return cls(
-            T_hold_values=np.array(T_hold_unique, dtype=float),
+            t_hold_values=np.array(t_hold_unique, dtype=float),
             alpha_values=np.array(alpha_unique, dtype=float),
             delta_omega_joint=dtheta_j,
             delta_omega_sonly=dtheta_s,
@@ -2618,7 +2618,7 @@ class InteractionRobustnessResult:
 
 
 def compute_interaction_robustness(
-    T_hold_values: np.ndarray,
+    t_hold_values: np.ndarray,
     alpha_values: np.ndarray,
     *,
     omega_true: float = 1.0,
@@ -2629,16 +2629,16 @@ def compute_interaction_robustness(
     phi_A: float = 0.0,
     T_BS: float = np.pi / 2,
 ) -> InteractionRobustnessResult:
-    """Scan over T_hold and a single α coefficient, recording sensitivity for
+    """Scan over t_hold and a single α coefficient, recording sensitivity for
     both S-only and joint measurements.
 
-    For each (T_hold, α) pair, the state and beam-splitter parameters are
+    For each (t_hold, α) pair, the state and beam-splitter parameters are
     held fixed while the holding-time strength and interaction coefficient
     are varied.  The sensitivity Δω is computed via `compute_sensitivity`
     for both measurement operators (S-only and joint).
 
     Args:
-        T_hold_values: Array of T_hold holding-time strengths to scan.
+        t_hold_values: Array of t_hold holding-time strengths to scan.
         alpha_values: Array of α coefficient values to scan (single
             coefficient determined by `alpha_name`).
         omega_true: True phase rate parameter (default 1.0).
@@ -2669,15 +2669,15 @@ def compute_interaction_robustness(
     M_op = build_joint_operator(ops)
     psi0 = two_qubit_state(theta_S, phi_S, theta_A, phi_A)
 
-    T_hold_arr = np.asarray(T_hold_values, dtype=float)
+    t_hold_arr = np.asarray(t_hold_values, dtype=float)
     alpha_arr = np.asarray(alpha_values, dtype=float)
-    n_T_hold = len(T_hold_arr)
+    n_t_hold = len(t_hold_arr)
     n_alpha = len(alpha_arr)
 
-    delta_omega_joint = np.full((n_T_hold, n_alpha), np.inf, dtype=float)
-    delta_omega_sonly = np.full((n_T_hold, n_alpha), np.inf, dtype=float)
+    delta_omega_joint = np.full((n_t_hold, n_alpha), np.inf, dtype=float)
+    delta_omega_sonly = np.full((n_t_hold, n_alpha), np.inf, dtype=float)
 
-    for i, T_hold in enumerate(T_hold_arr):
+    for i, t_hold in enumerate(t_hold_arr):
         for j, a_val in enumerate(alpha_arr):
             alpha_list = [0.0, 0.0, 0.0, 0.0]
             alpha_list[scan_idx] = a_val
@@ -2693,7 +2693,7 @@ def compute_interaction_robustness(
                 psi0,
                 T_BS,
                 T_BS,
-                T_hold,
+                t_hold,
                 omega_true,
                 alpha,
                 ops,
@@ -2706,7 +2706,7 @@ def compute_interaction_robustness(
                 psi0,
                 T_BS,
                 T_BS,
-                T_hold,
+                t_hold,
                 omega_true,
                 alpha,
                 ops,
@@ -2715,7 +2715,7 @@ def compute_interaction_robustness(
             delta_omega_joint[i, j] = dtheta_j
 
     return InteractionRobustnessResult(
-        T_hold_values=T_hold_arr,
+        t_hold_values=t_hold_arr,
         alpha_values=alpha_arr,
         delta_omega_joint=delta_omega_joint,
         delta_omega_sonly=delta_omega_sonly,

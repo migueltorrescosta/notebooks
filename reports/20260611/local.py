@@ -187,7 +187,7 @@ def n_particle_random_search(
         best_delta_omega=float(deltas[best_idx]),
         omega_value=omega,
         sql=sql_reference(N),
-        T_hold=T_HOLD,
+        t_hold=T_HOLD,
     )
 
 
@@ -202,7 +202,7 @@ def n_particle_sensitivity_objective(
     omega_true: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray,
-    T_hold: float = T_HOLD,
+    t_hold: float = T_HOLD,
     T_bs: float = T_BS,
     fd_step: float = FD_STEP,
     bounds: tuple[float, float] = DRIVE_BOUNDS,
@@ -218,7 +218,7 @@ def n_particle_sensitivity_objective(
         omega_true: True phase rate.
         ops: N-particle operators.
         psi0: Initial state vector.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_bs: Beam-splitter duration.
         fd_step: Finite-difference step.
         bounds: (min, max) for all parameters.
@@ -248,7 +248,7 @@ def n_particle_sensitivity_objective(
         N,
         psi0,
         T_bs,
-        T_hold,
+        t_hold,
         omega_true,
         ax,
         ay,
@@ -613,7 +613,7 @@ def generate_n_scaling_scan(force: bool = False) -> None:
     df = summary.to_dataframe()
     plot_n_scaling_ratio(df, fig_ratio_p)
     print(f"[fig]  {fig_ratio_p}")
-    plot_n_scaling_sensitivity(df, fig_sensitivity_p, T_hold=T_HOLD)
+    plot_n_scaling_sensitivity(df, fig_sensitivity_p, t_hold=T_HOLD)
     print(f"[fig]  {fig_sensitivity_p}")
     plot_n_scaling_optimal_params(df, fig_params_p)
     print(f"[fig]  {fig_params_p}")

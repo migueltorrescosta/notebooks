@@ -58,8 +58,8 @@ sns.set_theme(style="whitegrid")
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260610"
-T_hold: float = 10.0
-SQL: float = 1.0 / T_hold  # 0.1
+t_hold: float = 10.0
+SQL: float = 1.0 / t_hold  # 0.1
 FD_STEP: float = 1e-6
 T_BS: float = np.pi / 2.0
 
@@ -118,7 +118,7 @@ def compute_free_ancilla_modulated_sensitivity(
     a_z: float,
     a_zz: float,
     *,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
 ) -> tuple[float, float, float, float, bool]:
@@ -135,7 +135,7 @@ def compute_free_ancilla_modulated_sensitivity(
         a_y: Ancilla :math:`J_y` drive coefficient.
         a_z: Ancilla :math:`J_z` drive coefficient.
         a_zz: Ising interaction coefficient.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
 
@@ -151,7 +151,7 @@ def compute_free_ancilla_modulated_sensitivity(
     psi = evolve_phase_modulated_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         a_x,
         a_y,
@@ -165,7 +165,7 @@ def compute_free_ancilla_modulated_sensitivity(
     psi_plus = evolve_phase_modulated_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         a_x,
         a_y,
@@ -176,7 +176,7 @@ def compute_free_ancilla_modulated_sensitivity(
     psi_minus = evolve_phase_modulated_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         a_x,
         a_y,
@@ -219,7 +219,7 @@ class FreeAncillaModulatedSearchResult:
         best_delta_omega: The minimum :math:`\Delta\omega` found.
         omega_value: :math:`\omega` at which the search was performed.
         sql: SQL reference value.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         R: Norm-ball radius constraint.
     """
 
@@ -233,7 +233,7 @@ class FreeAncillaModulatedSearchResult:
     best_delta_omega: float
     omega_value: float = 1.0
     sql: float = SQL
-    T_hold: float = T_hold
+    t_hold: float = t_hold
     R: float = R_MAX
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -249,7 +249,7 @@ class FreeAncillaModulatedSearchResult:
         return pd.DataFrame(
             {
                 "omega_value": [self.omega_value] * n,
-                "T_hold": [self.T_hold] * n,
+                "t_hold": [self.t_hold] * n,
                 "sql": [self.sql] * n,
                 "R": [self.R] * n,
                 "theta_A": self.samples[:, 0],
@@ -279,7 +279,7 @@ class FreeAncillaModulatedSearchResult:
         df = pd.read_parquet(path)
         required = {
             "omega_value",
-            "T_hold",
+            "t_hold",
             "sql",
             "R",
             "theta_A",
@@ -337,7 +337,7 @@ class FreeAncillaModulatedSearchResult:
             best_delta_omega=float(deltas[best_idx]),
             omega_value=float(df["omega_value"].iloc[0]),
             sql=float(df["sql"].iloc[0]),
-            T_hold=float(df["T_hold"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
             R=float(df["R"].iloc[0]),
         )
 
@@ -356,8 +356,8 @@ class FreeAncillaModulatedNelderMeadResult:
         message: Optimiser message.
         expectation_Jz: :math:`\langle J_z^S\rangle` at the optimal point.
         variance_Jz: :math:`\mathrm{Var}(J_z^S)` at the optimal point.
-        T_hold: Holding-time strength.
-        sql: SQL = 1 / T_hold.
+        t_hold: Holding-time strength.
+        sql: SQL = 1 / t_hold.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         history: Objective function values at each iteration.
@@ -371,7 +371,7 @@ class FreeAncillaModulatedNelderMeadResult:
     message: str = ""
     expectation_Jz: float = 0.0
     variance_Jz: float = 0.0
-    T_hold: float = T_hold
+    t_hold: float = t_hold
     sql: float = SQL
     T_BS: float = T_BS
     fd_step: float = FD_STEP
@@ -387,7 +387,7 @@ class FreeAncillaModulatedNelderMeadResult:
                 "message": [self.message],
                 "expectation_Jz": [self.expectation_Jz],
                 "variance_Jz": [self.variance_Jz],
-                "T_hold": [self.T_hold],
+                "t_hold": [self.t_hold],
                 "sql": [self.sql],
                 "T_BS": [self.T_BS],
                 "fd_step": [self.fd_step],
@@ -427,7 +427,7 @@ class FreeAncillaModulatedNelderMeadResult:
             "message",
             "expectation_Jz",
             "variance_Jz",
-            "T_hold",
+            "t_hold",
             "sql",
             "T_BS",
             "fd_step",
@@ -469,7 +469,7 @@ class FreeAncillaModulatedNelderMeadResult:
             message=str(df["message"].iloc[0]),
             expectation_Jz=float(df["expectation_Jz"].iloc[0]),
             variance_Jz=float(df["variance_Jz"].iloc[0]),
-            T_hold=float(df["T_hold"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
             sql=float(df["sql"].iloc[0]),
             T_BS=float(df["T_BS"].iloc[0]),
             fd_step=float(df["fd_step"].iloc[0]),
@@ -486,10 +486,10 @@ class FreeAncillaModulatedOmegaScanResult:
         best_params_per_omega: List of optimal 6-param tuples.
         best_delta_omega_per_omega: Optimal :math:`\Delta\omega` for each
             :math:`\omega`.
-        sql_values: SQL = 1/T_hold for each :math:`\omega`.
+        sql_values: SQL = 1/t_hold for each :math:`\omega`.
         expectation_Jz_per_omega: :math:`\langle J_z^S\rangle` at each optimum.
         variance_Jz_per_omega: :math:`\mathrm{Var}(J_z^S)` at each optimum.
-        T_hold: Holding-time strength (same for all :math:`\omega`).
+        t_hold: Holding-time strength (same for all :math:`\omega`).
     """
 
     omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
@@ -506,7 +506,7 @@ class FreeAncillaModulatedOmegaScanResult:
     variance_Jz_per_omega: np.ndarray = field(
         default_factory=lambda: np.array([]),
     )
-    T_hold: float = T_hold
+    t_hold: float = t_hold
 
     def to_dataframe(self) -> pd.DataFrame:
         rows: list[dict[str, float | str]] = []
@@ -537,7 +537,7 @@ class FreeAncillaModulatedOmegaScanResult:
                     "omega": float(omega),
                     "best_delta_omega": best,
                     "sql": sql,
-                    "T_hold": self.T_hold,
+                    "t_hold": self.t_hold,
                     "ratio": best / sql
                     if np.isfinite(best) and sql > 0
                     else float("inf"),
@@ -569,7 +569,7 @@ class FreeAncillaModulatedOmegaScanResult:
             "omega",
             "best_delta_omega",
             "sql",
-            "T_hold",
+            "t_hold",
             "theta_A",
             "phi_A",
             "a_x",
@@ -609,7 +609,7 @@ class FreeAncillaModulatedOmegaScanResult:
             sql_values=sql,
             expectation_Jz_per_omega=exps,
             variance_Jz_per_omega=vars_,
-            T_hold=float(df["T_hold"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
         )
 
 
@@ -623,7 +623,7 @@ class FreeAncillaModulated2DSliceResult:
         delta_omega_grid: 2D array of :math:`\Delta\omega`, shape
             ``(len(theta_A_values), len(azz_values))``.
         omega_value: The :math:`\omega` value.
-        sql: SQL = 1/T_hold reference.
+        sql: SQL = 1/t_hold reference.
         fixed_drive_params: The fixed (a_x, a_y, a_z) tuple used.
     """
 
@@ -719,7 +719,7 @@ def free_ancilla_modulated_2d_slice(
     n_grid: int = STAGE1_N,
     fixed_drive: tuple[float, float, float] = (0.0, 0.0, 0.0),
     phi_A: float = 0.0,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     n_jobs: int | None = None,
@@ -735,7 +735,7 @@ def free_ancilla_modulated_2d_slice(
         n_grid: Number of points per axis (total grid = n_grid × n_grid).
         fixed_drive: Fixed ``(a_x, a_y, a_z)`` drive coefficients.
         phi_A: Fixed ancilla azimuthal angle (default 0).
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         n_jobs: Number of parallel workers. ``None`` = sequential.
@@ -760,7 +760,7 @@ def free_ancilla_modulated_2d_slice(
                     a_y,
                     a_z,
                     azz_vals[j],
-                    T_hold=T_hold,
+                    t_hold=t_hold,
                     T_BS=T_BS,
                     fd_step=fd_step,
                 )
@@ -776,7 +776,7 @@ def free_ancilla_modulated_2d_slice(
                 azz_vals,
                 fixed_drive,
                 phi_A,
-                T_hold,
+                t_hold,
                 T_BS,
                 fd_step,
                 int(chunk[0]),
@@ -801,7 +801,7 @@ def free_ancilla_modulated_2d_slice(
         azz_values=azz_vals,
         delta_omega_grid=grid,
         omega_value=omega,
-        sql=1.0 / T_hold,
+        sql=1.0 / t_hold,
         fixed_drive_params=fixed_drive,
     )
 
@@ -814,7 +814,7 @@ def _modulated_slice_worker(args: tuple) -> tuple[int, np.ndarray]:
         azz_vals,
         fixed_drive,
         phi_A,
-        T_hold,
+        t_hold,
         T_BS,
         fd_step,
         start_idx,
@@ -833,7 +833,7 @@ def _modulated_slice_worker(args: tuple) -> tuple[int, np.ndarray]:
                 a_y,
                 a_z,
                 a_val,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 T_BS=T_BS,
                 fd_step=fd_step,
             )
@@ -881,7 +881,7 @@ def free_ancilla_modulated_random_search(
     *,
     R: float = R_MAX,
     azz_bounds: tuple[float, float] = AZZ_BOUNDS,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     seed: int | None = 42,
@@ -893,7 +893,7 @@ def free_ancilla_modulated_random_search(
         n_samples: Number of random points to evaluate.
         R: Norm-ball radius for (a_x, a_y, a_z).
         azz_bounds: (min, max) for a_zz.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         seed: Random seed for reproducibility.
@@ -927,7 +927,7 @@ def free_ancilla_modulated_random_search(
                 a_y,
                 a_z,
                 a_zz,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 T_BS=T_BS,
                 fd_step=fd_step,
             )
@@ -958,8 +958,8 @@ def free_ancilla_modulated_random_search(
         best_params=best_params,
         best_delta_omega=float(deltas[best_idx]),
         omega_value=omega,
-        sql=1.0 / T_hold,
-        T_hold=T_hold,
+        sql=1.0 / t_hold,
+        t_hold=t_hold,
         R=R,
     )
 
@@ -972,7 +972,7 @@ def free_ancilla_modulated_random_search(
 def _modulated_6d_objective(
     params: np.ndarray,
     omega_true: float,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     a_zz_penalty_lo: float = AZZ_BOUNDS[0],
@@ -987,7 +987,7 @@ def _modulated_6d_objective(
     Args:
         params: 6-element parameter vector.
         omega_true: True phase rate.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step.
         a_zz_penalty_lo: Lower bound for a_zz.
@@ -1042,7 +1042,7 @@ def _modulated_6d_objective(
         a_y,
         a_z,
         a_zz,
-        T_hold=T_hold,
+        t_hold=t_hold,
         T_BS=T_BS,
         fd_step=fd_step,
     )
@@ -1057,7 +1057,7 @@ def run_modulated_nelder_mead(
     xatol: float = 1e-8,
     fatol: float = 1e-8,
     adaptive: bool = True,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     track_history: bool = False,
@@ -1072,7 +1072,7 @@ def run_modulated_nelder_mead(
         xatol: Absolute parameter tolerance.
         fatol: Absolute function tolerance.
         adaptive: Use adaptive Nelder-Mead parameters.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         track_history: If True, record objective values per iteration.
@@ -1104,7 +1104,7 @@ def run_modulated_nelder_mead(
         return _modulated_6d_objective(
             p,
             omega_true,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             fd_step=fd_step,
         )
@@ -1139,7 +1139,7 @@ def run_modulated_nelder_mead(
             float(opt_params[1]),
         ),
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         float(opt_params[2]),
         float(opt_params[3]),
@@ -1158,8 +1158,8 @@ def run_modulated_nelder_mead(
         message=str(result.message),
         expectation_Jz=exp_val,
         variance_Jz=var_val,
-        T_hold=T_hold,
-        sql=1.0 / T_hold,
+        t_hold=t_hold,
+        sql=1.0 / t_hold,
         T_BS=T_BS,
         fd_step=fd_step,
         history=history.copy(),
@@ -1177,7 +1177,7 @@ def run_modulated_omega_scan(
     n_nm_refine: int = N_NM_REFINE,
     seed: int | None = 42,
     maxiter: int = 5000,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     R: float = R_MAX,
     azz_bounds: tuple[float, float] = AZZ_BOUNDS,
@@ -1196,7 +1196,7 @@ def run_modulated_omega_scan(
         n_nm_refine: Number of Nelder-Mead refinements per ω.
         seed: Base random seed (incremented per ω).
         maxiter: Maximum Nelder-Mead iterations.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         R: Norm-ball radius.
         azz_bounds: (min, max) for a_zz.
@@ -1220,7 +1220,7 @@ def run_modulated_omega_scan(
             n_samples=n_random,
             R=R,
             azz_bounds=azz_bounds,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             seed=base_seed + int(omega_val * 1000),
         )
@@ -1238,7 +1238,7 @@ def run_modulated_omega_scan(
                 x0=x0,
                 seed=base_seed + int(omega_val * 1000) + 10000 + rank,
                 maxiter=maxiter,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 T_BS=T_BS,
                 track_history=False,
             )
@@ -1258,7 +1258,7 @@ def run_modulated_omega_scan(
             )
         )
         best_deltas.append(best_nm.delta_omega_opt)
-        sql_vals.append(1.0 / T_hold)
+        sql_vals.append(1.0 / t_hold)
         exp_vals.append(best_nm.expectation_Jz)
         var_vals.append(best_nm.variance_Jz)
 
@@ -1269,7 +1269,7 @@ def run_modulated_omega_scan(
         sql_values=np.array(sql_vals, dtype=float),
         expectation_Jz_per_omega=np.array(exp_vals, dtype=float),
         variance_Jz_per_omega=np.array(var_vals, dtype=float),
-        T_hold=T_hold,
+        t_hold=t_hold,
     )
 
 
@@ -1703,7 +1703,7 @@ def generate_omega_scan(force: bool = False) -> None:
         ]
         exp_vals = [float(r["expectation_Jz"]) for r in per_omega_results]
         var_vals = [float(r["variance_Jz"]) for r in per_omega_results]
-        sql_vals = [1.0 / T_hold] * len(omega_arr)
+        sql_vals = [1.0 / t_hold] * len(omega_arr)
 
         result = FreeAncillaModulatedOmegaScanResult(
             omega_values=omega_arr,
@@ -1712,7 +1712,7 @@ def generate_omega_scan(force: bool = False) -> None:
             sql_values=np.array(sql_vals, dtype=float),
             expectation_Jz_per_omega=np.array(exp_vals, dtype=float),
             variance_Jz_per_omega=np.array(var_vals, dtype=float),
-            T_hold=T_hold,
+            t_hold=t_hold,
         )
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")

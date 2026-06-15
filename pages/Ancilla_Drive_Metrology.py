@@ -50,7 +50,7 @@ st.title("⚡ Ancilla-Drive-Enhanced Metrology")
 st.markdown(
     r"""
     **Testing whether an actively driven ancilla can beat the standard quantum limit
-    $\Delta\omega_{\text{SQL}} = 1/T_hold$ using only a single particle in the interferometer.**
+    $\Delta\omega_{\text{SQL}} = 1/t_hold$ using only a single particle in the interferometer.**
 
     The circuit: BS$_S$ → Hold($\omega, H_A, H_{\text{int}}$) → BS$_S$ → Measure $J_z^S$.
     """,
@@ -93,14 +93,14 @@ with st.sidebar:
         format="%.2f",
         help="Unknown phase rate parameter being estimated.",
     )
-    T_hold = st.number_input(
-        r"$T_hold$ (holding time)",
+    t_hold = st.number_input(
+        r"$t_hold$ (holding time)",
         min_value=0.1,
         max_value=50.0,
         value=10.0,
         step=1.0,
         format="%.1f",
-        help="Holding time: SQL reference Δω_SQL = 1/T_hold.",
+        help="Holding time: SQL reference Δω_SQL = 1/t_hold.",
     )
     T_BS = st.number_input(
         r"$T_{\mathrm{BS}}$ (BS duration)",
@@ -170,7 +170,7 @@ with tab_single:
             - $\omega = {omega:.2f}$
             - $a_x = {a_x:.2f}$, $a_y = {a_y:.2f}$, $a_z = {a_z:.2f}$
             - $a_{{zz}} = {a_zz:.2f}$
-            - $T_hold = {T_hold:.1f}$, SQL $= 1/T_hold = {1.0 / T_hold:.4f}$
+            - $t_hold = {t_hold:.1f}$, SQL $= 1/t_hold = {1.0 / t_hold:.4f}$
             """,
         )
 
@@ -181,7 +181,7 @@ with tab_single:
             domega = compute_drive_sensitivity(
                 np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
                 T_BS,
-                T_hold,
+                t_hold,
                 omega,
                 a_x,
                 a_y,
@@ -195,7 +195,7 @@ with tab_single:
             psi_final = evolve_drive_circuit(
                 np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
                 T_BS,
-                T_hold,
+                t_hold,
                 omega,
                 a_x,
                 a_y,
@@ -207,7 +207,7 @@ with tab_single:
                 psi_final, ops_local["Jz_S"]
             )
 
-        sql = 1.0 / T_hold
+        sql = 1.0 / t_hold
         ratio = domega / sql if np.isfinite(domega) else float("inf")
 
         col2.metric(
@@ -221,7 +221,7 @@ with tab_single:
             | Quantity | Value |
             |----------|-------|
             | $\Delta\omega$ | {domega:.6f} |
-            | SQL $= 1/T_hold$ | {sql:.6f} |
+            | SQL $= 1/t_hold$ | {sql:.6f} |
             | Ratio $\Delta\omega / \text{{SQL}}$ | {ratio:.4f} |
             | $\langle J_z^S \rangle$ | {exp_val:.6f} |
             | $\text{{Var}}(J_z^S)$ | {var_val:.10f} |
@@ -252,7 +252,7 @@ with tab_2d:
         r"""
         Scan over $(a_{\text{drive}}, a_{zz})$ at fixed $\omega$ to identify
         promising parameter regions. The red contour marks the SQL bound
-        $\Delta\omega = 1/T_hold$. Points below this contour beat the SQL.
+        $\Delta\omega = 1/t_hold$. Points below this contour beat the SQL.
         """,
     )
 
@@ -287,7 +287,7 @@ with tab_2d:
                     slice_type="ax" if slice_type == "a_x" else "ay",
                     n_drive=n_grid,
                     n_azz=n_grid,
-                    T_hold=T_hold,
+                    t_hold=t_hold,
                     T_BS=T_BS,
                 )
                 t_elapsed = time.time() - t0
@@ -304,7 +304,7 @@ with tab_2d:
             st.markdown(
                 rf"""
                 **Best point**: ${slice_type}^* = {best_drive:.3f}$, $a_{{zz}}^* = {best_azz:.3f}$,
-                $\Delta\omega = {best_dt:.6f}$ (SQL $= {1.0 / T_hold:.4f}$)
+                $\Delta\omega = {best_dt:.6f}$ (SQL $= {1.0 / t_hold:.4f}$)
                 """,
             )
 
@@ -380,12 +380,12 @@ with tab_search:
                     omega=rs_omega,
                     n_samples=rs_n,
                     seed=42,
-                    T_hold=T_hold,
+                    t_hold=t_hold,
                     T_BS=T_BS,
                 )
                 t_elapsed = time.time() - t0
 
-            sql = 1.0 / T_hold
+            sql = 1.0 / t_hold
             best = rs_result.best_delta_omega
             n_below_sql = int(np.sum(rs_result.delta_omega_values < sql))
 
@@ -411,7 +411,7 @@ with tab_search:
                     nm_result = run_drive_nelder_mead(
                         omega_true=rs_omega,
                         x0=np.array(rs_result.best_params),
-                        T_hold=T_hold,
+                        t_hold=t_hold,
                         T_BS=T_BS,
                         maxiter=2000,
                     )
@@ -518,12 +518,12 @@ with tab_theta:
                     n_nm_refine=ts_n_refine,
                     seed=42,
                     maxiter=2000,
-                    T_hold=T_hold,
+                    t_hold=t_hold,
                     T_BS=T_BS,
                 )
                 t_elapsed = time.time() - t0
 
-            sql = 1.0 / T_hold
+            sql = 1.0 / t_hold
             st.success(f"Completed in {t_elapsed:.1f}s")
 
             # Results table
@@ -586,7 +586,7 @@ with tab_about:
         **Circuit**:
         $$
         |\Psi_{\text{final}}\rangle = U_{\text{BS}}^{(S)} \,
-        e^{-i T_hold (\omega J_z^S + H_A + H_{\text{int}})} \,
+        e^{-i t_hold (\omega J_z^S + H_A + H_{\text{int}})} \,
         U_{\text{BS}}^{(S)} \, |00\rangle
         $$
 
@@ -595,7 +595,7 @@ with tab_about:
 
         **Hypothesis**: An actively driven ancilla ($H_A \neq 0$ with at least
         one non-commuting component $a_x \neq 0$ or $a_y \neq 0$) can generate
-        $\Delta\omega < 1/T_hold$ (beating the SQL) even with only $N=1$ particle
+        $\Delta\omega < 1/t_hold$ (beating the SQL) even with only $N=1$ particle
         in the interferometer.
 
         **Key predictions**:
@@ -623,7 +623,7 @@ with tab_about:
             - **Unitarity**: $U^\dagger U = \mathbb{1}$ for BS and hold unitaries
             - **Hermiticity**: $H^\dagger = H$ for all Hamiltonians
             - **Variance positivity**: $\text{Var}(J_z^S) \geq 0$
-            - **SQL baseline recovery**: $\Delta\omega = 1/T_hold$ exactly at
+            - **SQL baseline recovery**: $\Delta\omega = 1/t_hold$ exactly at
               $(a_x, a_y, a_z, a_{zz}) = (0, 0, 0, 0)$
             """,
         )

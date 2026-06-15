@@ -71,9 +71,9 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-DEFAULT_T_hold: float = 10.0  # Holding time (SQL = 0.1)
+DEFAULT_t_hold: float = 10.0  # Holding time (SQL = 0.1)
 DEFAULT_PSI0: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)  # |00⟩
-SQL_REFERENCE: float = 1.0 / DEFAULT_T_hold  # Δω_SQL = 0.1
+SQL_REFERENCE: float = 1.0 / DEFAULT_t_hold  # Δω_SQL = 0.1
 ALPHA_BOUNDS: tuple[float, float] = (-20.0, 20.0)  # Range for all α coefficients
 N_BFGS_STARTS: int = 100  # Number of L-BFGS-B random starts per ω
 OMEGA_VALS: list[float] = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
@@ -113,18 +113,18 @@ def build_general_hold_hamiltonian(
 
 
 def general_hold_unitary(
-    T_hold: float,
+    t_hold: float,
     omega: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
     """Holding-time unitary for the general-interaction protocol.
 
-    U_hold(T_hold) = exp(-i T_hold H)
+    U_hold(t_hold) = exp(-i t_hold H)
     where H = ω (J_z^S + J_z^A) + H_int(α).
 
     Args:
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: True phase rate parameter.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Two-qubit operators from build_two_qubit_operators().
@@ -133,9 +133,9 @@ def general_hold_unitary(
         4×4 unitary matrix.
     """
     H = build_general_hold_hamiltonian(omega, alpha, ops)
-    U = expm(-1j * T_hold * H)
+    U = expm(-1j * t_hold * H)
     assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
-        f"Hold unitary not unitary for T_hold={T_hold}, ω={omega}, α={alpha}"
+        f"Hold unitary not unitary for t_hold={t_hold}, ω={omega}, α={alpha}"
     )
     return U
 
@@ -148,19 +148,19 @@ def general_hold_unitary(
 def evolve_general_circuit(
     psi0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
 ) -> np.ndarray:
     """Run the full general-interaction MZI circuit.
 
-    |ψ_final⟩ = U_BS_S · U_hold(T_hold) · U_BS_S · |ψ₀⟩
+    |ψ_final⟩ = U_BS_S · U_hold(t_hold) · U_BS_S · |ψ₀⟩
 
     Args:
         psi0: Initial 4-vector (must be normalised).
         T_BS: Beam-splitter duration (both BS identical).
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega: Phase rate parameter.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Two-qubit operators.
@@ -172,7 +172,7 @@ def evolve_general_circuit(
 
     U_bs = system_only_bs_unitary(T_BS)
     psi = U_bs @ psi0
-    psi = general_hold_unitary(T_hold, omega, alpha, ops) @ psi
+    psi = general_hold_unitary(t_hold, omega, alpha, ops) @ psi
     psi = U_bs @ psi
 
     assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
@@ -243,7 +243,7 @@ def compute_reduced_expectation(psi: np.ndarray) -> float:
 def compute_general_sensitivity(
     psi0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
@@ -259,7 +259,7 @@ def compute_general_sensitivity(
     Args:
         psi0: Initial 4-vector (product state).
         T_BS: Beam-splitter duration.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate parameter.
         alpha: (α_xx, α_xz, α_zx, α_zz) coupling coefficients.
         ops: Two-qubit operators.
@@ -269,14 +269,14 @@ def compute_general_sensitivity(
         Sensitivity Δω (positive float). Returns inf if derivative is zero.
     """
     # Evaluate at omega_true
-    psi = evolve_general_circuit(psi0, T_BS, T_hold, omega_true, alpha, ops)
+    psi = evolve_general_circuit(psi0, T_BS, t_hold, omega_true, alpha, ops)
     var = compute_reduced_variance(psi)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂ω
     psi_plus = evolve_general_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         alpha,
         ops,
@@ -284,7 +284,7 @@ def compute_general_sensitivity(
     psi_minus = evolve_general_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         alpha,
         ops,
@@ -303,7 +303,7 @@ def compute_general_sensitivity(
 def compute_general_sensitivity_with_diagnostics(
     psi0: np.ndarray,
     T_BS: float,
-    T_hold: float,
+    t_hold: float,
     omega_true: float,
     alpha: tuple[float, float, float, float],
     ops: dict[str, np.ndarray],
@@ -315,7 +315,7 @@ def compute_general_sensitivity_with_diagnostics(
         Tuple (delta_omega, expectation_Jz, variance_Jz, d_exp_d_omega).
     """
     # Evaluate at omega_true
-    psi = evolve_general_circuit(psi0, T_BS, T_hold, omega_true, alpha, ops)
+    psi = evolve_general_circuit(psi0, T_BS, t_hold, omega_true, alpha, ops)
     var = compute_reduced_variance(psi)
     exp_val = compute_reduced_expectation(psi)
 
@@ -323,7 +323,7 @@ def compute_general_sensitivity_with_diagnostics(
     psi_plus = evolve_general_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         alpha,
         ops,
@@ -331,7 +331,7 @@ def compute_general_sensitivity_with_diagnostics(
     psi_minus = evolve_general_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         alpha,
         ops,
@@ -357,7 +357,7 @@ def _general_sensitivity_objective(
     alpha_params: np.ndarray,
     omega_true: float,
     ops: dict[str, np.ndarray],
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
     psi0: np.ndarray = DEFAULT_PSI0,
     fd_step: float = 1e-6,
@@ -366,13 +366,13 @@ def _general_sensitivity_objective(
 
     f(α) = Δω(α; ω_true)  (to be minimised)
 
-    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed T_hold.
+    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed t_hold.
 
     Args:
         alpha_params: 4-element array [α_xx, α_xz, α_zx, α_zz].
         omega_true: True phase rate parameter.
         ops: Two-qubit operators.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         psi0: Initial state vector.
         fd_step: Finite-difference step.
@@ -389,7 +389,7 @@ def _general_sensitivity_objective(
     return compute_general_sensitivity(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         alpha,
         ops,
@@ -410,7 +410,7 @@ class GeneralBFGSOptimizationResult:
         omega_value: ω at which the optimisation was performed.
         alpha_opt: Optimal (α_xx, α_xz, α_zx, α_zz) found.
         delta_omega_opt: Minimal Δω found.
-        sql: SQL = 1/T_hold reference value.
+        sql: SQL = 1/t_hold reference value.
         expectation_Jz: ⟨J_z^S⟩ at the optimal point.
         variance_Jz: Var(J_z^S) at the optimal point.
         d_exp_d_omega: ∂⟨J_z^S⟩/∂ω at the optimal point.
@@ -510,7 +510,7 @@ class GeneralOmegaScanResult:
         alpha_zx_opt_per_omega: Optimal α_zx for each ω value.
         alpha_zz_opt_per_omega: Optimal α_zz for each ω value.
         delta_omega_opt_per_omega: Optimal Δω for each ω value.
-        sql_values: SQL = 1/T_hold for each ω.
+        sql_values: SQL = 1/t_hold for each ω.
         expectation_Jz_per_omega: ⟨J_z^S⟩ at each optimal point.
         variance_Jz_per_omega: Var(J_z^S) at each optimal point.
         d_exp_d_omega_per_omega: ∂⟨J_z^S⟩/∂ω at each optimal point.
@@ -671,18 +671,18 @@ class GeneralOmegaScanResult:
 
 
 def compute_general_decoupled_baseline(
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     omega_true: float = 1.0,
 ) -> DriveDecoupledBaselineResult:
     """Compute the decoupled baseline sensitivity Δω.
 
     At α = (0, 0, 0, 0), the circuit reduces to a standard single-qubit MZI
-    with |1,0⟩ input and 50/50 BS on the system, giving Δω = 1/T_hold.
+    with |1,0⟩ input and 50/50 BS on the system, giving Δω = 1/t_hold.
     The ancilla evolves independently under ω J_z^A and is traced out,
     contributing nothing.
 
     Args:
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         omega_true: True phase rate.
 
     Returns:
@@ -693,15 +693,15 @@ def compute_general_decoupled_baseline(
     domega = compute_general_sensitivity(
         DEFAULT_PSI0,
         DEFAULT_T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         alpha,
         ops,
     )
     return DriveDecoupledBaselineResult(
-        T_hold_value=T_hold,
+        t_hold_value=t_hold,
         delta_omega=domega,
-        sql=1.0 / T_hold,
+        sql=1.0 / t_hold,
     )
 
 
@@ -714,7 +714,7 @@ def run_general_bfgs_optimization(
     omega_true: float,
     alpha_bounds: tuple[float, float] = ALPHA_BOUNDS,
     n_starts: int = N_BFGS_STARTS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
     fd_step: float = 1e-6,
     seed: int | None = 42,
@@ -732,7 +732,7 @@ def run_general_bfgs_optimization(
         omega_true: True phase rate parameter.
         alpha_bounds: (min, max) for all α coefficients.
         n_starts: Number of random starts.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step.
         seed: Base random seed (incremented per start).
@@ -758,7 +758,7 @@ def run_general_bfgs_optimization(
         result = minimize(
             _general_sensitivity_objective,
             x0,
-            args=(omega_true, ops, T_hold, T_BS, DEFAULT_PSI0, fd_step),
+            args=(omega_true, ops, t_hold, T_BS, DEFAULT_PSI0, fd_step),
             method="L-BFGS-B",
             bounds=bounds_ls,
             options={
@@ -785,7 +785,7 @@ def run_general_bfgs_optimization(
     _, exp_val, var_val, d_exp = compute_general_sensitivity_with_diagnostics(
         DEFAULT_PSI0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         best_alpha,
         ops,
@@ -796,7 +796,7 @@ def run_general_bfgs_optimization(
         omega_value=omega_true,
         alpha_opt=best_alpha,
         delta_omega_opt=best_delta,
-        sql=1.0 / T_hold,
+        sql=1.0 / t_hold,
         expectation_Jz=exp_val,
         variance_Jz=var_val,
         d_exp_d_omega=d_exp,
@@ -814,7 +814,7 @@ def run_general_omega_scan(
     omega_values: list[float] | np.ndarray,
     alpha_bounds: tuple[float, float] = ALPHA_BOUNDS,
     n_starts: int = N_BFGS_STARTS,
-    T_hold: float = DEFAULT_T_hold,
+    t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
     fd_step: float = 1e-6,
     seed: int | None = 42,
@@ -830,7 +830,7 @@ def run_general_omega_scan(
         omega_values: ω values to scan.
         alpha_bounds: (min, max) for all α coefficients.
         n_starts: Number of random starts per ω.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step.
         seed: Base random seed.
@@ -848,7 +848,7 @@ def run_general_omega_scan(
     a_zx_opts = np.full(n_omega, np.nan, dtype=float)
     a_zz_opts = np.full(n_omega, np.nan, dtype=float)
     best_deltas = np.full(n_omega, np.inf, dtype=float)
-    sql_vals = np.full(n_omega, 1.0 / T_hold, dtype=float)
+    sql_vals = np.full(n_omega, 1.0 / t_hold, dtype=float)
     exp_vals = np.zeros(n_omega, dtype=float)
     var_vals = np.zeros(n_omega, dtype=float)
     d_exp_vals = np.zeros(n_omega, dtype=float)
@@ -859,7 +859,7 @@ def run_general_omega_scan(
             omega_true=omega,
             alpha_bounds=alpha_bounds,
             n_starts=n_starts,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             fd_step=fd_step,
             seed=seed,

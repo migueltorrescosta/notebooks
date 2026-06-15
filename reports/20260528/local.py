@@ -57,8 +57,8 @@ sns.set_theme(style="whitegrid")
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260528"
-T_hold: float = 10.0
-SQL: float = 1.0 / T_hold  # 0.1
+t_hold: float = 10.0
+SQL: float = 1.0 / t_hold  # 0.1
 FD_STEP: float = 1e-6
 T_BS: float = np.pi / 2.0
 
@@ -136,7 +136,7 @@ def compute_free_ancilla_sensitivity(
     a_z: float,
     a_zz: float,
     *,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
 ) -> tuple[float, float, float, float, bool]:
@@ -154,7 +154,7 @@ def compute_free_ancilla_sensitivity(
         a_y: Ancilla J_y drive coefficient.
         a_z: Ancilla J_z drive coefficient.
         a_zz: Ising interaction coefficient.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
 
@@ -167,14 +167,14 @@ def compute_free_ancilla_sensitivity(
     meas_op = ops["Jz_S"]
 
     # Evaluate at omega_true
-    psi = evolve_drive_circuit(psi0, T_BS, T_hold, omega_true, a_x, a_y, a_z, a_zz, ops)
+    psi = evolve_drive_circuit(psi0, T_BS, t_hold, omega_true, a_x, a_y, a_z, a_zz, ops)
     exp_val, var_val = compute_expectation_and_variance(psi, meas_op)
 
     # Central finite difference for ∂⟨O⟩/∂θ
     psi_plus = evolve_drive_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true + fd_step,
         a_x,
         a_y,
@@ -185,7 +185,7 @@ def compute_free_ancilla_sensitivity(
     psi_minus = evolve_drive_circuit(
         psi0,
         T_BS,
-        T_hold,
+        t_hold,
         omega_true - fd_step,
         a_x,
         a_y,
@@ -385,7 +385,7 @@ class FreeAncillaSearchResult:
         best_delta_omega: The minimum :math:`\\Delta\\omega` found.
         omega_value: :math:`\\omega` at which the search was performed.
         sql: SQL reference value.
-        T_hold: Holding-time strength.
+        t_hold: Holding-time strength.
         R: Norm-ball radius constraint.
         scenario: Scenario label (``'A'``, ``'B'``, ``'C'``, or ``'D'``).
     """
@@ -400,7 +400,7 @@ class FreeAncillaSearchResult:
     best_delta_omega: float
     omega_value: float = 1.0
     sql: float = SQL
-    T_hold: float = T_hold
+    t_hold: float = t_hold
     R: float = R_MAX
     scenario: str = "B"
 
@@ -422,7 +422,7 @@ class FreeAncillaSearchResult:
         return pd.DataFrame(
             {
                 "omega_value": [self.omega_value] * n,
-                "T_hold": [self.T_hold] * n,
+                "t_hold": [self.t_hold] * n,
                 "sql": [self.sql] * n,
                 "scenario": [self.scenario] * n,
                 "R": [self.R] * n,
@@ -453,7 +453,7 @@ class FreeAncillaSearchResult:
         df = pd.read_parquet(path)
         required = {
             "omega_value",
-            "T_hold",
+            "t_hold",
             "sql",
             "scenario",
             "R",
@@ -510,7 +510,7 @@ class FreeAncillaSearchResult:
             best_delta_omega=float(deltas[best_idx]),
             omega_value=float(df["omega_value"].iloc[0]),
             sql=float(df["sql"].iloc[0]),
-            T_hold=float(df["T_hold"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
             R=float(df["R"].iloc[0]),
             scenario=str(df["scenario"].iloc[0]),
         )
@@ -663,7 +663,7 @@ class FreeAncillaOmegaScanResult:
         best_params_per_omega: List of optimal full 6-param tuples.
         best_delta_omega_per_omega: Optimal :math:`\\Delta\\omega` for each
             :math:`\\omega`.
-        sql_values: SQL = 1/T_hold for each :math:`\\omega`.
+        sql_values: SQL = 1/t_hold for each :math:`\\omega`.
         expectation_Jz_per_omega: :math:`\\langle J_z^S\rangle` at each optimum.
         variance_Jz_per_omega: :math:`\text{Var}(J_z^S)` at each optimum.
         scenario: Scenario label.
@@ -799,7 +799,7 @@ class FreeAncilla2DSliceResult:
         delta_omega_grid: 2D array of :math:`\\Delta\\omega`, shape
             ``(len(theta_A_values), len(azz_values))``.
         omega_value: The :math:`\\omega` value.
-        sql: SQL = 1/T_hold reference.
+        sql: SQL = 1/t_hold reference.
     """
 
     theta_A_values: np.ndarray
@@ -870,7 +870,7 @@ def free_ancilla_random_search(
     *,
     R: float = R_MAX,
     azz_bounds: tuple[float, float] = AZZ_BOUNDS,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     seed: int | None = 42,
@@ -883,7 +883,7 @@ def free_ancilla_random_search(
         n_samples: Number of random points to evaluate.
         R: Norm-ball radius for (a_x, a_y, a_z).
         azz_bounds: (min, max) for a_zz.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         seed: Random seed for reproducibility.
@@ -922,7 +922,7 @@ def free_ancilla_random_search(
             a_y,
             a_z,
             a_zz,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             fd_step=fd_step,
         )
@@ -952,8 +952,8 @@ def free_ancilla_random_search(
         best_params=best_params,
         best_delta_omega=float(deltas[best_idx]),
         omega_value=omega,
-        sql=1.0 / T_hold,
-        T_hold=T_hold,
+        sql=1.0 / t_hold,
+        t_hold=t_hold,
         R=R,
         scenario=scenario,
     )
@@ -1017,7 +1017,7 @@ def _free_ancilla_objective(
     omega_true: float,
     scenario: str,
     ops: dict[str, np.ndarray],
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     bounds: tuple[float, float] = (-5.0, 5.0),
@@ -1030,7 +1030,7 @@ def _free_ancilla_objective(
         omega_true: True phase rate.
         scenario: Scenario label.
         ops: Two-qubit operators.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step.
         bounds: (min, max) for any scalar parameter.
@@ -1072,7 +1072,7 @@ def _free_ancilla_objective(
         a_y,
         a_z,
         a_zz,
-        T_hold=T_hold,
+        t_hold=t_hold,
         T_BS=T_BS,
         fd_step=fd_step,
     )
@@ -1089,7 +1089,7 @@ def run_free_ancilla_nelder_mead(
     fatol: float = 1e-8,
     adaptive: bool = True,
     bounds: tuple[float, float] = (-5.0, 5.0),
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     track_history: bool = False,
 ) -> FreeAncillaNelderMeadResult:
@@ -1105,7 +1105,7 @@ def run_free_ancilla_nelder_mead(
         fatol: Absolute function tolerance.
         adaptive: Use adaptive Nelder--Mead parameters.
         bounds: (min, max) for all scalar parameters.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         track_history: If True, record objective values per iteration.
 
@@ -1136,7 +1136,7 @@ def run_free_ancilla_nelder_mead(
             omega_true,
             scenario,
             ops,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             bounds=bounds,
         )
@@ -1169,7 +1169,7 @@ def run_free_ancilla_nelder_mead(
     psi_final = evolve_drive_circuit(
         free_ancilla_initial_state(theta_A, phi_A),
         T_BS,
-        T_hold,
+        t_hold,
         omega_true,
         a_x,
         a_y,
@@ -1209,7 +1209,7 @@ def run_free_ancilla_omega_scan(
     bounds: tuple[float, float] = (-5.0, 5.0),
     R: float = R_MAX,
     azz_bounds: tuple[float, float] = AZZ_BOUNDS,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
 ) -> FreeAncillaOmegaScanResult:
     r"""Scan over :math:`\omega` values with random search + NM refinement.
@@ -1230,7 +1230,7 @@ def run_free_ancilla_omega_scan(
         bounds: (min, max) for all scalar parameters.
         R: Norm-ball radius.
         azz_bounds: (min, max) for a_zz.
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
 
     Returns:
@@ -1253,7 +1253,7 @@ def run_free_ancilla_omega_scan(
             n_samples=n_random,
             R=R,
             azz_bounds=azz_bounds,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
             seed=base_seed + int(omega * 1000),
         )
@@ -1287,7 +1287,7 @@ def run_free_ancilla_omega_scan(
                 seed=base_seed + int(omega * 1000) + 10000 + rank,
                 maxiter=maxiter,
                 bounds=bounds,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 T_BS=T_BS,
                 track_history=False,
             )
@@ -1299,7 +1299,7 @@ def run_free_ancilla_omega_scan(
 
         best_params_list.append(best_nm.full_params_opt)
         best_deltas.append(best_nm.delta_omega_opt)
-        sql_vals.append(1.0 / T_hold)
+        sql_vals.append(1.0 / t_hold)
         exp_vals.append(best_nm.expectation_Jz)
         var_vals.append(best_nm.variance_Jz)
 
@@ -1323,13 +1323,13 @@ def _free_ancilla_slice_worker(args: tuple) -> tuple[int, np.ndarray]:
     """Worker for parallel (theta_A, a_zz) slice evaluation.
 
     Args:
-        args: Tuple ``(omega, theta_A_chunk, azz_vals, T_hold, T_BS, fd_step, start_idx)``.
+        args: Tuple ``(omega, theta_A_chunk, azz_vals, t_hold, T_BS, fd_step, start_idx)``.
 
     Returns:
         Tuple ``(start_idx, chunk_grid)`` where chunk_grid has shape
         ``(len(theta_A_chunk), len(azz_vals))``.
     """
-    omega, theta_A_chunk, azz_vals, T_hold, T_BS, fd_step, start_idx = args
+    omega, theta_A_chunk, azz_vals, t_hold, T_BS, fd_step, start_idx = args
     n_t = len(theta_A_chunk)
     n_a = len(azz_vals)
     chunk_grid = np.full((n_t, n_a), np.inf, dtype=float)
@@ -1344,7 +1344,7 @@ def _free_ancilla_slice_worker(args: tuple) -> tuple[int, np.ndarray]:
                 0.0,
                 0.0,
                 a_val,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 T_BS=T_BS,
                 fd_step=fd_step,
             )
@@ -1357,7 +1357,7 @@ def free_ancilla_2d_slice(
     theta_A_range: tuple[float, float] = THETA_A_RANGE,
     azz_range: tuple[float, float] = AZZ_BOUNDS,
     n_grid: int = SLICE_N,
-    T_hold: float = T_hold,
+    t_hold: float = t_hold,
     T_BS: float = T_BS,
     fd_step: float = FD_STEP,
     n_jobs: int | None = None,
@@ -1373,7 +1373,7 @@ def free_ancilla_2d_slice(
         theta_A_range: (min, max) for :math:`\theta_A`.
         azz_range: (min, max) for :math:`a_{zz}`.
         n_grid: Number of points per axis (total grid = n_grid × n_grid).
-        T_hold: Holding time.
+        t_hold: Holding time.
         T_BS: Beam-splitter duration.
         fd_step: Finite-difference step size.
         n_jobs: Number of parallel workers. ``None`` (default) = sequential.
@@ -1398,7 +1398,7 @@ def free_ancilla_2d_slice(
                     0.0,
                     0.0,
                     azz_vals[j],
-                    T_hold=T_hold,
+                    t_hold=t_hold,
                     T_BS=T_BS,
                     fd_step=fd_step,
                 )
@@ -1409,7 +1409,7 @@ def free_ancilla_2d_slice(
         indices = np.arange(n_grid)
         chunks = np.array_split(indices, n_workers)
         worker_args = [
-            (omega, theta_A_vals[chunk], azz_vals, T_hold, T_BS, fd_step, int(chunk[0]))
+            (omega, theta_A_vals[chunk], azz_vals, t_hold, T_BS, fd_step, int(chunk[0]))
             for chunk in chunks
         ]
 
@@ -1429,7 +1429,7 @@ def free_ancilla_2d_slice(
         azz_values=azz_vals,
         delta_omega_grid=grid,
         omega_value=omega,
-        sql=1.0 / T_hold,
+        sql=1.0 / t_hold,
     )
 
 
@@ -1772,7 +1772,7 @@ def _run_scenario_omega_scan(
             n_random=n_random,
             n_nm_refine=n_nm,
             R=R,
-            T_hold=T_hold,
+            t_hold=t_hold,
             T_BS=T_BS,
         )
         result.save_parquet(csv_p)
@@ -1832,7 +1832,7 @@ def generate_2d_slice_omega_A_azz(
                 theta_A_range=THETA_A_RANGE,
                 azz_range=AZZ_BOUNDS,
                 n_grid=SLICE_N,
-                T_hold=T_hold,
+                t_hold=t_hold,
                 T_BS=T_BS,
                 n_jobs=n_jobs,
             )

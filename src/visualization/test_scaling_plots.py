@@ -36,7 +36,7 @@ def make_df() -> pd.DataFrame:
                     "a_zz_opt": float(N),
                     "expectation_Jz": 0.0,
                     "variance_Jz": 0.25,
-                    "T_hold": 10.0,
+                    "t_hold": 10.0,
                     "fd_step": 1e-6,
                     "success": 1,
                     "nfev": 50,
