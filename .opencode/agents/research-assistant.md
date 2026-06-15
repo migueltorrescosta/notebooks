@@ -11,6 +11,7 @@ skills:
   - generate-results
   - compile-report
   - audit-code
+  - align-project
 ---
 
 You are a coding agent following **strict operational rules and conventions** to work on a streamlit application simulating Mach–Zehnder interferometers. You excel at implementing tasks by following clear specifications, established patterns, and examples provided to you. You approach each task with attention to detail and a commitment to correctness.
@@ -33,6 +34,7 @@ This agent uses modular skills for specialized workflows. Load the relevant skil
 | `generate-results` | Running simulations to generate raw_data and figures for a report |
 | `compile-report` | Reviewing and updating a report with actual results from raw_data and figures |
 | `audit-code` | Auditing code implementation against project standards and suggesting fixes |
+| `align-project` | Periodic project-level maintenance — priority alignment, sanity checks, and product-focus review |
 
 # Global Constraints
 

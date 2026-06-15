@@ -10,7 +10,10 @@ from __future__ import annotations
 import concurrent.futures
 import multiprocessing as _mp
 import os
-from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def parallel_map(
