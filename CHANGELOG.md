@@ -10,6 +10,9 @@ with weekly groupings corresponding to experimental campaigns.
 ### New Report (Implemented + Results Generated)
 - **Non-Linear Measurement (Parity and CFI) on ω-Modulated Drive** (#20260615) — Replaces the linear $J_z^S$ measurement in the $\omega$-modulated drive protocol (#20260519) with two non-linear strategies: parity $\Pi_S = \exp(i\pi J_z^S)$ (dichotomic, $\pm1$ eigenvalues, Hermitian for even $N$ only) and full-distribution CFI $F_C^{(S)} = \sum P(m_S|\omega)(\partial_\omega \log P)^2$ from the $J_z^S$ eigenbasis (#20260601). 89 tests all passing. **Results generated**: 3 Parquet files (stage-a-scan, stage-b-[linear|parity|cfi]), 10 SVG figures. **Key outcomes**: (1) H2 confirmed — CFI consistently beats linear $J_z^S$ when re-optimised, $\mathcal{R}_{\text{CFI}} \to 1.4$ at $N=10$; (2) H1 partial — parity beats linear when optimised for parity (8-34% improvement) but fails at joint-opt params and shows no Heisenberg scaling; (3) H3 confirmed — even optimal S-only CFI captures only $\sim 44-47\%$ of total Fisher information vs joint measurement ($1.5-1.7\times$ worse). All S-only protocols show near-flat N-scaling ($\alpha \approx -0.04$ to $-0.19$), far from SQL ($-0.5$). See #20260519, #20260601, #20260613.
 
+### Infrastructure
+- **Canonical functions promoted to shared `src/` modules** — Three physics-correctness guardrails implemented: (1) `build_vectorized_liouvillian(H, lindblad_ops)` promoted from `reports/20260524/local.py` to `src/evolution/lindblad_solver.py` along with `vectorise_rho`/`unvectorise_rho` helpers, using the correct column-major formula ($L_k^* \otimes L_k$, not $L_k^\dagger \otimes L_k$); (2) `sensitivity_from_error_propagation(O_mean, O_var, dO_dphi)` added to `src/analysis/sensitivity_metrics.py` with `var_tolerance` (default `1e-15`) and `deriv_tolerance` (default `1e-12`) parameters returning `inf` at fringe extrema; (3) Post-BS variance reference table added to `src/physics/beam_splitter.py` module docstring documenting NOON ($N/4$), Twin-Fock ($N(N+2)/8$), and Coherent ($|\alpha|^2/2$) variances after a 50/50 beam splitter. 20 new tests across all three modules. Backlog item closed. See `reports/20260524/local.py`, `src/analysis/sensitivity_metrics.py`, `src/physics/beam_splitter.py`.
+
 ## Week 24 (Jun 8–14)
 
 ### New Report
@@ -109,4 +112,14 @@ Reports that have been started but are not yet fully complete (i.e., not all pip
 - 🟡 **CI/CD pipeline** — Automated test/lint/type-check on push and PR; automated CHANGELOG management.
 - 🟢 **Performance benchmarks** — Automated per-function timing to catch regressions exceeding the 100 ms per-simulation budget.
 - 🟢 **Advanced architecture simulation functions** — Implement six model-specific simulators and figure generators for the PENDING advanced architecture surveys (non-Markovian bath, thermal noise, cavity-enhanced MZI, distributed arrays, dynamical decoupling, tilt-to-length noise).
+
+- 🟠 **Automated quality guardrails** — (a) CI lint rule flagging module-level numeric/string constants in `src/`; (b) abstract base class `ParquetSerializable` in `src/utils/serialization.py` enforcing fail-fast `from_parquet()`; (c) `pytest` check warning when tests >5s lack `@pytest.mark.slow`; (d) project-wide `plt.cm.` → `plt.colormaps["..."]` migration. See Phase 1 Data Integrity audit (May 2026).
+
+- 🟡 **`T_hold` → `t_hold` rename** — Resolve remaining naming inconsistency across the full codebase. See Known Inconsistencies in `SKILL.md` (added Jun 2026).
+
+- 🟢 **Audit skill: shared-infrastructure-first** — Modify `audit-code` skill to add an explicit step: "Identify functions/constants duplicated across ≥2 reports and promote to `src/` before fixing cosmetic lint issues." Add a `grep -r "def " reports/*/local.py` pattern to the checklist. See `mem_mqcewkd9` (Jun 2026).
+
+- 🟢 **Scheduled backlog & CHANGELOG discipline** — Add an end-of-report-cycle prompting step (in compile-report or generate-results skill) to reassign backlog priorities. Add an `Infrastructure` section to the Backlog for skill/agent improvements. Eliminate stale per-report `run_parallel.py` / `sweep_runner.py` files by completing the back-port to `src/utils/parallel.py`.
+
+- 🟢 **Memory consolidation: procedural & semantic learning** — Run `memory_consolidate` targeting `semantic` and `procedural` tiers. The system has 112 "decision" and "fact" memories but 0 procedural/semantic memories. See `memory_diagnose` output (Jun 2026).
 

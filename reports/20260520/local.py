@@ -931,7 +931,6 @@ def _fig_path(name: str) -> Path:
     return REPORTS_DIR / XX_DATE / "figures" / f"{XX_DATE}-{name}.svg"
 
 
-
 # ── Generator functions ───────────────────────────────────────────────────
 
 

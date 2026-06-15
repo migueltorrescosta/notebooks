@@ -566,6 +566,95 @@ def validate_density_matrix(
 
 
 # =============================================================================
+# Vectorised Liouvillian
+# =============================================================================
+
+
+def vectorise_rho(rho: np.ndarray) -> np.ndarray:
+    """Vectorise a density matrix (column-major stacking).
+
+    ``vec(ρ)`` stacks columns of ρ into an n²-vector, matching the
+    convention used by :func:`build_vectorized_liouvillian`.
+
+    Args:
+        rho: n × n density matrix.
+
+    Returns:
+        n²-vector (Fortran-order flatten).
+    """
+    return rho.reshape(-1, order="F")
+
+
+def unvectorise_rho(vec: np.ndarray) -> np.ndarray:
+    """Unvectorise a density matrix (column-major unstacking).
+
+    Inverse of :func:`vectorise_rho`.  Reshapes an n²-vector back into
+    an n × n matrix.
+
+    Args:
+        vec: n²-vector.
+
+    Returns:
+        n × n density matrix.
+    """
+    n = int(np.sqrt(vec.shape[0]))
+    return vec.reshape((n, n), order="F")
+
+
+def build_vectorized_liouvillian(
+    H: np.ndarray,
+    lindblad_ops: list[np.ndarray],
+) -> np.ndarray:
+    """Construct the Liouvillian superoperator in vectorised form.
+
+    Using column-major vectorisation (``vec(ρ)`` stacks columns):
+
+        ℒ = -i(I ⊗ H - H^T ⊗ I)
+            + Σ_k [L_k^* ⊗ L_k - 1/2(I ⊗ L_k^† L_k + (L_k^† L_k)^T ⊗ I)]
+
+    The vectorised density matrix evolves as:
+
+        vec(ρ(t)) = exp(ℒ t) vec(ρ(0))
+
+    Args:
+        H: Hamiltonian matrix (n × n Hermitian).
+        lindblad_ops: List of Lindblad jump operators (each n × n, with
+            rates pre-absorbed: L_k = √γ_k · L_k).
+
+    Returns:
+        Liouvillian matrix (n² × n²).
+
+    Raises:
+        ValueError: If H is not square or any operator dimension
+            mismatches H.
+    """
+    d = H.shape[0]
+    if H.shape != (d, d):
+        raise ValueError(f"H must be square, got shape {H.shape}")
+    for i, Lk in enumerate(lindblad_ops):
+        if Lk.shape != (d, d):
+            raise ValueError(
+                f"Lindblad op [{i}] has shape {Lk.shape}, expected ({d}, {d})"
+            )
+
+    I_d = np.eye(d, dtype=complex)
+
+    # Unitary part: vec(-i[H, ρ]) = -i(I ⊗ H - H^T ⊗ I) vec(ρ)
+    L = -1j * (np.kron(I_d, H) - np.kron(H.T, I_d))
+
+    # Dissipative part
+    for Lk in lindblad_ops:
+        Lk_dag = Lk.conj().T
+        Lk_dag_Lk = Lk_dag @ Lk
+        # vec(L_k ρ L_k^†) = (L_k^* ⊗ L_k) vec(ρ)
+        L += np.kron(Lk.conj(), Lk)
+        # -½ vec({L_k^† L_k, ρ}) = -½(I ⊗ L_k^† L_k + (L_k^† L_k)^T ⊗ I) vec(ρ)
+        L -= 0.5 * (np.kron(I_d, Lk_dag_Lk) + np.kron(Lk_dag_Lk.T, I_d))
+
+    return L
+
+
+# =============================================================================
 # Convenience Functions
 # =============================================================================
 

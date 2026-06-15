@@ -223,6 +223,56 @@ def error_propagation_sensitivity(
     }
 
 
+def sensitivity_from_error_propagation(
+    O_mean: float,
+    O_var: float,
+    dO_dphi: float,
+    var_tolerance: float = 1e-15,
+    deriv_tolerance: float = 1e-12,
+) -> float:
+    """Error-propagation sensitivity from pre-computed moments.
+
+    Computes the error-propagation formula:
+
+        Δφ = √(Var(O)) / |∂⟨O⟩/∂φ|
+
+    and returns ``inf`` at fringe extrema where either the variance
+    vanishes (the state is an eigenstate of the measurement operator,
+    giving a deterministic outcome with zero information) or the
+    derivative vanishes (the operating point is at a fringe extremum
+    where the signal slope is flat).
+
+    Args:
+        O_mean: Expectation value ⟨O⟩ (not used in formula, included
+            for debugging/consistency checks).
+        O_var: Variance Var(O) = ⟨O²⟩ - ⟨O⟩². Must be non-negative;
+            negative values are clamped to zero before the square root.
+        dO_dphi: Derivative ∂⟨O⟩/∂φ (central finite-difference value).
+        var_tolerance: Variance below this threshold is treated as
+            zero (default 1e-15, matching the convention in
+            ``ancilla_drive_metrology.py`` and ``n_particle_drive.py``).
+        deriv_tolerance: Absolute derivative below this threshold is
+            treated as zero (default 1e-12).
+
+    Returns:
+        Sensitivity Δφ (positive float). Returns ``inf`` if
+        ``var < var_tolerance`` or ``abs(dO_dphi) < deriv_tolerance``.
+
+    """
+
+    # Clamp negative variance (numerical noise) to zero
+    var_safe = max(float(O_var), 0.0)
+
+    if var_safe < var_tolerance:
+        return float("inf")
+
+    d_abs = abs(float(dO_dphi))
+    if d_abs < deriv_tolerance:
+        return float("inf")
+
+    return float(np.sqrt(var_safe) / d_abs)
+
+
 # =============================================================================
 # All Sensitivity Metrics
 # =============================================================================

@@ -45,7 +45,9 @@ def make_df() -> pd.DataFrame:
     return pd.DataFrame(data)
 
 
-def test_plot_n_scaling_ratio_creates_file(make_df: pd.DataFrame, tmp_path: Path) -> None:
+def test_plot_n_scaling_ratio_creates_file(
+    make_df: pd.DataFrame, tmp_path: Path
+) -> None:
     p = tmp_path / "ratio.svg"
     result = plot_n_scaling_ratio(make_df, p)
     assert result.exists()

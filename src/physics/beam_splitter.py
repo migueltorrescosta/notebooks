@@ -27,6 +27,33 @@ Thus θ_bs = T_bs / 2.
 A special case exists in ``src/physics/hybrid_mzi.py:mzi_beam_splitter``,
 which uses the different generator ``G = i(a₁†a₂ - a₁a₂†)`` in an embedded
 two-mode + spin space and is kept in that module.
+
+Post-BS Variance Reference:
+    For a 50/50 beam splitter (θ = π/4, φ_bs = 0) using the generator
+    H_BS = a_0^† a_1 + a_1^† a_0 and J_z = (n_0 - n_1)/2, the variance
+    of J_z after the first beam splitter (BS1) for common input states is:
+
+    ================== ========================= =========================
+    Input State        Var(J_z) after BS1        Notes
+    ================== ========================= =========================
+    NOON |N,0⟩+|0,N⟩    N/4                      BS1 does NOT preserve
+                                                 NOON for N>1; to obtain
+                                                 Heisenberg-limited QFI
+                                                 (F_Q = H_t^2 N^2), skip
+                                                 BS1 and use the input
+                                                 state directly.
+    Twin-Fock           N(N+2)/8                  Near-Heisenberg
+    |N/2,N/2⟩                                    variance from the
+                                                 binomial expansion.
+    Coherent |α,α⟩      |α|²/2                   SQL-classical scaling
+                                                 (Var proportional to
+                                                 mean photon number).
+    ================== ========================= =========================
+
+    For states already constructed in the post-BS1 form (e.g. as probe
+    states after an effective BS1), the variance is simply the variance
+    of the input state itself.  See reports/20260601/ for CFI-based
+    verification and the effect of skipping BS1 for NOON states.
 """
 
 from __future__ import annotations

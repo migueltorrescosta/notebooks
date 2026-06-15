@@ -1115,7 +1115,6 @@ def _upsert_bfgs_result(result: GeneralBFGSOptimizationResult) -> None:
                 raise
 
 
-
 # ── Generator functions ───────────────────────────────────────────────────
 
 

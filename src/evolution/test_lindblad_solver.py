@@ -19,6 +19,7 @@ from src.utils.enums import OperatorBasis
 
 from .lindblad_solver import (
     LindbladConfig,
+    build_vectorized_liouvillian,
     create_coherent_state,
     create_fock_state,
     evolve_lindblad,
@@ -27,7 +28,9 @@ from .lindblad_solver import (
     lindblad_rhs,
     simulate_trajectory,
     steady_state,
+    unvectorise_rho,
     validate_density_matrix,
+    vectorise_rho,
 )
 
 
@@ -399,3 +402,110 @@ class TestEdgeCases:
         validation = validate_density_matrix(final_rho)
         assert validation["is_hermitian"]
         assert validation["is_normalized"]
+
+
+class TestVectoriseUnvectorise:
+    """vectorise_rho / unvectorise_rho helpers."""
+
+    def test_vectorise_shape(self) -> None:
+        rho = np.eye(3, dtype=complex)
+        vec = vectorise_rho(rho)
+        assert vec.shape == (9,)
+
+    def test_unvectorise_shape(self) -> None:
+        vec = np.arange(9, dtype=complex)
+        rho = unvectorise_rho(vec)
+        assert rho.shape == (3, 3)
+
+    def test_roundtrip(self) -> None:
+        rho = np.array([[1, 0.5j], [-0.5j, 0]], dtype=complex)
+        assert np.allclose(unvectorise_rho(vectorise_rho(rho)), rho)
+
+    def test_vectorise_column_major(self) -> None:
+        """Verify Fortran-order flattening: column-major stacking."""
+        rho = np.array([[1, 2], [3, 4]], dtype=float)
+        vec = vectorise_rho(rho)
+        # Column-major: col0=[1,3], col1=[2,4] → [1,3,2,4]
+        expected = np.array([1, 3, 2, 4], dtype=float)
+        assert np.allclose(vec, expected)
+
+
+class TestBuildVectorizedLiouvillian:
+    """build_vectorized_liouvillian — vectorised superoperator."""
+
+    def test_shape_2x2_no_noise(self) -> None:
+        H = np.zeros((2, 2), dtype=complex)
+        L = build_vectorized_liouvillian(H, [])
+        assert L.shape == (4, 4)
+
+    def test_shape_3x3_with_noise(self) -> None:
+        H = np.diag([0.0, 1.0, 2.0])
+        Lk = np.array([[0, 1, 0], [0, 0, np.sqrt(2)], [0, 0, 0]], dtype=complex)
+        L = build_vectorized_liouvillian(H, [Lk])
+        assert L.shape == (9, 9)
+
+    def test_shape_1x1(self) -> None:
+        """Trivial 1D case."""
+        H = np.zeros((1, 1))
+        L = build_vectorized_liouvillian(H, [])
+        assert L.shape == (1, 1)
+
+    def test_no_dissipation_unitary_evolution(self) -> None:
+        """With no Lindblad ops, exp(ℒt) should act like the unitary
+        propagator in vectorised form."""
+        d = 2
+        H = np.diag([0.0, 1.0])
+        rho0 = np.ones((d, d), dtype=complex) / d
+        L = build_vectorized_liouvillian(H, [])
+        import scipy.linalg
+
+        t = 0.5
+        rho_vec = vectorise_rho(rho0)
+        rho_t_vec = scipy.linalg.expm(L * t) @ rho_vec
+        rho_t = unvectorise_rho(rho_t_vec)
+
+        # Compare with unitary evolution
+        U = scipy.linalg.expm(-1j * H * t)
+        rho_expected = U @ rho0 @ U.conj().T
+        assert np.allclose(rho_t, rho_expected, atol=1e-10)
+
+    def test_trace_preserving_with_noise(self) -> None:
+        """Trace should remain 1 (within tolerance) for Lindblad evolution
+        with phase-damping noise."""
+        d = 2
+        H = np.diag([0.0, 1.0])
+        Lk = np.array([[0, 0], [0, 1]], dtype=complex)
+        rho0 = np.ones((d, d), dtype=complex) / d
+        L = build_vectorized_liouvillian(H, [Lk])
+        import scipy.linalg
+
+        t = 0.3
+        rho_vec = vectorise_rho(rho0)
+        rho_t_vec = scipy.linalg.expm(L * t) @ rho_vec
+        rho_t = unvectorise_rho(rho_t_vec)
+        trace = np.trace(rho_t).real
+        assert trace == pytest.approx(1.0, abs=1e-10)
+
+    def test_hermiticity_preserved_with_noise(self) -> None:
+        """Evolved density matrix should remain Hermitian."""
+        H = np.diag([0.0, 1.0])
+        Lk = np.array([[0, 0], [0, 1]], dtype=complex)
+        rho0 = np.array([[0.7, 0.3j], [-0.3j, 0.3]], dtype=complex)
+        L = build_vectorized_liouvillian(H, [Lk])
+        import scipy.linalg
+
+        t = 0.3
+        rho_vec = vectorise_rho(rho0)
+        rho_t_vec = scipy.linalg.expm(L * t) @ rho_vec
+        rho_t = unvectorise_rho(rho_t_vec)
+        assert np.allclose(rho_t, rho_t.conj().T, atol=1e-10)
+
+    def test_raises_on_non_square_H(self) -> None:
+        with pytest.raises(ValueError):
+            build_vectorized_liouvillian(np.zeros((2, 3)), [])
+
+    def test_raises_on_dim_mismatch(self) -> None:
+        H = np.zeros((2, 2))
+        Lk = np.zeros((3, 3))
+        with pytest.raises(ValueError):
+            build_vectorized_liouvillian(H, [Lk])

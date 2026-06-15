@@ -84,7 +84,9 @@ def build_n_particle_operators(N: int) -> dict[str, np.ndarray]:
     return ops
 
 
-def build_n_particle_system_only_bs_unitary(N: int, T_bs: float = np.pi / 2.0) -> np.ndarray:
+def build_n_particle_system_only_bs_unitary(
+    N: int, T_bs: float = np.pi / 2.0
+) -> np.ndarray:
     """System-only beam-splitter unitary in the N-particle space.
 
     U_BS_S = exp(-i T_bs J_x) ⊗ I_2
@@ -196,7 +198,12 @@ def build_n_particle_hold_hamiltonian(
     """
     H = omega * ops["Jz_S"]
     H += build_n_particle_phase_modulated_drive_hamiltonian(
-        N, omega, a_x, a_y, a_z, ops,
+        N,
+        omega,
+        a_x,
+        a_y,
+        a_z,
+        ops,
     )
     H += build_n_particle_iszz_interaction(N, a_zz, ops)
     H = 0.5 * (H + H.conj().T)
@@ -362,16 +369,43 @@ def compute_n_particle_sensitivity(
         meas_op = ops["Jz_S"]
 
     psi = evolve_n_particle_circuit(
-        N, psi0, T_bs, T_hold, omega_true, a_x, a_y, a_z, a_zz, ops,
+        N,
+        psi0,
+        T_bs,
+        T_hold,
+        omega_true,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
     )
     _, var = compute_expectation_and_variance(psi, meas_op)
 
     # Central finite difference for ∂⟨O⟩/∂ω
     psi_plus = evolve_n_particle_circuit(
-        N, psi0, T_bs, T_hold, omega_true + fd_step, a_x, a_y, a_z, a_zz, ops,
+        N,
+        psi0,
+        T_bs,
+        T_hold,
+        omega_true + fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
     )
     psi_minus = evolve_n_particle_circuit(
-        N, psi0, T_bs, T_hold, omega_true - fd_step, a_x, a_y, a_z, a_zz, ops,
+        N,
+        psi0,
+        T_bs,
+        T_hold,
+        omega_true - fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
     )
     exp_plus = np.real(psi_plus.conj() @ meas_op @ psi_plus)
     exp_minus = np.real(psi_minus.conj() @ meas_op @ psi_minus)
@@ -410,5 +444,14 @@ def compute_n_particle_decoupled_baseline(
     ops = build_n_particle_operators(N)
     psi0 = n_particle_initial_state(N)
     return compute_n_particle_sensitivity(
-        N, psi0, np.pi / 2.0, 10.0, omega_true, 0.0, 0.0, 0.0, 0.0, ops,
+        N,
+        psi0,
+        np.pi / 2.0,
+        10.0,
+        omega_true,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        ops,
     )

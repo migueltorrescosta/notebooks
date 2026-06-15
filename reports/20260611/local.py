@@ -69,7 +69,6 @@ N_NM_REFINE: int = 50
 NM_MAXITER: int = 5000
 
 
-
 # ============================================================================
 # Path Helpers
 # ============================================================================
@@ -507,6 +506,7 @@ def generate_n_scaling_scan(force: bool = False) -> None:
             csv_p.unlink(missing_ok=True)
             if checkpoint_dir.exists():
                 import shutil
+
                 shutil.rmtree(checkpoint_dir)
 
         # Load existing checkpoints if present
@@ -543,8 +543,12 @@ def generate_n_scaling_scan(force: bool = False) -> None:
                 print(f"  [warn] Could not load checkpoint {ckpt_file}: {exc}")
 
         # Process N values sequentially (with ω parallelism within each N)
-        items_to_run = [(N, omega) for N in N_VALS for omega in OMEGA_VALS
-                        if (N, omega) not in completed]
+        items_to_run = [
+            (N, omega)
+            for N in N_VALS
+            for omega in OMEGA_VALS
+            if (N, omega) not in completed
+        ]
         if items_to_run:
             print(f"[run] N-scaling scan: {len(items_to_run)} remaining (N, ω) pairs")
             print(f"  (batch by N value, {min(32, os.cpu_count() or 1)} workers)")
@@ -571,7 +575,9 @@ def generate_n_scaling_scan(force: bool = False) -> None:
                 for rdict in batch_results:
                     delta = rdict["delta_omega_opt"]
                     if not np.isfinite(delta):
-                        print(f"    [skip] N={rdict['N']}, ω={rdict['omega']}: Δω={delta}")
+                        print(
+                            f"    [skip] N={rdict['N']}, ω={rdict['omega']}: Δω={delta}"
+                        )
                         continue
                     ckpt_list.append(
                         NScalingResult(

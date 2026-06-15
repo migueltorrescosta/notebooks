@@ -51,7 +51,14 @@ from src.analysis.ancilla_drive_metrology import (
 from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
-from src.evolution.lindblad_solver import validate_density_matrix
+from src.evolution.lindblad_solver import (
+    build_vectorized_liouvillian as build_liouvillian,
+)
+from src.evolution.lindblad_solver import (
+    unvectorise_rho,
+    validate_density_matrix,
+    vectorise_rho,
+)
 from src.utils.parallel import parallel_map as _parallel_map
 
 sns.set_theme(style="whitegrid")
@@ -193,74 +200,6 @@ def build_phase_diffusion_operators(
         sqrt_g * ops["Jz_S"],
         sqrt_g * ops["Jz_A"],
     ]
-
-
-def build_liouvillian(
-    H: np.ndarray,
-    lindblad_ops: list[np.ndarray],
-) -> np.ndarray:
-    """Construct the Liouvillian superoperator in vectorised form.
-
-    Using column-major vectorisation (``vec(ρ)`` stacks columns):
-        ℒ = -i(I ⊗ H - H^T ⊗ I)
-            + Σ_k [L_k^* ⊗ L_k - 1/2(I ⊗ L_k^† L_k + (L_k^† L_k)^T ⊗ I)]
-
-    The vectorised density matrix evolves as:
-        vec(ρ(t)) = exp(ℒ t) vec(ρ(0))
-
-    Args:
-        H: Hamiltonian matrix (n × n Hermitian).
-        lindblad_ops: List of Lindblad jump operators (each n × n).
-
-    Returns:
-        Liouvillian matrix (n² × n²).
-    """
-    d = H.shape[0]
-    I_d = np.eye(d, dtype=complex)
-
-    # Unitary part: vec(-i[H, ρ]) = -i(I ⊗ H - H^T ⊗ I) vec(ρ)
-    L = -1j * (np.kron(I_d, H) - np.kron(H.T, I_d))
-
-    # Dissipative part
-    for Lk in lindblad_ops:
-        Lk_dag = Lk.conj().T
-        Lk_dag_Lk = Lk_dag @ Lk
-        # vec(L_k ρ L_k^†) = (L_k^* ⊗ L_k) vec(ρ)
-        L += np.kron(Lk.conj(), Lk)
-        # -½ vec({L_k^† L_k, ρ}) = -½(I ⊗ L_k^† L_k + (L_k^† L_k)^T ⊗ I) vec(ρ)
-        L -= 0.5 * (np.kron(I_d, Lk_dag_Lk) + np.kron(Lk_dag_Lk.T, I_d))
-
-    return L
-
-
-# ============================================================================
-# Density Matrix Utilities
-# ============================================================================
-
-
-def vectorise_rho(rho: np.ndarray) -> np.ndarray:
-    """Vectorise a density matrix (column-major stacking).
-
-    Args:
-        rho: n × n density matrix.
-
-    Returns:
-        n²-vector.
-    """
-    return rho.reshape(-1, order="F")
-
-
-def unvectorise_rho(vec: np.ndarray) -> np.ndarray:
-    """Unvectorise a density matrix.
-
-    Args:
-        vec: n²-vector.
-
-    Returns:
-        n × n density matrix.
-    """
-    d = int(np.sqrt(vec.shape[0]))
-    return vec.reshape(d, d, order="F")
 
 
 def density_expectation(rho: np.ndarray, op: np.ndarray) -> float:
@@ -2164,8 +2103,6 @@ def _fig_path(name: str) -> Path:
 
 
 # ── Parallel dispatch helper ──────────────────────────────────────────────
-
-
 
 
 # ── Generator functions ───────────────────────────────────────────────────

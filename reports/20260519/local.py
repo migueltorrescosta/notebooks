@@ -1126,8 +1126,6 @@ def _fig_path(name: str) -> Path:
 # ── Parallel dispatch helper ──────────────────────────────────────────────
 
 
-
-
 # ── Generator functions ───────────────────────────────────────────────────
 
 
