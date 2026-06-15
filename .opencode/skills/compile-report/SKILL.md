@@ -68,6 +68,7 @@ Review a report in `reports/` after simulations have been run and results genera
 ### After implementation
 - [ ] All CSVs and Parquet files in `raw_data/` inspected and validated against physical invariants
 - [ ] All SVGs in `figures/` checked for existence and embedded in the report
+- [ ] No bare `|` inside `$...$` in any table row — run `rg '^\|.*\$[^$]*\|[^$]*\$' reports/YYYYMMDD/*.md` and fix any hits
 - [ ] Results section updated with actual PASS/FAIL status
 - [ ] Key Finding paragraphs added to each experiment subsection
 - [ ] Success Criteria updated with PASS/FAIL annotations

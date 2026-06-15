@@ -26,16 +26,6 @@ from src.utils.constants import I_2, J_X, J_Y, J_Z
 from src.utils.enums import OperatorBasis
 
 # ============================================================================
-# Shared constants
-# ============================================================================
-
-T_HOLD: float = 10.0  # Holding time (fixed)
-T_BS: float = np.pi / 2.0  # 50/50 beam splitter
-FD_STEP: float = 1e-6  # Finite-difference step
-DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Parameter bounds for a_k, a_zz
-
-
-# ============================================================================
 # Operator Construction
 # ============================================================================
 
@@ -94,7 +84,7 @@ def build_n_particle_operators(N: int) -> dict[str, np.ndarray]:
     return ops
 
 
-def build_n_particle_system_only_bs_unitary(N: int, T_bs: float = T_BS) -> np.ndarray:
+def build_n_particle_system_only_bs_unitary(N: int, T_bs: float = np.pi / 2.0) -> np.ndarray:
     """System-only beam-splitter unitary in the N-particle space.
 
     U_BS_S = exp(-i T_bs J_x) ⊗ I_2
@@ -339,7 +329,7 @@ def compute_n_particle_sensitivity(
     a_z: float,
     a_zz: float,
     ops: dict[str, np.ndarray],
-    fd_step: float = FD_STEP,
+    fd_step: float = 1e-6,
     meas_op: np.ndarray | None = None,
 ) -> float:
     """Compute the error-propagation sensitivity Δω for the N-particle system.
@@ -420,5 +410,5 @@ def compute_n_particle_decoupled_baseline(
     ops = build_n_particle_operators(N)
     psi0 = n_particle_initial_state(N)
     return compute_n_particle_sensitivity(
-        N, psi0, T_BS, T_HOLD, omega_true, 0.0, 0.0, 0.0, 0.0, ops,
+        N, psi0, np.pi / 2.0, 10.0, omega_true, 0.0, 0.0, 0.0, 0.0, ops,
     )

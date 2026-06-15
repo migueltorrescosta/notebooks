@@ -5,6 +5,11 @@ All notable experiments and infrastructure changes in this project are documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 with weekly groupings corresponding to experimental campaigns.
 
+## Week 25 (Jun 15–21)
+
+### New Report (Implemented + Results Generated)
+- **Non-Linear Measurement (Parity and CFI) on ω-Modulated Drive** (#20260615) — Replaces the linear $J_z^S$ measurement in the $\omega$-modulated drive protocol (#20260519) with two non-linear strategies: parity $\Pi_S = \exp(i\pi J_z^S)$ (dichotomic, $\pm1$ eigenvalues, Hermitian for even $N$ only) and full-distribution CFI $F_C^{(S)} = \sum P(m_S|\omega)(\partial_\omega \log P)^2$ from the $J_z^S$ eigenbasis (#20260601). 89 tests all passing. **Results generated**: 3 Parquet files (stage-a-scan, stage-b-[linear|parity|cfi]), 10 SVG figures. **Key outcomes**: (1) H2 confirmed — CFI consistently beats linear $J_z^S$ when re-optimised, $\mathcal{R}_{\text{CFI}} \to 1.4$ at $N=10$; (2) H1 partial — parity beats linear when optimised for parity (8-34% improvement) but fails at joint-opt params and shows no Heisenberg scaling; (3) H3 confirmed — even optimal S-only CFI captures only $\sim 44-47\%$ of total Fisher information vs joint measurement ($1.5-1.7\times$ worse). All S-only protocols show near-flat N-scaling ($\alpha \approx -0.04$ to $-0.19$), far from SQL ($-0.5$). See #20260519, #20260601, #20260613.
+
 ## Week 24 (Jun 8–14)
 
 ### New Report
@@ -86,7 +91,6 @@ Reports that have been started but are not yet fully complete (i.e., not all pip
 - 🟠 **Multi-particle ancilla ($J_A > 1/2$) with free initial state** — Test whether an ancilla with $J_A = 1, 3/2, 2$ (M=2,3,4 particles) can circumvent the single-qubit SQL bound through its larger Hilbert space.
 
 - 🔴 **General 4-parameter interaction + ω-modulated drive** — Add all four bilinear couplings (α_xx, α_xz, α_zx, α_zz) to the ω-modulated drive Hamiltonian (#20260519). The ω-modulated drive gives first-order BCH cross-term [ωJ_z^S, a_zz J_z^S⊗J_z^A] (#20260519), while the 4-parameter interaction gives higher-order BCH cross-terms (#20260521). When both are present, the effective generator picks up three O(N) classes of terms that could compound to F_Q ∝ N². See #20260519, #20260521.
-- 🔴 **Non-linear measurement (parity/distribution) on ω-modulated drive** — Replace the linear J_z measurement with parity Π_S = exp(iπ J_z^S) or full-distribution CFI from #20260601. The linear measurement captures only the first moment of the output distribution, but for highly entangled S-A states from the ω-modulated drive, higher moments carry additional phase information. Parity can achieve super-resolving fringes with period π/N (Δω ∝ 1/N). See #20260519, #20260601.
 - 🟠 **Ancilla OAT pre-squeezing before ω-modulated hold (J_A ≥ 1)** — Apply one-axis twisting U_OAT = exp(-iχ (J_z^A)² T_OAT) to a multi-particle ancilla (J_A ≥ 1) before the hold period. The ω-modulated drive term H_A^norm acts as a collective rotation on the ancilla; pre-squeezing (reduced variance in the J_x-J_y plane) amplifies the rotation's effect on the output. Effectively amplifies the ancilla's contribution to ∂⟨J_z^S⟩/∂ω without needing more particles. See #20260519, #20260611.
 - 🟡 **Free ancilla with joint measurement** — Apply the free-ancilla initial state (20260528) to the weighted joint measurement protocol (20260518 NM generalization) to test whether a free ancilla unlocks better joint-readout sensitivity than a fixed $|1,0\rangle$ ancilla. See #20260518, #20260528.
 

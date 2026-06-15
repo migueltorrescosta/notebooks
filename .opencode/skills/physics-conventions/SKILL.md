@@ -7,6 +7,7 @@ description: Reference for consistent physics symbol usage across the codebase. 
 
 1. Import Pauli matrices from `src.utils.constants` — do not redefine them locally.
 2. Use the `OperatorBasis` enum (`DICKE` vs `FOCK`) explicitly when constructing angular momentum operators; never hard-code the ordering convention.
+3. Never use bare `|` inside LaTeX inline math `$...$` — it is ambiguous with the Markdown table column delimiter. Use `\vert ` (with trailing space) for conditional probability (`$P(m\vert \omega)$`), absolute values (`$\vert \psi\rangle$`), and set-builder notation (`$\{x\vert x>0\}$`). This applies everywhere in `.md` files, not just inside tables.
 
 # Reference: Physics Variables
 

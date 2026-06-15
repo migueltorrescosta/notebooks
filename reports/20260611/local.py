@@ -38,20 +38,11 @@ from src.analysis.ancilla_optimization import (
 from src.analysis.n_scaling_result import NScalingResult, NScalingScanResult
 from src.analysis.sensitivity_metrics import sql_reference
 from src.physics.n_particle_drive import (
-    T_HOLD,
-    T_BS,
-    FD_STEP,
-    DRIVE_BOUNDS,
     build_n_particle_operators,
-    build_n_particle_system_only_bs_unitary,
-    build_n_particle_phase_modulated_drive_hamiltonian,
-    build_n_particle_iszz_interaction,
-    build_n_particle_hold_hamiltonian,
-    n_particle_initial_state,
-    n_particle_hold_unitary,
-    evolve_n_particle_circuit,
-    compute_n_particle_sensitivity,
     compute_n_particle_decoupled_baseline,
+    compute_n_particle_sensitivity,
+    evolve_n_particle_circuit,
+    n_particle_initial_state,
 )
 from src.utils.parallel import parallel_map as _parallel_map
 from src.visualization.scaling_plots import (
@@ -59,6 +50,12 @@ from src.visualization.scaling_plots import (
     plot_n_scaling_ratio,
     plot_n_scaling_sensitivity,
 )
+
+# Local copies of shared constants (originally in src/physics/n_particle_drive.py)
+T_HOLD: float = 10.0  # Holding time (fixed)
+T_BS: float = np.pi / 2.0  # 50/50 beam splitter
+FD_STEP: float = 1e-6  # Finite-difference step
+DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Parameter bounds
 
 # ω values for the scan
 OMEGA_VALS: list[float] = [0.1, 0.2, 0.5, 1.0, 2.0]

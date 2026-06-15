@@ -21,7 +21,7 @@ Define a disciplined, repeatable process for implementing physics simulations fr
 
 ## 1. Before starting work
 
-1. **Run checks**: Ensure nothing is broken before starting changes — tests (`uv run pytest . --testmon --quiet --tb=short`), linter (`uv run ruff check . --fix && uv run ruff format .`), and type checks (`uv run mypy .` and `uvx pyright src/ pages/`). Pre-existing bugs must be fixed before continuing.
+1. **Run checks**: Ensure nothing is broken before starting changes — tests (`uv run pytest . --testmon --quiet --tb=short`), linter (`uv run ruff check . --fix && uv run ruff format .`), type checks (`uv run mypy .` and `uvx pyright src/ pages/`), **and Markdown pipe-in-math check** (`rg -n '\$[^$]*\|[^$]*\$' reports/**/*.md | rg '^\|' && echo "ERROR: bare | inside math in table — use \vert" && exit 1 || true`). Pre-existing bugs must be fixed before continuing.
 2. **Read the report** — Open the target report in `reports/` and extract: Hilbert space dimensions, basis ordering, operator definitions, circuit protocol, measurement observable, and sensitivity formula.
 3. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
 4. **Read relevant code**: Understand existing patterns in `pages/`, `src/`, and the target report's `local.py` that match the report's requirements.

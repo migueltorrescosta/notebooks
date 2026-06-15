@@ -14,7 +14,8 @@ Guide the creation of a new simulation report from initial research question thr
 3. Determine the minimum Hilbert space needed — never overbuild.
 4. Proactively identify likely mistakes in the user's assumptions before drafting a plan.
 5. Follow the prescribed report section order, emoji conventions, and formatting rules exactly.
-6. Do not generate figures, run simulations, or modify code — this skill is for planning and writing only.
+6. Never use bare `|` inside `$...$` in Markdown tables — it collides with the table column delimiter. Use `\vert ` instead (e.g., `$P(m\vert \omega)$` not `$P(m|\omega)$`). For prose (non-table) locations, use `\vert` for consistency.
+7. Do not generate figures, run simulations, or modify code — this skill is for planning and writing only.
 
 # Workflow
 
@@ -45,6 +46,7 @@ Guide the creation of a new simulation report from initial research question thr
 
 ### After implementation
 - [ ] Report follows section order, emoji placement, and formatting rules exactly
+- [ ] No bare `|` inside `$...$` in any table row — verified by `rg '^\|.*\$[^$]*\|[^$]*\$' reports/YYYYMMDD/*.md || echo "OK"`
 - [ ] Hypothesis is falsifiable and maps 1:1 to success criteria
 - [ ] No code was modified
 - [ ] CHANGELOG updated with entry under the appropriate weekly section; backlog entry added if this is a new experiment

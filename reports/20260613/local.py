@@ -31,10 +31,6 @@ from scipy.optimize import minimize
 from src.analysis.ancilla_optimization import compute_expectation_and_variance
 from src.analysis.sensitivity_metrics import sql_reference
 from src.physics.n_particle_drive import (
-    DRIVE_BOUNDS,
-    FD_STEP,
-    T_BS,
-    T_HOLD,
     build_n_particle_operators,
     compute_n_particle_decoupled_baseline,
     compute_n_particle_sensitivity,
@@ -47,6 +43,12 @@ from src.physics.n_particle_drive import (
 # ============================================================================
 
 PSI_BOUNDS: tuple[float, float] = (-np.pi, np.pi)  # Measurement angle bounds
+
+# Local copies of shared constants (originally in src/physics/n_particle_drive.py)
+T_HOLD: float = 10.0  # Holding time (fixed)
+T_BS: float = np.pi / 2.0  # 50/50 beam splitter
+FD_STEP: float = 1e-6  # Finite-difference step
+DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Parameter bounds
 
 # ω values for the scan
 OMEGA_VALS: list[float] = [0.1, 0.2, 0.5, 1.0, 2.0]
