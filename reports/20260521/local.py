@@ -22,12 +22,12 @@ name contains hyphens).  Instead, importers add the report directory to
 from __future__ import annotations
 
 import argparse
-import concurrent.futures
-import multiprocessing as _mp
 import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from src.utils.parallel import parallel_map as _parallel_map
 
 # Force single-threaded BLAS before any heavy numerical imports.
 # This avoids in-process deadlocks when forking and keeps thread contention low.
@@ -1114,45 +1114,6 @@ def _upsert_bfgs_result(result: GeneralBFGSOptimizationResult) -> None:
             else:
                 raise
 
-
-# ── Parallel dispatch helper ──────────────────────────────────────────────
-
-
-def _parallel_map(
-    worker_fn,
-    items,
-    desc: str = "Processing",
-    max_workers: int | None = None,
-) -> None:
-    """Run *worker_fn(item)* for each *item* in parallel via process pool.
-
-    Each worker is a top-level function that performs its own file I/O.
-    Results are implicitly persisted to disk by the worker.
-
-    Args:
-        worker_fn: Callable taking a single item argument.
-        items: Iterable of items (typically ω values).
-        desc: Short description for progress logging.
-        max_workers: Number of subprocess workers (default: CPU count).
-    """
-    if max_workers is None:
-        max_workers = min(8, os.cpu_count() or 1)
-    item_list = list(items)
-    print(f"  [parallel] {desc}: {len(item_list)} items, {max_workers} workers")
-
-    mp_ctx = _mp.get_context("fork")
-    with concurrent.futures.ProcessPoolExecutor(
-        max_workers=max_workers,
-        mp_context=mp_ctx,
-    ) as executor:
-        fut_to_item = {executor.submit(worker_fn, item): item for item in item_list}
-        for future in concurrent.futures.as_completed(fut_to_item):
-            item = fut_to_item[future]
-            try:
-                future.result()
-            except Exception as exc:
-                print(f"  [ERROR] item={item}: {exc}")
-                raise
 
 
 # ── Generator functions ───────────────────────────────────────────────────

@@ -47,6 +47,7 @@ These apply to every task, regardless of which skills are loaded:
 7. **No imports from `local.py`**: Code inside `local.py` must never be imported by modules outside its own report directory — including `src/`, `tests/`, and `pages/`. If a function in `local.py` is needed externally, promote it to a `src/` module first.
 8. **Keep the CHANGELOG current.** Every completed experiment or infrastructure task from the `# Backlog` in `CHANGELOG.md` must be moved into the appropriate weekly release section as part of the work. Never leave finished work unrecorded.
 9. **Backlog priority scheme** — The `# Backlog` in `CHANGELOG.md` uses 🔴🟠🟡🟢 as a 4-level scale (most → least urgent). When asked to **"Review priorities"**, reassign all backlog emojis following this scale with exactly 2–3 🔴 items and the rest roughly evenly split. Update or confirm the colour legend at the top of the `# Backlog` section.
+10. **Search agentmemory before starting** — call `memory_recall` or `memory_smart_search` for relevant prior work, decisions, and architecture context before implementing.
 
 # Skill Loading Order
 
@@ -370,7 +371,12 @@ Optional unsolved issues and future directions. Start the paragraph with `**Open
 
 # End-of-Task Verification
 
-At the end of every task, produce this verification checklist as part of your response text:
+At the end of every task, after tests pass and the changelog is updated:
+
+1. **Save key decisions to agentmemory** — call `memory_save` with findings, decisions, and conventions established. Include `project:notebooks` in `concepts` to scope it to this project. Use `memory_lesson_save` for recurring patterns.
+2. **Consolidate and reflect** — if you made more than 5 `memory_save` calls during this task, call `memory_consolidate` to promote working memories to higher tiers, then call `memory_reflect` to synthesize cross-task insights.
+
+Produce this verification checklist as part of your response text:
 
 ```
 ## Workflow Verification
@@ -388,7 +394,7 @@ At the end of every task, produce this verification checklist as part of your re
 [✅/❌] Linting and formatting pass (ruff, mypy, pyright)
 [✅/❌] CHANGELOG.md updated with entry under the appropriate weekly section
 [✅/❌] Backlog entry removed if task came from backlog
-[✅/❌] Saved new findings, unexpected events, and mistakes made during implementation to agentmemory (memory_save)
+[✅/❌] Saved key decisions to agentmemory (`project:notebooks`), consolidated if >5 saves, and reflected
 ```
 
 Replace [✅/❌] with the actual outcome — every item must be answered. Mark inapplicable checks with [⬜].
@@ -406,39 +412,5 @@ gocard -dir ~/Git/notebooks/revise             # Study revision cards
 ```
 
 **Configuration**: `pyproject.toml` defines pytest (testpaths, warnings), mypy (strict typing), pyright (live analysis), and ruff settings.
-
-# Memory Policy
-
-AgentMemory provides persistent across-session recall via an MCP backend (agentmemory). Use it to carry context, decisions, and conventions between sessions and to retrieve prior work before acting.
-
-## Before planning or coding
-
-1. **Search agentmemory** for relevant prior work, decisions, or discussions
-2. **Recall architecture decisions** that may constrain the current task
-3. **Consult the backlog** — Read `CHANGELOG.md`. Note if the task corresponds to a backlog entry by section and number.
-4. **Recall coding conventions** and patterns established in earlier sessions
-5. **Save important new decisions, findings, or conventions** after completing a task
-
-## Always use these tools
-
-- `memory_smart_search` — semantic + BM25 hybrid search when you need to find something by meaning
-- `memory_recall` — keyword-based recall when you know what you're looking for
-- `memory_save` — save observations, decisions, findings, and conventions after completing work
-
-## Additional tools
-
-- `memory_consolidate` — manually trigger the 4-tier consolidation pipeline when you have accumulated several new memories
-- `memory_reflect` — periodically synthesize higher-order insights from recent memories
-- `memory_lesson_save` — persist a lesson learned (strengthens on duplicate saves, decays when unused)
-- `memory_sessions` — list recent sessions to review what was done
-
-## Workflow
-
-1. At the start of a task: `memory_recall` or `memory_smart_search` for relevant context
-2. During the task: consult recalled decisions and conventions
-3. After completing a significant step or task: `memory_save` with the key decisions, findings, and any conventions established
-4. After completing a task (report, variation, or infrastructure): **update the CHANGELOG** — add a brief entry under the appropriate weekly section in the appropriate category using the format `- **Title** (#YYYYMMDD) — description`. If the task was from the backlog, remove the backlog entry.
-5. Periodically: `memory_consolidate` to promote working memories into episodic, semantic, and procedural tiers
-6. When a pattern emerges: `memory_lesson_save` to crystallize the lesson
 
 Search memory before answering implementation questions — prior context may already contain the answer.

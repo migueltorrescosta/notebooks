@@ -58,6 +58,7 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
 )
 from src.utils.constants import I_4
+from src.utils.parallel import parallel_map as _parallel_map
 
 sns.set_theme(style="whitegrid")
 
@@ -1125,43 +1126,6 @@ def _fig_path(name: str) -> Path:
 # ── Parallel dispatch helper ──────────────────────────────────────────────
 
 
-def _parallel_map(
-    worker_fn,
-    items,
-    desc: str = "Processing",
-    max_workers: int | None = None,
-) -> None:
-    """Run *worker_fn(item)* for each *item* in parallel via process pool.
-
-    Each worker is a top-level function (or ``functools.partial`` wrapping
-    one) that performs its own file I/O.  Results are implicitly persisted to
-    disk by the worker — this function only waits for completion and re-raises
-    the first exception encountered.
-
-    Args:
-        worker_fn: Callable taking a single item argument.
-        items: Iterable of items (typically ω values).
-        desc: Short description for progress logging.
-        max_workers: Number of subprocess workers (default: CPU count).
-    """
-    if max_workers is None:
-        max_workers = min(32, os.cpu_count() or 1)
-    item_list = list(items)
-    print(f"  [parallel] {desc}: {len(item_list)} items, {max_workers} workers")
-
-    mp_ctx = _mp.get_context("fork")
-    with concurrent.futures.ProcessPoolExecutor(
-        max_workers=max_workers,
-        mp_context=mp_ctx,
-    ) as executor:
-        fut_to_item = {executor.submit(worker_fn, item): item for item in item_list}
-        for future in concurrent.futures.as_completed(fut_to_item):
-            item = fut_to_item[future]
-            try:
-                future.result()
-            except Exception as exc:
-                print(f"  [ERROR] item={item}: {exc}")
-                raise
 
 
 # ── Generator functions ───────────────────────────────────────────────────

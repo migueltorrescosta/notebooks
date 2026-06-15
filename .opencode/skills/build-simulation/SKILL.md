@@ -49,3 +49,4 @@ Before considering implementation complete, verify:
 6. No new code duplicates existing code from `src/` or from other `local.py` files.
 7. No unused variables exist in the code, and no unused parameters exist in functions
 9. No discrepancies exist between the report and the code implementation
+10. A small trial run of the simulation runs completely, validating the results format and correctness

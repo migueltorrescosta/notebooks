@@ -20,8 +20,6 @@ name contains hyphens).  Instead, importers add the report directory to
 from __future__ import annotations
 
 import argparse
-import concurrent.futures
-import multiprocessing as _mp
 import os
 import sys
 from dataclasses import dataclass, field
@@ -33,6 +31,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.linalg import expm
+
+from src.utils.parallel import parallel_map as _parallel_map
 
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
@@ -930,45 +930,6 @@ def _parquet_path(name: str) -> Path:
 def _fig_path(name: str) -> Path:
     return REPORTS_DIR / XX_DATE / "figures" / f"{XX_DATE}-{name}.svg"
 
-
-# ── Parallel dispatch helper ──────────────────────────────────────────────
-
-
-def _parallel_map(
-    worker_fn,
-    items,
-    desc: str = "Processing",
-    max_workers: int | None = None,
-) -> None:
-    """Run *worker_fn(item)* for each *item* in parallel via process pool.
-
-    Each worker is a top-level function that performs its own file I/O.
-    Results are implicitly persisted to disk by the worker.
-
-    Args:
-        worker_fn: Callable taking a single item argument.
-        items: Iterable of items (typically ω values).
-        desc: Short description for progress logging.
-        max_workers: Number of subprocess workers (default: CPU count).
-    """
-    if max_workers is None:
-        max_workers = min(32, os.cpu_count() or 1)
-    item_list = list(items)
-    print(f"  [parallel] {desc}: {len(item_list)} items, {max_workers} workers")
-
-    mp_ctx = _mp.get_context("fork")
-    with concurrent.futures.ProcessPoolExecutor(
-        max_workers=max_workers,
-        mp_context=mp_ctx,
-    ) as executor:
-        fut_to_item = {executor.submit(worker_fn, item): item for item in item_list}
-        for future in concurrent.futures.as_completed(fut_to_item):
-            item = fut_to_item[future]
-            try:
-                future.result()
-            except Exception as exc:
-                print(f"  [ERROR] item={item}: {exc}")
-                raise
 
 
 # ── Generator functions ───────────────────────────────────────────────────

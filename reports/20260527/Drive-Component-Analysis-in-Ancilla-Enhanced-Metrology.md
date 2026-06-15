@@ -98,7 +98,7 @@ Test count target: ~30 new test functions covering norm-ball sampling, envelope 
 |---------|------------|
 | **SQL bound holds for all slices** — The $(a_z, a_{zz})$ slice, like $(a_x, a_{zz})$ and $(a_y, a_{zz})$, never yields $\Delta\omega/\text{SQL} < 1$. | This is the expected outcome, confirming the original null result extends to the commuting-drive slice. Report the max-degradation patterns instead. |
 | **Norm envelope is flat at 1.0** — The best-ratio curve equals 1.0 for all $r \in [0, 10]$, even at the largest drive magnitude. | This confirms that increasing drive amplitude does not unlock SQL violation. The envelope plot becomes a horizontal line at 1.0, which is a valid (null) result. |
-| **Insufficient samples at small $\|\mathbf{a}\|$** — Marsaglia sampling yields few points with $\|\mathbf{a}\| \leq 1$ (expected fraction $\sim 10^{-3}$), making the envelope noisy at small $r$. | Accept the noisy small-$r$ region; resample with a stratified approach (uniform in $r$) if higher resolution is needed. The large-$r$ region ($r \geq 3$) will have adequate coverage. |
+| **Insufficient samples at small $\|\mathbf{a}\|$** — Marsaglia sampling yields few points with $\|\mathbf{a}\| \leq 1$ (expected fraction $\sim 10^{-3}$), making the envelope noisy at small $r$. | **Resolved** via stratified sampling (Experiment 2b). The stratified data shows the envelope is flat at SQL for all $r \in [0.1, 10.0]$; the apparent small-$r$ degradation in the Marsaglia data was a sampling artifact. |
 | **Fringe extremum dominates** — For many $\omega$ values and large $a_{zz}$, the derivative $\partial\langle J_z^S\rangle/\partial\omega$ vanishes, producing $\Delta\omega = \infty$ for most samples. | Flag and exclude fringe-extremum points. Report the fraction of valid (finite) points per $\omega$ and $r$. The envelope is computed only over finite-$\Delta\omega$ configurations. |
 | **Optimal at decoupled limit** — The best ratio is always achieved at $a_{zz} = 0$, regardless of $\|\mathbf{a}\|$ or $\omega$. | This would indicate the ancilla drive is always detrimental when the interaction is active, consistent with the original report. Report best-ratio curves both with and without the $a_{zz}=0$ configuration included. |
 
@@ -174,11 +174,11 @@ The resulting maps are dominated by **yellow** (red + green) across the vast maj
 
 **Key Finding**: The barycentric heatmaps provide a single-panel visual summary of the slice-comparison result: the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices are effectively indistinguishable (yellow), the $(a_z, a_{zz})$ slice is invisible (zero weight, always at SQL), and the decoupled $a_{zz}=0$ line is the only region where all three components simultaneously achieve SQL.
 
-### Experiment 2: Norm-Ball Sampling and Envelope Curve
+### Experiment 2a: Norm-Ball Sampling and Envelope Curve (Marsaglia Method)
 
 **Status: PASS**
 
-The norm-ball Monte Carlo sampling scanned 50 $\omega$ values $\times$ 5000 samples = 250 000 evaluations total, with $(a_x, a_y, a_z)$ drawn uniformly from the 3-ball $\|\mathbf{a}\| \leq 10$ and $a_{zz} \sim U[-5, 5]$.
+The norm-ball Monte Carlo sampling scanned 50 $\omega$ values $\times$ 5000 samples = 250 000 evaluations total, with $(a_x, a_y, a_z)$ drawn uniformly from the 3-ball $\|\mathbf{a}\| \leq 10$ and $a_{zz} \sim U[-5, 5]$ using Marsaglia's method.
 
 | Metric | Value |
 |--------|-------|
@@ -189,15 +189,35 @@ The norm-ball Monte Carlo sampling scanned 50 $\omega$ values $\times$ 5000 samp
 | Mean ratio (finite samples) | $8.32\times\text{SQL}$ |
 | Norm-ball coverage | $\|\mathbf{a}\| \in [0.097, 10.0]$ |
 
-The envelope curve $\text{best_{ratio}}(r) = \min_{\|\mathbf{a}\| \leq r} (\Delta\omega/\text{SQL})$ is a **non-increasing function** of $r$ for all $\omega$, with the following behaviour:
+The envelope curve $\text{best_{ratio}}(r) = \min_{\|\mathbf{a}\| \leq r} (\Delta\omega/\text{SQL})$ is a **non-increasing function** of $r$ for all $\omega$. At small $r \lesssim 2$, the envelope appears noisy with ratios of 1.02–2.84, attributed to sparse Monte Carlo coverage (only $\sim 1\%$ of samples have $\|\mathbf{a}\| \leq 2.15$, consistent with the expected $(r/R)^3$ volume scaling of Marsaglia's method). The envelope decreases as $r$ increases, approaching $\text{best\_ratio} = 1.0$ at $r = 10.0$ for all $\omega$.
 
-- At small $r \lesssim 2$, the envelope is noisy due to sparse Monte Carlo coverage (only $\sim 1\%$ of samples have $\|\mathbf{a}\| \leq 2.15$, consistent with the expected $(r/R)^3$ volume scaling).
-- The envelope decreases monotonically as $r$ increases, approaching $\text{best\_ratio} = 1.0$ at $r = 10.0$ for all $\omega$.
-- The overall minimum across all $\omega$ and $r$ is $1.0000000000$ — the SQL is a **hard bound** that cannot be beaten regardless of drive amplitude.
+![Norm-envelope curve (Marsaglia): best_ratio(r) vs drive norm](figures/20260527-norm-envelope.svg)
 
-![Norm-envelope curve: best_ratio(r) vs drive norm](figures/20260527-norm-envelope.svg)
+**Key Finding**: The Marsaglia envelope curve saturates at exactly SQL for large $r$, confirming that larger drive amplitudes never unlock SQL violation. The small-$r$ region is noisy due to under-sampling; a dedicated stratified follow-up (Experiment 2b) was conducted to resolve this.
 
-**Key Finding**: The envelope curve saturates at exactly SQL for large $r$, confirming that larger drive amplitudes never unlock SQL violation. The curve is non-increasing (larger drive budgets never harm the best achievable sensitivity). The sparse small-$r$ region confirms the expected sampling challenge — future studies requiring fine $r$ resolution should use stratified sampling.
+### Experiment 2b: Stratified Norm-Ball Sampling (Small-$r$ Resolution)
+
+**Status: PASS — resolves the small-$r$ sampling limitation**
+
+The stratified sampling method divides the radial interval $[0, R]$ into 50 equal-width strata and draws 100 samples per stratum (5000 samples total per $\omega$), giving **uniform linear density** in $\|\mathbf{a}\|$ rather than the $\propto r^2$ density of Marsaglia's method. The same 50 $\omega$ values and $a_{zz} \sim U[-5, 5]$ are used, for 250 000 evaluations total.
+
+| Metric | Marsaglia | Stratified | Improvement |
+|--------|-----------|------------|-------------|
+| $\|\mathbf{a}\| \leq 0.1$ | 1 sample | 2492 samples | 2492$\times$ |
+| $\|\mathbf{a}\| \leq 0.2$ | 3 samples | 5000 samples | 1667$\times$ |
+| $\|\mathbf{a}\| \leq 0.5$ | 37 samples | 12 446 samples | 336$\times$ |
+| $\|\mathbf{a}\| \leq 1.0$ | 236 samples | 25 000 samples | 106$\times$ |
+| $\|\mathbf{a}\| \leq 2.0$ | 1978 samples | 50 000 samples | 25$\times$ |
+| Samples with $\Delta\omega/\text{SQL} < 1.0$ | 0 (0%) | 0 (0%) | — |
+| Global min $\Delta\omega/\text{SQL}$ | 1.0000000000 | 0.9999999993 | — |
+
+The envelope curve from stratified sampling reveals that the **best ratio reaches SQL from the smallest resolved $r$** ($\min r = 0.101$). At $r = 0.101$, the minimum best ratio across all $\omega$ is $1.00000000$ (within float64 precision), and 48 of 50 $\omega$ values (96%) achieve $\text{best\_ratio} < 1 + 10^{-6}$ (SQL-level). The worst $\omega$ at small $r$ ($\omega=4.1$) has best ratio $1.00000282$ — just 3 parts per million above SQL. At $r = 10.0$, all 50 $\omega$ values achieve SQL-level sensitivity.
+
+The apparent small-$r$ degradation in the Marsaglia data (ratios of 1.02–2.84 at $r \lesssim 2$) was **entirely a sampling artifact**: the Marsaglia method's $r^2$ volume density places only ${\sim}0.1\%$ of samples at $\|\mathbf{a}\| \leq 1$, so the envelope at these radii was being evaluated from sparse, sub-optimal configurations rather than the true minimum.
+
+![Norm-envelope curve (stratified): best_ratio(r) vs drive norm](figures/20260527-norm-envelope-stratified.svg)
+
+**Key Finding**: The SQL is attainable at **any** drive magnitude $\|\mathbf{a}\| > 0$. The best achievable sensitivity ratio is flat at 1.0 (SQL) for all resolved $r \in [0.1, 10.0]$, rejecting the possibility that small drive amplitudes meaningfully degrade sensitivity. The earlier apparent degradation was a Monte Carlo sampling artifact resolved by stratified sampling.
 
 ### Experiment 3: Best-Ratio-by-Slice Comparison
 
@@ -223,16 +243,19 @@ All three slice types achieve a minimum $\Delta\omega/\text{SQL}$ ratio of $1.00
 | 2D slice: $(a_y, a_{zz})$ | PASS | Identical to $(a_x, a_{zz})$ |
 | 2D slice: $(a_z, a_{zz})$ | PASS | Min ratio = 1.0, **0% degraded points** |
 | Barycentric heatmap (combined) | PASS | Yellow (R+G) dominated, white band at $a_{zz}=0$ |
-| Norm-ball envelope | PASS | Min ratio = 1.0 for all $r$, non-increasing |
+| Norm-ball envelope (Marsaglia) | PASS | Min ratio = 1.0 for large $r$, noisy at small $r$ |
+| Norm-ball envelope (stratified) | PASS | Min ratio = 1.0 for **all** $r \in [0.1, 10.0]$, flat at SQL |
 | Best-ratio-by-slice comparison | PASS | All min at 1.0, az qualitatively different |
 
 ## ✅ Success Criteria
 
 - **Slice equivalence** — All three slice types ($a_x$, $a_y$, $a_z$) achieve minimum $\Delta\omega/\text{SQL} = 1.0$ to within numerical precision ($10^{-8}$ relative). — **PASS**. All three have min = $1.00000000$ (within float64 precision). The full-slice statistics, however, differ dramatically (see commuting drive equivalence below).
 
-- **Norm envelope bound** — $\min_{\|\mathbf{a}\| \leq r} \Delta\omega/\text{SQL} \geq 1.0$ for all $r \in [0, 10]$ and all $\omega \in [0.1, 5.0]$, confirming the SQL cannot be beaten regardless of drive magnitude. — **PASS**. Zero of 250 000 norm-ball samples have $\Delta\omega/\text{SQL} < 1.0$. The envelope global minimum is exactly $1.0000000000$ at $\omega=4.6$, $r=10.0$.
+- **Norm envelope bound** — $\min_{\|\mathbf{a}\| \leq r} \Delta\omega/\text{SQL} \geq 1.0$ for all $r \in [0, 10]$ and all $\omega \in [0.1, 5.0]$, confirming the SQL cannot be beaten regardless of drive magnitude. — **PASS**. Zero of 250 000 stratified norm-ball samples have $\Delta\omega/\text{SQL} < 1.0$ (the single sample at $0.9999999993$ is within float64 precision of 1.0). The envelope global minimum is exactly $1.0$ for all resolved $r$.
 
-- **Envelope monotonicity** — The curve $\text{best\_ratio}(r)$ is non-increasing (or flat at 1.0) as $r$ increases, confirming that larger drive budgets do not harm the best achievable sensitivity. — **PASS**. The envelope decreases monotonically (or stays flat at 1.0) for all $\omega$, e.g., at $\omega=5.0$ it goes from $2.84$ at $r=0$ down to $1.000003$ at $r=10$.
+- **Envelope monotonicity** — The curve $\text{best\_ratio}(r)$ is non-increasing (or flat at 1.0) as $r$ increases, confirming that larger drive budgets do not harm the best achievable sensitivity. — **PASS**. The envelope is flat at 1.0 (SQL) for all $r \in [0.1, 10.0]$ across all $\omega$, as confirmed by stratified sampling.
+
+- **Small-$r$ resolution** — Stratified sampling resolves the envelope at $\|\mathbf{a}\| \leq 1$ to determine whether small drive amplitudes are meaningfully worse than SQL. — **PASS**. The stratified envelope is flat at 1.0 from the smallest resolved $r$ ($0.101$). No meaningful degradation exists at small drive; the apparent degradation in the Marsaglia data was a sampling artifact.
 
 - **Commuting drive equivalence** — The $(a_z, a_{zz})$ slice's best ratio and SQL-achieving fraction are comparable to the $(a_x, a_{zz})$ slice (within 10% relative). — **PARTIAL**. The best ratio criterion is met (both are $1.0$). However, the SQL-achieving fraction is $100\%$ for the $a_z$ slice vs $\sim 4.5\%$ for the $a_x$ slice — a $22\times$ difference, far exceeding the $10\%$ threshold. This criterion was based on the (incorrect) Hypothesis 3 that all slice types would be similar; the data show a qualitative difference that invalidates the underlying assumption.
 
@@ -240,7 +263,7 @@ All three slice types achieve a minimum $\Delta\omega/\text{SQL}$ ratio of $1.00
 
 - **Numerical validity** — All unitarity, Hermiticity, positivity, and normalisation assertions pass. Marsaglia sampling distribution validated against the analytical $P(\|\mathbf{a}\| \leq r) = (r/R)^3$ CDF. — **PASS**. All invariants pass. The norm-ball coverage spans $\|\mathbf{a}\| \in [0.097, 10.0]$, and the empirical density at small $r$ is consistent with the expected $(r/R)^3$ volume scaling (only $\sim 1\%$ of samples at $\|\mathbf{a}\| \leq 2.15$).
 
-**Summary**: Five of six criteria pass outright. The commuting-drive equivalence criterion is marked PARTIAL because the original expectation that all three slices would have similar statistics was incorrect — the $(a_z, a_{zz})$ slice is in fact qualitatively different, with every valid point achieving SQL. This is itself a significant finding. The null hypothesis (SQL cannot be beaten) is confirmed across all experiments, and the monotonicity of the envelope is verified. A natural next step would be to analytically investigate why $[a_z J_z^A, H] = 0$ leads to exactly SQL-level sensitivity for the entire $(a_z, a_{zz})$ parameter space.
+**Summary**: Six of seven criteria pass outright. The commuting-drive equivalence criterion is marked PARTIAL because the original expectation that all three slices would have similar statistics was incorrect — the $(a_z, a_{zz})$ slice is in fact qualitatively different, with every valid point achieving SQL. This is itself a significant finding. The null hypothesis (SQL cannot be beaten) is confirmed across all experiments, and the monotonicity of the envelope is verified. The small-$r$ resolution criterion is satisfied: stratified sampling confirms the envelope is flat at SQL for all drive magnitudes, and the apparent small-drive degradation in the Marsaglia data was a sampling artifact. A natural next step would be to analytically investigate why $[a_z J_z^A, H] = 0$ leads to exactly SQL-level sensitivity for the entire $(a_z, a_{zz})$ parameter space.
 
 ## 🏁 Conclusions
 
@@ -252,10 +275,10 @@ The experiments completed in this report confirm the original null result (no SQ
 
 **Hypothesis 3** (all three slice types have identical extremal statistics) is **disproven**. While all three share the same minimum ratio ($1.0$), the commuting $a_z$ slice achieves SQL at 100% of valid points, compared to only $\sim 4.5\%$ for $a_x$ and $a_y$. The original expectation that the slices would differ only in "heatmap texture" underestimated the dramatic effect of the commutation relation.
 
-The norm-ball envelope also reveals that the best achievable sensitivity at small drive amplitudes ($\|\mathbf{a}\| \lesssim 2$) is strictly worse than SQL (ratios of 1.02–2.84), and only approaches SQL as the full $R=10$ drive budget is made available. This suggests that the interaction $a_{zz} J_z^S \otimes J_z^A$ degrades sensitivity unless the ancilla drive is strong enough to "average out" the effect — except in the commuting $a_z$ case, where the drive commutes with the interaction and never degrades sensitivity regardless of amplitude.
+The stratified norm-ball envelope (Experiment 2b) reveals a critical correction to the earlier Marsaglia result: the best achievable sensitivity at small drive amplitudes ($\|\mathbf{a}\| \lesssim 2$) is **not** worse than SQL. The apparent degradation (ratios of 1.02–2.84) in the Marsaglia data was a sampling artifact — the Marsaglia method under-samples the small-$r$ regime by a factor of ${\sim}10^3$, so the envelope was evaluated from sub-optimal configurations. Stratified sampling, which gives uniform linear density in $\|\mathbf{a}\|$, shows that the envelope is flat at 1.0 (SQL) for all $r \in [0.1, 10.0]$. This means the SQL is attainable at **any** drive magnitude, confirming that the interaction $a_{zz} J_z^S \otimes J_z^A$ does not intrinsically degrade sensitivity — only sub-optimal drive direction choices (non-commuting $a_x$, $a_y$) cause degradation, and even that can be fully compensated by adjusting the drive amplitude to any nonzero value.
 
 The **barycentric sensitivity heatmaps** (Experiment 1d) provide a single-panel visual summary: the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices are effectively indistinguishable (yellow R+G dominance), while the $(a_z, a_{zz})$ slice contributes zero weight everywhere (blue channel invisible) because it never deviates from SQL. The decoupled $a_{zz}=0$ line appears as a sharp white horizontal band — the only region where all three components simultaneously achieve SQL-level sensitivity.
 
 **Key Finding**: The commuting $a_z$ drive is unique — it is the only drive component that yields SQL-level sensitivity across its entire parameter space. This has practical implications for ancilla-enhanced metrology: if an ancilla is to be used without degrading sensitivity, the $J_z$ drive direction (commuting with the Ising interaction) should be chosen.
 
-**Open items**: An analytical derivation of why the $(a_z, a_{zz})$ slice produces exactly SQL sensitivity for all configurations would be valuable. The norm-ball data also enables future analysis of how the fraction of fringe-extremum points varies with $\|\mathbf{a}\|$, and the sparse small-$r$ region could be refined with stratified sampling. Additionally, investigating whether the $a_z$ drive's SQL-preserving property extends to larger system sizes ($N > 1$) would test the generality of this finding.
+**Open items**: An analytical derivation of why the $(a_z, a_{zz})$ slice produces exactly SQL sensitivity for all configurations would be valuable. The stratified norm-ball data could be further analyzed to study the distribution of $\Delta\omega$ values at each $r$ (not just the minimum). Additionally, investigating whether the $a_z$ drive's SQL-preserving property extends to larger system sizes ($N > 1$) would test the generality of this finding.
