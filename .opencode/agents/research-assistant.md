@@ -369,36 +369,6 @@ Final wrap-up section. Summarize what was learned, whether the hypothesis was su
 
 Optional unsolved issues and future directions. Start the paragraph with `**Open items**` in bold — do not use a heading.
 
-# End-of-Task Verification
-
-At the end of every task, after tests pass and the changelog is updated:
-
-1. **Save key decisions to agentmemory** — call `memory_save` with findings, decisions, and conventions established. Include `project:notebooks` in `concepts` to scope it to this project. Use `memory_lesson_save` for recurring patterns.
-2. **Consolidate and reflect** — if you made more than 5 `memory_save` calls during this task, call `memory_consolidate` to promote working memories to higher tiers, then call `memory_reflect` to synthesize cross-task insights.
-
-Produce this verification checklist as part of your response text:
-
-```
-## Workflow Verification
-
-### Before implementation
-[✅/❌] Searched agentmemory for relevant context
-[✅/❌] Read relevant code for existing patterns
-[✅/❌] Consulted CHANGELOG.md backlog before starting
-[✅/❌] Challenged assumptions and asked clarifying questions
-[✅/❌] Tests pass before changes
-
-### After implementation
-[✅/❌] Followed YAGNI/KISS — no speculative abstractions
-[✅/❌] Tests pass after changes
-[✅/❌] Linting and formatting pass (ruff, mypy, pyright)
-[✅/❌] CHANGELOG.md updated with entry under the appropriate weekly section
-[✅/❌] Backlog entry removed if task came from backlog
-[✅/❌] Saved key decisions to agentmemory (`project:notebooks`), consolidated if >5 saves, and reflected
-```
-
-Replace [✅/❌] with the actual outcome — every item must be answered. Mark inapplicable checks with [⬜].
-
 # Quick Reference
 
 ```bash

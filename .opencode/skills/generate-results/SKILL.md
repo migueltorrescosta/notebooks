@@ -79,8 +79,18 @@ Every simulation run follows a strict four-step sequence. Execute these in order
 - Use log-log axes for scaling exponent visualizations.
 - Each figure should convey one clear message — avoid overloading a single figure.
 
-# Verification
+# Workflow Verification
 
-- [ ] Report's parameter sweeps have been fully executed
+### Before implementation
+- [ ] Searched agentmemory for relevant prior results and decisions (`project:notebooks`)
+- [ ] Read the report (parameter sweeps, expected outputs, success criteria)
+- [ ] Explored existing code in `src/` and the report's `local.py`
+- [ ] Consulted CHANGELOG backlog before starting
+
+### After implementation
+- [ ] All parameter sweeps from the report fully executed
 - [ ] All raw data saved as Parquet in `reports/{date}/raw_data/`
 - [ ] All figures saved as SVG in `reports/{date}/figures/`
+- [ ] Linting and formatting pass (ruff, mypy, pyright) after any code fixes
+- [ ] CHANGELOG updated with entry under the appropriate weekly section; backlog entry removed if task came from backlog; any errors that predated the current session added to the backlog
+- [ ] Saved key decisions to agentmemory (`project:notebooks`)

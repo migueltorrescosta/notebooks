@@ -57,17 +57,21 @@ Review a report in `reports/` after simulations have been run and results genera
    - Reference specific Results
    - Optionally add **Open items** for future directions
 
-# Verification Checklist
+# Workflow Verification
 
-For each report review:
+### Before implementation
+- [ ] Searched agentmemory for relevant prior context (`project:notebooks`)
+- [ ] Read the report (hypothesis, success criteria, expected results)
+- [ ] Surveyed raw data in `reports/{date}/raw_data/`
+- [ ] Surveyed figures in `reports/{date}/figures/`
 
-- [ ] Report read and understood before reviewing data
-- [ ] All CSVs/Parquet files in `reports/{date}/raw_data/{date}-*` inspected
-- [ ] All SVGs in `reports/{date}/figures/{date}-*` checked for existence
-- [ ] Relevant SVGs embedded in the report
+### After implementation
+- [ ] All CSVs and Parquet files in `raw_data/` inspected and validated against physical invariants
+- [ ] All SVGs in `figures/` checked for existence and embedded in the report
 - [ ] Results section updated with actual PASS/FAIL status
 - [ ] Key Finding paragraphs added to each experiment subsection
 - [ ] Success Criteria updated with PASS/FAIL annotations
 - [ ] Conclusions updated with summary of findings
-- [ ] CHANGELOG updated with the completed report under the appropriate weekly section using the format `- **Title** (#YYYYMMDD) — description`
-- [ ] Internal consistency: Results match Success Criteria match Conclusions
+- [ ] Internal consistency verified: Results match Success Criteria match Conclusions
+- [ ] CHANGELOG updated with entry under the appropriate weekly section using the format `- **Title** (#YYYYMMDD) — description`; backlog entry removed if task came from backlog; any errors that predated the current session added to the backlog
+- [ ] Saved key decisions to agentmemory (`project:notebooks`)

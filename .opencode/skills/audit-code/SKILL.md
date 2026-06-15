@@ -62,14 +62,20 @@ After the full audit, provide:
 - A brief assessment of overall code quality for this implementation
 - Recommended order of fixing (highest severity first)
 
-# Verification
+# Workflow Verification
 
-- [ ] Report read and understood
-- [ ] Report's `local.py` and `test_local.py` inspected
-- [ ] All modified/added source files in `src/`, `pages/`, `tests/` inspected
-- [ ] Checked for **pyright violations** in `src/` and `pages/` (run `pyright src/ pages/`)
-- [ ] Checked for **module-level constants** in `src/` code (violation of Global Constraints §6)
-- [ ] Checked for **imports from `local.py`** coming from outside the report directory (violation of Global Constraints §7)
-- [ ] Checked that new report-specific code was added to `local.py`, not directly to `src/` (violation of Global Constraints §5)
-- [ ] Violations recorded with file, line, standard, severity, description, and suggested fix
-- [ ] No code was modified during the review
+### Before implementation
+- [ ] Searched agentmemory for relevant prior decisions and standards (`project:notebooks`)
+- [ ] Read the report (Hilbert space, operators, protocol)
+- [ ] Read all relevant source files (report's `local.py` and `test_local.py`, plus affected modules in `src/`, `pages/`, `tests/`)
+- [ ] Consulted CHANGELOG backlog if applicable
+
+### After implementation
+- [ ] No code was modified during audit
+- [ ] Checked for pyright violations in `src/` and `pages/` (`uvx pyright src/ pages/`)
+- [ ] Checked for module-level constants in `src/` (violation of Global Constraint §6)
+- [ ] Checked for imports from `local.py` originating outside the report directory (violation of Global Constraint §7)
+- [ ] Checked that new report-specific code was added to `local.py`, not to `src/` (violation of Global Constraint §5)
+- [ ] Each violation recorded with file, line, standard violated, severity, description, and suggested fix
+- [ ] CHANGELOG updated with entry under the appropriate weekly section if the audit uncovered actionable items; any errors that predated the current session added to the backlog
+- [ ] Saved key findings to agentmemory (`project:notebooks`)

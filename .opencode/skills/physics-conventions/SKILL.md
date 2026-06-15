@@ -70,8 +70,4 @@ description: Reference for consistent physics symbol usage across the codebase. 
 - **r_n** — High-order squeezing parameter `r_n = Ω_n · t_sqz`. Only in `High_Order_Squeezing.py`.
 - **Ω_n** — High-order squeezing rate (Hamiltonian strength). Only in `High_Order_Squeezing.py`.
 
-# Verification
 
-- [ ] New symbol checked against the variable reference table for conflicts.
-- [ ] If introducing a heavily overloaded symbol (e.g., `α`), a clarifying comment or docstring has been added.
-- [ ] `ruff`, `mypy`, and full test suite pass after introducing new symbols.

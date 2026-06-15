@@ -38,15 +38,27 @@ Define a disciplined, repeatable process for implementing physics simulations fr
 
 ## 3. At the end
 
-Before considering implementation complete, verify:
+Before considering implementation complete, verify all items in the Workflow Verification section below.
 
-0. **Update the CHANGELOG** — If this implementation completes a backlog item or adds significant infrastructure, add an entry under the appropriate weekly section using the format: `- **Title** (#YYYYMMDD) — description`. Remove the completed item from the backlog.
-1. **Tests pass**: Run `uv run pytest . --testmon --quiet --tb=short`
-2. **Linter passes**: Run `uv run ruff check . --fix && uv run ruff format .`
-3. **Type checks pass (mypy)**: Run `uv run mypy .`
-4. **Type checks pass (pyright)**: Run `uvx pyright src/ pages/`
-5. **No existing function signatures changed**
-6. No new code duplicates existing code from `src/` or from other `local.py` files.
-7. No unused variables exist in the code, and no unused parameters exist in functions
-9. No discrepancies exist between the report and the code implementation
-10. A small trial run of the simulation runs completely, validating the results format and correctness
+# Workflow Verification
+
+### Before implementation
+- [ ] Searched agentmemory for relevant prior implementations and decisions (`project:notebooks`)
+- [ ] Read the report (Hilbert space, operators, protocol)
+- [ ] Read relevant existing code in `src/` and the report's `local.py` for patterns
+- [ ] Consulted CHANGELOG backlog before starting
+- [ ] Tests pass before changes
+- [ ] Challenged assumptions and ambiguities clarified
+
+### After implementation
+- [ ] Followed YAGNI/KISS — no speculative abstractions
+- [ ] Tests pass after changes (`uv run pytest . --testmon --quiet --tb=short`)
+- [ ] Linting and formatting pass (`uv run ruff check . --fix && uv run ruff format .`)
+- [ ] Type checks pass — mypy (`uv run mypy .`) and pyright (`uvx pyright src/ pages/`)
+- [ ] No existing function signatures changed
+- [ ] No new code duplicates existing code from `src/` or other `local.py` files
+- [ ] No unused variables or parameters
+- [ ] No discrepancies between the report and the code implementation
+- [ ] Trial simulation run completes and validates output format
+- [ ] CHANGELOG updated with entry under the appropriate weekly section; backlog entry removed if task came from backlog; any errors that predated the current session added to the backlog
+- [ ] Saved key decisions to agentmemory (`project:notebooks`), consolidated if more than 5 saves, and reflected

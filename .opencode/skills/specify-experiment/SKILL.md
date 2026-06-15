@@ -34,9 +34,18 @@ Guide the creation of a new simulation report from initial research question thr
 3. When the report requires a multi-model comparison, include a **Models Survey** section.
 4. When conservation-law analysis or analytical bound derivation is central, include a **Physical Invariants / Analytical Bounds** section.
 
-# Verification
+# Workflow Verification
 
-- [ ] All existing reports in `reports/` have been surveyed.
-- [ ] CHANGELOG backlog checked for existing entry.
-- [ ] The hypothesis is falsifiable and maps to success criteria.
-- [ ] Assumptions have been surfaced to the user before implementation.
+### Before implementation
+- [ ] Searched agentmemory for relevant prior reports and decisions (`project:notebooks`)
+- [ ] Surveyed existing reports in `reports/`
+- [ ] Consulted CHANGELOG backlog for existing entry
+- [ ] Challenged assumptions and asked clarifying questions
+- [ ] Read relevant code for existing patterns
+
+### After implementation
+- [ ] Report follows section order, emoji placement, and formatting rules exactly
+- [ ] Hypothesis is falsifiable and maps 1:1 to success criteria
+- [ ] No code was modified
+- [ ] CHANGELOG updated with entry under the appropriate weekly section; backlog entry added if this is a new experiment
+- [ ] Saved key decisions to agentmemory (`project:notebooks`)
