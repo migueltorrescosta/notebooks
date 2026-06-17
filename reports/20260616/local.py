@@ -77,8 +77,8 @@ BFGS_GTOL: float = 1e-6  # L-BFGS-B gradient tolerance
 OMEGA_VALS_N_SCALING: list[float] = [0.1, 0.2, 0.5, 1.0, 2.0]
 
 # N values for scaling scans
-N_VALS_FIXED_ANCILLA: list[int] = list(range(1, 21))  # Step 2
-N_VALS_FULL_ANCILLA: list[int] = list(range(1, 11))  # Step 3
+N_VALS_FIXED_ANCILLA: list[int] = list(range(1, 14))  # Step 2
+N_VALS_FULL_ANCILLA: list[int] = list(range(1, 14))  # Step 3
 
 
 # ============================================================================
