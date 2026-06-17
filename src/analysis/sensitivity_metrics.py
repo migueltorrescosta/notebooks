@@ -440,6 +440,108 @@ class SensitivityScalingResult:
     exponents: dict
 
 
+# =============================================================================
+# Helper: single-N computation
+# =============================================================================
+
+
+def _compute_single_N_metrics(
+    state_type_lower: str,
+    N: int,
+    noise_config: NoiseConfig,
+    phi_true: float,
+    n_mc: int,
+    seed: int | None,
+) -> dict | None:
+    """Compute sensitivity metrics for a single N value.
+
+    Prepares the input state and runs ``all_sensitivity_metrics``. Returns
+    ``None`` if the computation fails (caught internally).
+
+    Args:
+        state_type_lower: Lowercased state type ("css", "noon", "twin_fock", "single").
+        N: Particle number (also used as max_photons).
+        noise_config: Noise configuration (unused here, kept for signature consistency).
+        phi_true: True phase for Bayesian estimation.
+        n_mc: Number of Monte Carlo samples.
+        seed: Random seed (None = fresh entropy).
+
+    Returns:
+        Result dict with keys (N, max_photons, delta_phi_ep, delta_phi_fc,
+        delta_phi_fq, delta_phi_bayes, fisher_quantum, state_type), or None
+        on failure.
+
+    """
+    try:
+        max_photons = N
+
+        # Prepare input state based on type using MZI state preparation
+        if state_type_lower == "single":
+            state = prepare_input_state("single_photon", max_photons=max_photons)
+        else:
+            # CSS, noon, twin_fock all use the noon generator in the current
+            # implementation (CSS and twin-fock are approximated by noon states).
+            state = prepare_input_state(
+                "noon", max_photons=max_photons, n_particles=N,
+            )
+
+        # Compute all sensitivity metrics
+        metrics = all_sensitivity_metrics(
+            state,
+            max_photons,
+            phi_true,
+            n_mc=n_mc,
+            seed=seed,
+        )
+
+        return {
+            "N": N,
+            "max_photons": max_photons,
+            "delta_phi_ep": metrics["delta_phi_ep"],
+            "delta_phi_fc": metrics["delta_phi_fc"],
+            "delta_phi_fq": metrics["delta_phi_fq"],
+            "delta_phi_bayes": metrics["delta_phi_bayes"],
+            "fisher_quantum": metrics["fisher_quantum"],
+            "state_type": state_type_lower,
+        }
+    except Exception as e:
+        # Skip N values that fail
+        print(f"Warning: N={N} failed: {e}")
+        return None
+
+
+# =============================================================================
+# Helper: exponent fitting
+# =============================================================================
+
+
+def _fit_scaling_exponents(df: pd.DataFrame) -> dict:
+    """Fit scaling exponents from a sensitivity-vs-N DataFrame.
+
+    Performs log-log linear regression (Δφ ∝ N^α) for each of the three
+    sensitivity columns (delta_phi_ep, delta_phi_fq, delta_phi_bayes).
+
+    Args:
+        df: DataFrame with columns N, delta_phi_ep, delta_phi_fq,
+            delta_phi_bayes.
+
+    Returns:
+        Dict mapping column name to fitted exponent α. Empty dict if there
+        are fewer than 2 rows or any N is non-positive.
+
+    """
+    exponents: dict[str, float] = {}
+    if len(df) >= 2 and df["N"].min() > 0:
+        for col in ["delta_phi_ep", "delta_phi_fq", "delta_phi_bayes"]:
+            if col in df.columns and np.all(df[col] > 0):
+                log_N = np.log(df["N"].values)
+                log_delta = np.log(df[col].values)
+                # Linear regression: log(Δ) = α*log(N) + log(C)
+                alpha = np.polyfit(log_N, log_delta, 1)[0]
+                exponents[col] = float(alpha)
+    return exponents
+
+
 def sensitivity_scaling(
     state_type: str,
     N_range: np.ndarray,
@@ -478,62 +580,15 @@ def sensitivity_scaling(
         noise_config = NoiseConfig()
 
     results = []
-
     for N in N_range:
-        max_photons = N
-
-        # Prepare input state based on type using MZI state preparation
-        if state_type.lower() == "css":
-            # For GHZ-like state, we use noon which gives similar entanglement
-            state = prepare_input_state("noon", max_photons=max_photons, n_particles=N)
-        elif state_type.lower() == "noon":
-            state = prepare_input_state("noon", max_photons=max_photons, n_particles=N)
-        elif state_type.lower() == "twin_fock":
-            # Twin-Fock: balanced superposition
-            state = prepare_input_state("noon", max_photons=max_photons, n_particles=N)
-        else:  # single photon
-            state = prepare_input_state("single_photon", max_photons=max_photons)
-
-        try:
-            # Compute all sensitivity metrics
-            metrics = all_sensitivity_metrics(
-                state,
-                max_photons,
-                phi_true,
-                n_mc=n_mc,
-                seed=seed,
-            )
-
-            results.append(
-                {
-                    "N": N,
-                    "max_photons": max_photons,
-                    "delta_phi_ep": metrics["delta_phi_ep"],
-                    "delta_phi_fc": metrics["delta_phi_fc"],
-                    "delta_phi_fq": metrics["delta_phi_fq"],
-                    "delta_phi_bayes": metrics["delta_phi_bayes"],
-                    "fisher_quantum": metrics["fisher_quantum"],
-                    "state_type": state_type.lower(),
-                },
-            )
-        except Exception as e:
-            # Skip N values that fail
-            print(f"Warning: N={N} failed: {e}")
-            continue
+        result = _compute_single_N_metrics(
+            state_type.lower(), N, noise_config, phi_true, n_mc, seed,
+        )
+        if result is not None:
+            results.append(result)
 
     df = pd.DataFrame(results)
-
-    # Fit scaling exponents using log-log fit
-    # Δφ ∝ N^α  =>  log(Δφ) = log(C) + α*log(N)
-    exponents = {}
-    if len(df) >= 2 and df["N"].min() > 0:
-        for col in ["delta_phi_ep", "delta_phi_fq", "delta_phi_bayes"]:
-            if col in df.columns and np.all(df[col] > 0):
-                log_N = np.log(df["N"].values)
-                log_delta = np.log(df[col].values)
-                # Linear regression: log(Δ) = α*log(N) + log(C)
-                alpha = np.polyfit(log_N, log_delta, 1)[0]
-                exponents[col] = float(alpha)
+    exponents = _fit_scaling_exponents(df)
 
     return SensitivityScalingResult(df=df, state_type=state_type, exponents=exponents)
 

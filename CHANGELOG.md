@@ -5,17 +5,79 @@ All notable experiments and infrastructure changes in this project are documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 with weekly groupings corresponding to experimental campaigns.
 
+---
+
+# Backlog
+
+Priority colours: 🔴🟠🟡🟢
+
+## Partially Completed
+
+Reports that have been started but are not yet fully complete (i.e., not all pipeline steps finished: plan report, implement code, review implementation, generate raw data and figures, write final report).
+
+- 🟡 **High-Order Squeezing Plan** (#20260507) — Hypothesis and theoretical model written. Next step: implement code (build the bosonic+spin oscillator simulation, Lindblad master equation solver with order-$n$ spin-dependent forces).
+
+- 🟡 **Advanced Architecture Surveys** (#20260511) — Theoretical framework documented for six models (non-Markovian bath, thermal Langevin noise, cavity-enhanced MZI, distributed sensor arrays, dynamical decoupling, tilt-to-length noise). Next step: implement code (build model-specific simulators and figure generators).
+
+## Ancilla-Enhanced Metrology
+
+- 🟠 **3D drive-component landscape** — Beyond 20260527's one-at-a-time 2D slices: study the sensitivity landscape with all three drive components $(a_x, a_y, a_z)$ active simultaneously. Does the commuting $a_z$ drive "protect" against degradation from $a_x$ and $a_y$? Are there interference effects when all three are non-zero? See #20260527.
+- 🟠 **Entangled initial S--A state in driven-ancilla metrology** — Replace the product initial state $|1,0\rangle_S \otimes |\psi_A\rangle$ with a maximally entangled Bell state $|\Phi^+\rangle = (|00\rangle + |11\rangle)/\sqrt{2}$ and test whether the $J=1/2$ bound still holds when S and A are entangled from the start.
+- 🟠 **Multi-particle ancilla ($J_A > 1/2$) with free initial state** — Test whether an ancilla with $J_A = 1, 3/2, 2$ (M=2,3,4 particles) can circumvent the single-qubit SQL bound through its larger Hilbert space.
+
+- 🔴 **General 4-parameter interaction + ω-modulated drive** (#20260616) — Add all four bilinear couplings ($\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz}$) to the $\omega$-modulated drive Hamiltonian (#20260519). The $\omega$-modulated drive gives $\partial H/\partial\omega = J_z^S + H_A^{\text{norm}}$ (#20260519), while the 4-parameter interaction gives higher-order BCH cross-terms (#20260521). When both are present, the second-order BCH expansion generates three O(N) classes of effective generator terms that could compound to $F_Q \propto N^2$. Report specified with 3-step pipeline: (1) $N=1$ characterisation of combined 7D space, (2) $N$-scaling with $J_A = 1/2$, (3) $N$-scaling with $J_A = N/2$ to test $F_Q \propto N^2$. Next step: implement code. See #20260519, #20260521, #20260611.
+- 🟠 **Ancilla OAT pre-squeezing before ω-modulated hold (J_A ≥ 1)** — Apply one-axis twisting U_OAT = exp(-iχ (J_z^A)² T_OAT) to a multi-particle ancilla (J_A ≥ 1) before the hold period. The ω-modulated drive term H_A^norm acts as a collective rotation on the ancilla; pre-squeezing (reduced variance in the J_x-J_y plane) amplifies the rotation's effect on the output. Effectively amplifies the ancilla's contribution to ∂⟨J_z^S⟩/∂ω without needing more particles. See #20260519, #20260611.
+- 🟡 **Free ancilla with joint measurement** — Apply the free-ancilla initial state (20260528) to the weighted joint measurement protocol (20260518 NM generalization) to test whether a free ancilla unlocks better joint-readout sensitivity than a fixed $|1,0\rangle$ ancilla. See #20260518, #20260528.
+
+## Squeezed-State & Non-Gaussian Metrology
+
+- 🟠 **Heisenberg-limited MZI with squeezed-vacuum and OAT** — Extend the CFI analysis (#20260601) to squeezed-vacuum input and OAT-generated spin-squeezed states; confirm $\alpha\to-1.0$ and compare prefactor with NOON/Twin-Fock. See #20260601.
+
+## Foundational Analysis
+
+- 🟢 **General POVM beyond linear combinations** — How much sensitivity can an informationally complete measurement on the full $(N+1)(M+1)$-dimensional space extract, compared to the weighted linear $M = aJ_z^S + bJ_z^A$? See #20260518.
+- 🟢 **Analytical derivation: $(a_z, a_{zz})$ flatness** — Derive why $[a_z J_z^A, H] = 0$ leads to exactly SQL-level sensitivity for the full parameter space (observed in 20260527). See #20260527.
+
+## Infrastructure & Tooling
+
+### Study: Test-Suite Enhancement Candidates
+
+Items below are **pro/con studies** — evaluate feasibility, maintenance burden, false-positive rate, and ROI before committing to integration. Each study produces a brief recommendation (adopt / adopt-with-modifications / reject) in its backlog item.
+
+- 🟠 **CI gate: reject TODO/FIXME/XXX/bare `pass`/placeholder implementations** — Agents frequently leave unfinished markers that humans miss in review. Study whether ruff's `FIX002` / `TOD005` / `TOD001` / `TOD002` rules (currently all ignored as `"FIX"` and `"TD"` in pyproject.toml) can be enabled selectively, or whether a custom pre-commit hook is needed. Bare `pass` as placeholder and obvious stubs (e.g., `return 0`, `return None`, `...` in non-abstract classes) should also be flagged. Evaluate false-positive risk for legitimate TODO tracking vs. dead code.
+- 🟠 **Coverage threshold >= 90%** — Adding a coverage gate (`pytest-cov` or native `[tool.coverage.run]`) with a minimum 90% line-coverage threshold enforced in CI. Study: which regions to exclude (reports/, jupyter/, generated files), whether branch coverage is feasible, how the existing 2152-test suite measures, and what the threshold should be adjusted to for a realistic first-pass adoption (80%? 85%?). Evaluate `pytest-cov` vs `coverage.py` + `pytest-testmon` interplay.
+- 🟠 **Function length limit (soft 40 LOC, hard 75 LOC, including docstrings)** — A lint rule flagging functions exceeding 75 LOC (hard error) or 40 LOC (warning). Study: whether ruff's `PLR0915` (too-many-statements) or `PLR0912`/`PLR0911` can serve as a proxy, or whether a custom radon/ast-based check is needed. Test against the existing codebase to determine how many violations exist, whether the limits need adjustment for physics-verbosity (docstrings, inline assertions), and whether the benefit justifies the refactoring burden.
+- 🟡 **Hypothesis property-based testing** — Project conventions already document property-based testing (`@given` from `hypothesis`) for physical invariants (unitarity, normalisation, trace preservation), but adoption is zero. Study: add `hypothesis` as a dev dependency, write a pilot property-based test for a core invariant (e.g., beam-splitter unitarity over θ, Lindblad trace preservation over γ_k), measure test-suite slowdown, and evaluate whether hypothesis strategies compose well with the existing Hilbert-space dimension conventions. Document findings as a recommended pattern or as a "not worth the complexity" conclusion.
+- 🟡 **File length limit (soft 500 LOC, hard 800 LOC)** — A lint rule flagging files exceeding 800 LOC (hard error) or 500 LOC (warning). Study: what the current distribution of file lengths looks like (`find . -name '*.py' -exec wc -l {} +` across src/ and reports/), which files would need splitting, and whether ruff's `PLR0915` per-file or a custom `scripts/` check is the right approach. Evaluate against the existing `src/physics/mzi_states.py` (largest single-purpose module) and report `local.py` files (orchestrator-heavy).
+- 🟡 **Pydantic for runtime schema integration** — Replace the current `@dataclass` + `to_dataframe()`/`from_parquet()` conventions with Pydantic `BaseModel` for runtime type validation at serialization boundaries. Study: whether Pydantic's model_dump/mode_validate replaces the ParquetSerializable ABC, how validation overhead compares to the current fail-fast pattern, whether Pydantic v2's serialisation hooks handle numpy arrays and Parquet roundtrips smoothly, and whether the migration cost (47 result dataclasses, all `local.py` files) is worth the additional safety.
+- 🟢 **Semgrep static-analysis rules** — Add semgrep to the CI pipeline with project-specific rules for common bug patterns (e.g., matrix inversion via `np.linalg.inv`, dtype mismatches in Fock-basis indexing, missing `seed` parameters in stochastic functions). Study: semgrep's learning curve, rule-writing overhead, false-positive rate on physics/numerical code, and whether the existing ruff + mypy + pyright stack already covers the high-value patterns.
+- 🟢 **Vulture dead-code detection** — Add `vulture` to CI for identifying unused functions, methods, and imports. Study: baseline whitelist size required for the existing codebase (how many deliberately-exported functions would be flagged), whether test-only functions and CLI entry points are correctly handled, and whether the signal-to-noise ratio is high enough to justify a CI gate vs. a periodic manual scan.
+- 🟢 **jscpd / copydetect for code duplication** — Evaluate jscpd (JavaScript/TypeScript-origin but supports Python via token-based analysis) or `copydetect` (Python-native, AST-aware) for detecting near-duplicate code blocks across report `local.py` files. Study: threshold tuning (minimum duplicated lines, similarity %), whether token-based or AST-based detection is more appropriate for the physics codebase (where similar operator-building patterns are legitimate), and whether the tool could augment the existing shared-infrastructure audit (`audit-code` skill §2) with automated fingerprinting.
+
+### Ongoing Infrastructure Tasks
+
+- 🟡 **3D slice visualization** — Heatmap infrastructure currently supports 2D slices only. For studying all three drive components simultaneously, 3D volumetric plots or 2D projections of 3D landscapes are needed.
+- 🟡 **Survey of existing ignored checks (e.g., `# noqa`) with the goal of not ignoring them** — The codebase has ~60 `# noqa` comments across `src/`, `reports/`, `tests/`, and `pages/`. Every `# noqa` is a suppressed rule violation. Audit each one: classify as legitimate (e.g., `# noqa: F401 — re-exported for tests` is intentional), fixable (suppression can be removed by refactoring), or stale (suppression for a rule no longer enforced). Produce a summary table and a plan to eliminate all fixable/stale suppressions.
+- 🟡 **CI/CD pipeline** — Automated test/lint/type-check on push and PR; automated CHANGELOG management.
+- 🟢 **Performance benchmarks** — Automated per-function timing to catch regressions exceeding the 100 ms per-simulation budget.
+- 🟢 **Advanced architecture simulation functions** — Implement six model-specific simulators and figure generators for the PENDING advanced architecture surveys (non-Markovian bath, thermal noise, cavity-enhanced MZI, distributed arrays, dynamical decoupling, tilt-to-length noise).
+- 🟡 **CI lint rule for module-level constants in `src/`** — Add a ruff-compatible check (or standalone `scripts/` script) flagging module-level numeric/string literal assignments outside `src/utils/constants.py`. Only 2 true violators exist (`TEST_FUNCTIONS`, `MINIMIZERS` in `optimization.py`), so the guardrail is mostly preventive.
+- 🟡 **pytest warning when tests >5s lack `@pytest.mark.slow`** — Add a `pytest_terminal_summary` hook in root `conftest.py` that records test durations and warns on any test exceeding 5s without the `slow` marker. 30 slow markers exist but no automated enforcement.
+- 🟢 **Memory consolidation: procedural & semantic learning** — Run `memory_consolidate` targeting `semantic` and `procedural` tiers. The system has 112 "decision" and "fact" memories but 0 procedural/semantic memories. See `memory_diagnose` output (Jun 2026).
+
+
+---
+
 ## Week 25 (Jun 15–21)
 
 ### New Report (Implemented + Results Generated)
 - **Non-Linear Measurement (Parity and CFI) on ω-Modulated Drive** (#20260615) — Replaces the linear $J_z^S$ measurement in $\omega$-modulated drive (#20260519) with parity and full-distribution CFI strategies. CFI consistently beats linear $J_z^S$ ($\mathcal{R}_{\text{CFI}} \to 1.4$ at $N=10$). Parity beats linear when optimised for parity (8-34%) but shows no Heisenberg scaling. Even optimal S-only CFI captures only $\sim 44-47\%$ of total Fisher information vs joint measurement. See #20260519, #20260601, #20260613.
 
 ### Infrastructure
-- **Canonical functions promoted to shared `src/` modules** — Three guardrails promoted to `src/`: (1) vectorised Liouvillian builder (`src/evolution/lindblad_solver.py`); (2) error-propagation sensitivity with configurable tolerances (`src/analysis/sensitivity_metrics.py`); (3) post-BS variance reference table for NOON, Twin-Fock, and Coherent states (`src/physics/beam_splitter.py`). 20 new tests. Backlog item closed.
-- **`T_hold` → `t_hold` rename** — PEP 8 compliance rename of holding-time parameter across the full codebase: 10 `src/` modules, 4 page files, 17 `reports/*/local.py`, 21 test files, 3 runner scripts. Applied `git replaceAll("T_hold","t_hold")` pattern (~1200 occurrences). Updated Parquet column keys (`"T_hold"` → `"t_hold"`) accepting backward incompatibility. Updated SKILL.md Known Inconsistencies table. 1719 tests all passing, 0 ruff errors introduced. Backlog item closed.
-- **Audit skill: shared-infrastructure-first** — Added an explicit **Shared-Infrastructure Analysis** step (§2) to `audit-code` skill SKILL.md, placed between Preparation and Reporting violations. The new section provides a 5-step workflow: (1) grep for function definitions across `reports/*/local.py`, (2) grep for module-level constants, (3) cross-reference for duplicates, (4) categorise each duplicate (exact/near/superficial), (5) flag ≥2-report duplicates for promotion to `src/` before cosmetic fixes. Added 6 corresponding checklist items in a new "During analysis" subsection. Updated the priority rule (Rule 5) to `correctness > deduplication > performance > style`. Backlog item closed.
-- **`align-project` skill created** — New `.opencode/skills/align-project/SKILL.md` (166 lines) providing periodic project-level maintenance: backlog priority alignment (🔴🟠🟡🟢 reassignment), CHANGELOG structural audit, stale file scan, shared-infrastructure cross-report analysis, full toolchain health check, agentmemory consolidation, skill cross-reference verification, and OpenCode configuration consistency. Designed as an inspect-and-report skill with mechanical auto-fix only. 8 workflow actions across 3 pillars (Priority Alignment, Sanity Check, Product Focus Review). Replaces the deferred backlog-priority-reassignment from the closed backlog item. New skill auto-discovered by OpenCode from `.opencode/skills/` directory.
-- **Project alignment review** — Backlog priorities refreshed (memory consolidation 🟢→🔴), stale runner scripts deleted, ruff TC003 violations fixed. 7 duplication hotspots identified for potential promotion. Toolchain: 1719/1719 tests pass, mypy clean, pyright 7 pre-existing. 114 consistent agentmemory items.
+- **Report re-export & test-hardening fixes** — Fixed `sys.modules` ordering in all 17 `test_local.py` files (collision when running reports collectively); added `--import-mode=importlib` to `pyproject.toml`. Restored missing re-exports across 4 reports: `lindblad_rhs` (#20260507), `ScalingAnalysisResult` (#20260522/#20260523), 5 `n_particle_drive` symbols (#20260611), and `t_h`→`t_hold` parametrize mismatch in #20260512 tests (6 function signatures). Full suite: 2538 passed, 2 skipped, 1 xfailed.
+- **Code quality & hygiene** — `T_hold` → `t_hold` PEP 8 rename (~1200 occurrences, 55 files). ParquetSerializable ABC rolled out to all 47 result dataclasses. All private-name alias imports removed (169 parametrized cases verified). `plt.cm.` → `plt.colormaps["..."]` regression guardrail (new script + ruff `TID251` ban, 0 violations). Radon CC campaign: 20+ functions reduced from C/D to A/B grade; Radon CC test unskipped, zero C-grade blocks project-wide.
+- **Shared infrastructure promotions** — Seven duplicated orchestrators promoted from `local.py` to shared `src/` modules: `generate_decoupled_baseline` (8 reports), `generate_scaling_analysis` (3 reports), `verify_decoupled_baseline` (3 reports), `generate_n_scaling`/`plot_n_scaling` (3 reports), plus canonical Liouvillian builder, error-propagation sensitivity, and post-BS variance reference tables.
+- **Developer tooling & skills** — Audit skill enhanced with shared-infrastructure analysis step (§2). New `align-project` skill (periodic project maintenance) and `tackle-backlog` skill (infrastructure backlog handling).
 
 ## Week 24 (Jun 8–14)
 
@@ -76,48 +138,4 @@ with weekly groupings corresponding to experimental campaigns.
 - **Ancilla-Assisted vs Two-System-Particle Comparison** (#20260511) — Fixed 2 total particles: ancilla-assisted configuration (1 S + 1 A) cannot beat two-system-particle configuration (2 S). Ratio $\mathcal{R} = \Delta\theta_A / \Delta\theta_B = 2.02$. Fundamental limitation: $J=1/2$ probe cannot behave like a $J=1$ probe.
 - **Scaling Survey: Collective-Spin / Dicke Basis** (#20260511) — OAT spin squeezing achieves $\alpha=-2/3$ at optimal $t_{\text{opt}}\propto N^{-1/3}$. Balanced Dicke (Twin-Fock) achieves $\alpha=-1.0$ (Heisenberg) with $F_Q = N(N+2)/3$. Non-Gaussian states have fractional exponents $\alpha\approx-0.75$ to $-0.85$.
 - **Scaling Survey: Fock-Basis MZI Models** (#20260511) — Systematic scaling analysis of coherent, NOON, and squeezed-vacuum states under Markovian decoherence. Coherent states achieve SQL ($\alpha=-0.5$). Squeezed-vacuum achieves Heisenberg-like scaling ($\alpha\to-1.0$) with $F_Q = 2\langle N\rangle(\langle N\rangle+1)$, beating the NOON-state HL prefactor by $2\times$. NOON collapses to SQL under any loss; two-body loss causes complete collapse ($\alpha\to0$) for all states at large $N$.
-
----
-
-# Backlog
-
-Priority colours: 🔴🟠🟡🟢
-
-## Partially Completed
-
-Reports that have been started but are not yet fully complete (i.e., not all pipeline steps finished: plan report, implement code, review implementation, generate raw data and figures, write final report).
-
-- 🟡 **High-Order Squeezing Plan** (#20260507) — Hypothesis and theoretical model written. Next step: implement code (build the bosonic+spin oscillator simulation, Lindblad master equation solver with order-$n$ spin-dependent forces).
-
-- 🟡 **Advanced Architecture Surveys** (#20260511) — Theoretical framework documented for six models (non-Markovian bath, thermal Langevin noise, cavity-enhanced MZI, distributed sensor arrays, dynamical decoupling, tilt-to-length noise). Next step: implement code (build model-specific simulators and figure generators).
-
-## Ancilla-Enhanced Metrology
-
-- 🟠 **3D drive-component landscape** — Beyond 20260527's one-at-a-time 2D slices: study the sensitivity landscape with all three drive components $(a_x, a_y, a_z)$ active simultaneously. Does the commuting $a_z$ drive "protect" against degradation from $a_x$ and $a_y$? Are there interference effects when all three are non-zero? See #20260527.
-- 🟠 **Entangled initial S--A state in driven-ancilla metrology** — Replace the product initial state $|1,0\rangle_S \otimes |\psi_A\rangle$ with a maximally entangled Bell state $|\Phi^+\rangle = (|00\rangle + |11\rangle)/\sqrt{2}$ and test whether the $J=1/2$ bound still holds when S and A are entangled from the start.
-- 🟠 **Multi-particle ancilla ($J_A > 1/2$) with free initial state** — Test whether an ancilla with $J_A = 1, 3/2, 2$ (M=2,3,4 particles) can circumvent the single-qubit SQL bound through its larger Hilbert space.
-
-- 🔴 **General 4-parameter interaction + ω-modulated drive** — Add all four bilinear couplings (α_xx, α_xz, α_zx, α_zz) to the ω-modulated drive Hamiltonian (#20260519). The ω-modulated drive gives first-order BCH cross-term [ωJ_z^S, a_zz J_z^S⊗J_z^A] (#20260519), while the 4-parameter interaction gives higher-order BCH cross-terms (#20260521). When both are present, the effective generator picks up three O(N) classes of terms that could compound to F_Q ∝ N². See #20260519, #20260521.
-- 🟠 **Ancilla OAT pre-squeezing before ω-modulated hold (J_A ≥ 1)** — Apply one-axis twisting U_OAT = exp(-iχ (J_z^A)² T_OAT) to a multi-particle ancilla (J_A ≥ 1) before the hold period. The ω-modulated drive term H_A^norm acts as a collective rotation on the ancilla; pre-squeezing (reduced variance in the J_x-J_y plane) amplifies the rotation's effect on the output. Effectively amplifies the ancilla's contribution to ∂⟨J_z^S⟩/∂ω without needing more particles. See #20260519, #20260611.
-- 🟡 **Free ancilla with joint measurement** — Apply the free-ancilla initial state (20260528) to the weighted joint measurement protocol (20260518 NM generalization) to test whether a free ancilla unlocks better joint-readout sensitivity than a fixed $|1,0\rangle$ ancilla. See #20260518, #20260528.
-
-## Squeezed-State & Non-Gaussian Metrology
-
-- 🟠 **Heisenberg-limited MZI with squeezed-vacuum and OAT** — Extend the CFI analysis (#20260601) to squeezed-vacuum input and OAT-generated spin-squeezed states; confirm $\alpha\to-1.0$ and compare prefactor with NOON/Twin-Fock. See #20260601.
-
-## Foundational Analysis
-
-- 🟢 **General POVM beyond linear combinations** — How much sensitivity can an informationally complete measurement on the full $(N+1)(M+1)$-dimensional space extract, compared to the weighted linear $M = aJ_z^S + bJ_z^A$? See #20260518.
-- 🟢 **Analytical derivation: $(a_z, a_{zz})$ flatness** — Derive why $[a_z J_z^A, H] = 0$ leads to exactly SQL-level sensitivity for the full parameter space (observed in 20260527). See #20260527.
-
-## Infrastructure & Tooling
-
-- 🟡 **3D slice visualization** — Heatmap infrastructure currently supports 2D slices only. For studying all three drive components simultaneously, 3D volumetric plots or 2D projections of 3D landscapes are needed.
-- 🟡 **CI/CD pipeline** — Automated test/lint/type-check on push and PR; automated CHANGELOG management.
-- 🟢 **Performance benchmarks** — Automated per-function timing to catch regressions exceeding the 100 ms per-simulation budget.
-- 🟢 **Advanced architecture simulation functions** — Implement six model-specific simulators and figure generators for the PENDING advanced architecture surveys (non-Markovian bath, thermal noise, cavity-enhanced MZI, distributed arrays, dynamical decoupling, tilt-to-length noise).
-
-- 🟠 **Automated quality guardrails** — (a) CI lint rule flagging module-level numeric/string constants in `src/`; (b) abstract base class `ParquetSerializable` in `src/utils/serialization.py` enforcing fail-fast `from_parquet()`; (c) `pytest` check warning when tests >5s lack `@pytest.mark.slow`; (d) project-wide `plt.cm.` → `plt.colormaps["..."]` migration. See Phase 1 Data Integrity audit (May 2026).
-
-- 🟢 **Memory consolidation: procedural & semantic learning** — Run `memory_consolidate` targeting `semantic` and `procedural` tiers. The system has 112 "decision" and "fact" memories but 0 procedural/semantic memories. See `memory_diagnose` output (Jun 2026).
 

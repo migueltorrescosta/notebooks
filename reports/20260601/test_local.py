@@ -7,9 +7,11 @@ Run with:
 
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import sys as _sys
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pytest
@@ -20,13 +22,16 @@ from src.physics.mzi_states import (
     compute_jz_variance,
     input_state_factory,
 )
+from src.utils.serialization import assert_roundtrip_fields
 
-_report_dir = str(
-    Path(__file__).resolve().parent.parent.parent / "reports" / "20260601",
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _report_dir
+_local_path = Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     MziSensitivityData,
@@ -34,7 +39,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     analyse_best_worst_sensitivity,
     compute_fisher_classical,
     compute_mzi_sensitivity_grid,
-    fit_scaling_exponent,
+    fit_mzi_scaling_exponent,
     output_number_diff_distribution,
     simple_mzi_evolution,
     t_hold,
@@ -578,7 +583,7 @@ class TestFitScalingExponent:
         r"""NOON states should give α ≈ -1.0 (Heisenberg)."""
         N_vals = np.array([2, 4, 6, 10, 14, 20], dtype=float)
         delta_vals = 1.0 / (t_hold * N_vals)
-        result = fit_scaling_exponent(N_vals, delta_vals)
+        result = fit_mzi_scaling_exponent(N_vals, delta_vals)
         assert result.valid, f"Fit invalid: {result.warnings}"
         assert np.isclose(result.alpha, -1.0, atol=0.02), (
             f"NOON exponent α={result.alpha}, expected -1.0"
@@ -600,7 +605,7 @@ class TestFitScalingExponent:
         N_vals = np.array([10, 20, 40, 80, 120, 200], dtype=float)
         # Δθ_Q = 1 / (t_hold · √(N(N+2)/2)) → ∝ 1/N for large N
         delta_vals = 1.0 / (t_hold * np.sqrt(N_vals * (N_vals + 2) / 2.0))
-        result = fit_scaling_exponent(N_vals, delta_vals, N_min=10)
+        result = fit_mzi_scaling_exponent(N_vals, delta_vals, N_min=10)
         assert result.valid, f"Fit invalid: {result.warnings}"
         assert np.isclose(result.alpha, -1.0, atol=0.05), (
             f"TF exponent α={result.alpha}, expected ~-1.0"
@@ -619,7 +624,7 @@ class TestFitScalingExponent:
         true_C = 1.0 / t_hold
         delta_vals = true_C * N_vals**true_alpha
         delta_vals *= 1.0 + 0.01 * rng.normal(size=len(N_vals))
-        result = fit_scaling_exponent(N_vals, delta_vals)
+        result = fit_mzi_scaling_exponent(N_vals, delta_vals)
         assert result.valid, f"Fit invalid: {result.warnings}"
         assert np.isclose(result.alpha, true_alpha, atol=0.05), (
             f"Noisy NOON exponent α={result.alpha}, expected {true_alpha}"
@@ -629,7 +634,7 @@ class TestFitScalingExponent:
         """N_min parameter should exclude small N from fit."""
         N_vals = np.array([1, 2, 4, 6, 10, 20], dtype=float)
         delta_vals = 1.0 / (t_hold * N_vals)
-        result = fit_scaling_exponent(N_vals, delta_vals, N_min=4)
+        result = fit_mzi_scaling_exponent(N_vals, delta_vals, N_min=4)
         assert result.valid, f"Fit invalid: {result.warnings}"
         assert len(result.N_values) == 4, (
             f"Expected 4 fit points (N>=4), got {len(result.N_values)}"
@@ -640,7 +645,7 @@ class TestFitScalingExponent:
         """Fewer than 3 points should return invalid result (valid=False)."""
         N_vals = np.array([2], dtype=float)
         delta_vals = np.array([0.1])
-        result = fit_scaling_exponent(N_vals, delta_vals)
+        result = fit_mzi_scaling_exponent(N_vals, delta_vals)
         assert not result.valid, "Fit should be invalid with only 1 point"
 
 
@@ -650,6 +655,20 @@ class TestFitScalingExponent:
 
 
 class TestMziSensitivityDataParquet:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("state_type", "eq"),
+        ("N_values", "allclose"),
+        ("omega_values", "allclose"),
+        ("expectation_grid", "allclose"),
+        ("variance_grid", "allclose"),
+        ("derivative_grid", "allclose"),
+        ("delta_omega_ep_grid", "allclose"),
+        ("delta_omega_q_per_N", "allclose"),
+        ("fisher_classical_grid", "allclose"),
+        ("delta_omega_c_grid", "allclose"),
+        ("t_hold", "isclose"),
+    ]
+
     @pytest.fixture
     def make_result(self) -> MziSensitivityData:
         n_n = 3
@@ -674,19 +693,7 @@ class TestMziSensitivityDataParquet:
         p = tmp_path / "sensitivity.parquet"
         make_result.save_parquet(p)
         loaded = MziSensitivityData.from_parquet(p)
-        assert loaded.state_type == make_result.state_type
-        assert np.allclose(loaded.N_values, make_result.N_values)
-        assert np.allclose(loaded.omega_values, make_result.omega_values)
-        assert np.allclose(loaded.expectation_grid, make_result.expectation_grid)
-        assert np.allclose(loaded.variance_grid, make_result.variance_grid)
-        assert np.allclose(loaded.derivative_grid, make_result.derivative_grid)
-        assert np.allclose(loaded.delta_omega_ep_grid, make_result.delta_omega_ep_grid)
-        assert np.allclose(loaded.delta_omega_q_per_N, make_result.delta_omega_q_per_N)
-        assert np.allclose(
-            loaded.fisher_classical_grid, make_result.fisher_classical_grid
-        )
-        assert np.allclose(loaded.delta_omega_c_grid, make_result.delta_omega_c_grid)
-        assert np.isclose(loaded.t_hold, make_result.t_hold)
+        assert_roundtrip_fields(loaded, make_result, self._FIELD_SPECS)
 
     def test_fail_fast_missing_column(
         self, make_result: MziSensitivityData, tmp_path: Path

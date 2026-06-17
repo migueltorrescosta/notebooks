@@ -35,7 +35,7 @@ import qutip
 import scipy
 import scipy.special
 
-from src.physics.dicke_basis import jz_operator as _jz_operator
+from src.physics.dicke_basis import jz_operator
 from src.utils.enums import OperatorBasis
 
 # =============================================================================
@@ -187,7 +187,7 @@ def _build_hamiltonian_and_cops(
     N = config.N
     a, a_dag = qutip.destroy(N + 1).full(), qutip.create(N + 1).full()
     n = a_dag @ a
-    jz = _jz_operator(N, basis=OperatorBasis.FOCK)
+    jz = jz_operator(N, basis=OperatorBasis.FOCK)
 
     # Build Hamiltonian with optional OAT squeezing
     if config.chi != 0:

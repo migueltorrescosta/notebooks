@@ -7,8 +7,10 @@ Run with:
 
 from __future__ import annotations
 
+import importlib.util
 import sys as _sys
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pytest
@@ -16,15 +18,18 @@ from scipy.linalg import expm
 
 from src.physics.dicke_basis import jz_operator
 from src.utils.enums import OperatorBasis
+from src.utils.serialization import assert_roundtrip_fields
 
 pytestmark = [pytest.mark.filterwarnings("ignore::DeprecationWarning")]
 
-_report_dir = str(
-    Path(__file__).resolve().parent.parent.parent / "reports" / "20260523",
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _report_dir
+_local_path = Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     ALPHA_BOUND,
@@ -733,6 +738,26 @@ class TestScalingAnalysis:
 
 
 class TestParquetRoundtrip:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("omega_values", "allclose"),
+        ("N_values", "array_eq"),
+        ("protocol", "eq"),
+        ("alpha_xx_opt", "allclose"),
+        ("alpha_xz_opt", "allclose"),
+        ("alpha_zx_opt", "allclose"),
+        ("alpha_zz_opt", "allclose"),
+        ("delta_omega_opt", "allclose"),
+        ("sql_values", "allclose"),
+        ("ratio", "allclose"),
+        ("expectation_Jz", "allclose"),
+        ("variance_Jz", "allclose"),
+        ("d_expectation", "allclose"),
+        ("n_starts", "array_eq"),
+        ("n_converged", "array_eq"),
+        ("gradient_norm", "allclose"),
+        ("t_hold", "isclose"),
+    ]
+
     def test_sweep_roundtrip(self, tmp_path: Path) -> None:
         """Basic roundtrip: save then load — all fields survive."""
         original = FourParamSweepResult(
@@ -757,23 +782,7 @@ class TestParquetRoundtrip:
         parquet_path = tmp_path / "test_sweep.parquet"
         original.save_parquet(parquet_path)
         loaded = FourParamSweepResult.from_parquet(parquet_path)
-        assert np.allclose(loaded.omega_values, original.omega_values)
-        assert np.array_equal(loaded.N_values, original.N_values)
-        assert loaded.protocol == original.protocol
-        assert np.allclose(loaded.alpha_xx_opt, original.alpha_xx_opt)
-        assert np.allclose(loaded.alpha_xz_opt, original.alpha_xz_opt)
-        assert np.allclose(loaded.alpha_zx_opt, original.alpha_zx_opt)
-        assert np.allclose(loaded.alpha_zz_opt, original.alpha_zz_opt)
-        assert np.allclose(loaded.delta_omega_opt, original.delta_omega_opt)
-        assert np.allclose(loaded.sql_values, original.sql_values)
-        assert np.allclose(loaded.ratio, original.ratio)
-        assert np.allclose(loaded.expectation_Jz, original.expectation_Jz)
-        assert np.allclose(loaded.variance_Jz, original.variance_Jz)
-        assert np.allclose(loaded.d_expectation, original.d_expectation)
-        assert np.array_equal(loaded.n_starts, original.n_starts)
-        assert np.array_equal(loaded.n_converged, original.n_converged)
-        assert np.allclose(loaded.gradient_norm, original.gradient_norm)
-        assert pytest.approx(original.t_hold) == loaded.t_hold
+        assert_roundtrip_fields(loaded, original, self._FIELD_SPECS)
 
     def test_sweep_roundtrip_metadata(self, tmp_path: Path) -> None:
         """All metadata fields survive roundtrip."""
@@ -799,17 +808,7 @@ class TestParquetRoundtrip:
         parquet_path = tmp_path / "test_meta.parquet"
         original.save_parquet(parquet_path)
         loaded = FourParamSweepResult.from_parquet(parquet_path)
-        assert loaded.omega_values[0] == pytest.approx(0.5)
-        assert loaded.N_values[1] == 5
-        assert loaded.protocol[0] == "dual"
-        assert loaded.protocol[1] == "S-only"
-        assert loaded.alpha_xx_opt[0] == pytest.approx(5.0)
-        assert loaded.alpha_xz_opt[1] == pytest.approx(3.0)
-        assert loaded.alpha_zx_opt[0] == pytest.approx(8.0)
-        assert loaded.alpha_zz_opt[1] == pytest.approx(4.0)
-        assert loaded.n_starts[0] == 25
-        assert loaded.n_converged[0] == 12
-        assert loaded.gradient_norm[0] == pytest.approx(1e-8)
+        assert_roundtrip_fields(loaded, original, self._FIELD_SPECS)
 
     def test_from_parquet_missing_columns(self, tmp_path: Path) -> None:
         """from_parquet should fail fast when required columns missing."""

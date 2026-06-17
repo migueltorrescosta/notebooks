@@ -28,7 +28,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,6 +38,8 @@ from matplotlib import colormaps
 from matplotlib.colors import LogNorm
 from scipy.linalg import expm
 from scipy.optimize import minimize
+
+from src.utils.serialization import ParquetSerializable
 
 # Force non-interactive matplotlib backend before any plotting imports.
 if "MPLBACKEND" not in os.environ:
@@ -52,14 +54,12 @@ from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
 from src.evolution.lindblad_solver import (
-    build_vectorized_liouvillian as build_liouvillian,
-)
-from src.evolution.lindblad_solver import (
+    build_vectorized_liouvillian,
     unvectorise_rho,
     validate_density_matrix,
     vectorise_rho,
 )
-from src.utils.parallel import parallel_map as _parallel_map
+from src.utils.parallel import parallel_map
 
 sns.set_theme(style="whitegrid")
 
@@ -305,7 +305,7 @@ def evolve_noisy_drive_circuit(
     # Hold with Lindblad evolution (always use Liouvillian for consistency)
     H = build_noise_hold_hamiltonian(omega, a_x, a_y, a_z, a_zz, ops)
     lindblad_ops = build_phase_diffusion_operators(gamma_phi, ops)
-    L = build_liouvillian(H, lindblad_ops)
+    L = build_vectorized_liouvillian(H, lindblad_ops)
 
     # Vectorise, exponentiate, unvectorise
     rho_vec = vectorise_rho(rho)
@@ -440,7 +440,7 @@ def compute_noisy_sensitivity_with_diagnostics(
 
 
 @dataclass
-class DriveNoiseScanResult:
+class DriveNoiseScanResult(ParquetSerializable):
     """Result from a (ω, γ_φ) noise scan with re-optimised parameters.
 
     Attributes:
@@ -485,6 +485,28 @@ class DriveNoiseScanResult:
     bounds_hi: float = 5.0
     fd_step: float = FD_STEP
     seed: int = 42
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "gamma_phi",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "delta_omega",
+        "expectation_Jz",
+        "variance_Jz",
+        "d_exp_d_omega",
+        "sql",
+        "t_hold",
+        "n_random",
+        "n_nm_refine",
+        "maxiter",
+        "bounds_lo",
+        "bounds_hi",
+        "fd_step",
+        "seed",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         """Flatten into a long-format DataFrame with one row per (ω, γ_φ)."""
@@ -544,42 +566,10 @@ class DriveNoiseScanResult:
                 )
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> DriveNoiseScanResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "gamma_phi",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "delta_omega",
-            "expectation_Jz",
-            "variance_Jz",
-            "d_exp_d_omega",
-            "sql",
-            "t_hold",
-            "n_random",
-            "n_nm_refine",
-            "maxiter",
-            "bounds_lo",
-            "bounds_hi",
-            "fd_step",
-            "seed",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
-                "Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         omega_vals = df["omega"].unique()
         gamma_vals = df["gamma_phi"].unique()
         omega_vals.sort()
@@ -2171,6 +2161,89 @@ def _run_single_pair_worker(args: dict[str, Any]) -> None:
     print(f"  [save] {csv_p.name}")
 
 
+def _assemble_noise_scan_result() -> DriveNoiseScanResult:
+    """Aggregate individual per-pair Parquet files into a DriveNoiseScanResult.
+
+    Reads all noise-pair-omega{omega}-gamma{gamma_phi:.6e}.parquet files
+    produced by the parallel scan, builds a lookup dict, and assembles the
+    aggregated DriveNoiseScanResult.
+    """
+    print("  [aggregate] Building aggregated result...")
+    all_rows: list[pd.DataFrame] = []
+    for omega in OMEGA_VALS:
+        for gamma_phi in GAMMA_PHI_VALS:
+            tag = f"noise-pair-omega{omega}-gamma{gamma_phi:.6e}"
+            csv_p = _parquet_path(tag)
+            if csv_p.exists():
+                all_rows.append(pd.read_parquet(csv_p))
+
+    if not all_rows:
+        raise RuntimeError("No individual noise-scan result files found.")
+
+    df_agg = pd.concat(all_rows, ignore_index=True)
+
+    omega_arr = np.array(OMEGA_VALS, dtype=float)
+    gamma_arr = np.array(GAMMA_PHI_VALS, dtype=float)
+    n_omega = len(omega_arr)
+    n_gamma = len(gamma_arr)
+
+    params_list: list[tuple[float, float, float, float]] = []
+    dt_arr = np.full((n_omega, n_gamma), np.inf, dtype=float)
+    exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
+    var_arr = np.zeros((n_omega, n_gamma), dtype=float)
+    d_exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
+
+    lookup: dict[tuple[float, float], dict[str, float]] = {}
+    for _, row in df_agg.iterrows():
+        key = (float(row["omega"]), float(row["gamma_phi"]))
+        lookup[key] = {
+            "a_x": float(row["a_x"]),
+            "a_y": float(row["a_y"]),
+            "a_z": float(row["a_z"]),
+            "a_zz": float(row["a_zz"]),
+            "delta_omega": float(row["delta_omega"]),
+            "expectation_Jz": float(row.get("expectation_Jz", 0.0)),
+            "variance_Jz": float(row.get("variance_Jz", 0.0)),
+            "d_exp_d_omega": float(row.get("d_exp_d_omega", 0.0)),
+        }
+
+    for i, t in enumerate(omega_arr):
+        for j, g in enumerate(gamma_arr):
+            entry = lookup.get((t, g), {})
+            params_list.append(
+                (
+                    entry.get("a_x", 0.0),
+                    entry.get("a_y", 0.0),
+                    entry.get("a_z", 0.0),
+                    entry.get("a_zz", 0.0),
+                )
+            )
+            dt_arr[i, j] = entry.get("delta_omega", float("inf"))
+            exp_arr[i, j] = entry.get("expectation_Jz", 0.0)
+            var_arr[i, j] = entry.get("variance_Jz", 0.0)
+            d_exp_arr[i, j] = entry.get("d_exp_d_omega", 0.0)
+
+    first_row = df_agg.iloc[0]
+    return DriveNoiseScanResult(
+        omega_values=omega_arr,
+        gamma_phi_values=gamma_arr,
+        best_params_per_pair=params_list,
+        delta_omega_per_pair=dt_arr,
+        expectation_Jz_per_pair=exp_arr,
+        variance_Jz_per_pair=var_arr,
+        d_exp_d_omega_per_pair=d_exp_arr,
+        sql=SQL_REFERENCE,
+        t_hold=DEFAULT_t_hold,
+        n_random=int(first_row.get("n_random", 1000)),
+        n_nm_refine=int(first_row.get("n_nm_refine", 25)),
+        maxiter=int(first_row.get("maxiter", 5000)),
+        bounds_lo=float(first_row.get("bounds_lo", -5.0)),
+        bounds_hi=float(first_row.get("bounds_hi", 5.0)),
+        fd_step=float(first_row.get("fd_step", FD_STEP)),
+        seed=int(first_row.get("seed", 42)),
+    )
+
+
 def generate_noise_scan(force: bool = False) -> None:
     """Run the full (ω, γ_φ) noise scan in parallel.
 
@@ -2189,7 +2262,6 @@ def generate_noise_scan(force: bool = False) -> None:
         n_total = n_omega * n_gamma
         print(f"[run]  Noise scan: {n_total} (ω, γ_φ) pairs (parallel)")
 
-        # Build worker arguments
         args_list = [
             {
                 "omega": omega,
@@ -2205,94 +2277,16 @@ def generate_noise_scan(force: bool = False) -> None:
             for gamma_phi in GAMMA_PHI_VALS
         ]
 
-        _parallel_map(
+        parallel_map(
             _run_single_pair_worker,
             args_list,
             desc=f"noise scan ({n_total} pairs)",
         )
 
-        # Aggregate results from individual Parquet files
-        print("  [aggregate] Building aggregated result...")
-        all_rows: list[pd.DataFrame] = []
-        for omega in OMEGA_VALS:
-            for gamma_phi in GAMMA_PHI_VALS:
-                tag = f"noise-pair-omega{omega}-gamma{gamma_phi:.6e}"
-                csv_p = _parquet_path(tag)
-                if csv_p.exists():
-                    all_rows.append(pd.read_parquet(csv_p))
-
-        if not all_rows:
-            print("  [WARNING] No individual results found.")
-            return
-
-        df_agg = pd.concat(all_rows, ignore_index=True)
-
-        # Build the aggregated result
-        omega_arr = np.array(OMEGA_VALS, dtype=float)
-        gamma_arr = np.array(GAMMA_PHI_VALS, dtype=float)
-        n_omega = len(omega_arr)
-        n_gamma = len(gamma_arr)
-
-        params_list: list[tuple[float, float, float, float]] = []
-        dt_arr = np.full((n_omega, n_gamma), np.inf, dtype=float)
-        exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
-        var_arr = np.zeros((n_omega, n_gamma), dtype=float)
-        d_exp_arr = np.zeros((n_omega, n_gamma), dtype=float)
-
-        lookup: dict[tuple[float, float], dict[str, float]] = {}
-        for _, row in df_agg.iterrows():
-            key = (float(row["omega"]), float(row["gamma_phi"]))
-            lookup[key] = {
-                "a_x": float(row["a_x"]),
-                "a_y": float(row["a_y"]),
-                "a_z": float(row["a_z"]),
-                "a_zz": float(row["a_zz"]),
-                "delta_omega": float(row["delta_omega"]),
-                "expectation_Jz": float(row.get("expectation_Jz", 0.0)),
-                "variance_Jz": float(row.get("variance_Jz", 0.0)),
-                "d_exp_d_omega": float(row.get("d_exp_d_omega", 0.0)),
-            }
-
-        for i, t in enumerate(omega_arr):
-            for j, g in enumerate(gamma_arr):
-                entry = lookup.get((t, g), {})
-                params_list.append(
-                    (
-                        entry.get("a_x", 0.0),
-                        entry.get("a_y", 0.0),
-                        entry.get("a_z", 0.0),
-                        entry.get("a_zz", 0.0),
-                    )
-                )
-                dt_arr[i, j] = entry.get("delta_omega", float("inf"))
-                exp_arr[i, j] = entry.get("expectation_Jz", 0.0)
-                var_arr[i, j] = entry.get("variance_Jz", 0.0)
-                d_exp_arr[i, j] = entry.get("d_exp_d_omega", 0.0)
-
-        # Read hyperparameters from the first row of the aggregated data
-        first_row = df_agg.iloc[0]
-        result = DriveNoiseScanResult(
-            omega_values=omega_arr,
-            gamma_phi_values=gamma_arr,
-            best_params_per_pair=params_list,
-            delta_omega_per_pair=dt_arr,
-            expectation_Jz_per_pair=exp_arr,
-            variance_Jz_per_pair=var_arr,
-            d_exp_d_omega_per_pair=d_exp_arr,
-            sql=SQL_REFERENCE,
-            t_hold=DEFAULT_t_hold,
-            n_random=int(first_row.get("n_random", 1000)),
-            n_nm_refine=int(first_row.get("n_nm_refine", 25)),
-            maxiter=int(first_row.get("maxiter", 5000)),
-            bounds_lo=float(first_row.get("bounds_lo", -5.0)),
-            bounds_hi=float(first_row.get("bounds_hi", 5.0)),
-            fd_step=float(first_row.get("fd_step", FD_STEP)),
-            seed=int(first_row.get("seed", 42)),
-        )
+        result = _assemble_noise_scan_result()
         result.save_parquet(agg_p)
         print(f"[save] {agg_p}")
 
-    # Generate figures
     generate_noise_figures(result)
 
 

@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import argparse
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,6 +44,7 @@ from src.physics.pseudomode_system import (  # noqa: F401 — re-exported for te
     tripartite_operator,
     validate_pseudomode_density,
 )
+from src.utils.serialization import ParquetSerializable
 
 # Force non-interactive backend before any plotting imports.
 if "MPLBACKEND" not in os.environ:
@@ -106,7 +109,7 @@ def _fig_path(name: str) -> Path:
 
 
 @dataclass
-class NonMarkovianSweepData:
+class NonMarkovianSweepData(ParquetSerializable):
     """Result of a single parameter sweep in the non-Markovian ancilla report.
 
     Each row represents one simulation point (one value of the swept parameter).
@@ -135,6 +138,27 @@ class NonMarkovianSweepData:
         T_decay: Decoherence evolution time.
         theta: Ancilla rotation angle theta = g_sa * tau.
     """
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "sweep_type",
+        "sweep_value",
+        "ratio_with",
+        "ratio_without",
+        "qfi_with",
+        "qfi_without",
+        "qfi_initial",
+        "pm_occupancy",
+        "N",
+        "K",
+        "alpha",
+        "g_sp",
+        "omega_0",
+        "tau",
+        "dt",
+        "lam",
+        "T_decay",
+        "theta",
+    ]
 
     sweep_type: str
     sweep_values: np.ndarray
@@ -184,43 +208,11 @@ class NonMarkovianSweepData:
             }
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        """Save to Parquet via long-format DataFrame."""
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> NonMarkovianSweepData:
         """Load from Parquet, reconstructing arrays from long-format rows."""
         df = pd.read_parquet(path)
-        required = {
-            "sweep_type",
-            "sweep_value",
-            "ratio_with",
-            "ratio_without",
-            "qfi_with",
-            "qfi_without",
-            "qfi_initial",
-            "pm_occupancy",
-            "N",
-            "K",
-            "alpha",
-            "g_sp",
-            "omega_0",
-            "tau",
-            "dt",
-            "lam",
-            "T_decay",
-            "theta",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
 
         sweep_type = str(df["sweep_type"].iloc[0])
         sweep_values = df["sweep_value"].to_numpy(dtype=np.float64)
@@ -837,44 +829,45 @@ def _generate_ancilla_nonmarkovian_raw_data(force: bool = False) -> dict:
     }
 
 
-def _generate_ancilla_nonmarkovian_figures(force: bool = False) -> None:
-    """Generate all figures for the Ancilla-Assisted-Non-Markovian report.
+def _generate_single_figure(
+    parquet_name: str,
+    fig_name: str,
+    plot_fn: Callable[..., Any],
+    force: bool = False,
+    **plot_kwargs: Any,
+) -> bool:
+    """Check cache — load — plot — save for a single-parquet figure.
 
-    Reads Parquet files from raw_data/, generates SVGs in figures/.
+    Args:
+        parquet_name: Stem name of the Parquet file (without date prefix).
+        fig_name: Stem name of the SVG file.
+        plot_fn: Plot function accepting (data, save_path=...).
+        force: If True, overwrite existing SVG.
+        **plot_kwargs: Additional keyword arguments passed to plot_fn.
+
+    Returns:
+        True if the figure was generated, False if skipped.
     """
-    # ---- 1. Ancilla sweep figure ----
-    anc_path = _parquet_path("ancilla-sweep")
-    if anc_path.exists():
-        print("  Plotting ancilla sweep ...")
-        anc_data = NonMarkovianSweepData.from_parquet(anc_path)
-        fig_path = _fig_path("ancilla-sweep")
-        if not fig_path.exists() or force:
-            plot_ancilla_sweep(anc_data, save_path=fig_path)
-            print(f"    Saved to {fig_path}")
-        else:
-            print(
-                f"    Figure exists ({fig_path}), skipping (use --force to overwrite)"
-            )
-    else:
-        print("  [SKIP] ancilla-sweep parquet not found, run raw data generation first")
+    parquet_path = _parquet_path(parquet_name)
+    fig_path = _fig_path(fig_name)
 
-    # ---- 2. Memory sweep figure ----
-    mem_path = _parquet_path("memory-sweep")
-    if mem_path.exists():
-        print("  Plotting memory sweep ...")
-        mem_data = NonMarkovianSweepData.from_parquet(mem_path)
-        fig_path = _fig_path("memory-sweep")
-        if not fig_path.exists() or force:
-            plot_memory_sweep(mem_data, save_path=fig_path)
-            print(f"    Saved to {fig_path}")
-        else:
-            print(
-                f"    Figure exists ({fig_path}), skipping (use --force to overwrite)"
-            )
-    else:
-        print("  [SKIP] memory-sweep parquet not found, run raw data generation first")
+    if not parquet_path.exists():
+        print(f"  [SKIP] {parquet_name} parquet not found, run raw data first")
+        return False
 
-    # ---- 3. Time sweep figure ----
+    if fig_path.exists() and not force:
+        print(f"    Figure exists ({fig_path}), skipping (use --force to overwrite)")
+        return False
+
+    print(f"  Plotting {fig_name} ...")
+    data = NonMarkovianSweepData.from_parquet(parquet_path)
+    plot_fn(data, save_path=fig_path, **plot_kwargs)
+    print(f"    Saved to {fig_path}")
+    return True
+
+
+def _generate_time_sweep_figures(force: bool = False) -> None:
+    """Generate the multi-theta time sweep overlay figure."""
     time_data_by_theta: dict[float, NonMarkovianSweepData] = {}
     any_missing = False
     for theta_val in TIME_THETA_VALUES:
@@ -885,21 +878,32 @@ def _generate_ancilla_nonmarkovian_figures(force: bool = False) -> None:
         else:
             any_missing = True
 
-    if time_data_by_theta:
-        fig_path = _fig_path("time-sweep")
-        if not fig_path.exists() or force:
-            print("  Plotting time sweep overlay ...")
-            plot_time_sweep(time_data_by_theta, lam=DEFAULT_LAM, save_path=fig_path)
-            print(f"    Saved to {fig_path}")
-        else:
-            print(
-                f"    Figure exists ({fig_path}), skipping (use --force to overwrite)"
-            )
+    if not time_data_by_theta:
+        return
+
+    fig_path = _fig_path("time-sweep")
+    if fig_path.exists() and not force:
+        print(f"    Figure exists ({fig_path}), skipping (use --force to overwrite)")
+        return
+
+    print("  Plotting time sweep overlay ...")
+    plot_time_sweep(time_data_by_theta, lam=DEFAULT_LAM, save_path=fig_path)
+    print(f"    Saved to {fig_path}")
 
     if any_missing:
         print(
             "  [SKIP] Some time-sweep parquets missing, run raw data generation first"
         )
+
+
+def _generate_ancilla_nonmarkovian_figures(force: bool = False) -> None:
+    """Generate all figures for the Ancilla-Assisted-Non-Markovian report.
+
+    Reads Parquet files from raw_data/, generates SVGs in figures/.
+    """
+    _generate_single_figure("ancilla-sweep", "ancilla-sweep", plot_ancilla_sweep, force)
+    _generate_single_figure("memory-sweep", "memory-sweep", plot_memory_sweep, force)
+    _generate_time_sweep_figures(force)
 
 
 # =============================================================================

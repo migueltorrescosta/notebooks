@@ -4,12 +4,16 @@ Covers:
 - ScalingAnalysisResult dataclass creation, DataFrame, and Parquet roundtrip
 - fit_scaling_exponents log-log regression correctness
 - Edge cases: insufficient data, NaN/inf filtering
+- plot_scaling_exponents figure creation
+- generate_scaling_analysis pipeline orchestration
 """
 
 from __future__ import annotations
 
 import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -18,7 +22,50 @@ import pytest
 from src.analysis.multi_mzi_scaling import (
     ScalingAnalysisResult,
     fit_scaling_exponents,
+    generate_scaling_analysis,
+    plot_scaling_exponents,
 )
+from src.utils.serialization import ParquetSerializable
+
+# ── Helper: minimal sweep result for testing ──────────────────────────────
+
+
+@dataclass
+class _FakeSweepResult(ParquetSerializable):
+    """Minimal sweep result used in ``generate_scaling_analysis`` tests."""
+
+    omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
+    N_values: np.ndarray = field(default_factory=lambda: np.array([], dtype=int))
+    delta_omega_opt: np.ndarray = field(default_factory=lambda: np.array([]))
+    t_hold: float = 10.0
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "N",
+        "delta_omega_opt",
+        "t_hold",
+    ]
+
+    def to_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "omega": self.omega_values,
+                "N": self.N_values,
+                "delta_omega_opt": self.delta_omega_opt,
+                "t_hold": [self.t_hold] * len(self.omega_values),
+            },
+        )
+
+    @classmethod
+    def from_parquet(cls, path: str | Path) -> _FakeSweepResult:
+        df = pd.read_parquet(path)
+        cls._validate_columns(df)
+        return cls(
+            omega_values=df["omega"].to_numpy(dtype=float),
+            N_values=df["N"].to_numpy(dtype=int),
+            delta_omega_opt=df["delta_omega_opt"].to_numpy(dtype=float),
+            t_hold=float(df["t_hold"].iloc[0]),
+        )
 
 
 class TestScalingAnalysisResult:
@@ -159,3 +206,189 @@ class TestFitScalingExponents:
         result = fit_scaling_exponents(omega_values, N_values, delta_omega_opt)
 
         assert np.isfinite(result.exponents[0])
+
+
+class TestPlotScalingExponents:
+    def test_creates_svg_file(self, tmp_path: Path) -> None:
+        """Smoke test: plots and saves an SVG."""
+        scaling = ScalingAnalysisResult(
+            omega_values=np.array([0.5, 1.0, 2.0]),
+            exponents=np.array([-0.5, -0.6, -0.8]),
+            prefactors=np.array([2.0, 2.5, 3.0]),
+            r_squared=np.array([0.99, 0.98, 0.97]),
+        )
+        svg_path = tmp_path / "test-scaling.svg"
+        result = plot_scaling_exponents(scaling, svg_path)
+        assert result == svg_path
+        assert svg_path.exists()
+        assert svg_path.stat().st_size > 0
+
+    def test_with_nan_values_does_not_crash(self, tmp_path: Path) -> None:
+        """Plot survives NaN exponents and R² values."""
+        scaling = ScalingAnalysisResult(
+            omega_values=np.array([0.5, 1.0, 2.0]),
+            exponents=np.array([np.nan, -0.6, np.nan]),
+            prefactors=np.array([np.nan, 2.5, np.nan]),
+            r_squared=np.array([np.nan, 0.98, np.nan]),
+        )
+        svg_path = tmp_path / "test-scaling-nan.svg"
+        result = plot_scaling_exponents(scaling, svg_path)
+        assert result == svg_path
+        assert svg_path.exists()
+
+    def test_empty_result_creates_skeleton(self, tmp_path: Path) -> None:
+        """Empty scaling result produces a skeleton figure (no crash)."""
+        scaling = ScalingAnalysisResult()
+        svg_path = tmp_path / "test-scaling-empty.svg"
+        result = plot_scaling_exponents(scaling, svg_path)
+        assert result == svg_path
+        assert svg_path.exists()
+
+    def test_sql_and_hl_lines_always_present(self, tmp_path: Path) -> None:
+        """SQL and HL reference lines are drawn even with no valid data."""
+        scaling = ScalingAnalysisResult()
+        svg_path = tmp_path / "test-scaling-lines.svg"
+        plot_scaling_exponents(scaling, svg_path)
+        content = svg_path.read_text()
+        assert "α = −0.5" in content or "alpha = -0.5" in content
+        assert "α = −1.0" in content or "alpha = -1.0" in content
+
+
+class TestGenerateScalingAnalysis:
+    def test_generates_scaling_from_sweep(self, tmp_path: Path) -> None:
+        """Happy path: sweep → scaling Parquet + figure."""
+        sweep_path = tmp_path / "sweep.parquet"
+        scaling_path = tmp_path / "scaling.parquet"
+        fig_path = tmp_path / "scaling.svg"
+
+        # Create sweep data with known SQL scaling
+        N_vals = np.array([2, 4, 8, 16, 32, 64], dtype=int)
+        sweep = _FakeSweepResult(
+            omega_values=np.full(6, 0.5),
+            N_values=N_vals,
+            delta_omega_opt=2.0 / np.sqrt(N_vals),
+        )
+        sweep.save_parquet(sweep_path)
+
+        result = generate_scaling_analysis(
+            force=True,
+            parquet_path=sweep_path,
+            scaling_path=scaling_path,
+            fig_path=fig_path,
+            result_cls=_FakeSweepResult,
+            label="test-scaling",
+        )
+
+        assert result is not None
+        assert len(result.omega_values) == 1
+        assert result.exponents[0] == pytest.approx(-0.5, abs=0.01)
+        assert scaling_path.exists()
+        assert fig_path.exists()
+
+    def test_cache_hit_loads_existing(self, tmp_path: Path) -> None:
+        """Second call without ``force`` loads cached scaling result."""
+        sweep_path = tmp_path / "sweep.parquet"
+        scaling_path = tmp_path / "scaling.parquet"
+
+        N_vals = np.array([2, 4, 8, 16, 32, 64], dtype=int)
+        sweep = _FakeSweepResult(
+            omega_values=np.full(6, 1.0),
+            N_values=N_vals,
+            delta_omega_opt=3.0 / N_vals,
+        )
+        sweep.save_parquet(sweep_path)
+
+        # First call — compute and save
+        result1 = generate_scaling_analysis(
+            force=True,
+            parquet_path=sweep_path,
+            scaling_path=scaling_path,
+            result_cls=_FakeSweepResult,
+        )
+
+        # Second call — load from cache
+        result2 = generate_scaling_analysis(
+            force=False,
+            parquet_path=sweep_path,
+            scaling_path=scaling_path,
+            result_cls=_FakeSweepResult,
+        )
+
+        assert result1 is not None
+        assert result2 is not None
+        np.testing.assert_array_equal(result2.omega_values, result1.omega_values)
+        np.testing.assert_array_equal(result2.exponents, result1.exponents)
+        assert result2.exponents[0] == pytest.approx(-1.0, abs=0.02)
+
+    def test_force_recomputes(self, tmp_path: Path) -> None:
+        """With ``force=True``, cached scaling is overwritten."""
+        sweep_path = tmp_path / "sweep.parquet"
+        scaling_path = tmp_path / "scaling.parquet"
+
+        N_vals = np.array([2, 4, 8, 16, 32, 64], dtype=int)
+        sweep = _FakeSweepResult(
+            omega_values=np.full(6, 0.5),
+            N_values=N_vals,
+            delta_omega_opt=1.0 / np.sqrt(N_vals),
+        )
+        sweep.save_parquet(sweep_path)
+
+        # Create a fake cached scaling with wrong exponents
+        cached = ScalingAnalysisResult(
+            omega_values=np.array([0.5]),
+            exponents=np.array([0.0]),
+            prefactors=np.array([1.0]),
+            r_squared=np.array([1.0]),
+        )
+        cached.save_parquet(scaling_path)
+
+        # Force recompute — should overwrite cached
+        result = generate_scaling_analysis(
+            force=True,
+            parquet_path=sweep_path,
+            scaling_path=scaling_path,
+            result_cls=_FakeSweepResult,
+        )
+
+        assert result is not None
+        assert result.exponents[0] == pytest.approx(-0.5, abs=0.01)
+        assert result.exponents[0] != 0.0
+
+    def test_no_sweep_data_returns_none(self, tmp_path: Path) -> None:
+        """When sweep Parquet does not exist, returns ``None``."""
+        sweep_path = tmp_path / "nonexistent-sweep.parquet"
+        scaling_path = tmp_path / "scaling.parquet"
+
+        result = generate_scaling_analysis(
+            force=True,
+            parquet_path=sweep_path,
+            scaling_path=scaling_path,
+            result_cls=_FakeSweepResult,
+        )
+
+        assert result is None
+        assert not scaling_path.exists()
+
+    def test_skip_plot_when_fig_path_none(self, tmp_path: Path) -> None:
+        """Setting ``fig_path=None`` skips plotting."""
+        sweep_path = tmp_path / "sweep.parquet"
+        scaling_path = tmp_path / "scaling.parquet"
+
+        N_vals = np.array([2, 4, 8, 16, 32, 64], dtype=int)
+        sweep = _FakeSweepResult(
+            omega_values=np.full(6, 0.5),
+            N_values=N_vals,
+            delta_omega_opt=2.0 / np.sqrt(N_vals),
+        )
+        sweep.save_parquet(sweep_path)
+
+        result = generate_scaling_analysis(
+            force=True,
+            parquet_path=sweep_path,
+            scaling_path=scaling_path,
+            fig_path=None,
+            result_cls=_FakeSweepResult,
+        )
+
+        assert result is not None
+        assert scaling_path.exists()

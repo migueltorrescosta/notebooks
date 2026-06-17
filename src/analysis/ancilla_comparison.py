@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -39,6 +39,7 @@ from src.analysis.fisher_information import quantum_fisher_information_dm
 from src.physics.beam_splitter import bs_fock
 from src.physics.mzi_simulation import create_system_operators
 from src.physics.mzi_states import two_mode_jz_operator
+from src.utils.serialization import ParquetSerializable
 
 # =============================================================================
 # Operator Construction
@@ -469,7 +470,7 @@ def evaluate_qfi_case_A(
 
 
 @dataclass
-class RandomSearchResult:
+class RandomSearchResult(ParquetSerializable):
     """Result of a random search for optimal QFI."""
 
     max_fq: float
@@ -479,6 +480,18 @@ class RandomSearchResult:
     mean_N: float = 0.0
     pop_00: float = 0.0
     pop_NN: float = 0.0
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "max_fq",
+        "mean_N",
+        "pop_00",
+        "pop_NN",
+        "best_rho_dim",
+        "alpha_xx",
+        "alpha_xz",
+        "alpha_zx",
+        "alpha_zz",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         """Single-row DataFrame with scalar fields (arrays go to sidecar files)."""
@@ -501,11 +514,8 @@ class RandomSearchResult:
             data["alpha_zz"] = [float("nan")]
         return pd.DataFrame(data)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        """Save to main Parquet with sidecar files for best_rho and all_fq."""
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
+    def _save_sidecars(self, path: Path) -> None:
+        """Save best_rho and all_fq as sidecar Parquet files."""
         stem = path.stem
         rho_path = path.with_stem(stem + "-best-rho")
         n_dim = self.best_rho.shape[0]
@@ -523,30 +533,13 @@ class RandomSearchResult:
         pd.DataFrame(rows).to_parquet(rho_path, index=False)
         fq_path = path.with_stem(stem + "-all-fq")
         pd.DataFrame({"fq_values": self.all_fq}).to_parquet(fq_path, index=False)
-        return path
 
     @classmethod
     def from_parquet(cls, path: str | Path) -> RandomSearchResult:
         """Reconstruct from a Parquet file written by save_parquet()."""
         path = Path(path)
         df = pd.read_parquet(path)
-        required = {
-            "max_fq",
-            "mean_N",
-            "pop_00",
-            "pop_NN",
-            "best_rho_dim",
-            "alpha_xx",
-            "alpha_xz",
-            "alpha_zx",
-            "alpha_zz",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         stem = path.stem
         rho_path = path.with_stem(stem + "-best-rho")
         rho_df = pd.read_parquet(rho_path)
@@ -800,7 +793,7 @@ def _partial_trace_system(rho_full: np.ndarray, N_max: int) -> np.ndarray:
 
 
 @dataclass
-class ComparisonResult:
+class ComparisonResult(ParquetSerializable):
     """Results of the ancilla vs. system comparison.
 
     Attributes:
@@ -826,6 +819,24 @@ class ComparisonResult:
     mean_N_B: float = 0.0
     pop_00_B: float = 0.0
     pop_NN_B: float = 0.0
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "fq_A_max",
+        "fq_B_max",
+        "fq_A_zero",
+        "ratio",
+        "fq_A_omega",
+        "mean_N_A",
+        "pop_00_A",
+        "pop_NN_A",
+        "mean_N_B",
+        "pop_00_B",
+        "pop_NN_B",
+        "alpha_xx",
+        "alpha_xz",
+        "alpha_zx",
+        "alpha_zz",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         """Single-row DataFrame with scalar fields (arrays go to sidecar files)."""
@@ -854,46 +865,20 @@ class ComparisonResult:
             data["alpha_zz"] = [float("nan")]
         return pd.DataFrame(data)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        """Save to main Parquet with sidecar files for fq_A_all and fq_B_all."""
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
+    def _save_sidecars(self, path: Path) -> None:
+        """Save fq_A_all and fq_B_all as sidecar Parquet files."""
         stem = path.stem
         fq_a_path = path.with_stem(stem + "-fq-A-all")
         pd.DataFrame({"fq_values": self.fq_A_all}).to_parquet(fq_a_path, index=False)
         fq_b_path = path.with_stem(stem + "-fq-B-all")
         pd.DataFrame({"fq_values": self.fq_B_all}).to_parquet(fq_b_path, index=False)
-        return path
 
     @classmethod
     def from_parquet(cls, path: str | Path) -> ComparisonResult:
         """Reconstruct from a Parquet file written by save_parquet()."""
         path = Path(path)
         df = pd.read_parquet(path)
-        required = {
-            "fq_A_max",
-            "fq_B_max",
-            "fq_A_zero",
-            "ratio",
-            "fq_A_omega",
-            "mean_N_A",
-            "pop_00_A",
-            "pop_NN_A",
-            "mean_N_B",
-            "pop_00_B",
-            "pop_NN_B",
-            "alpha_xx",
-            "alpha_xz",
-            "alpha_zx",
-            "alpha_zz",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         stem = path.stem
         fq_a_path = path.with_stem(stem + "-fq-A-all")
         fq_A_all = pd.read_parquet(fq_a_path)["fq_values"].to_numpy(dtype=float)

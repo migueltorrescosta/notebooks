@@ -17,7 +17,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -32,11 +32,11 @@ from src.analysis.ancilla_optimization import compute_expectation_and_variance
 from src.analysis.sensitivity_metrics import sql_reference
 from src.physics.n_particle_drive import (
     build_n_particle_operators,
-    compute_n_particle_decoupled_baseline,
     compute_n_particle_sensitivity,
     evolve_n_particle_circuit,
     n_particle_initial_state,
 )
+from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
 # Constants
@@ -75,37 +75,6 @@ def _parquet_path(name: str) -> Path:
 
 def _fig_path(name: str) -> Path:
     return REPORTS_DIR / REPORT_DATE / "figures" / f"{REPORT_DATE}-{name}.svg"
-
-
-def verify_decoupled_baseline(
-    N_values: list[int] | None = None,
-    omega_values: list[float] | None = None,
-    rtol: float = 1e-10,
-) -> dict[tuple[int, float], bool]:
-    """Verify the decoupled baseline for all (N, ω) pairs.
-
-    At zero drive and zero interaction, the sensitivity must equal
-    Δω = 1/(√N × T_HOLD) to machine precision.
-
-    Args:
-        N_values: List of N values (default: 1 to 20).
-        omega_values: List of ω values (default: all OMEGA_VALS).
-        rtol: Relative tolerance for comparison.
-
-    Returns:
-        Dict mapping (N, ω) → PASS/FAIL (True/False).
-    """
-    if N_values is None:
-        N_values = N_VALS
-    if omega_values is None:
-        omega_values = OMEGA_VALS
-    results: dict[tuple[int, float], bool] = {}
-    for N in N_values:
-        sql_ref = sql_reference(N)
-        for omega in omega_values:
-            delta = compute_n_particle_decoupled_baseline(N, omega)
-            results[(N, omega)] = bool(np.isclose(delta, sql_ref, rtol=rtol))
-    return results
 
 
 def build_joint_measurement_operator(
@@ -836,7 +805,7 @@ def run_single_sonly_n_omega(
 
 
 @dataclass
-class JointNScalingResult:
+class JointNScalingResult(ParquetSerializable):
     """Result of joint measurement optimisation for a single (N, ω) pair.
 
     Attributes:
@@ -879,6 +848,27 @@ class JointNScalingResult:
     success: bool = False
     nfev: int = 0
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "N",
+        "omega",
+        "delta_omega_opt",
+        "sql",
+        "ratio",
+        "a_x_opt",
+        "a_y_opt",
+        "a_z_opt",
+        "a_zz_opt",
+        "psi_opt",
+        "expectation_Jz",
+        "variance_Jz",
+        "expectation_M",
+        "variance_M",
+        "d_expectation",
+        "t_hold",
+        "success",
+        "nfev",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         """Serialize to a single-row DataFrame (self-describing)."""
         return pd.DataFrame(
@@ -906,44 +896,15 @@ class JointNScalingResult:
             ]
         )
 
-    def save_parquet(self, path: str) -> None:
-        """Write to Parquet."""
-        self.to_dataframe().to_parquet(path, index=False)
-
     @classmethod
-    def from_parquet(cls, path: str) -> JointNScalingResult:
+    def from_parquet(cls, path: str | Path) -> JointNScalingResult:
         """Load from Parquet with fail-fast column validation.
 
         Raises:
             ValueError: If any required column is missing.
         """
-        required = {
-            "N",
-            "omega",
-            "delta_omega_opt",
-            "sql",
-            "ratio",
-            "a_x_opt",
-            "a_y_opt",
-            "a_z_opt",
-            "a_zz_opt",
-            "psi_opt",
-            "expectation_Jz",
-            "variance_Jz",
-            "expectation_M",
-            "variance_M",
-            "d_expectation",
-            "t_hold",
-            "success",
-            "nfev",
-        }
         df = pd.read_parquet(path)
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet file {path} missing columns: {sorted(missing)}. "
-                "Re-run the simulation that generated this file."
-            )
+        cls._validate_columns(df)
         row = df.iloc[0]
         return cls(
             N=int(row["N"]),
@@ -968,7 +929,7 @@ class JointNScalingResult:
 
 
 @dataclass
-class JointNScalingScanResult:
+class JointNScalingScanResult(ParquetSerializable):
     """Collection of JointNScalingResult for multiple (N, ω) combinations.
 
     Attributes:
@@ -976,6 +937,8 @@ class JointNScalingScanResult:
     """
 
     results: list[JointNScalingResult]
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = JointNScalingResult._PARQUET_COLUMNS
 
     def to_dataframe(self) -> pd.DataFrame:
         """Flatten all results into a self-describing DataFrame."""
@@ -1005,44 +968,15 @@ class JointNScalingScanResult:
             ]
         )
 
-    def save_parquet(self, path: str) -> None:
-        """Write to Parquet."""
-        self.to_dataframe().to_parquet(path, index=False)
-
     @classmethod
-    def from_parquet(cls, path: str) -> JointNScalingScanResult:
+    def from_parquet(cls, path: str | Path) -> JointNScalingScanResult:
         """Load from Parquet with fail-fast column validation.
 
         Raises:
             ValueError: If any required column is missing.
         """
-        required = {
-            "N",
-            "omega",
-            "delta_omega_opt",
-            "sql",
-            "ratio",
-            "a_x_opt",
-            "a_y_opt",
-            "a_z_opt",
-            "a_zz_opt",
-            "psi_opt",
-            "expectation_Jz",
-            "variance_Jz",
-            "expectation_M",
-            "variance_M",
-            "d_expectation",
-            "t_hold",
-            "success",
-            "nfev",
-        }
         df = pd.read_parquet(path)
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet file {path} missing columns: {sorted(missing)}. "
-                "Re-run the simulation that generated this file."
-            )
+        cls._validate_columns(df)
         results = []
         for _, row in df.iterrows():
             results.append(

@@ -26,8 +26,9 @@ import argparse
 import os
 import sys
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,9 +42,17 @@ if "MPLBACKEND" not in os.environ:
 if "OMP_NUM_THREADS" not in os.environ:
     os.environ["OMP_NUM_THREADS"] = "1"
 
+from src.analysis.decoupled_baseline import (
+    generate_decoupled_baseline,
+    plot_decoupled_baseline_heatmap,
+)
 from src.analysis.multi_mzi_scaling import (
-    ScalingAnalysisResult,
-    fit_scaling_exponents,
+    ScalingAnalysisResult,  # noqa: F401 — re-exported for tests
+    fit_scaling_exponents,  # noqa: F401 — re-exported for tests
+    generate_scaling_analysis,
+)
+from src.analysis.n_scaling_sweep import (
+    generate_n_scaling_plots,
 )
 from src.physics.dicke_basis import jz_operator
 from src.physics.multi_mzi import (
@@ -56,6 +65,7 @@ from src.physics.multi_mzi import (
     single_bs_unitary,  # noqa: F401 — re-exported for tests
 )
 from src.utils.enums import OperatorBasis
+from src.utils.serialization import ParquetSerializable
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -291,7 +301,7 @@ def optimise_alpha_xx(
 
 
 @dataclass
-class DualMZISweepResult:
+class DualMZISweepResult(ParquetSerializable):
     """Full 2D sweep over ω and N with α_xx optimisation per point.
 
     All array fields have the same length (n_omega × n_N), stored in
@@ -321,6 +331,19 @@ class DualMZISweepResult:
     d_expectation: np.ndarray = field(default_factory=lambda: np.array([]))
     t_hold: float = DEFAULT_t_hold
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "N",
+        "t_hold",
+        "alpha_xx_opt",
+        "delta_omega_opt",
+        "sql",
+        "ratio",
+        "expectation_Jz",
+        "variance_Jz",
+        "d_expectation",
+    ]
+
     def __post_init__(self) -> None:
         # Ensure int dtype for N_values
         if self.N_values.dtype.kind != "i":
@@ -342,33 +365,10 @@ class DualMZISweepResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> DualMZISweepResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "N",
-            "t_hold",
-            "alpha_xx_opt",
-            "delta_omega_opt",
-            "sql",
-            "ratio",
-            "expectation_Jz",
-            "variance_Jz",
-            "d_expectation",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
-                "Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
 
         return cls(
             omega_values=df["omega"].to_numpy(dtype=float),
@@ -676,68 +676,6 @@ def plot_alpha_opt_heatmap(
     return save_path
 
 
-def plot_n_scaling(
-    sweep: DualMZISweepResult,
-    save_path: str | Path,
-    omega_fixed: float | None = None,
-    figsize: tuple[float, float] = (8, 6),
-) -> Path:
-    """Plot Δω_opt vs N at a fixed ω, with SQL and HL reference lines.
-
-    Args:
-        sweep: Sweep result.
-        save_path: Output SVG path.
-        omega_fixed: ω value to plot. If None, uses the first ω.
-        figsize: Figure size.
-
-    Returns:
-        Path to saved SVG.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if omega_fixed is None:
-        omega_fixed = float(np.unique(sweep.omega_values)[0])
-
-    mask = np.isclose(sweep.omega_values, omega_fixed)
-    N_vals = sweep.N_values[mask].astype(float)
-    delta_vals = sweep.delta_omega_opt[mask]
-
-    fig, ax = plt.subplots(figsize=figsize)
-
-    # SQL reference: Δω = 1/(√N t_hold)
-    N_dense = np.logspace(np.log10(1), np.log10(20), 100)
-    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.t_hold)
-    hl_dense = 1.0 / (N_dense * sweep.t_hold)
-
-    ax.loglog(N_dense, sql_dense, "--", color="gray", alpha=0.7, label="SQL")
-    ax.loglog(N_dense, hl_dense, ":", color="gray", alpha=0.5, label="HL")
-
-    # Data
-    finite_mask = np.isfinite(delta_vals) & (delta_vals > 0)
-    if np.any(finite_mask):
-        ax.loglog(
-            N_vals[finite_mask],
-            delta_vals[finite_mask],
-            "o-",
-            color="C0",
-            markersize=8,
-            linewidth=1.8,
-            label=rf"$\Delta\omega_{{\mathrm{{opt}}}}(\omega={omega_fixed:.2f})$",
-        )
-
-    ax.set_xlabel(r"$N$ (particles per subsystem)")
-    ax.set_ylabel(r"$\Delta\omega$")
-    ax.set_title(f"N-Scaling at $\\omega={omega_fixed:.2f}$:\nDual-MZI XX Coupling")
-    ax.legend(fontsize=10)
-    ax.grid(True, which="both", alpha=0.3)
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
-
-
 def plot_omega_dependence(
     sweep: DualMZISweepResult,
     save_path: str | Path,
@@ -802,79 +740,6 @@ def plot_omega_dependence(
     return save_path
 
 
-def plot_scaling_exponents(
-    scaling: ScalingAnalysisResult,
-    save_path: str | Path,
-    figsize: tuple[float, float] = (10, 6),
-) -> Path:
-    """Plot the scaling exponent α vs ω from log-log fits.
-
-    Args:
-        scaling: Scaling analysis result.
-        save_path: Output SVG path.
-        figsize: Figure size.
-
-    Returns:
-        Path to saved SVG.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-
-    # Left: exponent vs ω
-    valid_exp = np.isfinite(scaling.exponents)
-    if np.any(valid_exp):
-        ax1.plot(
-            scaling.omega_values[valid_exp],
-            scaling.exponents[valid_exp],
-            "o-",
-            color="C1",
-            markersize=6,
-            linewidth=1.5,
-        )
-    ax1.axhline(
-        y=-0.5,
-        color="gray",
-        linestyle="--",
-        alpha=0.7,
-        label="SQL (α = −0.5)",
-    )
-    ax1.axhline(
-        y=-1.0,
-        color="gray",
-        linestyle=":",
-        alpha=0.5,
-        label="HL (α = −1.0)",
-    )
-    ax1.set_xlabel(r"$\omega$")
-    ax1.set_ylabel(r"Scaling exponent $\alpha$")
-    ax1.set_title("Exponent $\\alpha$ from\n$\\Delta\\omega = C N^{\\alpha}$")
-    ax1.legend(fontsize=9)
-
-    # Right: R² vs ω
-    valid_r2 = np.isfinite(scaling.r_squared)
-    if np.any(valid_r2):
-        ax2.plot(
-            scaling.omega_values[valid_r2],
-            scaling.r_squared[valid_r2],
-            "s-",
-            color="C2",
-            markersize=6,
-            linewidth=1.5,
-        )
-    ax2.axhline(y=0.95, color="gray", linestyle="--", alpha=0.5)
-    ax2.set_xlabel(r"$\omega$")
-    ax2.set_ylabel(r"$R^2$")
-    ax2.set_title("Goodness of Fit")
-    ax2.set_ylim(-0.05, 1.05)
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
-
-
 # ============================================================================
 # Data / Figure Generation Pipeline
 # ============================================================================
@@ -929,90 +794,20 @@ def generate_sweep(force: bool = False) -> None:
     print(f"[fig]  {fig_alpha}")
 
 
-def generate_decoupled_baseline(force: bool = False) -> None:
-    """Decoupled baseline (α_xx = 0) verification."""
-    csv_p = _parquet_path("dual-mzi-decoupled-baseline")
-    fig_p = _fig_path("dual-mzi-decoupled-baseline")
-
-    if csv_p.exists() and not force:
-        print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DualMZISweepResult.from_parquet(csv_p)
-    else:
-        print("[run]  Computing decoupled baseline (α_xx = 0)...")
-        N_arr = np.array(N_VALS, dtype=int)
-        # Use a subset for speed (every 5th ω, all N)
-        omega_subset = np.array([v for i, v in enumerate(OMEGA_VALS) if i % 5 == 0])
-        result = compute_decoupled_baseline(
-            omega_values=omega_subset,
-            N_values=N_arr,
-        )
-        result.save_parquet(csv_p)
-        print(f"[save] {csv_p}")
-
-    # Create a verification figure: heatmap of |ratio - 1| on log scale
-    from matplotlib.colors import LogNorm
-
-    omega_vals = np.unique(result.omega_values)
-    N_vals = np.unique(result.N_values)
-    dev_map = np.full((len(N_vals), len(omega_vals)), np.nan, dtype=float)
-
-    for i, omega in enumerate(omega_vals):
-        for j, N_val in enumerate(N_vals):
-            mask = np.isclose(result.omega_values, omega) & (result.N_values == N_val)
-            if np.any(mask):
-                r = float(result.ratio[mask][0])
-                dev_map[j, i] = abs(r - 1.0)
-
-    fig, ax = plt.subplots(figsize=(10, 7))
-    finite = dev_map[np.isfinite(dev_map)]
-    if len(finite) > 0:
-        vmin = float(np.min(finite))
-        vmax = float(np.max(finite))
-    else:
-        vmin, vmax = 1e-15, 1.0
-
-    im = ax.pcolormesh(
-        omega_vals,
-        N_vals,
-        dev_map,
-        shading="nearest",
-        cmap="viridis",
-        norm=LogNorm(vmin=max(vmin, 1e-16), vmax=vmax),
-    )
-    fig.colorbar(im, ax=ax, label=r"$|\Delta\omega/\Delta\omega_{\mathrm{SQL}} - 1|$")
-
-    max_dev = float(np.max(finite)) if len(finite) > 0 else 0.0
-    ax.set_xlabel(r"$\omega$")
-    ax.set_ylabel(r"$N$ (particles per subsystem)")
-    ax.set_title(
-        f"Decoupled Baseline Verification ($\\alpha_{{xx}} = 0$, $t_hold = {result.t_hold}$)\n"
-        f"Max $|\\Delta\\omega/\\mathrm{{SQL}} - 1| = {max_dev:.2e}$, "
-        f"points checked: {len(finite)}"
-    )
-
-    fig.tight_layout()
-    fig.savefig(fig_p, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    print(f"[fig]  {fig_p}")
-
-
 def generate_n_scaling(force: bool = False) -> None:
     """N-scaling analysis from the sweep data."""
-    csv_p = _parquet_path("dual-mzi-sweep")
-    fig_n3 = _fig_path("dual-mzi-n-scaling-omega0.3")
-    fig_n1 = _fig_path("dual-mzi-n-scaling-omega1.0")
-    fig_n3p = _fig_path("dual-mzi-n-scaling-omega3.0")
-
-    if not csv_p.exists():
-        print("[skip] Sweep data not found; run 'sweep' first")
-        return
-
-    result = DualMZISweepResult.from_parquet(csv_p)
-
-    # Plot at three representative ω values
-    for omega_val, fig_p in [(0.3, fig_n3), (1.0, fig_n1), (3.0, fig_n3p)]:
-        plot_n_scaling(result, fig_p, omega_fixed=omega_val)
-        print(f"[fig]  {fig_p}")
+    omega_fig_pairs = [
+        (0.3, _fig_path("dual-mzi-n-scaling-omega0.3")),
+        (1.0, _fig_path("dual-mzi-n-scaling-omega1.0")),
+        (3.0, _fig_path("dual-mzi-n-scaling-omega3.0")),
+    ]
+    generate_n_scaling_plots(
+        force=force,
+        parquet_path=_parquet_path("dual-mzi-sweep"),
+        result_cls=DualMZISweepResult,
+        omega_fig_pairs=omega_fig_pairs,
+        label="dual-mzi n-scaling",
+    )
 
 
 def generate_omega_dependence(force: bool = False) -> None:
@@ -1031,35 +826,6 @@ def generate_omega_dependence(force: bool = False) -> None:
     for N_fixed, fig_p in [(1, fig_n1), (5, fig_n5), (20, fig_n20)]:
         plot_omega_dependence(result, fig_p, N_fixed=N_fixed)
         print(f"[fig]  {fig_p}")
-
-
-def generate_scaling_analysis(force: bool = False) -> None:
-    """Scaling analysis (exponents) from the sweep data."""
-    csv_p = _parquet_path("dual-mzi-sweep")
-    scaling_csv = _parquet_path("dual-mzi-scaling")
-    fig_p = _fig_path("dual-mzi-scaling-exponents")
-
-    if not csv_p.exists():
-        print("[skip] Sweep data not found; run 'sweep' first")
-        return
-
-    result = DualMZISweepResult.from_parquet(csv_p)
-
-    if scaling_csv.exists() and not force:
-        scaling = ScalingAnalysisResult.from_parquet(scaling_csv)
-        print(f"[skip] {scaling_csv.name} exists")
-    else:
-        print("[run]  Fitting scaling exponents...")
-        scaling = fit_scaling_exponents(
-            result.omega_values,
-            result.N_values,
-            result.delta_omega_opt,
-        )
-        scaling.save_parquet(scaling_csv)
-        print(f"[save] {scaling_csv}")
-
-    plot_scaling_exponents(scaling, fig_p)
-    print(f"[fig]  {fig_p}")
 
 
 # ============================================================================
@@ -1088,12 +854,37 @@ def main() -> None:
     (REPORTS_DIR / REPORT_DATE / "raw_data").mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / REPORT_DATE / "figures").mkdir(parents=True, exist_ok=True)
 
-    tasks: dict[str, Callable[..., None]] = {
-        "decoupled-baseline": generate_decoupled_baseline,
+    tasks: dict[str, Callable[..., Any]] = {
+        "decoupled-baseline": lambda force=False: generate_decoupled_baseline(
+            force=force,
+            parquet_path=_parquet_path("dual-mzi-decoupled-baseline"),
+            fig_path=_fig_path("dual-mzi-decoupled-baseline"),
+            compute_fn=compute_decoupled_baseline,
+            compute_kwargs={
+                "omega_values": np.array(
+                    [v for i, v in enumerate(OMEGA_VALS) if i % 5 == 0]
+                ),
+                "N_values": np.array(N_VALS, dtype=int),
+            },
+            result_cls=DualMZISweepResult,
+            plot_fn=lambda r, p: plot_decoupled_baseline_heatmap(
+                r,
+                p,
+                title_prefix=(r"Decoupled Baseline Verification ($\alpha_{xx} = 0$"),
+            ),
+            label="decoupled baseline (α_xx = 0)",
+        ),
         "sweep": generate_sweep,
         "n-scaling": generate_n_scaling,
         "omega-dependence": generate_omega_dependence,
-        "scaling-analysis": generate_scaling_analysis,
+        "scaling-analysis": partial(
+            generate_scaling_analysis,
+            parquet_path=_parquet_path("dual-mzi-sweep"),
+            scaling_path=_parquet_path("dual-mzi-scaling"),
+            fig_path=_fig_path("dual-mzi-scaling-exponents"),
+            result_cls=DualMZISweepResult,
+            label="dual-mzi scaling analysis",
+        ),
     }
 
     if args.only:

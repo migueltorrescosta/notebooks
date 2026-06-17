@@ -40,6 +40,7 @@ from scipy.linalg import expm
 from scipy.optimize import minimize
 
 from src.utils.constants import I_2, I_4, J_X, J_Y, J_Z, SIGMA_X, SIGMA_Z
+from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
 # Operator Construction
@@ -538,6 +539,62 @@ def _params_to_components(
     return theta_S, phi_S, theta_A, phi_A, T_BS1, T_BS2, t_hold, alpha
 
 
+def _enforce_bounds(
+    theta_S: float,
+    theta_A: float,
+    phi_S: float,
+    phi_A: float,
+    T_BS1: float,
+    T_BS2: float,
+    t_hold: float,
+    alpha: tuple[float, float, float, float],
+    bounds: dict[str, tuple[float, float]],
+    penalty_scale: float = 1e6,
+    fixed_alpha: tuple[float, float, float, float] | None = None,
+) -> float:
+    """Enforce parameter bounds via quadratic penalty.
+
+    Args:
+        theta_S: System polar angle.
+        theta_A: Ancilla polar angle.
+        phi_S: System azimuthal angle.
+        phi_A: Ancilla azimuthal angle.
+        T_BS1: First beam-splitter duration.
+        T_BS2: Second beam-splitter duration.
+        t_hold: Holding-time strength.
+        alpha: 4-element interaction coefficient tuple.
+        bounds: Dict of parameter bounds.
+        penalty_scale: Scale for bound-violation penalty.
+        fixed_alpha: If set, alpha bound checks are skipped.
+
+    Returns:
+        Total penalty (0.0 if no violation).
+    """
+    penalty = 0.0
+    for val, key in [
+        (theta_S, "bloch_theta"),
+        (theta_A, "bloch_theta"),
+        (phi_S, "phi"),
+        (phi_A, "phi"),
+        (T_BS1, "T_BS"),
+        (T_BS2, "T_BS"),
+        (t_hold, "t_hold"),
+    ]:
+        lo, hi = bounds[key]
+        if val < lo:
+            penalty += penalty_scale * (lo - val) ** 2
+        if val > hi:
+            penalty += penalty_scale * (val - hi) ** 2
+    if fixed_alpha is None:
+        for i in range(4):
+            lo, hi = bounds["alpha"]
+            if alpha[i] < lo:
+                penalty += penalty_scale * (lo - alpha[i]) ** 2
+            if alpha[i] > hi:
+                penalty += penalty_scale * (alpha[i] - hi) ** 2
+    return penalty
+
+
 def sensitivity_objective(
     params: np.ndarray,
     omega_true: float,
@@ -580,30 +637,12 @@ def sensitivity_objective(
         params,
     )
 
-    # --- Bound enforcement (penalty method) ---
-    penalty = 0.0
-    for val, key in [
-        (theta_S, "bloch_theta"),
-        (theta_A, "bloch_theta"),
-        (phi_S, "phi"),
-        (phi_A, "phi"),
-        (T_BS1, "T_BS"),
-        (T_BS2, "T_BS"),
-        (t_hold, "t_hold"),
-    ]:
-        lo, hi = bounds[key]
-        if val < lo:
-            penalty += penalty_scale * (lo - val) ** 2
-        if val > hi:
-            penalty += penalty_scale * (val - hi) ** 2
-    if fixed_alpha is None:
-        for i in range(4):
-            lo, hi = bounds["alpha"]
-            if alpha[i] < lo:
-                penalty += penalty_scale * (lo - alpha[i]) ** 2
-            if alpha[i] > hi:
-                penalty += penalty_scale * (alpha[i] - hi) ** 2
-
+    # Bound enforcement (penalty method)
+    penalty = _enforce_bounds(
+        theta_S, theta_A, phi_S, phi_A,
+        T_BS1, T_BS2, t_hold,
+        alpha, bounds, penalty_scale, fixed_alpha,
+    )
     if penalty > 0.0:
         return float(1e10 + penalty)
 
@@ -630,7 +669,7 @@ def sensitivity_objective(
 
 
 @dataclass
-class OptimisationResult:
+class OptimisationResult(ParquetSerializable):
     """Result of a single Nelder–Mead run.
 
     Attributes:
@@ -734,23 +773,10 @@ class OptimisationResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        """Save to a Parquet file (scalars) with a sidecar history Parquet.
-
-        Args:
-            path: File path to write to.
-
-        Returns:
-            The path that was written to.
-
-        """
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        # Sidecar history file
+    def _save_sidecars(self, path: Path) -> None:
+        """Save optimisation history as a sidecar Parquet file."""
         history_path = path.with_stem(path.stem + "-history")
         pd.DataFrame({"history": self.history}).to_parquet(history_path, index=False)
-        return path
 
     @classmethod
     def from_parquet(cls, path: str | Path) -> OptimisationResult:
@@ -768,12 +794,7 @@ class OptimisationResult:
         """
         path = Path(path)
         df = pd.read_parquet(path)
-        missing = [c for c in cls._PARQUET_COLUMNS if c not in df.columns]
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         params_opt = np.array(
             [
                 float(df["theta_S"].iloc[0]),
@@ -813,7 +834,7 @@ class OptimisationResult:
 
 
 @dataclass
-class OmegaScanResult:
+class OmegaScanResult(ParquetSerializable):
     """Results of an ω scan with multiple Nelder–Mead restarts per ω.
 
     Attributes:
@@ -882,19 +903,17 @@ class OmegaScanResult:
             )
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        """Save the omega-scan summary to a Parquet file.
-
-        Args:
-            path: File path to write to.
-
-        Returns:
-            The path that was written to.
-        """
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "best_delta_omega",
+        "sql",
+        "vs_sql",
+        "spread",
+        "t_hold_star",
+        "covariance",
+        "expectation_M",
+        "flag",
+    ]
 
     @classmethod
     def from_parquet(cls, path: str | Path) -> OmegaScanResult:
@@ -914,13 +933,7 @@ class OmegaScanResult:
         """
         path = Path(path)
         df = pd.read_parquet(path)
-        required = {"omega", "best_delta_omega", "sql"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         omega_values = df["omega"].to_numpy(dtype=float)
         best_per_omega = df["best_delta_omega"].to_numpy(dtype=float)
         return cls(
@@ -1449,7 +1462,7 @@ def run_omega_scan(
 
 
 @dataclass
-class AlphaReoptScanResult:
+class AlphaReoptScanResult(ParquetSerializable):
     """Result from scanning α with state re-optimisation at each point.
 
     Attributes:
@@ -1479,6 +1492,14 @@ class AlphaReoptScanResult:
         "alpha_xz",
         "alpha_zx",
         "alpha_zz",
+    ]
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "alpha",
+        "delta_omega_joint",
+        "delta_omega_sonly",
+        *(f"joint_{c}" for c in _PARAM_COLS),
+        *(f"sonly_{c}" for c in _PARAM_COLS),
     ]
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -1513,20 +1534,6 @@ class AlphaReoptScanResult:
             data[f"sonly_{col}"] = [float(p[i]) for p in sonly_params]
         return pd.DataFrame(data)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        """Save to a Parquet file.
-
-        Args:
-            path: File path to write to.
-
-        Returns:
-            The path that was written to.
-        """
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> AlphaReoptScanResult:
         """Reconstruct from a Parquet file.
@@ -1541,20 +1548,7 @@ class AlphaReoptScanResult:
             ValueError: If the Parquet file is missing required columns.
         """
         df = pd.read_parquet(path)
-        required = {
-            "alpha",
-            "delta_omega_joint",
-            "delta_omega_sonly",
-        }
-        for side in ("joint", "sonly"):
-            for col in cls._PARAM_COLS:
-                required.add(f"{side}_{col}")
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         n = len(df)
         best_params_joint: list[np.ndarray] = [
             np.array([float(df[f"joint_{col}"].iloc[i]) for col in cls._PARAM_COLS])
@@ -1688,7 +1682,7 @@ def scan_alpha_with_reoptimisation(
 
 
 @dataclass
-class DecoupledBaselineResult:
+class DecoupledBaselineResult(ParquetSerializable):
     """Result from evaluating the decoupled baseline (α=0).
 
     Here α refers to the Ising coupling coefficient α_{zz} (not the scaling exponent).
@@ -1704,6 +1698,13 @@ class DecoupledBaselineResult:
     t_hold_values: np.ndarray
     delta_omega_values: np.ndarray
     sql_values: np.ndarray
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "t_hold",
+        "delta_omega",
+        "sql",
+        "ratio",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         """Flatten into a DataFrame.
@@ -1724,22 +1725,10 @@ class DecoupledBaselineResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> DecoupledBaselineResult:
         df = pd.read_parquet(path)
-        required = {"t_hold", "delta_omega", "sql"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         return cls(
             t_hold_values=df["t_hold"].to_numpy(dtype=float),
             delta_omega_values=df["delta_omega"].to_numpy(dtype=float),
@@ -1782,7 +1771,7 @@ def compute_decoupled_baseline(
 
 
 @dataclass
-class CovarianceAnalysisResult:
+class CovarianceAnalysisResult(ParquetSerializable):
     """Result from analysing Cov(J_z^S, J_z^A) across α coefficients.
 
     Attributes:
@@ -1798,6 +1787,12 @@ class CovarianceAnalysisResult:
     max_covariances: np.ndarray
     covariance_signs: np.ndarray
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "coefficient",
+        "max_covariance",
+        "sign",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         """Flatten into a DataFrame.
 
@@ -1812,22 +1807,10 @@ class CovarianceAnalysisResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> CovarianceAnalysisResult:
         df = pd.read_parquet(path)
-        required = {"coefficient", "max_covariance", "sign"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         return cls(
             coefficient_names=list(df["coefficient"]),
             max_covariances=df["max_covariance"].to_numpy(dtype=float),
@@ -2183,7 +2166,7 @@ def get_decoupled_sensitivity(t_hold: float, omega_true: float = 1.0) -> float:
 
 
 @dataclass
-class AlphaSingleScanResult:
+class AlphaSingleScanResult(ParquetSerializable):
     """Result from scanning a single α coefficient while holding others fixed.
 
     Attributes:
@@ -2198,6 +2181,13 @@ class AlphaSingleScanResult:
     alpha_values: np.ndarray
     delta_omega_values: np.ndarray
     fixed_params: dict[str, float] = field(default_factory=dict)
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "alpha_name",
+        "alpha",
+        "delta_omega",
+        "fixed_params_json",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         """Flatten the single-α scan into a DataFrame.
@@ -2217,22 +2207,10 @@ class AlphaSingleScanResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> AlphaSingleScanResult:
         df = pd.read_parquet(path)
-        required = {"alpha_name", "alpha", "delta_omega", "fixed_params_json"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         return cls(
             alpha_name=str(df["alpha_name"].iloc[0]),
             alpha_values=df["alpha"].to_numpy(dtype=float),
@@ -2242,7 +2220,7 @@ class AlphaSingleScanResult:
 
 
 @dataclass
-class AlphaRandomSearchResult:
+class AlphaRandomSearchResult(ParquetSerializable):
     """Result from random search over the 4D α coefficient space.
 
     Attributes:
@@ -2259,6 +2237,15 @@ class AlphaRandomSearchResult:
     best_alpha: tuple[float, float, float, float]
     best_delta_omega: float
     fixed_params: dict[str, float] = field(default_factory=dict)
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "alpha_xx",
+        "alpha_xz",
+        "alpha_zx",
+        "alpha_zz",
+        "delta_omega",
+        "fixed_params_json",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         """Flatten the random search into a DataFrame.
@@ -2280,29 +2267,10 @@ class AlphaRandomSearchResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> AlphaRandomSearchResult:
         df = pd.read_parquet(path)
-        required = {
-            "alpha_xx",
-            "alpha_xz",
-            "alpha_zx",
-            "alpha_zz",
-            "delta_omega",
-            "fixed_params_json",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         alphas = df[["alpha_xx", "alpha_xz", "alpha_zx", "alpha_zz"]].to_numpy(
             dtype=float
         )
@@ -2533,7 +2501,7 @@ def random_search_alpha(
 
 
 @dataclass
-class InteractionRobustnessResult:
+class InteractionRobustnessResult(ParquetSerializable):
     """Result from a 2D scan over t_hold and α values.
 
     Attributes:
@@ -2550,6 +2518,13 @@ class InteractionRobustnessResult:
     alpha_values: np.ndarray = field(default_factory=lambda: np.array([]))
     delta_omega_joint: np.ndarray = field(default_factory=lambda: np.array([]))
     delta_omega_sonly: np.ndarray = field(default_factory=lambda: np.array([]))
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "t_hold",
+        "alpha",
+        "measurement",
+        "delta_omega",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         """Melt the 2D arrays into a long-format DataFrame.
@@ -2580,22 +2555,10 @@ class InteractionRobustnessResult:
                 )
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> InteractionRobustnessResult:
         df = pd.read_parquet(path)
-        required = {"t_hold", "alpha", "measurement", "delta_omega"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         t_hold_unique = sorted(df["t_hold"].unique())
         alpha_unique = sorted(df["alpha"].unique())
         n_T = len(t_hold_unique)

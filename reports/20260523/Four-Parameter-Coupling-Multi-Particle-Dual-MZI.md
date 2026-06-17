@@ -231,15 +231,15 @@ The best dual MZI ratio is $0.7755$ at $\omega=4.5$, compared to $0.7714$ for th
 
 The heatmap shows the ratio $\Delta\omega_{\text{opt}}/\Delta\omega_{\text{SQL}}$ across $(\omega, N)$. Dark blue regions ($\text{ratio} < 1$) indicate sub-SQL sensitivity, occurring only at N=1. For N >= 5, most ratios exceed 1.4, with some exceeding 3.0 at N=6-10. At N=3 and N=4, several configurations fall below 1.4, though none are sub-SQL.
 
-![N-scaling at $\omega=0.5$](figures/20260523-dual-mzi-n-scaling-omega0.5.svg)
-![N-scaling at $\omega=2.5$](figures/20260523-dual-mzi-n-scaling-omega2.5.svg)
-![N-scaling at $\omega=5.0$](figures/20260523-dual-mzi-n-scaling-omega5.0.svg)
+![N-scaling at $\omega=0.5$](figures/20260523-dual-mzi-n-scaling-theta0.5.svg)
+![N-scaling at $\omega=2.5$](figures/20260523-dual-mzi-n-scaling-theta2.5.svg)
+![N-scaling at $\omega=5.0$](figures/20260523-dual-mzi-n-scaling-theta5.0.svg)
 
 The N-scaling plots show that $\Delta\omega_{\text{opt}}$ remains roughly constant as N increases, while the SQL reference $\propto 1/\sqrt{N}$ decreases. This produces an increasing ratio with N — the opposite of the hypothesized multi-particle amplification.
 
-![$\omega$-dependence at N=1](figures/20260523-dual-mzi-omega-N1.svg)
-![$\omega$-dependence at N=5](figures/20260523-dual-mzi-omega-N5.svg)
-![$\omega$-dependence at N=10](figures/20260523-dual-mzi-omega-N10.svg)
+![$\omega$-dependence at N=1](figures/20260523-dual-mzi-theta-N1.svg)
+![$\omega$-dependence at N=5](figures/20260523-dual-mzi-theta-N5.svg)
+![$\omega$-dependence at N=10](figures/20260523-dual-mzi-theta-N10.svg)
 
 The $\omega$-dependence plots show strong $\omega$-dependent variation at N=1 (including sub-SQL regions), but at N=5 and N=10 the sensitivity is consistently above SQL with less $\omega$-dependence.
 

@@ -41,12 +41,12 @@ Guide the creation of a new simulation report from initial research question thr
 - [ ] Searched agentmemory for relevant prior reports and decisions (`project:notebooks`)
 - [ ] Surveyed existing reports in `reports/`
 - [ ] Consulted CHANGELOG backlog for existing entry
-- [ ] Challenged assumptions and asked clarifying questions
+- [ ] Confirmed challenged assumptions with the user
+- [ ] Asked clarifying questionsN
 - [ ] Read relevant code for existing patterns
 
 ### After implementation
 - [ ] Report follows section order, emoji placement, and formatting rules exactly
-- [ ] No bare `|` inside `$...$` in any table row — verified by `rg '^\|.*\$[^$]*\|[^$]*\$' reports/YYYYMMDD/*.md || echo "OK"`
 - [ ] Hypothesis is falsifiable and maps 1:1 to success criteria
 - [ ] No code was modified
 - [ ] CHANGELOG updated with entry under the appropriate weekly section; backlog entry added if this is a new experiment

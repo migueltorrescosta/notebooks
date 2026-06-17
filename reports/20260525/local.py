@@ -31,8 +31,9 @@ import os
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 # Use spawn start method to avoid fork + BLAS threading deadlock.
 mp.set_start_method("spawn", force=True)
@@ -43,15 +44,25 @@ import pandas as pd  # noqa: E402
 import seaborn as sns  # noqa: E402
 from scipy.optimize import minimize  # noqa: E402
 
+from src.utils.serialization import ParquetSerializable  # noqa: E402
+
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
     os.environ["MPLBACKEND"] = "Agg"
 if "OMP_NUM_THREADS" not in os.environ:
     os.environ["OMP_NUM_THREADS"] = "1"
 
+from src.analysis.decoupled_baseline import (  # noqa: E402
+    generate_decoupled_baseline,
+    plot_decoupled_baseline_heatmap,
+)
 from src.analysis.multi_mzi_scaling import (  # noqa: E402
-    ScalingAnalysisResult,
-    fit_scaling_exponents,
+    ScalingAnalysisResult,  # noqa: F401 — re-exported for tests
+    fit_scaling_exponents,  # noqa: F401 — re-exported for tests
+    generate_scaling_analysis,
+)
+from src.analysis.n_scaling_sweep import (  # noqa: E402
+    generate_n_scaling_plots,
 )
 from src.physics.multi_mzi import (  # noqa: E402
     build_hold_hamiltonian,  # noqa: F401 — re-exported for tests
@@ -291,6 +302,105 @@ def _maxiter_for_n(N: int) -> int:
     return 50
 
 
+def _run_single_joint_start(
+    x0: np.ndarray,
+    N: int,
+    psi0: np.ndarray,
+    omega: float,
+    ops: dict[str, np.ndarray],
+    bounds: list[tuple[float, float]],
+    maxiter: int,
+    t_hold: float,
+    fd_step: float,
+    axx_bounds: tuple[float, float],
+) -> dict[str, float] | None:
+    """Run a single L-BFGS-B optimisation from one starting point.
+
+    Args:
+        x0: 2-element starting vector [alpha_xx, psi].
+        N: Particle number per subsystem.
+        psi0: Initial state.
+        omega: Phase rate.
+        ops: Embedded operators.
+        bounds: L-BFGS-B bounds [(axx_lo, axx_hi), (psi_lo, psi_hi)].
+        maxiter: Maximum L-BFGS-B iterations.
+        t_hold: Holding time.
+        fd_step: Finite-difference step.
+        axx_bounds: (min, max) for α_xx clipping.
+
+    Returns:
+        Dict with 'alpha_xx_opt', 'psi_opt', 'delta_omega_opt',
+        'expectation_M', 'variance_M', 'd_expectation', or None if
+        optimisation failed.
+    """
+    try:
+        result = minimize(
+            _objective_joint,
+            x0,
+            args=(N, psi0, omega, ops, t_hold, fd_step),
+            method="L-BFGS-B",
+            bounds=bounds,
+            options={"ftol": 1e-12, "gtol": 1e-8, "maxiter": maxiter},
+        )
+
+        if not result.success:
+            return None
+
+        alpha_opt = float(result.x[0])
+        psi_opt = float(result.x[1])
+        alpha_opt = np.clip(alpha_opt, axx_bounds[0], axx_bounds[1])
+
+        dt_opt, exp_opt, var_opt, d_exp_opt = compute_sensitivity_full(
+            N, psi0, omega, alpha_opt, psi_opt, ops, t_hold=t_hold, fd_step=fd_step
+        )
+
+        if not np.isfinite(dt_opt):
+            return None
+
+        return {
+            "alpha_xx_opt": alpha_opt,
+            "psi_opt": psi_opt,
+            "delta_omega_opt": dt_opt,
+            "expectation_M": exp_opt,
+            "variance_M": var_opt,
+            "d_expectation": d_exp_opt,
+        }
+
+    except (ValueError, np.linalg.LinAlgError):
+        return None
+
+
+def _count_starts_near_best(
+    all_dt: list[float], best_dt: float, rtol: float = 0.01
+) -> int:
+    """Count how many deltas are within a relative tolerance of the best.
+
+    Args:
+        all_dt: List of converged Δω values.
+        best_dt: Best (minimum) Δω.
+        rtol: Relative tolerance (default 0.01 = 1%).
+
+    Returns:
+        Number of values within rtol of best_dt.
+    """
+    if best_dt <= 0:
+        return 0
+    count = 0
+    for dt in all_dt:
+        if np.isfinite(dt) and abs(dt - best_dt) / best_dt < rtol:
+            count += 1
+    return count
+
+
+def _resolve_defaults(
+    N: int, psi0: np.ndarray | None, maxiter: int | None
+) -> tuple[np.ndarray, int]:
+    """Resolve optional psi0 and maxiter to concrete values."""
+    _psi0 = initial_state(N) if psi0 is None else psi0
+    _maxiter = _maxiter_for_n(N) if maxiter is None else maxiter
+    return _psi0, _maxiter
+
+
 def optimise_joint(
     N: int,
     omega: float,
@@ -337,15 +447,11 @@ def optimise_joint(
             'n_starts_at_best': number of starts that reached the best optimum
                 (within 1% relative tolerance of delta_omega_opt).
     """
-    if psi0 is None:
-        psi0 = initial_state(N)
-
+    _psi0, _maxiter = _resolve_defaults(N, psi0, maxiter)
     sql_2n = 1.0 / (np.sqrt(2 * N) * t_hold)
     rng = np.random.default_rng(rng_seed)
-
-    if maxiter is None:
-        maxiter = _maxiter_for_n(N)
     bounds = [axx_bounds, psi_bounds]
+
     best_result: dict[str, float] = {
         "alpha_xx_opt": 0.0,
         "psi_opt": 0.0,
@@ -361,64 +467,37 @@ def optimise_joint(
     }
 
     n_converged = 0
-    # Collect all converged delta_omega values for clustering diagnostic
-    _all_dt: list[float] = []
+    all_dt: list[float] = []
 
     for _ in range(n_starts):
-        # Random initial point within bounds
         alpha0 = rng.uniform(axx_bounds[0], axx_bounds[1])
         psi_start = rng.uniform(psi_bounds[0], psi_bounds[1])
         x0 = np.array([alpha0, psi_start])
 
-        try:
-            result = minimize(
-                _objective_joint,
-                x0,
-                args=(N, psi0, omega, ops, t_hold, fd_step),
-                method="L-BFGS-B",
-                bounds=bounds,
-                options={"ftol": 1e-12, "gtol": 1e-8, "maxiter": maxiter},
-            )
-
-            if not result.success:
-                continue
-
-            n_converged += 1
-            alpha_opt = float(result.x[0])
-            psi_opt = float(result.x[1])
-
-            # Ensure α_xx is within bounds (L-BFGS-B may slightly exceed)
-            alpha_opt = np.clip(alpha_opt, axx_bounds[0], axx_bounds[1])
-
-            dt_opt, exp_opt, var_opt, d_exp_opt = compute_sensitivity_full(
-                N, psi0, omega, alpha_opt, psi_opt, ops, t_hold=t_hold, fd_step=fd_step
-            )
-
-            if np.isfinite(dt_opt):
-                _all_dt.append(dt_opt)
-
-            if np.isfinite(dt_opt) and dt_opt < best_result["delta_omega_opt"]:
-                best_result["alpha_xx_opt"] = alpha_opt
-                best_result["psi_opt"] = psi_opt
-                best_result["ms_opt"] = np.cos(psi_opt)
-                best_result["ma_opt"] = np.sin(psi_opt)
-                best_result["delta_omega_opt"] = dt_opt
-                best_result["expectation_M"] = exp_opt
-                best_result["variance_M"] = var_opt
-                best_result["d_expectation"] = d_exp_opt
-
-        except (ValueError, np.linalg.LinAlgError):
+        single_result = _run_single_joint_start(
+            x0, N, _psi0, omega, ops, bounds, _maxiter, t_hold, fd_step, axx_bounds
+        )
+        if single_result is None:
             continue
 
+        n_converged += 1
+        dt = single_result["delta_omega_opt"]
+        all_dt.append(dt)
+
+        if dt < best_result["delta_omega_opt"]:
+            best_result["alpha_xx_opt"] = single_result["alpha_xx_opt"]
+            best_result["psi_opt"] = single_result["psi_opt"]
+            best_result["ms_opt"] = np.cos(single_result["psi_opt"])
+            best_result["ma_opt"] = np.sin(single_result["psi_opt"])
+            best_result["delta_omega_opt"] = dt
+            best_result["expectation_M"] = single_result["expectation_M"]
+            best_result["variance_M"] = single_result["variance_M"]
+            best_result["d_expectation"] = single_result["d_expectation"]
+
     best_result["n_starts_converged"] = n_converged
-    # Count how many starts landed within 1% of the best delta_omega
-    best_dt = best_result["delta_omega_opt"]
-    if np.isfinite(best_dt) and best_dt > 0 and _all_dt:
-        best_result["n_starts_at_best"] = sum(
-            1
-            for dt in _all_dt
-            if np.isfinite(dt) and abs(dt - best_dt) / best_dt < 0.01
-        )
+    best_result["n_starts_at_best"] = _count_starts_near_best(
+        all_dt, best_result["delta_omega_opt"]
+    )
     return best_result
 
 
@@ -428,7 +507,7 @@ def optimise_joint(
 
 
 @dataclass
-class DualMZIOptimisedResult:
+class DualMZIOptimisedResult(ParquetSerializable):
     """Full 2D sweep over ω and N with joint (α_xx, φ) optimisation per point.
 
     All array fields have the same length (n_omega × n_N), stored in
@@ -473,6 +552,24 @@ class DualMZIOptimisedResult:
     )
     t_hold: float = DEFAULT_t_hold
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "N",
+        "t_hold",
+        "alpha_xx_opt",
+        "psi_opt",
+        "ms_opt",
+        "ma_opt",
+        "delta_omega_opt",
+        "sql_2n",
+        "ratio",
+        "expectation_M",
+        "variance_M",
+        "d_expectation",
+        "n_starts_converged",
+        "n_starts_at_best",
+    ]
+
     def __post_init__(self) -> None:
         # Ensure int dtype for N_values
         if self.N_values.dtype.kind != "i":
@@ -499,38 +596,10 @@ class DualMZIOptimisedResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> DualMZIOptimisedResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "N",
-            "t_hold",
-            "alpha_xx_opt",
-            "psi_opt",
-            "ms_opt",
-            "ma_opt",
-            "delta_omega_opt",
-            "sql_2n",
-            "ratio",
-            "expectation_M",
-            "variance_M",
-            "d_expectation",
-            "n_starts_converged",
-            "n_starts_at_best",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
-                "Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
 
         return cls(
             omega_values=df["omega"].to_numpy(dtype=float),
@@ -568,22 +637,22 @@ class DualMZIOptimisedResult:
 # ============================================================================
 
 
-def _unpack_worker_result(r: dict[str, object]) -> dict[str, float | int]:
+def _unpack_worker_result(r: dict[str, Any]) -> dict[str, float | int]:
     """Extract typed values from a worker result dict (process-boundary safe)."""
     return {
-        "omega": float(r["omega"]),  # type: ignore[arg-type]
-        "N": int(r["N"]),  # type: ignore[arg-type]
-        "alpha_xx_opt": float(r["alpha_xx_opt"]),  # type: ignore[arg-type]
-        "psi_opt": float(r["psi_opt"]),  # type: ignore[arg-type]
-        "ms_opt": float(r["ms_opt"]),  # type: ignore[arg-type]
-        "ma_opt": float(r["ma_opt"]),  # type: ignore[arg-type]
-        "delta_omega_opt": float(r["delta_omega_opt"]),  # type: ignore[arg-type]
-        "sql_2n": float(r["sql_2n"]),  # type: ignore[arg-type]
-        "expectation_M": float(r["expectation_M"]),  # type: ignore[arg-type]
-        "variance_M": float(r["variance_M"]),  # type: ignore[arg-type]
-        "d_expectation": float(r["d_expectation"]),  # type: ignore[arg-type]
-        "n_starts_at_best": int(r["n_starts_at_best"]),  # type: ignore[arg-type]
-        "n_starts_converged": int(r["n_starts_converged"]),  # type: ignore[arg-type]
+        "omega": float(r["omega"]),
+        "N": int(r["N"]),
+        "alpha_xx_opt": float(r["alpha_xx_opt"]),
+        "psi_opt": float(r["psi_opt"]),
+        "ms_opt": float(r["ms_opt"]),
+        "ma_opt": float(r["ma_opt"]),
+        "delta_omega_opt": float(r["delta_omega_opt"]),
+        "sql_2n": float(r["sql_2n"]),
+        "expectation_M": float(r["expectation_M"]),
+        "variance_M": float(r["variance_M"]),
+        "d_expectation": float(r["d_expectation"]),
+        "n_starts_at_best": int(r["n_starts_at_best"]),
+        "n_starts_converged": int(r["n_starts_converged"]),
     }
 
 
@@ -642,6 +711,253 @@ def _optimise_one_point(
     return {**result, "N": N, "omega": omega}
 
 
+def _empty_sweep_arrays(total: int) -> dict[str, np.ndarray]:
+    """Allocate empty (pre-filled) result arrays for a sweep.
+
+    Args:
+        total: Total number of sweep points.
+
+    Returns:
+        Dict with all 1D array keys except 'ratios'.
+    """
+    return {
+        "omegas": np.zeros(total, dtype=float),
+        "Ns": np.zeros(total, dtype=int),
+        "alpha_opts": np.full(total, np.nan, dtype=float),
+        "psi_opts": np.full(total, np.nan, dtype=float),
+        "ms_opts": np.full(total, np.nan, dtype=float),
+        "ma_opts": np.full(total, np.nan, dtype=float),
+        "delta_opts": np.full(total, np.inf, dtype=float),
+        "sqls": np.zeros(total, dtype=float),
+        "exps": np.zeros(total, dtype=float),
+        "vars_": np.zeros(total, dtype=float),
+        "d_exps": np.zeros(total, dtype=float),
+        "n_best_arr": np.zeros(total, dtype=int),
+        "n_converged_arr": np.zeros(total, dtype=int),
+    }
+
+
+def _unpack_result_into_arrays(
+    r: dict[str, Any],
+    idx: int,
+    data: dict[str, np.ndarray],
+) -> None:
+    """Unpack one optimiser result dict into sweep arrays at position idx.
+
+    The result dict must contain keys: omega, N, alpha_xx_opt, psi_opt,
+    ms_opt, ma_opt, delta_omega_opt, sql_2n, expectation_M, variance_M,
+    d_expectation, n_starts_at_best, n_starts_converged.
+    """
+    data["omegas"][idx] = float(r["omega"])
+    data["Ns"][idx] = int(r["N"])  # type: ignore[call-overload]
+    data["alpha_opts"][idx] = float(r["alpha_xx_opt"])
+    data["psi_opts"][idx] = float(r["psi_opt"])
+    data["ms_opts"][idx] = float(r["ms_opt"])
+    data["ma_opts"][idx] = float(r["ma_opt"])
+    data["delta_opts"][idx] = float(r["delta_omega_opt"])
+    data["sqls"][idx] = float(r["sql_2n"])
+    data["exps"][idx] = float(r["expectation_M"])
+    data["vars_"][idx] = float(r["variance_M"])
+    data["d_exps"][idx] = float(r["d_expectation"])
+    data["n_best_arr"][idx] = int(r["n_starts_at_best"])  # type: ignore[call-overload]
+    data["n_converged_arr"][idx] = int(r["n_starts_converged"])  # type: ignore[call-overload]
+
+
+def _compute_sweep_ratios(
+    delta_opts: np.ndarray,
+    sqls: np.ndarray,
+) -> np.ndarray:
+    """Compute Δω / SQL ratio, vectorized. Inf where not finite or SQL ≤ 0."""
+    return np.where(
+        np.isfinite(delta_opts) & (sqls > 0),
+        delta_opts / sqls,
+        np.inf,
+    )
+
+
+def _compute_sweep_serial(
+    omega_values: np.ndarray,
+    N_values: np.ndarray,
+    t_hold: float,
+    seed: int | None,
+    progress_callback: Callable[[int, int], None] | None,
+) -> dict[str, np.ndarray]:
+    """Serial sweep over all (N, ω) pairs using per-point optimisations.
+
+    Args:
+        omega_values: ω values to sweep.
+        N_values: N values to sweep.
+        t_hold: Holding time.
+        seed: Optional seed for reproducibility.
+        progress_callback: Optional callback (current, total).
+
+    Returns:
+        Dict of 1D arrays (keys: omegas, Ns, alpha_opts, psi_opts, ms_opts,
+        ma_opts, delta_opts, sqls, ratios, exps, vars_, d_exps,
+        n_best_arr, n_converged_arr).
+    """
+    n_omega = len(omega_values)
+    n_N = len(N_values)
+    total = n_omega * n_N
+    global_start_seed = 0 if seed is None else seed
+
+    data = _empty_sweep_arrays(total)
+    n_starts_fn = _n_starts_for_n
+    idx = 0
+    for N in N_values:
+        for omega in omega_values:
+            r = _optimise_one_point(
+                (N, omega, t_hold, n_starts_fn(N), FD_STEP, global_start_seed),
+            )
+            _unpack_result_into_arrays(r, idx, data)
+            idx += 1
+            if progress_callback is not None:
+                progress_callback(idx, total)
+
+    data["ratios"] = _compute_sweep_ratios(data["delta_opts"], data["sqls"])
+    return data
+
+
+def _build_sweep_tasks(
+    N_values: np.ndarray,
+    omega_values: np.ndarray,
+    t_hold: float,
+    fd_step: float,
+    global_start_seed: int | None,
+) -> list[tuple[int, float, float, int, float, int | None]]:
+    """Build optimisation task tuples for all (N, ω) pairs.
+
+    Each task is a picklable tuple consumable by _optimise_one_point.
+    """
+    return [
+        (
+            int(N_i),
+            float(omega_i),
+            t_hold,
+            _n_starts_for_n(N_i),
+            fd_step,
+            global_start_seed,
+        )
+        for N_i in N_values
+        for omega_i in omega_values
+    ]
+
+
+def _get_future_result(
+    fut: Any,
+    futures: dict[Any, int],
+) -> tuple[int, dict[str, Any] | None]:
+    """Try to get the result from a completed future, returning (i, r) or (i, None).
+
+    Args:
+        fut: Completed future from ProcessPoolExecutor.
+        futures: Dict mapping future → task index.
+
+    Returns:
+        Tuple (task_index, result_dict_or_None).
+    """
+    i = futures[fut]
+    try:
+        return i, fut.result()
+    except Exception as exc:
+        print(f"  [err] Worker failed for task {i}: {exc}")
+        return i, None
+
+
+def _on_result_received(
+    r: dict[str, Any],
+    i: int,
+    n_done: int,
+    total: int,
+    data: dict[str, np.ndarray],
+    progress_callback: Callable[[int, int], None] | None,
+) -> None:
+    """Process one successful optimisation result: unpack + report progress."""
+    _unpack_result_into_arrays(r, i, data)
+    if progress_callback is not None:
+        progress_callback(n_done, total)
+    if n_done % 50 == 0:
+        print(f"  [progress] {n_done}/{total} tasks completed")
+
+
+def _compute_sweep_parallel(
+    omega_values: np.ndarray,
+    N_values: np.ndarray,
+    t_hold: float,
+    seed: int | None,
+    progress_callback: Callable[[int, int], None] | None,
+    parallel: int,
+) -> dict[str, np.ndarray]:
+    """Parallel sweep over all (N, ω) pairs via ProcessPoolExecutor.
+
+    Args:
+        omega_values: ω values to sweep.
+        N_values: N values to sweep.
+        t_hold: Holding time.
+        seed: Optional seed for reproducibility.
+        progress_callback: Optional callback (current, total).
+        parallel: Number of worker processes.
+
+    Returns:
+        Dict of 1D arrays (same keys as _compute_sweep_serial).
+    """
+    n_omega = len(omega_values)
+    n_N = len(N_values)
+    total = n_omega * n_N
+    global_start_seed = 0 if seed is None else seed
+
+    # Build tasks: one per (N, ω) pair with adaptive n_starts
+    tasks = _build_sweep_tasks(
+        N_values, omega_values, t_hold, FD_STEP, global_start_seed
+    )
+
+    print(f"[info] Parallel sweep: {len(tasks)} tasks, {parallel} workers")
+    n_done = 0
+    data = _empty_sweep_arrays(total)
+    with ProcessPoolExecutor(max_workers=parallel) as ex:
+        futures = {ex.submit(_optimise_one_point, t): i for i, t in enumerate(tasks)}
+        for fut in as_completed(futures):
+            i, r = _get_future_result(fut, futures)
+            if r is not None:
+                n_done += 1
+                _on_result_received(r, i, n_done, total, data, progress_callback)
+
+    data["ratios"] = _compute_sweep_ratios(data["delta_opts"], data["sqls"])
+    return data
+
+
+def _assemble_sweep_result(
+    data: dict[str, np.ndarray],
+    t_hold: float,
+) -> DualMZIOptimisedResult:
+    """Assemble DualMZIOptimisedResult from computed array dict.
+
+    Args:
+        data: Dict with keys matching _compute_sweep_* output.
+        t_hold: Holding time (scalar attribute).
+
+    Returns:
+        Fully populated DualMZIOptimisedResult.
+    """
+    return DualMZIOptimisedResult(
+        omega_values=data["omegas"],
+        N_values=data["Ns"],
+        alpha_xx_opt=data["alpha_opts"],
+        psi_opt=data["psi_opts"],
+        ms_opt=data["ms_opts"],
+        ma_opt=data["ma_opts"],
+        delta_omega_opt=data["delta_opts"],
+        sql_2n=data["sqls"],
+        ratio=data["ratios"],
+        expectation_M=data["exps"],
+        variance_M=data["vars_"],
+        d_expectation=data["d_exps"],
+        n_starts_converged=data["n_converged_arr"],
+        n_starts_at_best=data["n_best_arr"],
+        t_hold=t_hold,
+    )
+
+
 def run_sweep(
     omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
@@ -670,151 +986,25 @@ def run_sweep(
     if N_values is None:
         N_values = np.arange(N_MIN, N_MAX + 1, dtype=int)
 
-    n_omega = len(omega_values)
-    n_N = len(N_values)
-    total = n_omega * n_N
-
-    omegas = np.zeros(total, dtype=float)
-    Ns = np.zeros(total, dtype=int)
-    alpha_opts = np.full(total, np.nan, dtype=float)
-    psi_opts = np.full(total, np.nan, dtype=float)
-    ms_opts = np.full(total, np.nan, dtype=float)
-    ma_opts = np.full(total, np.nan, dtype=float)
-    delta_opts = np.full(total, np.inf, dtype=float)
-    sqls = np.zeros(total, dtype=float)
-    ratios = np.full(total, np.inf, dtype=float)
-    exps = np.zeros(total, dtype=float)
-    vars_ = np.zeros(total, dtype=float)
-    d_exps = np.zeros(total, dtype=float)
-    n_best_arr = np.zeros(total, dtype=int)
-    n_converged_arr = np.zeros(total, dtype=int)
-
     if parallel > 0:
-        # ── Parallel execution via ProcessPoolExecutor (per-point) ──
-        global_start_seed = 0 if seed is None else seed
-        n_omega = len(omega_values)
-        n_N = len(N_values)
-
-        # Build tasks: one per (N, ω) pair with adaptive n_starts
-        tasks: list[tuple[int, float, float, int, float, int | None]] = [
-            (
-                int(N_i),
-                float(omega_i),
-                t_hold,
-                _n_starts_for_n(N_i),
-                FD_STEP,
-                global_start_seed,
-            )
-            for N_i in N_values
-            for omega_i in omega_values
-        ]
-
-        print(f"[info] Parallel sweep: {len(tasks)} tasks, {parallel} workers")
-        n_done = 0
-        with ProcessPoolExecutor(max_workers=parallel) as ex:
-            futures = {
-                ex.submit(_optimise_one_point, t): i for i, t in enumerate(tasks)
-            }
-            for fut in as_completed(futures):
-                i = futures[fut]
-                try:
-                    r = fut.result()
-                except Exception as exc:
-                    print(f"  [err] Worker failed for task {i}: {exc}")
-                    continue
-                n_done += 1
-                omegas[i] = float(r["omega"])
-                Ns[i] = int(r["N"])
-                alpha_opts[i] = float(r["alpha_xx_opt"])
-                psi_opts[i] = float(r["psi_opt"])
-                ms_opts[i] = float(r["ms_opt"])
-                ma_opts[i] = float(r["ma_opt"])
-                delta_opts[i] = float(r["delta_omega_opt"])
-                sqls[i] = float(r["sql_2n"])
-                ratios[i] = (
-                    float(r["delta_omega_opt"]) / float(r["sql_2n"])
-                    if np.isfinite(r["delta_omega_opt"]) and float(r["sql_2n"]) > 0
-                    else float("inf")
-                )
-                exps[i] = float(r["expectation_M"])
-                vars_[i] = float(r["variance_M"])
-                d_exps[i] = float(r["d_expectation"])
-                n_best_arr[i] = int(r["n_starts_at_best"])
-                n_converged_arr[i] = int(r["n_starts_converged"])
-                if progress_callback is not None:
-                    progress_callback(n_done, total)
-                if n_done % 50 == 0:
-                    print(f"  [progress] {n_done}/{total} tasks completed")
+        data = _compute_sweep_parallel(
+            omega_values,
+            N_values,
+            t_hold,
+            seed,
+            progress_callback,
+            parallel,
+        )
     else:
-        # ── Serial execution (original path) ──
-        idx = 0
-        global_start_seed = 0 if seed is None else seed
+        data = _compute_sweep_serial(
+            omega_values,
+            N_values,
+            t_hold,
+            seed,
+            progress_callback,
+        )
 
-        for N in N_values:
-            ops = embed_combined_operators(N)
-            psi0 = initial_state(N)
-            for omega in omega_values:
-                omegas[idx] = omega
-                Ns[idx] = N
-
-                opt_result = optimise_joint(
-                    N=N,
-                    omega=omega,
-                    ops=ops,
-                    psi0=psi0,
-                    n_starts=_n_starts_for_n(N),
-                    t_hold=t_hold,
-                    rng_seed=global_start_seed + idx if seed is not None else None,
-                )
-
-                alpha_opts[idx] = opt_result["alpha_xx_opt"]
-                psi_opts[idx] = opt_result["psi_opt"]
-                ms_opts[idx] = opt_result["ms_opt"]
-                ma_opts[idx] = opt_result["ma_opt"]
-                delta_opts[idx] = opt_result["delta_omega_opt"]
-                sqls[idx] = opt_result["sql_2n"]
-                ratios[idx] = (
-                    opt_result["delta_omega_opt"] / opt_result["sql_2n"]
-                    if np.isfinite(opt_result["delta_omega_opt"])
-                    and opt_result["sql_2n"] > 0
-                    else float("inf")
-                )
-                exps[idx] = opt_result["expectation_M"]
-                vars_[idx] = opt_result["variance_M"]
-                d_exps[idx] = opt_result["d_expectation"]
-                n_best_arr[idx] = opt_result["n_starts_at_best"]
-                n_converged_arr[idx] = opt_result["n_starts_converged"]
-
-                # Convergence diagnostic
-                n_best = opt_result["n_starts_at_best"]
-                if n_best <= 1 and np.isfinite(opt_result["delta_omega_opt"]):
-                    print(
-                        f"  [diag] N={N}, ω={omega:.1f}: best Δω={opt_result['delta_omega_opt']:.6e} "
-                        f"found by only {n_best}/{opt_result['n_starts_converged']} starts "
-                        f"(α_xx*={opt_result['alpha_xx_opt']:.4f}, φ*={opt_result['psi_opt']:.4f})"
-                    )
-
-                idx += 1
-                if progress_callback is not None:
-                    progress_callback(idx, total)
-
-    return DualMZIOptimisedResult(
-        omega_values=omegas,
-        N_values=Ns,
-        alpha_xx_opt=alpha_opts,
-        psi_opt=psi_opts,
-        ms_opt=ms_opts,
-        ma_opt=ma_opts,
-        delta_omega_opt=delta_opts,
-        sql_2n=sqls,
-        ratio=ratios,
-        expectation_M=exps,
-        variance_M=vars_,
-        d_expectation=d_exps,
-        n_starts_converged=n_converged_arr,
-        n_starts_at_best=n_best_arr,
-        t_hold=t_hold,
-    )
+    return _assemble_sweep_result(data, t_hold)
 
 
 # ============================================================================
@@ -1123,145 +1313,6 @@ def plot_psi_opt_heatmap(
     return save_path
 
 
-def plot_n_scaling(
-    sweep: DualMZIOptimisedResult,
-    save_path: str | Path,
-    omega_fixed: float | None = None,
-    figsize: tuple[float, float] = (8, 6),
-) -> Path:
-    """Plot Δω_opt vs N at a fixed ω, with 2N-SQL and N-SQL reference lines.
-
-    Args:
-        sweep: Sweep result.
-        save_path: Output SVG path.
-        omega_fixed: ω value to plot. If None, uses the first ω.
-        figsize: Figure size.
-
-    Returns:
-        Path to saved SVG.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if omega_fixed is None:
-        omega_fixed = float(np.unique(sweep.omega_values)[0])
-
-    mask = np.isclose(sweep.omega_values, omega_fixed)
-    N_vals = sweep.N_values[mask].astype(float)
-    delta_vals = sweep.delta_omega_opt[mask]
-
-    fig, ax = plt.subplots(figsize=figsize)
-
-    # Reference lines
-    N_dense = np.logspace(np.log10(1), np.log10(20), 100)
-    sql_2n_dense = 1.0 / (np.sqrt(2 * N_dense) * sweep.t_hold)
-    sql_n_dense = 1.0 / (np.sqrt(N_dense) * sweep.t_hold)
-    hl_dense = 1.0 / (N_dense * sweep.t_hold)
-
-    ax.loglog(N_dense, sql_2n_dense, "--", color="gray", alpha=0.7, label="2N-SQL")
-    ax.loglog(N_dense, sql_n_dense, "-.", color="gray", alpha=0.5, label="N-SQL")
-    ax.loglog(N_dense, hl_dense, ":", color="gray", alpha=0.5, label="HL")
-
-    # Data
-    finite_mask = np.isfinite(delta_vals) & (delta_vals > 0)
-    if np.any(finite_mask):
-        ax.loglog(
-            N_vals[finite_mask],
-            delta_vals[finite_mask],
-            "o-",
-            color="C0",
-            markersize=8,
-            linewidth=1.8,
-            label=rf"$\Delta\omega_{{\mathrm{{opt}}}}(\omega={omega_fixed:.2f})$",
-        )
-
-    ax.set_xlabel(r"$N$ (particles per subsystem)")
-    ax.set_ylabel(r"$\Delta\omega$")
-    ax.set_title(
-        f"N-Scaling at $\\omega={omega_fixed:.2f}$:\nOptimised Joint Measurement"
-    )
-    ax.legend(fontsize=10)
-    ax.grid(True, which="both", alpha=0.3)
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
-
-
-def plot_scaling_exponents(
-    scaling: ScalingAnalysisResult,
-    save_path: str | Path,
-    figsize: tuple[float, float] = (10, 6),
-) -> Path:
-    """Plot the scaling exponent α vs ω from log-log fits.
-
-    Args:
-        scaling: Scaling analysis result.
-        save_path: Output SVG path.
-        figsize: Figure size.
-
-    Returns:
-        Path to saved SVG.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-
-    # Left: exponent vs ω
-    valid_exp = np.isfinite(scaling.exponents)
-    if np.any(valid_exp):
-        ax1.plot(
-            scaling.omega_values[valid_exp],
-            scaling.exponents[valid_exp],
-            "o-",
-            color="C1",
-            markersize=6,
-            linewidth=1.5,
-        )
-    ax1.axhline(
-        y=-0.5,
-        color="gray",
-        linestyle="--",
-        alpha=0.7,
-        label="SQL (α = −0.5)",
-    )
-    ax1.axhline(
-        y=-1.0,
-        color="gray",
-        linestyle=":",
-        alpha=0.5,
-        label="HL (α = −1.0)",
-    )
-    ax1.set_xlabel(r"$\omega$")
-    ax1.set_ylabel(r"Scaling exponent $\alpha$")
-    ax1.set_title(r"Exponent $\alpha$ from $\Delta\omega = C N^{\alpha}$")
-    ax1.legend(fontsize=9)
-
-    # Right: R² vs ω
-    valid_r2 = np.isfinite(scaling.r_squared)
-    if np.any(valid_r2):
-        ax2.plot(
-            scaling.omega_values[valid_r2],
-            scaling.r_squared[valid_r2],
-            "s-",
-            color="C2",
-            markersize=6,
-            linewidth=1.5,
-        )
-    ax2.axhline(y=0.95, color="gray", linestyle="--", alpha=0.5)
-    ax2.set_xlabel(r"$\omega$")
-    ax2.set_ylabel(r"$R^2$")
-    ax2.set_title("Goodness of Fit")
-    ax2.set_ylim(-0.05, 1.05)
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
-
-
 def plot_landscape(
     N: int,
     omega: float,
@@ -1514,128 +1565,48 @@ def generate_sweep(force: bool = False, parallel: int = 0) -> None:
     print(f"[fig]  {fig_psi}")
 
 
-def generate_decoupled_baseline(force: bool = False) -> None:
-    """Decoupled baseline (α_xx = 0, φ-optimised) verification."""
-    csv_p = _parquet_path("optimised-measurement-decoupled-baseline")
-    fig_p = _fig_path("decoupled-baseline")
-
-    if csv_p.exists() and not force:
-        print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DualMZIOptimisedResult.from_parquet(csv_p)
-    else:
-        print("[run]  Computing decoupled baseline (α_xx = 0, φ=π/4)...")
-        N_arr = np.array(N_VALS, dtype=int)
-        omega_subset = np.array([v for i, v in enumerate(OMEGA_VALS) if i % 5 == 0])
-        result = compute_decoupled_baseline(
-            omega_values=omega_subset,
-            N_values=N_arr,
-        )
-        result.save_parquet(csv_p)
-        print(f"[save] {csv_p}")
-
-    # Create a verification figure: heatmap of |ratio - 1| on log scale
-    from matplotlib.colors import LogNorm
-
-    omega_vals = np.unique(result.omega_values)
-    N_vals = np.unique(result.N_values)
-    dev_map = np.full((len(N_vals), len(omega_vals)), np.nan, dtype=float)
-
-    for i, omega in enumerate(omega_vals):
-        for j, N_val in enumerate(N_vals):
-            mask = np.isclose(result.omega_values, omega) & (result.N_values == N_val)
-            if np.any(mask):
-                r = float(result.ratio[mask][0])
-                dev_map[j, i] = abs(r - 1.0)
-
-    fig, ax = plt.subplots(figsize=(10, 7))
-    finite = dev_map[np.isfinite(dev_map)]
-    if len(finite) > 0:
-        vmin_val = float(np.min(finite))
-        vmax_val = float(np.max(finite))
-    else:
-        vmin_val, vmax_val = 1e-15, 1.0
-
-    im = ax.pcolormesh(
-        omega_vals,
-        N_vals,
-        dev_map,
-        shading="nearest",
-        cmap="viridis",
-        norm=LogNorm(vmin=max(vmin_val, 1e-16), vmax=vmax_val),
-    )
-    fig.colorbar(
-        im, ax=ax, label=r"$|\Delta\omega/\Delta\omega_{\mathrm{SQL}}^{2N} - 1|$"
-    )
-
-    max_dev = float(np.max(finite)) if len(finite) > 0 else 0.0
-    ax.set_xlabel(r"$\omega$")
-    ax.set_ylabel(r"$N$ (particles per subsystem)")
-    ax.set_title(
-        f"Decoupled Baseline Verification ($\\alpha_{{xx}} = 0$, $\\psi = \\pi/4$, "
-        f"$t_hold = {result.t_hold}$)\n"
-        f"Max $|\\Delta\\omega/\\mathrm{{SQL}}^{{2N}} - 1| = {max_dev:.2e}$, "
-        f"points checked: {len(finite)}"
-    )
-
-    fig.tight_layout()
-    fig.savefig(fig_p, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    print(f"[fig]  {fig_p}")
-
-
 def generate_n_scaling(force: bool = False) -> None:
     """N-scaling analysis from the sweep data.
 
     Args:
         force: If True, overwrite existing figure files.
     """
-    csv_p = _parquet_path("optimised-measurement-sweep")
-    fig_n3 = _fig_path("n-scaling-omega0.3")
-    fig_n1 = _fig_path("n-scaling-omega1.0")
-    fig_n3p = _fig_path("n-scaling-omega3.0")
+    omega_fig_pairs = [
+        (0.3, _fig_path("n-scaling-omega0.3")),
+        (1.0, _fig_path("n-scaling-omega1.0")),
+        (3.0, _fig_path("n-scaling-omega3.0")),
+    ]
 
-    if not csv_p.exists():
-        print("[skip] Sweep data not found; run 'sweep' first")
-        return
+    def _plot_with_title(
+        df: Any,
+        omega_fixed: float,
+        save_path: Path,
+        t_hold: float | None = None,
+        include_2n_sql: bool = False,
+    ) -> None:
+        from src.visualization.scaling_plots import plot_n_scaling_single_omega
 
-    result = DualMZIOptimisedResult.from_parquet(csv_p)
-
-    # Plot at three representative ω values
-    for omega_val, fig_p in [(0.3, fig_n3), (1.0, fig_n1), (3.0, fig_n3p)]:
-        if fig_p.exists() and not force:
-            print(f"[skip] {fig_p.name} exists (use --force to overwrite)")
-            continue
-        plot_n_scaling(result, fig_p, omega_fixed=omega_val)
-        print(f"[fig]  {fig_p}")
-
-
-def generate_scaling_analysis(force: bool = False) -> None:
-    """Scaling analysis (exponents) from the sweep data."""
-    csv_p = _parquet_path("optimised-measurement-sweep")
-    scaling_csv = _parquet_path("optimised-measurement-scaling")
-    fig_p = _fig_path("scaling-exponents")
-
-    if not csv_p.exists():
-        print("[skip] Sweep data not found; run 'sweep' first")
-        return
-
-    result = DualMZIOptimisedResult.from_parquet(csv_p)
-
-    if scaling_csv.exists() and not force:
-        scaling = ScalingAnalysisResult.from_parquet(scaling_csv)
-        print(f"[skip] {scaling_csv.name} exists")
-    else:
-        print("[run]  Fitting scaling exponents...")
-        scaling = fit_scaling_exponents(
-            result.omega_values,
-            result.N_values,
-            result.delta_omega_opt,
+        title = (
+            f"N-Scaling at $\\omega={omega_fixed:.2f}$:\nOptimised Joint Measurement"
         )
-        scaling.save_parquet(scaling_csv)
-        print(f"[save] {scaling_csv}")
+        plot_n_scaling_single_omega(
+            df,
+            omega_fixed=omega_fixed,
+            save_path=save_path,
+            t_hold=t_hold,
+            include_2n_sql=include_2n_sql,
+            title=title,
+        )
 
-    plot_scaling_exponents(scaling, fig_p)
-    print(f"[fig]  {fig_p}")
+    generate_n_scaling_plots(
+        force=force,
+        parquet_path=_parquet_path("optimised-measurement-sweep"),
+        result_cls=DualMZIOptimisedResult,
+        omega_fig_pairs=omega_fig_pairs,
+        include_2n_sql=True,
+        plot_fn=_plot_with_title,
+        label="optimised-measurement n-scaling",
+    )
 
 
 def evaluate_coarse_grid(
@@ -1690,63 +1661,93 @@ def evaluate_coarse_grid(
     return axx_vals, psi_vals, delta_map, grid_best
 
 
+def _load_sweep_for_validation() -> DualMZIOptimisedResult | None:
+    """Load sweep Parquet for BFGS vs grid validation, or None if unavailable."""
+    csv_p = _parquet_path("optimised-measurement-sweep")
+    if csv_p.exists():
+        try:
+            return DualMZIOptimisedResult.from_parquet(csv_p)
+        except (FileNotFoundError, ValueError):
+            pass
+    return None
+
+
+def _validate_bfgs_against_grid(
+    sweep: DualMZIOptimisedResult,
+    N: int,
+    omega: float,
+    grid_best: float,
+) -> None:
+    """Compare BFGS-optimised result to coarse-grid minimum at (N, ω).
+
+    Prints a warning if the relative difference exceeds 5%, otherwise OK.
+    """
+    mask = np.isclose(sweep.omega_values, omega) & (sweep.N_values == N)
+    if not np.any(mask):
+        return
+
+    bfgs_dt = float(sweep.delta_omega_opt[mask][0])
+    bfgs_axx = float(sweep.alpha_xx_opt[mask][0])
+    bfgs_psi = float(sweep.psi_opt[mask][0])
+    rel_diff = abs(bfgs_dt - grid_best) / grid_best if grid_best > 0 else 0.0
+
+    if rel_diff > 0.05 and grid_best < float("inf"):
+        print(
+            f"  [warn] N={N}, ω={omega:.1f}: BFGS Δω={bfgs_dt:.6e} "
+            f"(α_xx={bfgs_axx:.4f}, ψ={bfgs_psi:.4f}) is "
+            f"{rel_diff * 100:.1f}% above grid best Δω={grid_best:.6e} — "
+            "possible local minimum"
+        )
+    else:
+        print(
+            f"  [ok]   BFGS Δω={bfgs_dt:.6e} vs grid best={grid_best:.6e} "
+            f"(rel diff {rel_diff * 100:.2f}%)"
+        )
+
+
+def _process_landscape_point(
+    N: int,
+    omega: float,
+    suffix: str,
+    sweep: DualMZIOptimisedResult | None,
+    force: bool,
+) -> bool:
+    """Compute, plot, and BFGS-validate one landscape point.
+
+    Returns True if the figure was generated, False if skipped (cached).
+    """
+    fig_p = _fig_path(f"landscape-{suffix}")
+    if fig_p.exists() and not force:
+        print(f"[skip] {fig_p.name} exists (use --force to overwrite)")
+        return False
+
+    print(f"[run]  Computing landscape for N={N}, ω={omega:.1f} (21×21 grid)...")
+    axx_vals, psi_vals, delta_map, grid_best = evaluate_coarse_grid(N, omega)
+    sql_2n = 1.0 / (np.sqrt(2 * N) * DEFAULT_t_hold)
+
+    plot_landscape(N, omega, axx_vals, psi_vals, delta_map, sql_2n, fig_p)
+    print(f"[fig]  {fig_p}")
+
+    if sweep is not None:
+        _validate_bfgs_against_grid(sweep, N, omega, grid_best)
+
+    return True
+
+
 def generate_landscapes(force: bool = False) -> None:
     """Generate 2D landscape contour figures for representative (ω,N) points.
 
     Also validates BFGS optimisation against a coarse grid for these points.
     """
-    # Representative points: (N, ω, filename-suffix)
     rep_points = [
         (1, 0.5, "N1-omega0.5"),
         (5, 2.0, "N5-omega2.0"),
         (20, 4.0, "N20-omega4.0"),
     ]
-
-    # Load sweep data for BFGS comparison if available
-    csv_p = _parquet_path("optimised-measurement-sweep")
-    sweep = None
-    if csv_p.exists():
-        try:
-            sweep = DualMZIOptimisedResult.from_parquet(csv_p)
-        except (FileNotFoundError, ValueError):
-            pass
+    sweep = _load_sweep_for_validation()
 
     for N, omega, suffix in rep_points:
-        fig_p = _fig_path(f"landscape-{suffix}")
-        if fig_p.exists() and not force:
-            print(f"[skip] {fig_p.name} exists (use --force to overwrite)")
-            continue
-
-        print(f"[run]  Computing landscape for N={N}, ω={omega:.1f} (21×21 grid)...")
-        axx_vals, psi_vals, delta_map, grid_best = evaluate_coarse_grid(N, omega)
-
-        sql_2n = 1.0 / (np.sqrt(2 * N) * DEFAULT_t_hold)
-
-        plot_landscape(N, omega, axx_vals, psi_vals, delta_map, sql_2n, fig_p)
-        print(f"[fig]  {fig_p}")
-
-        # Validate BFGS result against coarse grid best
-        if sweep is not None:
-            mask = np.isclose(sweep.omega_values, omega) & (sweep.N_values == N)
-            if np.any(mask):
-                bfgs_dt = float(sweep.delta_omega_opt[mask][0])
-                bfgs_axx = float(sweep.alpha_xx_opt[mask][0])
-                bfgs_psi = float(sweep.psi_opt[mask][0])
-                rel_diff = (
-                    abs(bfgs_dt - grid_best) / grid_best if grid_best > 0 else 0.0
-                )
-                if rel_diff > 0.05 and grid_best < float("inf"):
-                    print(
-                        f"  [warn] N={N}, ω={omega:.1f}: BFGS Δω={bfgs_dt:.6e} "
-                        f"(α_xx={bfgs_axx:.4f}, ψ={bfgs_psi:.4f}) is "
-                        f"{rel_diff * 100:.1f}% above grid best Δω={grid_best:.6e} — "
-                        "possible local minimum"
-                    )
-                else:
-                    print(
-                        f"  [ok]   BFGS Δω={bfgs_dt:.6e} vs grid best={grid_best:.6e} "
-                        f"(rel diff {rel_diff * 100:.2f}%)"
-                    )
+        _process_landscape_point(N, omega, suffix, sweep, force)
 
 
 def generate_comparison_traced_out(force: bool = False) -> None:
@@ -1817,11 +1818,40 @@ def main() -> None:
     (REPORTS_DIR / REPORT_DATE / "raw_data").mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / REPORT_DATE / "figures").mkdir(parents=True, exist_ok=True)
 
-    tasks: dict[str, Callable[..., None]] = {
-        "decoupled-baseline": generate_decoupled_baseline,
+    tasks: dict[str, Callable[..., Any]] = {
+        "decoupled-baseline": lambda force=False: generate_decoupled_baseline(
+            force=force,
+            parquet_path=_parquet_path("optimised-measurement-decoupled-baseline"),
+            fig_path=_fig_path("decoupled-baseline"),
+            compute_fn=compute_decoupled_baseline,
+            compute_kwargs={
+                "omega_values": np.array(
+                    [v for i, v in enumerate(OMEGA_VALS) if i % 5 == 0]
+                ),
+                "N_values": np.array(N_VALS, dtype=int),
+            },
+            result_cls=DualMZIOptimisedResult,
+            plot_fn=lambda r, p: plot_decoupled_baseline_heatmap(
+                r,
+                p,
+                title_prefix=(
+                    r"Decoupled Baseline Verification ($\alpha_{xx} = 0$, $\psi = \pi/4$"
+                ),
+                sql_label=r"$|\Delta\omega/\Delta\omega_{\mathrm{SQL}}^{2N} - 1|$",
+                sql_ref_label="SQL^{2N}",
+            ),
+            label="decoupled baseline (α_xx = 0, φ=π/4)",
+        ),
         "sweep": lambda **_: generate_sweep(force=args.force, parallel=args.parallel),  # type: ignore[dict-item]
         "n-scaling": generate_n_scaling,
-        "scaling-analysis": generate_scaling_analysis,
+        "scaling-analysis": partial(
+            generate_scaling_analysis,
+            parquet_path=_parquet_path("optimised-measurement-sweep"),
+            scaling_path=_parquet_path("optimised-measurement-scaling"),
+            fig_path=_fig_path("scaling-exponents"),
+            result_cls=DualMZIOptimisedResult,
+            label="optimised-measurement scaling analysis",
+        ),
         "landscapes": generate_landscapes,
         "comparison-traced-out": generate_comparison_traced_out,
     }

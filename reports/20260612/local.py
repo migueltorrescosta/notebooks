@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from collections.abc import Callable  # noqa: TC003 — used in type annotation only
 from pathlib import Path
 
 import numpy as np
@@ -38,17 +39,18 @@ from src.analysis.ancilla_drive_metrology import (
 from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
 )
-from src.analysis.n_scaling_result import (
-    NScalingResult as MultiNScalingResult,
+from src.analysis.decoupled_baseline import (
+    generate_decoupled_baseline,
 )
 from src.analysis.n_scaling_result import (
-    NScalingScanResult as MultiNScalingScanResult,
+    NScalingResult,
+    NScalingScanResult,
 )
 from src.analysis.sensitivity_metrics import sql_reference
 from src.physics.beam_splitter import bs_dicke
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.utils.enums import OperatorBasis
-from src.utils.parallel import parallel_map as _parallel_map
+from src.utils.parallel import parallel_map
 from src.visualization.scaling_plots import (
     plot_n_scaling_optimal_params,
     plot_n_scaling_ratio,
@@ -854,7 +856,7 @@ def run_single_n_omega(
     N: int,
     omega: float,
     seed: int | None = 42,
-) -> MultiNScalingResult:
+) -> NScalingResult:
     """Run the full optimisation pipeline for a single (N, omega) pair.
 
     1. 4D random search (500 samples).
@@ -867,7 +869,7 @@ def run_single_n_omega(
         seed: Base random seed (incremented per call).
 
     Returns:
-        MultiNScalingResult with the optimal parameters and sensitivity.
+        NScalingResult with the optimal parameters and sensitivity.
     """
     base_seed = seed if seed is not None else 42
     ops = build_multi_particle_operators(N)
@@ -903,7 +905,7 @@ def run_single_n_omega(
     best_nm = nm_results[0]
 
     sql_val = sql_reference(N)
-    return MultiNScalingResult(
+    return NScalingResult(
         N=N,
         omega=omega,
         delta_omega_opt=best_nm.delta_omega_opt,
@@ -958,6 +960,114 @@ def _run_single_n_omega_for_parallel(
     }
 
 
+def _load_n_scaling_checkpoints(
+    checkpoint_dir: Path,
+) -> tuple[set[tuple[int, float]], list[NScalingResult]]:
+    """Load existing checkpoints from the checkpoint directory.
+
+    Args:
+        checkpoint_dir: Directory containing N_*.parquet checkpoint files.
+
+    Returns:
+        Tuple of (completed_set, checkpoint_results_list).
+    """
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    completed: set[tuple[int, float]] = set()
+    checkpoint_results: list[NScalingResult] = []
+    for ckpt_file in sorted(checkpoint_dir.glob("N_*.parquet")):
+        try:
+            df_ckpt = pd.read_parquet(ckpt_file)
+            for _, row in df_ckpt.iterrows():
+                n_val = int(row["N"])
+                w_val = float(row["omega"])
+                delta = float(row["delta_omega_opt"])
+                if np.isfinite(delta):
+                    completed.add((n_val, w_val))
+                    checkpoint_results.append(
+                        NScalingResult(
+                            N=n_val,
+                            omega=w_val,
+                            delta_omega_opt=delta,
+                            sql=float(row["sql"]),
+                            ratio=float(row["ratio"]),
+                            a_x_opt=float(row["a_x_opt"]),
+                            a_y_opt=float(row["a_y_opt"]),
+                            a_z_opt=float(row["a_z_opt"]),
+                            a_zz_opt=float(row["a_zz_opt"]),
+                            expectation_Jz=float(row.get("expectation_Jz", 0.0)),
+                            variance_Jz=float(row.get("variance_Jz", 0.0)),
+                            success=bool(int(row.get("success", 0))),
+                            nfev=int(row.get("nfev", 0)),
+                        ),
+                    )
+        except Exception as exc:
+            print(f"  [warn] Could not load checkpoint {ckpt_file}: {exc}")
+    return completed, checkpoint_results
+
+
+def _run_pending_n_groups(
+    items_to_run: list[tuple[int, float]],
+    checkpoint_dir: Path,
+) -> list[NScalingResult]:
+    """Run pending (N, ω) groups in parallel, saving checkpoints per N.
+
+    Args:
+        items_to_run: List of (N, omega) pairs to process.
+        checkpoint_dir: Directory for saving N_*.parquet checkpoints.
+
+    Returns:
+        List of NScalingResult from newly completed runs.
+    """
+    # Group by N and process each group in parallel
+    by_N: dict[int, list[tuple[int, float]]] = {}
+    for N, omega in items_to_run:
+        by_N.setdefault(N, []).append((N, omega))
+
+    checkpoint_results: list[NScalingResult] = []
+    for N in sorted(by_N):
+        omega_items = by_N[N]
+        n_ckpt = checkpoint_dir / f"N_{N:03d}.parquet"
+        if n_ckpt.exists():
+            print(f"  [ckpt] N={N} already done, skipping")
+            continue
+        print(f"  [batch] N={N}: {len(omega_items)} ω values (parallel)")
+        batch_results = parallel_map(
+            _run_single_n_omega_for_parallel,
+            omega_items,
+            desc=f"N={N} scan",
+        )
+        # Collect results and save checkpoint
+        ckpt_list: list[NScalingResult] = []
+        for rdict in batch_results:
+            delta = rdict["delta_omega_opt"]
+            if not np.isfinite(delta):
+                print(f"    [skip] N={rdict['N']}, ω={rdict['omega']}: Δω={delta}")
+                continue
+            ckpt_list.append(
+                NScalingResult(
+                    N=rdict["N"],
+                    omega=rdict["omega"],
+                    delta_omega_opt=rdict["delta_omega_opt"],
+                    sql=rdict["sql"],
+                    ratio=rdict["ratio"],
+                    a_x_opt=rdict["a_x_opt"],
+                    a_y_opt=rdict["a_y_opt"],
+                    a_z_opt=rdict["a_z_opt"],
+                    a_zz_opt=rdict["a_zz_opt"],
+                    expectation_Jz=rdict["expectation_Jz"],
+                    variance_Jz=rdict["variance_Jz"],
+                    success=bool(rdict["success"]),
+                    nfev=rdict["nfev"],
+                ),
+            )
+        if ckpt_list:
+            ckpt_scan = NScalingScanResult(results=ckpt_list)
+            ckpt_scan.save_parquet(n_ckpt)
+            checkpoint_results.extend(ckpt_list)
+            print(f"    [ckpt] saved {n_ckpt.name}")
+    return checkpoint_results
+
+
 def generate_n_scaling_scan(force: bool = False) -> None:
     """Full N-scaling scan: 20 N values x 5 omega values = 100 optimisation runs.
 
@@ -979,50 +1089,17 @@ def generate_n_scaling_scan(force: bool = False) -> None:
 
     if parquet_p.exists() and not force:
         print(f"[skip] {parquet_p.name} exists (use --force to overwrite)")
-        summary = MultiNScalingScanResult.from_parquet(parquet_p)
+        summary = NScalingScanResult.from_parquet(parquet_p)
     else:
         if force:
-            # Remove existing checkpoints and final file
             parquet_p.unlink(missing_ok=True)
             if checkpoint_dir.exists():
                 import shutil
 
                 shutil.rmtree(checkpoint_dir)
 
-        # Load existing checkpoints if present
-        checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        completed: set[tuple[int, float]] = set()
-        checkpoint_results: list[MultiNScalingResult] = []
-        for ckpt_file in sorted(checkpoint_dir.glob("N_*.parquet")):
-            try:
-                df_ckpt = pd.read_parquet(ckpt_file)
-                for _, row in df_ckpt.iterrows():
-                    n_val = int(row["N"])
-                    w_val = float(row["omega"])
-                    delta = float(row["delta_omega_opt"])
-                    if np.isfinite(delta):
-                        completed.add((n_val, w_val))
-                        checkpoint_results.append(
-                            MultiNScalingResult(
-                                N=n_val,
-                                omega=w_val,
-                                delta_omega_opt=delta,
-                                sql=float(row["sql"]),
-                                ratio=float(row["ratio"]),
-                                a_x_opt=float(row["a_x_opt"]),
-                                a_y_opt=float(row["a_y_opt"]),
-                                a_z_opt=float(row["a_z_opt"]),
-                                a_zz_opt=float(row["a_zz_opt"]),
-                                expectation_Jz=float(row.get("expectation_Jz", 0.0)),
-                                variance_Jz=float(row.get("variance_Jz", 0.0)),
-                                success=bool(int(row.get("success", 0))),
-                                nfev=int(row.get("nfev", 0)),
-                            ),
-                        )
-            except Exception as exc:
-                print(f"  [warn] Could not load checkpoint {ckpt_file}: {exc}")
+        completed, checkpoint_results = _load_n_scaling_checkpoints(checkpoint_dir)
 
-        # Process N values sequentially (with omega parallelism within each N)
         items_to_run = [
             (N, omega)
             for N in N_VALS
@@ -1030,65 +1107,15 @@ def generate_n_scaling_scan(force: bool = False) -> None:
             if (N, omega) not in completed
         ]
         if items_to_run:
-            print(
-                f"[run] N-scaling scan: {len(items_to_run)} remaining (N, omega) pairs"
-            )
+            print(f"[run] N-scaling scan: {len(items_to_run)} remaining (N, ω) pairs")
             print(f"  (batch by N value, {min(32, os.cpu_count() or 1)} workers)")
-
-            # Group by N and process each group in parallel
-            by_N: dict[int, list[tuple[int, float]]] = {}
-            for N, omega in items_to_run:
-                by_N.setdefault(N, []).append((N, omega))
-
-            for N in sorted(by_N):
-                omega_items = by_N[N]
-                n_ckpt = checkpoint_dir / f"N_{N:03d}.parquet"
-                if n_ckpt.exists():
-                    print(f"  [ckpt] N={N} already done, skipping")
-                    continue
-                print(f"  [batch] N={N}: {len(omega_items)} omega values (parallel)")
-                batch_results = _parallel_map(
-                    _run_single_n_omega_for_parallel,
-                    omega_items,
-                    desc=f"N={N} scan",
-                )
-                # Save checkpoint
-                ckpt_list: list[MultiNScalingResult] = []
-                for rdict in batch_results:
-                    delta = rdict["delta_omega_opt"]
-                    if not np.isfinite(delta):
-                        print(
-                            f"    [skip] N={rdict['N']}, "
-                            f"omega={rdict['omega']}: Delta_omega={delta}"
-                        )
-                        continue
-                    ckpt_list.append(
-                        MultiNScalingResult(
-                            N=rdict["N"],
-                            omega=rdict["omega"],
-                            delta_omega_opt=rdict["delta_omega_opt"],
-                            sql=rdict["sql"],
-                            ratio=rdict["ratio"],
-                            a_x_opt=rdict["a_x_opt"],
-                            a_y_opt=rdict["a_y_opt"],
-                            a_z_opt=rdict["a_z_opt"],
-                            a_zz_opt=rdict["a_zz_opt"],
-                            expectation_Jz=rdict["expectation_Jz"],
-                            variance_Jz=rdict["variance_Jz"],
-                            success=bool(rdict["success"]),
-                            nfev=rdict["nfev"],
-                        ),
-                    )
-                if ckpt_list:
-                    ckpt_scan = MultiNScalingScanResult(results=ckpt_list)
-                    ckpt_scan.save_parquet(n_ckpt)
-                    checkpoint_results.extend(ckpt_list)
-                    print(f"    [ckpt] saved {n_ckpt.name}")
+            new_results = _run_pending_n_groups(items_to_run, checkpoint_dir)
+            checkpoint_results.extend(new_results)
         else:
             print("  [skip] all pairs already completed in checkpoints")
 
         # Merge all checkpoint results and save final file
-        summary = MultiNScalingScanResult(results=checkpoint_results)
+        summary = NScalingScanResult(results=checkpoint_results)
         summary.save_parquet(parquet_p)
         print(f"[save] {parquet_p}")
 
@@ -1102,15 +1129,8 @@ def generate_n_scaling_scan(force: bool = False) -> None:
     print(f"[fig]  {fig_params_p}")
 
 
-def generate_decoupled_baseline(force: bool = False) -> None:
-    """Verify the decoupled baseline for all N and omega values."""
-    parquet_p = _parquet_path("decoupled-baseline")
-
-    if parquet_p.exists() and not force:
-        print(f"[skip] {parquet_p.name} exists (use --force to overwrite)")
-        return
-
-    print("[run] Computing decoupled baseline for all (N, omega)...")
+def _build_decoupled_baseline_df() -> pd.DataFrame:
+    """Build a DataFrame of decoupled baseline verification results."""
     verifications = verify_multi_particle_decoupled_baseline()
     results_list: list[dict[str, float | int | str]] = []
     for (N, omega), passed in verifications.items():
@@ -1126,10 +1146,7 @@ def generate_decoupled_baseline(force: bool = False) -> None:
                 "pass": str(passed),
             },
         )
-    df = pd.DataFrame(results_list)
-    parquet_p.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(parquet_p, index=False)
-    print(f"[save] {parquet_p}")
+    return pd.DataFrame(results_list)
 
 
 def generate_n1_consistency(force: bool = False) -> None:
@@ -1180,10 +1197,15 @@ def main() -> None:
 
     force = args.force
 
-    generators: dict[str, tuple[str, str, bool]] = {
+    generators: dict[str, tuple[str, str | Callable[..., None], bool]] = {
         "decoupled-baseline": (
             "Decoupled Baseline Verification",
-            "generate_decoupled_baseline",
+            lambda force=False: generate_decoupled_baseline(
+                force=force,
+                parquet_path=_parquet_path("decoupled-baseline"),
+                compute_fn=_build_decoupled_baseline_df,
+                label="decoupled baseline",
+            ),
             False,
         ),
         "n1-consistency": (
@@ -1212,11 +1234,13 @@ def main() -> None:
         (REPORTS_DIR / REPORT_DATE / d).mkdir(parents=True, exist_ok=True)
 
     for key in gen_list:
-        name, func_name, _ = generators[key]
+        name, func_or_name, _ = generators[key]
         print(f"\n{'=' * 60}")
         print(f"  {name}")
         print(f"{'=' * 60}")
-        func = globals()[func_name]
+        func = (
+            globals()[func_or_name] if isinstance(func_or_name, str) else func_or_name
+        )
         func(force=force)
 
 

@@ -45,6 +45,9 @@ from src.analysis.ancilla_optimization import (
     run_omega_scan,
     scan_alpha_with_reoptimisation,
 )
+from src.analysis.decoupled_baseline import (
+    generate_decoupled_baseline,
+)
 
 sns.set_theme(style="whitegrid")
 
@@ -375,25 +378,6 @@ def _fig_path(name: str, date: str) -> Path:
 # ============================================================================
 
 
-def generate_decoupled_baseline(force: bool = False) -> None:
-    """Sections 1 & 2: Decoupled baseline and expanded t_hold bound."""
-    csv_p = _parquet_path("decoupled-baseline", date=REPORT_DATE)
-    fig_p = _fig_path("decoupled-baseline", date=REPORT_DATE)
-
-    if csv_p.exists() and not force:
-        print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DecoupledBaselineResult.from_parquet(csv_p)
-    else:
-        print("[run]  Computing decoupled baseline...")
-        t_hold_vals = np.array([0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0])
-        result = compute_decoupled_baseline(t_hold_vals)
-        result.save_parquet(csv_p)
-        print(f"[save] {csv_p}")
-
-    plot_decoupled_baseline(result, fig_p)
-    print(f"[fig]  {fig_p}")
-
-
 def generate_omega_scan(force: bool = False) -> None:
     """Sections 3 & 9: ω-scan with Nelder-Mead optimisation."""
     csv_p = _parquet_path("omega-scan", date=REPORT_DATE)
@@ -516,7 +500,18 @@ def main() -> None:
     (REPORTS_DIR / REPORT_DATE / "figures").mkdir(parents=True, exist_ok=True)
 
     tasks = {
-        "decoupled-baseline": generate_decoupled_baseline,
+        "decoupled-baseline": lambda force=False: generate_decoupled_baseline(
+            force=force,
+            parquet_path=_parquet_path("decoupled-baseline", date=REPORT_DATE),
+            fig_path=_fig_path("decoupled-baseline", date=REPORT_DATE),
+            compute_fn=compute_decoupled_baseline,
+            compute_kwargs={
+                "t_hold_values": np.array([0.5, 1.0, 2.0, 3.0, 5.0, 10.0, 15.0, 20.0])
+            },
+            result_cls=DecoupledBaselineResult,
+            plot_fn=plot_decoupled_baseline,
+            label="decoupled baseline",
+        ),
         "omega-scan": generate_omega_scan,
         "interaction-robustness": generate_interaction_robustness,
         "alpha-reoptimisation": generate_alpha_reoptimisation,

@@ -25,6 +25,7 @@ import sys
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
+from typing import ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -32,7 +33,7 @@ import pandas as pd
 import seaborn as sns
 from scipy.linalg import expm
 
-from src.utils.parallel import parallel_map as _parallel_map
+from src.utils.parallel import parallel_map
 
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
@@ -49,6 +50,7 @@ from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
 from src.utils.constants import I_4
+from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
 
@@ -292,7 +294,7 @@ def compute_xx_sensitivity(
 
 
 @dataclass
-class XXGridScanResult:
+class XXGridScanResult(ParquetSerializable):
     """Result from a 1D α_xx grid scan at a fixed ω.
 
     Attributes:
@@ -315,6 +317,17 @@ class XXGridScanResult:
     expectation_Jz: float = 0.0
     variance_Jz: float = 0.0
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "alpha_xx",
+        "delta_omega",
+        "omega_value",
+        "sql",
+        "alpha_xx_opt",
+        "delta_omega_opt",
+        "expectation_Jz",
+        "variance_Jz",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
             {
@@ -329,31 +342,10 @@ class XXGridScanResult:
             }
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> XXGridScanResult:
         df = pd.read_parquet(path)
-        required = {
-            "alpha_xx",
-            "delta_omega",
-            "omega_value",
-            "sql",
-            "alpha_xx_opt",
-            "delta_omega_opt",
-            "expectation_Jz",
-            "variance_Jz",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
-                "Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         alpha_xx_vals = df["alpha_xx"].to_numpy(dtype=float)
         delta_vals = df["delta_omega"].to_numpy(dtype=float)
         # Find the unique metadata from the first row
@@ -370,7 +362,7 @@ class XXGridScanResult:
 
 
 @dataclass
-class XXOmegaScanResult:
+class XXOmegaScanResult(ParquetSerializable):
     """Results of a ω scan over α_xx-optimised sensitivities.
 
     Attributes:
@@ -393,84 +385,55 @@ class XXOmegaScanResult:
     count_below_sql_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
     total_points_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "alpha_xx_opt",
+        "best_delta_omega",
+        "sql",
+        "ratio",
+        "expectation_Jz",
+        "variance_Jz",
+        "count_below_sql",
+        "total_points",
+        "fraction_below_sql",
+    ]
+
+    @staticmethod
+    def _safe_get(arr: np.ndarray, i: int, default: float) -> float:
+        """Get array element with bounds checking."""
+        if i < len(arr):
+            return float(arr[i])
+        return default
+
     def to_dataframe(self) -> pd.DataFrame:
         rows: list[dict[str, float]] = []
         for i in range(len(self.omega_values)):
-            omega = float(self.omega_values[i])
-            sql = float(self.sql_values[i]) if i < len(self.sql_values) else 0.1
-            best = (
-                float(self.delta_omega_opt_per_omega[i])
-                if i < len(self.delta_omega_opt_per_omega)
-                else float("inf")
-            )
-            alpha_opt = (
-                float(self.alpha_xx_opt_per_omega[i])
-                if i < len(self.alpha_xx_opt_per_omega)
-                else float("nan")
-            )
-            exp_jz = (
-                float(self.expectation_Jz_per_omega[i])
-                if i < len(self.expectation_Jz_per_omega)
-                else 0.0
-            )
-            var_jz = (
-                float(self.variance_Jz_per_omega[i])
-                if i < len(self.variance_Jz_per_omega)
-                else 0.0
-            )
-            count_below = (
-                int(self.count_below_sql_per_omega[i])
-                if i < len(self.count_below_sql_per_omega)
-                else 0
-            )
-            total = (
-                int(self.total_points_per_omega[i])
-                if i < len(self.total_points_per_omega)
-                else 0
-            )
+            best = self._safe_get(self.delta_omega_opt_per_omega, i, float("inf"))
+            sql = self._safe_get(self.sql_values, i, 0.1)
+            count_below = self._safe_get(self.count_below_sql_per_omega, i, 0.0)
+            total = self._safe_get(self.total_points_per_omega, i, 0.0)
             rows.append(
                 {
-                    "omega": omega,
-                    "alpha_xx_opt": alpha_opt,
+                    "omega": float(self.omega_values[i]),
+                    "alpha_xx_opt": self._safe_get(self.alpha_xx_opt_per_omega, i, float("nan")),
                     "best_delta_omega": best,
                     "sql": sql,
                     "ratio": best / sql
                     if np.isfinite(best) and sql > 0
                     else float("inf"),
-                    "expectation_Jz": exp_jz,
-                    "variance_Jz": var_jz,
-                    "count_below_sql": count_below,
-                    "total_points": total,
+                    "expectation_Jz": self._safe_get(self.expectation_Jz_per_omega, i, 0.0),
+                    "variance_Jz": self._safe_get(self.variance_Jz_per_omega, i, 0.0),
+                    "count_below_sql": int(count_below),
+                    "total_points": int(total),
                     "fraction_below_sql": count_below / total if total > 0 else 0.0,
                 }
             )
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> XXOmegaScanResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "alpha_xx_opt",
-            "best_delta_omega",
-            "sql",
-            "expectation_Jz",
-            "variance_Jz",
-            "count_below_sql",
-            "total_points",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
-                "Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         omegas = df["omega"].to_numpy(dtype=float)
         alpha_opts = df["alpha_xx_opt"].to_numpy(dtype=float)
         best = df["best_delta_omega"].to_numpy(dtype=float)
@@ -998,7 +961,7 @@ def generate_xx_grid_scans(force: bool = False) -> None:
     n = len(XX_OMEGA_VALS)
     print(f"[run]  XX grid scans at {n} ω values (parallel)")
     worker = partial(_run_xx_grid_scan, force=force)
-    _parallel_map(worker, XX_OMEGA_VALS, desc="grid scans")
+    parallel_map(worker, XX_OMEGA_VALS, desc="grid scans")
 
 
 def generate_xx_omega_scan(force: bool = False) -> None:

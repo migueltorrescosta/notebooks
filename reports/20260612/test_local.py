@@ -7,9 +7,10 @@ N=1 consistency, and serialization.
 
 from __future__ import annotations
 
+import importlib.util
 import sys as _sys
 from pathlib import Path as _Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -21,19 +22,22 @@ if TYPE_CHECKING:
 from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
 )
+from src.utils.serialization import assert_roundtrip_fields
 
-_report_dir = str(
-    _Path(__file__).resolve().parent.parent.parent / "reports" / "20260612"
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _Path, _report_dir
+_local_path = _Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     T_BS,
     T_HOLD,
-    MultiNScalingResult,
-    MultiNScalingScanResult,
+    NScalingResult,
+    NScalingScanResult,
     build_multi_particle_hold_hamiltonian,
     build_multi_particle_iszz_interaction,
     build_multi_particle_operators,
@@ -576,14 +580,32 @@ class TestNelderMead:
 
 
 # ============================================================================
-# MultiNScalingResult Serialization
+# NScalingResult Serialization
 # ============================================================================
 
 
-class TestMultiNScalingResultParquet:
+class TestNScalingResultParquet:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("N", "eq"),
+        ("omega", "eq"),
+        ("delta_omega_opt", "isclose"),
+        ("sql", "isclose"),
+        ("ratio", "isclose"),
+        ("a_x_opt", "eq"),
+        ("a_y_opt", "eq"),
+        ("a_z_opt", "eq"),
+        ("a_zz_opt", "eq"),
+        ("expectation_Jz", "eq"),
+        ("variance_Jz", "eq"),
+        ("t_hold", "eq"),
+        ("fd_step", "eq"),
+        ("success", "eq"),
+        ("nfev", "eq"),
+    ]
+
     @pytest.fixture
-    def make_result(self) -> MultiNScalingResult:
-        return MultiNScalingResult(
+    def make_result(self) -> NScalingResult:
+        return NScalingResult(
             N=5,
             omega=0.2,
             delta_omega_opt=0.015,
@@ -601,34 +623,20 @@ class TestMultiNScalingResultParquet:
 
     def test_roundtrip(
         self,
-        make_result: MultiNScalingResult,
+        make_result: NScalingResult,
         tmp_path: Path,
     ) -> None:
         p = tmp_path / "test.parquet"
         make_result.save_parquet(p)
-        loaded = MultiNScalingResult.from_parquet(p)
-        assert loaded.N == make_result.N
-        assert loaded.omega == make_result.omega
-        assert np.isclose(loaded.delta_omega_opt, make_result.delta_omega_opt)
-        assert np.isclose(loaded.sql, make_result.sql)
-        assert np.isclose(loaded.ratio, make_result.ratio)
-        assert loaded.a_x_opt == make_result.a_x_opt
-        assert loaded.a_y_opt == make_result.a_y_opt
-        assert loaded.a_z_opt == make_result.a_z_opt
-        assert loaded.a_zz_opt == make_result.a_zz_opt
-        assert loaded.expectation_Jz == make_result.expectation_Jz
-        assert loaded.variance_Jz == make_result.variance_Jz
-        assert loaded.t_hold == make_result.t_hold
-        assert loaded.fd_step == make_result.fd_step
-        assert loaded.success == make_result.success
-        assert loaded.nfev == make_result.nfev
+        loaded = NScalingResult.from_parquet(p)
+        assert_roundtrip_fields(loaded, make_result, self._FIELD_SPECS)
 
     def test_missing_columns_raises(self, tmp_path: Path) -> None:
         df = pd.DataFrame({"N": [5], "omega": [0.2]})
         p = tmp_path / "missing.parquet"
         df.to_parquet(p, index=False)
         with pytest.raises(ValueError):
-            MultiNScalingResult.from_parquet(p)
+            NScalingResult.from_parquet(p)
 
     def test_missing_column_name_raises(self, tmp_path: Path) -> None:
         """Missing a_x_opt column should raise ValueError."""
@@ -654,14 +662,14 @@ class TestMultiNScalingResultParquet:
         p = tmp_path / "missing_ax.parquet"
         df.to_parquet(p, index=False)
         with pytest.raises(ValueError):
-            MultiNScalingResult.from_parquet(p)
+            NScalingResult.from_parquet(p)
 
 
-class TestMultiNScalingScanResultParquet:
+class TestNScalingScanResultParquet:
     @pytest.fixture
-    def make_results(self) -> list[MultiNScalingResult]:
+    def make_results(self) -> list[NScalingResult]:
         return [
-            MultiNScalingResult(
+            NScalingResult(
                 N=n,
                 omega=w,
                 delta_omega_opt=0.02 / (n**0.5),
@@ -680,20 +688,20 @@ class TestMultiNScalingScanResultParquet:
 
     def test_roundtrip(
         self,
-        make_results: list[MultiNScalingResult],
+        make_results: list[NScalingResult],
         tmp_path: Path,
     ) -> None:
-        summary = MultiNScalingScanResult(results=make_results)
+        summary = NScalingScanResult(results=make_results)
         p = tmp_path / "scan.parquet"
         summary.save_parquet(p)
-        loaded = MultiNScalingScanResult.from_parquet(p)
+        loaded = NScalingScanResult.from_parquet(p)
         assert len(loaded.results) == len(make_results)
         for orig, loaded_r in zip(make_results, loaded.results, strict=False):
             assert orig.N == loaded_r.N
             assert orig.omega == loaded_r.omega
 
     def test_empty_dataframe(self) -> None:
-        summary = MultiNScalingScanResult(results=[])
+        summary = NScalingScanResult(results=[])
         df = summary.to_dataframe()
         assert df.empty
 
@@ -702,13 +710,13 @@ class TestMultiNScalingScanResultParquet:
         p = tmp_path / "bad_scan.parquet"
         df.to_parquet(p, index=False)
         with pytest.raises(ValueError):
-            MultiNScalingScanResult.from_parquet(p)
+            NScalingScanResult.from_parquet(p)
 
     def test_properties(
         self,
-        make_results: list[MultiNScalingResult],
+        make_results: list[NScalingResult],
     ) -> None:
-        summary = MultiNScalingScanResult(results=make_results)
+        summary = NScalingScanResult(results=make_results)
         assert len(summary.N_values) == 4
         assert len(summary.omega_values) == 3
 

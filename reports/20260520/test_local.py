@@ -8,6 +8,7 @@ Run with:
 
 from __future__ import annotations
 
+import importlib.util
 import sys as _sys
 from pathlib import Path as _Path
 from typing import TYPE_CHECKING
@@ -23,12 +24,14 @@ from src.analysis.ancilla_optimization import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-_report_dir = str(
-    _Path(__file__).resolve().parent.parent.parent / "reports" / "20260520"
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _Path, _report_dir
+_local_path = _Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     AXX_BOUNDS,

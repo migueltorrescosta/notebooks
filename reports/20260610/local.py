@@ -25,7 +25,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -49,6 +49,7 @@ from src.analysis.ancilla_optimization import (
     free_ancilla_initial_state,
 )
 from src.utils.monte_carlo import marsaglia_ball_sample
+from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
 
@@ -204,7 +205,7 @@ def compute_free_ancilla_modulated_sensitivity(
 
 
 @dataclass
-class FreeAncillaModulatedSearchResult:
+class FreeAncillaModulatedSearchResult(ParquetSerializable):
     r"""Result from a batch of 6D random-search evaluations.
 
     Attributes:
@@ -235,6 +236,26 @@ class FreeAncillaModulatedSearchResult:
     sql: float = SQL
     t_hold: float = t_hold
     R: float = R_MAX
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega_value",
+        "t_hold",
+        "sql",
+        "R",
+        "theta_A",
+        "phi_A",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "norm_a",
+        "delta_omega",
+        "expectation",
+        "variance",
+        "derivative",
+        "is_fringe",
+        "ratio",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         n = len(self.samples)
@@ -268,38 +289,10 @@ class FreeAncillaModulatedSearchResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> FreeAncillaModulatedSearchResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega_value",
-            "t_hold",
-            "sql",
-            "R",
-            "theta_A",
-            "phi_A",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "delta_omega",
-            "expectation",
-            "variance",
-            "derivative",
-            "is_fringe",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code.",
-            )
+        cls._validate_columns(df)
         samples = df[["theta_A", "phi_A", "a_x", "a_y", "a_z", "a_zz"]].to_numpy(
             dtype=float,
         )
@@ -343,7 +336,7 @@ class FreeAncillaModulatedSearchResult:
 
 
 @dataclass
-class FreeAncillaModulatedNelderMeadResult:
+class FreeAncillaModulatedNelderMeadResult(ParquetSerializable):
     r"""Result of a single Nelder-Mead run for the free-ancilla ω-modulated protocol.
 
     Attributes:
@@ -377,6 +370,27 @@ class FreeAncillaModulatedNelderMeadResult:
     fd_step: float = FD_STEP
     history: list[float] = field(default_factory=list)
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "delta_omega",
+        "omega_true",
+        "success",
+        "nfev",
+        "message",
+        "expectation_Jz",
+        "variance_Jz",
+        "t_hold",
+        "sql",
+        "T_BS",
+        "fd_step",
+        "theta_A",
+        "phi_A",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "history_json",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
             {
@@ -401,16 +415,20 @@ class FreeAncillaModulatedNelderMeadResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
+    def _save_sidecars(self, path: Path) -> None:
         history_path = path.with_stem(path.stem + "-history")
         pd.DataFrame({"history": [json.dumps(self.history)]}).to_parquet(
             history_path,
             index=False,
         )
-        return path
+
+    @classmethod
+    def _load_sidecars(cls, path: Path) -> dict:
+        history_path = path.with_stem(path.stem + "-history")
+        if history_path.exists():
+            history_df = pd.read_parquet(history_path)
+            return {"history": json.loads(history_df["history"].iloc[0])}
+        return {}
 
     @classmethod
     def from_parquet(
@@ -419,38 +437,9 @@ class FreeAncillaModulatedNelderMeadResult:
     ) -> FreeAncillaModulatedNelderMeadResult:
         path = Path(path)
         df = pd.read_parquet(path)
-        required = {
-            "delta_omega",
-            "omega_true",
-            "success",
-            "nfev",
-            "message",
-            "expectation_Jz",
-            "variance_Jz",
-            "t_hold",
-            "sql",
-            "T_BS",
-            "fd_step",
-            "theta_A",
-            "phi_A",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "history_json",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code.",
-            )
-        history_path = path.with_stem(path.stem + "-history")
-        if history_path.exists():
-            history_df = pd.read_parquet(history_path)
-            history = json.loads(history_df["history"].iloc[0])
-        else:
-            history = []
+        cls._validate_columns(df)
+        sidecar = cls._load_sidecars(path)
+        history = sidecar.get("history", [])
         return cls(
             delta_omega_opt=float(df["delta_omega"].iloc[0]),
             params_opt=np.array(
@@ -478,7 +467,7 @@ class FreeAncillaModulatedNelderMeadResult:
 
 
 @dataclass
-class FreeAncillaModulatedOmegaScanResult:
+class FreeAncillaModulatedOmegaScanResult(ParquetSerializable):
     r"""Results of a :math:`\omega` scan for the free-ancilla ω-modulated protocol.
 
     Attributes:
@@ -507,6 +496,22 @@ class FreeAncillaModulatedOmegaScanResult:
         default_factory=lambda: np.array([]),
     )
     t_hold: float = t_hold
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "best_delta_omega",
+        "sql",
+        "t_hold",
+        "theta_A",
+        "phi_A",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "expectation_Jz",
+        "variance_Jz",
+        "ratio",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         rows: list[dict[str, float | str]] = []
@@ -553,38 +558,13 @@ class FreeAncillaModulatedOmegaScanResult:
             )
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(
         cls,
         path: str | Path,
     ) -> FreeAncillaModulatedOmegaScanResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "best_delta_omega",
-            "sql",
-            "t_hold",
-            "theta_A",
-            "phi_A",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "expectation_Jz",
-            "variance_Jz",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code.",
-            )
+        cls._validate_columns(df)
         omegas = df["omega"].to_numpy(dtype=float)
         best = df["best_delta_omega"].to_numpy(dtype=float)
         sql = df["sql"].to_numpy(dtype=float)
@@ -614,7 +594,7 @@ class FreeAncillaModulatedOmegaScanResult:
 
 
 @dataclass
-class FreeAncillaModulated2DSliceResult:
+class FreeAncillaModulated2DSliceResult(ParquetSerializable):
     r"""Result from a 2D parameter slice over :math:`(\theta_A, a_{zz})`.
 
     Attributes:
@@ -633,6 +613,18 @@ class FreeAncillaModulated2DSliceResult:
     omega_value: float = 1.0
     sql: float = SQL
     fixed_drive_params: tuple[float, float, float] = (0.0, 0.0, 0.0)
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "theta_A",
+        "azz",
+        "delta_omega",
+        "omega_value",
+        "sql",
+        "phi_A",
+        "fixed_ax",
+        "fixed_ay",
+        "fixed_az",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         n_t = len(self.theta_A_values)
@@ -654,35 +646,13 @@ class FreeAncillaModulated2DSliceResult:
         ]
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(
         cls,
         path: str | Path,
     ) -> FreeAncillaModulated2DSliceResult:
         df = pd.read_parquet(path)
-        required = {
-            "theta_A",
-            "azz",
-            "delta_omega",
-            "omega_value",
-            "sql",
-            "phi_A",
-            "fixed_ax",
-            "fixed_ay",
-            "fixed_az",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code.",
-            )
+        cls._validate_columns(df)
         theta_A_unique = sorted(df["theta_A"].unique())
         azz_unique = sorted(df["azz"].unique())
         n_t = len(theta_A_unique)
@@ -1653,6 +1623,65 @@ def _run_stage3_omega_scan_single(omega: float) -> dict[str, float | np.ndarray]
     }
 
 
+def _compute_omega_scan_core() -> FreeAncillaModulatedOmegaScanResult:
+    """Parallel ω scan computation (Stage 2 + Stage 3 for all ω values).
+
+    Runs the 6D random search (Stage 2) and Nelder-Mead refinement (Stage 3)
+    for each ω value in OMEGA_VALS via ProcessPoolExecutor, then assembles
+    and returns a FreeAncillaModulatedOmegaScanResult.
+    """
+    print(f"[run]  Computing ω-scan for {len(OMEGA_VALS)} ω values (parallel)...")
+    per_omega_results: list[dict] = []
+
+    max_workers = min(32, os.cpu_count() or 1)
+    mp_ctx = _mp.get_context("fork")
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=max_workers,
+        mp_context=mp_ctx,
+    ) as executor:
+        fut_to_omega = {
+            executor.submit(_run_stage3_omega_scan_single, omega): omega
+            for omega in OMEGA_VALS
+        }
+        for future in concurrent.futures.as_completed(fut_to_omega):
+            omega = fut_to_omega[future]
+            try:
+                per_omega_results.append(future.result())
+                print(f"  [done] ω={omega}")
+            except Exception as exc:
+                print(f"  [ERROR] ω={omega}: {exc}")
+                raise
+
+    per_omega_results.sort(key=lambda r: float(r["omega"]))
+
+    omega_arr = np.array([r["omega"] for r in per_omega_results], dtype=float)
+    best_deltas = [float(r["best_delta_omega"]) for r in per_omega_results]
+    best_params = [
+        (
+            float(r["theta_A"]),
+            float(r["phi_A"]),
+            float(r["a_x"]),
+            float(r["a_y"]),
+            float(r["a_z"]),
+            float(r["a_zz"]),
+        )
+        for r in per_omega_results
+    ]
+    exp_vals = [float(r["expectation_Jz"]) for r in per_omega_results]
+    var_vals = [float(r["variance_Jz"]) for r in per_omega_results]
+    sql_vals = [1.0 / t_hold] * len(omega_arr)
+
+    return FreeAncillaModulatedOmegaScanResult(
+        omega_values=omega_arr,
+        best_params_per_omega=best_params,
+        best_delta_omega_per_omega=np.array(best_deltas, dtype=float),
+        sql_values=np.array(sql_vals, dtype=float),
+        expectation_Jz_per_omega=np.array(exp_vals, dtype=float),
+        variance_Jz_per_omega=np.array(var_vals, dtype=float),
+        t_hold=t_hold,
+    )
+
+
 def generate_omega_scan(force: bool = False) -> None:
     """Full ω scan with Stage 2 + Stage 3 (parallel per ω)."""
     csv_p = _parquet_path("omega-scan")
@@ -1664,67 +1693,16 @@ def generate_omega_scan(force: bool = False) -> None:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
         result = FreeAncillaModulatedOmegaScanResult.from_parquet(csv_p)
     else:
-        print(f"[run]  Computing ω-scan for {len(OMEGA_VALS)} ω values (parallel)...")
-        per_omega_results: list[dict] = []
-
-        max_workers = min(32, os.cpu_count() or 1)
-        mp_ctx = _mp.get_context("fork")
-        with concurrent.futures.ProcessPoolExecutor(
-            max_workers=max_workers,
-            mp_context=mp_ctx,
-        ) as executor:
-            fut_to_omega = {
-                executor.submit(_run_stage3_omega_scan_single, omega): omega
-                for omega in OMEGA_VALS
-            }
-            for future in concurrent.futures.as_completed(fut_to_omega):
-                omega = fut_to_omega[future]
-                try:
-                    per_omega_results.append(future.result())
-                    print(f"  [done] ω={omega}")
-                except Exception as exc:
-                    print(f"  [ERROR] ω={omega}: {exc}")
-                    raise
-
-        per_omega_results.sort(key=lambda r: float(r["omega"]))
-
-        omega_arr = np.array([r["omega"] for r in per_omega_results], dtype=float)
-        best_deltas = [float(r["best_delta_omega"]) for r in per_omega_results]
-        best_params = [
-            (
-                float(r["theta_A"]),
-                float(r["phi_A"]),
-                float(r["a_x"]),
-                float(r["a_y"]),
-                float(r["a_z"]),
-                float(r["a_zz"]),
-            )
-            for r in per_omega_results
-        ]
-        exp_vals = [float(r["expectation_Jz"]) for r in per_omega_results]
-        var_vals = [float(r["variance_Jz"]) for r in per_omega_results]
-        sql_vals = [1.0 / t_hold] * len(omega_arr)
-
-        result = FreeAncillaModulatedOmegaScanResult(
-            omega_values=omega_arr,
-            best_params_per_omega=best_params,
-            best_delta_omega_per_omega=np.array(best_deltas, dtype=float),
-            sql_values=np.array(sql_vals, dtype=float),
-            expectation_Jz_per_omega=np.array(exp_vals, dtype=float),
-            variance_Jz_per_omega=np.array(var_vals, dtype=float),
-            t_hold=t_hold,
-        )
+        result = _compute_omega_scan_core()
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    # Generate figures
     plot_best_ratio_by_omega(result, fig_p_ratio)
     print(f"[fig]  {fig_p_ratio}")
 
     plot_optimal_ancilla_state_by_omega(result, fig_p_theta)
     print(f"[fig]  {fig_p_theta}")
 
-    # Cross-experiment comparison (no baseline data by default)
     plot_cross_experiment_comparison(result, save_path=fig_p_comparison)
     print(f"[fig]  {fig_p_comparison}")
 

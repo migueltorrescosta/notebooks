@@ -2,19 +2,38 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from src.analysis.n_scaling_result import NScalingResult, NScalingScanResult
+from src.utils.serialization import assert_roundtrip_fields
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 class TestNScalingResult:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("N", "eq"),
+        ("omega", "eq"),
+        ("delta_omega_opt", "isclose"),
+        ("sql", "isclose"),
+        ("ratio", "isclose"),
+        ("a_x_opt", "eq"),
+        ("a_y_opt", "eq"),
+        ("a_z_opt", "eq"),
+        ("a_zz_opt", "eq"),
+        ("expectation_Jz", "eq"),
+        ("variance_Jz", "eq"),
+        ("t_hold", "eq"),
+        ("fd_step", "eq"),
+        ("success", "eq"),
+        ("nfev", "eq"),
+    ]
+
     @pytest.fixture
     def make_result(self) -> NScalingResult:
         return NScalingResult(
@@ -42,21 +61,7 @@ class TestNScalingResult:
         p = tmp_path / "test.parquet"
         make_result.save_parquet(p)
         loaded = NScalingResult.from_parquet(p)
-        assert loaded.N == make_result.N
-        assert loaded.omega == make_result.omega
-        assert np.isclose(loaded.delta_omega_opt, make_result.delta_omega_opt)
-        assert np.isclose(loaded.sql, make_result.sql)
-        assert np.isclose(loaded.ratio, make_result.ratio)
-        assert loaded.a_x_opt == make_result.a_x_opt
-        assert loaded.a_y_opt == make_result.a_y_opt
-        assert loaded.a_z_opt == make_result.a_z_opt
-        assert loaded.a_zz_opt == make_result.a_zz_opt
-        assert loaded.expectation_Jz == make_result.expectation_Jz
-        assert loaded.variance_Jz == make_result.variance_Jz
-        assert loaded.t_hold == make_result.t_hold
-        assert loaded.fd_step == make_result.fd_step
-        assert loaded.success == make_result.success
-        assert loaded.nfev == make_result.nfev
+        assert_roundtrip_fields(loaded, make_result, self._FIELD_SPECS)
 
     def test_missing_columns_raises(self, tmp_path: Path) -> None:
         df = pd.DataFrame({"N": [5], "omega": [0.2]})

@@ -227,7 +227,7 @@ All experiments have been completed. The results conclusively confirm the null h
 
 The decoupled baseline ($\alpha_{xx}=0$) was verified at 200 $(\omega, N)$ points. At all points, the optimal measurement is $\psi^* = \pi/4$ (equal weighting of $J_z^S$ and $J_z^A$), and the sensitivity exactly matches the $2N$-SQL:
 
-$$\Delta\omega_{\text{opt}} = \frac{1}{\sqrt{2N} \, T_H} = \Delta\omega_{\text{SQL}}$$
+$\Delta\omega_{\text{opt}} = \frac{1}{\sqrt{2N} \, T_H} = \Delta\omega_{\text{SQL}}$
 
 The ratio $\Delta\omega_{\text{opt}} / \Delta\omega_{\text{SQL}}$ has mean $1.0000000000$ and standard deviation $1.3\times10^{-10}$. This confirms that two independent MZIs at $\alpha_{xx}=0$ exactly saturate the $2N$-SQL with the optimal separable measurement $\psi = \pi/4$.
 
@@ -261,7 +261,7 @@ No point in the 500-point sweep has $\alpha_{xx}^* > 0.01$, and no point has $|\
 
 The XX advantage ratio is defined as:
 
-$$r_{\text{XX}} = \frac{\Delta\omega_{\text{opt}}(\alpha_{xx}^*, \psi^*)}{\Delta\omega_{\text{SQL}}}$$
+$r_{\text{XX}} = \frac{\Delta\omega_{\text{opt}}(\alpha_{xx}^*, \psi^*)}{\Delta\omega_{\text{SQL}}}$
 
 where $\Delta\omega_{\text{SQL}} = 1/(\sqrt{2N} T_H)$ is the $2N$-particle SQL. Across all 500 $(\omega, N)$ points:
 

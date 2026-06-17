@@ -29,11 +29,11 @@ The **input states** considered are:
 
 The **measurement** is a number-difference detection in the Fock basis at the output. The output state is expanded in the two-mode Fock basis, and the probability of each number-difference $m = n_1 - n_2$ is computed:
 
-$$P(m\vert\omega) = \sum_{n_1, n_2: n_1-n_2=m} \vert\langle n_1, n_2 \vert \psi_{\text{out}}\rangle\vert^2.$$
+$P(m\vert\omega) = \sum_{n_1, n_2: n_1-n_2=m} \vert\langle n_1, n_2 \vert \psi_{\text{out}}\rangle\vert^2.$
 
 The sensitivity is computed via the **Classical Fisher Information** from the full distribution:
 
-$$F_C(\omega) = \sum_m \frac{(\partial P(m\vert\omega)/\partial\omega)^2}{P(m\vert\omega)}, \qquad \Delta\omega_C = \frac{1}{\sqrt{F_C(\omega)}}.$$
+$F_C(\omega) = \sum_m \frac{(\partial P(m\vert\omega)/\partial\omega)^2}{P(m\vert\omega)}, \qquad \Delta\omega_C = \frac{1}{\sqrt{F_C(\omega)}}.$
 
 The derivative $\partial P/\partial\omega$ is approximated by central finite differences with step $\varepsilon = 10^{-6}$.
 
@@ -130,10 +130,10 @@ All data generated with $H_t = 10$, $\omega \in [0.1, 5.0]$ (step 0.1), and $N$ 
 
 For both NOON and Twin-Fock, the Classical Fisher Information $F_C(\omega)$ is constant across all $\omega$ values (numerical std $< 10^{-3}$ across the grid, with typical values $< 10^{-5}$ for NOON and $< 10^{-4}$ for Twin-Fock). This means the number-difference measurement yields $\omega$-independent sensitivity for these states in the balanced MZI — there is no "optimal operating point" for CFI, unlike the error-propagation formula which diverges at fringe nulls.
 
-![NOON Δω overlay](figures/20260601-noon_delta_omega_comparison.svg)
+![NOON Δω overlay](figures/20260601-noon_delta_theta_comparison.svg)
 *NOON: $\Delta\omega_C$ (solid lines) and $\Delta\omega_Q$ (dashed horizontal lines) vs $\omega$ for selected N values. All curves are flat across $\omega$ and the CFI saturates the QFI bound at every operating point — each solid line coincides with its matching dashed QFI bound. The sensitivity improves as $1/N$.*
 
-![Twin-Fock Δω overlay](figures/20260601-twin_fock_std_delta_omega_comparison.svg)
+![Twin-Fock Δω overlay](figures/20260601-twin_fock_std_delta_theta_comparison.svg)
 *Twin-Fock: $\Delta\omega_C$ (solid) and $\Delta\omega_Q$ (dashed) vs $\omega$ for selected N values. The same $\omega$-independence and QFI saturation holds, with sensitivity scaling as $1/\sqrt{N(N+2)/2}$.*
 
 The $\omega$-independence holds across the full $N$ range. At larger $N$, the CFI remains constant to high numerical precision:

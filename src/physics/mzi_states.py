@@ -27,6 +27,7 @@ Note:
 
 """
 
+from collections.abc import Callable  # noqa: TC003 — used in runtime function body
 from typing import Any
 
 import numpy as np
@@ -130,6 +131,129 @@ def single_photon_split_state(N: int, max_photons: int | None = None) -> np.ndar
     return state
 
 
+# =============================================================================
+# Private Factory Functions for Input State Creation
+# =============================================================================
+
+
+def _make_twin_fock(N: int, max_photons: int | None = None) -> np.ndarray:
+    """Create a twin-Fock state (uniform superposition over |n, N-n⟩)."""
+    effective_max = max(N, max_photons or N)
+    return twin_fock_state(N, effective_max)
+
+
+def _make_noon(N: int, max_photons: int | None = None) -> np.ndarray:
+    """Create a NOON state (|N,0⟩ + |0,N⟩)/√2."""
+    effective_max = max(N, max_photons or N)
+    return noon_state(N, effective_max)
+
+
+def _make_coherent(
+    N: int, max_photons: int | None = None, **kwargs: Any
+) -> np.ndarray:
+    """Create a two-mode coherent state.
+
+    Kwargs:
+        alpha1: Complex amplitude for mode 1 (default 1.0).
+        alpha2: Complex amplitude for mode 2 (default 0.0).
+    """
+    alpha1 = kwargs.get("alpha1", 1.0 + 0j)
+    alpha2 = kwargs.get("alpha2", 0.0 + 0j)
+    if max_photons is None:
+        mean_n1 = abs(alpha1) ** 2
+        mean_n2 = abs(alpha2) ** 2
+        max_mean = max(mean_n1, mean_n2)
+        if max_mean > 0:
+            sigma = np.sqrt(max_mean)
+            mp = int(max_mean + 6 * sigma + 5)
+        else:
+            mp = 5
+    else:
+        mp = max_photons
+    dim = mp + 1
+    state: np.ndarray = (
+        qutip.tensor(qutip.coherent(dim, alpha1), qutip.coherent(dim, alpha2))
+        .full()
+        .ravel()
+    )
+    return state
+
+
+def _make_single_photon_split(
+    N: int, max_photons: int | None = None
+) -> np.ndarray:
+    """Create a single-photon split state (|N-1,1⟩ + |1,N-1⟩)/√2."""
+    effective_max = max(N - 1, max_photons or N)
+    return single_photon_split_state(N, effective_max)
+
+
+def _make_fock(N: int, max_photons: int | None = None) -> np.ndarray:
+    """Create a simple Fock state |N, 0⟩."""
+    effective_max = max(N, max_photons or N)
+    dim = (effective_max + 1) ** 2
+    state = np.zeros(dim, dtype=complex)
+    idx = N * (effective_max + 1)  # |N, 0⟩
+    state[idx] = 1.0
+    return state
+
+
+def _make_css(N: int, max_photons: int | None = None, **kwargs: Any) -> np.ndarray:
+    """Create a coherent spin state (coherent on mode 0, vacuum on mode 1).
+
+    Kwargs:
+        alpha: Complex amplitude (default √N).
+    """
+    alpha = kwargs.get("alpha", np.sqrt(N) + 0j)
+    if max_photons is None:
+        mean_n = abs(alpha) ** 2
+        if mean_n > 0:
+            sigma = np.sqrt(mean_n)
+            mp = int(mean_n + 6 * sigma + 5)
+        else:
+            mp = 5
+    else:
+        mp = max_photons
+    dim = mp + 1
+    css_state: np.ndarray = (
+        qutip.tensor(qutip.coherent(dim, alpha), qutip.fock(dim, 0))
+        .full()
+        .ravel()
+    )
+    return css_state
+
+
+def _make_sss(N: int, max_photons: int | None = None) -> np.ndarray:
+    """Create a single-photon split state (alias for single_photon_split)."""
+    effective_max = max(N, max_photons or N)
+    return single_photon_split_state(N, effective_max)
+
+
+def _make_squeezed_vacuum(
+    N: int, max_photons: int | None = None, **kwargs: Any
+) -> np.ndarray:
+    """Create a single-mode squeezed vacuum state.
+
+    Default r scales so mean photon number ⟨N⟩ = sinh²(r) = N.
+    Override by passing ``r`` explicitly.
+
+    Kwargs:
+        r: Squeezing parameter (default arcsinh(√N)).
+        phi_sv: Squeezing angle (default 0.0).
+    """
+    if "r" not in kwargs:
+        r = float(np.arcsinh(np.sqrt(max(N, 1))))
+    else:
+        r = kwargs["r"]
+    phi_sv = kwargs.get("phi_sv", 0.0)
+    effective_max = max(N, max_photons or N)
+    dim = effective_max + 1
+    squeezed = qutip.squeeze(dim, r * np.exp(1j * phi_sv)) @ qutip.fock(dim, 0)
+    sv_state: np.ndarray = (
+        qutip.tensor(squeezed, qutip.fock(dim, 0)).full().ravel()
+    )
+    return sv_state
+
+
 def input_state_factory(
     state_type: str,
     N: int,
@@ -171,89 +295,22 @@ def input_state_factory(
         >>> state = input_state_factory("coherent", N=0, alpha1=1.0, alpha2=0.0)
 
     """
-    match state_type:
-        case "twin_fock":
-            effective_max = max(N, max_photons or N)
-            return twin_fock_state(N, effective_max)
-        case "noon":
-            effective_max = max(N, max_photons or N)
-            # Use noon_state from mzi_simulation (single source of truth)
-            return noon_state(N, effective_max)
-        case "coherent":
-            alpha1 = kwargs.get("alpha1", 1.0 + 0j)
-            alpha2 = kwargs.get("alpha2", 0.0 + 0j)
-            if max_photons is None:
-                mean_n1 = abs(alpha1) ** 2
-                mean_n2 = abs(alpha2) ** 2
-                max_mean = max(mean_n1, mean_n2)
-                if max_mean > 0:
-                    sigma = np.sqrt(max_mean)
-                    mp = int(max_mean + 6 * sigma + 5)
-                else:
-                    mp = 5
-            else:
-                mp = max_photons
-            dim = mp + 1
-            state: np.ndarray = (
-                qutip.tensor(qutip.coherent(dim, alpha1), qutip.coherent(dim, alpha2))
-                .full()
-                .ravel()
-            )
-            return state
-        case "single_photon_split":
-            effective_max = max(N - 1, max_photons or N)
-            return single_photon_split_state(N, effective_max)
-        case "fock":
-            # Simple Fock state |N, 0⟩
-            effective_max = max(N, max_photons or N)
-            dim = (effective_max + 1) ** 2
-            state = np.zeros(dim, dtype=complex)
-            idx = N * (effective_max + 1)  # |N, 0⟩
-            state[idx] = 1.0
-            return state
-        case "css":
-            # Coherent state split - same as coherent with alpha on mode 0
-            alpha = kwargs.get("alpha", np.sqrt(N) + 0j)
-            if max_photons is None:
-                mean_n = abs(alpha) ** 2
-                if mean_n > 0:
-                    sigma = np.sqrt(mean_n)
-                    mp = int(mean_n + 6 * sigma + 5)
-                else:
-                    mp = 5
-            else:
-                mp = max_photons
-            dim = mp + 1
-            css_state: np.ndarray = (
-                qutip.tensor(qutip.coherent(dim, alpha), qutip.fock(dim, 0))
-                .full()
-                .ravel()
-            )
-            return css_state
-        case "sss":
-            # Single-photon split state (|N-1, 1⟩ + |1, N-1⟩)/√2.
-            # Uses N as the total photon number; N must be >= 2.
-            # For N=2 this yields |1,1⟩ (single Fock state).
-            effective_max = max(N, max_photons or N)
-            return single_photon_split_state(N, effective_max)
-        case "squeezed_vacuum":
-            # Default: scale r so mean photon number ⟨N⟩ = sinh²(r) = N
-            # (resource normalization: same ⟨N⟩ across compared states).
-            # Override by passing r explicitly via kwargs.
-            if "r" not in kwargs:
-                r = float(np.arcsinh(np.sqrt(max(N, 1))))
-            else:
-                r = kwargs["r"]
-            phi_sv = kwargs.get("phi_sv", 0.0)
-            effective_max = max(N, max_photons or N)
-            dim = effective_max + 1
-            squeezed = qutip.squeeze(dim, r * np.exp(1j * phi_sv)) @ qutip.fock(dim, 0)
-            sv_state: np.ndarray = (
-                qutip.tensor(squeezed, qutip.fock(dim, 0)).full().ravel()
-            )
-            return sv_state
-        case _:
-            raise ValueError(f"Unknown state_type: {state_type}")
+    # Local dispatch dict (not a module-level constant per project convention).
+    # Each factory handles its own parameter extraction from kwargs.
+    _state_factories: dict[str, Callable[..., np.ndarray]] = {
+        "twin_fock": _make_twin_fock,
+        "noon": _make_noon,
+        "coherent": _make_coherent,
+        "single_photon_split": _make_single_photon_split,
+        "fock": _make_fock,
+        "css": _make_css,
+        "sss": _make_sss,
+        "squeezed_vacuum": _make_squeezed_vacuum,
+    }
+    factory = _state_factories.get(state_type)
+    if factory is None:
+        raise ValueError(f"Unknown state_type: {state_type}")
+    return factory(N=N, max_photons=max_photons, **kwargs)
 
 
 # =============================================================================

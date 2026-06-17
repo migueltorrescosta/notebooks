@@ -37,7 +37,7 @@ $H_A^{\text{norm}}$ is now $O(N)$, the $H_{\text{int}}$-mediated feedback pathwa
 may not efficiently transfer the ancilla's $\omega$-encoded information to the
 $J_z^S$ measurement when both subsystems are large. The variance
 $\text{Var}(J_z^S)$ may also grow faster than the derivative
-$|\partial\langle J_z^S\rangle/\partial\omega|$, cancelling any potential advantage.
+$\vert\partial\langle J_z^S\rangle/\partial\omega\vert$, cancelling any potential advantage.
 
 ## ⚛️ Theoretical Model
 
@@ -230,7 +230,7 @@ The implementation is a direct modification of `reports/20260611/local.py`. The 
 | Failure | Mitigation |
 |---------|------------|
 | **Ratio still decays with N** — The $J_A=N/2$ ancilla does not arrest the $R(N)$ decay; $R(N)-1$ still falls as $N^{-1}$ or worse. This would indicate that simply matching the Hilbert space dimension does not resolve the fundamental inefficiency of the $H_{\text{int}}$-mediated feedback pathway. | Fit the empirical decay model $R(N) = 1 + c N^{-\beta}$ and compare $\beta$ against the $J_A=1/2$ case ($\beta\approx1.0$--$1.2$). Document whether the prefactor $c$ improves. |
-| **Variance grows faster than derivative** — The $\text{Var}(J_z^S)$ term may grow as $O(N^2)$ for large $J_A$ (due to strong S-A entanglement), while $|\partial\langle J_z^S\rangle/\partial\omega|$ may grow more slowly, causing $\Delta\omega$ to plateau or increase. | Analyse $\text{Var}(J_z^S)$ and $|\partial\langle J_z^S\rangle/\partial\omega|$ separately at the optimal point to identify which term limits the sensitivity. |
+| **Variance grows faster than derivative** — The $\text{Var}(J_z^S)$ term may grow as $O(N^2)$ for large $J_A$ (due to strong S-A entanglement), while $\vert\partial\langle J_z^S\rangle/\partial\omega\vert$ may grow more slowly, causing $\Delta\omega$ to plateau or increase. | Analyse $\text{Var}(J_z^S)$ and $\vert\partial\langle J_z^S\rangle/\partial\omega\vert$ separately at the optimal point to identify which term limits the sensitivity. |
 | **Optimal parameters saturate bounds at large N** — The optimiser may push $a_k$ or $a_{zz}$ to the $[-5,5]$ boundary at large $N$, indicating that the available parameter range constrains the achievable sensitivity. | Extend bounds to $[-10,10]$ for a subset of $(N,\omega)$ pairs and re-run to test whether larger coefficients unlock further improvement. |
 | **N=1 consistency fails** — The $J_A=N/2$ code at $N=1$ should reproduce the $J_A=1/2$ result since $J_A=0.5$ Dicke operators are identical to Pauli matrices. | Verify against the 4x4 implementation in #20260519. Both Dicke operators at $J=1/2$ and Pauli matrices give $J_z = \text{diag}(1/2, -1/2)$, so consistency is expected. |
 | **Computational cost at $N=20$** — The $441\times441$ matrix exponential is ${\sim}600\times$ larger than the $4\times4$ case, each evaluation taking $\sim$5 ms. With 3 evaluations per objective (central diff) and $500 + 50\cdot N_{\text{iter}}$ evaluations per $(N,\omega)$ pair, the runtime may be $\sim$5--10 minutes per pair. | Use parallel dispatch across $(N,\omega)$ pairs. The $N=20$ case dominates runtime; consider limiting the full scan to $N\le 15$ and running $N=20$ separately. |
@@ -246,7 +246,7 @@ Simulations were run for the decoupled baseline (100 (N, ω) pairs), N=1 consist
 
 At $N=1$, $\omega = 0.2$, the optimisation pipeline finds:
 
-$$\Delta\omega_{\text{opt}} = 0.02036,\quad R = 4.91$$
+$\Delta\omega_{\text{opt}} = 0.02036,\quad R = 4.91$
 
 This matches the #20260519/#20260611 result exactly ($\Delta\omega \approx 0.02036$, $R \approx 4.91$). The optimum parameters are $a_x^* = 5.0$, $a_y^* = 5.0$, $a_z^* = 4.00$, $a_{zz}^* = 4.00$, confirming a non-commuting drive is essential. Variance and expectation are both finite and well-behaved ($\text{Var}(J_z^S) = 0.227$, $\langle J_z^S\rangle = 0.152$). The multi-particle Dicke code reduces correctly at $J=1/2$.
 

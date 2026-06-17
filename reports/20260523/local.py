@@ -29,8 +29,9 @@ import argparse
 import os
 import sys
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,9 +46,17 @@ if "MPLBACKEND" not in os.environ:
 if "OMP_NUM_THREADS" not in os.environ:
     os.environ["OMP_NUM_THREADS"] = "1"
 
+from src.analysis.decoupled_baseline import (
+    generate_decoupled_baseline,
+    plot_decoupled_baseline_heatmap,
+)
 from src.analysis.multi_mzi_scaling import (
-    ScalingAnalysisResult,
-    fit_scaling_exponents,
+    ScalingAnalysisResult,  # noqa: F401 — re-exported for tests
+    fit_scaling_exponents,  # noqa: F401 — re-exported for tests
+    generate_scaling_analysis,
+)
+from src.analysis.n_scaling_sweep import (
+    generate_n_scaling_plots,
 )
 from src.physics.dicke_basis import jz_operator
 from src.physics.multi_mzi import (
@@ -56,6 +65,7 @@ from src.physics.multi_mzi import (
     single_bs_unitary,
 )
 from src.utils.enums import OperatorBasis
+from src.utils.serialization import ParquetSerializable
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -527,7 +537,7 @@ def optimise_four_params(
 
 
 @dataclass
-class FourParamOptResult:
+class FourParamOptResult(ParquetSerializable):
     """Result from a multi-start L-BFGS-B optimisation at a single (ω, N, protocol).
 
     Attributes:
@@ -558,6 +568,26 @@ class FourParamOptResult:
     n_converged: int = 0
     gradient_norm: float = 0.0
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "N",
+        "protocol",
+        "t_hold",
+        "alpha_xx_opt",
+        "alpha_xz_opt",
+        "alpha_zx_opt",
+        "alpha_zz_opt",
+        "delta_omega_opt",
+        "sql",
+        "ratio",
+        "expectation_Jz",
+        "variance_Jz",
+        "d_expectation",
+        "n_starts",
+        "n_converged",
+        "gradient_norm",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         """Single-row DataFrame with all metadata."""
         return pd.DataFrame(
@@ -586,15 +616,34 @@ class FourParamOptResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
+    @classmethod
+    def from_parquet(cls, path: str | Path) -> FourParamOptResult:
+        df = pd.read_parquet(path)
+        cls._validate_columns(df)
+        row = df.iloc[0]
+        return cls(
+            omega_value=float(row["omega"]),
+            N=int(row["N"]),
+            protocol=str(row["protocol"]),
+            alpha_opt=(
+                float(row["alpha_xx_opt"]),
+                float(row["alpha_xz_opt"]),
+                float(row["alpha_zx_opt"]),
+                float(row["alpha_zz_opt"]),
+            ),
+            delta_omega_opt=float(row["delta_omega_opt"]),
+            sql=float(row["sql"]),
+            expectation_Jz=float(row["expectation_Jz"]),
+            variance_Jz=float(row["variance_Jz"]),
+            d_expectation=float(row["d_expectation"]),
+            n_starts=int(row["n_starts"]),
+            n_converged=int(row["n_converged"]),
+            gradient_norm=float(row["gradient_norm"]),
+        )
 
 
 @dataclass
-class FourParamSweepResult:
+class FourParamSweepResult(ParquetSerializable):
     """Full sweep over (ω, N, protocol) with optimisation per point.
 
     All array fields have the same length (n_points), stored in row-major
@@ -638,6 +687,26 @@ class FourParamSweepResult:
     gradient_norm: np.ndarray = field(default_factory=lambda: np.array([]))
     t_hold: float = DEFAULT_t_hold
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "N",
+        "protocol",
+        "t_hold",
+        "alpha_xx_opt",
+        "alpha_xz_opt",
+        "alpha_zx_opt",
+        "alpha_zz_opt",
+        "delta_omega_opt",
+        "sql",
+        "ratio",
+        "expectation_Jz",
+        "variance_Jz",
+        "d_expectation",
+        "n_starts",
+        "n_converged",
+        "gradient_norm",
+    ]
+
     def __post_init__(self) -> None:
         # Ensure int dtype for integer arrays
         if self.N_values.dtype.kind != "i":
@@ -675,41 +744,10 @@ class FourParamSweepResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> FourParamSweepResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "N",
-            "protocol",
-            "t_hold",
-            "alpha_xx_opt",
-            "alpha_xz_opt",
-            "alpha_zx_opt",
-            "alpha_zz_opt",
-            "delta_omega_opt",
-            "sql",
-            "ratio",
-            "expectation_Jz",
-            "variance_Jz",
-            "d_expectation",
-            "n_starts",
-            "n_converged",
-            "gradient_norm",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
-                "Regenerate the file with the current code."
-            )
-
+        cls._validate_columns(df)
         return cls(
             omega_values=df["omega"].to_numpy(dtype=float),
             N_values=df["N"].to_numpy(dtype=int),
@@ -817,6 +855,98 @@ class FourParamSweepResult:
 # ============================================================================
 
 
+def _resolve_sweep_parameters(
+    omega_values: np.ndarray | None,
+    N_values: np.ndarray | None,
+    protocol: str,
+) -> tuple[np.ndarray, np.ndarray, int]:
+    """Resolve default ω/N values based on protocol.
+
+    Args:
+        omega_values: Provided ω values (or None for default).
+        N_values: Provided N values (or None for default based on protocol).
+        protocol: 'dual' or 'S-only'.
+
+    Returns:
+        Tuple (omega_values, N_values, total_points).
+    """
+    if omega_values is None:
+        omega_values = np.array(OMEGA_VALS, dtype=float)
+
+    if N_values is None:
+        if protocol == "dual":
+            N_values = np.array(DUAL_MZI_N_VALS, dtype=int)
+        else:
+            N_values = np.array(SONLY_MZI_N_VALS, dtype=int)
+
+    total = len(omega_values) * len(N_values)
+    return omega_values, N_values, total
+
+
+def _allocate_sweep_arrays(total: int) -> dict[str, Any]:
+    """Allocate empty arrays for the sweep result.
+
+    Args:
+        total: Number of sweep points.
+
+    Returns:
+        Dict mapping field names to pre-allocated arrays.
+    """
+    return {
+        "omegas": np.zeros(total, dtype=float),
+        "Ns": np.zeros(total, dtype=int),
+        "protos": [],
+        "a_xx_opts": np.full(total, np.nan, dtype=float),
+        "a_xz_opts": np.full(total, np.nan, dtype=float),
+        "a_zx_opts": np.full(total, np.nan, dtype=float),
+        "a_zz_opts": np.full(total, np.nan, dtype=float),
+        "delta_opts": np.full(total, np.inf, dtype=float),
+        "sqls": np.zeros(total, dtype=float),
+        "ratios": np.full(total, np.inf, dtype=float),
+        "exps": np.zeros(total, dtype=float),
+        "vars_": np.zeros(total, dtype=float),
+        "d_exps": np.zeros(total, dtype=float),
+        "n_starts_arr": np.zeros(total, dtype=int),
+        "n_conv_arr": np.zeros(total, dtype=int),
+        "grad_norm_arr": np.full(total, np.nan, dtype=float),
+    }
+
+
+def _compute_sweep_point_ratio(opt: FourParamOptResult) -> float:
+    """Compute Δω_opt / SQL ratio with safe handling of non-finite values."""
+    if np.isfinite(opt.delta_omega_opt) and opt.sql > 0:
+        return opt.delta_omega_opt / opt.sql
+    return float("inf")
+
+
+def _update_sweep_arrays(
+    arrays: dict[str, Any],
+    idx: int,
+    omega_val: float,
+    N_val: int,
+    protocol: str,
+    opt: FourParamOptResult,
+    actual_starts: int,
+) -> None:
+    """Fill arrays at position idx with results from one optimisation point."""
+    arrays["omegas"][idx] = omega_val
+    arrays["Ns"][idx] = N_val
+    arrays["protos"].append(protocol)
+    arrays["a_xx_opts"][idx] = opt.alpha_opt[0]
+    arrays["a_xz_opts"][idx] = opt.alpha_opt[1]
+    arrays["a_zx_opts"][idx] = opt.alpha_opt[2]
+    arrays["a_zz_opts"][idx] = opt.alpha_opt[3]
+    arrays["delta_opts"][idx] = opt.delta_omega_opt
+    arrays["sqls"][idx] = opt.sql
+    arrays["ratios"][idx] = _compute_sweep_point_ratio(opt)
+    arrays["exps"][idx] = opt.expectation_Jz
+    arrays["vars_"][idx] = opt.variance_Jz
+    arrays["d_exps"][idx] = opt.d_expectation
+    arrays["n_starts_arr"][idx] = actual_starts
+    arrays["n_conv_arr"][idx] = opt.n_converged
+    arrays["grad_norm_arr"][idx] = opt.gradient_norm
+
+
 def run_sweep(
     omega_values: np.ndarray | None = None,
     N_values: np.ndarray | None = None,
@@ -838,36 +968,10 @@ def run_sweep(
     Returns:
         FourParamSweepResult with all optimised points.
     """
-    if omega_values is None:
-        omega_values = np.array(OMEGA_VALS, dtype=float)
-
-    n_omega = len(omega_values)
-    n_N = len(N_values) if N_values is not None else 0
-    total = n_omega * n_N
-
-    # Choose default N values based on protocol
-    if N_values is None:
-        if protocol == "dual":
-            N_values = np.array(DUAL_MZI_N_VALS, dtype=int)
-        else:
-            N_values = np.array(SONLY_MZI_N_VALS, dtype=int)
-
-    omegas = np.zeros(total, dtype=float)
-    Ns = np.zeros(total, dtype=int)
-    protos: list[str] = []
-    a_xx_opts = np.full(total, np.nan, dtype=float)
-    a_xz_opts = np.full(total, np.nan, dtype=float)
-    a_zx_opts = np.full(total, np.nan, dtype=float)
-    a_zz_opts = np.full(total, np.nan, dtype=float)
-    delta_opts = np.full(total, np.inf, dtype=float)
-    sqls = np.zeros(total, dtype=float)
-    ratios = np.full(total, np.inf, dtype=float)
-    exps = np.zeros(total, dtype=float)
-    vars_ = np.zeros(total, dtype=float)
-    d_exps = np.zeros(total, dtype=float)
-    n_starts_arr = np.zeros(total, dtype=int)
-    n_conv_arr = np.zeros(total, dtype=int)
-    grad_norm_arr = np.full(total, np.nan, dtype=float)
+    omega_values, N_values, total = _resolve_sweep_parameters(
+        omega_values, N_values, protocol
+    )
+    arrays = _allocate_sweep_arrays(total)
 
     idx = 0
     for N_val in N_values:
@@ -875,11 +979,7 @@ def run_sweep(
         psi0 = initial_state(N_val)
         actual_starts = _n_starts_for_N(N_val) if n_starts is None else n_starts
         for omega_val in omega_values:
-            omegas[idx] = omega_val
-            Ns[idx] = N_val
-            protos.append(protocol)
-
-            opt_result = optimise_four_params(
+            opt = optimise_four_params(
                 N=N_val,
                 omega=omega_val,
                 ops=ops,
@@ -888,45 +988,31 @@ def run_sweep(
                 n_starts=actual_starts,
                 t_hold=t_hold,
             )
-            a_xx_opts[idx] = opt_result.alpha_opt[0]
-            a_xz_opts[idx] = opt_result.alpha_opt[1]
-            a_zx_opts[idx] = opt_result.alpha_opt[2]
-            a_zz_opts[idx] = opt_result.alpha_opt[3]
-            delta_opts[idx] = opt_result.delta_omega_opt
-            sqls[idx] = opt_result.sql
-            ratios[idx] = (
-                opt_result.delta_omega_opt / opt_result.sql
-                if np.isfinite(opt_result.delta_omega_opt) and opt_result.sql > 0
-                else float("inf")
+            _update_sweep_arrays(
+                arrays, idx, omega_val, N_val, protocol, opt, actual_starts
             )
-            exps[idx] = opt_result.expectation_Jz
-            vars_[idx] = opt_result.variance_Jz
-            d_exps[idx] = opt_result.d_expectation
-            n_starts_arr[idx] = actual_starts
-            n_conv_arr[idx] = opt_result.n_converged
-            grad_norm_arr[idx] = opt_result.gradient_norm
-
             idx += 1
             if progress_callback is not None:
                 progress_callback(idx, total)
 
+    a = arrays
     return FourParamSweepResult(
-        omega_values=omegas,
-        N_values=Ns,
-        protocol=protos,
-        alpha_xx_opt=a_xx_opts,
-        alpha_xz_opt=a_xz_opts,
-        alpha_zx_opt=a_zx_opts,
-        alpha_zz_opt=a_zz_opts,
-        delta_omega_opt=delta_opts,
-        sql_values=sqls,
-        ratio=ratios,
-        expectation_Jz=exps,
-        variance_Jz=vars_,
-        d_expectation=d_exps,
-        n_starts=n_starts_arr,
-        n_converged=n_conv_arr,
-        gradient_norm=grad_norm_arr,
+        omega_values=a["omegas"],
+        N_values=a["Ns"],
+        protocol=a["protos"],
+        alpha_xx_opt=a["a_xx_opts"],
+        alpha_xz_opt=a["a_xz_opts"],
+        alpha_zx_opt=a["a_zx_opts"],
+        alpha_zz_opt=a["a_zz_opts"],
+        delta_omega_opt=a["delta_opts"],
+        sql_values=a["sqls"],
+        ratio=a["ratios"],
+        expectation_Jz=a["exps"],
+        variance_Jz=a["vars_"],
+        d_expectation=a["d_exps"],
+        n_starts=a["n_starts_arr"],
+        n_converged=a["n_conv_arr"],
+        gradient_norm=a["grad_norm_arr"],
         t_hold=t_hold,
     )
 
@@ -1176,71 +1262,6 @@ def plot_alpha_opt_heatmap(
     return save_path
 
 
-def plot_n_scaling(
-    sweep: FourParamSweepResult,
-    save_path: str | Path,
-    omega_fixed: float | None = None,
-    figsize: tuple[float, float] = (8, 6),
-) -> Path:
-    """Plot Δω_opt vs N at a fixed ω, with SQL and HL reference lines.
-
-    Args:
-        sweep: Sweep result.
-        save_path: Output SVG path.
-        omega_fixed: ω value to plot. If None, uses the first ω.
-        figsize: Figure size.
-
-    Returns:
-        Path to saved SVG.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if omega_fixed is None:
-        omega_fixed = float(np.unique(sweep.omega_values)[0])
-
-    mask = np.isclose(sweep.omega_values, omega_fixed)
-    N_vals = sweep.N_values[mask].astype(float)
-    delta_vals = sweep.delta_omega_opt[mask]
-
-    fig, ax = plt.subplots(figsize=figsize)
-
-    # SQL reference: Δω = 1/(√N t_hold)
-    N_dense = np.logspace(
-        np.log10(1), np.log10(max(N_vals) if len(N_vals) > 0 else 20), 100
-    )
-    sql_dense = 1.0 / (np.sqrt(N_dense) * sweep.t_hold)
-    hl_dense = 1.0 / (N_dense * sweep.t_hold)
-
-    ax.loglog(N_dense, sql_dense, "--", color="gray", alpha=0.7, label="SQL")
-    ax.loglog(N_dense, hl_dense, ":", color="gray", alpha=0.5, label="HL")
-
-    # Data
-    finite_mask = np.isfinite(delta_vals) & (delta_vals > 0)
-    if np.any(finite_mask):
-        ax.loglog(
-            N_vals[finite_mask],
-            delta_vals[finite_mask],
-            "o-",
-            color="C0",
-            markersize=8,
-            linewidth=1.8,
-            label=rf"$\Delta\omega_{{\mathrm{{opt}}}}(\omega={omega_fixed:.2f})$",
-        )
-
-    protocol_label = sweep.protocol[0] if sweep.protocol else "dual"
-    ax.set_xlabel(r"$N$ (particles per subsystem)")
-    ax.set_ylabel(r"$\Delta\omega$")
-    ax.set_title(f"N-Scaling at $\\omega={omega_fixed:.2f}$:\n{protocol_label} MZI")
-    ax.legend(fontsize=10)
-    ax.grid(True, which="both", alpha=0.3)
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
-
-
 def plot_omega_dependence(
     sweep: FourParamSweepResult,
     save_path: str | Path,
@@ -1299,79 +1320,6 @@ def plot_omega_dependence(
     ax.set_ylabel(r"$\Delta\omega$")
     ax.set_title(f"$\\omega$-Dependence at $N={N_fixed}$:\n{protocol_label} MZI")
     ax.legend(fontsize=10)
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
-
-
-def plot_scaling_exponents(
-    scaling: ScalingAnalysisResult,
-    save_path: str | Path,
-    figsize: tuple[float, float] = (10, 6),
-) -> Path:
-    """Plot the scaling exponent α vs ω from log-log fits.
-
-    Args:
-        scaling: Scaling analysis result.
-        save_path: Output SVG path.
-        figsize: Figure size.
-
-    Returns:
-        Path to saved SVG.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-
-    # Left: exponent vs ω
-    valid_exp = np.isfinite(scaling.exponents)
-    if np.any(valid_exp):
-        ax1.plot(
-            scaling.omega_values[valid_exp],
-            scaling.exponents[valid_exp],
-            "o-",
-            color="C1",
-            markersize=6,
-            linewidth=1.5,
-        )
-    ax1.axhline(
-        y=-0.5,
-        color="gray",
-        linestyle="--",
-        alpha=0.7,
-        label="SQL (α = −0.5)",
-    )
-    ax1.axhline(
-        y=-1.0,
-        color="gray",
-        linestyle=":",
-        alpha=0.5,
-        label="HL (α = −1.0)",
-    )
-    ax1.set_xlabel(r"$\omega$")
-    ax1.set_ylabel(r"Scaling exponent $\alpha$")
-    ax1.set_title("Exponent $\\alpha$ from\n$\\Delta\\omega = C N^{\\alpha}$")
-    ax1.legend(fontsize=9)
-
-    # Right: R² vs ω
-    valid_r2 = np.isfinite(scaling.r_squared)
-    if np.any(valid_r2):
-        ax2.plot(
-            scaling.omega_values[valid_r2],
-            scaling.r_squared[valid_r2],
-            "s-",
-            color="C2",
-            markersize=6,
-            linewidth=1.5,
-        )
-    ax2.axhline(y=0.95, color="gray", linestyle="--", alpha=0.5)
-    ax2.set_xlabel(r"$\omega$")
-    ax2.set_ylabel(r"$R^2$")
-    ax2.set_title("Goodness of Fit")
-    ax2.set_ylim(-0.05, 1.05)
 
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
@@ -1617,113 +1565,48 @@ def generate_sonly_reproduction(force: bool = False) -> None:
     print(f"[fig]  {fig_p}")
 
 
-def generate_decoupled_baseline(force: bool = False) -> None:
-    """Decoupled baseline (α = 0) verification for both protocols."""
-    csv_dual = parquet_path("decoupled-baseline-dual")
-    csv_sonly = parquet_path("decoupled-baseline-sonly")
-
-    # Dual MZI baseline
-    if csv_dual.exists() and not force:
-        print(f"[skip] {csv_dual.name} exists")
-        result_dual = FourParamSweepResult.from_parquet(csv_dual)
-    else:
-        print("[run]  Computing decoupled baseline (dual MZI)...")
-        N_arr = np.array(DUAL_MZI_N_VALS, dtype=int)
-        omega_subset = np.array(OMEGA_VALS, dtype=float)
-        result_dual = compute_decoupled_baseline(
-            omega_values=omega_subset,
-            N_values=N_arr,
-            protocol="dual",
-        )
-        result_dual.save_parquet(csv_dual)
-        print(f"[save] {csv_dual}")
-
-    # S-only MZI baseline
-    if csv_sonly.exists() and not force:
-        print(f"[skip] {csv_sonly.name} exists")
-        result_sonly = FourParamSweepResult.from_parquet(csv_sonly)
-    else:
-        print("[run]  Computing decoupled baseline (S-only MZI)...")
-        N_arr = np.array(SONLY_MZI_N_VALS, dtype=int)
-        omega_subset = np.array(OMEGA_VALS, dtype=float)
-        result_sonly = compute_decoupled_baseline(
-            omega_values=omega_subset,
-            N_values=N_arr,
-            protocol="S-only",
-        )
-        result_sonly.save_parquet(csv_sonly)
-        print(f"[save] {csv_sonly}")
-
-    # Create verification figures: heatmaps of |ratio - 1| on log scale
-    from matplotlib.colors import LogNorm
-
-    for protocol, result in [("dual", result_dual), ("S-only", result_sonly)]:
-        omega_vals = np.unique(result.omega_values)
-        N_vals = np.unique(result.N_values)
-        dev_map = np.full((len(N_vals), len(omega_vals)), np.nan, dtype=float)
-
-        for i, omega in enumerate(omega_vals):
-            for j, N_val in enumerate(N_vals):
-                mask = np.isclose(result.omega_values, omega) & (
-                    result.N_values == N_val
-                )
-                if np.any(mask):
-                    r = float(result.ratio[mask][0])
-                    dev_map[j, i] = abs(r - 1.0)
-
-        fig_p = fig_path(f"decoupled-baseline-{protocol}")
-        fig, ax = plt.subplots(figsize=(10, 7))
-        finite = dev_map[np.isfinite(dev_map)]
-        if len(finite) > 0:
-            vmin = float(np.min(finite))
-            vmax = float(np.max(finite))
-        else:
-            vmin, vmax = 1e-15, 1.0
-
-        im = ax.pcolormesh(
-            omega_vals,
-            N_vals,
-            dev_map,
-            shading="nearest",
-            cmap="viridis",
-            norm=LogNorm(vmin=max(vmin, 1e-16), vmax=vmax),
-        )
-        fig.colorbar(
-            im, ax=ax, label=r"$|\Delta\omega/\Delta\omega_{\mathrm{SQL}} - 1|$"
-        )
-
-        max_dev = float(np.max(finite)) if len(finite) > 0 else 0.0
-        protocol_label = "dual" if protocol == "dual" else "S-only"
-        ax.set_xlabel(r"$\omega$")
-        ax.set_ylabel(r"$N$ (particles per subsystem)")
-        ax.set_title(
-            f"Decoupled Baseline Verification ($\\alpha = 0$, {protocol_label} MZI, "
-            f"$t_hold = {result.t_hold}$)\n"
-            f"Max $|\\Delta\\omega/\\mathrm{{SQL}} - 1| = {max_dev:.2e}$, "
-            f"points checked: {len(finite)}"
-        )
-
-        fig.tight_layout()
-        fig.savefig(fig_p, format="svg", bbox_inches="tight")
-        plt.close(fig)
-        print(f"[fig]  {fig_p}")
-
-
 def generate_n_scaling(force: bool = False) -> None:
     """N-scaling plots from the dual MZI sweep data."""
+    # Load the sweep to determine the protocol label for the title
     csv_p = parquet_path("dual-mzi-sweep")
-
     if not csv_p.exists():
         print("[skip] Dual MZI sweep data not found; run 'dual-sweep' first")
         return
 
     result = FourParamSweepResult.from_parquet(csv_p)
+    protocol_label = result.protocol[0] if result.protocol else "dual"
 
-    # Plot at three representative ω values
-    for omega_val in [0.5, 2.5, 5.0]:
-        fig_p = fig_path(f"dual-mzi-n-scaling-omega{omega_val:.1f}")
-        plot_n_scaling(result, fig_p, omega_fixed=omega_val)
-        print(f"[fig]  {fig_p}")
+    def _plot_with_title(
+        df: Any,
+        omega_fixed: float,
+        save_path: Path,
+        t_hold: float | None = None,
+        include_2n_sql: bool = False,
+    ) -> None:
+        from src.visualization.scaling_plots import plot_n_scaling_single_omega
+
+        title = f"N-Scaling at $\\omega={omega_fixed:.2f}$:\\n{protocol_label} MZI"
+        plot_n_scaling_single_omega(
+            df,
+            omega_fixed=omega_fixed,
+            save_path=save_path,
+            t_hold=t_hold,
+            include_2n_sql=include_2n_sql,
+            title=title,
+        )
+
+    omega_fig_pairs = [
+        (0.5, fig_path(f"dual-mzi-n-scaling-omega{omega_val:.1f}"))
+        for omega_val in [0.5, 2.5, 5.0]
+    ]
+    generate_n_scaling_plots(
+        force=force,
+        parquet_path=csv_p,
+        result_cls=FourParamSweepResult,
+        omega_fig_pairs=omega_fig_pairs,
+        plot_fn=_plot_with_title,
+        label="four-param n-scaling",
+    )
 
 
 def generate_omega_dependence(force: bool = False) -> None:
@@ -1736,35 +1619,6 @@ def generate_omega_dependence(force: bool = False) -> None:
             fig_p = fig_path(f"dual-mzi-omega-N{N_fixed}")
             plot_omega_dependence(result_dual, fig_p, N_fixed=N_fixed)
             print(f"[fig]  {fig_p}")
-
-
-def generate_scaling_analysis(force: bool = False) -> None:
-    """Scaling analysis from the dual MZI sweep data."""
-    csv_p = parquet_path("dual-mzi-sweep")
-    scaling_csv = parquet_path("dual-mzi-scaling")
-    fig_p = fig_path("dual-mzi-scaling-exponents")
-
-    if not csv_p.exists():
-        print("[skip] Dual MZI sweep data not found; run 'dual-sweep' first")
-        return
-
-    result = FourParamSweepResult.from_parquet(csv_p)
-
-    if scaling_csv.exists() and not force:
-        scaling = ScalingAnalysisResult.from_parquet(scaling_csv)
-        print(f"[skip] {scaling_csv.name} exists")
-    else:
-        print("[run]  Fitting scaling exponents...")
-        scaling = fit_scaling_exponents(
-            result.omega_values,
-            result.N_values,
-            result.delta_omega_opt,
-        )
-        scaling.save_parquet(scaling_csv)
-        print(f"[save] {scaling_csv}")
-
-    plot_scaling_exponents(scaling, fig_p)
-    print(f"[fig]  {fig_p}")
 
 
 # ============================================================================
@@ -1793,14 +1647,58 @@ def main() -> None:
     (REPORTS_DIR / REPORT_DATE / "raw_data").mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / REPORT_DATE / "figures").mkdir(parents=True, exist_ok=True)
 
-    tasks: dict[str, Callable[..., None]] = {
-        "decoupled-baseline": generate_decoupled_baseline,
+    tasks: dict[str, Callable[..., Any]] = {
+        "decoupled-baseline": lambda force=False: (
+            generate_decoupled_baseline(
+                force=force,
+                parquet_path=parquet_path("decoupled-baseline-dual"),
+                fig_path=fig_path("decoupled-baseline-dual"),
+                compute_fn=compute_decoupled_baseline,
+                compute_kwargs={
+                    "omega_values": np.array(OMEGA_VALS, dtype=float),
+                    "N_values": np.array(DUAL_MZI_N_VALS, dtype=int),
+                    "protocol": "dual",
+                },
+                result_cls=FourParamSweepResult,
+                plot_fn=lambda r, p: plot_decoupled_baseline_heatmap(
+                    r,
+                    p,
+                    title_prefix=r"Decoupled Baseline Verification ($\alpha = 0$, dual MZI",
+                ),
+                label="decoupled baseline (dual MZI, α = 0)",
+            )
+            or generate_decoupled_baseline(
+                force=force,
+                parquet_path=parquet_path("decoupled-baseline-sonly"),
+                fig_path=fig_path("decoupled-baseline-sonly"),
+                compute_fn=compute_decoupled_baseline,
+                compute_kwargs={
+                    "omega_values": np.array(OMEGA_VALS, dtype=float),
+                    "N_values": np.array(SONLY_MZI_N_VALS, dtype=int),
+                    "protocol": "S-only",
+                },
+                result_cls=FourParamSweepResult,
+                plot_fn=lambda r, p: plot_decoupled_baseline_heatmap(
+                    r,
+                    p,
+                    title_prefix=r"Decoupled Baseline Verification ($\alpha = 0$, S-only MZI",
+                ),
+                label="decoupled baseline (S-only MZI, α = 0)",
+            )
+        ),
         "sonly-reproduction": generate_sonly_reproduction,
         "dual-sweep": generate_dual_sweep,
         "sonly-sweep": generate_sonly_sweep,
         "n-scaling": generate_n_scaling,
         "omega-dependence": generate_omega_dependence,
-        "scaling-analysis": generate_scaling_analysis,
+        "scaling-analysis": partial(
+            generate_scaling_analysis,
+            parquet_path=parquet_path("dual-mzi-sweep"),
+            scaling_path=parquet_path("dual-mzi-scaling"),
+            fig_path=fig_path("dual-mzi-scaling-exponents"),
+            result_cls=FourParamSweepResult,
+            label="dual-mzi scaling analysis",
+        ),
     }
 
     if args.only:

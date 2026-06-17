@@ -686,21 +686,15 @@ def export_controls(raw_df: pd.DataFrame, fit_df: pd.DataFrame) -> None:
 # =============================================================================
 
 
-def main() -> None:
-    """Main page layout and execution."""
-    st.title("📊 Interferometry Sensitivity Scaling Survey")
+def _render_sidebar() -> tuple[
+    bool, list[ModelConfig], str, list[float], int, int, int, float, int,
+]:
+    """Render the sidebar configuration panel.
 
-    st.markdown(r"""
-    This interactive survey maps combinations of **(quantum state, noise model)**
-    to their scaling exponent $\alpha$ in $\Delta\phi \propto N^\alpha$.
-
-    Use the sidebar to configure your survey, then click **Run Survey** to see:
-    - Which combinations achieve **Heisenberg scaling** ($\alpha = -1.0$)
-    - Which are limited to the **Standard Quantum Limit** ($\alpha = -0.5$)
-    - Where **scaling collapse** occurs ($\alpha \to 0$)
-    """)
-
-    # Sidebar configuration
+    Returns:
+        Tuple (run_button, models, noise_type, noise_levels, N_min, N_max,
+               n_points, phi_phase, seed).
+    """
     with st.sidebar:
         st.header("Survey Configuration", divider="blue")
 
@@ -714,7 +708,6 @@ def main() -> None:
 
         st.divider()
 
-        # Configuration sections
         models = model_selector()
         st.divider()
 
@@ -736,82 +729,121 @@ def main() -> None:
             help="For reproducible random sampling.",
         )
 
-    # Initialize or use cached results
+    return run_button, models, noise_type, noise_levels, N_min, N_max, n_points, phi_phase, int(seed)
+
+
+def _initialize_session_state() -> None:
+    """Ensure session state keys exist."""
     if "survey_results" not in st.session_state:
         st.session_state.survey_results = None
         st.session_state.fit_results = None
 
-    # Run survey when button is clicked
+
+def _execute_survey(
+    models: list[ModelConfig],
+    noise_type: str,
+    noise_levels: list[float],
+    N_min: int,
+    N_max: int,
+    n_points: int,
+    phi_phase: float,
+    seed: int,
+) -> None:
+    """Run the scaling survey and store results in session state."""
+    with st.spinner("Running scaling survey..."):
+        raw_df, fit_df = run_full_survey(
+            models=models,
+            noise_type=noise_type,
+            noise_levels=noise_levels,
+            N_min=N_min,
+            N_max=N_max,
+            n_points=n_points,
+            phi_phase=phi_phase,
+            seed=seed,
+        )
+        st.session_state.survey_results = raw_df
+        st.session_state.fit_results = fit_df
+        st.success("Survey completed!")
+
+
+def _display_summary(raw_df: pd.DataFrame, fit_df: pd.DataFrame) -> None:
+    """Display summary metrics from survey results."""
+    st.header("Summary", divider="blue")
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        n_models = len(raw_df["model_id"].unique()) if not raw_df.empty else 0
+        st.metric("Models Analyzed", str(n_models))
+    with col2:
+        n_noise = len(raw_df["noise_level"].unique()) if not raw_df.empty else 0
+        st.metric("Noise Levels", str(n_noise))
+    with col3:
+        n_n = len(raw_df["N"].unique()) if not raw_df.empty else 0
+        st.metric("N Values", str(n_n))
+    with col4:
+        if not fit_df.empty:
+            best_alpha = fit_df["alpha"].min()
+            st.metric("Best α", f"{best_alpha:.3f}")
+        else:
+            st.metric("Best α", "N/A")
+
+
+def _display_results(
+    raw_df: pd.DataFrame, fit_df: pd.DataFrame, N_min: int, N_max: int
+) -> None:
+    """Display result tabs with visualisations."""
+    st.header("Results", divider="green")
+
+    tab1, tab2, tab3, tab4 = st.tabs(
+        ["📈 Scaling Curves", "🔥 Phase Diagram", "📋 Fit Table", "💾 Export"],
+    )
+
+    with tab1:
+        plot_scaling_curves(raw_df, fit_df, N_min, N_max)
+    with tab2:
+        plot_alpha_heatmap(fit_df)
+    with tab3:
+        display_fit_table(fit_df)
+    with tab4:
+        export_controls(raw_df, fit_df)
+
+
+def main() -> None:
+    """Main page layout and execution."""
+    st.title("📊 Interferometry Sensitivity Scaling Survey")
+
+    st.markdown(r"""
+    This interactive survey maps combinations of **(quantum state, noise model)**
+    to their scaling exponent $\alpha$ in $\Delta\phi \propto N^\alpha$.
+
+    Use the sidebar to configure your survey, then click **Run Survey** to see:
+    - Which combinations achieve **Heisenberg scaling** ($\alpha = -1.0$)
+    - Which are limited to the **Standard Quantum Limit** ($\alpha = -0.5$)
+    - Where **scaling collapse** occurs ($\alpha \to 0$)
+    """)
+
+    run_button, models, noise_type, noise_levels, N_min, N_max, n_points, phi_phase, seed = (
+        _render_sidebar()
+    )
+    _initialize_session_state()
+
+    # Run survey on button click
     if run_button:
         if not models:
             st.error("Please select at least one model (input state) to analyze")
         elif not noise_levels:
             st.error("Please specify at least one noise level")
         else:
-            with st.spinner("Running scaling survey..."):
-                raw_df, fit_df = run_full_survey(
-                    models=models,
-                    noise_type=noise_type,
-                    noise_levels=noise_levels,
-                    N_min=N_min,
-                    N_max=N_max,
-                    n_points=n_points,
-                    phi_phase=phi_phase,
-                    seed=int(seed),
-                )
+            _execute_survey(models, noise_type, noise_levels, N_min, N_max, n_points, phi_phase, seed)
 
-                st.session_state.survey_results = raw_df
-                st.session_state.fit_results = fit_df
-
-                st.success("Survey completed!")
-
-    # Display results
+    # Display results or welcome message
     if st.session_state.survey_results is not None:
         raw_df = st.session_state.survey_results
         fit_df = st.session_state.fit_results
         assert fit_df is not None
-
-        # Summary metrics
-        st.header("Summary", divider="blue")
-
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            n_models = len(raw_df["model_id"].unique()) if not raw_df.empty else 0
-            st.metric("Models Analyzed", str(n_models))
-        with col2:
-            n_noise = len(raw_df["noise_level"].unique()) if not raw_df.empty else 0
-            st.metric("Noise Levels", str(n_noise))
-        with col3:
-            n_n = len(raw_df["N"].unique()) if not raw_df.empty else 0
-            st.metric("N Values", str(n_n))
-        with col4:
-            if not fit_df.empty:
-                best_alpha = fit_df["alpha"].min()
-                st.metric("Best α", f"{best_alpha:.3f}")
-            else:
-                st.metric("Best α", "N/A")
-
-        # Visualizations
-        st.header("Results", divider="green")
-
-        tab1, tab2, tab3, tab4 = st.tabs(
-            ["📈 Scaling Curves", "🔥 Phase Diagram", "📋 Fit Table", "💾 Export"],
-        )
-
-        with tab1:
-            plot_scaling_curves(raw_df, fit_df, N_min, N_max)
-
-        with tab2:
-            plot_alpha_heatmap(fit_df)
-
-        with tab3:
-            display_fit_table(fit_df)
-
-        with tab4:
-            export_controls(raw_df, fit_df)
-
+        _display_summary(raw_df, fit_df)
+        _display_results(raw_df, fit_df, N_min, N_max)
     else:
-        # Welcome message when no results yet
         st.info("👈 Configure your survey in the sidebar and click **Run Survey**")
 
 

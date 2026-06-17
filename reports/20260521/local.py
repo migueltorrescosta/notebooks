@@ -26,8 +26,9 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import ClassVar
 
-from src.utils.parallel import parallel_map as _parallel_map
+from src.utils.parallel import parallel_map
 
 # Force single-threaded BLAS before any heavy numerical imports.
 # This avoids in-process deadlocks when forking and keeps thread contention low.
@@ -53,7 +54,6 @@ from deltalake._internal import CommitFailedError
 from scipy.linalg import expm
 from scipy.optimize import minimize
 
-# Shared primitives
 from src.analysis.ancilla_drive_metrology import (
     DriveDecoupledBaselineResult,
     system_only_bs_unitary,
@@ -62,7 +62,13 @@ from src.analysis.ancilla_optimization import (
     build_interaction_hamiltonian,
     build_two_qubit_operators,
 )
+
+# Shared primitives
+from src.analysis.decoupled_baseline import (
+    generate_decoupled_baseline,
+)
 from src.utils.constants import I_4
+from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
 
@@ -403,7 +409,7 @@ def _general_sensitivity_objective(
 
 
 @dataclass
-class GeneralBFGSOptimizationResult:
+class GeneralBFGSOptimizationResult(ParquetSerializable):
     """Result from a multi-start L-BFGS-B optimisation at a single ω.
 
     Attributes:
@@ -427,6 +433,21 @@ class GeneralBFGSOptimizationResult:
     d_exp_d_omega: float = 0.0
     n_starts: int = N_BFGS_STARTS
     n_converged: int = 0
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega_value",
+        "alpha_xx_opt",
+        "alpha_xz_opt",
+        "alpha_zx_opt",
+        "alpha_zz_opt",
+        "delta_omega_opt",
+        "sql",
+        "expectation_Jz",
+        "variance_Jz",
+        "d_exp_d_omega",
+        "n_starts",
+        "n_converged",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         """Single-row DataFrame with all metadata."""
@@ -452,35 +473,10 @@ class GeneralBFGSOptimizationResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> GeneralBFGSOptimizationResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega_value",
-            "alpha_xx_opt",
-            "alpha_xz_opt",
-            "alpha_zx_opt",
-            "alpha_zz_opt",
-            "delta_omega_opt",
-            "sql",
-            "expectation_Jz",
-            "variance_Jz",
-            "d_exp_d_omega",
-            "n_starts",
-            "n_converged",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
-                "Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         return cls(
             omega_value=float(df["omega_value"].iloc[0]),
             alpha_opt=(
@@ -500,7 +496,7 @@ class GeneralBFGSOptimizationResult:
 
 
 @dataclass
-class GeneralOmegaScanResult:
+class GeneralOmegaScanResult(ParquetSerializable):
     """Results of a ω scan over L-BFGS-B-optimised sensitivities.
 
     Attributes:
@@ -529,100 +525,53 @@ class GeneralOmegaScanResult:
     d_exp_d_omega_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
     n_converged_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "alpha_xx_opt",
+        "alpha_xz_opt",
+        "alpha_zx_opt",
+        "alpha_zz_opt",
+        "best_delta_omega",
+        "sql",
+    ]
+
+    @staticmethod
+    def _safe_get(arr: np.ndarray, i: int, default: float) -> float:
+        """Get array element with bounds checking."""
+        if i < len(arr):
+            return float(arr[i])
+        return default
+
     def to_dataframe(self) -> pd.DataFrame:
         rows: list[dict[str, float]] = []
-        for i in range(len(self.omega_values)):
-            omega = float(self.omega_values[i])
-            sql = float(self.sql_values[i]) if i < len(self.sql_values) else 0.1
-            best = (
-                float(self.delta_omega_opt_per_omega[i])
-                if i < len(self.delta_omega_opt_per_omega)
-                else float("inf")
-            )
-            a_xx = (
-                float(self.alpha_xx_opt_per_omega[i])
-                if i < len(self.alpha_xx_opt_per_omega)
-                else float("nan")
-            )
-            a_xz = (
-                float(self.alpha_xz_opt_per_omega[i])
-                if i < len(self.alpha_xz_opt_per_omega)
-                else float("nan")
-            )
-            a_zx = (
-                float(self.alpha_zx_opt_per_omega[i])
-                if i < len(self.alpha_zx_opt_per_omega)
-                else float("nan")
-            )
-            a_zz = (
-                float(self.alpha_zz_opt_per_omega[i])
-                if i < len(self.alpha_zz_opt_per_omega)
-                else float("nan")
-            )
-            exp_jz = (
-                float(self.expectation_Jz_per_omega[i])
-                if i < len(self.expectation_Jz_per_omega)
-                else 0.0
-            )
-            var_jz = (
-                float(self.variance_Jz_per_omega[i])
-                if i < len(self.variance_Jz_per_omega)
-                else 0.0
-            )
-            d_exp = (
-                float(self.d_exp_d_omega_per_omega[i])
-                if i < len(self.d_exp_d_omega_per_omega)
-                else 0.0
-            )
-            n_conv = (
-                int(self.n_converged_per_omega[i])
-                if i < len(self.n_converged_per_omega)
-                else 0
-            )
+        n = len(self.omega_values)
+        for i in range(n):
+            best = self._safe_get(self.delta_omega_opt_per_omega, i, float("inf"))
+            sql = self._safe_get(self.sql_values, i, 0.1)
             rows.append(
                 {
-                    "omega": omega,
-                    "alpha_xx_opt": a_xx,
-                    "alpha_xz_opt": a_xz,
-                    "alpha_zx_opt": a_zx,
-                    "alpha_zz_opt": a_zz,
+                    "omega": float(self.omega_values[i]),
+                    "alpha_xx_opt": self._safe_get(self.alpha_xx_opt_per_omega, i, float("nan")),
+                    "alpha_xz_opt": self._safe_get(self.alpha_xz_opt_per_omega, i, float("nan")),
+                    "alpha_zx_opt": self._safe_get(self.alpha_zx_opt_per_omega, i, float("nan")),
+                    "alpha_zz_opt": self._safe_get(self.alpha_zz_opt_per_omega, i, float("nan")),
                     "best_delta_omega": best,
                     "sql": sql,
                     "ratio": best / sql
                     if np.isfinite(best) and sql > 0
                     else float("inf"),
-                    "expectation_Jz": exp_jz,
-                    "variance_Jz": var_jz,
-                    "d_exp_d_omega": d_exp,
-                    "n_converged": n_conv,
+                    "expectation_Jz": self._safe_get(self.expectation_Jz_per_omega, i, 0.0),
+                    "variance_Jz": self._safe_get(self.variance_Jz_per_omega, i, 0.0),
+                    "d_exp_d_omega": self._safe_get(self.d_exp_d_omega_per_omega, i, 0.0),
+                    "n_converged": int(self._safe_get(self.n_converged_per_omega, i, 0.0)),
                 }
             )
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> GeneralOmegaScanResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "alpha_xx_opt",
-            "alpha_xz_opt",
-            "alpha_zx_opt",
-            "alpha_zz_opt",
-            "best_delta_omega",
-            "sql",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: {sorted(missing)}. "
-                "Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         omegas = df["omega"].to_numpy(dtype=float)
         a_xx = df["alpha_xx_opt"].to_numpy(dtype=float)
         a_xz = df["alpha_xz_opt"].to_numpy(dtype=float)
@@ -1118,22 +1067,6 @@ def _upsert_bfgs_result(result: GeneralBFGSOptimizationResult) -> None:
 # ── Generator functions ───────────────────────────────────────────────────
 
 
-def generate_decoupled_baseline(force: bool = False) -> None:
-    """Decoupled baseline verification."""
-    csv_p = _parquet_path("decoupled-baseline")
-
-    if csv_p.exists() and not force:
-        print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveDecoupledBaselineResult.from_parquet(csv_p)
-    else:
-        print("[run]  Computing decoupled baseline...")
-        result = compute_general_decoupled_baseline()
-        result.save_parquet(csv_p)
-        print(f"[save] {csv_p}")
-
-    # No text-only figure — see omega-scan and convergence plots for visual results.
-
-
 def _run_single_bfgs(omega: float, force: bool) -> None:
     """Run L-BFGS-B optimisation for a single ω value, upserting to Delta table."""
     print(f"  [run]  Computing L-BFGS-B at ω={omega} ({N_BFGS_STARTS} starts)...")
@@ -1155,7 +1088,7 @@ def generate_bfgs_omega_scan(force: bool = False) -> None:
     from functools import partial as _partial
 
     _worker = _partial(_run_single_bfgs, force=force)
-    _parallel_map(_worker, OMEGA_VALS, desc="L-BFGS-B optimisation per ω")
+    parallel_map(_worker, OMEGA_VALS, desc="L-BFGS-B optimisation per ω")
 
     # Compact small files into fewer larger ones for efficient reads
     compact_info = DeltaTable(BFGS_TABLE_DIR).optimize.compact()
@@ -1246,7 +1179,13 @@ def main() -> None:
     (REPORTS_DIR / DATE_TAG / "figures").mkdir(parents=True, exist_ok=True)
 
     tasks = {
-        "decoupled-baseline": generate_decoupled_baseline,
+        "decoupled-baseline": lambda force=False: generate_decoupled_baseline(
+            force=force,
+            parquet_path=_parquet_path("decoupled-baseline"),
+            compute_fn=compute_general_decoupled_baseline,
+            result_cls=DriveDecoupledBaselineResult,
+            label="decoupled baseline",
+        ),
         "bfgs-omega-scan": generate_bfgs_omega_scan,
         "figures": generate_figures,
     }

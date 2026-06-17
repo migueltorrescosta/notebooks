@@ -7,25 +7,29 @@ Run with:
 
 from __future__ import annotations
 
+import importlib.util
 import sys as _sys
 from pathlib import Path as _Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import pytest
 from scipy.linalg import expm
 
 from src.analysis.ancilla_optimization import build_two_qubit_operators
+from src.utils.serialization import assert_roundtrip_fields
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-_report_dir = str(
-    _Path(__file__).resolve().parent.parent.parent / "reports" / "20260524"
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _Path, _report_dir
+_local_path = _Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     DEFAULT_RHO0,
@@ -35,11 +39,11 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     SQL_REFERENCE,
     DEFAULT_t_hold,
     DriveNoiseScanResult,
-    build_liouvillian,
     build_noise_drive_hamiltonian,
     build_noise_hold_hamiltonian,
     build_noise_iszz_interaction,
     build_phase_diffusion_operators,
+    build_vectorized_liouvillian,
     compute_noisy_decoupled_baseline,
     compute_noisy_sensitivity,
     compute_noisy_sensitivity_with_diagnostics,
@@ -211,14 +215,14 @@ class TestLiouvillian:
     def test_liouvillian_shape(self, make_ops: dict) -> None:
         """Liouvillian should be 16×16 for a 4-dim Hilbert space."""
         lindblad = build_phase_diffusion_operators(1.0, make_ops)
-        L = build_liouvillian(np.zeros((4, 4), dtype=complex), lindblad)
+        L = build_vectorized_liouvillian(np.zeros((4, 4), dtype=complex), lindblad)
         assert L.shape == (16, 16)
 
     def test_liouvillian_trace_preserving(self, make_ops: dict) -> None:
         """Tr(exp(ℒ t) ρ₀) = 1 should hold."""
         H = build_noise_hold_hamiltonian(1.0, 0.5, 0.0, 0.0, 0.3, make_ops)
         lindblad = build_phase_diffusion_operators(0.5, make_ops)
-        L = build_liouvillian(H, lindblad)
+        L = build_vectorized_liouvillian(H, lindblad)
 
         rho_vec = vectorise_rho(DEFAULT_RHO0)
         rho_evolved = unvectorise_rho(expm(L * DEFAULT_t_hold) @ rho_vec)
@@ -229,7 +233,7 @@ class TestLiouvillian:
         """At γ_φ = 0, the Liouvillian should reduce to -i[H, ·] (no Lindblad terms)."""
         H = build_noise_hold_hamiltonian(1.0, 0.5, 0.0, 0.0, 0.3, make_ops)
         lindblad = build_phase_diffusion_operators(0.0, make_ops)
-        L = build_liouvillian(H, lindblad)
+        L = build_vectorized_liouvillian(H, lindblad)
 
         # Should match -i(I ⊗ H - H^T ⊗ I) (column-major vectorization)
         I4 = np.eye(4, dtype=complex)
@@ -240,7 +244,7 @@ class TestLiouvillian:
         """The density matrix evolved by the Liouvillian should remain Hermitian."""
         H = build_noise_hold_hamiltonian(0.5, 2.0, 1.0, 0.0, 1.5, make_ops)
         lindblad = build_phase_diffusion_operators(0.1, make_ops)
-        L = build_liouvillian(H, lindblad)
+        L = build_vectorized_liouvillian(H, lindblad)
 
         rho_vec = vectorise_rho(DEFAULT_RHO0)
         rho_evolved = unvectorise_rho(expm(L * 5.0) @ rho_vec)
@@ -804,6 +808,23 @@ class TestNoiseScan:
 
 
 class TestParquetRoundtrip:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("omega_values", "allclose"),
+        ("gamma_phi_values", "allclose"),
+        ("delta_omega_per_pair", "allclose"),
+        ("expectation_Jz_per_pair", "allclose"),
+        ("variance_Jz_per_pair", "allclose"),
+        ("sql", "isclose"),
+        ("t_hold", "isclose"),
+        ("n_random", "eq"),
+        ("n_nm_refine", "eq"),
+        ("maxiter", "eq"),
+        ("bounds_lo", "isclose"),
+        ("bounds_hi", "isclose"),
+        ("fd_step", "isclose"),
+        ("seed", "eq"),
+    ]
+
     def test_noise_scan_roundtrip(self, tmp_path: Path) -> None:
         """DriveNoiseScanResult should survive a roundtrip."""
         original = DriveNoiseScanResult(
@@ -835,23 +856,7 @@ class TestParquetRoundtrip:
         original.save_parquet(csv_path)
         loaded = DriveNoiseScanResult.from_parquet(csv_path)
 
-        assert np.allclose(loaded.omega_values, original.omega_values)
-        assert np.allclose(loaded.gamma_phi_values, original.gamma_phi_values)
-        assert np.allclose(loaded.delta_omega_per_pair, original.delta_omega_per_pair)
-        assert np.allclose(
-            loaded.expectation_Jz_per_pair, original.expectation_Jz_per_pair
-        )
-        assert np.allclose(loaded.variance_Jz_per_pair, original.variance_Jz_per_pair)
-        assert loaded.sql == pytest.approx(original.sql)
-        assert pytest.approx(original.t_hold) == loaded.t_hold
-        # Verify hyperparameter metadata roundtrip
-        assert loaded.n_random == 500
-        assert loaded.n_nm_refine == 10
-        assert loaded.maxiter == 2000
-        assert loaded.bounds_lo == pytest.approx(-3.0)
-        assert loaded.bounds_hi == pytest.approx(3.0)
-        assert loaded.fd_step == pytest.approx(1e-7)
-        assert loaded.seed == 123
+        assert_roundtrip_fields(loaded, original, self._FIELD_SPECS)
 
     def test_noise_scan_roundtrip_metadata(self, tmp_path: Path) -> None:
         """Verify all metadata fields survive roundtrip."""
@@ -877,18 +882,7 @@ class TestParquetRoundtrip:
         original.save_parquet(csv_path)
         loaded = DriveNoiseScanResult.from_parquet(csv_path)
 
-        assert loaded.omega_values[0] == pytest.approx(0.5)
-        assert loaded.gamma_phi_values[0] == pytest.approx(1e-3)
-        assert loaded.delta_omega_per_pair[0, 0] == pytest.approx(0.04)
-        assert loaded.sql == pytest.approx(0.1)
-        assert pytest.approx(10.0) == loaded.t_hold
-        assert loaded.n_random == 100
-        assert loaded.n_nm_refine == 5
-        assert loaded.maxiter == 1000
-        assert loaded.bounds_lo == pytest.approx(-2.0)
-        assert loaded.bounds_hi == pytest.approx(2.0)
-        assert loaded.fd_step == pytest.approx(1e-5)
-        assert loaded.seed == 99
+        assert_roundtrip_fields(loaded, original, self._FIELD_SPECS)
 
     def test_from_parquet_missing_core_columns_raises(self, tmp_path: Path) -> None:
         """from_parquet should fail fast when core required columns are missing."""

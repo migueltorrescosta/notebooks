@@ -33,6 +33,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pandas as pd
@@ -47,6 +48,7 @@ from src.analysis.ancilla_optimization import (
 )
 from src.physics.beam_splitter import bs_qubit
 from src.utils.constants import I_4
+from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
 # Operator Construction
@@ -566,7 +568,7 @@ def compute_drive_sensitivity(
 
 
 @dataclass
-class DriveDecoupledBaselineResult:
+class DriveDecoupledBaselineResult(ParquetSerializable):
     """Result from evaluating the decoupled baseline (a_x = a_y = a_z = a_zz = 0).
 
     Attributes:
@@ -581,6 +583,14 @@ class DriveDecoupledBaselineResult:
     sql: float
     omega_value: float = 1.0
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "t_hold",
+        "delta_omega",
+        "sql",
+        "omega_value",
+        "ratio",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
             {
@@ -594,22 +604,10 @@ class DriveDecoupledBaselineResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> DriveDecoupledBaselineResult:
         df = pd.read_parquet(path)
-        required = {"t_hold", "delta_omega", "sql", "omega_value"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         return cls(
             t_hold_value=float(df["t_hold"].iloc[0]),
             delta_omega=float(df["delta_omega"].iloc[0]),
@@ -619,7 +617,7 @@ class DriveDecoupledBaselineResult:
 
 
 @dataclass
-class Drive2DSliceResult:
+class Drive2DSliceResult(ParquetSerializable):
     """Result from a 2D parameter slice scan over (a_drive, a_zz).
 
     Attributes:
@@ -639,6 +637,15 @@ class Drive2DSliceResult:
     slice_type: str = "ax"
     sql: float = 0.1
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "drive",
+        "azz",
+        "delta_omega",
+        "omega_value",
+        "slice_type",
+        "sql",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         """Melt the 2D array into a long-format DataFrame."""
         n_d = len(self.drive_values)
@@ -657,15 +664,10 @@ class Drive2DSliceResult:
         ]
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> Drive2DSliceResult:
         df = pd.read_parquet(path)
+        cls._validate_columns(df)
         drive_unique = sorted(df["drive"].unique())
         azz_unique = sorted(df["azz"].unique())
         n_d = len(drive_unique)
@@ -675,15 +677,6 @@ class Drive2DSliceResult:
             i = drive_unique.index(row["drive"])
             j = azz_unique.index(row["azz"])
             grid[i, j] = row["delta_omega"]
-        # Restore metadata from CSV; fail fast if columns are missing
-        required_meta = {"omega_value", "slice_type", "sql"}
-        missing_meta = required_meta - set(df.columns)
-        if missing_meta:
-            raise ValueError(
-                f"CSV at {path} is missing required columns: "
-                f"{sorted(missing_meta)}. "
-                "Regenerate the file with the current code."
-            )
         omega_value = float(df["omega_value"].iloc[0])
         slice_type = str(df["slice_type"].iloc[0])
         sql = float(df["sql"].iloc[0])
@@ -698,7 +691,7 @@ class Drive2DSliceResult:
 
 
 @dataclass
-class DriveRandomSearchResult:
+class DriveRandomSearchResult(ParquetSerializable):
     """Result from a 4D random search over (a_x, a_y, a_z, a_zz).
 
     Attributes:
@@ -718,6 +711,17 @@ class DriveRandomSearchResult:
     sql: float = 0.1
     t_hold: float = 10.0
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "delta_omega",
+        "omega_value",
+        "sql",
+        "t_hold",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         n = len(self.samples)
         return pd.DataFrame(
@@ -733,31 +737,10 @@ class DriveRandomSearchResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> DriveRandomSearchResult:
         df = pd.read_parquet(path)
-        required = {
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "delta_omega",
-            "omega_value",
-            "sql",
-            "t_hold",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"CSV at {path} is missing required columns: {sorted(missing)}. "
-                "Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         samples = df[["a_x", "a_y", "a_z", "a_zz"]].to_numpy(dtype=float)
         deltas = df["delta_omega"].to_numpy(dtype=float)
         best_idx = int(np.argmin(deltas))
@@ -778,7 +761,7 @@ class DriveRandomSearchResult:
 
 
 @dataclass
-class DriveNelderMeadResult:
+class DriveNelderMeadResult(ParquetSerializable):
     """Result of a single Nelder--Mead run for the driven-ancilla protocol.
 
     Attributes:
@@ -803,6 +786,21 @@ class DriveNelderMeadResult:
     variance_Jz: float = 0.0
     history: list[float] = field(default_factory=list)
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "delta_omega",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "omega_true",
+        "success",
+        "nfev",
+        "expectation_Jz",
+        "variance_Jz",
+        "message",
+        "history_json",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
             {
@@ -821,37 +819,15 @@ class DriveNelderMeadResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
+    def _save_sidecars(self, path: Path) -> None:
+        """Save optimisation history as a sidecar Parquet file."""
         history_path = path.with_stem(path.stem + "-history")
         pd.DataFrame({"history": [self.history]}).to_parquet(history_path, index=False)
-        return path
 
     @classmethod
     def from_parquet(cls, path: str | Path) -> DriveNelderMeadResult:
         df = pd.read_parquet(path)
-        required = {
-            "delta_omega",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "omega_true",
-            "success",
-            "nfev",
-            "expectation_Jz",
-            "variance_Jz",
-            "message",
-            "history_json",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         history_path = Path(path).with_stem(Path(path).stem + "-history")
         if history_path.exists():
             history = list(pd.read_parquet(history_path)["history"].iloc[0])
@@ -878,7 +854,7 @@ class DriveNelderMeadResult:
 
 
 @dataclass
-class DriveOmegaScanResult:
+class DriveOmegaScanResult(ParquetSerializable):
     """Results of an ω scan over driven-ancilla parameters.
 
     Attributes:
@@ -890,6 +866,19 @@ class DriveOmegaScanResult:
         variance_Jz_per_omega: Var(J_z^S) at each optimal point.
         all_results: All Nelder-Mead results keyed by ω (for spread analysis).
     """
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "best_delta_omega",
+        "sql",
+        "ratio",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "expectation_Jz",
+        "variance_Jz",
+    ]
 
     omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
     best_params_per_omega: list[tuple[float, float, float, float]] = field(
@@ -943,32 +932,10 @@ class DriveOmegaScanResult:
             )
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> DriveOmegaScanResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "best_delta_omega",
-            "sql",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "expectation_Jz",
-            "variance_Jz",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         omegas = df["omega"].to_numpy(dtype=float)
         best = df["best_delta_omega"].to_numpy(dtype=float)
         sql = df["sql"].to_numpy(dtype=float)
@@ -1049,6 +1016,48 @@ def compute_drive_decoupled_baseline(
 # ============================================================================
 
 
+def _evaluate_grid_point(
+    d_val: float,
+    a_val: float,
+    slice_type: str,
+    omega: float,
+    t_hold: float,
+    T_BS: float,
+    ops: dict[str, np.ndarray],
+) -> float:
+    """Evaluate Δω at a single (drive, a_zz) grid point.
+
+    Args:
+        d_val: Drive coefficient value (a_x, a_y, or a_z depending on slice_type).
+        a_val: Interaction coefficient a_zz value.
+        slice_type: 'ax', 'ay', or 'az'.
+        omega: Phase rate value.
+        t_hold: Holding time.
+        T_BS: Beam-splitter duration.
+        ops: Two-qubit operators.
+
+    Returns:
+        Δω sensitivity at this grid point.
+    """
+    if slice_type == "ax":
+        ax, ay, az = d_val, 0.0, 0.0
+    elif slice_type == "ay":
+        ax, ay, az = 0.0, d_val, 0.0
+    else:
+        ax, ay, az = 0.0, 0.0, d_val
+    return compute_drive_sensitivity(
+        np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+        T_BS,
+        t_hold,
+        omega,
+        ax,
+        ay,
+        az,
+        a_val,
+        ops,
+    )
+
+
 def _drive_slice_chunk_worker(args: tuple) -> tuple[int, np.ndarray]:
     """Worker for parallel 2D slice evaluation (module-level for pickling).
 
@@ -1065,25 +1074,102 @@ def _drive_slice_chunk_worker(args: tuple) -> tuple[int, np.ndarray]:
     n_a = len(azz_vals)
     chunk_grid = np.full((n_d, n_a), np.inf, dtype=float)
     for i, d_val in enumerate(drive_chunk):
-        if slice_type == "ax":
-            ax, ay, az = d_val, 0.0, 0.0
-        elif slice_type == "ay":
-            ax, ay, az = 0.0, d_val, 0.0
-        else:
-            ax, ay, az = 0.0, 0.0, d_val
         for j, a_val in enumerate(azz_vals):
-            chunk_grid[i, j] = compute_drive_sensitivity(
-                np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
-                T_BS,
-                t_hold,
-                omega,
-                ax,
-                ay,
-                az,
-                a_val,
-                local_ops,
+            chunk_grid[i, j] = _evaluate_grid_point(
+                d_val, a_val, slice_type, omega, t_hold, T_BS, local_ops,
             )
     return start_idx, chunk_grid
+
+
+def _evaluate_sequential_slice(
+    drive_vals: np.ndarray,
+    azz_vals: np.ndarray,
+    slice_type: str,
+    omega: float,
+    t_hold: float,
+    T_BS: float,
+) -> np.ndarray:
+    """Evaluate the 2D slice sequentially.
+
+    Args:
+        drive_vals: Drive coefficient values.
+        azz_vals: Interaction coefficient values.
+        slice_type: 'ax', 'ay', or 'az'.
+        omega: Phase rate value.
+        t_hold: Holding time.
+        T_BS: Beam-splitter duration.
+
+    Returns:
+        2D grid of Δω values, shape (len(drive_vals), len(azz_vals)).
+    """
+    ops = build_two_qubit_operators()
+    n_d = len(drive_vals)
+    n_a = len(azz_vals)
+    grid = np.full((n_d, n_a), np.inf, dtype=float)
+    for i, d_val in enumerate(drive_vals):
+        for j, a_val in enumerate(azz_vals):
+            grid[i, j] = _evaluate_grid_point(
+                d_val, a_val, slice_type, omega, t_hold, T_BS, ops,
+            )
+    return grid
+
+
+def _evaluate_parallel_slice(
+    drive_vals: np.ndarray,
+    azz_vals: np.ndarray,
+    slice_type: str,
+    omega: float,
+    t_hold: float,
+    T_BS: float,
+    n_jobs: int,
+) -> np.ndarray:
+    """Evaluate the 2D slice in parallel using process workers.
+
+    The drive dimension is split into ``n_jobs`` chunks, each evaluated
+    by a separate worker process.
+
+    Args:
+        drive_vals: Drive coefficient values.
+        azz_vals: Interaction coefficient values.
+        slice_type: 'ax', 'ay', or 'az'.
+        omega: Phase rate value.
+        t_hold: Holding time.
+        T_BS: Beam-splitter duration.
+        n_jobs: Number of parallel workers (-1 uses all CPUs).
+
+    Returns:
+        2D grid of Δω values, shape (len(drive_vals), len(azz_vals)).
+    """
+    n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
+    n_drive = len(drive_vals)
+    drive_indices = np.arange(n_drive)
+    chunks = np.array_split(drive_indices, n_workers)
+    worker_args = [
+        (
+            omega,
+            drive_vals[chunk],
+            azz_vals,
+            slice_type,
+            t_hold,
+            T_BS,
+            int(chunk[0]),
+        )
+        for chunk in chunks
+    ]
+
+    grid = np.full((n_drive, len(azz_vals)), np.inf, dtype=float)
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=n_workers,
+    ) as executor:
+        futures = {
+            executor.submit(_drive_slice_chunk_worker, args): args
+            for args in worker_args
+        }
+        for future in concurrent.futures.as_completed(futures):
+            start_idx, chunk_grid = future.result()
+            n_chunk = chunk_grid.shape[0]
+            grid[start_idx : start_idx + n_chunk, :] = chunk_grid
+    return grid
 
 
 def drive_2d_slice(
@@ -1128,62 +1214,13 @@ def drive_2d_slice(
     azz_vals = np.linspace(azz_range[0], azz_range[1], n_azz)
 
     if n_jobs is None or n_jobs == 1:
-        # ── Sequential path ──────────────────────────────────────────────
-        ops = build_two_qubit_operators()
-        grid = np.full((n_drive, n_azz), np.inf, dtype=float)
-
-        for i, d_val in enumerate(drive_vals):
-            for j, a_val in enumerate(azz_vals):
-                if slice_type == "ax":
-                    ax, ay, az = d_val, 0.0, 0.0
-                elif slice_type == "ay":
-                    ax, ay, az = 0.0, d_val, 0.0
-                else:
-                    ax, ay, az = 0.0, 0.0, d_val
-
-                domega = compute_drive_sensitivity(
-                    np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
-                    T_BS,
-                    t_hold,
-                    omega,
-                    ax,
-                    ay,
-                    az,
-                    a_val,
-                    ops,
-                )
-                grid[i, j] = domega
+        grid = _evaluate_sequential_slice(
+            drive_vals, azz_vals, slice_type, omega, t_hold, T_BS,
+        )
     else:
-        # ── Parallel path ────────────────────────────────────────────────
-        n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
-        # Split drive indices into roughly equal chunks
-        drive_indices = np.arange(n_drive)
-        chunks = np.array_split(drive_indices, n_workers)
-        worker_args = [
-            (
-                omega,
-                drive_vals[chunk],
-                azz_vals,
-                slice_type,
-                t_hold,
-                T_BS,
-                int(chunk[0]),
-            )
-            for chunk in chunks
-        ]
-
-        grid = np.full((n_drive, n_azz), np.inf, dtype=float)
-        with concurrent.futures.ProcessPoolExecutor(
-            max_workers=n_workers,
-        ) as executor:
-            futures = {
-                executor.submit(_drive_slice_chunk_worker, args): args
-                for args in worker_args
-            }
-            for future in concurrent.futures.as_completed(futures):
-                start_idx, chunk_grid = future.result()
-                n_chunk = chunk_grid.shape[0]
-                grid[start_idx : start_idx + n_chunk, :] = chunk_grid
+        grid = _evaluate_parallel_slice(
+            drive_vals, azz_vals, slice_type, omega, t_hold, T_BS, n_jobs,
+        )
 
     return Drive2DSliceResult(
         drive_values=drive_vals,

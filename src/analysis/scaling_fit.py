@@ -57,94 +57,64 @@ class ScalingFitResult:
 
 
 # =============================================================================
-# Core Fitting
+# Core Fitting — Helpers
 # =============================================================================
 
 
-def fit_scaling_exponent(
-    N: np.ndarray,
-    delta_phi: np.ndarray,
-    min_N: int = 4,
-    R_squared_threshold: float = 0.9,
-) -> ScalingFitResult:
-    """Fit Δφ = C·N^α via log-log linear regression.
-
-    Performs a log-log linear fit via scipy.stats.linregress to extract the
-    scaling exponent α and prefactor C.
-
-    The fitting procedure:
-        1. Filters out N < min_N to avoid finite-size artifacts
-        2. Removes non-positive values (log undefined)
-        3. Performs log-log linear regression via scipy.stats.linregress
-        4. Computes R² = rvalue² (square of Pearson correlation coefficient)
-        5. Extracts α, α_err, C, C_err from slope, stderr, and intercept_stderr
+def _validate_fit_inputs(N: np.ndarray, delta: np.ndarray) -> None:
+    """Validate input arrays for scaling fit.
 
     Args:
-        N: Array of particle/atom numbers. Must be positive.
-        delta_phi: Array of phase sensitivity values. Must be positive.
-        min_N: Minimum N to include in the fit. Excluding small N avoids
-            finite-size artifacts where scaling may not yet be asymptotic.
-            Default: 4.
-        R_squared_threshold: Warning threshold for R². If the fit R² is
-            below this value, a warning is added to the result. Default: 0.9.
-
-    Returns:
-        ScalingFitResult with fit parameters, quality metrics, and any warnings.
+        N: Particle number array (already flattened).
+        delta: Sensitivity array (already flattened).
 
     Raises:
-        ValueError: If input arrays are empty or have different lengths.
-        ValueError: If any N or delta_phi values are NaN or infinite.
-
-    Example:
-        >>> rng = np.random.default_rng(42)
-        >>> N = np.array([4, 8, 16, 32, 64])
-        >>> # SQL scaling: Δφ = 1/√N
-        >>> delta_phi = 1.0 / np.sqrt(N) * (1 + 0.01 * rng.normal(size=len(N)))
-        >>> result = fit_scaling_exponent(N, delta_phi, min_N=4)
-        >>> np.isclose(result.alpha, -0.5, atol=0.05)
-        True
-        >>> result.R_squared > 0.90
-        True
+        ValueError: If arrays have mismatched lengths, are empty, or contain
+            NaN/Inf values.
 
     """
-    # --- Input validation ---
-    N_arr = np.asarray(N, dtype=float).ravel()
-    delta_arr = np.asarray(delta_phi, dtype=float).ravel()
-
-    if len(N_arr) != len(delta_arr):
+    if len(N) != len(delta):
         raise ValueError(
             f"N and delta_phi must have same length, "
-            f"got {len(N_arr)} and {len(delta_arr)}",
+            f"got {len(N)} and {len(delta)}",
         )
-    if len(N_arr) == 0:
+    if len(N) == 0:
         raise ValueError("Input arrays must not be empty")
 
-    if np.any(np.isnan(N_arr)) or np.any(np.isinf(N_arr)):
+    if np.any(np.isnan(N)) or np.any(np.isinf(N)):
         raise ValueError("N contains NaN or infinite values")
-    if np.any(np.isnan(delta_arr)) or np.any(np.isinf(delta_arr)):
+    if np.any(np.isnan(delta)) or np.any(np.isinf(delta)):
         raise ValueError("delta_phi contains NaN or infinite values")
 
-    warnings: list[str] = []
 
-    # --- Filter valid points ---
-    # Exclude N < min_N (finite-size artifacts)
-    mask = N_arr >= min_N
+def _filter_fit_points(
+    N: np.ndarray,
+    delta: np.ndarray,
+    min_N: int,
+) -> tuple[tuple[np.ndarray, np.ndarray] | None, list[str]]:
+    """Filter valid points for scaling fit.
+
+    Applies the ``min_N`` lower bound and removes non-positive ``delta``
+    values (log is undefined for non-positive numbers).
+
+    Args:
+        N: Particle number array (already validated).
+        delta: Sensitivity array (already validated).
+        min_N: Minimum N to include.
+
+    Returns:
+        ``((N_fit, delta_fit), warnings)`` if any valid points remain, or
+        ``(None, warnings)`` if no points survive the ``min_N`` filter.
+
+    """
+    warnings: list[str] = []
+    mask = min_N <= N
 
     if not np.any(mask):
-        return ScalingFitResult(
-            alpha=0.0,
-            alpha_err=0.0,
-            C=0.0,
-            C_err=0.0,
-            R_squared=0.0,
-            N_values=N_arr,
-            delta_phi_values=delta_arr,
-            valid=False,
-            warnings=["No data points satisfy N >= min_N"],
-        )
+        return None, warnings
 
-    N_fit = N_arr[mask]
-    delta_fit = delta_arr[mask]
+    N_fit = N[mask]
+    delta_fit = delta[mask]
 
     # Exclude non-positive values (log is undefined)
     pos_mask = delta_fit > 0
@@ -153,22 +123,30 @@ def fit_scaling_exponent(
         N_fit = N_fit[pos_mask]
         delta_fit = delta_fit[pos_mask]
 
-    if len(N_fit) < 3:
-        return ScalingFitResult(
-            alpha=0.0,
-            alpha_err=0.0,
-            C=0.0,
-            C_err=0.0,
-            R_squared=0.0,
-            N_values=N_arr,
-            delta_phi_values=delta_arr,
-            valid=False,
-            warnings=[
-                "Too few valid points after filtering (need >= 3 for covariance)",
-            ],
-        )
+    return (N_fit, delta_fit), warnings
 
-    # --- Log-log linear regression via scipy.stats.linregress ---
+
+def _perform_loglog_fit(
+    N_fit: np.ndarray,
+    delta_fit: np.ndarray,
+    R_squared_threshold: float,
+    warnings: list[str],
+) -> ScalingFitResult:
+    """Run log-log regression and construct the result.
+
+    Performs ``scipy.stats.linregress(log(N), log(delta))``, extracts
+    parameters, applies quality checks, and returns a ``ScalingFitResult``.
+
+    Args:
+        N_fit: Filtered particle numbers.
+        delta_fit: Filtered sensitivity values.
+        R_squared_threshold: Minimum R² before a warning is added.
+        warnings: Accumulated warnings from earlier filtering steps.
+
+    Returns:
+        ScalingFitResult with fit parameters and quality metadata.
+
+    """
     log_N = np.log(N_fit)
     log_delta = np.log(delta_fit)
 
@@ -218,6 +196,97 @@ def fit_scaling_exponent(
         valid=True,
         warnings=warnings,
     )
+
+
+# =============================================================================
+# Core Fitting — Public API
+# =============================================================================
+
+
+def fit_scaling_exponent(
+    N: np.ndarray,
+    delta_phi: np.ndarray,
+    min_N: int = 4,
+    R_squared_threshold: float = 0.9,
+) -> ScalingFitResult:
+    """Fit Δφ = C·N^α via log-log linear regression.
+
+    Performs a log-log linear fit via scipy.stats.linregress to extract the
+    scaling exponent α and prefactor C.
+
+    The fitting procedure:
+        1. Filters out N < min_N to avoid finite-size artifacts
+        2. Removes non-positive values (log undefined)
+        3. Performs log-log linear regression via scipy.stats.linregress
+        4. Computes R² = rvalue² (square of Pearson correlation coefficient)
+        5. Extracts α, α_err, C, C_err from slope, stderr, and intercept_stderr
+
+    Args:
+        N: Array of particle/atom numbers. Must be positive.
+        delta_phi: Array of phase sensitivity values. Must be positive.
+        min_N: Minimum N to include in the fit. Excluding small N avoids
+            finite-size artifacts where scaling may not yet be asymptotic.
+            Default: 4.
+        R_squared_threshold: Warning threshold for R². If the fit R² is
+            below this value, a warning is added to the result. Default: 0.9.
+
+    Returns:
+        ScalingFitResult with fit parameters, quality metrics, and any warnings.
+
+    Raises:
+        ValueError: If input arrays are empty or have different lengths.
+        ValueError: If any N or delta_phi values are NaN or infinite.
+
+    Example:
+        >>> rng = np.random.default_rng(42)
+        >>> N = np.array([4, 8, 16, 32, 64])
+        >>> # SQL scaling: Δφ = 1/√N
+        >>> delta_phi = 1.0 / np.sqrt(N) * (1 + 0.01 * rng.normal(size=len(N)))
+        >>> result = fit_scaling_exponent(N, delta_phi, min_N=4)
+        >>> np.isclose(result.alpha, -0.5, atol=0.05)
+        True
+        >>> result.R_squared > 0.90
+        True
+
+    """
+    N_arr = np.asarray(N, dtype=float).ravel()
+    delta_arr = np.asarray(delta_phi, dtype=float).ravel()
+
+    _validate_fit_inputs(N_arr, delta_arr)
+
+    prepared, warnings = _filter_fit_points(N_arr, delta_arr, min_N)
+
+    if prepared is None:
+        return ScalingFitResult(
+            alpha=0.0,
+            alpha_err=0.0,
+            C=0.0,
+            C_err=0.0,
+            R_squared=0.0,
+            N_values=N_arr,
+            delta_phi_values=delta_arr,
+            valid=False,
+            warnings=["No data points satisfy N >= min_N"],
+        )
+
+    N_fit, delta_fit = prepared
+
+    if len(N_fit) < 3:
+        return ScalingFitResult(
+            alpha=0.0,
+            alpha_err=0.0,
+            C=0.0,
+            C_err=0.0,
+            R_squared=0.0,
+            N_values=N_arr,
+            delta_phi_values=delta_arr,
+            valid=False,
+            warnings=[
+                "Too few valid points after filtering (need >= 3 for covariance)",
+            ],
+        )
+
+    return _perform_loglog_fit(N_fit, delta_fit, R_squared_threshold, warnings)
 
 
 # =============================================================================

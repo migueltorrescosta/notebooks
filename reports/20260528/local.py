@@ -25,7 +25,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -48,6 +48,7 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
     single_qubit_state,
 )
+from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
 
@@ -370,7 +371,7 @@ SCENARIO_FREE_PARAMS: dict[str, list[str]] = {
 
 
 @dataclass
-class FreeAncillaSearchResult:
+class FreeAncillaSearchResult(ParquetSerializable):
     """Result from a batch of random-search evaluations for any scenario.
 
     Attributes:
@@ -403,6 +404,27 @@ class FreeAncillaSearchResult:
     t_hold: float = t_hold
     R: float = R_MAX
     scenario: str = "B"
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega_value",
+        "t_hold",
+        "sql",
+        "scenario",
+        "R",
+        "theta_A",
+        "phi_A",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "norm_a",
+        "delta_omega",
+        "expectation",
+        "variance",
+        "derivative",
+        "is_fringe",
+        "ratio",
+    ]
 
     def __post_init__(self) -> None:
         assert self.scenario in ("A", "B", "C", "D"), (
@@ -442,39 +464,10 @@ class FreeAncillaSearchResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> FreeAncillaSearchResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega_value",
-            "t_hold",
-            "sql",
-            "scenario",
-            "R",
-            "theta_A",
-            "phi_A",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "delta_omega",
-            "expectation",
-            "variance",
-            "derivative",
-            "is_fringe",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         samples = df[["theta_A", "phi_A", "a_x", "a_y", "a_z", "a_zz"]].to_numpy(
             dtype=float
         )
@@ -522,7 +515,7 @@ class FreeAncillaSearchResult:
 
 
 @dataclass
-class FreeAncillaNelderMeadResult:
+class FreeAncillaNelderMeadResult(ParquetSerializable):
     """Result of a single Nelder--Mead run for the free-ancilla protocol.
 
     Attributes:
@@ -553,6 +546,24 @@ class FreeAncillaNelderMeadResult:
     variance_Jz: float = 0.0
     history: list[float] = field(default_factory=list)
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "delta_omega",
+        "omega_true",
+        "scenario",
+        "success",
+        "nfev",
+        "message",
+        "expectation_Jz",
+        "variance_Jz",
+        "theta_A",
+        "phi_A",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "history_json",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame(
             {
@@ -574,50 +585,12 @@ class FreeAncillaNelderMeadResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        # Sidecar file for history
-        history_path = path.with_stem(path.stem + "-history")
-        pd.DataFrame({"history": [json.dumps(self.history)]}).to_parquet(
-            history_path, index=False
-        )
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> FreeAncillaNelderMeadResult:
         path = Path(path)
         df = pd.read_parquet(path)
-        required = {
-            "delta_omega",
-            "omega_true",
-            "scenario",
-            "success",
-            "nfev",
-            "message",
-            "expectation_Jz",
-            "variance_Jz",
-            "theta_A",
-            "phi_A",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "history_json",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
-        history_path = path.with_stem(path.stem + "-history")
-        if history_path.exists():
-            history_df = pd.read_parquet(history_path)
-            history = json.loads(history_df["history"].iloc[0])
-        else:
-            history = []
+        cls._validate_columns(df)
+        history = json.loads(df["history_json"].iloc[0])
         return cls(
             delta_omega_opt=float(df["delta_omega"].iloc[0]),
             params_opt=np.array(
@@ -655,7 +628,7 @@ class FreeAncillaNelderMeadResult:
 
 
 @dataclass
-class FreeAncillaOmegaScanResult:
+class FreeAncillaOmegaScanResult(ParquetSerializable):
     """Results of a :math:`\\omega` scan for a free-ancilla scenario.
 
     Attributes:
@@ -680,6 +653,22 @@ class FreeAncillaOmegaScanResult:
     expectation_Jz_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
     variance_Jz_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
     scenario: str = "B"
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "best_delta_omega",
+        "sql",
+        "ratio",
+        "theta_A",
+        "phi_A",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "expectation_Jz",
+        "variance_Jz",
+        "scenario",
+    ]
 
     def to_dataframe(self) -> pd.DataFrame:
         rows: list[dict[str, float | str]] = []
@@ -726,35 +715,10 @@ class FreeAncillaOmegaScanResult:
             )
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> FreeAncillaOmegaScanResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "best_delta_omega",
-            "sql",
-            "theta_A",
-            "phi_A",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "expectation_Jz",
-            "variance_Jz",
-            "scenario",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         omegas = df["omega"].to_numpy(dtype=float)
         best = df["best_delta_omega"].to_numpy(dtype=float)
         sql = df["sql"].to_numpy(dtype=float)
@@ -790,7 +754,7 @@ class FreeAncillaOmegaScanResult:
 
 
 @dataclass
-class FreeAncilla2DSliceResult:
+class FreeAncilla2DSliceResult(ParquetSerializable):
     """Result from a 2D parameter slice over :math:`(\theta_A, a_{zz})`.
 
     Attributes:
@@ -808,6 +772,14 @@ class FreeAncilla2DSliceResult:
     omega_value: float = 1.0
     sql: float = SQL
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "theta_A",
+        "azz",
+        "delta_omega",
+        "omega_value",
+        "sql",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         n_t = len(self.theta_A_values)
         n_a = len(self.azz_values)
@@ -824,22 +796,10 @@ class FreeAncilla2DSliceResult:
         ]
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> FreeAncilla2DSliceResult:
         df = pd.read_parquet(path)
-        required = {"theta_A", "azz", "delta_omega", "omega_value", "sql"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         theta_A_unique = sorted(df["theta_A"].unique())
         azz_unique = sorted(df["azz"].unique())
         n_t = len(theta_A_unique)

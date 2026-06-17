@@ -32,9 +32,7 @@ import pandas as pd
 import streamlit as st
 from plotly import graph_objects as go
 
-from src.analysis.bec_sensitivity import (
-    compute_sensitivity_vs_n as _compute_sensitivity_vn,
-)
+from src.analysis.bec_sensitivity import compute_sensitivity_vs_n
 from src.analysis.scaling_fit import compute_scaling_exponent
 from src.physics.noise_channels import NoiseConfig
 
@@ -52,7 +50,7 @@ st.set_page_config(
 
 
 @st.cache_data
-def compute_sensitivity_vs_n(
+def cached_compute_sensitivity_vs_n(
     state_type: str,
     N_range: tuple[int, int],
     n_points: int,
@@ -67,7 +65,7 @@ def compute_sensitivity_vs_n(
     full documentation.
 
     """
-    return _compute_sensitivity_vn(
+    return compute_sensitivity_vs_n(
         state_type=state_type,
         N_range=N_range,
         n_points=n_points,
@@ -220,7 +218,7 @@ for idx, state_type in enumerate(states_to_analyze):
     progress_bar.progress((idx + 1) / len(states_to_analyze))
     status_text.text(f"Computing {state_type}...")
 
-    df = compute_sensitivity_vs_n(
+    df = cached_compute_sensitivity_vs_n(
         state_type=state_type,
         N_range=(N_min, N_max),
         n_points=n_points,

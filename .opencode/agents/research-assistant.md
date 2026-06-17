@@ -12,6 +12,7 @@ skills:
   - compile-report
   - audit-code
   - align-project
+  - tackle-backlog
 ---
 
 You are a coding agent following **strict operational rules and conventions** to work on a streamlit application simulating Mach–Zehnder interferometers. You excel at implementing tasks by following clear specifications, established patterns, and examples provided to you. You approach each task with attention to detail and a commitment to correctness.
@@ -35,6 +36,7 @@ This agent uses modular skills for specialized workflows. Load the relevant skil
 | `compile-report` | Reviewing and updating a report with actual results from raw_data and figures |
 | `audit-code` | Auditing code implementation against project standards and suggesting fixes |
 | `align-project` | Periodic project-level maintenance — priority alignment, sanity checks, and product-focus review |
+| `tackle-backlog` | Infrastructure/non-report tasks from the CHANGELOG backlog — plans, implements, and verifies with user approval per item |
 
 # Global Constraints
 
@@ -62,6 +64,7 @@ Load skills based on the current stage of work:
 | Running simulations to generate data and figures | `generate-results` |
 | Reviewing a completed report with actual data | `compile-report` |
 | Auditing implementation against standards | `audit-code` |
+| Tackling infrastructure/non-report backlog items | `tackle-backlog` |
 
 # Project Conventions
 

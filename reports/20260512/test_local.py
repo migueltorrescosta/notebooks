@@ -11,6 +11,7 @@ the module is loaded via importlib.
 from __future__ import annotations
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +25,7 @@ _spec = importlib.util.spec_from_file_location(_modname, str(_local_path))
 assert _spec is not None, f"Could not find local.py at {_local_path}"
 _report_local = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
+sys.modules[_modname] = _report_local
 _spec.loader.exec_module(_report_local)
 
 # Functions promoted to src/ — imported directly
@@ -124,11 +126,11 @@ def test_holding_unitary_is_unitary() -> None:
     ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS],
 )
 def test_given_mzi_circuit_then_state_remains_normalized(
-    omega: float, t_h: float
+    omega: float, t_hold: float
 ) -> None:
     u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
-    psi = evolve_single_particle_mzi(omega, t_h, u_bs, jz)
+    psi = evolve_single_particle_mzi(omega, t_hold, u_bs, jz)
     assert np.linalg.norm(psi) == pytest.approx(1.0)
 
 
@@ -138,16 +140,16 @@ def test_given_mzi_circuit_then_state_remains_normalized(
     ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS_WIDE],
 )
 def test_given_error_propagation_then_delta_omega_equals_one_over_t_h(
-    omega: float, t_h: float
+    omega: float, t_hold: float
 ) -> None:
-    if abs(np.sin(omega * t_h)) < 1e-6:
+    if abs(np.sin(omega * t_hold)) < 1e-6:
         pytest.skip("Singular point at fringe extremum")
     u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
     dt_a, *_ = compute_delta_omega_from_propagation(
-        t_h, omega, u_bs, jz, use_numerical=False
+        t_hold, omega, u_bs, jz, use_numerical=False
     )
-    assert dt_a == pytest.approx(1.0 / t_h, rel=1e-12)
+    assert dt_a == pytest.approx(1.0 / t_hold, rel=1e-12)
 
 
 @pytest.mark.parametrize(
@@ -156,13 +158,13 @@ def test_given_error_propagation_then_delta_omega_equals_one_over_t_h(
     ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS],
 )
 def test_given_mzi_circuit_then_jz_expectation_matches_cos(
-    omega: float, t_h: float
+    omega: float, t_hold: float
 ) -> None:
     u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
-    psi = evolve_single_particle_mzi(omega, t_h, u_bs, jz)
+    psi = evolve_single_particle_mzi(omega, t_hold, u_bs, jz)
     jz_mean = float(np.real(np.conj(psi) @ jz @ psi))
-    assert jz_mean == pytest.approx(-0.5 * np.cos(omega * t_h), abs=1e-12)
+    assert jz_mean == pytest.approx(-0.5 * np.cos(omega * t_hold), abs=1e-12)
 
 
 @pytest.mark.parametrize(
@@ -171,13 +173,13 @@ def test_given_mzi_circuit_then_jz_expectation_matches_cos(
     ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS],
 )
 def test_given_mzi_circuit_then_jz_variance_matches_sin_squared(
-    omega: float, t_h: float
+    omega: float, t_hold: float
 ) -> None:
     u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
-    psi = evolve_single_particle_mzi(omega, t_h, u_bs, jz)
+    psi = evolve_single_particle_mzi(omega, t_hold, u_bs, jz)
     jz_var = compute_jz_variance(psi, max_photons=1)
-    assert jz_var == pytest.approx(0.25 * (np.sin(omega * t_h) ** 2), abs=1e-12)
+    assert jz_var == pytest.approx(0.25 * (np.sin(omega * t_hold) ** 2), abs=1e-12)
 
 
 @pytest.mark.parametrize(
@@ -186,10 +188,10 @@ def test_given_mzi_circuit_then_jz_variance_matches_sin_squared(
     ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS],
 )
 def test_given_analytical_derivative_then_matches_expected_form(
-    omega: float, t_h: float
+    omega: float, t_hold: float
 ) -> None:
-    d_jz = compute_analytical_derivative(t_h, omega)
-    assert d_jz == pytest.approx(0.5 * t_h * np.sin(omega * t_h), abs=1e-12)
+    d_jz = compute_analytical_derivative(t_hold, omega)
+    assert d_jz == pytest.approx(0.5 * t_hold * np.sin(omega * t_hold), abs=1e-12)
 
 
 @pytest.mark.parametrize(
@@ -198,18 +200,18 @@ def test_given_analytical_derivative_then_matches_expected_form(
     ids=[f"ω={t}, t_hold={h}" for t, h in _MZI_PARAMS_WIDE],
 )
 def test_given_numerical_and_analytical_derivatives_then_agree_within_tolerance(
-    omega: float, t_h: float
+    omega: float, t_hold: float
 ) -> None:
     u_bs = beam_splitter_unitary(np.pi / 4.0, 0.0, max_photons=1)
     jz = two_mode_jz_operator(1)
-    d_a = compute_analytical_derivative(t_h, omega)
-    d_n = compute_numerical_derivative(omega, t_h, u_bs, jz, fd_step=1e-6)
+    d_a = compute_analytical_derivative(t_hold, omega)
+    d_n = compute_numerical_derivative(omega, t_hold, u_bs, jz, fd_step=1e-6)
     if abs(d_a) < 1e-15 and abs(d_n) < 1e-15:
         pytest.skip("Both derivatives zero at fringe extremum")
     denom = max(abs(d_a), 1e-15)
     rel_diff = abs(d_a - d_n) / denom
     assert rel_diff < 1e-6, (
-        f"Derivative mismatch at ω={omega}, t_hold={t_h}: "
+        f"Derivative mismatch at ω={omega}, t_hold={t_hold}: "
         f"analytical={d_a:.10e}, numerical={d_n:.10e}, "
         f"rel_diff={rel_diff:.2e}"
     )

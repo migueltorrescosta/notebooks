@@ -7,8 +7,10 @@ Run with:
 
 from __future__ import annotations
 
+import importlib.util
 import sys as _sys
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pytest
@@ -20,13 +22,16 @@ from src.analysis.ancilla_drive_metrology import (
     drive_2d_slice,
     evolve_drive_circuit,
 )
+from src.utils.serialization import assert_roundtrip_fields
 
-_report_dir = str(
-    Path(__file__).resolve().parent.parent.parent / "reports" / "20260527",
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _report_dir
+_local_path = Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 # Import the module we are testing — mypy/pyright ignore the report-local import.
 from local import (  # type: ignore[import-untyped]  # noqa: E402
@@ -398,6 +403,19 @@ class TestNormBallSampling:
 
 
 class TestNormBallResultParquet:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("omega_values", "allclose"),
+        ("samples", "allclose"),
+        ("delta_omega_values", "allclose"),
+        ("expectation_values", "allclose"),
+        ("variance_values", "allclose"),
+        ("deriv_values", "allclose"),
+        ("norms", "allclose"),
+        ("sql", "eq"),
+        ("t_hold", "eq"),
+        ("R", "eq"),
+    ]
+
     @pytest.fixture
     def make_result(self) -> NormBallResult:
         omega_vals = np.array([0.5, 1.0], dtype=float)
@@ -428,16 +446,7 @@ class TestNormBallResultParquet:
         p = tmp_path / "normball.parquet"
         make_result.save_parquet(p)
         loaded = NormBallResult.from_parquet(p)
-        assert np.allclose(loaded.omega_values, make_result.omega_values)
-        assert np.allclose(loaded.samples, make_result.samples)
-        assert np.allclose(loaded.delta_omega_values, make_result.delta_omega_values)
-        assert np.allclose(loaded.expectation_values, make_result.expectation_values)
-        assert np.allclose(loaded.variance_values, make_result.variance_values)
-        assert np.allclose(loaded.deriv_values, make_result.deriv_values)
-        assert np.allclose(loaded.norms, make_result.norms)
-        assert loaded.sql == make_result.sql
-        assert loaded.t_hold == make_result.t_hold
-        assert loaded.R == make_result.R
+        assert_roundtrip_fields(loaded, make_result, self._FIELD_SPECS)
 
     def test_fail_fast_missing_column(
         self, make_result: NormBallResult, tmp_path: Path

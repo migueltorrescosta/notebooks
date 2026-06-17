@@ -212,7 +212,7 @@ The exponent $\alpha$ is constant across $\omega$ because the sensitivity is fla
 
 **See**: `fit_scaling_exponents()` in `local.py`; data in `20260522-dual-mzi-scaling.parquet`.
 
-![N-scaling at ω=1.0: data lies exactly on the SQL line, confirming the null hypothesis.](figures/20260522-dual-mzi-n-scaling-omega1.0.svg)
+![N-scaling at ω=1.0: data lies exactly on the SQL line, confirming the null hypothesis.](figures/20260522-dual-mzi-n-scaling-theta1.0.svg)
 
 The scaling-exponent panel below shows the exponent from log-log fits vs $\omega$ (left) and the associated $R^2$ goodness-of-fit (right):
 
@@ -230,7 +230,7 @@ The $\omega$-dependence at fixed $N$ reveals a completely flat sensitivity at th
 
 **See**: `plot_omega_dependence()` in `local.py`.
 
-![ω-dependence at N=5: flat at SQL across the full ω range.](figures/20260522-dual-mzi-omega-N5.svg)
+![ω-dependence at N=5: flat at SQL across the full ω range.](figures/20260522-dual-mzi-theta-N5.svg)
 
 ### Derivative Stability Check
 

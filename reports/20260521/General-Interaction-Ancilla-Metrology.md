@@ -219,7 +219,7 @@ The active terms $\alpha_{xx}$ and $\alpha_{xz}$ are consistently smaller but no
 
 ### $\omega$ Scan
 
-![General-interaction sensitivity vs ω](figures/20260521-omega-scan.svg)
+![General-interaction sensitivity vs ω](figures/20260521-theta-scan.svg)
 
 *Figure 1: Optimal $\Delta\omega$ (blue line, left axis) and optimal coupling parameters $\alpha_{ij}^*$ (colored markers, right axis) vs $\omega$. The gray dashed line marks the SQL reference $\Delta\omega = 0.1$. The best point ($\Delta\omega = 0.0690$, $0.690\times$SQL at $\omega = 3.8$) is annotated.*
 

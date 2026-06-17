@@ -15,6 +15,7 @@ from src.visualization.scaling_plots import (
     plot_n_scaling_optimal_params,
     plot_n_scaling_ratio,
     plot_n_scaling_sensitivity,
+    plot_n_scaling_single_omega,
 )
 
 
@@ -83,3 +84,41 @@ def test_empty_dataframe_skips(make_df: pd.DataFrame, tmp_path: Path) -> None:
     result = plot_n_scaling_ratio(empty, p)
     # Should still "succeed" (return path) even with no data
     assert result == p
+
+
+def test_plot_n_scaling_single_omega_creates_file(
+    make_df: pd.DataFrame, tmp_path: Path
+) -> None:
+    p = tmp_path / "single-omega.svg"
+    result = plot_n_scaling_single_omega(make_df, omega_fixed=0.1, save_path=p)
+    assert result.exists()
+    assert result.suffix == ".svg"
+
+
+def test_plot_n_scaling_single_omega_with_2n_sql(
+    make_df: pd.DataFrame, tmp_path: Path
+) -> None:
+    p = tmp_path / "single-omega-2n.svg"
+    result = plot_n_scaling_single_omega(
+        make_df, omega_fixed=0.2, save_path=p, include_2n_sql=True
+    )
+    assert result.exists()
+
+
+def test_plot_n_scaling_single_omega_empty(
+    make_df: pd.DataFrame, tmp_path: Path
+) -> None:
+    p = tmp_path / "single-omega-empty.svg"
+    # Request an ω not in the fixture
+    result = plot_n_scaling_single_omega(make_df, omega_fixed=99.0, save_path=p)
+    assert result == p  # returns path even with no data
+
+
+def test_plot_n_scaling_single_omega_explicit_t_hold(
+    make_df: pd.DataFrame, tmp_path: Path
+) -> None:
+    p = tmp_path / "single-omega-t.svg"
+    result = plot_n_scaling_single_omega(
+        make_df, omega_fixed=0.1, save_path=p, t_hold=5.0
+    )
+    assert result.exists()

@@ -15,7 +15,7 @@ This skill inspects, reports, and auto-fixes only purely mechanical issues (form
 
 # Rules
 
-1. Read the CHANGELOG and Backlog thoroughly before taking any action.
+1. Read the CHANGELOG.md thoroughly before taking any action.
 2. Do **not** modify simulation code in `src/`, `pages/`, `reports/`, or any test file — this is an inspect-and-report skill only.
 3. Auto-fix only purely mechanical items (CHANGELOG formatting, colour legend typos, stale whitespace). File deletions and priority changes must be suggested, not applied.
 4. Idempotent — running twice with no intervening work should produce no changes.
@@ -28,10 +28,10 @@ This skill inspects, reports, and auto-fixes only purely mechanical issues (form
 ## 1. Preparation
 
 1. **Search agentmemory** — Call `memory_recall` or `memory_smart_search` with query "align-project backlog priorities repo health" to find prior runs, decisions, and patterns.
-2. **Read the CHANGELOG** — Open `CHANGELOG.md` and note:
-   - The current weekly section (date range).
+2. **Read the CHANGELOG.md** — Open `CHANGELOG.md` and note:
+   - The colour legend at the top of the `# Backlog` section.
    - The full `# Backlog` section — list every item, its priority emoji, and theme group.
-   - The colour legend at the top of the Backlog.
+   - The current weekly section (date range).
 3. **Survey the repo state** — Run `ls reports/` to get a high-level view of active and completed report directories.
 
 ## 2. Priority Alignment
@@ -58,8 +58,7 @@ This skill inspects, reports, and auto-fixes only purely mechanical issues (form
    - Sub-sections: `### New Report`, `### Infrastructure` (both optional but must be in this order if present)
    - Entries use the format: `- **Title** (#YYYYMMDD) — description`
 2. Verify no completed report is missing from the CHANGELOG (cross-reference `reports/` directories against CHANGELOG entries).
-3. Check that no bare `|` appears inside `$...$` in any entry (run `rg '^\|.*\$[^$]*\|[^$]*\$' CHANGELOG.md`).
-4. Verify the `# Backlog` section does not contain items that have been completed (check each item against the weekly entries).
+3. Verify the `# Backlog` section does not contain items that have been completed (check each item against the weekly entries).
 5. Flag any structural issues for human fixing.
 
 ## 3. Sanity Check
@@ -74,10 +73,7 @@ This skill inspects, reports, and auto-fixes only purely mechanical issues (form
 3. **Orphaned report directories** — Check if any `reports/YYYYMMDD/` directory lacks both a `.md` file and a `local.py` file. Flag as possibly stale scaffolding.
 
 ### 3b. Shared-infrastructure cross-report analysis
-
-1. **Grep for function definitions** — Run `grep -rn "^def " reports/*/local.py`. Save the list.
-2. **Grep for module-level constants** — Run `grep -rn "^[A-Z_][A-Z_0-9]* *=" reports/*/local.py`. Filter out test-local constants (`RTOL`, `ATOL`, `SEED`) and report-metadata constants (`REPORT_DATE`, `N_POINTS`, `REPORTS_DIR`).
-3. **Cross-reference for duplicates** — Compare each function/constant name across report directories:
+1. **Cross-reference for duplicates** — Compare each function/constant name across report directories:
    - **Exact match** — Same name, same signature, same implementation. → Flag for promotion to `src/`.
    - **Near match** — Same logic, different name or minor signature difference. → Flag with suggested unified API.
    - **Superficial match** — Same name, different implementation. → Flag as naming collision.
@@ -149,7 +145,7 @@ Save this summary to agentmemory via `agentmemory_memory_save()` with type `"pat
 
 ### Before implementation
 - [ ] Searched agentmemory for prior align-project runs and relevant decisions (`project:notebooks`)
-- [ ] Read the CHANGELOG (current weekly section, full Backlog, colour legend)
+- [ ] Read CHANGELOG.md (colour legend, full Backlog, current weekly section)
 - [ ] Surveyed reports directory (`ls reports/`)
 
 ### During analysis
@@ -162,15 +158,12 @@ Save this summary to agentmemory via `agentmemory_memory_save()` with type `"pat
   - [ ] Verified each weekly section follows `## Week NN (Mon DD–Sun DD)` with sub-sections in order (`### New Report` before `### Infrastructure`)
   - [ ] Verified entries use the format `- **Title** (#YYYYMMDD) — description`
   - [ ] Cross-referenced all `reports/YYYYMMDD/` directories against CHANGELOG entries — no completed reports missing
-  - [ ] Checked for bare `|` inside `$...$` via `rg '^\|.*\$[^$]*\|[^$]*\$' CHANGELOG.md` — any hits fixed
   - [ ] Verified no completed items remain in the Backlog (cross-referenced against weekly entries)
 - **Stale file scan (§3a)**:
   - [ ] Scanned for stale runner scripts (`reports/*/run_parallel.py`, `reports/*/sweep_runner.py`) — coverage judged against `local.py`
   - [ ] Scanned for unreferenced Parquet files (`reports/*/raw_data/*.parquet`) — cross-referenced against report `.md` files
   - [ ] Checked for orphaned report directories (any `reports/YYYYMMDD/` lacking both `.md` and `local.py`)
 - **Shared-infrastructure analysis (§3b)**:
-  - [ ] Ran `grep -rn "^def " reports/*/local.py` to identify functions duplicated across ≥2 reports
-  - [ ] Ran `grep -rn "^[A-Z_][A-Z_0-9]* *=" reports/*/local.py` to identify module-level constants duplicated across ≥2 reports
   - [ ] Cross-referenced each candidate against existing `src/` modules (to avoid re-promoting already-promoted code)
   - [ ] Categorised each duplicate as exact-match, near-match, or superficial-match
   - [ ] Produced a promotion-opportunity table with columns: Function/Constant, Reports, Match Type, Suggested src/ Module

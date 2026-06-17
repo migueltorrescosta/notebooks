@@ -179,6 +179,82 @@ def sample_wigner_sphere(
 # =============================================================================
 
 
+def _euler_maruyama_step(
+    J_vec: np.ndarray,
+    dt: float,
+    J: float,
+    chi: float,
+    gamma_1: float,
+    gamma_2: float,
+    gamma_phi: float,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Single Euler-Maruyama integration step for the TWA Bloch vector SDEs.
+
+    Computes the deterministic drift (nonlinear OAT Hamiltonian) and applies
+    stochastic noise from one-body loss, two-body loss, and phase diffusion.
+    Normalises the result back to the Bloch sphere surface.
+
+    Args:
+        J_vec: Current Bloch vector of shape (3,) with components (x, y, z).
+        dt: Timestep for integration.
+        J: Total spin J = N/2.
+        chi: OAT squeezing strength.
+        gamma_1: One-body loss rate.
+        gamma_2: Two-body loss rate.
+        gamma_phi: Phase diffusion rate.
+        rng: Random number generator.
+
+    Returns:
+        Updated Bloch vector of shape (3,).
+
+    """
+    x, y, z = J_vec
+
+    # Deterministic drift (unitary evolution)
+    dx_deterministic = chi * (y * z - y)
+    dy_deterministic = -chi * x * z
+    dz_deterministic = 0.0
+
+    # Add deterministic update
+    x_new = x + dt * dx_deterministic
+    y_new = y + dt * dy_deterministic
+    z_new = z + dt * dz_deterministic
+
+    # One-body loss noise (quantum jumps)
+    if gamma_1 > 0:
+        mean_n = J * (1 + z)
+        if mean_n > 0:
+            dW1 = rng.normal(0, np.sqrt(dt))
+            noise_1 = np.sqrt(gamma_1 * max(mean_n, 0) / J) * dW1
+            z_new -= noise_1 * np.sqrt(dt)
+
+    # Two-body loss noise
+    if gamma_2 > 0:
+        mean_n = J * (1 + z)
+        if mean_n > 0:
+            dW2 = rng.normal(0, np.sqrt(dt))
+            noise_2 = np.sqrt(gamma_2 * max(mean_n, 0) ** 2 / J) * dW2
+            z_new -= noise_2 * np.sqrt(dt)
+
+    # Phase diffusion noise
+    if gamma_phi > 0:
+        dW_phi = rng.normal(0, np.sqrt(dt))
+        noise_phi = np.sqrt(gamma_phi) * dW_phi
+        y_new += noise_phi * np.sqrt(dt)
+
+    # Normalize to Bloch sphere surface
+    norm = np.sqrt(x_new**2 + y_new**2 + z_new**2)
+    if norm > 1e-10:
+        x_new = x_new / norm
+        y_new = y_new / norm
+        z_new = z_new / norm
+    else:
+        x_new, y_new, z_new = 0.0, 0.0, 1.0
+
+    return np.array([x_new, y_new, z_new])
+
+
 def wigner_sde_trajectory(
     J_init: np.ndarray,
     params: dict,
@@ -248,69 +324,9 @@ def wigner_sde_trajectory(
 
     # SDE integration via Euler-Maruyama
     for step in range(num_steps):
-        # Current components
-        x, y, z = J_vec
-
-        # Compute deterministic drift (unitary evolution)
-        # Using nonlinear OAT Hamiltonian H = χ J_z² / J
-        # For the Bloch vector: dJ/dt = χ * (y*z*J_y component, etc.)
-        # With truncation: J_i → J * r_i
-
-        # Deterministic drift terms
-        dx_deterministic = chi * (y * z - y)  # Simplified
-        dy_deterministic = -chi * x * z
-        dz_deterministic = 0.0
-
-        # Add deterministic update
-        x_new = x + dt * dx_deterministic
-        y_new = y + dt * dy_deterministic
-        z_new = z + dt * dz_deterministic
-
-        # One-body loss noise (quantum jumps)
-        # Rate proportional to mean photon number
-        # Effect: reduces z towards -1
-        if gamma_1 > 0:
-            # Mean occupation ~ J*(1+z)
-            mean_n = J * (1 + z)
-            if mean_n > 0:
-                # Noise term: dW * sqrt(gamma_1 * mean_n / J)
-                # Use simple model: random noise proportional to loss rate
-                dW1 = rng.normal(0, np.sqrt(dt))
-                noise_1 = np.sqrt(gamma_1 * max(mean_n, 0) / J) * dW1
-
-                # Apply jump - tends to decrease z
-                z_new -= noise_1 * np.sqrt(dt)
-
-        # Two-body loss noise
-        if gamma_2 > 0:
-            # Rate ∝ mean_n²
-            mean_n = J * (1 + z)
-            if mean_n > 0:
-                dW2 = rng.normal(0, np.sqrt(dt))
-                noise_2 = np.sqrt(gamma_2 * max(mean_n, 0) ** 2 / J) * dW2
-                z_new -= noise_2 * np.sqrt(dt)
-
-        # Phase diffusion noise
-        if gamma_phi > 0:
-            # Phase diffusion causes fluctuations in phase
-            dW_phi = rng.normal(0, np.sqrt(dt))
-            noise_phi = np.sqrt(gamma_phi) * dW_phi
-
-            # Add to y component (phase)
-            y_new += noise_phi * np.sqrt(dt)
-
-        # Normalize to Bloch sphere surface
-        norm = np.sqrt(x_new**2 + y_new**2 + z_new**2)
-        if norm > 1e-10:
-            x_new = x_new / norm
-            y_new = y_new / norm
-            z_new = z_new / norm
-        else:
-            # Reset to north pole if degenerate
-            x_new, y_new, z_new = 0.0, 0.0, 1.0
-
-        # Update
-        J_vec = np.array([x_new, y_new, z_new])
+        J_vec = _euler_maruyama_step(
+            J_vec, dt, J, chi, gamma_1, gamma_2, gamma_phi, rng,
+        )
 
         # Store if requested
         if store_trajectory and traj is not None:

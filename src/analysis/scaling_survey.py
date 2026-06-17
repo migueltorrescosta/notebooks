@@ -1969,6 +1969,152 @@ class DistributedMziConfig:
 # Core Sensitivity Calculation
 
 
+def _compute_common_params(
+    N_per_sensor: int,
+    phi_phase: float,
+    config: DistributedMziConfig,
+    noise_config: NoiseConfig,
+) -> tuple[float, float]:
+    """Compute shared parameters for distributed MZI sensitivity.
+
+    Returns:
+        Tuple of (eta_eff, dephasing_variance).
+    """
+    visibility = np.abs(np.sin(2 * config.theta))
+    phi_factor = np.abs(np.cos(phi_phase - config.phi_bs))
+    readout_efficiency = max(visibility * phi_factor, 1e-6)
+
+    loss_rate = (
+        noise_config.gamma_1 + noise_config.gamma_2 * max(N_per_sensor - 1, 0) / 2
+    )
+    transmission = np.exp(-loss_rate) if loss_rate > 0 else 1.0
+    eta_eff = noise_config.eta * transmission * readout_efficiency
+    eta_eff = max(min(eta_eff, 1.0), 1e-6)
+
+    dephasing_variance = noise_config.gamma_phi
+
+    return eta_eff, dephasing_variance
+
+
+def _compute_entangled_independent(
+    M: int,
+    c: float,
+    eta_eff: float,
+    f_independent: float,
+    var_quantum: float,
+) -> float:
+    """Compute var_independent for entangled-sensor case."""
+    if M > 1:
+        return (1 - c) / (eta_eff * f_independent) if f_independent > 0 else 0
+    return (1 - c) * var_quantum if c < 1 else 0
+
+
+def _compute_entangled_components(
+    N: int,
+    M: int,
+    c: float,
+    eta_eff: float,
+) -> tuple[float, float, float]:
+    """Compute variance components for entangled-sensor case.
+
+    Returns:
+        Tuple of (var_quantum, var_independent, var_correlated).
+    """
+    f_independent = (M * N) ** 2
+    f_correlated = N**2
+    f_eff = (1 - c) * f_independent + c * f_correlated
+    f_eff = eta_eff * f_eff
+
+    var_quantum = 1.0 / f_eff if f_eff > 0 else np.inf
+
+    var_independent = _compute_entangled_independent(
+        M, c, eta_eff, f_independent, var_quantum,
+    )
+
+    has_valid_fisher = all([f_correlated > 0, eta_eff > 0])
+    var_correlated = c / (eta_eff * f_correlated) if has_valid_fisher else 0
+
+    return var_quantum, var_independent, var_correlated
+
+
+def _compute_classical_components(
+    N: int,
+    M: int,
+    c: float,
+    eta_eff: float,
+) -> tuple[float, float]:
+    """Compute variance components for unentangled (classical) sensor case.
+
+    Returns:
+        Tuple of (var_independent, var_correlated).
+    """
+    var_single_quantum = 1.0 / (eta_eff * N)
+
+    if M > 1:
+        var_independent = (1 - c) * var_single_quantum / M
+    else:
+        var_independent = (1 - c) * var_single_quantum
+
+    var_correlated = c * var_single_quantum
+
+    return var_independent, var_correlated
+
+
+def _determine_regime(entangled: bool, c: float) -> str:
+    """Determine operating regime string based on entanglement and correlation."""
+    _REGIMES = {
+        (True, 0): "Collective Heisenberg limit",
+        (True, 1): "Partially correlated - partial collective benefit",
+        (True, 2): "Correlated noise - no collective benefit from M",
+        (False, 0): "Classical averaging (SQL per √M)",
+        (False, 1): "Partially correlated - partial benefit from M",
+        (False, 2): "Correlated noise - no benefit from multiple sensors",
+    }
+    if c > 0.9:
+        idx = 2
+    elif c > 0.5:
+        idx = 1
+    else:
+        idx = 0
+    return _REGIMES[(entangled, idx)]
+
+
+def _assemble_sensitivity_result(
+    total_variance: float,
+    dephasing_variance: float,
+    var_independent: float,
+    var_correlated: float,
+    N_per_sensor: int,
+    M: int,
+    c: float,
+    entangled: bool,
+    regime: str,
+) -> dict:
+    """Assemble the result dict from computed quantities."""
+    delta_phi = float(np.sqrt(total_variance))
+    delta_phi_independent = float(np.sqrt(max(var_independent, 0.0)))
+    delta_phi_correlated = float(np.sqrt(max(var_correlated, 0.0)))
+
+    single_sql = 1.0 / np.sqrt(N_per_sensor)
+    scaling_factor = float(single_sql / delta_phi) if delta_phi > 0 else 0.0
+
+    qfi_denom = total_variance - dephasing_variance
+    effective_qfi = float(1.0 / qfi_denom) if qfi_denom > 0 else 0.0
+
+    return {
+        "delta_phi": delta_phi,
+        "delta_phi_independent": delta_phi_independent,
+        "delta_phi_correlated": delta_phi_correlated,
+        "effective_qfi": effective_qfi,
+        "scaling_factor": scaling_factor,
+        "regime": regime,
+        "M": M,
+        "N_per_sensor": N_per_sensor,
+        "entangled": entangled,
+        "correlation_noise": c,
+    }
+
+
 def distributed_mzi_sensitivity(
     N_per_sensor: int,
     phi_phase: float,
@@ -2058,152 +2204,27 @@ def distributed_mzi_sensitivity(
     c = config.correlation_noise
     M = config.M
 
-    # Readout efficiency from beam splitter and phase
-    # For MZI at optimal working point
-    visibility = np.abs(np.sin(2 * config.theta))
-    phi_factor = np.abs(np.cos(phi_phase - config.phi_bs))
-    readout_efficiency = max(visibility * phi_factor, 1e-6)
-
-    # Compute effective efficiency from noise channels
-    # η_eff = detection_efficiency * exp(-loss_rates)
-    loss_rate = (
-        noise_config.gamma_1 + noise_config.gamma_2 * max(N_per_sensor - 1, 0) / 2
+    eta_eff, dephasing_variance = _compute_common_params(
+        N_per_sensor, phi_phase, config, noise_config,
     )
-    transmission = np.exp(-loss_rate) if loss_rate > 0 else 1.0
-    eta_eff = noise_config.eta * transmission * readout_efficiency
-    eta_eff = max(min(eta_eff, 1.0), 1e-6)
-
-    # Dephasing adds variance directly
-    dephasing_variance = noise_config.gamma_phi
-
-    # -------------------------------------------------------------------------
-    # Core analytical model
-    # -------------------------------------------------------------------------
 
     if config.entangled:
-        # ---------------------------------------------------------------------
-        # Entangled case: collective Heisenberg limit
-        # ---------------------------------------------------------------------
-        # Without correlations: Δφ = 1/(M·N) where N_total = M·N
-        # This gives Heisenberg scaling in the total resource N_total
-        # F_Q = (M·N)² for maximally entangled states like GHZ/NOON
-
-        # Correlation model for entangled:
-        # - c=0: independent noise, full Heisenberg benefit
-        #   F_independent = (M·N)²
-        # - c=1: fully correlated noise, loses the M benefit
-        #   Correlated noise doesn't average across sensors.
-        #   F_correlated = N² (Heisenberg in N per sensor, but no M gain)
-        #
-        # Actually, this is subtle. For maximally entangled states across
-        # all M·N particles, the M is part of the quantum enhancement.
-        # Common-mode noise processes that affect all sensors equally will
-        # couple to the collective phase, and don't average out.
-        #
-        # Simple interpolation model:
-        # F_eff = (1-c) * (M·N)² + c * N²
-        #
-        # This gives:
-        # - c=0: F = M²·N², Δφ = 1/(M·N) (full collective Heisenberg)
-        # - c=1: F = N², Δφ = 1/N (Heisenberg scaling in N only)
-
-        # Compute Fisher information components
-        f_independent = (M * N_per_sensor) ** 2
-        f_correlated = N_per_sensor**2
-
-        # Interpolate with correlation parameter
-        f_eff = (1 - c) * f_independent + c * f_correlated
-
-        # Apply efficiency
-        f_eff = eta_eff * f_eff
-
-        # Variance from quantum measurement
-        var_quantum = 1.0 / f_eff if f_eff > 0 else np.inf
-
-        # Component breakdown
-        if M > 1:
-            var_independent = (
-                1.0 / (eta_eff * f_independent) if f_independent > 0 else 0
-            )
-            var_independent = (1 - c) * var_independent
-        else:
-            var_independent = (1 - c) * var_quantum if c < 1 else 0
-
-        var_correlated = (
-            c / (eta_eff * f_correlated) if (f_correlated > 0 and eta_eff > 0) else 0
+        var_quantum, var_independent, var_correlated = _compute_entangled_components(
+            N_per_sensor, M, c, eta_eff,
         )
-
-        # Add dephasing
         total_variance = var_quantum + dephasing_variance
-
-        # Regime determination
-        if c > 0.9:
-            regime = "Correlated noise - no collective benefit from M"
-        elif c > 0.5:
-            regime = "Partially correlated - partial collective benefit"
-        else:
-            regime = "Collective Heisenberg limit"
-
     else:
-        # ---------------------------------------------------------------------
-        # Unentangled case: classical averaging of M independent sensors
-        # ---------------------------------------------------------------------
-        # Without correlations: M independent sensors, each at SQL
-        # Δφ_single = 1/√N
-        # After averaging M independent estimates: Δφ_total = 1/√(M·N)
-
-        # Single sensor quantum variance (after efficiency)
-        var_single_quantum = 1.0 / (eta_eff * N_per_sensor)
-
-        # With correlation c:
-        # From the plan: Δφ_total² = (1-c)·Δφ_ind²/M + c·Δφ_corr²
-        # where Δφ_ind = Δφ_corr = single-sensor sensitivity
-
-        # Independent portion (benefits from M)
-        if M > 1:
-            var_independent = (1 - c) * var_single_quantum / M
-        else:
-            var_independent = (1 - c) * var_single_quantum
-
-        # Correlated portion (doesn't benefit from M)
-        var_correlated = c * var_single_quantum
-
-        # Total quantum + dephasing variance
+        var_independent, var_correlated = _compute_classical_components(
+            N_per_sensor, M, c, eta_eff,
+        )
         total_variance = var_independent + var_correlated + dephasing_variance
 
-        # Regime determination
-        if c > 0.9:
-            regime = "Correlated noise - no benefit from multiple sensors"
-        elif c > 0.5:
-            regime = "Partially correlated - partial benefit from M"
-        else:
-            regime = "Classical averaging (SQL per √M)"
-
-    # Final sensitivity
-    delta_phi = float(np.sqrt(total_variance))
-    delta_phi_independent = float(np.sqrt(max(var_independent, 0.0)))
-    delta_phi_correlated = float(np.sqrt(max(var_correlated, 0.0)))
-
-    # Single-sensor SQL for comparison
-    single_sql = 1.0 / np.sqrt(N_per_sensor)
-    scaling_factor = float(single_sql / delta_phi) if delta_phi > 0 else 0.0
-
-    # Effective QFI = 1/variance (excluding dephasing which is additive)
-    qfi_denom = total_variance - dephasing_variance
-    effective_qfi = float(1.0 / qfi_denom) if qfi_denom > 0 else 0.0
-
-    return {
-        "delta_phi": delta_phi,
-        "delta_phi_independent": delta_phi_independent,
-        "delta_phi_correlated": delta_phi_correlated,
-        "effective_qfi": effective_qfi,
-        "scaling_factor": scaling_factor,
-        "regime": regime,
-        "M": M,
-        "N_per_sensor": N_per_sensor,
-        "entangled": config.entangled,
-        "correlation_noise": c,
-    }
+    return _assemble_sensitivity_result(
+        total_variance, dephasing_variance,
+        var_independent, var_correlated,
+        N_per_sensor, M, c, config.entangled,
+        _determine_regime(config.entangled, c),
+    )
 
 
 # Scaling Exponents
@@ -2860,6 +2881,99 @@ def _apply_entanglement(
     return from_dicke_basis(dicke_state, N)
 
 
+def _build_noise_collapse_operators(
+    dim: int,
+    noise_type: str,
+    noise_level: float,
+) -> list | None:
+    """Build Lindblad collapse operators for the given noise type.
+
+    Args:
+        dim: Hilbert space dimension per mode (max_photons + 1).
+        noise_type: One of ``"dephasing"``, ``"loss"``, ``"two_body"``,
+            ``"detection"``.
+        noise_level: Noise strength (rate × time) or detection efficiency.
+
+    Returns:
+        List of QuTiP collapse operators, or None if noise_type is
+        ``"detection"`` (handled by a separate function).
+
+    """
+    n0 = qutip.tensor(qutip.num(dim), qutip.qeye(dim))
+    n1 = qutip.tensor(qutip.qeye(dim), qutip.num(dim))
+    jz = (n0 - n1) / 2.0
+
+    if noise_type == "dephasing":
+        return [np.sqrt(noise_level) * jz]
+    if noise_type == "loss":
+        a1 = qutip.tensor(qutip.qeye(dim), qutip.destroy(dim))
+        return [np.sqrt(noise_level) * a1]
+    if noise_type == "two_body":
+        a1 = qutip.tensor(qutip.qeye(dim), qutip.destroy(dim))
+        return [np.sqrt(noise_level) * (a1 @ a1)]
+    if noise_type == "detection":
+        return None
+    return [np.sqrt(noise_level) * jz]
+
+
+def _run_lindblad_qfi(
+    rho0: qutip.Qobj,
+    max_photons: int,
+    c_ops: list,
+    T_decay: float,
+) -> float:
+    """Run Lindblad evolution and compute QFI on the noisy state.
+
+    Args:
+        rho0: Initial density matrix as QuTiP Qobj.
+        max_photons: Hilbert space truncation (max photons per mode).
+        c_ops: List of QuTiP collapse operators.
+        T_decay: Evolution time for Lindblad dynamics.
+
+    Returns:
+        Phase sensitivity Δφ, or np.inf on failure.
+
+    """
+    try:
+        H0 = 0 * qutip.tensor(
+            qutip.num(max_photons + 1), qutip.qeye(max_photons + 1),
+        )
+        tlist = [0.0, T_decay]
+        result = qutip.mesolve(
+            H0, rho0, tlist, c_ops=c_ops, options={"store_states": True},
+        )
+        rho_noisy = result.states[-1].full()
+    except (ValueError, np.linalg.LinAlgError):
+        return np.inf
+
+    J_z = two_mode_jz_operator(max_photons)
+    try:
+        F_Q = quantum_fisher_information_dm(rho_noisy, J_z)
+    except (ValueError, np.linalg.LinAlgError):
+        return np.inf
+
+    if F_Q <= 0 or not np.isfinite(F_Q):
+        return np.inf
+
+    return 1.0 / np.sqrt(F_Q)
+
+
+def _is_noise_free(noise_level: float, noise_type: str) -> bool:
+    """Check if the noise configuration is effectively noise-free.
+
+    Args:
+        noise_level: Noise strength (rate × time).
+        noise_type: Type of noise.
+
+    Returns:
+        True if noise_level is zero or noise_type is "none".
+
+    """
+    return bool(
+        noise_level <= 0.0 or np.isclose(noise_level, 0.0) or noise_type == "none",
+    )
+
+
 def _compute_noisy_sensitivity(
     state: np.ndarray,
     max_photons: int,
@@ -2897,58 +3011,23 @@ def _compute_noisy_sensitivity(
         the QFI is zero or negative (no phase information).
 
     """
-    noise_free = noise_level <= 0.0 or np.isclose(noise_level, 0.0)
-    no_noise_type = noise_type == "none"
-
-    if noise_free or no_noise_type:
+    if _is_noise_free(noise_level, noise_type):
         return _compute_pure_state_sensitivity(state, max_photons)
 
-    # --- Noisy case: use QuTiP Lindblad evolution ---
-    # Build Lindblad collapse operators based on noise_type
     try:
         dim = max_photons + 1
-        n0 = qutip.tensor(qutip.num(dim), qutip.qeye(dim))
-        n1 = qutip.tensor(qutip.qeye(dim), qutip.num(dim))
-        jz = (n0 - n1) / 2.0
+        c_ops = _build_noise_collapse_operators(dim, noise_type, noise_level)
 
-        if noise_type == "dephasing":
-            c_ops = [np.sqrt(noise_level) * jz]
-        elif noise_type == "loss":
-            a1 = qutip.tensor(qutip.qeye(dim), qutip.destroy(dim))
-            c_ops = [np.sqrt(noise_level) * a1]
-        elif noise_type == "two_body":
-            a1 = qutip.tensor(qutip.qeye(dim), qutip.destroy(dim))
-            c_ops = [np.sqrt(noise_level) * (a1 @ a1)]
-        elif noise_type == "detection":
-            return _compute_detection_noise_sensitivity(state, max_photons, noise_level)
-        else:
-            c_ops = [np.sqrt(noise_level) * jz]
+        if c_ops is None:
+            return _compute_detection_noise_sensitivity(
+                state, max_photons, noise_level,
+            )
 
-        H0 = 0 * n0  # zero Hamiltonian with matching dims
         state_q = qutip.Qobj(state.reshape(-1, 1), dims=[[dim, dim], [1, 1]])
         rho0 = qutip.ket2dm(state_q)
-        tlist = [0.0, T_decay]
-
-        result = qutip.mesolve(
-            H0, rho0, tlist, c_ops=c_ops, options={"store_states": True}
-        )
-        rho_noisy = result.states[-1].full()
+        return _run_lindblad_qfi(rho0, max_photons, c_ops, T_decay)
     except (ValueError, np.linalg.LinAlgError):
         return np.inf
-
-    # J_z operator in the two-mode Fock basis
-    J_z = two_mode_jz_operator(max_photons)
-
-    # Compute QFI via SLD formula for mixed states
-    try:
-        F_Q = quantum_fisher_information_dm(rho_noisy, J_z)
-    except (ValueError, np.linalg.LinAlgError):
-        return np.inf
-
-    if F_Q <= 0 or not np.isfinite(F_Q):
-        return np.inf
-
-    return 1.0 / np.sqrt(F_Q)
 
 
 def _compute_detection_noise_sensitivity(
@@ -3059,6 +3138,177 @@ def _apply_phase_imprint(
 # Survey Orchestration
 
 
+def _process_custom_model_point(
+    model: ModelConfig,
+    noise_level: float,
+    N: int,
+) -> float:
+    """Evaluate sensitivity via custom_sensitivity_fn.
+
+    Args:
+        model: Model configuration with custom_sensitivity_fn set.
+        noise_level: Noise level to pass to the custom function.
+        N: Particle number.
+
+    Returns:
+        Phase sensitivity Δφ, or np.inf on failure.
+
+    """
+    fn = model.custom_sensitivity_fn
+    if fn is None:
+        return np.inf
+    try:
+        return fn(N, noise_level)
+    except (ValueError, TypeError, np.linalg.LinAlgError):
+        return np.inf
+
+
+def _process_standard_model_point(
+    model: ModelConfig,
+    noise_level: float,
+    N: int,
+    survey_config: SurveyConfig,
+) -> float:
+    """Evaluate sensitivity through the standard MZI pipeline.
+
+    Steps: state preparation → entanglement → phase imprint → noise → QFI.
+
+    Args:
+        model: Model configuration with state_type, noise_type, entangler.
+        noise_level: Noise strength.
+        N: Particle number.
+        survey_config: Survey configuration (phase, method).
+
+    Returns:
+        Phase sensitivity Δφ, or np.inf if any step fails.
+
+    """
+    try:
+        max_photons = _max_photons_for_state(model.state_type, N)
+        state = input_state_factory(
+            model.state_type,
+            N=N,
+            max_photons=max_photons,
+        )
+    except (ValueError, TypeError):
+        return np.inf
+
+    try:
+        state = _apply_entanglement(state, N, model.entangler)
+    except (ValueError, np.linalg.LinAlgError):
+        pass
+
+    try:
+        state = _apply_phase_imprint(state, survey_config.phi_phase, max_photons)
+    except (ValueError, IndexError):
+        pass
+
+    return _compute_noisy_sensitivity(
+        state, max_photons, noise_level, model.noise_type,
+    )
+
+
+def _build_result_row(
+    model: ModelConfig,
+    noise_level: float,
+    N: int,
+    method: str,
+    delta_phi: float,
+) -> dict[str, object]:
+    """Build a result row dict for the survey DataFrame."""
+    return {
+        "model_id": model.model_id,
+        "state_type": model.state_type,
+        "noise_type": model.noise_type,
+        "noise_level": noise_level,
+        "N": N,
+        "delta_phi": delta_phi,
+        "method": method,
+        "entangler": model.entangler,
+        "label": model.label,
+    }
+
+
+def _finalize_survey_dataframe(results: list[dict]) -> pd.DataFrame:
+    """Convert results list to DataFrame and ensure numeric types.
+
+    Args:
+        results: List of result row dicts.
+
+    Returns:
+        DataFrame with numeric columns coerced to float.
+
+    """
+    df = pd.DataFrame(results)
+    for col in ("N", "noise_level", "delta_phi"):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+    return df
+
+
+def _run_survey_point(
+    model: ModelConfig,
+    noise_level: float,
+    N_raw: int,
+    survey_config: SurveyConfig,
+) -> dict[str, object]:
+    """Process a single (model, noise_level, N) combination in the survey.
+
+    Args:
+        model: Model configuration.
+        noise_level: Noise strength.
+        N_raw: Raw particle number (cast to int internally).
+        survey_config: Survey configuration.
+
+    Returns:
+        Result row dict with model_id, delta_phi, method, etc.
+
+    """
+    N = int(N_raw)
+    if model.custom_sensitivity_fn is not None:
+        delta_phi = _process_custom_model_point(model, noise_level, N)
+    else:
+        delta_phi = _process_standard_model_point(
+            model, noise_level, N, survey_config,
+        )
+    return _build_result_row(model, noise_level, N, survey_config.method, delta_phi)
+
+
+def _run_survey_loop(
+    models: list[ModelConfig],
+    survey_config: SurveyConfig,
+    N_values: np.ndarray,
+    progress_callback: Callable | None = None,
+) -> list[dict]:
+    """Run the triple-nested survey loop with optional progress reporting.
+
+    Args:
+        models: List of model configurations.
+        survey_config: Survey configuration.
+        N_values: Particle numbers to sweep.
+        progress_callback: Optional (current, total) progress callback.
+
+    Returns:
+        List of result row dicts.
+
+    """
+    results: list[dict] = []
+    total = len(models) * len(survey_config.noise_levels) * len(N_values)
+    count = 0
+
+    for model in models:
+        for noise_level in survey_config.noise_levels:
+            for N_raw in N_values:
+                results.append(
+                    _run_survey_point(model, noise_level, N_raw, survey_config),
+                )
+                count += 1
+                if progress_callback:
+                    progress_callback(count, total)
+
+    return results
+
+
 def run_scaling_survey(
     models: list[ModelConfig],
     survey_config: SurveyConfig,
@@ -3098,128 +3348,166 @@ def run_scaling_survey(
     if not models:
         raise ValueError("At least one model must be specified")
 
-    # Validate survey config (triggers __post_init__)
-    # (already validated at construction, but we can trust the caller)
-
     N_values = _generate_N_values(survey_config)
-
-    results: list[dict] = []
-    total = len(models) * len(survey_config.noise_levels) * len(N_values)
-    count = 0
-
-    for model in models:
-        for noise_level in survey_config.noise_levels:
-            for N_raw in N_values:
-                N = int(N_raw)
-
-                # --- Custom model path (bypasses standard MZI pipeline) ---
-                if model.custom_sensitivity_fn is not None:
-                    try:
-                        delta_phi = model.custom_sensitivity_fn(N, noise_level)
-                    except (ValueError, TypeError, np.linalg.LinAlgError):
-                        delta_phi = np.inf
-
-                    results.append(
-                        {
-                            "model_id": model.model_id,
-                            "state_type": model.state_type,
-                            "noise_type": model.noise_type,
-                            "noise_level": noise_level,
-                            "N": N,
-                            "delta_phi": delta_phi,
-                            "method": survey_config.method,
-                            "entangler": model.entangler,
-                            "label": model.label,
-                        },
-                    )
-                    count += 1
-                    if progress_callback:
-                        progress_callback(count, total)
-                    continue
-
-                # --- Standard MZI pipeline ---
-
-                # --- Step 1: Prepare input state ---
-                try:
-                    max_photons = _max_photons_for_state(model.state_type, N)
-                    state = input_state_factory(
-                        model.state_type,
-                        N=N,
-                        max_photons=max_photons,
-                    )
-                except (ValueError, TypeError):
-                    # If state cannot be created at this N, skip gracefully
-                    results.append(
-                        {
-                            "model_id": model.model_id,
-                            "state_type": model.state_type,
-                            "noise_type": model.noise_type,
-                            "noise_level": noise_level,
-                            "N": N,
-                            "delta_phi": np.inf,
-                            "method": survey_config.method,
-                            "entangler": model.entangler,
-                            "label": model.label,
-                        },
-                    )
-                    count += 1
-                    if progress_callback:
-                        progress_callback(count, total)
-                    continue
-
-                # --- Step 2: Apply entanglement ---
-                # Note: _apply_entanglement uses N for Dicke basis dimension (N+1),
-                # which is based on particle number, not Hilbert space truncation
-                try:
-                    state = _apply_entanglement(state, N, model.entangler)
-                except (ValueError, np.linalg.LinAlgError):
-                    state = state  # Continue with unentangled state
-
-                # --- Step 3: Apply phase imprint ---
-                try:
-                    state = _apply_phase_imprint(
-                        state, survey_config.phi_phase, max_photons
-                    )
-                except (ValueError, IndexError):
-                    pass  # Continue without phase imprint if it fails
-
-                # --- Steps 4 & 5: Apply noise and compute sensitivity ---
-                delta_phi = _compute_noisy_sensitivity(
-                    state,
-                    max_photons,
-                    noise_level,
-                    model.noise_type,
-                )
-
-                results.append(
-                    {
-                        "model_id": model.model_id,
-                        "state_type": model.state_type,
-                        "noise_type": model.noise_type,
-                        "noise_level": noise_level,
-                        "N": N,
-                        "delta_phi": delta_phi,
-                        "method": survey_config.method,
-                        "entangler": model.entangler,
-                        "label": model.label,
-                    },
-                )
-
-                count += 1
-                if progress_callback:
-                    progress_callback(count, total)
-
-    df = pd.DataFrame(results)
-
-    # Ensure numeric types
-    for col in ["N", "noise_level", "delta_phi"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    return df
+    results = _run_survey_loop(models, survey_config, N_values, progress_callback)
+    return _finalize_survey_dataframe(results)
 
 
 # Exponent Fitting
+
+
+def _validate_fit_dataframe(survey_df: pd.DataFrame) -> None:
+    """Validate survey DataFrame has required columns and is non-empty.
+
+    Args:
+        survey_df: DataFrame from run_scaling_survey.
+
+    Raises:
+        ValueError: If required columns are missing or DataFrame is empty.
+
+    """
+    required = {"N", "delta_phi"}
+    missing = required - set(survey_df.columns)
+    if missing:
+        raise ValueError(
+            f"survey_df missing required columns: {missing}. "
+            f"Has columns: {list(survey_df.columns)}",
+        )
+    if survey_df.empty:
+        raise ValueError("survey_df is empty")
+
+
+def _filter_finite_for_fitting(survey_df: pd.DataFrame) -> pd.DataFrame:
+    """Filter to finite positive delta_phi values only.
+
+    Args:
+        survey_df: DataFrame from run_scaling_survey.
+
+    Returns:
+        Copy of survey_df with only rows where delta_phi is finite and > 0.
+
+    """
+    return survey_df.loc[
+        np.isfinite(survey_df["delta_phi"]) & (survey_df["delta_phi"] > 0)
+    ].copy()
+
+
+def _empty_fit_dataframe(group_cols: list[str]) -> pd.DataFrame:
+    """Return an empty DataFrame with the correct columns for fit results.
+
+    Args:
+        group_cols: Group-by column names to include.
+
+    Returns:
+        Empty DataFrame with group columns plus fit result columns.
+
+    """
+    return pd.DataFrame(
+        columns=[
+            *group_cols,
+            "alpha",
+            "alpha_err",
+            "C",
+            "C_err",
+            "R_squared",
+            "valid",
+            "n_points",
+        ],
+    )
+
+
+def _fit_single_survey_group(
+    group_df: pd.DataFrame,
+    group_keys: object,
+    available_groups: list[str],
+    min_N: int,
+    R_squared_threshold: float,
+) -> dict[str, object]:
+    """Fit scaling exponent for a single group and return result row.
+
+    Args:
+        group_df: DataFrame subset for one group.
+        group_keys: Group key(s) from pandas groupby.
+        available_groups: Column names present in the groupby result.
+        min_N: Minimum N for the scaling fit.
+        R_squared_threshold: R² warning threshold.
+
+    Returns:
+        Dict with group columns and fit results (alpha, C, R_squared, etc.).
+
+    """
+    if not isinstance(group_keys, tuple):
+        group_keys = (group_keys,)
+
+    N_arr = group_df["N"].to_numpy().astype(float)
+    delta_arr = group_df["delta_phi"].to_numpy().astype(float)
+
+    result = fit_scaling_exponent(
+        N_arr,
+        delta_arr,
+        min_N=min_N,
+        R_squared_threshold=R_squared_threshold,
+    )
+
+    row: dict[str, object] = dict(zip(available_groups, group_keys, strict=False))
+    row["alpha"] = result.alpha
+    row["alpha_err"] = result.alpha_err
+    row["C"] = result.C
+    row["C_err"] = result.C_err
+    row["R_squared"] = result.R_squared
+    row["valid"] = result.valid
+    row["n_points"] = len(result.N_values)
+    row["n_warnings"] = len(result.warnings)
+    return row
+
+
+def _default_group_cols(group_cols: list[str] | None) -> list[str]:
+    """Return the default group-by columns if none are provided."""
+    if group_cols is None:
+        return ["model_id", "state_type", "noise_type", "noise_level", "method"]
+    return group_cols
+
+
+def _compute_fit_results(
+    finite_df: pd.DataFrame,
+    group_cols: list[str],
+    min_N: int,
+    R_squared_threshold: float,
+) -> pd.DataFrame:
+    """Compute fit results from a finite-only survey DataFrame.
+
+    Handles groupby, per-group fitting, and result sorting.
+
+    Args:
+        finite_df: DataFrame with finite positive delta_phi.
+        group_cols: Column names to group by.
+        min_N: Minimum N for the scaling fit.
+        R_squared_threshold: R² warning threshold.
+
+    Returns:
+        DataFrame with fit results (alpha, C, R_squared, etc.).
+
+    """
+    available_groups = [c for c in group_cols if c in finite_df.columns]
+
+    try:
+        grouped = finite_df.groupby(available_groups, dropna=True)
+    except (ValueError, TypeError):
+        return _empty_fit_dataframe(available_groups)
+
+    fit_rows = [
+        _fit_single_survey_group(
+            group_df, group_keys, available_groups, min_N, R_squared_threshold,
+        )
+        for group_keys, group_df in grouped
+    ]
+
+    fit_df = pd.DataFrame(fit_rows)
+
+    if "alpha" in fit_df.columns:
+        fit_df = fit_df.sort_values("alpha", ascending=True).reset_index(drop=True)
+
+    return fit_df
 
 
 def fit_all_exponents(
@@ -3251,91 +3539,15 @@ def fit_all_exponents(
         ValueError: If survey_df is empty or missing required columns.
 
     """
-    required = {"N", "delta_phi"}
-    missing = required - set(survey_df.columns)
-    if missing:
-        raise ValueError(
-            f"survey_df missing required columns: {missing}. "
-            f"Has columns: {list(survey_df.columns)}",
-        )
+    _validate_fit_dataframe(survey_df)
 
-    if survey_df.empty:
-        raise ValueError("survey_df is empty")
-
-    if group_cols is None:
-        group_cols = ["model_id", "state_type", "noise_type", "noise_level", "method"]
-
-    # Filter out infinite values for fitting
-    finite_df = survey_df.loc[
-        np.isfinite(survey_df["delta_phi"]) & (survey_df["delta_phi"] > 0)
-    ].copy()
+    group_cols = _default_group_cols(group_cols)
+    finite_df = _filter_finite_for_fitting(survey_df)
 
     if finite_df.empty:
-        return pd.DataFrame(
-            columns=[
-                *group_cols,
-                "alpha",
-                "alpha_err",
-                "C",
-                "C_err",
-                "R_squared",
-                "valid",
-                "n_points",
-            ],
-        )
+        return _empty_fit_dataframe(group_cols)
 
-    fit_rows: list[dict] = []
-    available_groups = [c for c in group_cols if c in finite_df.columns]
-
-    try:
-        grouped = finite_df.groupby(available_groups, dropna=True)
-    except (ValueError, TypeError):
-        return pd.DataFrame(
-            columns=[
-                *available_groups,
-                "alpha",
-                "alpha_err",
-                "C",
-                "C_err",
-                "R_squared",
-                "valid",
-                "n_points",
-            ],
-        )
-
-    for group_keys, group_df in grouped:
-        # Ensure groups is always a tuple
-        if not isinstance(group_keys, tuple):
-            group_keys = (group_keys,)
-
-        N_arr = group_df["N"].to_numpy().astype(float)
-        delta_arr = group_df["delta_phi"].to_numpy().astype(float)
-
-        result = fit_scaling_exponent(
-            N_arr,
-            delta_arr,
-            min_N=min_N,
-            R_squared_threshold=R_squared_threshold,
-        )
-
-        row: dict = dict(zip(available_groups, group_keys, strict=False))
-        row["alpha"] = result.alpha
-        row["alpha_err"] = result.alpha_err
-        row["C"] = result.C
-        row["C_err"] = result.C_err
-        row["R_squared"] = result.R_squared
-        row["valid"] = result.valid
-        row["n_points"] = len(result.N_values)
-        row["n_warnings"] = len(result.warnings)
-
-        fit_rows.append(row)
-
-    fit_df = pd.DataFrame(fit_rows)
-
-    if "alpha" in fit_df.columns:
-        fit_df = fit_df.sort_values("alpha", ascending=True).reset_index(drop=True)
-
-    return fit_df
+    return _compute_fit_results(finite_df, group_cols, min_N, R_squared_threshold)
 
 
 # Export Utilities
@@ -3400,7 +3612,175 @@ def survey_to_json(survey_df: pd.DataFrame, path: str) -> None:
     Path(path).write_text(json.dumps(output, indent=2, cls=NumpyEncoder))
 
 
-# Factory Functions
+# ── Type coercion helpers for kwarg parsing ──────────────────────────────
+
+
+def _to_float(val: object, default: float) -> float:
+    """Coerce *val* to float, falling back to *default* on type mismatch."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    return default
+
+
+def _to_int(val: object, default: int) -> int:
+    """Coerce *val* to int, falling back to *default* on type mismatch."""
+    if isinstance(val, int):
+        return val
+    return default
+
+
+def _to_str(val: object, default: str) -> str:
+    """Coerce *val* to str, falling back to *default* on type mismatch."""
+    if isinstance(val, str):
+        return val
+    return default
+
+
+def _to_bool(val: object, default: bool) -> bool:
+    """Coerce *val* to bool, falling back to *default* on type mismatch."""
+    if isinstance(val, (bool, int)):
+        return bool(val)
+    return default
+
+
+# ── Per-model factory functions ──────────────────────────────────────────
+
+
+def _factory_non_gaussian(
+    n_order: int,
+    model_id: str,
+    kwargs: dict[str, object],
+    labels: dict[str, str] | None = None,
+) -> ModelConfig:
+    """Factory for non-Gaussian state models (n=3, n=4)."""
+    _labels = labels if labels is not None else {}
+    fn = _non_gaussian_sensitivity_fn(
+        n_order=n_order,
+        omega_n=_to_float(kwargs.get("omega_n", 0.5), 0.5),
+        theta_n=_to_float(kwargs.get("theta_n", 0.0), 0.0),
+        t_sqz=_to_float(kwargs.get("t_sqz", 2.0), 2.0),
+        use_ground_state=_to_bool(kwargs.get("use_ground_state", False), False),
+    )
+    return ModelConfig(
+        model_id=model_id,
+        custom_sensitivity_fn=fn,
+        state_type="",
+        noise_type="none",
+        entangler="none",
+        label=_labels.get(model_id, f"Non-Gaussian n={n_order}"),
+    )
+
+
+def _factory_ancilla_assisted(
+    model_id: str,
+    kwargs: dict[str, object],
+    labels: dict[str, str] | None = None,
+) -> ModelConfig:
+    """Factory for ancilla-assisted metrology model."""
+    _labels = labels if labels is not None else {}
+    fn = _ancilla_sensitivity_fn(
+        alpha=_to_float(kwargs.get("alpha", 1.0), 1.0),
+        g_sa=_to_float(kwargs.get("g_sa", 1.0), 1.0),
+        tau=_to_float(kwargs.get("tau", 0.1), 0.1),
+        g_sp=_to_float(kwargs.get("g_sp", 0.0), 0.0),
+        lam=_to_float(kwargs.get("lam", 0.0), 0.0),
+        K=_to_int(kwargs.get("K", 2), 2),
+    )
+    return ModelConfig(
+        model_id=model_id,
+        custom_sensitivity_fn=fn,
+        state_type="",
+        noise_type="none",
+        entangler="none",
+        label=_labels.get(model_id, "Ancilla-assisted metrology"),
+    )
+
+
+def _factory_kerr_mzi(
+    model_id: str,
+    kwargs: dict[str, object],
+    labels: dict[str, str] | None = None,
+) -> ModelConfig:
+    """Factory for Kerr-nonlinear MZI model."""
+    _labels = labels if labels is not None else {}
+    fn = _kerr_mzi_sensitivity_fn(
+        K=_to_float(kwargs.get("K", 0.1), 0.1),
+        T_kerr=_to_float(kwargs.get("T_kerr", 1.0), 1.0),
+        state_type=_to_str(kwargs.get("state_type", "noon"), "noon"),
+    )
+    return ModelConfig(
+        model_id=model_id,
+        custom_sensitivity_fn=fn,
+        state_type="",
+        noise_type="none",
+        entangler="none",
+        label=_labels.get(model_id, "Kerr-nonlinear MZI"),
+    )
+
+
+def _factory_weak_value_mzi(
+    model_id: str,
+    kwargs: dict[str, object],
+    labels: dict[str, str] | None = None,
+) -> ModelConfig:
+    """Factory for weak-value MZI model."""
+    _labels = labels if labels is not None else {}
+    fn = _weak_value_mzi_sensitivity_fn(
+        post_select_angle=_to_float(
+            kwargs.get("post_select_angle", np.pi / 2 - 0.1),
+            np.pi / 2 - 0.1,
+        ),
+    )
+    return ModelConfig(
+        model_id=model_id,
+        custom_sensitivity_fn=fn,
+        state_type="",
+        noise_type="none",
+        entangler="none",
+        label=_labels.get(model_id, "Weak-value MZI"),
+    )
+
+
+def _factory_standard(
+    model_id: str,
+    kwargs: dict[str, object],
+    state_types: dict[str, str] | None = None,
+    noise_types: dict[str, str] | None = None,
+    entanglers: dict[str, str] | None = None,
+    labels: dict[str, str] | None = None,
+) -> ModelConfig:
+    """Factory for standard (lookup-dict-based) survey models.
+
+    Unknown model IDs fall through to this factory and produce a model
+    with ``state_type`` matching the ID.
+    """
+    _state_types = state_types if state_types is not None else {}
+    _noise_types = noise_types if noise_types is not None else {}
+    _entanglers = entanglers if entanglers is not None else {}
+    _labels = labels if labels is not None else {}
+
+    state_type = _state_types.get(model_id, model_id)
+    noise_type = _noise_types.get(model_id, "none")
+    entangler = _entanglers.get(model_id, "none")
+    label = _labels.get(model_id, model_id.replace("_", " ").title())
+
+    # Override with any provided string kwargs
+    overrides: dict[str, str] = {}
+    for key in ("state_type", "noise_type", "entangler", "label"):
+        val = kwargs.get(key)
+        if isinstance(val, str):
+            overrides[key] = val
+
+    return ModelConfig(
+        model_id=model_id,
+        state_type=overrides.get("state_type", state_type),
+        noise_type=overrides.get("noise_type", noise_type),
+        entangler=overrides.get("entangler", entangler),
+        label=overrides.get("label", label),
+    )
+
+
+# ── Public API ───────────────────────────────────────────────────────────
 
 
 def create_survey_model(
@@ -3437,7 +3817,8 @@ def create_survey_model(
         ModelConfig with appropriate defaults for the given model_id.
 
     """
-    defaults: dict[str, str] = {
+    # ── Lookup tables (local to avoid module-level constants) ─────────
+    state_types: dict[str, str] = {
         "ideal_coherent": "css",  # CSS = coherent state with |alpha|² = N
         "ideal_noon": "noon",
         "ideal_twin_fock": "twin_fock",
@@ -3446,8 +3827,7 @@ def create_survey_model(
         "squeezed_vacuum": "squeezed_vacuum",
         "squeezed_vacuum_loss": "squeezed_vacuum",
     }
-
-    noise_defaults: dict[str, str] = {
+    noise_types: dict[str, str] = {
         "ideal_coherent": "none",
         "ideal_noon": "none",
         "ideal_twin_fock": "none",
@@ -3456,8 +3836,7 @@ def create_survey_model(
         "squeezed_vacuum": "none",
         "squeezed_vacuum_loss": "loss",
     }
-
-    entangler_defaults: dict[str, str] = {
+    entanglers: dict[str, str] = {
         "ideal_coherent": "none",
         "ideal_noon": "none",
         "ideal_twin_fock": "none",
@@ -3466,8 +3845,7 @@ def create_survey_model(
         "squeezed_vacuum": "none",
         "squeezed_vacuum_loss": "none",
     }
-
-    label_defaults: dict[str, str] = {
+    labels: dict[str, str] = {
         "ideal_coherent": "Coherent state",
         "ideal_noon": "NOON state",
         "ideal_twin_fock": "Twin-Fock state",
@@ -3482,126 +3860,25 @@ def create_survey_model(
         "weak_value_mzi": "Weak-value MZI",
     }
 
-    # --- Custom sensitivity models bypass standard pipeline ---
-    if model_id == "non_gaussian_n3":
-        omega_n = kwargs.get("omega_n", 0.5)
-        t_sqz = kwargs.get("t_sqz", 2.0)
-        theta_n = kwargs.get("theta_n", 0.0)
-        use_gs = kwargs.get("use_ground_state", False)
-        fn = _non_gaussian_sensitivity_fn(
-            n_order=3,
-            omega_n=float(omega_n) if isinstance(omega_n, (int, float)) else 0.5,
-            theta_n=float(theta_n) if isinstance(theta_n, (int, float)) else 0.0,
-            t_sqz=float(t_sqz) if isinstance(t_sqz, (int, float)) else 2.0,
-            use_ground_state=bool(use_gs) if isinstance(use_gs, (bool, int)) else False,
-        )
-        return ModelConfig(
-            model_id=model_id,
-            custom_sensitivity_fn=fn,
-            state_type="",
-            noise_type="none",
-            entangler="none",
-            label=label_defaults.get(model_id, "Non-Gaussian n=3"),
-        )
+    # ── Local dispatch dict ─────────────────────────────────────────
+    factories: dict[str, Callable[[str, dict[str, object]], ModelConfig]] = {
+        "non_gaussian_n3": lambda mid, kw: _factory_non_gaussian(3, mid, kw, labels=labels),
+        "non_gaussian_n4": lambda mid, kw: _factory_non_gaussian(4, mid, kw, labels=labels),
+        "ancilla_assisted": lambda mid, kw: _factory_ancilla_assisted(mid, kw, labels=labels),
+        "kerr_mzi": lambda mid, kw: _factory_kerr_mzi(mid, kw, labels=labels),
+        "weak_value_mzi": lambda mid, kw: _factory_weak_value_mzi(mid, kw, labels=labels),
+    }
 
-    if model_id == "non_gaussian_n4":
-        omega_n = kwargs.get("omega_n", 0.5)
-        t_sqz = kwargs.get("t_sqz", 2.0)
-        theta_n = kwargs.get("theta_n", 0.0)
-        use_gs = kwargs.get("use_ground_state", False)
-        fn = _non_gaussian_sensitivity_fn(
-            n_order=4,
-            omega_n=float(omega_n) if isinstance(omega_n, (int, float)) else 0.5,
-            theta_n=float(theta_n) if isinstance(theta_n, (int, float)) else 0.0,
-            t_sqz=float(t_sqz) if isinstance(t_sqz, (int, float)) else 2.0,
-            use_ground_state=bool(use_gs) if isinstance(use_gs, (bool, int)) else False,
-        )
-        return ModelConfig(
-            model_id=model_id,
-            custom_sensitivity_fn=fn,
-            state_type="",
-            noise_type="none",
-            entangler="none",
-            label=label_defaults.get(model_id, "Non-Gaussian n=4"),
-        )
+    factory = factories.get(model_id)
+    if factory is not None:
+        return factory(model_id, kwargs)
 
-    if model_id == "ancilla_assisted":
-        alpha = kwargs.get("alpha", 1.0)
-        g_sa = kwargs.get("g_sa", 1.0)
-        tau = kwargs.get("tau", 0.1)
-        g_sp = kwargs.get("g_sp", 0.0)
-        lam = kwargs.get("lam", 0.0)
-        K = kwargs.get("K", 2)
-        fn = _ancilla_sensitivity_fn(
-            alpha=float(alpha) if isinstance(alpha, (int, float)) else 1.0,
-            g_sa=float(g_sa) if isinstance(g_sa, (int, float)) else 1.0,
-            tau=float(tau) if isinstance(tau, (int, float)) else 0.1,
-            g_sp=float(g_sp) if isinstance(g_sp, (int, float)) else 0.0,
-            lam=float(lam) if isinstance(lam, (int, float)) else 0.0,
-            K=int(K) if isinstance(K, int) else 2,
-        )
-        return ModelConfig(
-            model_id=model_id,
-            custom_sensitivity_fn=fn,
-            state_type="",
-            noise_type="none",
-            entangler="none",
-            label=label_defaults.get(model_id, "Ancilla-assisted metrology"),
-        )
-
-    if model_id == "kerr_mzi":
-        K = kwargs.get("K", 0.1)
-        T_kerr = kwargs.get("T_kerr", 1.0)
-        state_type = kwargs.get("state_type", "noon")
-        K_val = float(K) if isinstance(K, (int, float)) else 0.1
-        T_val = float(T_kerr) if isinstance(T_kerr, (int, float)) else 1.0
-        st_val = str(state_type) if isinstance(state_type, str) else "noon"
-        fn = _kerr_mzi_sensitivity_fn(K=K_val, T_kerr=T_val, state_type=st_val)
-        return ModelConfig(
-            model_id=model_id,
-            custom_sensitivity_fn=fn,
-            state_type="",
-            noise_type="none",
-            entangler="none",
-            label=label_defaults.get(model_id, "Kerr-nonlinear MZI"),
-        )
-
-    if model_id == "weak_value_mzi":
-        post_select_angle = kwargs.get("post_select_angle", np.pi / 2 - 0.1)
-        psa = (
-            float(post_select_angle)
-            if isinstance(post_select_angle, (int, float))
-            else np.pi / 2 - 0.1
-        )
-        fn = _weak_value_mzi_sensitivity_fn(post_select_angle=psa)
-        return ModelConfig(
-            model_id=model_id,
-            custom_sensitivity_fn=fn,
-            state_type="",
-            noise_type="none",
-            entangler="none",
-            label=label_defaults.get(model_id, "Weak-value MZI"),
-        )
-
-    state_type = defaults.get(model_id, model_id)
-    noise_type = noise_defaults.get(model_id, "none")
-    entangler = entangler_defaults.get(model_id, "none")
-    label = label_defaults.get(model_id, model_id.replace("_", " ").title())
-
-    # Override with any provided kwargs
-    model_kwargs: dict[str, str] = {}
-    for key in ("state_type", "noise_type", "entangler", "label"):
-        if key in kwargs:
-            val = kwargs[key]
-            if isinstance(val, str):
-                model_kwargs[key] = val
-
-    return ModelConfig(
-        model_id=model_id,
-        state_type=model_kwargs.get("state_type", state_type),
-        noise_type=model_kwargs.get("noise_type", noise_type),
-        entangler=model_kwargs.get("entangler", entangler),
-        label=model_kwargs.get("label", label),
+    return _factory_standard(
+        model_id, kwargs,
+        state_types=state_types,
+        noise_types=noise_types,
+        entanglers=entanglers,
+        labels=labels,
     )
 
 

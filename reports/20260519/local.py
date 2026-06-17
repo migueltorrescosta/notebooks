@@ -58,7 +58,7 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
 )
 from src.utils.constants import I_4
-from src.utils.parallel import parallel_map as _parallel_map
+from src.utils.parallel import parallel_map
 
 sns.set_theme(style="whitegrid")
 
@@ -1185,7 +1185,7 @@ def generate_phase_2d_slice_ax_azz(force: bool = False) -> None:
     n = len(PHASE_OMEGA_VALS)
     print(f"[run]  (a_x, a_zz) phase slice at {n} ω values (parallel)")
     worker = partial(_run_phase_2d_slice, slice_type="ax", force=force)
-    _parallel_map(worker, PHASE_OMEGA_VALS, desc="(a_x, a_zz) slices")
+    parallel_map(worker, PHASE_OMEGA_VALS, desc="(a_x, a_zz) slices")
 
 
 def generate_phase_2d_slice_ay_azz(force: bool = False) -> None:
@@ -1193,7 +1193,7 @@ def generate_phase_2d_slice_ay_azz(force: bool = False) -> None:
     n = len(PHASE_OMEGA_VALS)
     print(f"[run]  (a_y, a_zz) phase slice at {n} ω values (parallel)")
     worker = partial(_run_phase_2d_slice, slice_type="ay", force=force)
-    _parallel_map(worker, PHASE_OMEGA_VALS, desc="(a_y, a_zz) slices")
+    parallel_map(worker, PHASE_OMEGA_VALS, desc="(a_y, a_zz) slices")
 
 
 def _run_phase_random_search(omega: float, force: bool) -> None:
@@ -1226,7 +1226,7 @@ def generate_phase_random_search(force: bool = False) -> None:
     n = len(PHASE_OMEGA_VALS)
     print(f"[run]  4D phase random search at {n} ω values (parallel)")
     worker = partial(_run_phase_random_search, force=force)
-    _parallel_map(worker, PHASE_OMEGA_VALS, desc="random search")
+    parallel_map(worker, PHASE_OMEGA_VALS, desc="random search")
 
 
 def _run_phase_omega_scan_single(omega: float) -> dict[str, float | np.ndarray]:
@@ -1282,73 +1282,109 @@ def _run_phase_omega_scan_single(omega: float) -> dict[str, float | np.ndarray]:
     }
 
 
-def generate_phase_omega_scan(force: bool = False) -> None:
-    """Phase-modulated ω-scan with Nelder-Mead refinement (parallel)."""
-    csv_p = _parquet_path("phase-omega-scan")
-    fig_p = _fig_path("phase-omega-scan")
+def _check_omega_scan_cache(
+    parquet_path: Path, force: bool
+) -> DriveOmegaScanResult | None:
+    """Check if cached parquet exists and load it.
 
-    if csv_p.exists() and not force:
-        print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = DriveOmegaScanResult.from_parquet(csv_p)
-    else:
-        n = len(PHASE_OMEGA_VALS)
-        print(f"[run]  Computing phase ω-scan for {n} ω values (parallel)...")
+    Args:
+        parquet_path: Path to cached Parquet file.
+        force: If True, ignore cache and return None.
 
-        max_workers = min(32, os.cpu_count() or 1)
-        print(f"  [parallel] Using {max_workers} workers for ω-scan")
+    Returns:
+        Loaded result if cached and not forced, else None.
+    """
+    if not parquet_path.exists() or force:
+        return None
+    print(f"[skip] {parquet_path.name} exists (use --force to overwrite)")
+    return DriveOmegaScanResult.from_parquet(parquet_path)
 
-        per_omega_results: list[dict] = []
-        mp_ctx = _mp.get_context("fork")
-        with concurrent.futures.ProcessPoolExecutor(
-            max_workers=max_workers,
-            mp_context=mp_ctx,
-        ) as executor:
-            fut_to_omega = {
-                executor.submit(_run_phase_omega_scan_single, omega): omega
-                for omega in PHASE_OMEGA_VALS
-            }
-            for future in concurrent.futures.as_completed(fut_to_omega):
-                omega = fut_to_omega[future]
-                try:
-                    per_omega_results.append(future.result())
-                    print(f"  [done] ω={omega}")
-                except Exception as exc:
-                    print(f"  [ERROR] ω={omega}: {exc}")
-                    raise
 
-        # Sort by ω and construct the full result
-        per_omega_results.sort(key=lambda r: float(r["omega"]))
+def _compute_omega_scan_core() -> DriveOmegaScanResult:
+    """Run the parallel ω-scan computation (random search + NM refinement)."""
+    n = len(PHASE_OMEGA_VALS)
+    print(f"[run]  Computing phase ω-scan for {n} ω values (parallel)...")
 
-        omega_arr = np.array([r["omega"] for r in per_omega_results], dtype=float)
-        best_deltas = [float(r["best_delta_omega"]) for r in per_omega_results]
-        best_params = [
-            (
-                float(r["a_x"]),
-                float(r["a_y"]),
-                float(r["a_z"]),
-                float(r["a_zz"]),
-            )
-            for r in per_omega_results
-        ]
-        exp_vals = [float(r["expectation_Jz"]) for r in per_omega_results]
-        var_vals = [float(r["variance_Jz"]) for r in per_omega_results]
-        sql_vals = [1.0 / 10.0] * len(omega_arr)
+    max_workers = min(32, os.cpu_count() or 1)
+    print(f"  [parallel] Using {max_workers} workers for ω-scan")
 
-        result = DriveOmegaScanResult(
-            omega_values=omega_arr,
-            best_params_per_omega=best_params,
-            best_delta_omega_per_omega=np.array(best_deltas, dtype=float),
-            sql_values=np.array(sql_vals, dtype=float),
-            expectation_Jz_per_omega=np.array(exp_vals, dtype=float),
-            variance_Jz_per_omega=np.array(var_vals, dtype=float),
+    per_omega_results: list[dict[str, Any]] = []
+    mp_ctx = _mp.get_context("fork")
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=max_workers,
+        mp_context=mp_ctx,
+    ) as executor:
+        fut_to_omega = {
+            executor.submit(_run_phase_omega_scan_single, omega): omega
+            for omega in PHASE_OMEGA_VALS
+        }
+        for future in concurrent.futures.as_completed(fut_to_omega):
+            omega = fut_to_omega[future]
+            try:
+                per_omega_results.append(future.result())
+                print(f"  [done] ω={omega}")
+            except Exception as exc:
+                print(f"  [ERROR] ω={omega}: {exc}")
+                raise
+
+    per_omega_results.sort(key=lambda r: float(r["omega"]))
+
+    omega_arr = np.array([r["omega"] for r in per_omega_results], dtype=float)
+    best_deltas = [float(r["best_delta_omega"]) for r in per_omega_results]
+    best_params = [
+        (
+            float(r["a_x"]),
+            float(r["a_y"]),
+            float(r["a_z"]),
+            float(r["a_zz"]),
         )
-        result.save_parquet(csv_p)
-        print(f"[save] {csv_p}")
+        for r in per_omega_results
+    ]
+    exp_vals = [float(r["expectation_Jz"]) for r in per_omega_results]
+    var_vals = [float(r["variance_Jz"]) for r in per_omega_results]
+
+    return DriveOmegaScanResult(
+        omega_values=omega_arr,
+        best_params_per_omega=best_params,
+        best_delta_omega_per_omega=np.array(best_deltas, dtype=float),
+        sql_values=np.full(len(omega_arr), 1.0 / DEFAULT_t_hold, dtype=float),
+        expectation_Jz_per_omega=np.array(exp_vals, dtype=float),
+        variance_Jz_per_omega=np.array(var_vals, dtype=float),
+    )
+
+
+def _save_and_plot_omega_scan(
+    result: DriveOmegaScanResult,
+    parquet_path: Path,
+    fig_path: Path,
+) -> None:
+    """Save result to Parquet and generate the ω-scan figure."""
+    result.save_parquet(parquet_path)
+    print(f"[save] {parquet_path}")
 
     from src.visualization.ancilla_drive_plots import plot_drive_omega_scan
 
-    plot_drive_omega_scan(result, fig_p)
-    print(f"[fig]  {fig_p}")
+    plot_drive_omega_scan(result, fig_path)
+    print(f"[fig]  {fig_path}")
+
+
+def generate_phase_omega_scan(force: bool = False) -> None:
+    """Phase-modulated ω-scan with Nelder-Mead refinement (parallel).
+
+    Check cache → compute (if needed) → save and plot.
+    """
+    from src.visualization.ancilla_drive_plots import plot_drive_omega_scan
+
+    csv_p = _parquet_path("phase-omega-scan")
+    fig_p = _fig_path("phase-omega-scan")
+
+    result = _check_omega_scan_cache(csv_p, force)
+    if result is None:
+        result = _compute_omega_scan_core()
+        _save_and_plot_omega_scan(result, csv_p, fig_p)
+    else:
+        plot_drive_omega_scan(result, fig_p)
+        print(f"[fig]  {fig_p}")
 
 
 def generate_phase_optimal_params(force: bool = False) -> None:

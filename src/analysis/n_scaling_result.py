@@ -17,9 +17,11 @@ from typing import ClassVar
 import numpy as np
 import pandas as pd
 
+from src.utils.serialization import ParquetSerializable
+
 
 @dataclass
-class NScalingResult:
+class NScalingResult(ParquetSerializable):
     """Result from optimising the ω-modulated protocol for a single (N, ω) pair.
 
     Attributes:
@@ -95,22 +97,11 @@ class NScalingResult:
             },
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> NScalingResult:
         path = Path(path)
         df = pd.read_parquet(path)
-        missing = {c for c in cls._PARQUET_COLUMNS if c not in df.columns}
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Re-run the simulation that generated it."
-            )
+        cls._validate_columns(df)
         row = df.iloc[0]
         return cls(
             N=int(row["N"]),
@@ -132,7 +123,7 @@ class NScalingResult:
 
 
 @dataclass
-class NScalingScanResult:
+class NScalingScanResult(ParquetSerializable):
     """Collection of N-scaling results for a grid of (N, ω) pairs.
 
     Attributes:
@@ -143,28 +134,18 @@ class NScalingScanResult:
 
     results: list[NScalingResult] = field(default_factory=list)
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = NScalingResult._PARQUET_COLUMNS
+
     def to_dataframe(self) -> pd.DataFrame:
         if not self.results:
-            return pd.DataFrame(columns=NScalingResult._PARQUET_COLUMNS)
+            return pd.DataFrame(columns=self._PARQUET_COLUMNS)
         return pd.concat([r.to_dataframe() for r in self.results], ignore_index=True)
-
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
 
     @classmethod
     def from_parquet(cls, path: str | Path) -> NScalingScanResult:
         path = Path(path)
         df = pd.read_parquet(path)
-        required = set(NScalingResult._PARQUET_COLUMNS)
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Re-run the simulation that generated it."
-            )
+        cls._validate_columns(df)
         results: list[NScalingResult] = []
         for _, row in df.iterrows():
             results.append(

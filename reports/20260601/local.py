@@ -27,6 +27,7 @@ import argparse
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,15 +39,14 @@ from src.analysis.fisher_information import (
 )
 from src.analysis.scaling_fit import (
     ScalingFitResult,
-)
-from src.analysis.scaling_fit import (
-    fit_scaling_exponent as module_fit_scaling_exponent,
+    fit_scaling_exponent,
 )
 from src.physics.mzi_simulation import beam_splitter_unitary
 from src.physics.mzi_states import (
     input_state_factory,
     two_mode_jz_operator,
 )
+from src.utils.serialization import ParquetSerializable
 
 # Force non-interactive backend before any plotting imports.
 if "MPLBACKEND" not in os.environ:
@@ -469,7 +469,7 @@ def compute_mzi_sensitivity_grid(
 
 
 @dataclass
-class MziSensitivityData:
+class MziSensitivityData(ParquetSerializable):
     r"""All sensitivity data for one state type across :math:`N` and :math:`\omega`.
 
     Stores a 2D grid indexed by ``(N, omega)``, plus per-:math:`N` QFI bounds.
@@ -505,6 +505,20 @@ class MziSensitivityData:
     delta_omega_c_grid: np.ndarray
     t_hold: float = t_hold
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "state_type",
+        "N",
+        "omega",
+        "expectation",
+        "variance",
+        "derivative",
+        "delta_omega_ep",
+        "delta_omega_q",
+        "fisher_classical",
+        "delta_omega_c",
+        "t_hold",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         """Convert to long-format DataFrame (one row per N, θ combination)."""
         n_N = len(self.N_values)
@@ -533,36 +547,11 @@ class MziSensitivityData:
                 )
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        """Save to Parquet via long-format DataFrame."""
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> MziSensitivityData:
         """Load from Parquet, reconstructing the 2D grids."""
         df = pd.read_parquet(path)
-        required = {
-            "state_type",
-            "N",
-            "omega",
-            "expectation",
-            "variance",
-            "derivative",
-            "delta_omega_ep",
-            "delta_omega_q",
-            "fisher_classical",
-            "delta_omega_c",
-            "t_hold",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         state_type = str(df["state_type"].iloc[0])
         t_hold = float(df["t_hold"].iloc[0])
         N_vals = sorted(df["N"].unique())
@@ -671,47 +660,51 @@ def generate_omega_scan(
 # ============================================================================
 
 
-def generate_full_data(
+def _generate_single_N_data(
     state_type: str,
-    N_range: list[int],
+    N: int,
     omega_grid: np.ndarray,
     t_hold: float = t_hold,
-) -> MziSensitivityData:
-    r"""Generate sensitivity data for all :math:`N` in a range.
+) -> MziSensitivityData | None:
+    r"""Run omega scan for a single N, returning None on failure.
 
     Args:
         state_type: ``"noon"`` or ``"twin_fock_std"``.
-        N_range: List of :math:`N` values.
+        N: Total photon number.
         omega_grid: :math:`\omega` values to scan.
         t_hold: Holding time.
 
     Returns:
-        MziSensitivityData with all N values.
+        MziSensitivityData with one N value, or None if the simulation fails.
     """
-    scan_results: list[MziSensitivityData] = []
-    for idx, N in enumerate(N_range):
-        max_photons = N
-        try:
-            print(
-                f"  Sweeping {state_type} N={N} ({idx + 1}/{len(N_range)})...",
-                flush=True,
-            )
-            scan = generate_omega_scan(
-                state_type,
-                N,
-                omega_grid,
-                max_photons=max_photons,
-                t_hold=t_hold,
-            )
-            scan_results.append(scan)
-        except (ValueError, AssertionError) as exc:
-            print(f"Warning: N={N} failed for {state_type}: {exc}")
-            continue
+    try:
+        return generate_omega_scan(
+            state_type,
+            N,
+            omega_grid,
+            max_photons=N,
+            t_hold=t_hold,
+        )
+    except (ValueError, AssertionError) as exc:
+        print(f"Warning: N={N} failed for {state_type}: {exc}")
+        return None
 
-    if not scan_results:
-        raise RuntimeError(f"No valid N values for state_type={state_type}")
 
-    # Concatenate along N axis
+def _concatenate_scan_results(
+    scan_results: list[MziSensitivityData],
+    state_type: str,
+    t_hold: float,
+) -> MziSensitivityData:
+    """Concatenate a list of single-N scan results into a single MziSensitivityData.
+
+    Args:
+        scan_results: List of MziSensitivityData, each with one N value.
+        state_type: State type label for the combined result.
+        t_hold: Holding time.
+
+    Returns:
+        Combined MziSensitivityData with all N values.
+    """
     return MziSensitivityData(
         state_type=state_type,
         N_values=np.concatenate([r.N_values for r in scan_results]).astype(int),
@@ -733,12 +726,85 @@ def generate_full_data(
     )
 
 
+def generate_full_data(
+    state_type: str,
+    N_range: list[int],
+    omega_grid: np.ndarray,
+    t_hold: float = t_hold,
+) -> MziSensitivityData:
+    r"""Generate sensitivity data for all :math:`N` in a range.
+
+    Args:
+        state_type: ``"noon"`` or ``"twin_fock_std"``.
+        N_range: List of :math:`N` values.
+        omega_grid: :math:`\omega` values to scan.
+        t_hold: Holding time.
+
+    Returns:
+        MziSensitivityData with all N values.
+    """
+    scan_results: list[MziSensitivityData] = []
+    for idx, N in enumerate(N_range):
+        print(
+            f"  Sweeping {state_type} N={N} ({idx + 1}/{len(N_range)})...",
+            flush=True,
+        )
+        scan = _generate_single_N_data(state_type, N, omega_grid, t_hold=t_hold)
+        if scan is not None:
+            scan_results.append(scan)
+
+    if not scan_results:
+        raise RuntimeError(f"No valid N values for state_type={state_type}")
+
+    return _concatenate_scan_results(scan_results, state_type, t_hold)
+
+
+def _maybe_generate_full_data(
+    st: str,
+    n_range: list[int],
+    label: str,
+    omega_grid: np.ndarray,
+    force: bool,
+    only: str | None,
+) -> MziSensitivityData | None:
+    r"""Load or generate sensitivity data for one state type.
+
+    If ``only`` is set and does not match ``st``, returns ``None``.
+    Otherwise loads from Parquet (if exists and not forced) or generates
+    fresh data via :func:`generate_full_data`.
+
+    Args:
+        st: State type key (e.g. ``"noon"`` or ``"twin_fock_std"``).
+        n_range: List of :math:`N` values to simulate.
+        label: Human-readable name for logging.
+        omega_grid: :math:`\omega` grid.
+        force: Re-generate even if Parquet exists.
+        only: If set, only load/generate for matching state type.
+
+    Returns:
+        MziSensitivityData or None if filtered out by ``only``.
+    """
+    if only is not None and st != only:
+        return None
+
+    pq_path = _parquet_path(f"{st}_sensitivity")
+    if pq_path.exists() and not force:
+        print(f"Loading existing data for {label} from {pq_path}")
+        return MziSensitivityData.from_parquet(pq_path)
+
+    print(f"Generating {label} sensitivity data (N={n_range[0]}..{n_range[-1]})")
+    data = generate_full_data(st, n_range, omega_grid, t_hold=t_hold)
+    data.save_parquet(pq_path)
+    print(f"  Saved to {pq_path}")
+    return data
+
+
 # ============================================================================
 # Scaling Exponent Fitting
 # ============================================================================
 
 
-def fit_scaling_exponent(
+def fit_mzi_scaling_exponent(
     N_values: np.ndarray,
     delta_omega_values: np.ndarray,
     N_min: int = 4,
@@ -778,7 +844,7 @@ def fit_scaling_exponent(
             warnings=["Insufficient valid points for fit"],
         )
 
-    return module_fit_scaling_exponent(
+    return fit_scaling_exponent(
         N_filtered,
         delta_filtered,
         min_N=N_min,
@@ -1078,7 +1144,7 @@ def plot_scaling(
             )
 
         # Fit exponent to Δθ_C
-        fit_result = fit_scaling_exponent(N_vals, best_dt_c, N_min=N_min_fit)
+        fit_result = fit_mzi_scaling_exponent(N_vals, best_dt_c, N_min=N_min_fit)
         if fit_result.valid:
             N_fit = fit_result.N_values
             delta_fit = fit_result.C * N_fit**fit_result.alpha
@@ -1181,6 +1247,98 @@ def plot_expectation_vs_omega_grid(
 
 
 # ============================================================================
+# Plot Orchestration
+# ============================================================================
+
+
+def _maybe_plot_delta_omega_overlays(
+    results: dict[str, MziSensitivityData],
+    state_configs: list[tuple[str, list[int], str]],
+    force: bool,
+    only: str | None,
+) -> None:
+    """Plot Δθ overlay figures for each state type (one per state)."""
+    for st, _n_range, _label in state_configs:
+        if only is not None and st != only:
+            continue
+        data = results.get(st)
+        if data is None:
+            continue
+        overlay_path = _fig_path(f"{st}_delta_omega_comparison")
+        if not overlay_path.exists() or force:
+            sel_N = (
+                [1, 2, 4, 10, 20, 30, 40] if st == "noon" else [2, 4, 10, 20, 30, 40]
+            )
+            plot_delta_omega_overlay(data, selected_N=sel_N, save_path=overlay_path)
+            print(f"  Plotted {overlay_path}")
+
+
+def _maybe_plot_variance_comparison(
+    results: dict[str, MziSensitivityData],
+    force: bool,
+) -> None:
+    """Plot probe standard deviation comparison if the file does not exist or force."""
+    path = _fig_path("variance_histogram")
+    if not path.exists() or force:
+        plot_standard_deviation_comparison(
+            results.get("noon"),
+            results.get("twin_fock_std"),
+            save_path=path,
+        )
+        print(f"  Plotted {path}")
+
+
+def _maybe_plot_expectation_grid(
+    results: dict[str, MziSensitivityData],
+    force: bool,
+) -> None:
+    """Plot simplified expectation grid (NOON-only: N=1 + N>1)."""
+    path = _fig_path("expectation_grid")
+    if not path.exists() or force:
+        plot_expectation_vs_omega_grid(
+            results.get("noon"),
+            results.get("twin_fock_std"),
+            save_path=path,
+        )
+        print(f"  Plotted {path}")
+
+
+def _maybe_plot_scaling_comparison(
+    results: dict[str, MziSensitivityData],
+    force: bool,
+) -> None:
+    """Plot combined scaling comparison."""
+    path = _fig_path("scaling_comparison")
+    if not path.exists() or force:
+        plot_scaling(
+            results.get("noon"),
+            results.get("twin_fock_std"),
+            save_path=path,
+        )
+        print(f"  Plotted {path}")
+
+
+def _generate_plots(
+    results: dict[str, MziSensitivityData],
+    state_configs: list[tuple[str, list[int], str]],
+    force: bool,
+    only: str | None,
+) -> None:
+    """Generate all plots from the computed sensitivity data.
+
+    Args:
+        results: Mapping of state type to sensitivity data.
+        state_configs: List of ``(state_type, N_range, label)`` tuples.
+        force: Re-generate plots even if SVG files exist.
+        only: If set, only plot for the specified state type.
+    """
+    _maybe_plot_delta_omega_overlays(results, state_configs, force, only)
+    _maybe_plot_variance_comparison(results, force)
+    _maybe_plot_expectation_grid(results, force)
+    _maybe_plot_scaling_comparison(results, force)
+
+
+# ============================================================================
 # Main Pipeline
 # ============================================================================
 
@@ -1208,68 +1366,11 @@ def generate_all(
     ]
 
     for st, n_range, label in state_configs:
-        if only is not None and st != only:
-            continue
+        data = _maybe_generate_full_data(st, n_range, label, omega_grid, force, only)
+        if data is not None:
+            results[st] = data
 
-        pq_path = _parquet_path(f"{st}_sensitivity")
-        if pq_path.exists() and not force:
-            print(f"Loading existing data for {label} from {pq_path}")
-            data = MziSensitivityData.from_parquet(pq_path)
-        else:
-            print(
-                f"Generating {label} sensitivity data (N={n_range[0]}..{n_range[-1]})"
-            )
-            data = generate_full_data(st, n_range, omega_grid, t_hold=t_hold)
-            data.save_parquet(pq_path)
-            print(f"  Saved to {pq_path}")
-
-        results[st] = data
-
-    # --- Δθ overlay figures (one per state) ---
-    for st, _n_range, _label in state_configs:
-        if only is not None and st != only:
-            continue
-        data = results.get(st)
-        if data is None:
-            continue
-        overlay_path = _fig_path(f"{st}_delta_omega_comparison")
-        if not overlay_path.exists() or force:
-            if st == "noon":
-                sel_N = [1, 2, 4, 10, 20, 30, 40]
-            else:
-                sel_N = [2, 4, 10, 20, 30, 40]
-            plot_delta_omega_overlay(data, selected_N=sel_N, save_path=overlay_path)
-            print(f"  Plotted {overlay_path}")
-
-    # --- Probe standard deviation comparison ---
-    hist_path = _fig_path("variance_histogram")
-    if not hist_path.exists() or force:
-        plot_standard_deviation_comparison(
-            results.get("noon"),
-            results.get("twin_fock_std"),
-            save_path=hist_path,
-        )
-        print(f"  Plotted {hist_path}")
-
-    # --- Simplified expectation grid (NOON-only: N=1 + N>1) ---
-    exp_path = _fig_path("expectation_grid")
-    if not exp_path.exists() or force:
-        plot_expectation_vs_omega_grid(
-            results.get("noon"),
-            results.get("twin_fock_std"),
-            save_path=exp_path,
-        )
-        print(f"  Plotted {exp_path}")
-
-    # --- Combined scaling plot ---
-    scaling_path = _fig_path("scaling_comparison")
-    if not scaling_path.exists() or force:
-        plot_scaling(
-            results.get("noon"),
-            results.get("twin_fock_std"),
-            save_path=scaling_path,
-        )
-        print(f"  Plotted {scaling_path}")
+    _generate_plots(results, state_configs, force, only)
 
     return results
 

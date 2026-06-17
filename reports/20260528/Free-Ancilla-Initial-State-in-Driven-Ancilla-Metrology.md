@@ -4,11 +4,11 @@
 
 For a system--ancilla pair of single-particle two-mode bosonic systems where the system S couples to the unknown phase $\omega$ via $H_S = \omega J_z^S$, the ancilla A is driven during the holding period by a controllable local Hamiltonian $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$, and the system--ancilla interaction is the Ising-type $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, the sensitivity $\Delta\omega$ (error-propagation uncertainty in estimating $\omega$ via a $J_z^S$ measurement on the system) is investigated as a function of the ancilla initial state. The holding time is fixed at $T_H = 10$ for all experiments, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$.
 
-The central question: does freeing the ancilla initial state from the fixed $|1,0\rangle$ to an arbitrary pure qubit state $|\psi_A\rangle = \alpha|1,0\rangle + \beta|0,1\rangle$ enable SQL violation ($\Delta\omega < 1/T_H$) that was previously unattainable?
+The central question: does freeing the ancilla initial state from the fixed $\vert 1,0\rangle$ to an arbitrary pure qubit state $|\psi_A\rangle = \alpha|1,0\rangle + \beta|0,1\rangle$ enable SQL violation ($\Delta\omega < 1/T_H$) that was previously unattainable?
 
 Four experimental scenarios are compared:
 
-1. **Scenario A (20260518 baseline):** Fixed ancilla $|1,0\rangle$, free drive $(a_x, a_y, a_z)$, free interaction $a_{zz}$. Previously established: no SQL violation across 2500 random-search evaluations and 250 Nelder--Mead refinements.
+1. **Scenario A (20260518 baseline):** Fixed ancilla $\vert 1,0\rangle$, free drive $(a_x, a_y, a_z)$, free interaction $a_{zz}$. Previously established: no SQL violation across 2500 random-search evaluations and 250 Nelder--Mead refinements.
 
 2. **Scenario B (primary):** Free ancilla $(\theta_A, \phi_A)$, free drive $(a_x, a_y, a_z)$, free interaction $a_{zz}$. The central question: do the two additional degrees of freedom unlock sub-SQL sensitivity?
 
@@ -22,7 +22,7 @@ Four experimental scenarios are compared:
 
 The total Hilbert space is $\mathcal{H}_{\text{tot}} = \mathcal{H}_S \otimes \mathcal{H}_A$, where each subsystem is a **two-mode bosonic Fock space** truncated at one particle per mode. The single-particle sector $\mathcal{H}_{1} = \text{span}\{\vert1,0\rangle,\, \vert0,1\rangle\}$ (dimension 2) is isomorphic to a spin-$1/2$, and the full space has dimension 4 with ordered computational basis $\{\vert00\rangle, \vert01\rangle, \vert10\rangle, \vert11\rangle\}$ where $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). The **angular momentum operators** for each subsystem satisfy SU(2) algebra $[J_i, J_j] = i \epsilon_{ijk} J_k$ and are represented by $J_k = \sigma_k/2$ (the $2\times2$ Pauli matrices). These are embedded into the full space via Kronecker products: $J_k^S = \sigma_k/2 \otimes \mathbb{1}_2$ and $J_k^A = \mathbb{1}_2 \otimes \sigma_k/2$.
 
-The **initial state** is $\vert\Psi_0\rangle = \vert1,0\rangle_S \otimes \vert\psi_A\rangle$, where $\vert\psi_A\rangle = \alpha\vert1,0\rangle_A + \beta\vert0,1\rangle_A$ with $\vert\alpha\vert^2 + \vert\beta\vert^2 = 1$. Parameterised on the Bloch sphere: $\alpha = \cos(\theta_A/2)$, $\beta = e^{i\phi_A}\sin(\theta_A/2)$, with $\theta_A \in [0, \pi]$ and $\phi_A \in [0, 2\pi)$. The fixed-ancilla baseline is the special case $\theta_A = 0$, $\phi_A = 0$ (ancilla in $|1,0\rangle$).
+The **initial state** is $\vert\Psi_0\rangle = \vert1,0\rangle_S \otimes \vert\psi_A\rangle$, where $\vert\psi_A\rangle = \alpha\vert1,0\rangle_A + \beta\vert0,1\rangle_A$ with $\vert\alpha\vert^2 + \vert\beta\vert^2 = 1$. Parameterised on the Bloch sphere: $\alpha = \cos(\theta_A/2)$, $\beta = e^{i\phi_A}\sin(\theta_A/2)$, with $\theta_A \in [0, \pi]$ and $\phi_A \in [0, 2\pi)$. The fixed-ancilla baseline is the special case $\theta_A = 0$, $\phi_A = 0$ (ancilla in $\vert 1,0\rangle$).
 
 The **circuit protocol** proceeds in four steps:
 
@@ -43,7 +43,7 @@ The **sensitivity** via error propagation is: $\Delta\omega = \sqrt{\text{Var}(J
 
 **Physical mechanism:** When $\theta_A \neq 0$ or $\phi_A \neq 0$, the ancilla starts in a state that is not a $J_z^A$ eigenstate. This means the interaction $a_{zz} J_z^S \otimes J_z^A$ immediately creates S-A entanglement from the initial product state, without requiring the ancilla drive to precess $J_z^A$ away from an eigenstate. The ancilla drive then further enriches the dynamics. If this initial entanglement seeding is sufficient to amplify the effective generator on the system, SQL violation may become accessible even without the $\omega$-modulated drive of the 20260519 protocol.
 
-**Key contrast with prior work:** In the 20260518 protocol, the ancilla always starts in $|1,0\rangle$, which is a $J_z^A$ eigenstate. The interaction term $a_{zz} J_z^S \otimes J_z^A$ therefore acts trivially on the ancilla at $t=0$: $J_z^A |1,0\rangle = +\frac12 |1,0\rangle$, so the initial S-A interaction is equivalent to a $J_z^S$-only rotation with no entanglement. S-A entanglement only builds up later as the ancilla drive $H_A$ rotates $J_z^A$ away from its eigenstate. By starting the ancilla in a superposition, entanglement is present from the start, potentially enhancing the sensitivity.
+**Key contrast with prior work:** In the 20260518 protocol, the ancilla always starts in $\vert 1,0\rangle$, which is a $J_z^A$ eigenstate. The interaction term $a_{zz} J_z^S \otimes J_z^A$ therefore acts trivially on the ancilla at $t=0$: $J_z^A |1,0\rangle = +\frac12 |1,0\rangle$, so the initial S-A interaction is equivalent to a $J_z^S$-only rotation with no entanglement. S-A entanglement only builds up later as the ancilla drive $H_A$ rotates $J_z^A$ away from its eigenstate. By starting the ancilla in a superposition, entanglement is present from the start, potentially enhancing the sensitivity.
 
 The 20260519 report found SQL violation by making the ancilla drive itself $\omega$-dependent ($H_A = \omega \cdot \mathbf{a} \cdot \mathbf{J}^A$), creating parametric amplification. The present work tests a different mechanism: freeing the ancilla initial state while keeping the drive $\omega$-independent.
 
@@ -51,7 +51,7 @@ The 20260519 report found SQL violation by making the ancilla drive itself $\ome
 
 | Model | Ancilla Init | Ancilla Drive ($H_A$) | Interaction ($a_{zz}$) | Expected min $\Delta\omega$ | Purpose |
 |-------|-------------|----------------------|----------------------|---------------------------|---------|
-| **A** (20260518 baseline) | Fixed $|1,0\rangle$ | Free ($a_x,a_y,a_z$) | Free ($a_{zz}$) | $\text{SQL} = 0.1$ | Baseline: no SQL violation found |
+| **A** (20260518 baseline) | Fixed $\vert 1,0\rangle$ | Free ($a_x,a_y,a_z$) | Free ($a_{zz}$) | $\text{SQL} = 0.1$ | Baseline: no SQL violation found |
 | **B** (primary) | Free $(\theta_A,\phi_A)$ | Free ($a_x,a_y,a_z$) | Free ($a_{zz}$) | SQL = 0.1 (confirmed) | Free ancilla does not unlock SQL |
 | **C** (control) | Free $(\theta_A,\phi_A)$ | **None** (all zero) | Free ($a_{zz}$) | SQL = 0.1 | Drive essential even with free ancilla |
 | **D** (control) | Free $(\theta_A,\phi_A)$ | Free ($a_x,a_y,a_z$) | **None** ($a_{zz}=0$) | SQL = 0.1 | Interaction essential with free ancilla |
@@ -147,7 +147,7 @@ All experiments completed. The central finding is definitive: **no scenario achi
 
 ### Experiment 1: Scenario A Baseline Reproduction
 
-The 20260518 baseline is exactly reproduced: with 4 free parameters $(a_x, a_y, a_z, a_{zz})$ and fixed ancilla $|1,0\rangle$, the best sensitivity is $\Delta\omega = 0.1$ (ratio $= 0.9999999993$ to $0.9999999963$) for all five $\omega$ values. The Nelder--Mead refinement converges to the decoupled limit regardless of initial conditions, as expected from the $J=1/2$ spectral radius bound.
+The 20260518 baseline is exactly reproduced: with 4 free parameters $(a_x, a_y, a_z, a_{zz})$ and fixed ancilla $\vert 1,0\rangle$, the best sensitivity is $\Delta\omega = 0.1$ (ratio $= 0.9999999993$ to $0.9999999963$) for all five $\omega$ values. The Nelder--Mead refinement converges to the decoupled limit regardless of initial conditions, as expected from the $J=1/2$ spectral radius bound.
 
 **Key Finding**: The 20260518 result is confirmed — no SQL violation is possible with a fixed-ancilla product initial state, regardless of the ancilla drive and Ising interaction parameters.
 
@@ -155,7 +155,7 @@ The 20260518 baseline is exactly reproduced: with 4 free parameters $(a_x, a_y, 
 
 ### Experiment 2: Scenario B (Primary)
 
-With all 6 parameters freed $(\theta_A, \phi_A, a_x, a_y, a_z, a_{zz})$, the best sensitivity across all five $\omega$ values is $\Delta\omega = 0.1$ (ratio 0.9999999992 to 0.9999999958). The optimal ancilla initial states are never near the fixed $|1,0\rangle$ limit ($\theta_A^*$ ranges from $0.65$ to $2.99$ rad), yet the sensitivity remains exactly at the SQL. The optimiser explores a variety of $(a_x, a_y, a_z)$ drive configurations and $a_{zz}$ values, but always returns to the SQL floor.
+With all 6 parameters freed $(\theta_A, \phi_A, a_x, a_y, a_z, a_{zz})$, the best sensitivity across all five $\omega$ values is $\Delta\omega = 0.1$ (ratio 0.9999999992 to 0.9999999958). The optimal ancilla initial states are never near the fixed $\vert 1,0\rangle$ limit ($\theta_A^*$ ranges from $0.65$ to $2.99$ rad), yet the sensitivity remains exactly at the SQL. The optimiser explores a variety of $(a_x, a_y, a_z)$ drive configurations and $a_{zz}$ values, but always returns to the SQL floor.
 
 | $\omega$ | Best $\Delta\omega$ | Ratio $\Delta\omega/\text{SQL}$ | $\theta_A^*$ (rad) | $\phi_A^*$ (rad) | $a_{zz}^*$ |
 |----------|-------------------|-------------------------------|-------------------|-----------------|-----------|
@@ -246,7 +246,7 @@ The results definitively support the null hypothesis: **no scenario achieves SQL
 
 **Scenario B** (6 free parameters: $\theta_A, \phi_A, a_x, a_y, a_z, a_{zz}$) — the central experiment — converges to exactly $\Delta\omega = 0.1$ ($\Delta\omega \times T_H = 1$) at all five $\omega$ values. The optimal ancilla initial state varies widely across $\omega$ values (from $\theta_A^* = 0.65$ rad to $2.99$ rad), yet the sensitivity never falls below the SQL. This confirms that the $J=1/2$ spectral radius bound is absolute: no product initial state of the ancilla can unlock sub-SQL sensitivity.
 
-**Freeing the ancilla initial state provides no measurable benefit** over the fixed $|1,0\rangle$ baseline. Scenarios A and B yield indistinguishable best sensitivities (both at $\Delta\omega = 0.1$). The optimiser in Scenario B does not converge to $\theta_A = 0$ (the fixed-ancilla limit), but instead finds a variety of $\theta_A$ values — yet none of them produce better sensitivity than the fixed-ancilla case. This indicates that the $J=1/2$ constraint is not merely a local optimum but a global bound.
+**Freeing the ancilla initial state provides no measurable benefit** over the fixed $\vert 1,0\rangle$ baseline. Scenarios A and B yield indistinguishable best sensitivities (both at $\Delta\omega = 0.1$). The optimiser in Scenario B does not converge to $\theta_A = 0$ (the fixed-ancilla limit), but instead finds a variety of $\theta_A$ values — yet none of them produce better sensitivity than the fixed-ancilla case. This indicates that the $J=1/2$ constraint is not merely a local optimum but a global bound.
 
 **Control experiments C and D** confirm the theoretical expectations: without ancilla drive (C) or without Ising interaction (D), the sensitivity is exactly SQL for all parameter values, consistent with the commutator arguments $[a_{zz} J_z^S \otimes J_z^A, J_z^S] = 0$ and $[H_S + H_A, J_z^S] = 0$, respectively. The **2D slice** $(\theta_A, a_{zz})$ extends the 20260527 finding to the free-ancilla domain: the landscape is completely flat at SQL when no ancilla drive is present.
 

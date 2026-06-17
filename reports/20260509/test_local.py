@@ -18,6 +18,8 @@ from typing import Any, ClassVar
 import numpy as np
 import pytest
 
+from src.utils.serialization import assert_roundtrip_fields
+
 # Load local.py via importlib
 # Must register in sys.modules for dataclass machinery to resolve __module__
 _local_path = Path(__file__).resolve().parent / "local.py"
@@ -65,6 +67,27 @@ class TestModuleLoading:
 class TestNonMarkovianSweepData:
     """Dataclass serialization and deserialization."""
 
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("sweep_type", "eq"),
+        ("N", "eq"),
+        ("K", "eq"),
+        ("alpha", "eq"),
+        ("g_sp", "eq"),
+        ("omega_0", "eq"),
+        ("tau", "eq"),
+        ("dt", "eq"),
+        ("lam", "eq"),
+        ("T_decay", "eq"),
+        ("theta", "eq"),
+        ("sweep_values", "allclose"),
+        ("ratio_with", "allclose"),
+        ("ratio_without", "allclose"),
+        ("qfi_with", "allclose"),
+        ("qfi_without", "allclose"),
+        ("qfi_initial", "allclose"),
+        ("pm_occupancy", "allclose"),
+    ]
+
     def _make_dummy_data(self) -> Any:  # type: ignore[explicit-any]
         """Create dummy sweep data for serialization tests."""
         n = 10
@@ -103,28 +126,7 @@ class TestNonMarkovianSweepData:
         assert path.exists()
 
         loaded = _report_local.NonMarkovianSweepData.from_parquet(path)
-
-        # Check non-array scalar metadata
-        assert loaded.sweep_type == data.sweep_type
-        assert loaded.N == data.N
-        assert loaded.K == data.K
-        assert loaded.alpha == data.alpha
-        assert loaded.g_sp == data.g_sp
-        assert loaded.omega_0 == data.omega_0
-        assert loaded.tau == data.tau
-        assert loaded.dt == data.dt
-        assert loaded.lam == data.lam
-        assert loaded.T_decay == data.T_decay
-        assert loaded.theta == data.theta
-
-        # Check computed array fields
-        np.testing.assert_allclose(loaded.sweep_values, data.sweep_values)
-        np.testing.assert_allclose(loaded.ratio_with, data.ratio_with)
-        np.testing.assert_allclose(loaded.ratio_without, data.ratio_without)
-        np.testing.assert_allclose(loaded.qfi_with, data.qfi_with)
-        np.testing.assert_allclose(loaded.qfi_without, data.qfi_without)
-        np.testing.assert_allclose(loaded.qfi_initial, data.qfi_initial)
-        np.testing.assert_allclose(loaded.pm_occupancy, data.pm_occupancy)
+        assert_roundtrip_fields(loaded, data, self._FIELD_SPECS)
 
     def test_from_parquet_fails_on_missing_columns(self, tmp_path: Path) -> None:
         """Fail-fast when required columns are missing."""

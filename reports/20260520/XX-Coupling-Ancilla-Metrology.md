@@ -150,6 +150,65 @@ The following physical invariants are verified throughout every simulation run:
 | **Fringe extremum** | **Expected** — some $\alpha_{xx}$ values may yield vanishing $\partial\langle J_z^S\rangle/\partial\omega$ | **Observed** — some $\alpha_{xx}$ values produce $\Delta\omega = \infty$ (flagged in data). The derivative at $\alpha_{xx}=0$ is always finite and yields $\Delta\omega = \text{SQL}$. |
 | **Decoupled baseline violated** | **Not expected** — independent evolution must recover SQL | **Avoided** — $\Delta\omega = 0.1$ exactly at $\alpha_{xx} = 0$ for all 50 $\omega$ values, confirming the numerical implementation is correct. |
 
+## 🔬 Results
+
+All experiments used a holding time $T_H = 10$, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$. The grid scan evaluated $\Delta\omega(\alpha_{xx}, \omega)$ on a $2001 \times 50 = 100{,}050$ point grid (2001 $\alpha_{xx}$ values in $[0, 20]$ at each of 50 $\omega$ values in $[0.1, 5.0]$).
+
+### Decoupled Baseline
+
+The decoupled configuration $(\alpha_{xx} = 0)$ gives $\Delta\omega = 0.100000$, which matches the SQL exactly:
+
+| $T_H$ | $\Delta\omega$ | SQL | Ratio |
+|-------|---------------|-----|-------|
+| 10 | 0.1000000000 | 0.1 | 1.000 |
+
+**Status: PASS** — The decoupled baseline recovers the standard single-qubit MZI, confirming the simulation infrastructure works correctly.
+
+### 1D $\alpha_{xx}$ Grid Scan
+
+The dense 1D $\alpha_{xx}$ scan (2001 points in $[0, 20]$) at each of the 50 $\omega$ values reveals a clear and consistent pattern: **$\alpha_{xx} = 0$ always gives the best sensitivity**, and any non-zero $\alpha_{xx}$ degrades it. Table 1 shows representative values at $\omega = 1.0$.
+
+| $\alpha_{xx}$ | $\Delta\omega$ | Ratio to SQL |
+|---------------|---------------|--------------|
+| 0.0 | 0.100000 | 1.000 |
+| 1.0 | 0.150288 | 1.503 |
+| 2.0 | 0.262808 | 2.628 |
+| 4.0 | 0.160864 | 1.609 |
+| 10.0 | 0.268385 | 2.684 |
+| 20.0 | 0.509457 | 5.095 |
+
+The $\Delta\omega(\alpha_{xx})$ curve oscillates due to the Rabi-like dynamics induced by the XX coupling, but the minimum is always at $\alpha_{xx} = 0$. The XX coupling creates entanglement between S and A, but the information carried by that entanglement is lost when the ancilla is traced out prior to the $J_z^S$ measurement.
+
+### $\omega$ Scan: Optimal Sensitivity Across $\omega$
+
+The $\omega$ scan collects the optimal sensitivity (over $\alpha_{xx}$) for each of the 50 $\omega$ values:
+
+![XX-coupling sensitivity vs $\omega$](figures/20260520-xx-theta-scan.svg)
+
+The optimal $\alpha_{xx}^*$ is **zero for all 50 $\omega$ values** — no non-zero XX coupling improves the sensitivity at any $\omega$ value tested. The achieved $\Delta\omega$ is uniformly $0.100000$ (the SQL) across the entire $\omega$ range.
+
+![Optimal parameters and fraction below SQL](figures/20260520-xx-optimal-params.svg)
+
+**Key Finding**: The XX coupling with symmetric $J_z$ phase encoding on both qubits **does not beat the SQL**. The optimal $\alpha_{xx}^*$ is zero for all $\omega$, confirming that any non-zero XX coupling degrades the sensitivity. The $J_z^S$ measurement on the system, after tracing out the ancilla, is fundamentally limited by the single-qubit SQL $\Delta\omega = 1/T_H$.
+
+### Comparison with Prior Reports
+
+| Report | Year-Month-Day | Interaction | $H_A$ | SQL Violation? |
+|--------|---------------|-------------|-------|---------------|
+| Fixed-drive | 2026-05-18 | $J_z^S \otimes J_z^A$ | $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$ (fixed) | **No** |
+| Phase-modulated | 2026-05-19 | $J_z^S \otimes J_z^A$ | $H_A = \omega (a_x J_x^A + a_y J_y^A + a_z J_z^A)$ | **Yes** (4.91$\times$ below SQL) |
+| XX-coupling (this report) | 2026-05-20 | $J_x^S \otimes J_x^A$ | $H_A = \omega J_z^A$ (fixed $J_z$-only) | **No** |
+
+The key difference between the successful phase-modulated protocol (2026-05-19) and the present report is twofold: (i) the phase-modulated protocol used a **tunable ancilla drive** with non-commuting components ($a_x J_x^A + a_y J_y^A$) combined with Ising coupling, while this report uses a fixed $J_z^A$ ancilla phase encoding, and (ii) the phase-modulated protocol used Ising coupling ($J_z^S \otimes J_z^A$) which commutes with the $J_z$ measurement and preserves the signal, while the XX coupling ($J_x^S \otimes J_x^A$) is transverse to the measurement axis and generates S-A entanglement that is lost upon tracing.
+
+### Summary
+
+| Experiment | Status | Key Result |
+|------------|--------|-----------|
+| Decoupled baseline | **Completed** | $\Delta\omega = 0.100000$ (exactly SQL) |
+| 1D $\alpha_{xx}$ grid scan (50 $\omega$ values) | **Completed** | $\alpha_{xx}^* = 0$ for all $\omega$; any $\alpha_{xx} > 0$ degrades sensitivity |
+| $\omega$ scan (50 values) | **Completed** | $\Delta\omega = 0.100000$ (SQL) for all 50 $\omega$ values |
+
 ## ✅ Success Criteria — Actual Outcomes
 
 | Criterion | Expected Outcome | Actual Outcome | Verdict |
@@ -185,65 +244,6 @@ For $\alpha_{xx} > 0$, the analysis is more involved. In the interaction picture
 A rough estimate of the enhancement: the derivative $\partial\langle J_z^S \rangle/\partial\omega$ gains an additional contribution from the $\omega$-dependence of $\cos(\omega t/2)$ and $\sin(\omega t/2)$ in $H_{\text{int}}^I(t)$. For small $\omega T_H$, expanding to first order, the sensitivity might improve by a factor that depends on $\alpha_{xx} T_H$. Since $\alpha_{xx} \in [0, 20]$ and $T_H = 10$, the dimensionless coupling $\alpha_{xx} T_H / 4$ can be as large as 50, which is well into the strong-coupling regime and could produce significant enhancement — or, conversely, wash out the signal if the oscillations are too rapid.
 
 **Key distinction from 2026-05-19**: In the phase-modulated drive report, the enhancement came from the *tunable direction* of the ancilla drive ($a_x J_x^A + a_y J_y^A + a_z J_z^A$) combined with Ising coupling. Here, the ancilla drive direction is fixed ($J_z^A$), and the enhancement (if any) must come entirely from the XX coupling's $\omega$-dependent rotation in the interaction picture, plus the fact that $H_A = \omega J_z^A$ shares the same unknown parameter as $H_S$. This is a stricter test of whether the simplest possible symmetric phase encoding suffices.
-
-## 🔬 Results
-
-All experiments used a holding time $T_H = 10$, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$. The grid scan evaluated $\Delta\omega(\alpha_{xx}, \omega)$ on a $2001 \times 50 = 100{,}050$ point grid (2001 $\alpha_{xx}$ values in $[0, 20]$ at each of 50 $\omega$ values in $[0.1, 5.0]$).
-
-### Decoupled Baseline
-
-The decoupled configuration $(\alpha_{xx} = 0)$ gives $\Delta\omega = 0.100000$, which matches the SQL exactly:
-
-| $T_H$ | $\Delta\omega$ | SQL | Ratio |
-|-------|---------------|-----|-------|
-| 10 | 0.1000000000 | 0.1 | 1.000 |
-
-**Status: PASS** — The decoupled baseline recovers the standard single-qubit MZI, confirming the simulation infrastructure works correctly.
-
-### 1D $\alpha_{xx}$ Grid Scan
-
-The dense 1D $\alpha_{xx}$ scan (2001 points in $[0, 20]$) at each of the 50 $\omega$ values reveals a clear and consistent pattern: **$\alpha_{xx} = 0$ always gives the best sensitivity**, and any non-zero $\alpha_{xx}$ degrades it. Table 1 shows representative values at $\omega = 1.0$.
-
-| $\alpha_{xx}$ | $\Delta\omega$ | Ratio to SQL |
-|---------------|---------------|--------------|
-| 0.0 | 0.100000 | 1.000 |
-| 1.0 | 0.150288 | 1.503 |
-| 2.0 | 0.262808 | 2.628 |
-| 4.0 | 0.160864 | 1.609 |
-| 10.0 | 0.268385 | 2.684 |
-| 20.0 | 0.509457 | 5.095 |
-
-The $\Delta\omega(\alpha_{xx})$ curve oscillates due to the Rabi-like dynamics induced by the XX coupling, but the minimum is always at $\alpha_{xx} = 0$. The XX coupling creates entanglement between S and A, but the information carried by that entanglement is lost when the ancilla is traced out prior to the $J_z^S$ measurement.
-
-### $\omega$ Scan: Optimal Sensitivity Across $\omega$
-
-The $\omega$ scan collects the optimal sensitivity (over $\alpha_{xx}$) for each of the 50 $\omega$ values:
-
-![XX-coupling sensitivity vs $\omega$](figures/20260520-xx-omega-scan.svg)
-
-The optimal $\alpha_{xx}^*$ is **zero for all 50 $\omega$ values** — no non-zero XX coupling improves the sensitivity at any $\omega$ value tested. The achieved $\Delta\omega$ is uniformly $0.100000$ (the SQL) across the entire $\omega$ range.
-
-![Optimal parameters and fraction below SQL](figures/20260520-xx-optimal-params.svg)
-
-**Key Finding**: The XX coupling with symmetric $J_z$ phase encoding on both qubits **does not beat the SQL**. The optimal $\alpha_{xx}^*$ is zero for all $\omega$, confirming that any non-zero XX coupling degrades the sensitivity. The $J_z^S$ measurement on the system, after tracing out the ancilla, is fundamentally limited by the single-qubit SQL $\Delta\omega = 1/T_H$.
-
-### Comparison with Prior Reports
-
-| Report | Year-Month-Day | Interaction | $H_A$ | SQL Violation? |
-|--------|---------------|-------------|-------|---------------|
-| Fixed-drive | 2026-05-18 | $J_z^S \otimes J_z^A$ | $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$ (fixed) | **No** |
-| Phase-modulated | 2026-05-19 | $J_z^S \otimes J_z^A$ | $H_A = \omega (a_x J_x^A + a_y J_y^A + a_z J_z^A)$ | **Yes** (4.91$\times$ below SQL) |
-| XX-coupling (this report) | 2026-05-20 | $J_x^S \otimes J_x^A$ | $H_A = \omega J_z^A$ (fixed $J_z$-only) | **No** |
-
-The key difference between the successful phase-modulated protocol (2026-05-19) and the present report is twofold: (i) the phase-modulated protocol used a **tunable ancilla drive** with non-commuting components ($a_x J_x^A + a_y J_y^A$) combined with Ising coupling, while this report uses a fixed $J_z^A$ ancilla phase encoding, and (ii) the phase-modulated protocol used Ising coupling ($J_z^S \otimes J_z^A$) which commutes with the $J_z$ measurement and preserves the signal, while the XX coupling ($J_x^S \otimes J_x^A$) is transverse to the measurement axis and generates S-A entanglement that is lost upon tracing.
-
-### Summary
-
-| Experiment | Status | Key Result |
-|------------|--------|-----------|
-| Decoupled baseline | **Completed** | $\Delta\omega = 0.100000$ (exactly SQL) |
-| 1D $\alpha_{xx}$ grid scan (50 $\omega$ values) | **Completed** | $\alpha_{xx}^* = 0$ for all $\omega$; any $\alpha_{xx} > 0$ degrades sensitivity |
-| $\omega$ scan (50 values) | **Completed** | $\Delta\omega = 0.100000$ (SQL) for all 50 $\omega$ values |
 
 ## 🏁 Conclusions
 

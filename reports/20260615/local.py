@@ -23,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar
@@ -44,6 +45,7 @@ from src.physics.n_particle_drive import (
     n_particle_initial_state,
 )
 from src.utils.enums import OperatorBasis
+from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
 # Constants
@@ -95,6 +97,21 @@ def _parquet_path(name: str) -> Path:
 
 def _fig_path(name: str) -> Path:
     return REPORTS_DIR / REPORT_DATE / "figures" / f"{REPORT_DATE}-{name}.svg"
+
+
+def _try_load_scan_cache(
+    out_path: Path, force: bool
+) -> NonLinearScanResult | None:
+    """Return cached scan result if available and not forced."""
+    if out_path.exists() and not force:
+        print(f"[load] {out_path.name} exists, loading...")
+        return NonLinearScanResult.from_parquet(out_path)
+    return None
+
+
+def _skip_parity_odd(proto: str, N: int) -> bool:
+    """Parity protocol is not Hermitian for odd N."""
+    return proto == PROTOCOL_PARITY and N % 2 == 1
 
 
 # ============================================================================
@@ -759,6 +776,96 @@ def evaluate_protocols_at_params(
     }
 
 
+def _compute_ratio(sql: float, delta_omega: float) -> float:
+    """Compute SQL / Δω ratio, returning inf for invalid inputs."""
+    if np.isfinite(delta_omega) and delta_omega > 0:
+        return sql / delta_omega
+    return float("inf")
+
+
+def _evaluate_stage_a_point(
+    N: int,
+    omega: float,
+    ops: dict[str, np.ndarray],
+    psi0: np.ndarray,
+    projectors: list[np.ndarray],
+    params: dict[str, float] | None,
+) -> NonLinearResult | None:
+    """Evaluate all three protocols at a single (N, ω) point.
+
+    Args:
+        N: Number of system particles.
+        omega: Phase rate value.
+        ops: Pre-computed operators.
+        psi0: Initial state.
+        projectors: Pre-computed J_z projectors.
+        params: Drive parameters dict with keys 'a_x', 'a_y', 'a_z', 'a_zz'.
+
+    Returns:
+        NonLinearResult, or None if params are missing.
+    """
+    if params is None:
+        print(f"[skip] No joint-opt params for N={N}, omega={omega}")
+        return None
+
+    evals = evaluate_protocols_at_params(
+        N,
+        omega,
+        params["a_x"],
+        params["a_y"],
+        params["a_z"],
+        params["a_zz"],
+        ops=ops,
+        psi0=psi0,
+        projectors=projectors,
+    )
+
+    sql = evals["sql"]
+    dw_lin = evals["delta_omega_lin"]
+    dw_par = evals["delta_omega_parity"]
+    dw_cfi = evals["delta_omega_cfi"]
+
+    res = NonLinearResult(
+        N=N,
+        omega=omega,
+        a_x=params["a_x"],
+        a_y=params["a_y"],
+        a_z=params["a_z"],
+        a_zz=params["a_zz"],
+        delta_omega_lin=dw_lin,
+        delta_omega_parity=dw_par,
+        delta_omega_cfi=dw_cfi,
+        ratio_lin=_compute_ratio(sql, dw_lin),
+        ratio_parity=_compute_ratio(sql, dw_par),
+        ratio_cfi=_compute_ratio(sql, dw_cfi),
+        parity_expectation=evals["parity_expectation"],
+        sql=sql,
+        stage="A",
+        success=True,
+    )
+    print(
+        f"  [A] N={N}, omega={omega}: lin={dw_lin:.6e}, par={dw_par:.6e}, cfi={dw_cfi:.6e}"
+    )
+    return res
+
+
+def _run_stage_a_loop(
+    N_values: list[int], omega_values: list[float]
+) -> list[NonLinearResult]:
+    """Nested loop over N and omega evaluating all three protocols."""
+    results: list[NonLinearResult] = []
+    for N in N_values:
+        ops = build_n_particle_operators(N)
+        psi0 = n_particle_initial_state(N)
+        projectors = compute_jz_projectors(N, ops)
+        for omega in omega_values:
+            params = load_joint_optimal_params(N, omega)
+            res = _evaluate_stage_a_point(N, omega, ops, psi0, projectors, params)
+            if res is not None:
+                results.append(res)
+    return results
+
+
 def generate_stage_a_scan(
     omega_values: list[float] | None = None,
     N_values: list[int] | None = None,
@@ -774,76 +881,15 @@ def generate_stage_a_scan(
     Returns:
         NonLinearScanResult with all evaluated points.
     """
-    # Import here to avoid circular
-    results: list[NonLinearResult] = []
-
-    if omega_values is None:
-        omega_values = OMEGA_VALS
-    if N_values is None:
-        N_values = STAGE_A_N_VALS
+    _omega_values = OMEGA_VALS if omega_values is None else omega_values
+    _N_values = STAGE_A_N_VALS if N_values is None else N_values
 
     out_path = _parquet_path("stage-a-scan")
+    cached = _try_load_scan_cache(out_path, force)
+    if cached is not None:
+        return cached
 
-    if out_path.exists() and not force:
-        print(f"[load] Stage A scan exists at {out_path}")
-        return NonLinearScanResult.from_parquet(out_path)
-
-    for N in N_values:
-        ops = build_n_particle_operators(N)
-        psi0 = n_particle_initial_state(N)
-        projectors = compute_jz_projectors(N, ops)
-
-        for omega in omega_values:
-            params = load_joint_optimal_params(N, omega)
-            if params is None:
-                print(f"[skip] No joint-opt params for N={N}, omega={omega}")
-                continue
-
-            evals = evaluate_protocols_at_params(
-                N,
-                omega,
-                params["a_x"],
-                params["a_y"],
-                params["a_z"],
-                params["a_zz"],
-                ops=ops,
-                psi0=psi0,
-                projectors=projectors,
-            )
-
-            sql = evals["sql"]
-            dw_lin = evals["delta_omega_lin"]
-            dw_par = evals["delta_omega_parity"]
-            dw_cfi = evals["delta_omega_cfi"]
-
-            res = NonLinearResult(
-                N=N,
-                omega=omega,
-                a_x=params["a_x"],
-                a_y=params["a_y"],
-                a_z=params["a_z"],
-                a_zz=params["a_zz"],
-                delta_omega_lin=dw_lin,
-                delta_omega_parity=dw_par,
-                delta_omega_cfi=dw_cfi,
-                ratio_lin=sql / dw_lin
-                if np.isfinite(dw_lin) and dw_lin > 0
-                else float("inf"),
-                ratio_parity=sql / dw_par
-                if np.isfinite(dw_par) and dw_par > 0
-                else float("inf"),
-                ratio_cfi=sql / dw_cfi
-                if np.isfinite(dw_cfi) and dw_cfi > 0
-                else float("inf"),
-                parity_expectation=evals["parity_expectation"],
-                sql=sql,
-                stage="A",
-                success=True,
-            )
-            results.append(res)
-            print(
-                f"  [A] N={N}, omega={omega}: lin={dw_lin:.6e}, par={dw_par:.6e}, cfi={dw_cfi:.6e}"
-            )
+    results = _run_stage_a_loop(_N_values, _omega_values)
 
     scan_result = NonLinearScanResult(results=results)
     scan_result.save_parquet(out_path)
@@ -1146,6 +1192,52 @@ def run_single_non_linear_n_omega(
     )
 
 
+def _generate_stage_b_protocol(
+    proto: str,
+    omega_values: list[float],
+    N_values: list[int],
+    force: bool,
+) -> list[NonLinearResult]:
+    """Run Stage B optimisation for a single protocol.
+
+    Args:
+        proto: Protocol identifier ('linear', 'parity', 'cfi').
+        omega_values: List of ω values.
+        N_values: List of N values.
+        force: If True, re-run even if Parquet exists.
+
+    Returns:
+        List of NonLinearResult for this protocol.
+    """
+    suffix = f"stage-b-{proto}"
+    out_path = _parquet_path(suffix)
+
+    cached = _try_load_scan_cache(out_path, force)
+    if cached is not None:
+        return cached.results
+
+    results: list[NonLinearResult] = []
+    for N in N_values:
+        if _skip_parity_odd(proto, N):
+            print(f"  [skip] Parity not Hermitian for odd N={N}")
+            continue
+
+        for o in omega_values:
+            print(f"  [B] Protocol={proto}, N={N}, omega={o}: running...")
+            res = run_single_non_linear_n_omega(N, o, proto)
+            results.append(res)
+            print(
+                f"    -> Delta omega = {res.delta_omega_lin:.6e} (lin), "
+                f"{res.delta_omega_parity:.6e} (par), "
+                f"{res.delta_omega_cfi:.6e} (cfi)"
+            )
+
+    scan_result = NonLinearScanResult(results=results)
+    scan_result.save_parquet(out_path)
+    print(f"[save] Stage B ({proto}) scan saved to {out_path}")
+    return results
+
+
 def generate_stage_b_scan(
     omega_values: list[float] | None = None,
     N_values: list[int] | None = None,
@@ -1173,38 +1265,10 @@ def generate_stage_b_scan(
         protocols = [protocol]
 
     all_results: list[NonLinearResult] = []
-
     for proto in protocols:
-        suffix = f"stage-b-{proto}"
-        out_path = _parquet_path(suffix)
-
-        if out_path.exists() and not force:
-            print(f"[load] Stage B ({proto}) scan exists at {out_path}")
-            loaded = NonLinearScanResult.from_parquet(out_path)
-            all_results.extend(loaded.results)
-            continue
-
-        results: list[NonLinearResult] = []
-
-        for N in N_values:
-            if proto == PROTOCOL_PARITY and N % 2 == 1:
-                print(f"  [skip] Parity not Hermitian for odd N={N}")
-                continue
-
-            for o in omega_values:
-                print(f"  [B] Protocol={proto}, N={N}, omega={o}: running...")
-                res = run_single_non_linear_n_omega(N, o, proto)
-                results.append(res)
-                print(
-                    f"    -> Delta omega = {res.delta_omega_lin:.6e} (lin), "
-                    f"{res.delta_omega_parity:.6e} (par), "
-                    f"{res.delta_omega_cfi:.6e} (cfi)"
-                )
-
-        scan_result = NonLinearScanResult(results=results)
-        scan_result.save_parquet(out_path)
-        print(f"[save] Stage B ({proto}) scan saved to {out_path}")
-        all_results.extend(results)
+        all_results.extend(
+            _generate_stage_b_protocol(proto, omega_values, N_values, force)
+        )
 
     return NonLinearScanResult(results=all_results)
 
@@ -1215,7 +1279,7 @@ def generate_stage_b_scan(
 
 
 @dataclass
-class NonLinearResult:
+class NonLinearResult(ParquetSerializable):
     """Result from evaluating all three S-only protocols at a single (N, ω) point.
 
     Attributes:
@@ -1307,22 +1371,11 @@ class NonLinearResult:
             }
         )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> NonLinearResult:
         path = Path(path)
         df = pd.read_parquet(path)
-        missing = {c for c in cls._PARQUET_COLUMNS if c not in df.columns}
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Re-run the simulation that generated it."
-            )
+        cls._validate_columns(df)
         row = df.iloc[0]
         return cls(
             N=int(row["N"]),
@@ -1348,8 +1401,10 @@ class NonLinearResult:
 
 
 @dataclass
-class NonLinearScanResult:
+class NonLinearScanResult(ParquetSerializable):
     """Collection of NonLinearResult across a grid."""
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = NonLinearResult._PARQUET_COLUMNS
 
     results: list[NonLinearResult] = field(default_factory=list)
 
@@ -1358,23 +1413,11 @@ class NonLinearScanResult:
             return pd.DataFrame(columns=NonLinearResult._PARQUET_COLUMNS)
         return pd.concat([r.to_dataframe() for r in self.results], ignore_index=True)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> NonLinearScanResult:
         path = Path(path)
         df = pd.read_parquet(path)
-        required = set(NonLinearResult._PARQUET_COLUMNS)
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Re-run the simulation that generated it."
-            )
+        cls._validate_columns(df)
         results: list[NonLinearResult] = []
         for _, row in df.iterrows():
             results.append(
@@ -1553,6 +1596,48 @@ def plot_ratio_comparison(
 # ============================================================================
 
 
+# ── Dispatch targets for CLI ────────────────────────────────────────────
+
+
+def _run_decoupled_baseline(*, force: bool = False) -> None:
+    """Verify decoupled baseline (no plotting output)."""
+    verify_decoupled_baseline()
+
+
+def _run_stage_a(*, force: bool = False) -> None:
+    """Run Stage A and save results (no plotting output)."""
+    generate_stage_a_scan(force=force)
+
+
+def _run_stage_b_linear(*, force: bool = False) -> None:
+    """Re-optimise for linear measurement and generate comparison plot."""
+    result = generate_stage_b_scan(protocol=PROTOCOL_LINEAR, force=force)
+    if len(result.results) > 0:
+        plot_protocol_comparison(result, _fig_path("stage-b-linear-comparison"))
+
+
+def _run_stage_b_parity(*, force: bool = False) -> None:
+    """Re-optimise for parity measurement and generate comparison plot."""
+    result = generate_stage_b_scan(protocol=PROTOCOL_PARITY, force=force)
+    if len(result.results) > 0:
+        plot_protocol_comparison(result, _fig_path("stage-b-parity-comparison"))
+
+
+def _run_stage_b_cfi(*, force: bool = False) -> None:
+    """Re-optimise for CFI measurement and generate comparison plot."""
+    result = generate_stage_b_scan(protocol=PROTOCOL_CFI, force=force)
+    if len(result.results) > 0:
+        plot_protocol_comparison(result, _fig_path("stage-b-cfi-comparison"))
+
+
+def _run_stage_b_all(*, force: bool = False) -> None:
+    """Re-optimise for all protocols and generate comparison + ratio plots."""
+    result = generate_stage_b_scan(force=force)
+    if len(result.results) > 0:
+        plot_protocol_comparison(result, _fig_path("stage-b-all-comparison"))
+        plot_ratio_comparison(result, _fig_path("stage-b-all-ratios"))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Non-Linear Measurement (Parity and CFI) on omega-Modulated Drive",
@@ -1574,95 +1659,26 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    generators: dict[str, tuple[str, str, bool]] = {
-        "decoupled-baseline": (
-            "Decoupled Baseline",
-            "verify_decoupled_baseline",
-            False,
-        ),
-        "stage-a": (
-            "Stage A (Fixed-Parameter)",
-            "generate_stage_a_scan",
-            True,
-        ),
-        "stage-b-linear": (
-            "Stage B (Linear)",
-            "generate_stage_b_scan",
-            True,
-        ),
-        "stage-b-parity": (
-            "Stage B (Parity)",
-            "generate_stage_b_scan",
-            True,
-        ),
-        "stage-b-cfi": (
-            "Stage B (CFI)",
-            "generate_stage_b_scan",
-            True,
-        ),
-        "stage-b-all": (
-            "Stage B (All)",
-            "generate_stage_b_scan",
-            True,
-        ),
+    (REPORTS_DIR / REPORT_DATE / "raw_data").mkdir(parents=True, exist_ok=True)
+    (REPORTS_DIR / REPORT_DATE / "figures").mkdir(parents=True, exist_ok=True)
+
+    dispatch: dict[str, tuple[str, Callable[..., None]]] = {
+        "decoupled-baseline": ("Decoupled Baseline", _run_decoupled_baseline),
+        "stage-a": ("Stage A (Fixed-Parameter)", _run_stage_a),
+        "stage-b-linear": ("Stage B (Linear)", _run_stage_b_linear),
+        "stage-b-parity": ("Stage B (Parity)", _run_stage_b_parity),
+        "stage-b-cfi": ("Stage B (CFI)", _run_stage_b_cfi),
+        "stage-b-all": ("Stage B (All)", _run_stage_b_all),
     }
 
-    if args.only:
-        gen_list = [args.only]
-    else:
-        gen_list = list(generators.keys())
+    keys = [args.only] if args.only else list(dispatch.keys())
 
-    for key in gen_list:
-        title, _func_name, _needs_force = generators[key]
+    for key in keys:
+        title, func = dispatch[key]
         print(f"\n{'=' * 60}")
         print(f"Running: {title}")
         print(f"{'=' * 60}")
-
-        if key == "decoupled-baseline":
-            verify_decoupled_baseline()
-        elif key == "stage-a":
-            generate_stage_a_scan(force=args.force)
-        elif key == "stage-b-linear":
-            result = generate_stage_b_scan(
-                protocol=PROTOCOL_LINEAR,
-                force=args.force,
-            )
-            if len(result.results) > 0:
-                plot_protocol_comparison(
-                    result,
-                    _fig_path("stage-b-linear-comparison"),
-                )
-        elif key == "stage-b-parity":
-            result = generate_stage_b_scan(
-                protocol=PROTOCOL_PARITY,
-                force=args.force,
-            )
-            if len(result.results) > 0:
-                plot_protocol_comparison(
-                    result,
-                    _fig_path("stage-b-parity-comparison"),
-                )
-        elif key == "stage-b-cfi":
-            result = generate_stage_b_scan(
-                protocol=PROTOCOL_CFI,
-                force=args.force,
-            )
-            if len(result.results) > 0:
-                plot_protocol_comparison(
-                    result,
-                    _fig_path("stage-b-cfi-comparison"),
-                )
-        elif key == "stage-b-all":
-            result = generate_stage_b_scan(force=args.force)
-            if len(result.results) > 0:
-                plot_protocol_comparison(
-                    result,
-                    _fig_path("stage-b-all-comparison"),
-                )
-                plot_ratio_comparison(
-                    result,
-                    _fig_path("stage-b-all-ratios"),
-                )
+        func(force=args.force)
 
 
 if __name__ == "__main__":

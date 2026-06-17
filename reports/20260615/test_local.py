@@ -7,9 +7,10 @@ decoupled baseline, Stage A evaluation, optimisation, and serialization.
 
 from __future__ import annotations
 
+import importlib.util
 import sys as _sys
 from pathlib import Path as _Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -19,13 +20,16 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from src.analysis.sensitivity_metrics import sql_reference
+from src.utils.serialization import assert_roundtrip_fields
 
-_report_dir = str(
-    _Path(__file__).resolve().parent.parent.parent / "reports" / "20260615"
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _Path, _report_dir
+_local_path = _Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # noqa: E402
     PROTOCOL_CFI,
@@ -554,6 +558,20 @@ class TestEvaluateProtocolsAtParams:
 
 
 class TestNonLinearResultRoundtrip:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("N", "eq"),
+        ("omega", "isclose"),
+        ("delta_omega_lin", "isclose"),
+        ("delta_omega_parity", "isclose"),
+        ("delta_omega_cfi", "isclose"),
+        ("ratio_parity", "isclose"),
+        ("ratio_cfi", "isclose"),
+        ("parity_expectation", "isclose"),
+        ("stage", "eq"),
+        ("success", "eq"),
+        ("nfev", "eq"),
+    ]
+
     def test_roundtrip(self, tmp_path: Path) -> None:
         res = NonLinearResult(
             N=4,
@@ -577,17 +595,7 @@ class TestNonLinearResultRoundtrip:
         path = tmp_path / "test.parquet"
         res.save_parquet(path)
         loaded = NonLinearResult.from_parquet(path)
-        assert loaded.N == 4
-        assert np.isclose(loaded.omega, 0.2)
-        assert np.isclose(loaded.delta_omega_lin, 0.01)
-        assert np.isclose(loaded.delta_omega_parity, 0.008)
-        assert np.isclose(loaded.delta_omega_cfi, 0.007)
-        assert np.isclose(loaded.ratio_parity, 12.5)
-        assert np.isclose(loaded.ratio_cfi, 14.3)
-        assert np.isclose(loaded.parity_expectation, 0.5)
-        assert loaded.stage == "A"
-        assert loaded.success is True
-        assert loaded.nfev == 100
+        assert_roundtrip_fields(loaded, res, self._FIELD_SPECS)
 
     def test_roundtrip_with_nan_parity(self, tmp_path: Path) -> None:
         """Test roundtrip with NaN parity (odd N case)."""

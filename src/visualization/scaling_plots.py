@@ -230,3 +230,96 @@ def plot_n_scaling_optimal_params(
     fig.savefig(save_path, format="svg", bbox_inches="tight")
     plt.close(fig)
     return save_path
+
+
+def plot_n_scaling_single_omega(
+    df: pd.DataFrame,
+    omega_fixed: float,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 6),
+    t_hold: float | None = None,
+    include_2n_sql: bool = False,
+    title: str | None = None,
+    xlabel: str = r"$N$ (particles per subsystem)",
+    ylabel: str = r"$\Delta\omega$",
+) -> Path:
+    r"""Plot Δω_opt vs N for a single ω value, on log-log axes.
+
+    SQL and Heisenberg-limit reference lines are shown.  The
+    *t_hold* parameter is inferred from ``df['t_hold']`` (the unique
+    value) when not given explicitly.
+
+    Args:
+        df: DataFrame with columns 'omega', 'N', 'delta_omega_opt'.
+        omega_fixed: Only this ω value is plotted.
+        save_path: Output SVG path.
+        figsize: Figure size in inches.
+        t_hold: Holding time for reference lines.  Inferred from
+            ``df['t_hold']`` if ``None`` (the unique value is used).
+        include_2n_sql: If ``True``, also draw the 2N-SQL reference
+            line.
+        title: Plot title.  Defaults to
+            ``f"N-Scaling at $\omega={omega_fixed:.2f}$"``.
+        xlabel: X-axis label.
+        ylabel: Y-axis label.
+
+    Returns:
+        Path to the saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Filter to the requested ω
+    sub = df[np.isclose(df["omega"], omega_fixed)]
+    if sub.empty:
+        print(f"[skip] No data for ω={omega_fixed} to plot.")
+        return save_path
+
+    sub = sub.sort_values("N")
+
+    # Infer t_hold if not provided
+    if t_hold is None:
+        t_hold = float(sub["t_hold"].iloc[0])
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Reference lines
+    n_min = float(sub["N"].min())
+    n_max = float(sub["N"].max())
+    N_dense = np.logspace(np.log10(max(n_min, 1)), np.log10(n_max), 100)
+    sql_line = 1.0 / (np.sqrt(N_dense) * t_hold)
+    hl_line = 1.0 / (N_dense * t_hold)
+
+    ax.loglog(N_dense, sql_line, "--", color="gray", alpha=0.7, label="SQL")
+    if include_2n_sql:
+        sql_2n_line = 1.0 / (np.sqrt(2 * N_dense) * t_hold)
+        ax.loglog(
+            N_dense, sql_2n_line, "-.", color="gray", alpha=0.5, label="2N-SQL"
+        )
+    ax.loglog(N_dense, hl_line, ":", color="gray", alpha=0.5, label="HL")
+
+    # Data
+    valid = np.isfinite(sub["delta_omega_opt"]) & (sub["delta_omega_opt"] > 0)
+    if np.any(valid):
+        ax.loglog(
+            sub["N"][valid],
+            sub["delta_omega_opt"][valid],
+            "o-",
+            color="C0",
+            markersize=8,
+            linewidth=1.8,
+            label=rf"$\Delta\omega_{{\mathrm{{opt}}}}(\omega={omega_fixed:.2f})$",
+        )
+
+    if title is None:
+        title = rf"N-Scaling at $\omega={omega_fixed:.2f}$"
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.legend(fontsize=10)
+    ax.grid(True, which="both", alpha=0.3)
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path

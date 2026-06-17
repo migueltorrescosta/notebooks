@@ -13,9 +13,10 @@ Run with:
 from __future__ import annotations
 
 # Add the report directory to sys.path so we can import ``local``.
+import importlib.util
 import sys as _sys
 from pathlib import Path as _Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -25,21 +26,24 @@ from scipy.linalg import expm
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.physics.multi_mzi import single_bs_unitary
 from src.utils.enums import OperatorBasis
+from src.utils.serialization import assert_roundtrip_fields
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-_report_dir = str(
-    _Path(__file__).resolve().parent.parent.parent / "reports" / "20260518"
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _Path, _report_dir
+_local_path = _Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     AlphaReoptResultNM,
     MScalingResult,
-    NScalingResult,
+    WeightedNScalingResult,
     _bootstrap_scaling,
     _objective_and_gradient_ad,
     _weighted_loglog_linear,
@@ -737,7 +741,7 @@ class TestOptimisation:
 
 class TestScaling:
     def test_n_scaling_result_dataclass(self) -> None:
-        result = NScalingResult(
+        result = WeightedNScalingResult(
             N_values=np.array([1, 2, 4]),
             M_value=2,
             delta_omega_values=np.array([1.0, 0.5, 0.25]),
@@ -760,8 +764,8 @@ class TestScaling:
         assert result.n_bootstrap == 10000
 
     def test_n_scaling_result_with_bootstrap_ci(self) -> None:
-        """NScalingResult with bootstrap CI fields."""
-        result = NScalingResult(
+        """WeightedNScalingResult with bootstrap CI fields."""
+        result = WeightedNScalingResult(
             N_values=np.array([1, 2, 4]),
             M_value=2,
             delta_omega_values=np.array([1.0, 0.5, 0.25]),
@@ -787,7 +791,7 @@ class TestScaling:
 
     def test_n_scaling_to_dataframe_includes_std(self) -> None:
         """to_dataframe should include delta_omega_std column."""
-        result = NScalingResult(
+        result = WeightedNScalingResult(
             N_values=np.array([2, 4]),
             M_value=2,
             delta_omega_values=np.array([0.5, 0.25]),
@@ -803,8 +807,8 @@ class TestScaling:
             num_seeds=5,
         )
         df = result.to_dataframe()
-        assert "delta_omega_std" in df.columns
-        assert np.allclose(df["delta_omega_std"], [0.1, 0.05])
+        assert "M_value" in df.columns
+        assert np.allclose(result.delta_omega_std, [0.1, 0.05])
 
     def test_m_scaling_result_dataclass(self) -> None:
         result = MScalingResult(
@@ -1232,8 +1236,22 @@ class TestN1M1Regression:
 
 
 class TestParquetRoundtrip:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("N_values", "allclose"),
+        ("delta_omega_values", "allclose"),
+        ("delta_omega_std", "allclose"),
+        ("scaling_exponent", "isclose"),
+        ("scaling_exponent_ci", "eq"),
+        ("curvature_ci", "eq"),
+        ("n_bootstrap", "eq"),
+        ("num_seeds", "eq"),
+        ("M_value", "eq"),
+        ("sql_scaling", "eq"),
+        ("hl_scaling", "eq"),
+    ]
+
     def test_n_scaling_roundtrip(self, tmp_path: Path) -> None:
-        original = NScalingResult(
+        original = WeightedNScalingResult(
             N_values=np.array([1, 2, 4]),
             M_value=2,
             delta_omega_values=np.array([1.0, 0.5, 0.25]),
@@ -1253,22 +1271,12 @@ class TestParquetRoundtrip:
         )
         csv_path = tmp_path / "test_n.parquet"
         original.save_parquet(csv_path)
-        loaded = NScalingResult.from_parquet(csv_path)
-        assert np.allclose(loaded.N_values, original.N_values)
-        assert np.allclose(loaded.delta_omega_values, original.delta_omega_values)
-        assert np.allclose(loaded.delta_omega_std, original.delta_omega_std)
-        assert loaded.scaling_exponent == pytest.approx(original.scaling_exponent)
-        assert loaded.scaling_exponent_ci == original.scaling_exponent_ci
-        assert loaded.curvature_ci == original.curvature_ci
-        assert loaded.n_bootstrap == original.n_bootstrap
-        assert loaded.num_seeds == original.num_seeds
-        assert loaded.M_value == original.M_value
-        assert loaded.sql_scaling == original.sql_scaling
-        assert loaded.hl_scaling == original.hl_scaling
+        loaded = WeightedNScalingResult.from_parquet(csv_path)
+        assert_roundtrip_fields(loaded, original, self._FIELD_SPECS)
 
     def test_n_scaling_from_parquet_missing_scalars(self, tmp_path: Path) -> None:
         """from_parquet should raise ValueError when scalar columns are missing."""
-        original = NScalingResult(
+        original = WeightedNScalingResult(
             N_values=np.array([1, 2]),
             M_value=1,
             delta_omega_values=np.array([1.0, 0.5]),
@@ -1296,8 +1304,8 @@ class TestParquetRoundtrip:
         )
         csv_path = tmp_path / "test_n_bare.parquet"
         df_bare.to_parquet(csv_path, index=False)
-        with pytest.raises(ValueError, match="Missing required scalar columns"):
-            NScalingResult.from_parquet(csv_path)
+        with pytest.raises(ValueError, match="missing required columns"):
+            WeightedNScalingResult.from_parquet(csv_path)
 
     def test_m_scaling_roundtrip(self, tmp_path: Path) -> None:
         original = MScalingResult(
@@ -1340,7 +1348,7 @@ class TestParquetRoundtrip:
         )
         csv_path = tmp_path / "test_m_bare.parquet"
         df_bare.to_parquet(csv_path, index=False)
-        with pytest.raises(ValueError, match="Missing required scalar columns"):
+        with pytest.raises(ValueError, match="missing required columns"):
             MScalingResult.from_parquet(csv_path)
 
     def test_alpha_reopt_roundtrip(self, tmp_path: Path) -> None:

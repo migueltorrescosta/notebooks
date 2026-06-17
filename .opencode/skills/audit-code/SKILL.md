@@ -36,10 +36,7 @@ Audit the codebase implementation related to a specific report against all proje
 ## 2. Shared-Infrastructure Analysis
 
 Before listing individual violations, identify opportunities to reduce duplication by promoting shared infrastructure to `src/` modules. This has higher impact than fixing cosmetic or style issues in duplicate code.
-
-1. **Grep for function definitions** — Run `grep -rn "^def " reports/*/local.py` to list every function defined across all report modules.
-2. **Grep for module-level constants** — Run `grep -rn "^[A-Z_][A-Z_0-9]* *=" reports/*/local.py` to list every module-level constant defined across all report modules. Filter out test-local constants (e.g., `RTOL`, `ATOL`, `SEED`) and report-metadata constants (e.g., `REPORT_DATE`, `N_POINTS`).
-3. **Cross-reference for duplicates** — Compare each function/constant name and signature with:
+1. **Cross-reference for duplicates** — Compare each function/constant name and signature with:
    - Other report `local.py` files (same name? same signature? same implementation body?)
    - Existing `src/` modules (does a canonical version already exist?)
 4. **Categorise each duplicate**:
@@ -88,8 +85,6 @@ After the full audit, provide:
 - [ ] Consulted CHANGELOG backlog if applicable
 
 ### During analysis
-- [ ] Ran `grep -rn "^def " reports/*/local.py` to identify functions duplicated across ≥2 reports
-- [ ] Ran `grep -rn "^[A-Z_][A-Z_0-9]* *=" reports/*/local.py` to identify module-level constants duplicated across ≥2 reports
 - [ ] Cross-referenced each candidate against existing `src/` modules (to avoid re-promoting already-promoted code)
 - [ ] Categorised each duplicate as exact-match, near-match, or superficial-match
 - [ ] Flagged all ≥2-report duplicates for promotion to `src/` as `MAJOR` violations

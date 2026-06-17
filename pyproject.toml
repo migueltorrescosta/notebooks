@@ -83,7 +83,7 @@ testpaths = ["tests", "src"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
-addopts = ""
+addopts = "--import-mode=importlib"
 norecursedirs = ["reports"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
@@ -155,6 +155,9 @@ ignore = [
     "PT011",                       # Pytest raises too broad (needs per-case review)
     "PT018",                       # Composite assertion (deliberate single-message pattern)
 ]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"matplotlib.cm".msg = "Use plt.colormaps[\"...\"] instead of matplotlib.cm / plt.cm"
 
 [tool.mypy]
 disallow_untyped_calls = true

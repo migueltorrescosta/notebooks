@@ -7,8 +7,10 @@ Run with:
 
 from __future__ import annotations
 
+import importlib.util
 import sys as _sys
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pytest
@@ -16,13 +18,16 @@ from scipy.linalg import expm
 
 from src.physics.dicke_basis import jz_operator
 from src.utils.enums import OperatorBasis
+from src.utils.serialization import assert_roundtrip_fields
 
-_report_dir = str(
-    Path(__file__).resolve().parent.parent.parent / "reports" / "20260525",
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _report_dir
+_local_path = Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     AXX_BOUNDS,
@@ -682,6 +687,24 @@ class TestScalingAnalysis:
 
 
 class TestParquetRoundtrip:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("omega_values", "allclose"),
+        ("N_values", "array_eq"),
+        ("alpha_xx_opt", "allclose"),
+        ("psi_opt", "allclose"),
+        ("ms_opt", "allclose"),
+        ("ma_opt", "allclose"),
+        ("delta_omega_opt", "allclose"),
+        ("sql_2n", "allclose"),
+        ("ratio", "allclose"),
+        ("expectation_M", "allclose"),
+        ("variance_M", "allclose"),
+        ("d_expectation", "allclose"),
+        ("n_starts_converged", "array_eq"),
+        ("n_starts_at_best", "array_eq"),
+        ("t_hold", "isclose"),
+    ]
+
     def test_sweep_roundtrip(self, tmp_path: Path) -> None:
         """Basic roundtrip: save then load — all fields survive."""
         original = DualMZIOptimisedResult(
@@ -704,21 +727,7 @@ class TestParquetRoundtrip:
         parquet_path = tmp_path / "test_sweep.parquet"
         original.save_parquet(parquet_path)
         loaded = DualMZIOptimisedResult.from_parquet(parquet_path)
-        assert np.allclose(loaded.omega_values, original.omega_values)
-        assert np.array_equal(loaded.N_values, original.N_values)
-        assert np.allclose(loaded.alpha_xx_opt, original.alpha_xx_opt)
-        assert np.allclose(loaded.psi_opt, original.psi_opt)
-        assert np.allclose(loaded.ms_opt, original.ms_opt)
-        assert np.allclose(loaded.ma_opt, original.ma_opt)
-        assert np.allclose(loaded.delta_omega_opt, original.delta_omega_opt)
-        assert np.allclose(loaded.sql_2n, original.sql_2n)
-        assert np.allclose(loaded.ratio, original.ratio)
-        assert np.allclose(loaded.expectation_M, original.expectation_M)
-        assert np.allclose(loaded.variance_M, original.variance_M)
-        assert np.allclose(loaded.d_expectation, original.d_expectation)
-        assert np.array_equal(loaded.n_starts_converged, original.n_starts_converged)
-        assert np.array_equal(loaded.n_starts_at_best, original.n_starts_at_best)
-        assert pytest.approx(original.t_hold) == loaded.t_hold
+        assert_roundtrip_fields(loaded, original, self._FIELD_SPECS)
 
     def test_sweep_roundtrip_metadata(self, tmp_path: Path) -> None:
         """All metadata fields survive roundtrip."""
@@ -742,20 +751,7 @@ class TestParquetRoundtrip:
         parquet_path = tmp_path / "test_meta.parquet"
         original.save_parquet(parquet_path)
         loaded = DualMZIOptimisedResult.from_parquet(parquet_path)
-        assert loaded.omega_values[0] == pytest.approx(0.1)
-        assert loaded.alpha_xx_opt[1] == pytest.approx(10.0)
-        assert loaded.psi_opt[2] == pytest.approx(0.6)
-        assert loaded.ms_opt[0] == pytest.approx(0.7648, rel=1e-3)
-        assert loaded.ma_opt[1] == pytest.approx(0.7174, rel=1e-3)
-        assert loaded.delta_omega_opt[2] == pytest.approx(0.015)
-        assert loaded.sql_2n[0] == pytest.approx(0.07071, rel=1e-3)
-        assert loaded.ratio[2] == pytest.approx(0.6708, rel=1e-3)
-        assert loaded.expectation_M[1] == pytest.approx(0.2)
-        assert loaded.variance_M[2] == pytest.approx(0.03)
-        assert loaded.d_expectation[0] == pytest.approx(-0.5)
-        assert loaded.n_starts_converged[1] == 10
-        assert loaded.n_starts_at_best[1] == 5
-        assert pytest.approx(10.0) == loaded.t_hold
+        assert_roundtrip_fields(loaded, original, self._FIELD_SPECS)
 
     def test_from_parquet_missing_columns(self, tmp_path: Path) -> None:
         """from_parquet should fail fast when required columns missing."""

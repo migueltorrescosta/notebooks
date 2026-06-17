@@ -123,7 +123,7 @@ With Nelder–Mead optimisation at $\omega=1.0$ and $t_hold \in [0, 20]$, the op
 
 Full Nelder–Mead optimisation was run with **10 random restarts per $\omega$ value** (maxiter=2000, $t_hold \in [0, 5]$). The figure below shows the best-found sensitivity across restarts with error bars (spread) and the SQL reference line. The fringe-extremum point at $\omega = 0.5$ is highlighted.
 
-![ω-scan: sensitivity vs phase rate](reports/20260515/figures/20260515-omega-scan.svg)
+![ω-scan: sensitivity vs phase rate](reports/20260515/figures/20260515-theta-scan.svg)
 
 **5 of 6 $\omega$ values converge to $\Delta\omega \approx 1/t_hold^*$.** The single exception ($\omega = 0.5$) converges to $\langle M \rangle \approx 0$ (a fringe extremum), where the finite-difference derivative loses accuracy and the reported $\Delta\omega$ is a numerical artifact that violates the QFI bound. This fringe-extremum configuration is detectable because $\langle M \rangle \approx 0$ and the covariance is anomalously non-zero.
 

@@ -7,9 +7,10 @@ decoupled baseline, 5D optimisation, and serialization.
 
 from __future__ import annotations
 
+import importlib.util
 import sys as _sys
 from pathlib import Path as _Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -19,14 +20,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from src.analysis.ancilla_optimization import compute_expectation_and_variance
+from src.analysis.decoupled_baseline import verify_decoupled_baseline
 from src.analysis.sensitivity_metrics import sql_reference
 
-_report_dir = str(
-    _Path(__file__).resolve().parent.parent.parent / "reports" / "20260613"
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _Path, _report_dir
+_local_path = _Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     T_BS,
@@ -39,7 +43,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     run_joint_nelder_mead,
     run_single_joint_n_omega,
     run_single_sonly_n_omega,
-    verify_decoupled_baseline,
 )
 
 from src.physics.n_particle_drive import (  # noqa: E402
@@ -54,6 +57,7 @@ from src.physics.n_particle_drive import (  # noqa: E402
     n_particle_hold_unitary,
     n_particle_initial_state,
 )
+from src.utils.serialization import assert_roundtrip_fields  # noqa: E402
 
 # ============================================================================
 # Fixtures
@@ -669,28 +673,32 @@ class TestJointNScalingResultParquet:
             nfev=100,
         )
 
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("N", "eq"),
+        ("omega", "eq"),
+        ("delta_omega_opt", "isclose"),
+        ("sql", "isclose"),
+        ("ratio", "isclose"),
+        ("a_x_opt", "eq"),
+        ("a_y_opt", "eq"),
+        ("a_z_opt", "eq"),
+        ("a_zz_opt", "eq"),
+        ("psi_opt", "isclose"),
+        ("expectation_Jz", "eq"),
+        ("variance_Jz", "eq"),
+        ("expectation_M", "eq"),
+        ("variance_M", "eq"),
+        ("d_expectation", "eq"),
+        ("t_hold", "eq"),
+        ("success", "eq"),
+        ("nfev", "eq"),
+    ]
+
     def test_roundtrip(self, make_result: JointNScalingResult, tmp_path: Path) -> None:
         p = tmp_path / "test.parquet"
         make_result.save_parquet(p)
         loaded = JointNScalingResult.from_parquet(p)
-        assert loaded.N == make_result.N
-        assert loaded.omega == make_result.omega
-        assert np.isclose(loaded.delta_omega_opt, make_result.delta_omega_opt)
-        assert np.isclose(loaded.sql, make_result.sql)
-        assert np.isclose(loaded.ratio, make_result.ratio)
-        assert loaded.a_x_opt == make_result.a_x_opt
-        assert loaded.a_y_opt == make_result.a_y_opt
-        assert loaded.a_z_opt == make_result.a_z_opt
-        assert loaded.a_zz_opt == make_result.a_zz_opt
-        assert np.isclose(loaded.psi_opt, make_result.psi_opt)
-        assert loaded.expectation_Jz == make_result.expectation_Jz
-        assert loaded.variance_Jz == make_result.variance_Jz
-        assert loaded.expectation_M == make_result.expectation_M
-        assert loaded.variance_M == make_result.variance_M
-        assert loaded.d_expectation == make_result.d_expectation
-        assert loaded.t_hold == make_result.t_hold
-        assert loaded.success == make_result.success
-        assert loaded.nfev == make_result.nfev
+        assert_roundtrip_fields(loaded, make_result, self._FIELD_SPECS)
 
     def test_missing_columns_raises(self, tmp_path: Path) -> None:
         df = pd.DataFrame({"N": [5], "omega": [0.2]})

@@ -60,6 +60,83 @@ def fourier_transform(
     axs[2].plot(xf, [np.angle(t) for t in yf])
 
 
+def _validate_quantum_inputs(
+    hamiltonian: np.ndarray,
+    rho0: np.ndarray,
+    time_window_upper_bound: int,
+    labels: list[str] | None,
+) -> list[str]:
+    """Validate inputs for quantum population dynamics.
+
+    Checks Hamiltonian squareness, Hermiticity, dimension match with rho0,
+    positivity of time window, trace of rho0, and label count.
+
+    Args:
+        hamiltonian: Square Hermitian Hamiltonian matrix.
+        rho0: Initial density matrix.
+        time_window_upper_bound: Upper bound of time interval (must be > 0).
+        labels: Optional list of state labels.
+
+    Returns:
+        Resolved list of labels (auto-generated if None).
+
+    Raises:
+        AssertionError: If any validation check fails.
+
+    """
+    n_states = hamiltonian.shape[0]
+
+    assert hamiltonian.shape[1] == n_states, "the hamiltonian is not square"
+    assert np.allclose(hamiltonian, hamiltonian.conj().T), (
+        "Hamiltonian must be Hermitian"
+    )
+    assert rho0.shape == hamiltonian.shape, (
+        "The initial state ρ0 does not match the hamiltonian's dimension"
+    )
+    assert time_window_upper_bound > 0, "The time cannot be negative"
+    assert np.einsum("ii", rho0) == 1, "The diagonals of rho0 must add up to 1"
+
+    if labels is None:
+        labels = [str(i) for i in range(rho0.shape[1])]
+    else:
+        assert len(labels) == rho0.shape[1], (
+            f"We have {len(labels)} labels but {rho0.shape[1]} possible states"
+        )
+
+    return labels
+
+
+def _compute_eigenbasis_populations(
+    hamiltonian: np.ndarray,
+    rho0: np.ndarray,
+) -> np.ndarray:
+    """Compute time-invariant populations in the energy eigenbasis.
+
+    Performs eigendecomposition of the Hamiltonian and projects rho0
+    into the eigenbasis. Returns the diagonal populations.
+
+    Args:
+        hamiltonian: Square Hermitian Hamiltonian matrix.
+        rho0: Initial density matrix.
+
+    Returns:
+        1-D array of populations (diagonal elements in eigenbasis).
+
+    Raises:
+        AssertionError: If populations do not sum to 1.
+
+    """
+    _eigvals, eigvecs = np.linalg.eigh(hamiltonian)
+    rho0_eigen = eigvecs.conj().T @ rho0 @ eigvecs
+    populations = np.abs(np.diag(rho0_eigen)) ** 2
+
+    assert np.isclose(np.sum(populations), 1.0, rtol=1e-5, atol=1e-8), (
+        f"Populations must sum to 1, got {np.sum(populations)}"
+    )
+
+    return populations
+
+
 def finite_dimensional_populations_over_time(
     hamiltonian: np.ndarray,
     rho0: np.ndarray,
@@ -98,40 +175,12 @@ def finite_dimensional_populations_over_time(
         AssertionError: If number of labels doesn't match dimension.
 
     """
-    n_states = hamiltonian.shape[0]
-
-    assert hamiltonian.shape[1] == n_states, "the hamiltonian is not square"
-    assert np.allclose(hamiltonian, hamiltonian.conj().T), (
-        "Hamiltonian must be Hermitian"
+    labels = _validate_quantum_inputs(
+        hamiltonian, rho0, time_window_upper_bound, labels,
     )
-    assert rho0.shape == hamiltonian.shape, (
-        "The initial state ρ0 does not match the hamiltonian's dimension"
-    )
-    assert time_window_upper_bound > 0, "The time cannot be negative"
-    assert np.einsum("ii", rho0) == 1, "The diagonals of rho0 must add up to 1"
-
-    if labels is None:
-        labels = [str(i) for i in range(rho0.shape[1])]
-    else:
-        assert len(labels) == rho0.shape[1], (
-            f"We have {len(labels)} labels but {rho0.shape[1]} possible states"
-        )
-
     time_axis = np.linspace(0, time_window_upper_bound, 1000)
     n_time = len(time_axis)
-
-    # Eigendecomposition: H = V @ diag(E) @ V^dagger
-    _eigvals, eigvecs = np.linalg.eigh(hamiltonian)
-    # Project rho0 into eigenbasis: rho0_eigen = V^dagger @ rho0 @ V
-    rho0_eigen = eigvecs.conj().T @ rho0 @ eigvecs
-
-    # Populations are the diagonal elements of rho0 in eigenbasis (time-invariant)
-    populations = np.abs(np.diag(rho0_eigen)) ** 2
-
-    # Verify populations sum to 1 (trace preservation)
-    assert np.isclose(np.sum(populations), 1.0, rtol=1e-5, atol=1e-8), (
-        f"Populations must sum to 1, got {np.sum(populations)}"
-    )
+    populations = _compute_eigenbasis_populations(hamiltonian, rho0)
 
     # Expand time-invariant populations across time axis for stackplot
     y_arrays = [np.full(n_time, pop) for pop in populations]

@@ -161,7 +161,7 @@ Total optimisation runs: $5$ ($\omega$) for Step 1 + $20 \times 5 = 100$ ($N, \o
 | 2D $\psi \times a_{zz}$ landscape at $\omega=0.2$, $N=1$ | PASS | Grid generated; minima at SQL ($\Delta\omega=0.1$) confirming restricted subspace ($a_x=a_y=a_z=0$) cannot exploit full 5D landscape |
 | 5D optimisation ($N=1$--$20$, 5 $\omega$ values) | PASS | Joint beats S-only at all $N=1$--$20$ for all $\omega$; improvement factor $1.46\times$--$2.52\times$ at $\omega=0.2$ |
 | Scaling analysis ($N=1$--$20$) | PASS | Joint maintains sub-SQL at all $N$ ($R_v=7.16$ at $N=1$, $R_v=1.94$ at $N=20$); S-only returns to SQL by $N=10$ |
-| Parity check: $\psi^*$ vs $N$ | PASS | $\psi^* \neq 0$ for all $N$; optimal measurement is $\approx 98\%$ ancilla readout (mean $|m_a| = 0.981$), independent of $N$ |
+| Parity check: $\psi^*$ vs $N$ | PASS | $\psi^* \neq 0$ for all $N$; optimal measurement is $\approx 98\%$ ancilla readout (mean $\vert m_a\vert = 0.981$), independent of $N$ |
 
 ![Figure: Sensitivity vs N for joint (solid) and S-only (dashed) at ω=0.2. The joint measurement remains sub-SQL across all N=1-20, while S-only returns to SQL by N=10. The gray band spans SQL to Heisenberg limit.](figures/20260613-sensitivity-vs-n.svg)
 
@@ -242,7 +242,7 @@ The zero-covariance bound predicted $\min_\psi \Delta\omega_{\text{joint}} = 1/\
 | 2D $\psi \times a_{zz}$ landscape at $\omega=0.2$, $N=1$ | PASS | Restricted subspace cannot beat SQL; full 5D space required |
 | 5D optimisation ($N=1$--$20$, 5 $\omega$ values) | PASS | Joint beats S-only at all $(N, \omega)$; improvement $1.46\times$--$2.52\times$ |
 | Scaling analysis ($N=1$--$20$) | PASS | $R_v=7.16$ ($N=1$) $\to$ $R_v=1.94$ ($N=20$) with $\beta \approx 0.64$ |
-| Parity check: $\psi^*$ vs $N$ | PASS | $\psi^*$ $\approx$ constant across $N$; mean ancilla weight $|m_a|=0.981$ |
+| Parity check: $\psi^*$ vs $N$ | PASS | $\psi^*$ $\approx$ constant across $N$; mean ancilla weight $\vert m_a\vert=0.981$ |
 
 ## ✅ Success Criteria
 
@@ -252,7 +252,7 @@ The zero-covariance bound predicted $\min_\psi \Delta\omega_{\text{joint}} = 1/\
 - **Finite $\psi^*$ at $N=1$** — The optimal measurement angle satisfies $\psi^* \neq 0$ — **PASS** ($\psi^* \in [-1.57, +1.77]$ rad, all $|\psi^*| > 1.35$ rad for robust points).
 - **S-only control ($N>1$)** — At $\psi=0$, the simulation reproduces the $R(N)$ decay from #20260611 — **PARTIAL** (S-only returns to SQL by $N=10$ at $\omega=0.2$, consistent with rapid SQL approach; power-law fit $R_v-1 \propto N^{-\beta}$ is not well-defined because $R_v$ reaches $1.0$ too quickly).
 - **Slowed $R(N)$ decay** — $\beta_{\text{joint}} < \beta_{\text{S-only}}$ or equivalently $R_{\text{joint}}(N) > R_{\text{S-only}}(N)$ for at least some $N \ge 2$ — **PASS** ($R_{\text{joint}} > R_{\text{S-only}}$ at every $N=2$--$20$; improvement $1.94\times$--$2.52\times$; joint maintains sub-SQL at $N=20$ while S-only returns to SQL by $N=10$).
-- **Finite $\psi^*$ at $N>1$** — For at least some $N > 1$, $\psi^* \neq 0$ — **PASS** ($\psi^* \neq 0$ for all $N=1$--$20$, mean $|m_a| = 0.981$).
+- **Finite $\psi^*$ at $N>1$** — For at least some $N > 1$, $\psi^* \neq 0$ — **PASS** ($\psi^* \neq 0$ for all $N=1$--$20$, mean $\vert m_a\vert = 0.981$).
 - **Numerical validity** — Unitarity, Hermiticity, normalisation, variance positivity, derivative stability all verified — **PASS** (all invariants verified; decoupled baseline passes for all 100 pairs).
 - **Parquet roundtrip** — All metadata fields survive serialisation/deserialisation; fail-fast on missing columns — **PASS** (all data files load correctly via `from_parquet()`).
 
@@ -295,7 +295,7 @@ This report combined, for the first time, the $\omega$-modulated ancilla drive (
 
 **Step 1 ($N=1$) — confirmed.** The joint measurement beats S-only readout at every $\omega$ tested, with robust improvement factors of $1.46\times$--$2.33\times$. The hypothesis that the $\omega$-modulated drive and joint measurement compound is validated. The optimal measurement angle $\psi^* \neq 0$ for all $\omega$, with the ancilla component dominating ($|m_a| \approx 0.98$ on average). This demonstrates that the $\omega$-modulated drive primarily encodes the phase signal into the ancilla degree of freedom, and the S-only measurement of #20260519 was discarding the majority of the available information.
 
-**Step 2 ($N>1$) — confirmed beyond expectations.** The joint measurement maintains sub-SQL sensitivity at **all** $N=1$--$20$, with $R_v = 1.94\times$SQL even at $N=20$. The S-only protocol, by contrast, returns to the SQL by $N=10$ and never beats it again. The improvement factor peaks at $2.52\times$ ($N=5$) and remains above $1.9\times$ at $N=20$. Crucially, the advantage does **not** decay as $O(1/N)$ as the naive $J_A=1/2$ spectral-radius bound predicted. The optimal $\psi^*$ remains in a narrow range around $\pm 1.75$ rad across all $N$ — never trending toward $0$ (S-only) — with a mean ancilla weight of $|m_a|=0.981$ that is independent of system size. This refutes the intuition that the ancilla's $O(1)$ contribution becomes negligible compared to the $O(N)$ system. Instead, the $H_{\text{int}}$-mediated dynamics amplify the ancilla's effective SNR in an $N$-dependent way, making direct ancilla readout valuable regardless of system size.
+**Step 2 ($N>1$) — confirmed beyond expectations.** The joint measurement maintains sub-SQL sensitivity at **all** $N=1$--$20$, with $R_v = 1.94\times$SQL even at $N=20$. The S-only protocol, by contrast, returns to the SQL by $N=10$ and never beats it again. The improvement factor peaks at $2.52\times$ ($N=5$) and remains above $1.9\times$ at $N=20$. Crucially, the advantage does **not** decay as $O(1/N)$ as the naive $J_A=1/2$ spectral-radius bound predicted. The optimal $\psi^*$ remains in a narrow range around $\pm 1.75$ rad across all $N$ — never trending toward $0$ (S-only) — with a mean ancilla weight of $\vert m_a\vert=0.981$ that is independent of system size. This refutes the intuition that the ancilla's $O(1)$ contribution becomes negligible compared to the $O(N)$ system. Instead, the $H_{\text{int}}$-mediated dynamics amplify the ancilla's effective SNR in an $N$-dependent way, making direct ancilla readout valuable regardless of system size.
 
 **Key physical insight**: The success of the joint measurement — and in particular its persistence at large $N$ — suggests that the $H_{\text{int}}$-mediated back-action creates a correlated S--A state where the ancilla's $\omega$-information is not a copy of the system's information but an independent, amplified channel. The covariance term $C_{SA} = \text{Cov}(J_z^S, J_z^A)$ in the joint measurement variance plays a crucial role by reducing the total variance below what separate independent measurements would achieve.
 

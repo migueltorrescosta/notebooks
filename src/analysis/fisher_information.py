@@ -217,6 +217,168 @@ def quantum_fisher_information(state: np.ndarray, generator: np.ndarray) -> floa
     return float(4.0 * var_g)
 
 
+def _check_valid_numbers(arr: np.ndarray, name: str) -> None:
+    """Check an array contains no NaN or Inf values.
+
+    Args:
+        arr: Array to check.
+        name: Human-readable name for error messages.
+
+    Raises:
+        ValueError: If arr contains NaN or Inf.
+    """
+    if np.any(np.isnan(arr)):
+        raise ValueError(f"{name} contains NaN values")
+    if np.any(np.isinf(arr)):
+        raise ValueError(f"{name} contains infinite values")
+
+
+def _validate_density_inputs(rho: np.ndarray, generator: np.ndarray) -> int:
+    """Validate density matrix and generator for QFI computation.
+
+    Checks dimensionality, squareness, matching dimensions, NaN/Inf values,
+    and Hermiticity for both inputs.
+
+    Args:
+        rho: Density matrix (dim, dim).
+        generator: Phase generator Hermitian operator (dim, dim).
+
+    Returns:
+        Validated dimension dim.
+
+    Raises:
+        ValueError: On any validation failure.
+    """
+    if rho.ndim != 2:
+        raise ValueError(f"Density matrix must be 2D, got shape {rho.shape}")
+
+    if generator.ndim != 2:
+        raise ValueError(f"Generator must be 2D, got shape {generator.shape}")
+
+    dim = rho.shape[0]
+    if rho.shape != (dim, dim):
+        raise ValueError(f"Density matrix must be square, got {rho.shape}")
+
+    if generator.shape != (dim, dim):
+        raise ValueError(
+            f"Generator dimensions {generator.shape} must match "
+            f"density matrix dimension {dim}",
+        )
+
+    _check_valid_numbers(rho, "Density matrix")
+    _check_valid_numbers(generator, "Generator")
+
+    if not np.allclose(rho, rho.conj().T, atol=1e-10):
+        raise ValueError("Density matrix must be Hermitian")
+    if not np.allclose(generator, generator.conj().T, atol=1e-10):
+        raise ValueError("Generator must be Hermitian")
+
+    return dim
+
+
+def _preprocess_eigenvalues(
+    eigenvalues: np.ndarray, eigenvectors: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
+    """Sort, clean, normalize, and split eigenvalues into support and nullspace.
+
+    Args:
+        eigenvalues: Raw eigenvalues from eigh (ascending order).
+        eigenvectors: Corresponding eigenvectors (columns).
+
+    Returns:
+        Tuple of (sorted eigenvalues, sorted eigenvectors, pos_idx, zero_idx,
+        n_pos, n_zero).
+    """
+    # Sort by eigenvalue (descending) — keep eigenvector association
+    idx = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[idx]
+    eigenvectors = eigenvectors[:, idx]
+
+    # Clean up small negative eigenvalues (numerical precision)
+    eigenvalues = np.where(eigenvalues < 0, 0.0, eigenvalues)
+
+    # Trace should be 1, but normalize just in case
+    trace = np.sum(eigenvalues)
+    if trace > 1e-12 and not np.isclose(trace, 1.0):
+        eigenvalues = eigenvalues / trace
+
+    # Separate eigenvalues into "positive" (support) and "zero" (nullspace).
+    # The rank_tol threshold only determines which eigenvalues are treated
+    # as genuinely positive and which contribute as λ_j = 0 in the SLD sum.
+    rank_tol = max(1e-12, eigenvalues[0] * 1e-10)
+    pos_idx = np.where(eigenvalues > rank_tol)[0]
+    zero_idx = np.where(eigenvalues <= rank_tol)[0]
+    n_pos = len(pos_idx)
+    n_zero = len(zero_idx)
+
+    return eigenvalues, eigenvectors, pos_idx, zero_idx, n_pos, n_zero
+
+
+def _sld_double_sum(
+    eigenvalues: np.ndarray,
+    eigenvectors: np.ndarray,
+    pos_idx: np.ndarray,
+    zero_idx: np.ndarray,
+    generator: np.ndarray,
+) -> float:
+    """Compute the mixed-state SLD double-sum for QFI.
+
+    Evaluates:
+        F_Q = 4 Σ_{i<j} (λ_i - λ_j)² / (λ_i + λ_j) · |⟨i|G|j⟩|²
+
+    covering both positive–positive and positive–zero eigenvalue pairs.
+
+    Args:
+        eigenvalues: Sorted eigenvalues (descending), trace-normalised.
+        eigenvectors: Corresponding eigenvectors (columns).
+        pos_idx: Indices of positive eigenvalues (support).
+        zero_idx: Indices of zero/near-zero eigenvalues (nullspace).
+        generator: Phase generator Hermitian operator (dim, dim).
+
+    Returns:
+        Quantum Fisher Information value F_Q.
+    """
+    n_pos = len(pos_idx)
+    n_zero = len(zero_idx)
+    fq = 0.0
+
+    # Term 1: positive–positive pairs (standard SLD)
+    for p in range(n_pos):
+        i = pos_idx[p]
+        vi = eigenvectors[:, i]
+        for q in range(p + 1, n_pos):
+            j = pos_idx[q]
+            vj = eigenvectors[:, j]
+
+            gij = np.vdot(vi, generator @ vj)
+            gij_abs_sq = np.abs(gij) ** 2
+
+            lambda_sum = eigenvalues[i] + eigenvalues[j]
+            if lambda_sum > 1e-12:
+                lambda_diff_sq = (eigenvalues[i] - eigenvalues[j]) ** 2
+                weight = 4.0 * lambda_diff_sq / lambda_sum
+                fq += weight * gij_abs_sq
+
+    # Term 2: positive–zero pairs (λ_j ≈ 0, so (λ_i-0)²/(λ_i+0) = λ_i)
+    # These are PHYSICALLY REQUIRED: G can couple the support to the
+    # nullspace of ρ, and the SLD formula includes these contributions.
+    for p in range(n_pos):
+        i = pos_idx[p]
+        vi = eigenvectors[:, i]
+        for q in range(n_zero):
+            j = zero_idx[q]
+            vj = eigenvectors[:, j]
+
+            gij = np.vdot(vi, generator @ vj)
+            gij_abs_sq = np.abs(gij) ** 2
+
+            # λ_j ≈ 0: weight = 4 · (λ_i - 0)² / (λ_i + 0) = 4·λ_i
+            weight = 4.0 * eigenvalues[i]
+            fq += weight * gij_abs_sq
+
+    return float(np.real(fq))
+
+
 def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> float:
     """Compute Quantum Fisher Information for a mixed state.
 
@@ -261,60 +423,14 @@ def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> flo
     rho = np.asarray(rho, dtype=complex)
     generator = np.asarray(generator, dtype=complex)
 
-    if rho.ndim != 2:
-        raise ValueError(f"Density matrix must be 2D, got shape {rho.shape}")
-
-    if generator.ndim != 2:
-        raise ValueError(f"Generator must be 2D, got shape {generator.shape}")
-
-    dim = rho.shape[0]
-    if rho.shape != (dim, dim):
-        raise ValueError(f"Density matrix must be square, got {rho.shape}")
-
-    if generator.shape != (dim, dim):
-        raise ValueError(
-            f"Generator dimensions {generator.shape} must match "
-            f"density matrix dimension {dim}",
-        )
-
-    # Input validation — prevent silent NaN/Inf and non-Hermitian errors
-    if np.any(np.isnan(rho)):
-        raise ValueError("Density matrix contains NaN values")
-    if np.any(np.isinf(rho)):
-        raise ValueError("Density matrix contains infinite values")
-    if np.any(np.isnan(generator)):
-        raise ValueError("Generator contains NaN values")
-    if np.any(np.isinf(generator)):
-        raise ValueError("Generator contains infinite values")
-    if not np.allclose(rho, rho.conj().T, atol=1e-10):
-        raise ValueError("Density matrix must be Hermitian")
-    if not np.allclose(generator, generator.conj().T, atol=1e-10):
-        raise ValueError("Generator must be Hermitian")
+    _validate_density_inputs(rho, generator)
 
     # Eigen-decomposition of ρ
     eigenvalues, eigenvectors = np.linalg.eigh(rho)
 
-    # Sort by eigenvalue (descending) - keep eigenvector association
-    idx = np.argsort(eigenvalues)[::-1]
-    eigenvalues = eigenvalues[idx]
-    eigenvectors = eigenvectors[:, idx]
-
-    # Clean up small negative eigenvalues (numerical precision)
-    eigenvalues = np.where(eigenvalues < 0, 0.0, eigenvalues)
-
-    # Trace should be 1, but normalize just in case
-    trace = np.sum(eigenvalues)
-    if trace > 1e-12 and not np.isclose(trace, 1.0):
-        eigenvalues = eigenvalues / trace
-
-    # Separate eigenvalues into "positive" (support) and "zero" (nullspace).
-    # The rank_tol threshold only determines which eigenvalues are treated
-    # as genuinely positive and which contribute as λ_j = 0 in the SLD sum.
-    rank_tol = max(1e-12, eigenvalues[0] * 1e-10)
-    pos_idx = np.where(eigenvalues > rank_tol)[0]
-    zero_idx = np.where(eigenvalues <= rank_tol)[0]
-    n_pos = len(pos_idx)
-    n_zero = len(zero_idx)
+    eigenvalues, eigenvectors, pos_idx, zero_idx, n_pos, _ = _preprocess_eigenvalues(
+        eigenvalues, eigenvectors
+    )
 
     # Compute F_Q
     if n_pos == 0:
@@ -329,47 +445,10 @@ def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> flo
         g_exp = np.vdot(state, generator @ state).real
         g2_exp = np.vdot(state, generator @ generator @ state).real
         var_g = max(0.0, g2_exp - g_exp**2)
-        fq = 4.0 * var_g
-    else:
-        # Mixed state: SLD formula
-        # F_Q = 4 Σ_{i<j} (λ_i - λ_j)² / (λ_i + λ_j) · |⟨i|G|j⟩|²
-        fq = 0.0
+        return float(4.0 * var_g)
 
-        # Term 1: positive–positive pairs (standard SLD)
-        for p in range(n_pos):
-            i = pos_idx[p]
-            vi = eigenvectors[:, i]
-            for q in range(p + 1, n_pos):
-                j = pos_idx[q]
-                vj = eigenvectors[:, j]
-
-                gij = np.vdot(vi, generator @ vj)
-                gij_abs_sq = np.abs(gij) ** 2
-
-                lambda_sum = eigenvalues[i] + eigenvalues[j]
-                if lambda_sum > 1e-12:
-                    lambda_diff_sq = (eigenvalues[i] - eigenvalues[j]) ** 2
-                    weight = 4.0 * lambda_diff_sq / lambda_sum
-                    fq += weight * gij_abs_sq
-
-        # Term 2: positive–zero pairs (λ_j ≈ 0, so (λ_i-0)²/(λ_i+0) = λ_i)
-        # These are PHYSICALLY REQUIRED: G can couple the support to the
-        # nullspace of ρ, and the SLD formula includes these contributions.
-        for p in range(n_pos):
-            i = pos_idx[p]
-            vi = eigenvectors[:, i]
-            for q in range(n_zero):
-                j = zero_idx[q]
-                vj = eigenvectors[:, j]
-
-                gij = np.vdot(vi, generator @ vj)
-                gij_abs_sq = np.abs(gij) ** 2
-
-                # λ_j ≈ 0: weight = 4 · (λ_i - 0)² / (λ_i + 0) = 4·λ_i
-                weight = 4.0 * eigenvalues[i]
-                fq += weight * gij_abs_sq
-
-    return float(np.real(fq))
+    # Mixed state: SLD formula
+    return _sld_double_sum(eigenvalues, eigenvectors, pos_idx, zero_idx, generator)
 
 
 def generate_noon_state(N: int) -> np.ndarray:

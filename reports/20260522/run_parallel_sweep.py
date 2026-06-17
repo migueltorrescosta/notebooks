@@ -105,6 +105,110 @@ def run_sweep(
     return results
 
 
+def _setup_directories() -> tuple[Path, Path, Path]:
+    """Create and return report, raw_data, and figures directories."""
+    report_dir = Path(__file__).resolve().parent
+    raw_dir = report_dir / "raw_data"
+    fig_dir = report_dir / "figures"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    fig_dir.mkdir(parents=True, exist_ok=True)
+    return report_dir, raw_dir, fig_dir
+
+
+def _compute_sweep_ratios(results: list[dict]) -> np.ndarray:
+    """Compute Δω_opt / SQL ratios from flat result dicts.
+
+    Args:
+        results: List of result dicts with 'delta_omega_opt' and 'sql' keys.
+
+    Returns:
+        Array of ratio values (inf if either value is invalid).
+    """
+    ratios = []
+    for r in results:
+        if np.isfinite(r["delta_omega_opt"]) and r["sql"] > 0:
+            ratios.append(r["delta_omega_opt"] / r["sql"])
+        else:
+            ratios.append(float("inf"))
+    return np.array(ratios)
+
+
+def _extract_sweep_array(results: list[dict], key: str, dtype: type = float) -> np.ndarray:
+    """Extract a column from result dicts as a typed array.
+
+    Args:
+        results: List of result dicts.
+        key: Dictionary key to extract.
+        dtype: NumPy dtype for the output array.
+
+    Returns:
+        Typed numpy array.
+    """
+    return np.array([r[key] for r in results], dtype=dtype)
+
+
+def _build_sweep_result(results: list[dict]) -> DualMZISweepResult:
+    """Build a DualMZISweepResult from flat result dicts.
+
+    The results are expected to be sorted by (N, ω) before calling.
+    """
+    from local import DualMZISweepResult
+
+    return DualMZISweepResult(
+        omega_values=_extract_sweep_array(results, "omega"),
+        N_values=_extract_sweep_array(results, "N", dtype=int),
+        alpha_xx_opt=_extract_sweep_array(results, "alpha_xx_opt"),
+        delta_omega_opt=_extract_sweep_array(results, "delta_omega_opt"),
+        sql_values=_extract_sweep_array(results, "sql"),
+        ratio=_compute_sweep_ratios(results),
+        expectation_Jz=_extract_sweep_array(results, "expectation_Jz"),
+        variance_Jz=_extract_sweep_array(results, "variance_Jz"),
+        d_expectation=_extract_sweep_array(results, "d_expectation"),
+        t_hold=10.0,
+    )
+
+
+def _print_statistics(sweep: DualMZISweepResult) -> None:
+    """Print alpha and ratio statistics from the sweep."""
+    alphas = sweep.alpha_xx_opt[np.isfinite(sweep.alpha_xx_opt)]
+    ratios_finite = sweep.ratio[np.isfinite(sweep.ratio)]
+    print(
+        f"  α* min={np.min(alphas):.6f} max={np.max(alphas):.6f} mean={np.mean(alphas):.6f}"
+    )
+    print(f"  ratio min={np.min(ratios_finite):.6f} max={np.max(ratios_finite):.6f}")
+    print(f"  All α*==0: {np.allclose(alphas, 0.0, atol=1e-10)}")
+    print(f"  All ratio==1: {np.allclose(ratios_finite, 1.0, atol=1e-5)}")
+
+
+def _generate_all_figures(sweep: DualMZISweepResult, raw_dir: Path, fig_dir: Path) -> None:
+    """Generate all figures from the sweep result."""
+    from local import (
+        fit_scaling_exponents,
+        plot_alpha_opt_heatmap,
+        plot_n_scaling,
+        plot_omega_dependence,
+        plot_ratio_heatmap,
+        plot_scaling_exponents,
+    )
+
+    print("\nGenerating figures...")
+    plot_ratio_heatmap(sweep, fig_dir / "20260522-dual-mzi-ratio-heatmap.svg")
+    plot_alpha_opt_heatmap(sweep, fig_dir / "20260522-dual-mzi-alpha-opt-heatmap.svg")
+    for th, nm in [(0.3, "omega0.3"), (1.0, "omega1.0"), (3.0, "omega3.0")]:
+        plot_n_scaling(
+            sweep, fig_dir / f"20260522-dual-mzi-n-scaling-{nm}.svg", omega_fixed=th
+        )
+    for N_val, nm in [(1, "N1"), (5, "N5"), (20, "N20")]:
+        plot_omega_dependence(
+            sweep, fig_dir / f"20260522-dual-mzi-omega-{nm}.svg", N_fixed=N_val
+        )
+
+    scaling = fit_scaling_exponents(sweep)
+    scaling.save_parquet(raw_dir / "20260522-dual-mzi-scaling.parquet")
+    plot_scaling_exponents(scaling, fig_dir / "20260522-dual-mzi-scaling-exponents.svg")
+    print("All figures generated.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", action="store_true")
@@ -112,11 +216,7 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=16)
     args = parser.parse_args()
 
-    report_dir = Path(__file__).resolve().parent
-    raw_dir = report_dir / "raw_data"
-    fig_dir = report_dir / "figures"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    fig_dir.mkdir(parents=True, exist_ok=True)
+    _report_dir, raw_dir, fig_dir = _setup_directories()
 
     sweep_path = raw_dir / "20260522-dual-mzi-sweep.parquet"
     if sweep_path.exists() and not args.force:
@@ -132,71 +232,14 @@ def main() -> None:
     results = run_sweep(
         omega_vals, N_vals, n_coarse=args.n_coarse, max_workers=args.workers
     )
-
-    # Sort by N then ω
     results.sort(key=lambda r: (r["N"], r["omega"]))
 
-    from local import (
-        DualMZISweepResult,
-        fit_scaling_exponents,
-        plot_alpha_opt_heatmap,
-        plot_n_scaling,
-        plot_omega_dependence,
-        plot_ratio_heatmap,
-        plot_scaling_exponents,
-    )
-
-    # Build result object
-    ratios = np.array(
-        [
-            r["delta_omega_opt"] / r["sql"]
-            if np.isfinite(r["delta_omega_opt"]) and r["sql"] > 0
-            else float("inf")
-            for r in results
-        ]
-    )
-    sweep = DualMZISweepResult(
-        omega_values=np.array([r["omega"] for r in results]),
-        N_values=np.array([r["N"] for r in results], dtype=int),
-        alpha_xx_opt=np.array([r["alpha_xx_opt"] for r in results]),
-        delta_omega_opt=np.array([r["delta_omega_opt"] for r in results]),
-        sql_values=np.array([r["sql"] for r in results]),
-        ratio=ratios,
-        expectation_Jz=np.array([r["expectation_Jz"] for r in results]),
-        variance_Jz=np.array([r["variance_Jz"] for r in results]),
-        d_expectation=np.array([r["d_expectation"] for r in results]),
-        t_hold=10.0,
-    )
+    sweep = _build_sweep_result(results)
     sweep.save_parquet(sweep_path)
     print(f"[save] {sweep_path}")
 
-    # Stats
-    alphas = sweep.alpha_xx_opt[np.isfinite(sweep.alpha_xx_opt)]
-    ratios_finite = sweep.ratio[np.isfinite(sweep.ratio)]
-    print(
-        f"  α* min={np.min(alphas):.6f} max={np.max(alphas):.6f} mean={np.mean(alphas):.6f}"
-    )
-    print(f"  ratio min={np.min(ratios_finite):.6f} max={np.max(ratios_finite):.6f}")
-    print(f"  All α*==0: {np.allclose(alphas, 0.0, atol=1e-10)}")
-    print(f"  All ratio==1: {np.allclose(ratios_finite, 1.0, atol=1e-5)}")
-
-    # Generate figures
-    print("\nGenerating figures...")
-    plot_ratio_heatmap(sweep, fig_dir / "20260522-dual-mzi-ratio-heatmap.svg")
-    plot_alpha_opt_heatmap(sweep, fig_dir / "20260522-dual-mzi-alpha-opt-heatmap.svg")
-    for th, nm in [(0.3, "omega0.3"), (1.0, "omega1.0"), (3.0, "omega3.0")]:
-        plot_n_scaling(
-            sweep, fig_dir / f"20260522-dual-mzi-n-scaling-{nm}.svg", omega_fixed=th
-        )
-    for N, nm in [(1, "N1"), (5, "N5"), (20, "N20")]:
-        plot_omega_dependence(
-            sweep, fig_dir / f"20260522-dual-mzi-omega-{nm}.svg", N_fixed=N
-        )
-
-    scaling = fit_scaling_exponents(sweep)
-    scaling.save_parquet(raw_dir / "20260522-dual-mzi-scaling.parquet")
-    plot_scaling_exponents(scaling, fig_dir / "20260522-dual-mzi-scaling-exponents.svg")
-    print("All figures generated.")
+    _print_statistics(sweep)
+    _generate_all_figures(sweep, raw_dir, fig_dir)
 
 
 if __name__ == "__main__":

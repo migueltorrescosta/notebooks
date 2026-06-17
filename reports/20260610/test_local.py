@@ -7,8 +7,10 @@ Run with:
 
 from __future__ import annotations
 
+import importlib.util
 import sys as _sys
 from pathlib import Path
+from typing import ClassVar
 
 import numpy as np
 import pytest
@@ -19,12 +21,14 @@ from src.analysis.ancilla_drive_metrology import (
 )
 from src.analysis.ancilla_optimization import free_ancilla_initial_state
 
-_report_dir = str(
-    Path(__file__).resolve().parent.parent.parent / "reports" / "20260610",
-)
-if _report_dir not in _sys.path:
-    _sys.path.insert(0, _report_dir)
-del _sys, _report_dir
+_local_path = Path(__file__).resolve().parent / "local.py"
+_spec = importlib.util.spec_from_file_location("local", str(_local_path))
+assert _spec is not None
+_module = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_sys.modules["local"] = _module
+_spec.loader.exec_module(_module)
+del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     AZZ_BOUNDS,
@@ -47,6 +51,8 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     run_modulated_omega_scan,
     t_hold,
 )
+
+from src.utils.serialization import assert_roundtrip_fields
 
 # ============================================================================
 # Fixtures
@@ -341,6 +347,21 @@ class TestFreeAncillaModulatedRandomSearch:
 
 
 class TestSearchResultParquet:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("samples", "allclose"),
+        ("delta_omega_values", "allclose"),
+        ("expectation_values", "allclose"),
+        ("variance_values", "allclose"),
+        ("deriv_values", "allclose"),
+        ("is_fringe", "array_eq"),
+        ("best_params", "eq"),
+        ("best_delta_omega", "isclose"),
+        ("omega_value", "eq"),
+        ("sql", "eq"),
+        ("t_hold", "eq"),
+        ("R", "eq"),
+    ]
+
     @pytest.fixture
     def make_result(self) -> FreeAncillaModulatedSearchResult:
         n_samp = 10
@@ -383,22 +404,7 @@ class TestSearchResultParquet:
         p = tmp_path / "search.parquet"
         make_result.save_parquet(p)
         loaded = FreeAncillaModulatedSearchResult.from_parquet(p)
-        assert np.allclose(loaded.samples, make_result.samples)
-        assert np.allclose(
-            loaded.delta_omega_values,
-            make_result.delta_omega_values,
-            equal_nan=True,
-        )
-        assert np.allclose(loaded.expectation_values, make_result.expectation_values)
-        assert np.allclose(loaded.variance_values, make_result.variance_values)
-        assert np.allclose(loaded.deriv_values, make_result.deriv_values)
-        assert np.array_equal(loaded.is_fringe, make_result.is_fringe)
-        assert loaded.best_params == make_result.best_params
-        assert np.isclose(loaded.best_delta_omega, make_result.best_delta_omega)
-        assert loaded.omega_value == make_result.omega_value
-        assert loaded.sql == make_result.sql
-        assert loaded.t_hold == make_result.t_hold
-        assert loaded.R == make_result.R
+        assert_roundtrip_fields(loaded, make_result, self._FIELD_SPECS)
 
     def test_fail_fast_missing_column(
         self,
@@ -419,6 +425,20 @@ class TestSearchResultParquet:
 
 
 class TestNelderMeadResultParquet:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("delta_omega_opt", "isclose"),
+        ("params_opt", "allclose"),
+        ("omega_true", "eq"),
+        ("success", "eq"),
+        ("nfev", "eq"),
+        ("expectation_Jz", "isclose"),
+        ("variance_Jz", "isclose"),
+        ("t_hold", "isclose"),
+        ("sql", "isclose"),
+        ("T_BS", "isclose"),
+        ("fd_step", "isclose"),
+    ]
+
     @pytest.fixture
     def make_result(self) -> FreeAncillaModulatedNelderMeadResult:
         return FreeAncillaModulatedNelderMeadResult(
@@ -444,17 +464,7 @@ class TestNelderMeadResultParquet:
         p = tmp_path / "nm.parquet"
         make_result.save_parquet(p)
         loaded = FreeAncillaModulatedNelderMeadResult.from_parquet(p)
-        assert np.isclose(loaded.delta_omega_opt, make_result.delta_omega_opt)
-        assert np.allclose(loaded.params_opt, make_result.params_opt)
-        assert loaded.omega_true == make_result.omega_true
-        assert loaded.success == make_result.success
-        assert loaded.nfev == make_result.nfev
-        assert np.isclose(loaded.expectation_Jz, make_result.expectation_Jz)
-        assert np.isclose(loaded.variance_Jz, make_result.variance_Jz)
-        assert np.isclose(loaded.t_hold, make_result.t_hold)
-        assert np.isclose(loaded.sql, make_result.sql)
-        assert np.isclose(loaded.T_BS, make_result.T_BS)
-        assert np.isclose(loaded.fd_step, make_result.fd_step)
+        assert_roundtrip_fields(loaded, make_result, self._FIELD_SPECS)
 
     def test_fail_fast_missing_column(
         self,

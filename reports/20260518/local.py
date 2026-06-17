@@ -22,12 +22,13 @@ name contains hyphens).  Instead, importers add the report directory to
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast, overload
 
 # Force non-interactive matplotlib backend before any plotting imports.
 if "MPLBACKEND" not in os.environ:
@@ -58,6 +59,7 @@ from src.analysis.ancilla_drive_metrology import (
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.physics.multi_mzi import single_bs_unitary
 from src.utils.enums import OperatorBasis
+from src.utils.serialization import ParquetSerializable
 from src.visualization.ancilla_drive_plots import (
     plot_drive_2d_slice_heatmap,
     plot_drive_decoupled_baseline,
@@ -67,6 +69,19 @@ from src.visualization.ancilla_drive_plots import (
 )
 
 sns.set_theme(style="whitegrid")
+
+
+class _NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.integer):
+            return int(obj)
+        return super().default(obj)
+
+
 # ============================================================================
 # Utility: Golden-Section Search for Weight Angle psi
 # ============================================================================
@@ -763,6 +778,65 @@ def delta_omega_from_psi(
     return compute_weighted_delta_omega(a, b, moments, d_moments)
 
 
+def _build_safe_intervals(
+    sing1: float, sing2: float, margin: float
+) -> list[tuple[float, float]]:
+    """Build [0, 2π) intervals that exclude neighbourhoods around singularities.
+
+    Args:
+        sing1: First singularity location.
+        sing2: Second singularity location.
+        margin: Radial margin to exclude around each singularity.
+
+    Returns:
+        List of (lo, hi) tuples with width > 1e-3.
+    """
+    intervals: list[tuple[float, float]] = []
+    for lo, hi in [
+        (0.0, sing1 - margin),
+        (sing1 + margin, sing2 - margin),
+        (sing2 + margin, 2.0 * np.pi),
+    ]:
+        if hi - lo > 1e-3:
+            intervals.append((lo, hi))
+    return intervals
+
+
+def _check_interval_finite(
+    f: Callable[[float], float], lo: float, hi: float
+) -> bool:
+    """Return True if any point in [lo, hi] evaluates to a finite value.
+
+    Uses a 21-point uniform scan. The scanned values are discarded;
+    only the boolean outcome is returned.
+    """
+    scan = np.linspace(lo, hi, 21)
+    return any(np.isfinite(f(p)) for p in scan)
+
+
+def _fallback_grid_search(
+    f: Callable[[float], float],
+) -> tuple[float, float]:
+    """Coarse grid search over [0, 2π] as a fallback.
+
+    Args:
+        f: Objective function Δθ(ψ).
+
+    Returns:
+        Tuple (psi_opt, delta_omega_opt). Returns (0.0, inf) if no
+        finite value is found.
+    """
+    psi_opt = 0.0
+    delta_omega_opt = float("inf")
+    grid = np.linspace(0.0, 2.0 * np.pi, 1001)
+    for p in grid:
+        v = f(p)
+        if np.isfinite(v) and v < delta_omega_opt:
+            psi_opt = float(p)
+            delta_omega_opt = float(v)
+    return psi_opt, delta_omega_opt
+
+
 def optimize_weight_psi(
     moments: tuple[float, float, float, float, float, float],
     d_moments: tuple[float, float, float, float, float, float],
@@ -785,35 +859,17 @@ def optimize_weight_psi(
     """
     f = partial(delta_omega_from_psi, moments=moments, d_moments=d_moments)
 
-    # Singularity locations
-    sing1 = np.pi / 2.0
-    sing2 = 3.0 * np.pi / 2.0
-    margin = 0.05  # rad — safe margin around singularities
+    safe_intervals = _build_safe_intervals(
+        sing1=np.pi / 2.0, sing2=3.0 * np.pi / 2.0, margin=0.05
+    )
 
-    # Build safe intervals
-    safe_intervals: list[tuple[float, float]] = []
-    for lo, hi in [
-        (0.0, sing1 - margin),
-        (sing1 + margin, sing2 - margin),
-        (sing2 + margin, 2.0 * np.pi),
-    ]:
-        if hi - lo > 1e-3:
-            safe_intervals.append((lo, hi))
-
-    # Run golden-section on each safe interval
     psi_opt = 0.0
     delta_omega_opt = float("inf")
-    found_finite = False
 
     for lo, hi in safe_intervals:
-        # Check if there's any finite value in this interval
-        test_psi = (lo + hi) / 2.0
-        test_val = f(test_psi)
-        if not np.isfinite(test_val):
-            # Quick scan to check if any point in interval is finite
-            scan = np.linspace(lo, hi, 21)
-            scan_vals = [f(p) for p in scan]
-            if not any(np.isfinite(v) for v in scan_vals):
+        # Quick check: if the interval midpoint is singular, scan to confirm
+        if not np.isfinite(f((lo + hi) / 2.0)):
+            if not _check_interval_finite(f, lo, hi):
                 continue  # entire interval is singular — skip
 
         try:
@@ -821,28 +877,18 @@ def optimize_weight_psi(
             if np.isfinite(dt_gs) and dt_gs < delta_omega_opt:
                 psi_opt = float(psi_gs)
                 delta_omega_opt = float(dt_gs)
-                found_finite = True
         except (RuntimeError, ValueError):
             continue
 
-    if not found_finite:
+    if not np.isfinite(delta_omega_opt):
         # Fallback: coarse grid (should rarely happen)
-        grid = np.linspace(0.0, 2.0 * np.pi, 1001)
-        for p in grid:
-            v = f(p)
-            if np.isfinite(v) and v < delta_omega_opt:
-                psi_opt = float(p)
-                delta_omega_opt = float(v)
-                found_finite = True
+        psi_opt, delta_omega_opt = _fallback_grid_search(f)
 
-    if not found_finite:
+    if not np.isfinite(delta_omega_opt):
         return 0.0, float("inf"), 1.0, 0.0
 
     psi_opt = psi_opt % (2.0 * np.pi)
-    a_opt = float(np.cos(psi_opt))
-    b_opt = float(np.sin(psi_opt))
-
-    return psi_opt, delta_omega_opt, a_opt, b_opt
+    return psi_opt, delta_omega_opt, float(np.cos(psi_opt)), float(np.sin(psi_opt))
 
 
 # ============================================================================
@@ -1998,7 +2044,7 @@ def run_lbfgsb_optimisation(
 
 
 @dataclass
-class NScalingResult:
+class WeightedNScalingResult(ParquetSerializable):
     """Result from N-scaling analysis.
 
     Attributes:
@@ -2031,6 +2077,23 @@ class NScalingResult:
         hl_scaling: Expected Heisenberg exponent (-1.0).
     """
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "M_value",
+        "scaling_exponent",
+        "scaling_exponent_err",
+        "scaling_exponent_ci_lower",
+        "scaling_exponent_ci_upper",
+        "curvature",
+        "curvature_err",
+        "curvature_ci_lower",
+        "curvature_ci_upper",
+        "R_squared",
+        "num_seeds",
+        "n_bootstrap",
+        "sql_scaling",
+        "hl_scaling",
+    ]
+
     N_values: np.ndarray
     M_value: int
     delta_omega_values: np.ndarray
@@ -2054,14 +2117,11 @@ class NScalingResult:
     hl_scaling: float = -1.0
 
     def to_dataframe(self) -> pd.DataFrame:
-        """Flatten into a DataFrame (mean per N + std + scalar metadata)."""
+        """Flatten into a DataFrame (mean per N + scalar metadata)."""
         n = len(self.N_values)
         data: dict[str, np.ndarray] = {
             "N": self.N_values,
             "delta_omega": self.delta_omega_values,
-            "delta_omega_std": self.delta_omega_std
-            if len(self.delta_omega_std) == n
-            else np.full(n, float("nan")),
             "psi_opt": self.psi_opt_values,
             "a_opt": self.a_opt_values,
             "b_opt": self.b_opt_values,
@@ -2082,55 +2142,36 @@ class NScalingResult:
         }
         return pd.DataFrame(data)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
+    def _save_sidecars(self, path: Path) -> None:
+        sidecar = path.with_suffix(".sidecar.json")
+        with open(sidecar, "w") as f:
+            json.dump({"delta_omega_std": self.delta_omega_std}, f, cls=_NumpyEncoder)
 
     @classmethod
-    def from_parquet(cls, path: str | Path) -> NScalingResult:
+    def _load_sidecars(cls, path: Path) -> dict:
+        sidecar = path.with_suffix(".sidecar.json")
+        if sidecar.exists():
+            with open(sidecar) as f:
+                data = json.load(f)
+            return {
+                "delta_omega_std": np.array(data["delta_omega_std"], dtype=float),
+            }
+        return {}
+
+    @classmethod
+    def from_parquet(cls, path: str | Path) -> WeightedNScalingResult:
         """Load from a Parquet file saved by save_parquet()."""
         path = Path(path)
         df = pd.read_parquet(path)
+        cls._validate_columns(df)
+        sidecar = cls._load_sidecars(path)
 
-        # Reconstruct arrays from the DataFrame
         N_values = df["N"].to_numpy(dtype=int)
         delta_omega_values = df["delta_omega"].to_numpy(dtype=float)
-        delta_omega_std = df["delta_omega_std"].to_numpy(dtype=float)
+        delta_omega_std = sidecar.get("delta_omega_std", np.array([], dtype=float))
         psi_opt_values = df["psi_opt"].to_numpy(dtype=float)
         a_opt_values = df["a_opt"].to_numpy(dtype=float)
         b_opt_values = df["b_opt"].to_numpy(dtype=float)
-
-        # Read scalar metadata from the first row
-        required_scalar_cols = [
-            "M_value",
-            "scaling_exponent",
-            "scaling_exponent_err",
-            "scaling_exponent_ci_lower",
-            "scaling_exponent_ci_upper",
-            "curvature",
-            "curvature_err",
-            "curvature_ci_lower",
-            "curvature_ci_upper",
-            "R_squared",
-            "num_seeds",
-            "n_bootstrap",
-            "sql_scaling",
-            "hl_scaling",
-        ]
-        missing = [c for c in required_scalar_cols if c not in df.columns]
-        if missing:
-            raise ValueError(
-                f"Missing required scalar columns in {path}: {missing}. "
-                f"Re-run the simulation that generated this file."
-            )
-
-        if "delta_omega_std" not in df.columns:
-            raise ValueError(
-                f"Missing required column 'delta_omega_std' in {path}. "
-                f"Re-run the simulation that generated this file."
-            )
 
         return cls(
             N_values=N_values,
@@ -2161,7 +2202,7 @@ class NScalingResult:
 
 
 @dataclass
-class MScalingResult:
+class MScalingResult(ParquetSerializable):
     """Result from M-scaling analysis (diminishing returns from ancilla).
 
     Attributes:
@@ -2175,6 +2216,12 @@ class MScalingResult:
         diminishing_threshold: Threshold for diminishing returns.
     """
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "N_value",
+        "improvement_01",
+        "diminishing_threshold",
+    ]
+
     M_values: np.ndarray
     N_value: int
     delta_omega_values: np.ndarray
@@ -2185,46 +2232,61 @@ class MScalingResult:
     diminishing_threshold: float = 0.5
 
     def to_dataframe(self) -> pd.DataFrame:
-        n = len(self.M_values)
-        data = {
-            "M": self.M_values,
-            "delta_omega": self.delta_omega_values,
-            "psi_opt": self.psi_opt_values,
-            "a_opt": self.a_opt_values,
-            "b_opt": self.b_opt_values,
-            "N_value": np.full(n, self.N_value, dtype=int),
-            "improvement_01": np.full(n, self.improvement_01),
-            "diminishing_threshold": np.full(n, self.diminishing_threshold),
-        }
-        return pd.DataFrame(data)
+        return pd.DataFrame(
+            [
+                {
+                    "N_value": self.N_value,
+                    "improvement_01": self.improvement_01,
+                    "diminishing_threshold": self.diminishing_threshold,
+                }
+            ]
+        )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
+    def _save_sidecars(self, path: Path) -> None:
+        sidecar = path.with_suffix(".sidecar.json")
+        with open(sidecar, "w") as f:
+            json.dump(
+                {
+                    "M": self.M_values,
+                    "delta_omega": self.delta_omega_values,
+                    "psi_opt": self.psi_opt_values,
+                    "a_opt": self.a_opt_values,
+                    "b_opt": self.b_opt_values,
+                },
+                f,
+                cls=_NumpyEncoder,
+            )
+
+    @classmethod
+    def _load_sidecars(cls, path: Path) -> dict:
+        sidecar = path.with_suffix(".sidecar.json")
+        if sidecar.exists():
+            with open(sidecar) as f:
+                data = json.load(f)
+            return {
+                "M": np.array(data["M"], dtype=int),
+                "delta_omega": np.array(data["delta_omega"], dtype=float),
+                "psi_opt": np.array(data["psi_opt"], dtype=float),
+                "a_opt": np.array(data["a_opt"], dtype=float),
+                "b_opt": np.array(data["b_opt"], dtype=float),
+            }
+        return {}
 
     @classmethod
     def from_parquet(cls, path: str | Path) -> MScalingResult:
         """Load from a Parquet file saved by save_parquet()."""
         path = Path(path)
         df = pd.read_parquet(path)
-
-        required_scalar_cols = ["N_value", "improvement_01", "diminishing_threshold"]
-        missing = [c for c in required_scalar_cols if c not in df.columns]
-        if missing:
-            raise ValueError(
-                f"Missing required scalar columns in {path}: {missing}. "
-                f"Re-run the simulation that generated this file."
-            )
+        cls._validate_columns(df)
+        sidecar = cls._load_sidecars(path)
 
         return cls(
-            M_values=df["M"].to_numpy(dtype=int),
+            M_values=sidecar.get("M", np.array([], dtype=int)),
             N_value=int(df["N_value"].iloc[0]),
-            delta_omega_values=df["delta_omega"].to_numpy(dtype=float),
-            psi_opt_values=df["psi_opt"].to_numpy(dtype=float),
-            a_opt_values=df["a_opt"].to_numpy(dtype=float),
-            b_opt_values=df["b_opt"].to_numpy(dtype=float),
+            delta_omega_values=sidecar.get("delta_omega", np.array([], dtype=float)),
+            psi_opt_values=sidecar.get("psi_opt", np.array([], dtype=float)),
+            a_opt_values=sidecar.get("a_opt", np.array([], dtype=float)),
+            b_opt_values=sidecar.get("b_opt", np.array([], dtype=float)),
             improvement_01=float(df["improvement_01"].iloc[0]),
             diminishing_threshold=float(df["diminishing_threshold"].iloc[0]),
         )
@@ -2343,6 +2405,203 @@ def _bootstrap_scaling(
     return nu_b, beta_b
 
 
+def _run_n_scaling_seeds(
+    N_arr: np.ndarray,
+    M: int,
+    num_seeds: int,
+    omega_true: float,
+    maxiter: int,
+    seed: int,
+    fd_step: float,
+    grad_step: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Run per-N, per-seed L-BFGS-B optimisation for N-scaling.
+
+    Args:
+        N_arr: Array of N values.
+        M: Ancilla size (-1 means M=N for each).
+        num_seeds: Number of random seeds per N.
+        omega_true: True phase rate.
+        maxiter: Maximum L-BFGS-B iterations.
+        seed: Base random seed.
+        fd_step: FD step for omega derivative.
+        grad_step: FD step for gradient.
+
+    Returns:
+        Tuple (all_delta_omega, all_psi, all_a, all_b) each of shape
+        (len(N_arr), num_seeds).
+    """
+    n_N = len(N_arr)
+    all_delta_omega = np.full((n_N, num_seeds), np.inf, dtype=float)
+    all_psi = np.full((n_N, num_seeds), np.nan, dtype=float)
+    all_a = np.full((n_N, num_seeds), np.nan, dtype=float)
+    all_b = np.full((n_N, num_seeds), np.nan, dtype=float)
+
+    for i, N_val in enumerate(N_arr):
+        M_val: int = N_val if M == -1 else M
+        for restart in range(num_seeds):
+            rng = np.random.default_rng(seed + N_val * 1000 + restart)
+            x0 = random_params_nm(rng, N_val, M_val)
+            result = run_lbfgsb_optimisation(
+                N_val,
+                M_val,
+                omega_true=omega_true,
+                x0=x0,
+                maxiter=maxiter,
+                fd_step=fd_step,
+                grad_step=grad_step,
+            )
+            all_delta_omega[i, restart] = result["delta_omega_opt"]
+            all_psi[i, restart] = result["psi_opt"]
+            all_a[i, restart] = result["a_opt"]
+            all_b[i, restart] = result["b_opt"]
+
+    return all_delta_omega, all_psi, all_a, all_b
+
+
+def _compute_n_scaling_statistics(
+    all_delta_omega: np.ndarray,
+    all_psi: np.ndarray,
+    all_a: np.ndarray,
+    all_b: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Compute per-N statistics from per-seed optimisation results.
+
+    Args:
+        all_delta_omega: Shape (n_N, num_seeds) array of Δω values.
+        all_psi: Shape (n_N, num_seeds) array of ψ* values.
+        all_a: Shape (n_N, num_seeds) array of a* values.
+        all_b: Shape (n_N, num_seeds) array of b* values.
+
+    Returns:
+        Tuple (dt_mean, dt_std, psi_opt, a_opt, b_opt) where psi/a/b
+        are taken from the best (minimum Δω) seed per N.
+    """
+    dt_valid = np.where(np.isfinite(all_delta_omega), all_delta_omega, np.nan)
+    dt_mean = np.nanmean(dt_valid, axis=1)
+    dt_std = np.nanstd(dt_valid, axis=1)
+    dt_std = np.maximum(dt_std, 1e-30)
+
+    best_idx = np.nanargmin(all_delta_omega, axis=1)
+    n_N = len(all_delta_omega)
+    psi_opt = all_psi[np.arange(n_N), best_idx]
+    a_opt = all_a[np.arange(n_N), best_idx]
+    b_opt = all_b[np.arange(n_N), best_idx]
+
+    return dt_mean, dt_std, psi_opt, a_opt, b_opt
+
+
+def _compute_linear_nu_stderr(
+    log_N: np.ndarray, log_dt: np.ndarray, weights: np.ndarray, nu_lin: float, c_lin: float
+) -> float:
+    """Compute standard error for nu from weighted linear fit."""
+    A = np.column_stack([-log_N, np.ones_like(log_N)])
+    W = np.diag(weights)
+    residuals = log_dt - (A @ np.array([nu_lin, c_lin]))
+    n_pts = len(log_N)
+    mse = np.sum(weights * residuals**2) / (n_pts - 2) if n_pts > 2 else float("nan")
+    try:
+        cov = mse * np.linalg.inv(A.T @ W @ A)
+        return float(np.sqrt(cov[0, 0])) if np.isfinite(mse) else float("nan")
+    except np.linalg.LinAlgError:
+        return float("nan")
+
+
+def _compute_quadratic_beta_stderr(
+    log_N: np.ndarray,
+    log_dt: np.ndarray,
+    weights: np.ndarray,
+    nu_quad: float,
+    beta_quad: float,
+    c_quad: float,
+) -> float:
+    """Compute standard error for beta from weighted quadratic fit."""
+    A = np.column_stack([-log_N, log_N**2, np.ones_like(log_N)])
+    W = np.diag(weights)
+    residuals = log_dt - (A @ np.array([nu_quad, beta_quad, c_quad]))
+    n_pts = len(log_N)
+    mse = np.sum(weights * residuals**2) / (n_pts - 3) if n_pts > 3 else float("nan")
+    try:
+        cov = mse * np.linalg.inv(A.T @ W @ A)
+        return float(np.sqrt(cov[1, 1])) if np.isfinite(mse) else float("nan")
+    except np.linalg.LinAlgError:
+        return float("nan")
+
+
+def _nan_fit_result() -> dict[str, float | tuple[float, float]]:
+    """Return a NaN-filled fit result dict."""
+    return {
+        "scaling_exponent": float("nan"),
+        "scaling_exponent_err": float("nan"),
+        "scaling_exponent_ci": (float("nan"), float("nan")),
+        "curvature": float("nan"),
+        "curvature_err": float("nan"),
+        "curvature_ci": (float("nan"), float("nan")),
+        "R_squared": float("nan"),
+    }
+
+
+def _fit_n_scaling_exponents(
+    N_arr: np.ndarray,
+    dt_mean: np.ndarray,
+    dt_std: np.ndarray,
+    n_bootstrap: int,
+    rng: np.random.Generator,
+) -> dict[str, float | tuple[float, float]]:
+    """Weighted log-log regression with bootstrap confidence intervals.
+
+    Args:
+        N_arr: Array of N values.
+        dt_mean: Per-N mean Δω.
+        dt_std: Per-N standard deviation of Δω.
+        n_bootstrap: Number of bootstrap resamples.
+        rng: NumPy random generator for bootstrap.
+
+    Returns:
+        Dict with 'scaling_exponent', 'scaling_exponent_err',
+        'scaling_exponent_ci', 'curvature', 'curvature_err',
+        'curvature_ci', 'R_squared'.
+    """
+    finite_mask = np.isfinite(dt_mean)
+    if np.sum(finite_mask) < 3:
+        return _nan_fit_result()
+
+    N_fit = N_arr[finite_mask]
+    dt_mean_fit = dt_mean[finite_mask]
+    dt_std_fit = dt_std[finite_mask]
+    log_N = np.log(N_fit.astype(float))
+    log_dt = np.log(dt_mean_fit)
+    weights = 1.0 / (dt_std_fit**2)
+
+    nu_lin, c_lin, R_sq, _ = _weighted_loglog_linear(log_N, log_dt, weights)
+    nu_quad, beta_quad, c_quad, _ = _weighted_loglog_quadratic(log_N, log_dt, weights)
+
+    nu_err = _compute_linear_nu_stderr(log_N, log_dt, weights, nu_lin, c_lin)
+    beta_err = _compute_quadratic_beta_stderr(
+        log_N, log_dt, weights, nu_quad, beta_quad, c_quad
+    )
+
+    nu_bootstrap, beta_bootstrap = _bootstrap_scaling(
+        log_N, log_dt, weights, n_bootstrap, rng
+    )
+
+    return {
+        "scaling_exponent": float(np.median(nu_bootstrap)),
+        "scaling_exponent_err": nu_err,
+        "scaling_exponent_ci": (
+            float(np.percentile(nu_bootstrap, 2.5)),
+            float(np.percentile(nu_bootstrap, 97.5)),
+        ),
+        "curvature": float(np.median(beta_bootstrap)),
+        "curvature_err": beta_err,
+        "curvature_ci": (
+            float(np.percentile(beta_bootstrap, 2.5)),
+            float(np.percentile(beta_bootstrap, 97.5)),
+        ),
+        "R_squared": R_sq,
+    }
+
+
 def run_n_scaling(
     N_values: list[int],
     M: int = -1,
@@ -2353,7 +2612,7 @@ def run_n_scaling(
     fd_step: float = 1e-6,
     grad_step: float = 1e-5,
     n_bootstrap: int = 10000,
-) -> NScalingResult:
+) -> WeightedNScalingResult:
     """Run N-scaling analysis for the weighted joint measurement.
 
     For each N in N_values, runs L-BFGS-B optimisation with ``num_seeds``
@@ -2379,186 +2638,77 @@ def run_n_scaling(
         n_bootstrap: Number of bootstrap resamples for CI. Default 10000.
 
     Returns:
-        NScalingResult with fitted scaling exponent, bootstrap CI,
+        WeightedNScalingResult with fitted scaling exponent, bootstrap CI,
         curvature diagnostic, and per-seed statistics.
     """
     N_arr = np.array(N_values, dtype=int)
-    n_N = len(N_arr)
-    # Use seed as base for the outer optimisation rng
     outer_rng = np.random.default_rng(seed)
 
-    # Per-seed storage: (n_N, num_seeds)
-    all_delta_omega = np.full((n_N, num_seeds), np.inf, dtype=float)
-    all_psi = np.full((n_N, num_seeds), np.nan, dtype=float)
-    all_a = np.full((n_N, num_seeds), np.nan, dtype=float)
-    all_b = np.full((n_N, num_seeds), np.nan, dtype=float)
-
-    for i, N_val in enumerate(N_arr):
-        M_val: int = N_val if M == -1 else M
-        for restart in range(num_seeds):
-            rng = np.random.default_rng(seed + N_val * 1000 + restart)
-            x0 = random_params_nm(rng, N_val, M_val)
-            result = run_lbfgsb_optimisation(
-                N_val,
-                M_val,
-                omega_true=omega_true,
-                x0=x0,
-                maxiter=maxiter,
-                fd_step=fd_step,
-                grad_step=grad_step,
-            )
-            dt = result["delta_omega_opt"]
-            all_delta_omega[i, restart] = dt
-            all_psi[i, restart] = result["psi_opt"]
-            all_a[i, restart] = result["a_opt"]
-            all_b[i, restart] = result["b_opt"]
-
-    # --- Per-N statistics (mean, std, best) ---
-    dt_valid = np.where(np.isfinite(all_delta_omega), all_delta_omega, np.nan)
-    dt_mean = np.nanmean(dt_valid, axis=1)
-    dt_std = np.nanstd(dt_valid, axis=1)
-    # Fallback: if std is zero (e.g. single seed), use a small positive value
-    dt_std = np.maximum(dt_std, 1e-30)
-
-    # Best per-N corresponds to minimum Δθ across seeds
-    best_idx = np.nanargmin(all_delta_omega, axis=1)
-    psi_opt = all_psi[np.arange(n_N), best_idx]
-    a_opt = all_a[np.arange(n_N), best_idx]
-    b_opt = all_b[np.arange(n_N), best_idx]
-
-    # --- Weighted log-log regression ---
-    finite_mask = np.isfinite(dt_mean)
-    # Require at least 3 points for a meaningful fit
-    if np.sum(finite_mask) < 3:
-        return NScalingResult(
-            N_values=N_arr,
-            M_value=M,
-            delta_omega_values=dt_mean,
-            psi_opt_values=psi_opt,
-            a_opt_values=a_opt,
-            b_opt_values=b_opt,
-            scaling_exponent=float("nan"),
-            scaling_exponent_err=float("nan"),
-            curvature=float("nan"),
-            curvature_err=float("nan"),
-            R_squared=float("nan"),
-            num_seeds=num_seeds,
-            delta_omega_std=dt_std,
-            delta_omega_seeds=all_delta_omega,
-            scaling_exponent_ci=(float("nan"), float("nan")),
-            curvature_ci=(float("nan"), float("nan")),
-            n_bootstrap=n_bootstrap,
-        )
-
-    N_fit = N_arr[finite_mask]
-    dt_mean_fit = dt_mean[finite_mask]
-    dt_std_fit = dt_std[finite_mask]
-    log_N = np.log(N_fit.astype(float))
-    log_dt = np.log(dt_mean_fit)
-    weights = 1.0 / (dt_std_fit**2)  # w_N = 1/σ_N²
-
-    # --- Weighted linear fit on full data ---
-    nu_lin, c_lin, R_sq, _ = _weighted_loglog_linear(log_N, log_dt, weights)
-
-    # --- Weighted quadratic fit on full data (curvature) ---
-    nu_quad, beta_quad, c_quad, _ = _weighted_loglog_quadratic(log_N, log_dt, weights)
-
-    # --- Standard errors from weighted linear fit ---
-    A_lin = np.column_stack([-log_N, np.ones_like(log_N)])
-    W = np.diag(weights)
-    n_pts = len(log_N)
-    residuals_lin = log_dt - (A_lin @ np.array([nu_lin, c_lin]))
-    mse = (
-        np.sum(weights * residuals_lin**2) / (n_pts - 2) if n_pts > 2 else float("nan")
-    )
-    try:
-        cov_nu_c = mse * np.linalg.inv(A_lin.T @ W @ A_lin)
-        nu_err = float(np.sqrt(cov_nu_c[0, 0])) if np.isfinite(mse) else float("nan")
-    except np.linalg.LinAlgError:
-        nu_err = float("nan")
-
-    # --- Standard error for beta from weighted quadratic fit ---
-    A_quad = np.column_stack([-log_N, log_N**2, np.ones_like(log_N)])
-    quad_coeffs = np.array([nu_quad, beta_quad, c_quad])
-    residuals_quad = log_dt - (A_quad @ quad_coeffs)
-    mse_q = (
-        np.sum(weights * residuals_quad**2) / (n_pts - 3) if n_pts > 3 else float("nan")
-    )
-    try:
-        cov_quad = mse_q * np.linalg.inv(A_quad.T @ W @ A_quad)
-        beta_err = (
-            float(np.sqrt(cov_quad[1, 1])) if np.isfinite(mse_q) else float("nan")
-        )
-    except np.linalg.LinAlgError:
-        beta_err = float("nan")
-
-    # --- Bootstrap for CI on ν and β ---
-    nu_bootstrap, beta_bootstrap = _bootstrap_scaling(
-        log_N,
-        log_dt,
-        weights,
-        n_bootstrap,
-        outer_rng,
+    # Step 1: Run per-N, per-seed optimisation
+    all_delta_omega, all_psi, all_a, all_b = _run_n_scaling_seeds(
+        N_arr, M, num_seeds, omega_true, maxiter, seed, fd_step, grad_step
     )
 
-    scaling_exponent = float(np.median(nu_bootstrap))
-    scaling_exponent_ci = (
-        float(np.percentile(nu_bootstrap, 2.5)),
-        float(np.percentile(nu_bootstrap, 97.5)),
-    )
-    curvature = float(np.median(beta_bootstrap))
-    curvature_ci = (
-        float(np.percentile(beta_bootstrap, 2.5)),
-        float(np.percentile(beta_bootstrap, 97.5)),
+    # Step 2: Per-N statistics
+    dt_mean, dt_std, psi_opt, a_opt, b_opt = _compute_n_scaling_statistics(
+        all_delta_omega, all_psi, all_a, all_b
     )
 
-    return NScalingResult(
+    # Step 3: Weighted log-log regression with bootstrap
+    fit = _fit_n_scaling_exponents(N_arr, dt_mean, dt_std, n_bootstrap, outer_rng)
+
+    return WeightedNScalingResult(
         N_values=N_arr,
         M_value=M,
         delta_omega_values=dt_mean,
         psi_opt_values=psi_opt,
         a_opt_values=a_opt,
         b_opt_values=b_opt,
-        scaling_exponent=scaling_exponent,
-        scaling_exponent_err=nu_err,
-        curvature=curvature,
-        curvature_err=beta_err,
-        R_squared=R_sq,
+        scaling_exponent=float(fit["scaling_exponent"]),
+        scaling_exponent_err=float(fit["scaling_exponent_err"]),
+        curvature=float(fit["curvature"]),
+        curvature_err=float(fit["curvature_err"]),
+        R_squared=float(fit["R_squared"]),
         num_seeds=num_seeds,
         delta_omega_std=dt_std,
         delta_omega_seeds=all_delta_omega,
-        scaling_exponent_ci=scaling_exponent_ci,
-        curvature_ci=curvature_ci,
+        scaling_exponent_ci=(
+            float(fit["scaling_exponent_ci"][0]),
+            float(fit["scaling_exponent_ci"][1]),
+        ),
+        curvature_ci=(
+            float(fit["curvature_ci"][0]),
+            float(fit["curvature_ci"][1]),
+        ),
         n_bootstrap=n_bootstrap,
     )
 
 
-def run_m_scaling(
-    M_values: list[int],
-    N: int = 4,
-    omega_true: float = 1.0,
-    num_seeds: int = 20,
-    maxiter: int = 200,
-    seed: int = 42,
-    fd_step: float = 1e-6,
-    grad_step: float = 1e-5,
-) -> MScalingResult:
-    """Run M-scaling analysis (diminishing returns from ancilla size).
+def _run_m_scaling_seeds(
+    M_arr: np.ndarray,
+    N: int,
+    num_seeds: int,
+    omega_true: float,
+    maxiter: int,
+    seed: int,
+    fd_step: float,
+    grad_step: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Run per-M, per-seed L-BFGS-B optimisation for M-scaling.
 
     Args:
-        M_values: List of ancilla particle numbers to scan.
-        N: Fixed system particle number (default 4).
-        omega_true: True phase rate.
+        M_arr: Array of M values.
+        N: Fixed system particle number.
         num_seeds: Number of random seeds per M.
-        maxiter: Maximum L-BFGS-B iterations per run.
+        omega_true: True phase rate.
+        maxiter: Maximum L-BFGS-B iterations.
         seed: Base random seed.
         fd_step: FD step for omega derivative.
         grad_step: FD step for gradient.
 
     Returns:
-        MScalingResult.
+        Tuple (delta_omega_arr, psi_arr, a_arr, b_arr) of best per-M values.
     """
-    M_arr = np.array(M_values, dtype=int)
     delta_omega_arr = np.full(len(M_arr), np.inf, dtype=float)
     psi_arr = np.full(len(M_arr), np.nan, dtype=float)
     a_arr = np.full(len(M_arr), np.nan, dtype=float)
@@ -2594,17 +2744,58 @@ def run_m_scaling(
         a_arr[i] = best_a
         b_arr[i] = best_b
 
-    # Compute improvement from M=0 to M=1
-    improvement_01 = 0.0
-    if (
-        len(M_arr) >= 2
-        and M_arr[0] == 0
-        and M_arr[1] == 1
-        and np.isfinite(delta_omega_arr[0])
-        and np.isfinite(delta_omega_arr[1])
-        and delta_omega_arr[0] > 0
-    ):
-        improvement_01 = (delta_omega_arr[0] - delta_omega_arr[1]) / delta_omega_arr[0]
+    return delta_omega_arr, psi_arr, a_arr, b_arr
+
+
+def _compute_m_scaling_improvement(
+    delta_omega_arr: np.ndarray, M_arr: np.ndarray
+) -> float:
+    """Compute fractional improvement from M=0 to M=1.
+
+    Args:
+        delta_omega_arr: Best Δω per M value.
+        M_arr: Array of M values.
+
+    Returns:
+        Improvement ratio (delta_omega_0 - delta_omega_1) / delta_omega_0,
+        or 0.0 if the condition M=[0,1] is not met.
+    """
+    d0 = delta_omega_arr[0]
+    if d0 > 0 and np.isfinite(delta_omega_arr).all():
+        if M_arr[0] == 0 and M_arr[1] == 1:
+            return (d0 - delta_omega_arr[1]) / d0
+    return 0.0
+
+
+def run_m_scaling(
+    M_values: list[int],
+    N: int = 4,
+    omega_true: float = 1.0,
+    num_seeds: int = 20,
+    maxiter: int = 200,
+    seed: int = 42,
+    fd_step: float = 1e-6,
+    grad_step: float = 1e-5,
+) -> MScalingResult:
+    """Run M-scaling analysis (diminishing returns from ancilla size).
+
+    Args:
+        M_values: List of ancilla particle numbers to scan.
+        N: Fixed system particle number (default 4).
+        omega_true: True phase rate.
+        num_seeds: Number of random seeds per M.
+        maxiter: Maximum L-BFGS-B iterations per run.
+        seed: Base random seed.
+        fd_step: FD step for omega derivative.
+        grad_step: FD step for gradient.
+
+    Returns:
+        MScalingResult.
+    """
+    M_arr = np.array(M_values, dtype=int)
+    delta_omega_arr, psi_arr, a_arr, b_arr = _run_m_scaling_seeds(
+        M_arr, N, num_seeds, omega_true, maxiter, seed, fd_step, grad_step
+    )
 
     return MScalingResult(
         M_values=M_arr,
@@ -2613,7 +2804,7 @@ def run_m_scaling(
         psi_opt_values=psi_arr,
         a_opt_values=a_arr,
         b_opt_values=b_arr,
-        improvement_01=improvement_01,
+        improvement_01=_compute_m_scaling_improvement(delta_omega_arr, M_arr),
     )
 
 
@@ -2623,7 +2814,7 @@ def run_m_scaling(
 
 
 @dataclass
-class AlphaReoptResultNM:
+class AlphaReoptResultNM(ParquetSerializable):
     """Result from scanning alpha with weight re-optimisation.
 
     Attributes:
@@ -2638,6 +2829,12 @@ class AlphaReoptResultNM:
         M: Ancilla particle number.
     """
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "alpha_name",
+        "N",
+        "M",
+    ]
+
     alpha_name: str
     alpha_values: np.ndarray
     delta_omega_weighted: np.ndarray
@@ -2649,48 +2846,70 @@ class AlphaReoptResultNM:
     M: int
 
     def to_dataframe(self) -> pd.DataFrame:
-        n = len(self.alpha_values)
-        data = {
-            "alpha": self.alpha_values,
-            "delta_omega_weighted": self.delta_omega_weighted,
-            "delta_omega_sonly": self.delta_omega_sonly,
-            "a_opt": self.a_opt_values,
-            "b_opt": self.b_opt_values,
-            "psi_opt": self.psi_opt_values,
-            "alpha_name": np.full(n, self.alpha_name, dtype=object),
-            "N": np.full(n, self.N, dtype=int),
-            "M": np.full(n, self.M, dtype=int),
-        }
-        return pd.DataFrame(data)
+        return pd.DataFrame(
+            [
+                {
+                    "alpha_name": self.alpha_name,
+                    "N": self.N,
+                    "M": self.M,
+                }
+            ]
+        )
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
+    def _save_sidecars(self, path: Path) -> None:
+        sidecar = path.with_suffix(".sidecar.json")
+        with open(sidecar, "w") as f:
+            json.dump(
+                {
+                    "alpha": self.alpha_values,
+                    "delta_omega_weighted": self.delta_omega_weighted,
+                    "delta_omega_sonly": self.delta_omega_sonly,
+                    "a_opt": self.a_opt_values,
+                    "b_opt": self.b_opt_values,
+                    "psi_opt": self.psi_opt_values,
+                },
+                f,
+                cls=_NumpyEncoder,
+            )
+
+    @classmethod
+    def _load_sidecars(cls, path: Path) -> dict:
+        sidecar = path.with_suffix(".sidecar.json")
+        if sidecar.exists():
+            with open(sidecar) as f:
+                data = json.load(f)
+            return {
+                "alpha": np.array(data["alpha"], dtype=float),
+                "delta_omega_weighted": np.array(
+                    data["delta_omega_weighted"], dtype=float
+                ),
+                "delta_omega_sonly": np.array(data["delta_omega_sonly"], dtype=float),
+                "a_opt": np.array(data["a_opt"], dtype=float),
+                "b_opt": np.array(data["b_opt"], dtype=float),
+                "psi_opt": np.array(data["psi_opt"], dtype=float),
+            }
+        return {}
 
     @classmethod
     def from_parquet(cls, path: str | Path) -> AlphaReoptResultNM:
         """Load from a Parquet file saved by save_parquet()."""
         path = Path(path)
         df = pd.read_parquet(path)
-
-        required_scalar_cols = ["alpha_name", "N", "M"]
-        missing = [c for c in required_scalar_cols if c not in df.columns]
-        if missing:
-            raise ValueError(
-                f"Missing required scalar columns in {path}: {missing}. "
-                f"Re-run the simulation that generated this file."
-            )
+        cls._validate_columns(df)
+        sidecar = cls._load_sidecars(path)
 
         return cls(
             alpha_name=str(df["alpha_name"].iloc[0]),
-            alpha_values=df["alpha"].to_numpy(dtype=float),
-            delta_omega_weighted=df["delta_omega_weighted"].to_numpy(dtype=float),
-            delta_omega_sonly=df["delta_omega_sonly"].to_numpy(dtype=float),
-            a_opt_values=df["a_opt"].to_numpy(dtype=float),
-            b_opt_values=df["b_opt"].to_numpy(dtype=float),
-            psi_opt_values=df["psi_opt"].to_numpy(dtype=float),
+            alpha_values=sidecar.get("alpha", np.array([], dtype=float)),
+            delta_omega_weighted=sidecar.get(
+                "delta_omega_weighted", np.array([], dtype=float)
+            ),
+            delta_omega_sonly=sidecar.get(
+                "delta_omega_sonly", np.array([], dtype=float)
+            ),
+            a_opt_values=sidecar.get("a_opt", np.array([], dtype=float)),
+            b_opt_values=sidecar.get("b_opt", np.array([], dtype=float)),
+            psi_opt_values=sidecar.get("psi_opt", np.array([], dtype=float)),
             N=int(df["N"].iloc[0]),
             M=int(df["M"].iloc[0]),
         )
@@ -2940,7 +3159,7 @@ def validate_hl_bound(delta_omega: float, N: int, t_hold: float) -> bool:
 
 
 def plot_n_scaling(
-    result: NScalingResult | str | Path,
+    result: WeightedNScalingResult | str | Path,
     save_path: str | Path,
     figsize: tuple[float, float] = (7, 5),
 ) -> Path:
@@ -2953,7 +3172,7 @@ def plot_n_scaling(
     - Heisenberg limit reference: Δθ_HL = 1/(N · t_hold)
     """
     if isinstance(result, (str, Path)):
-        result = NScalingResult.from_parquet(result)
+        result = WeightedNScalingResult.from_parquet(result)
 
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3262,7 +3481,7 @@ def generate_n_scaling(force: bool = False) -> None:
 
     if csv_p.exists() and not force:
         print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
-        result = NScalingResult.from_parquet(csv_p)
+        result = WeightedNScalingResult.from_parquet(csv_p)
     else:
         print("[run]  Computing N-scaling (may be slow)...")
         N_vals = [1, 2, 3, 4, 6, 8, 12, 16]
@@ -3278,7 +3497,7 @@ def generate_n_scaling(force: bool = False) -> None:
         result.save_parquet(csv_p)
         print(f"[save] {csv_p}")
 
-    result = NScalingResult.from_parquet(csv_p)
+    result = WeightedNScalingResult.from_parquet(csv_p)
     plot_n_scaling(result, fig_p)
     print(f"[fig]  {fig_p}")
 

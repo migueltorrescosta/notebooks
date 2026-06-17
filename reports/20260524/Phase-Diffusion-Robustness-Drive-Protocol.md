@@ -44,6 +44,15 @@ where the derivative is computed via central finite differences with step $\delt
 
 **Units**: Dimensionless throughout. $\omega$ is the unknown phase rate, $T_H = 10$ is the holding time, $\gamma_\phi$ is the phase diffusion rate (in units of inverse time), and all Hamiltonian coefficients $(a_x, a_y, a_z, \alpha_{zz})$ are real.
 
+## 📊 Models Survey
+
+| Model | Input State | Noise | Expected Behaviour | Implementation Status |
+|-------|-------------|-------|--------------------|-----------------------|
+| Decoupled baseline ($a_k = \alpha_{zz} = 0$) | $\vert00\rangle$ | Phase diffusion $\gamma_\phi$ | $\Delta\omega > 1/T_H$ for $\gamma_\phi > 0$ — system-qubit phase diffusion destroys single-qubit Ramsey coherences even without entanglement | PASS (implementation) |
+| Optimal noise-free ($\gamma_\phi = 0$) | $\vert00\rangle$ | None | $\Delta\omega / \Delta\omega_{\text{SQL}} = 0.204$ (best case) | PASS (2026-05-19) |
+| Noisy optimal ($\gamma_\phi > 0$, re-optimised $a_k, \alpha_{zz}$) | $\vert00\rangle$ | Phase diffusion $\gamma_\phi$ | $\Delta\omega / \Delta\omega_{\text{SQL}}$ increases with $\gamma_\phi$; $\gamma_\phi^* \sim 0.2$--$0.25$ (low $\omega$), falling to $\gamma_\phi^* < 0.01$ (high $\omega$) | PASS (full 50 $\times$ 32 factorial scan) |
+| Noisy with noise-free params ($\gamma_\phi > 0$, fixed $a_k^*, \alpha_{zz}^*$) | $\vert00\rangle$ | Phase diffusion $\gamma_\phi$ | Worse than re-optimised, but surprisingly close ($< 5\%$ at $\gamma_\phi=0.01$) | PASS (full 50 $\times$ 32 factorial scan) |
+
 ## 💻 Numerical Simulation
 
 ### Implementation Strategy
@@ -95,15 +104,6 @@ Total optimisations: $50 \times 32 = 1600$ independent optimisation runs, plus $
 - **Baseline recovery**: At $\gamma_\phi = 0$ and $(a_x, a_y, a_z, \alpha_{zz}) = 0$, the noisy circuit recovers the decoupled baseline $\Delta\omega = 1/T_H$ to machine precision. At $\gamma_\phi > 0$, the decoupled baseline is **degraded** (worse than SQL) because system-qubit phase diffusion ($L_S = \sqrt{\gamma_\phi} J_z^S$) destroys the single-qubit Ramsey coherences that the second BS converts into a population difference. Even without system--ancilla entanglement, the system qubit alone is dephased during the hold.
 - **Sub-SQL at finite noise**: At $\gamma_\phi = 10^{-2}$ (lowest scanned value) with re-optimised parameters, $\Delta\omega / \Delta\omega_{\text{SQL}} < 0.75$ for $\omega \lesssim 2.0$, confirming sub-SQL performance persists at moderate noise.
 - **CSS limit**: At $\gamma_\phi \to \infty$, the evolution fully dephases the state and $\Delta\omega \to \infty$ (no information survives).
-
-## 📊 Models Survey
-
-| Model | Input State | Noise | Expected Behaviour | Implementation Status |
-|-------|-------------|-------|--------------------|-----------------------|
-| Decoupled baseline ($a_k = \alpha_{zz} = 0$) | $\vert00\rangle$ | Phase diffusion $\gamma_\phi$ | $\Delta\omega > 1/T_H$ for $\gamma_\phi > 0$ — system-qubit phase diffusion destroys single-qubit Ramsey coherences even without entanglement | PASS (implementation) |
-| Optimal noise-free ($\gamma_\phi = 0$) | $\vert00\rangle$ | None | $\Delta\omega / \Delta\omega_{\text{SQL}} = 0.204$ (best case) | PASS (2026-05-19) |
-| Noisy optimal ($\gamma_\phi > 0$, re-optimised $a_k, \alpha_{zz}$) | $\vert00\rangle$ | Phase diffusion $\gamma_\phi$ | $\Delta\omega / \Delta\omega_{\text{SQL}}$ increases with $\gamma_\phi$; $\gamma_\phi^* \sim 0.2$--$0.25$ (low $\omega$), falling to $\gamma_\phi^* < 0.01$ (high $\omega$) | PASS (full 50 $\times$ 32 factorial scan) |
-| Noisy with noise-free params ($\gamma_\phi > 0$, fixed $a_k^*, \alpha_{zz}^*$) | $\vert00\rangle$ | Phase diffusion $\gamma_\phi$ | Worse than re-optimised, but surprisingly close ($< 5\%$ at $\gamma_\phi=0.01$) | PASS (full 50 $\times$ 32 factorial scan) |
 
 ## ⚠️ Expected Failure Conditions
 

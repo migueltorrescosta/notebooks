@@ -1,9 +1,12 @@
 import numpy as np
+import pandas as pd
 import pytest
 
 from src.physics.mzi_simulation import prepare_input_state
 
 from .sensitivity_metrics import (
+    _compute_single_N_metrics,
+    _fit_scaling_exponents,
     all_sensitivity_metrics,
     compare_sensitivity_methods,
     error_propagation_sensitivity,
@@ -338,3 +341,89 @@ class TestSensitivityFromErrorPropagation:
             0.5, 0.25, 1e-11, deriv_tolerance=1e-10
         )
         assert not np.isfinite(result2)
+
+
+class TestSensitivityScalingHelpers:
+    """Tests for the private helpers extracted from ``sensitivity_scaling``."""
+
+    def test_compute_single_n_metrics_valid_state(self) -> None:
+        from src.physics.noise_channels import NoiseConfig
+
+        result = _compute_single_N_metrics(
+            "single", N=1, noise_config=NoiseConfig(), phi_true=np.pi / 4,
+            n_mc=50, seed=42,
+        )
+        assert result is not None
+        assert result["N"] == 1
+        assert result["max_photons"] == 1
+        assert "delta_phi_ep" in result
+        assert result["state_type"] == "single"
+
+    def test_compute_single_n_metrics_noon_state(self) -> None:
+        from src.physics.noise_channels import NoiseConfig
+
+        result = _compute_single_N_metrics(
+            "noon", N=2, noise_config=NoiseConfig(), phi_true=np.pi / 4,
+            n_mc=50, seed=42,
+        )
+        assert result is not None
+        assert result["N"] == 2
+        assert "delta_phi_fq" in result
+
+    def test_compute_single_n_metrics_with_noise_config(self) -> None:
+        from src.physics.noise_channels import NoiseConfig
+
+        result = _compute_single_N_metrics(
+            "single", N=1, noise_config=NoiseConfig(),
+            phi_true=np.pi / 4, n_mc=50, seed=42,
+        )
+        assert result is not None
+
+    def test_fit_scaling_exponents_normal(self) -> None:
+        df = pd.DataFrame({
+            "N": [1, 2, 4],
+            "delta_phi_ep": [1.0, 0.7, 0.5],
+            "delta_phi_fq": [0.8, 0.5, 0.3],
+            "delta_phi_bayes": [1.2, 0.9, 0.7],
+        })
+        exponents = _fit_scaling_exponents(df)
+        assert "delta_phi_ep" in exponents
+        assert "delta_phi_fq" in exponents
+        assert "delta_phi_bayes" in exponents
+        # All exponents should be negative (sensitivity improves with N)
+        for alpha in exponents.values():
+            assert alpha < 0
+
+    def test_fit_scaling_exponents_empty_df(self) -> None:
+        df = pd.DataFrame(columns=["N", "delta_phi_ep"])
+        exponents = _fit_scaling_exponents(df)
+        assert exponents == {}
+
+    def test_fit_scaling_exponents_single_row(self) -> None:
+        df = pd.DataFrame({
+            "N": [1],
+            "delta_phi_ep": [1.0],
+            "delta_phi_fq": [0.8],
+            "delta_phi_bayes": [1.2],
+        })
+        exponents = _fit_scaling_exponents(df)
+        assert exponents == {}
+
+    def test_fit_scaling_exponents_non_positive_n(self) -> None:
+        df = pd.DataFrame({
+            "N": [0, 2, 4],
+            "delta_phi_ep": [1.0, 0.7, 0.5],
+            "delta_phi_fq": [0.8, 0.5, 0.3],
+            "delta_phi_bayes": [1.2, 0.9, 0.7],
+        })
+        exponents = _fit_scaling_exponents(df)
+        assert exponents == {}
+
+    def test_fit_scaling_exponents_missing_columns(self) -> None:
+        df = pd.DataFrame({
+            "N": [1, 2, 4],
+            "delta_phi_ep": [1.0, 0.7, 0.5],
+        })
+        exponents = _fit_scaling_exponents(df)
+        assert "delta_phi_ep" in exponents
+        assert "delta_phi_fq" not in exponents

@@ -25,7 +25,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -52,6 +52,7 @@ from src.analysis.ancilla_optimization import (
 from src.utils.monte_carlo import (
     stratified_ball_sample,
 )
+from src.utils.serialization import ParquetSerializable
 from src.visualization.ancilla_drive_plots import (
     plot_drive_2d_slice_heatmap,
 )
@@ -193,7 +194,7 @@ def compute_sensitivity_with_extra(
 
 
 @dataclass
-class NormBallResult:
+class NormBallResult(ParquetSerializable):
     """Result from norm-ball sampling over (a_x, a_y, a_z, a_zz).
 
     Attributes:
@@ -221,6 +222,22 @@ class NormBallResult:
     t_hold: float = t_hold
     R: float = R_MAX
 
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "norm",
+        "delta_omega",
+        "expectation",
+        "variance",
+        "derivative",
+        "sql",
+        "t_hold",
+        "R",
+    ]
+
     def to_dataframe(self) -> pd.DataFrame:
         """Melt all data into a long-format DataFrame."""
         n_omega = len(self.omega_values)
@@ -246,36 +263,10 @@ class NormBallResult:
         ]
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> NormBallResult:
         df = pd.read_parquet(path)
-        required = {
-            "omega",
-            "a_x",
-            "a_y",
-            "a_z",
-            "a_zz",
-            "norm",
-            "delta_omega",
-            "expectation",
-            "variance",
-            "derivative",
-            "sql",
-            "t_hold",
-            "R",
-        }
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         omega_values = np.array(sorted(df["omega"].unique()), dtype=float)
         n_omega = len(omega_values)
         # Infer n_samp from the data
@@ -489,6 +480,151 @@ def _normball_omega_chunk_worker(args: tuple) -> dict:
     }
 
 
+def _normball_sequential(
+    omega_arr: np.ndarray,
+    n_samp: int,
+    R: float,
+    azz_lo: float,
+    azz_hi: float,
+    t_hold: float,
+    T_BS: float,
+    fd_step: float,
+    seed: int | None,
+    sampling_method: str,
+    n_strata: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Sequential norm-ball sampling with tqdm progress bar.
+
+    Returns (samples, deltas, exps, vars_, derivs, norms).
+    """
+    n_omega = len(omega_arr)
+    samples = np.zeros((n_omega, n_samp, 4), dtype=float)
+    deltas = np.full((n_omega, n_samp), np.inf, dtype=float)
+    exps = np.zeros((n_omega, n_samp), dtype=float)
+    vars_ = np.zeros((n_omega, n_samp), dtype=float)
+    derivs = np.zeros((n_omega, n_samp), dtype=float)
+    norms = np.zeros((n_omega, n_samp), dtype=float)
+
+    for ti, omega in enumerate(
+        tqdm(omega_arr, desc="Norm-ball sampling", unit="\u03c9")
+    ):
+        omega_rng = np.random.default_rng(
+            seed + int(omega * 1000) if seed is not None else None
+        )
+        drive_samp, azz_samp = _sample_ball_for_omega(
+            omega_rng,
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            sampling_method,
+            n_strata,
+        )
+
+        for si in range(n_samp):
+            ax = float(drive_samp[si, 0])
+            ay = float(drive_samp[si, 1])
+            az = float(drive_samp[si, 2])
+            azz = float(azz_samp[si])
+
+            domega, exp_val, var_val, deriv, _ = compute_sensitivity_with_extra(
+                omega,
+                ax,
+                ay,
+                az,
+                azz,
+                t_hold=t_hold,
+                T_BS=T_BS,
+                fd_step=fd_step,
+            )
+
+            samples[ti, si, :] = [ax, ay, az, azz]
+            deltas[ti, si] = domega
+            exps[ti, si] = exp_val
+            vars_[ti, si] = var_val
+            derivs[ti, si] = deriv
+            norms[ti, si] = float(np.sqrt(ax**2 + ay**2 + az**2))
+
+    return samples, deltas, exps, vars_, derivs, norms
+
+
+def _concatenate_and_sort_partials(
+    partials: list[dict],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Concatenate partial results from parallel workers and sort by omega.
+
+    Returns (samples, deltas, exps, vars_, derivs, norms) sorted by omega.
+    """
+    all_omega = np.concatenate([p["omega_values"] for p in partials])
+    sort_idx = np.argsort(all_omega)
+
+    keys = ["samples", "deltas", "exps", "vars_", "derivs", "norms"]
+    results: dict[str, np.ndarray] = {}
+    for key in keys:
+        results[key] = np.concatenate([p[key] for p in partials], axis=0)[sort_idx]
+
+    return (
+        results["samples"],
+        results["deltas"],
+        results["exps"],
+        results["vars_"],
+        results["derivs"],
+        results["norms"],
+    )
+
+
+def _normball_parallel(
+    omega_arr: np.ndarray,
+    n_samp: int,
+    R: float,
+    azz_lo: float,
+    azz_hi: float,
+    t_hold: float,
+    T_BS: float,
+    fd_step: float,
+    seed: int | None,
+    sampling_method: str,
+    n_strata: int,
+    n_jobs: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Parallel norm-ball sampling using process pool.
+
+    Returns (samples, deltas, exps, vars_, derivs, norms) sorted by omega.
+    """
+    n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
+    chunks = np.array_split(omega_arr, n_workers)
+    worker_args = [
+        (
+            chunk.tolist(),
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            t_hold,
+            T_BS,
+            fd_step,
+            seed,
+            sampling_method,
+            n_strata,
+        )
+        for chunk in chunks
+    ]
+
+    partials: list[dict] = [{}] * len(worker_args)
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=n_workers,
+    ) as executor:
+        futures = {
+            executor.submit(_normball_omega_chunk_worker, args): i
+            for i, args in enumerate(worker_args)
+        }
+        for future in concurrent.futures.as_completed(futures):
+            idx = futures[future]
+            partials[idx] = future.result()
+
+    return _concatenate_and_sort_partials(partials)
+
+
 def norm_ball_sampling(
     omega_values: np.ndarray | list[float],
     *,
@@ -544,99 +680,37 @@ def norm_ball_sampling(
             divisible by *n_strata* for stratified sampling.
     """
     omega_arr = np.asarray(omega_values, dtype=float)
-    n_omega = len(omega_arr)
     azz_lo, azz_hi = azz_bounds
 
     if n_jobs is None or n_jobs == 1:
-        # ── Sequential path (with tqdm) ──────────────────────────────────
-        samples = np.zeros((n_omega, n_samp, 4), dtype=float)
-        deltas = np.full((n_omega, n_samp), np.inf, dtype=float)
-        exps = np.zeros((n_omega, n_samp), dtype=float)
-        vars_ = np.zeros((n_omega, n_samp), dtype=float)
-        derivs = np.zeros((n_omega, n_samp), dtype=float)
-        norms = np.zeros((n_omega, n_samp), dtype=float)
-
-        for ti, omega in enumerate(
-            tqdm(omega_arr, desc="Norm-ball sampling", unit="ω")
-        ):
-            omega_rng = np.random.default_rng(
-                seed + int(omega * 1000) if seed is not None else None
-            )
-            drive_samp, azz_samp = _sample_ball_for_omega(
-                omega_rng,
-                n_samp,
-                R,
-                azz_lo,
-                azz_hi,
-                sampling_method,
-                n_strata,
-            )
-
-            for si in range(n_samp):
-                ax = float(drive_samp[si, 0])
-                ay = float(drive_samp[si, 1])
-                az = float(drive_samp[si, 2])
-                azz = float(azz_samp[si])
-
-                domega, exp_val, var_val, deriv, _ = compute_sensitivity_with_extra(
-                    omega,
-                    ax,
-                    ay,
-                    az,
-                    azz,
-                    t_hold=t_hold,
-                    T_BS=T_BS,
-                    fd_step=fd_step,
-                )
-
-                samples[ti, si, :] = [ax, ay, az, azz]
-                deltas[ti, si] = domega
-                exps[ti, si] = exp_val
-                vars_[ti, si] = var_val
-                derivs[ti, si] = deriv
-                norms[ti, si] = float(np.sqrt(ax**2 + ay**2 + az**2))
+        samples, deltas, exps, vars_, derivs, norms = _normball_sequential(
+            omega_arr,
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            t_hold,
+            T_BS,
+            fd_step,
+            seed,
+            sampling_method,
+            n_strata,
+        )
     else:
-        # ── Parallel path ────────────────────────────────────────────────
-        n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
-        chunks = np.array_split(omega_arr, n_workers)
-        worker_args = [
-            (
-                chunk.tolist(),
-                n_samp,
-                R,
-                azz_lo,
-                azz_hi,
-                t_hold,
-                T_BS,
-                fd_step,
-                seed,
-                sampling_method,
-                n_strata,
-            )
-            for chunk in chunks
-        ]
-
-        partials: list[dict] = [{}] * len(worker_args)
-        with concurrent.futures.ProcessPoolExecutor(
-            max_workers=n_workers,
-        ) as executor:
-            futures = {
-                executor.submit(_normball_omega_chunk_worker, args): i
-                for i, args in enumerate(worker_args)
-            }
-            for future in concurrent.futures.as_completed(futures):
-                idx = futures[future]
-                partials[idx] = future.result()
-
-        # Concatenate results in original order
-        all_omega = np.concatenate([p["omega_values"] for p in partials])
-        sort_idx = np.argsort(all_omega)
-        samples = np.concatenate([p["samples"] for p in partials], axis=0)[sort_idx]
-        deltas = np.concatenate([p["deltas"] for p in partials], axis=0)[sort_idx]
-        exps = np.concatenate([p["exps"] for p in partials], axis=0)[sort_idx]
-        vars_ = np.concatenate([p["vars_"] for p in partials], axis=0)[sort_idx]
-        derivs = np.concatenate([p["derivs"] for p in partials], axis=0)[sort_idx]
-        norms = np.concatenate([p["norms"] for p in partials], axis=0)[sort_idx]
+        samples, deltas, exps, vars_, derivs, norms = _normball_parallel(
+            omega_arr,
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            t_hold,
+            T_BS,
+            fd_step,
+            seed,
+            sampling_method,
+            n_strata,
+            n_jobs,
+        )
 
     return NormBallResult(
         omega_values=omega_arr,
@@ -658,7 +732,7 @@ def norm_ball_sampling(
 
 
 @dataclass
-class EnvelopeResult:
+class EnvelopeResult(ParquetSerializable):
     """Result from extracting the norm-constrained envelope curve.
 
     Attributes:
@@ -673,6 +747,8 @@ class EnvelopeResult:
     best_ratio_per_omega: np.ndarray
     omega_values: np.ndarray
     sql: float = SQL
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = ["omega", "r", "best_ratio", "sql"]
 
     def to_dataframe(self) -> pd.DataFrame:
         """Melt the envelope into long-format DataFrame."""
@@ -690,22 +766,10 @@ class EnvelopeResult:
         ]
         return pd.DataFrame(rows)
 
-    def save_parquet(self, path: str | Path) -> Path:
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        self.to_dataframe().to_parquet(path, index=False)
-        return path
-
     @classmethod
     def from_parquet(cls, path: str | Path) -> EnvelopeResult:
         df = pd.read_parquet(path)
-        required = {"omega", "r", "best_ratio", "sql"}
-        missing = required - set(df.columns)
-        if missing:
-            raise ValueError(
-                f"Parquet at {path} is missing required columns: "
-                f"{sorted(missing)}. Regenerate the file with the current code."
-            )
+        cls._validate_columns(df)
         omega_values = np.array(sorted(df["omega"].unique()), dtype=float)
         r_values = np.array(sorted(df["r"].unique()), dtype=float)
         n_omega = len(omega_values)
@@ -865,6 +929,43 @@ def plot_norm_envelope_curve(
     return save_path
 
 
+def _collect_ratios_by_slice(
+    slice_results: dict[str, Drive2DSliceResult],
+) -> tuple[list[float], dict[str, list[float]]]:
+    """Collect best Δω/SQL ratios for each slice type across ω values.
+
+    Args:
+        slice_results: Dict mapping slice_type to Drive2DSliceResult.
+
+    Returns:
+        Tuple (all_omegas, ratios) where ``ratios`` maps slice type
+        to a list of min Δω/SQL values.
+    """
+    omega_set: set[float] = set()
+    for res in slice_results.values():
+        omega_set.add(res.omega_value)
+    all_omegas = sorted(omega_set)
+
+    ratios: dict[str, list[float]] = {"ax": [], "ay": [], "az": []}
+
+    for omega in all_omegas:
+        for st in ("ax", "ay", "az"):
+            if st in slice_results and np.isclose(
+                slice_results[st].omega_value, omega
+            ):
+                grid = slice_results[st].delta_omega_grid
+                finite_mask = np.isfinite(grid)
+                if np.any(finite_mask):
+                    min_val = float(np.min(grid[finite_mask]))
+                    ratios[st].append(min_val / slice_results[st].sql)
+                else:
+                    ratios[st].append(float("inf"))
+            else:
+                ratios[st].append(float("nan"))
+
+    return all_omegas, ratios
+
+
 def plot_best_ratio_by_slice(
     slice_results: dict[str, Drive2DSliceResult],
     save_path: str | Path,
@@ -885,28 +986,7 @@ def plot_best_ratio_by_slice(
 
     fig, ax = plt.subplots(figsize=figsize)
 
-    # Collect data by ω
-    all_omegas: list[float] = []
-    ratios: dict[str, list[float]] = {"ax": [], "ay": [], "az": []}
-
-    # Collect all unique ω from all results
-    omega_set: set[float] = set()
-    for res in slice_results.values():
-        omega_set.add(res.omega_value)
-    all_omegas = sorted(omega_set)
-
-    for omega in all_omegas:
-        for st in ("ax", "ay", "az"):
-            if st in slice_results and np.isclose(slice_results[st].omega_value, omega):
-                grid = slice_results[st].delta_omega_grid
-                finite_mask = np.isfinite(grid)
-                if np.any(finite_mask):
-                    min_val = float(np.min(grid[finite_mask]))
-                    ratios[st].append(min_val / slice_results[st].sql)
-                else:
-                    ratios[st].append(float("inf"))
-            else:
-                ratios[st].append(float("nan"))
+    all_omegas, ratios = _collect_ratios_by_slice(slice_results)
 
     # Grouped bar chart
     n_groups = len(all_omegas)
