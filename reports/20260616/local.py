@@ -727,6 +727,7 @@ class Combined2DSliceResult(ParquetSerializable):
     """Result from a 2D parameter slice scan over (α_xx, α_zz).
 
     Attributes:
+        N: Number of system particles (always 1 for this scan).
         alpha_xx_values: Array of α_xx values.
         alpha_zz_values: Array of α_zz values.
         delta_omega_grid: 2D array of Δω values, shape
@@ -735,7 +736,10 @@ class Combined2DSliceResult(ParquetSerializable):
         a_x_fixed: Fixed drive a_x value.
         a_y_fixed: Fixed drive a_y value.
         a_z_fixed: Fixed drive a_z value.
+        alpha_xz_fixed: Fixed α_xz value (always 0 for this scan).
+        alpha_zx_fixed: Fixed α_zx value (always 0 for this scan).
         sql: SQL reference value.
+        t_hold: Holding time.
     """
 
     alpha_xx_values: np.ndarray
@@ -745,9 +749,14 @@ class Combined2DSliceResult(ParquetSerializable):
     a_x_fixed: float
     a_y_fixed: float
     a_z_fixed: float
+    N: int = 1
+    alpha_xz_fixed: float = 0.0
+    alpha_zx_fixed: float = 0.0
     sql: float = 0.1
+    t_hold: float = T_HOLD
 
     _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "N",
         "alpha_xx",
         "alpha_zz",
         "delta_omega",
@@ -755,7 +764,10 @@ class Combined2DSliceResult(ParquetSerializable):
         "a_x_fixed",
         "a_y_fixed",
         "a_z_fixed",
+        "alpha_xz_fixed",
+        "alpha_zx_fixed",
         "sql",
+        "t_hold",
     ]
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -763,6 +775,7 @@ class Combined2DSliceResult(ParquetSerializable):
         n_zz = len(self.alpha_zz_values)
         rows = [
             {
+                "N": self.N,
                 "alpha_xx": float(self.alpha_xx_values[i]),
                 "alpha_zz": float(self.alpha_zz_values[j]),
                 "delta_omega": float(self.delta_omega_grid[i, j]),
@@ -770,7 +783,10 @@ class Combined2DSliceResult(ParquetSerializable):
                 "a_x_fixed": float(self.a_x_fixed),
                 "a_y_fixed": float(self.a_y_fixed),
                 "a_z_fixed": float(self.a_z_fixed),
+                "alpha_xz_fixed": float(self.alpha_xz_fixed),
+                "alpha_zx_fixed": float(self.alpha_zx_fixed),
                 "sql": float(self.sql),
+                "t_hold": float(self.t_hold),
             }
             for i in range(n_xx)
             for j in range(n_zz)
@@ -791,6 +807,7 @@ class Combined2DSliceResult(ParquetSerializable):
             j = alpha_zz_unique.index(row["alpha_zz"])
             grid[i, j] = row["delta_omega"]
         return cls(
+            N=int(df["N"].iloc[0]),
             alpha_xx_values=np.array(alpha_xx_unique, dtype=float),
             alpha_zz_values=np.array(alpha_zz_unique, dtype=float),
             delta_omega_grid=grid,
@@ -798,7 +815,10 @@ class Combined2DSliceResult(ParquetSerializable):
             a_x_fixed=float(df["a_x_fixed"].iloc[0]),
             a_y_fixed=float(df["a_y_fixed"].iloc[0]),
             a_z_fixed=float(df["a_z_fixed"].iloc[0]),
+            alpha_xz_fixed=float(df["alpha_xz_fixed"].iloc[0]),
+            alpha_zx_fixed=float(df["alpha_zx_fixed"].iloc[0]),
             sql=float(df["sql"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
         )
 
 
@@ -807,14 +827,16 @@ class CombinedRandomSearchResult(ParquetSerializable):
     """Result from a 7D random search over (a, α) parameters.
 
     Attributes:
-        samples: Array of shape (N, 7) with sampled parameter values.
-        delta_omega_values: Array of shape (N,) with Δω for each sample.
+        N: Number of system particles.
+        samples: Array of shape (N_samp, 7) with sampled parameter values.
+        delta_omega_values: Array of shape (N_samp,) with Δω for each sample.
         best_params: The 7-element tuple that gave minimal Δω.
         best_delta_omega: The minimal Δω found.
         omega_value: ω at which the search was performed.
         sql: SQL reference value.
     """
 
+    N: int
     samples: np.ndarray
     delta_omega_values: np.ndarray
     best_params: tuple[float, float, float, float, float, float, float]
@@ -824,6 +846,7 @@ class CombinedRandomSearchResult(ParquetSerializable):
     t_hold: float = T_HOLD
 
     _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "N",
         "a_x",
         "a_y",
         "a_z",
@@ -841,6 +864,7 @@ class CombinedRandomSearchResult(ParquetSerializable):
         n = len(self.samples)
         return pd.DataFrame(
             {
+                "N": [self.N] * n,
                 "a_x": self.samples[:, 0],
                 "a_y": self.samples[:, 1],
                 "a_z": self.samples[:, 2],
@@ -865,6 +889,7 @@ class CombinedRandomSearchResult(ParquetSerializable):
         deltas = df["delta_omega"].to_numpy(dtype=float)
         best_idx = int(np.argmin(deltas))
         return cls(
+            N=int(df["N"].iloc[0]),
             samples=samples,
             delta_omega_values=deltas,
             best_params=(
@@ -1044,6 +1069,7 @@ def combined_random_search(
     )
 
     return CombinedRandomSearchResult(
+        N=N,
         samples=samples,
         delta_omega_values=deltas,
         best_params=best_params,
@@ -1105,9 +1131,6 @@ def run_combined_bfgs_optimization(
     lo_a, hi_a = alpha_bounds
     base_seed = seed if seed is not None else 42
 
-    # Bounds for L-BFGS-B: first 3 params use drive_bounds, last 4 use alpha_bounds
-    bounds_ls = [(lo_d, hi_d)] * 3 + [(lo_a, hi_a)] * 4
-
     best_delta = float("inf")
     best_params_7 = np.zeros(7, dtype=float)
     n_converged = 0
@@ -1120,42 +1143,44 @@ def run_combined_bfgs_optimization(
         x0[:3] = rng.uniform(lo_d, hi_d, size=3)
         x0[3:] = rng.uniform(lo_a, hi_a, size=4)
 
-        result = minimize(
-            combined_objective,
+        single_result = _run_single_bfgs_from_x0(
+            N,
+            omega_true,
+            ops,
+            psi0,
+            ancilla_dim,
             x0,
-            args=(
-                N,
-                omega_true,
-                ops,
-                psi0,
-                ancilla_dim,
-                t_hold,
-                T_bs,
-                fd_step,
-                drive_bounds,
-                alpha_bounds,
-                1e6,
-            ),
-            method="L-BFGS-B",
-            bounds=bounds_ls,
-            options={
-                "maxiter": maxiter,
-                "gtol": gtol,
-                "ftol": 1e-12,
-            },
+            drive_bounds=drive_bounds,
+            alpha_bounds=alpha_bounds,
+            t_hold=t_hold,
+            T_bs=T_bs,
+            fd_step=fd_step,
+            maxiter=maxiter,
+            gtol=gtol,
         )
 
-        if result.success:
+        if single_result.success:
             n_converged += 1
 
-        delta_val = float(result.fun)
+        delta_val = single_result.delta_omega_opt
         if np.isfinite(delta_val) and delta_val < best_delta:
             best_delta = delta_val
-            best_params_7 = result.x.copy()
-            best_nfev = int(result.nfev)
-            best_success = bool(result.success)
+            best_params_7 = np.array(
+                [
+                    single_result.a_x_opt,
+                    single_result.a_y_opt,
+                    single_result.a_z_opt,
+                    single_result.alpha_xx_opt,
+                    single_result.alpha_xz_opt,
+                    single_result.alpha_zx_opt,
+                    single_result.alpha_zz_opt,
+                ],
+                dtype=float,
+            )
+            best_nfev = single_result.nfev
+            best_success = single_result.success
 
-    # Compute diagnostics at the optimal point
+    # Recompute diagnostics at the optimal point (combined result metadata)
     psi_final = evolve_combined_circuit(
         N,
         psi0,
@@ -1289,16 +1314,38 @@ def _run_single_bfgs_from_x0(
     psi0: np.ndarray,
     ancilla_dim: int,
     x0: np.ndarray,
+    drive_bounds: tuple[float, float] = DRIVE_BOUNDS,
+    alpha_bounds: tuple[float, float] = ALPHA_BOUNDS,
+    t_hold: float = T_HOLD,
+    T_bs: float = T_BS,
+    fd_step: float = FD_STEP,
     seed: int | None = 42,
     maxiter: int = BFGS_MAXITER,
     gtol: float = BFGS_GTOL,
 ) -> CombinedOptimizationResult:
     """Run a single L-BFGS-B refinement from a given starting point.
 
-    Returns a CombinedOptimizationResult for this single run.
+    Args:
+        N: Number of system particles.
+        omega_true: True phase rate parameter.
+        ops: Operators from build_*_combined_operators().
+        psi0: Initial state vector.
+        ancilla_dim: Dimension of ancilla space.
+        x0: Starting point (7-element array).
+        drive_bounds: (min, max) for a_x, a_y, a_z.
+        alpha_bounds: (min, max) for α_{ij}.
+        t_hold: Holding time.
+        T_bs: Beam-splitter duration.
+        fd_step: Finite-difference step.
+        seed: Random seed (unused here, kept for API consistency).
+        maxiter: Maximum L-BFGS-B iterations.
+        gtol: L-BFGS-B gradient convergence tolerance.
+
+    Returns:
+        CombinedOptimizationResult for this single run.
     """
-    lo_d, hi_d = DRIVE_BOUNDS
-    lo_a, hi_a = ALPHA_BOUNDS
+    lo_d, hi_d = drive_bounds
+    lo_a, hi_a = alpha_bounds
     bounds_ls = [(lo_d, hi_d)] * 3 + [(lo_a, hi_a)] * 4
 
     result = minimize(
@@ -1310,11 +1357,11 @@ def _run_single_bfgs_from_x0(
             ops,
             psi0,
             ancilla_dim,
-            T_HOLD,
-            T_BS,
-            FD_STEP,
-            DRIVE_BOUNDS,
-            ALPHA_BOUNDS,
+            t_hold,
+            T_bs,
+            fd_step,
+            drive_bounds,
+            alpha_bounds,
             1e6,
         ),
         method="L-BFGS-B",
@@ -1333,8 +1380,8 @@ def _run_single_bfgs_from_x0(
     psi_final = evolve_combined_circuit(
         N,
         psi0,
-        T_BS,
-        T_HOLD,
+        T_bs,
+        t_hold,
         omega_true,
         float(opt_params[0]),
         float(opt_params[1]),
@@ -1370,8 +1417,8 @@ def _run_single_bfgs_from_x0(
         alpha_zz_opt=float(opt_params[6]),
         expectation_Jz=exp_val,
         variance_Jz=var_val,
-        t_hold=T_HOLD,
-        fd_step=FD_STEP,
+        t_hold=t_hold,
+        fd_step=fd_step,
         success=bool(result.success),
         nfev=int(result.nfev),
         n_starts=1,
@@ -1759,6 +1806,8 @@ def _recover_checkpoints(
                             alpha_zz_opt=float(row["alpha_zz_opt"]),
                             expectation_Jz=float(row["expectation_Jz"]),
                             variance_Jz=float(row["variance_Jz"]),
+                            t_hold=float(row["t_hold"]),
+                            fd_step=float(row["fd_step"]),
                             success=bool(int(row["success"])),
                             nfev=int(row["nfev"]),
                             n_starts=int(row["n_starts"]),

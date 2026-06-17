@@ -524,13 +524,13 @@ class TestSensitivity:
         assert np.isfinite(delta)
         assert delta > 0.0
 
-    def test_given_fringe_extremum_then_inf(
+    def test_given_large_drive_then_finite_or_inf(
         self,
         make_N: int,
         make_fixed_ops: dict,
         make_fixed_psi0: np.ndarray,
     ) -> None:
-        """At large drive, we may hit a fringe extremum (derivative ~ 0)."""
+        """At large drive, sensitivity should remain non-negative."""
         delta = compute_combined_sensitivity(
             make_N,
             make_fixed_psi0,
@@ -547,7 +547,7 @@ class TestSensitivity:
             make_fixed_ops,
             ancilla_dim=2,
         )
-        assert delta > 0.0  # Either finite or inf
+        assert delta > 0.0 or np.isinf(delta)
 
     def test_given_full_ancilla_then_positive(
         self,
@@ -642,11 +642,9 @@ class TestN1Consistency:
     def test_given_N1_then_both_ancilla_paths_equivalent(self) -> None:
         """At N=1, the fixed-ancilla and full-ancilla paths should agree."""
         # Small random search test at a single ω
-        from local import build_fixed_ancilla_combined_operators as fixed_ops
-        from local import build_full_ancilla_combined_operators as full_ops
-
-        ops_fixed = fixed_ops(1)
-        ops_full = full_ops(1)
+        # (builders already imported at module level)
+        ops_fixed = build_fixed_ancilla_combined_operators(1)
+        ops_full = build_full_ancilla_combined_operators(1)
         psi0 = combined_initial_state(4)
 
         # Run a few random samples and compare
@@ -655,10 +653,10 @@ class TestN1Consistency:
             ax = rng.uniform(-5, 5)
             ay = rng.uniform(-5, 5)
             az = rng.uniform(-5, 5)
-            a_xx = rng.uniform(-20, 20)
-            a_xz = rng.uniform(-20, 20)
-            a_zx = rng.uniform(-20, 20)
-            a_zz = rng.uniform(-20, 20)
+            alpha_xx = rng.uniform(-20, 20)
+            alpha_xz = rng.uniform(-20, 20)
+            alpha_zx = rng.uniform(-20, 20)
+            alpha_zz = rng.uniform(-20, 20)
             d_fixed = compute_combined_sensitivity(
                 1,
                 psi0,
@@ -668,10 +666,10 @@ class TestN1Consistency:
                 ax,
                 ay,
                 az,
-                a_xx,
-                a_xz,
-                a_zx,
-                a_zz,
+                alpha_xx,
+                alpha_xz,
+                alpha_zx,
+                alpha_zz,
                 ops_fixed,
                 ancilla_dim=2,
             )
@@ -684,10 +682,10 @@ class TestN1Consistency:
                 ax,
                 ay,
                 az,
-                a_xx,
-                a_xz,
-                a_zx,
-                a_zz,
+                alpha_xx,
+                alpha_xz,
+                alpha_zx,
+                alpha_zz,
                 ops_full,
                 ancilla_dim=2,
             )
@@ -837,7 +835,6 @@ class TestBFGSOptimization:
         )
         assert result.delta_omega_opt > 0.0
         assert np.isfinite(result.delta_omega_opt)
-        assert len(result.a_x_opt) if isinstance(result.a_x_opt, np.ndarray) else True
 
     def test_given_bfgs_then_diagnostics_finite(self, make_N: int) -> None:
         ops = build_fixed_ancilla_combined_operators(make_N)
@@ -998,6 +995,7 @@ class TestCombinedRandomSearchResultParquet:
         deltas = np.abs(rng.normal(0.1, 0.05, size=10))
         best_idx = int(np.argmin(deltas))
         return CombinedRandomSearchResult(
+            N=1,
             samples=samples,
             delta_omega_values=deltas,
             best_params=(
@@ -1022,6 +1020,7 @@ class TestCombinedRandomSearchResultParquet:
         p = tmp_path / "rs.parquet"
         make_rs_result.save_parquet(p)
         loaded = CombinedRandomSearchResult.from_parquet(p)
+        assert loaded.N == make_rs_result.N
         assert loaded.omega_value == make_rs_result.omega_value
         assert np.isclose(loaded.best_delta_omega, make_rs_result.best_delta_omega)
         assert len(loaded.best_params) == 7
@@ -1062,11 +1061,15 @@ class TestCombined2DSliceResultParquet:
         p = tmp_path / "slice.parquet"
         make_slice_result.save_parquet(p)
         loaded = Combined2DSliceResult.from_parquet(p)
+        assert loaded.N == make_slice_result.N
         assert np.allclose(loaded.alpha_xx_values, make_slice_result.alpha_xx_values)
         assert np.allclose(loaded.alpha_zz_values, make_slice_result.alpha_zz_values)
         assert loaded.omega_value == make_slice_result.omega_value
         assert loaded.a_x_fixed == make_slice_result.a_x_fixed
         assert loaded.a_y_fixed == make_slice_result.a_y_fixed
+        assert loaded.alpha_xz_fixed == make_slice_result.alpha_xz_fixed
+        assert loaded.alpha_zx_fixed == make_slice_result.alpha_zx_fixed
+        assert loaded.t_hold == make_slice_result.t_hold
 
     def test_missing_columns_raises(self, tmp_path: Path) -> None:
         df = pd.DataFrame({"alpha_xx": [1.0]})
