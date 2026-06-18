@@ -1,12 +1,14 @@
 """CollapsedWave utilities package.
 
-Shared enums, validators, and type definitions.
+Shared enums, validators, type definitions, and path helpers.
 """
 
 from src.utils.enums import BoundaryCondition as BoundaryCondition
 from src.utils.enums import PotentialFunction as PotentialFunction
 from src.utils.enums import ProbabilityDistribution as ProbabilityDistribution
 from src.utils.enums import WavePacket as WavePacket
+from src.utils.paths import fig_path as fig_path
+from src.utils.paths import parquet_path as parquet_path
 from src.utils.validators import (
     validate_eigendecomposition as validate_eigendecomposition,
 )

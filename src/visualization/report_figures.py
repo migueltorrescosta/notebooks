@@ -8,15 +8,11 @@ and saves it to the report's figures directory.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-
-if TYPE_CHECKING:
-    pass
 
 sns.set_theme(style="whitegrid")
 

@@ -1034,17 +1034,22 @@ def plot_general_convergence(
 # Data / Figure Generation Pipeline
 # ============================================================================
 
+from src.utils.paths import (
+    fig_path,
+    parquet_path,
+)
+
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 DATE_TAG = "20260521"
 BFGS_TABLE_DIR = str(REPORTS_DIR / DATE_TAG / "raw_data" / "bfgs-results")
 
 
 def _parquet_path(name: str) -> Path:
-    return REPORTS_DIR / DATE_TAG / "raw_data" / f"{DATE_TAG}-{name}.parquet"
+    return parquet_path(REPORTS_DIR, DATE_TAG, name)
 
 
 def _fig_path(name: str) -> Path:
-    return REPORTS_DIR / DATE_TAG / "figures" / f"{DATE_TAG}-{name}.svg"
+    return fig_path(REPORTS_DIR, DATE_TAG, name)
 
 
 def _upsert_bfgs_result(result: GeneralBFGSOptimizationResult) -> None:

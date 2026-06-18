@@ -744,6 +744,8 @@ def plot_omega_dependence(
 # Data / Figure Generation Pipeline
 # ============================================================================
 
+import src.utils.paths as _path_utils  # noqa: E402
+
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260522"
 OMEGA_VALS: list[float] = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
@@ -752,12 +754,12 @@ N_VALS: list[int] = list(range(1, 21))
 
 def parquet_path(name: str) -> Path:
     """Return path to a raw_data Parquet file for this report."""
-    return REPORTS_DIR / REPORT_DATE / "raw_data" / f"{REPORT_DATE}-{name}.parquet"
+    return _path_utils.parquet_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 def fig_path(name: str) -> Path:
     """Return path to a figures SVG file for this report."""
-    return REPORTS_DIR / REPORT_DATE / "figures" / f"{REPORT_DATE}-{name}.svg"
+    return _path_utils.fig_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 # Backward-compatible aliases

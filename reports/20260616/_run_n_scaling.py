@@ -3,13 +3,10 @@ Run Step 3 N-scaling (J_A = N/2) with reduced BFGS refinements.
 Step 2 (J_A = 1/2) already complete for N=1..13.
 Now running the same N range with ancilla_dim = N+1.
 """
+import importlib.util
 import sys
 import time
-
-import numpy as np
 from pathlib import Path
-
-import importlib.util
 
 local_path = Path(__file__).resolve().parent / "local.py"
 spec = importlib.util.spec_from_file_location("local", str(local_path))
@@ -72,8 +69,9 @@ def run_step3(
     checkpoint_dir: Path,
 ):
     """Run Step 3 N-scaling sequentially with checkpointing, no Step 2."""
-    import pandas as pd
     import shutil
+
+    import pandas as pd
 
     if checkpoint_dir.exists():
         shutil.rmtree(checkpoint_dir)

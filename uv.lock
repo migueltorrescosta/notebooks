@@ -606,6 +606,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "black" },
+    { name = "coverage" },
     { name = "jupyter-book" },
     { name = "pandas-stubs" },
     { name = "pdflatex" },
@@ -673,6 +674,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "black", specifier = ">=26.5.1,<27" },
+    { name = "coverage", specifier = ">=7.6.0" },
     { name = "jupyter-book", specifier = ">=2.1.5,<3" },
     { name = "pandas-stubs", specifier = ">=2.2.1.240316,<3" },
     { name = "pdflatex", specifier = ">=0.1.3,<0.2" },

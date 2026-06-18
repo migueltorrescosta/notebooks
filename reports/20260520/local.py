@@ -880,6 +880,11 @@ def plot_xx_grid_scan_example(
 # Data / Figure Generation Pipeline
 # ============================================================================
 
+from src.utils.paths import (
+    fig_path,
+    parquet_path,
+)
+
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 XX_DATE = "20260520"
 XX_OMEGA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
@@ -887,11 +892,11 @@ XX_N_GRID = 2001
 
 
 def _parquet_path(name: str) -> Path:
-    return REPORTS_DIR / XX_DATE / "raw_data" / f"{XX_DATE}-{name}.parquet"
+    return parquet_path(REPORTS_DIR, XX_DATE, name)
 
 
 def _fig_path(name: str) -> Path:
-    return REPORTS_DIR / XX_DATE / "figures" / f"{XX_DATE}-{name}.svg"
+    return fig_path(REPORTS_DIR, XX_DATE, name)
 
 
 # ── Generator functions ───────────────────────────────────────────────────

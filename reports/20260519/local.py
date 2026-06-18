@@ -1109,6 +1109,11 @@ def plot_drive_fraction_below_sql(
 # (moved from src/visualization/report_figures.py)
 # ============================================================================
 
+from src.utils.paths import (
+    fig_path,
+    parquet_path,
+)
+
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 PHASE_DATE = "20260519"
 PHASE_OMEGA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
@@ -1116,11 +1121,11 @@ PHASE_N_GRID = 201
 
 
 def _parquet_path(name: str) -> Path:
-    return REPORTS_DIR / PHASE_DATE / "raw_data" / f"{PHASE_DATE}-{name}.parquet"
+    return parquet_path(REPORTS_DIR, PHASE_DATE, name)
 
 
 def _fig_path(name: str) -> Path:
-    return REPORTS_DIR / PHASE_DATE / "figures" / f"{PHASE_DATE}-{name}.svg"
+    return fig_path(REPORTS_DIR, PHASE_DATE, name)
 
 
 # ── Parallel dispatch helper ──────────────────────────────────────────────

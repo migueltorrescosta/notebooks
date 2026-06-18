@@ -82,16 +82,21 @@ NM_MAXITER: int = 5000
 # Path Helpers
 # ============================================================================
 
+from src.utils.paths import (
+    fig_path,
+    parquet_path,
+)
+
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260612"
 
 
 def _parquet_path(name: str) -> Path:
-    return REPORTS_DIR / REPORT_DATE / "raw_data" / f"{REPORT_DATE}-{name}.parquet"
+    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 def _fig_path(name: str) -> Path:
-    return REPORTS_DIR / REPORT_DATE / "figures" / f"{REPORT_DATE}-{name}.svg"
+    return fig_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 # ============================================================================

@@ -55,6 +55,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "black>=26.5.1,<27",
+    "coverage>=7.6.0",
     "pandas-stubs>=2.2.1.240316,<3",
     "pdflatex>=0.1.3,<0.2",
     "types-beautifulsoup4>=4.12.0.20240229,<5",
@@ -183,6 +184,25 @@ exclude = [
     "src/algorithms/test_tensor_tree_network.py",
     "src/evolution/tdvp.py",
     "src/evolution/test_tdvp.py",
+]
+
+[tool.coverage.run]
+source = ["src", "reports"]
+omit = [
+    "*/test_*",
+    "*/__init__.py",
+    "src/analysis/scaling_survey.py",
+    "src/analysis/ancilla_comparison.py",
+    "src/visualization/report_figures.py",
+]
+
+[tool.coverage.report]
+fail_under = 85
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if TYPE_CHECKING",
+    "@overload",
 ]
 
 [build-system]

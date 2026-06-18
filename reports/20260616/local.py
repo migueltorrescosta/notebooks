@@ -1684,16 +1684,21 @@ def _make_result_from_dict(rdict: dict) -> CombinedOptimizationResult:
 # Path Helpers
 # ============================================================================
 
+from src.utils.paths import (
+    fig_path,
+    parquet_path,
+)
+
 _REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 _REPORT_DATE = "20260616"
 
 
 def _parquet_path(name: str) -> Path:
-    return _REPORTS_DIR / _REPORT_DATE / "raw_data" / f"{_REPORT_DATE}-{name}.parquet"
+    return parquet_path(_REPORTS_DIR, _REPORT_DATE, name)
 
 
 def _fig_path(name: str) -> Path:
-    return _REPORTS_DIR / _REPORT_DATE / "figures" / f"{_REPORT_DATE}-{name}.svg"
+    return fig_path(_REPORTS_DIR, _REPORT_DATE, name)
 
 
 # ============================================================================

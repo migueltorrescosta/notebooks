@@ -3461,17 +3461,22 @@ def plot_weighted_alpha_scan(
 # (C) Report Generation Pipeline
 # ============================================================================
 
+from src.utils.paths import (
+    fig_path,
+    parquet_path,
+)
+
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260518"
 DRIVE_OMEGA_VALS = [0.1, 0.5, 1.0, 2.0, 5.0]
 
 
 def _parquet_path(name: str) -> Path:
-    return REPORTS_DIR / REPORT_DATE / "raw_data" / f"{REPORT_DATE}-{name}.parquet"
+    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 def _fig_path(name: str) -> Path:
-    return REPORTS_DIR / REPORT_DATE / "figures" / f"{REPORT_DATE}-{name}.svg"
+    return fig_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 def generate_n_scaling(force: bool = False) -> None:

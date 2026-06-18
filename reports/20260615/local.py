@@ -82,6 +82,11 @@ PROTOCOL_LINEAR: str = "linear"
 PROTOCOL_PARITY: str = "parity"
 PROTOCOL_CFI: str = "cfi"
 
+from src.utils.paths import (
+    fig_path,
+    parquet_path,
+)
+
 # ============================================================================
 # Path Helpers
 # ============================================================================
@@ -92,11 +97,11 @@ JOINT_REPORT_DATE = "20260613"
 
 
 def _parquet_path(name: str) -> Path:
-    return REPORTS_DIR / REPORT_DATE / "raw_data" / f"{REPORT_DATE}-{name}.parquet"
+    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 def _fig_path(name: str) -> Path:
-    return REPORTS_DIR / REPORT_DATE / "figures" / f"{REPORT_DATE}-{name}.svg"
+    return fig_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 def _try_load_scan_cache(

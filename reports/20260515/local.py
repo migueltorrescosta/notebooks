@@ -365,12 +365,18 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260515"
 
 
+from src.utils.paths import (
+    fig_path,
+    parquet_path,
+)
+
+
 def _parquet_path(name: str, date: str) -> Path:
-    return REPORTS_DIR / date / "raw_data" / f"{date}-{name}.parquet"
+    return parquet_path(REPORTS_DIR, date, name)
 
 
 def _fig_path(name: str, date: str) -> Path:
-    return REPORTS_DIR / date / "figures" / f"{date}-{name}.svg"
+    return fig_path(REPORTS_DIR, date, name)
 
 
 # ============================================================================

@@ -95,12 +95,18 @@ TIME_THETA_VALUES: list[float] = [0.0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]
 # =============================================================================
 
 
+from src.utils.paths import (
+    fig_path,
+    parquet_path,
+)
+
+
 def _parquet_path(name: str) -> Path:
-    return _REPORT_DIR / "raw_data" / f"{REPORT_DATE}-{name}.parquet"
+    return parquet_path(_REPORT_DIR.parent, REPORT_DATE, name)
 
 
 def _fig_path(name: str) -> Path:
-    return _REPORT_DIR / "figures" / f"{REPORT_DATE}-{name}.svg"
+    return fig_path(_REPORT_DIR.parent, REPORT_DATE, name)
 
 
 # =============================================================================

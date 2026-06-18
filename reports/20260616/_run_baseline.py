@@ -1,8 +1,7 @@
 """Run decoupled baseline for J_A = N/2 and generate remaining data."""
+import importlib.util
 import sys
 from pathlib import Path
-
-import importlib.util
 
 local_path = Path(__file__).resolve().parent / "local.py"
 spec = importlib.util.spec_from_file_location("local", str(local_path))

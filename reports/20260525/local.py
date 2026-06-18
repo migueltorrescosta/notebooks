@@ -1507,6 +1507,8 @@ def plot_comparison_traced_out(
 # Data / Figure Generation Pipeline
 # ============================================================================
 
+import src.utils.paths as _path_utils  # noqa: E402
+
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260525"
 # Date prefix for filenames uses dashes (YYYY-MM-DD) for human readability.
@@ -1517,14 +1519,12 @@ N_VALS: list[int] = list(range(1, 21))
 
 def parquet_path(name: str) -> Path:
     """Return path to a raw_data Parquet file for this report."""
-    return (
-        REPORTS_DIR / REPORT_DATE / "raw_data" / f"{_REPORT_DATE_PREFIX}-{name}.parquet"
-    )
+    return _path_utils.parquet_path(REPORTS_DIR, _REPORT_DATE_PREFIX, name)
 
 
 def fig_path(name: str) -> Path:
     """Return path to a figures SVG file for this report."""
-    return REPORTS_DIR / REPORT_DATE / "figures" / f"{_REPORT_DATE_PREFIX}-{name}.svg"
+    return _path_utils.fig_path(REPORTS_DIR, _REPORT_DATE_PREFIX, name)
 
 
 # Backward-compatible aliases

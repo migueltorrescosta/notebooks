@@ -92,6 +92,7 @@ After the full audit, provide:
 
 ### After implementation
 - [ ] No code was modified during audit
+- [ ] Coverage >= 85% — run `uv run coverage run -m pytest . -m "not slow" && uv run coverage report --fail-under=85`
 - [ ] Checked for pyright violations in `src/` and `pages/` (`uvx pyright src/ pages/`)
 - [ ] Checked for module-level constants in `src/` (violation of Global Constraint §6)
 - [ ] Checked for imports from `local.py` originating outside the report directory (violation of Global Constraint §7)
