@@ -59,6 +59,7 @@ from src.analysis.ancilla_drive_metrology import (
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.physics.multi_mzi import single_bs_unitary
 from src.utils.enums import OperatorBasis
+from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable
 from src.visualization.ancilla_drive_plots import (
     plot_drive_2d_slice_heatmap,
@@ -802,9 +803,7 @@ def _build_safe_intervals(
     return intervals
 
 
-def _check_interval_finite(
-    f: Callable[[float], float], lo: float, hi: float
-) -> bool:
+def _check_interval_finite(f: Callable[[float], float], lo: float, hi: float) -> bool:
     """Return True if any point in [lo, hi] evaluates to a finite value.
 
     Uses a 21-point uniform scan. The scanned values are discarded;
@@ -868,9 +867,10 @@ def optimize_weight_psi(
 
     for lo, hi in safe_intervals:
         # Quick check: if the interval midpoint is singular, scan to confirm
-        if not np.isfinite(f((lo + hi) / 2.0)):
-            if not _check_interval_finite(f, lo, hi):
-                continue  # entire interval is singular — skip
+        if not np.isfinite(f((lo + hi) / 2.0)) and not _check_interval_finite(
+            f, lo, hi
+        ):
+            continue  # entire interval is singular — skip
 
         try:
             psi_gs, dt_gs = golden_section_minimize(f, lo, hi, tol=1e-12, max_iter=200)
@@ -2144,14 +2144,14 @@ class WeightedNScalingResult(ParquetSerializable):
 
     def _save_sidecars(self, path: Path) -> None:
         sidecar = path.with_suffix(".sidecar.json")
-        with open(sidecar, "w") as f:
+        with sidecar.open("w") as f:
             json.dump({"delta_omega_std": self.delta_omega_std}, f, cls=_NumpyEncoder)
 
     @classmethod
     def _load_sidecars(cls, path: Path) -> dict:
         sidecar = path.with_suffix(".sidecar.json")
         if sidecar.exists():
-            with open(sidecar) as f:
+            with sidecar.open() as f:
                 data = json.load(f)
             return {
                 "delta_omega_std": np.array(data["delta_omega_std"], dtype=float),
@@ -2244,7 +2244,7 @@ class MScalingResult(ParquetSerializable):
 
     def _save_sidecars(self, path: Path) -> None:
         sidecar = path.with_suffix(".sidecar.json")
-        with open(sidecar, "w") as f:
+        with sidecar.open("w") as f:
             json.dump(
                 {
                     "M": self.M_values,
@@ -2261,7 +2261,7 @@ class MScalingResult(ParquetSerializable):
     def _load_sidecars(cls, path: Path) -> dict:
         sidecar = path.with_suffix(".sidecar.json")
         if sidecar.exists():
-            with open(sidecar) as f:
+            with sidecar.open() as f:
                 data = json.load(f)
             return {
                 "M": np.array(data["M"], dtype=int),
@@ -2492,7 +2492,11 @@ def _compute_n_scaling_statistics(
 
 
 def _compute_linear_nu_stderr(
-    log_N: np.ndarray, log_dt: np.ndarray, weights: np.ndarray, nu_lin: float, c_lin: float
+    log_N: np.ndarray,
+    log_dt: np.ndarray,
+    weights: np.ndarray,
+    nu_lin: float,
+    c_lin: float,
 ) -> float:
     """Compute standard error for nu from weighted linear fit."""
     A = np.column_stack([-log_N, np.ones_like(log_N)])
@@ -2761,9 +2765,13 @@ def _compute_m_scaling_improvement(
         or 0.0 if the condition M=[0,1] is not met.
     """
     d0 = delta_omega_arr[0]
-    if d0 > 0 and np.isfinite(delta_omega_arr).all():
-        if M_arr[0] == 0 and M_arr[1] == 1:
-            return (d0 - delta_omega_arr[1]) / d0
+    if (
+        d0 > 0
+        and np.isfinite(delta_omega_arr).all()
+        and M_arr[0] == 0
+        and M_arr[1] == 1
+    ):
+        return (d0 - delta_omega_arr[1]) / d0
     return 0.0
 
 
@@ -2858,7 +2866,7 @@ class AlphaReoptResultNM(ParquetSerializable):
 
     def _save_sidecars(self, path: Path) -> None:
         sidecar = path.with_suffix(".sidecar.json")
-        with open(sidecar, "w") as f:
+        with sidecar.open("w") as f:
             json.dump(
                 {
                     "alpha": self.alpha_values,
@@ -2876,7 +2884,7 @@ class AlphaReoptResultNM(ParquetSerializable):
     def _load_sidecars(cls, path: Path) -> dict:
         sidecar = path.with_suffix(".sidecar.json")
         if sidecar.exists():
-            with open(sidecar) as f:
+            with sidecar.open() as f:
                 data = json.load(f)
             return {
                 "alpha": np.array(data["alpha"], dtype=float),
@@ -3460,11 +3468,6 @@ def plot_weighted_alpha_scan(
 # ============================================================================
 # (C) Report Generation Pipeline
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260518"

@@ -176,7 +176,10 @@ def finite_dimensional_populations_over_time(
 
     """
     labels = _validate_quantum_inputs(
-        hamiltonian, rho0, time_window_upper_bound, labels,
+        hamiltonian,
+        rho0,
+        time_window_upper_bound,
+        labels,
     )
     time_axis = np.linspace(0, time_window_upper_bound, 1000)
     n_time = len(time_axis)

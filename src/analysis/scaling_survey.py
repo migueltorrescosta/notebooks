@@ -2028,7 +2028,11 @@ def _compute_entangled_components(
     var_quantum = 1.0 / f_eff if f_eff > 0 else np.inf
 
     var_independent = _compute_entangled_independent(
-        M, c, eta_eff, f_independent, var_quantum,
+        M,
+        c,
+        eta_eff,
+        f_independent,
+        var_quantum,
     )
 
     has_valid_fisher = all([f_correlated > 0, eta_eff > 0])
@@ -2205,24 +2209,38 @@ def distributed_mzi_sensitivity(
     M = config.M
 
     eta_eff, dephasing_variance = _compute_common_params(
-        N_per_sensor, phi_phase, config, noise_config,
+        N_per_sensor,
+        phi_phase,
+        config,
+        noise_config,
     )
 
     if config.entangled:
         var_quantum, var_independent, var_correlated = _compute_entangled_components(
-            N_per_sensor, M, c, eta_eff,
+            N_per_sensor,
+            M,
+            c,
+            eta_eff,
         )
         total_variance = var_quantum + dephasing_variance
     else:
         var_independent, var_correlated = _compute_classical_components(
-            N_per_sensor, M, c, eta_eff,
+            N_per_sensor,
+            M,
+            c,
+            eta_eff,
         )
         total_variance = var_independent + var_correlated + dephasing_variance
 
     return _assemble_sensitivity_result(
-        total_variance, dephasing_variance,
-        var_independent, var_correlated,
-        N_per_sensor, M, c, config.entangled,
+        total_variance,
+        dephasing_variance,
+        var_independent,
+        var_correlated,
+        N_per_sensor,
+        M,
+        c,
+        config.entangled,
         _determine_regime(config.entangled, c),
     )
 
@@ -2936,11 +2954,16 @@ def _run_lindblad_qfi(
     """
     try:
         H0 = 0 * qutip.tensor(
-            qutip.num(max_photons + 1), qutip.qeye(max_photons + 1),
+            qutip.num(max_photons + 1),
+            qutip.qeye(max_photons + 1),
         )
         tlist = [0.0, T_decay]
         result = qutip.mesolve(
-            H0, rho0, tlist, c_ops=c_ops, options={"store_states": True},
+            H0,
+            rho0,
+            tlist,
+            c_ops=c_ops,
+            options={"store_states": True},
         )
         rho_noisy = result.states[-1].full()
     except (ValueError, np.linalg.LinAlgError):
@@ -3020,7 +3043,9 @@ def _compute_noisy_sensitivity(
 
         if c_ops is None:
             return _compute_detection_noise_sensitivity(
-                state, max_photons, noise_level,
+                state,
+                max_photons,
+                noise_level,
             )
 
         state_q = qutip.Qobj(state.reshape(-1, 1), dims=[[dim, dim], [1, 1]])
@@ -3204,7 +3229,10 @@ def _process_standard_model_point(
         pass
 
     return _compute_noisy_sensitivity(
-        state, max_photons, noise_level, model.noise_type,
+        state,
+        max_photons,
+        noise_level,
+        model.noise_type,
     )
 
 
@@ -3269,7 +3297,10 @@ def _run_survey_point(
         delta_phi = _process_custom_model_point(model, noise_level, N)
     else:
         delta_phi = _process_standard_model_point(
-            model, noise_level, N, survey_config,
+            model,
+            noise_level,
+            N,
+            survey_config,
         )
     return _build_result_row(model, noise_level, N, survey_config.method, delta_phi)
 
@@ -3497,7 +3528,11 @@ def _compute_fit_results(
 
     fit_rows = [
         _fit_single_survey_group(
-            group_df, group_keys, available_groups, min_N, R_squared_threshold,
+            group_df,
+            group_keys,
+            available_groups,
+            min_N,
+            R_squared_threshold,
         )
         for group_keys, group_df in grouped
     ]
@@ -3862,11 +3897,19 @@ def create_survey_model(
 
     # ── Local dispatch dict ─────────────────────────────────────────
     factories: dict[str, Callable[[str, dict[str, object]], ModelConfig]] = {
-        "non_gaussian_n3": lambda mid, kw: _factory_non_gaussian(3, mid, kw, labels=labels),
-        "non_gaussian_n4": lambda mid, kw: _factory_non_gaussian(4, mid, kw, labels=labels),
-        "ancilla_assisted": lambda mid, kw: _factory_ancilla_assisted(mid, kw, labels=labels),
+        "non_gaussian_n3": lambda mid, kw: _factory_non_gaussian(
+            3, mid, kw, labels=labels
+        ),
+        "non_gaussian_n4": lambda mid, kw: _factory_non_gaussian(
+            4, mid, kw, labels=labels
+        ),
+        "ancilla_assisted": lambda mid, kw: _factory_ancilla_assisted(
+            mid, kw, labels=labels
+        ),
         "kerr_mzi": lambda mid, kw: _factory_kerr_mzi(mid, kw, labels=labels),
-        "weak_value_mzi": lambda mid, kw: _factory_weak_value_mzi(mid, kw, labels=labels),
+        "weak_value_mzi": lambda mid, kw: _factory_weak_value_mzi(
+            mid, kw, labels=labels
+        ),
     }
 
     factory = factories.get(model_id)
@@ -3874,7 +3917,8 @@ def create_survey_model(
         return factory(model_id, kwargs)
 
     return _factory_standard(
-        model_id, kwargs,
+        model_id,
+        kwargs,
         state_types=state_types,
         noise_types=noise_types,
         entanglers=entanglers,

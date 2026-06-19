@@ -23,8 +23,14 @@ from pathlib import Path
 # Patterns that indicate the old-style API
 PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("plt.cm.NAME (attribute access)", re.compile(r"plt\.cm\.")),
-    ("import matplotlib.cm (direct import)", re.compile(r"^\s*import\s+matplotlib\.cm\b", re.MULTILINE)),
-    ("from matplotlib import cm (from-import)", re.compile(r"^\s*from\s+matplotlib\s+import\s+cm\b", re.MULTILINE)),
+    (
+        "import matplotlib.cm (direct import)",
+        re.compile(r"^\s*import\s+matplotlib\.cm\b", re.MULTILINE),
+    ),
+    (
+        "from matplotlib import cm (from-import)",
+        re.compile(r"^\s*from\s+matplotlib\s+import\s+cm\b", re.MULTILINE),
+    ),
 ]
 
 # Directories to skip entirely

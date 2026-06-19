@@ -1076,7 +1076,13 @@ def _drive_slice_chunk_worker(args: tuple) -> tuple[int, np.ndarray]:
     for i, d_val in enumerate(drive_chunk):
         for j, a_val in enumerate(azz_vals):
             chunk_grid[i, j] = _evaluate_grid_point(
-                d_val, a_val, slice_type, omega, t_hold, T_BS, local_ops,
+                d_val,
+                a_val,
+                slice_type,
+                omega,
+                t_hold,
+                T_BS,
+                local_ops,
             )
     return start_idx, chunk_grid
 
@@ -1109,7 +1115,13 @@ def _evaluate_sequential_slice(
     for i, d_val in enumerate(drive_vals):
         for j, a_val in enumerate(azz_vals):
             grid[i, j] = _evaluate_grid_point(
-                d_val, a_val, slice_type, omega, t_hold, T_BS, ops,
+                d_val,
+                a_val,
+                slice_type,
+                omega,
+                t_hold,
+                T_BS,
+                ops,
             )
     return grid
 
@@ -1215,11 +1227,22 @@ def drive_2d_slice(
 
     if n_jobs is None or n_jobs == 1:
         grid = _evaluate_sequential_slice(
-            drive_vals, azz_vals, slice_type, omega, t_hold, T_BS,
+            drive_vals,
+            azz_vals,
+            slice_type,
+            omega,
+            t_hold,
+            T_BS,
         )
     else:
         grid = _evaluate_parallel_slice(
-            drive_vals, azz_vals, slice_type, omega, t_hold, T_BS, n_jobs,
+            drive_vals,
+            azz_vals,
+            slice_type,
+            omega,
+            t_hold,
+            T_BS,
+            n_jobs,
         )
 
     return Drive2DSliceResult(

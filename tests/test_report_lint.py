@@ -72,9 +72,8 @@ def _find_bare_pipes_in_table_math(line: str) -> list[int]:
         ch = line[i]
         if ch == "$":
             in_math = not in_math
-        elif ch == "|" and in_math:
-            if i == 0 or line[i - 1] != "\\":
-                violations.append(i)
+        elif ch == "|" and in_math and (i == 0 or line[i - 1] != "\\"):
+            violations.append(i)
         i += 1
     return violations
 
@@ -136,7 +135,7 @@ def _parse_figure_references(md_path: Path) -> list[tuple[str, Path]]:
     text = md_path.read_text(encoding="utf-8")
     for match in re.finditer(r"!\[([^\]]*)\]\(([^)]+)\)", text):
         alt, target = match.group(1), match.group(2)
-        if target.startswith("reports/") or target.startswith("/reports/"):
+        if target.startswith(("reports/", "/reports/")):
             # Repo-root-relative path
             figure_path = (_PROJECT_ROOT / target.lstrip("/")).resolve()
         else:
@@ -160,7 +159,7 @@ class TestReportContent:
         Single test to keep output quiet on success.  On failure, lists every
         violation across all files.
         """
-        md_files: list[Path] = [p for p in _REPORT_MD_FILES] + [_CHANGELOG]
+        md_files: list[Path] = [*list(_REPORT_MD_FILES), _CHANGELOG]
         all_failures: list[str] = []
 
         for md_path in md_files:
@@ -169,8 +168,7 @@ class TestReportContent:
                 md_path.read_text(encoding="utf-8").splitlines(), start=1
             ):
                 cols = _find_bare_pipes_in_table_math(line)
-                for col in cols:
-                    violations.append((line_idx, col))
+                violations.extend((line_idx, col) for col in cols)
 
             if violations:
                 rel = md_path.relative_to(_PROJECT_ROOT)
@@ -186,7 +184,7 @@ class TestReportContent:
 
     @pytest.mark.parametrize(
         "md_path",
-        [p for p in _REPORT_MD_FILES] + [_CHANGELOG],
+        [*list(_REPORT_MD_FILES), _CHANGELOG],
         ids=lambda p: p.relative_to(_PROJECT_ROOT).as_posix(),
     )
     def test_report_no_display_math(self, md_path: Path) -> None:
@@ -204,7 +202,7 @@ class TestReportContent:
 
     @pytest.mark.parametrize(
         "md_path",
-        [p for p in _REPORT_MD_FILES] + [_CHANGELOG],
+        [*list(_REPORT_MD_FILES), _CHANGELOG],
         ids=lambda p: p.relative_to(_PROJECT_ROOT).as_posix(),
     )
     def test_report_no_ket_usage(self, md_path: Path) -> None:
@@ -218,7 +216,7 @@ class TestReportContent:
         ]
         if matches:
             rel = md_path.relative_to(_PROJECT_ROOT)
-            lines_str = ", ".join(f"L{l}" for l, _ in matches[:10])
+            lines_str = ", ".join(f"L{line_no}" for line_no, _ in matches[:10])
             pytest.fail(
                 f"{rel}: '\\ket' found at {lines_str} \u2014"
                 " use |...\u27e9 or \\vert...\\rangle instead"

@@ -23,6 +23,8 @@ _report_dir = str(Path(__file__).resolve().parent)
 sys.path.insert(0, _report_dir)
 del _report_dir
 
+from local import DualMZISweepResult  # noqa: E402
+
 
 def _worker(args):
     """Optimise a single (N, omega) pair."""
@@ -133,7 +135,9 @@ def _compute_sweep_ratios(results: list[dict]) -> np.ndarray:
     return np.array(ratios)
 
 
-def _extract_sweep_array(results: list[dict], key: str, dtype: type = float) -> np.ndarray:
+def _extract_sweep_array(
+    results: list[dict], key: str, dtype: type = float
+) -> np.ndarray:
     """Extract a column from result dicts as a typed array.
 
     Args:
@@ -152,8 +156,6 @@ def _build_sweep_result(results: list[dict]) -> DualMZISweepResult:
 
     The results are expected to be sorted by (N, ω) before calling.
     """
-    from local import DualMZISweepResult
-
     return DualMZISweepResult(
         omega_values=_extract_sweep_array(results, "omega"),
         N_values=_extract_sweep_array(results, "N", dtype=int),
@@ -180,7 +182,9 @@ def _print_statistics(sweep: DualMZISweepResult) -> None:
     print(f"  All ratio==1: {np.allclose(ratios_finite, 1.0, atol=1e-5)}")
 
 
-def _generate_all_figures(sweep: DualMZISweepResult, raw_dir: Path, fig_dir: Path) -> None:
+def _generate_all_figures(
+    sweep: DualMZISweepResult, raw_dir: Path, fig_dir: Path
+) -> None:
     """Generate all figures from the sweep result."""
     from local import (
         fit_scaling_exponents,

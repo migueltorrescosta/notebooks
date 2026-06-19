@@ -75,8 +75,7 @@ def _validate_fit_inputs(N: np.ndarray, delta: np.ndarray) -> None:
     """
     if len(N) != len(delta):
         raise ValueError(
-            f"N and delta_phi must have same length, "
-            f"got {len(N)} and {len(delta)}",
+            f"N and delta_phi must have same length, got {len(N)} and {len(delta)}",
         )
     if len(N) == 0:
         raise ValueError("Input arrays must not be empty")

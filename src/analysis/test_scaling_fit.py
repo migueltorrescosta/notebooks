@@ -128,6 +128,8 @@ class TestFitValidation:
         N = np.array([4, 8, 16, 32, 64])
         delta = 0.5 + 0.5 * rng.random(len(N))  # Noisy, no clear scaling
         warnings: list[str] = []
-        result = _perform_loglog_fit(N, delta, R_squared_threshold=0.9, warnings=warnings)
+        result = _perform_loglog_fit(
+            N, delta, R_squared_threshold=0.9, warnings=warnings
+        )
         assert result.valid
         assert len(result.warnings) >= 1 or any("R²" in w for w in warnings)

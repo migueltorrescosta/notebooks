@@ -25,6 +25,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
+from src.utils.paths import fig_path, parquet_path
+
 # Force non-interactive matplotlib backend before any plotting imports.
 if "MPLBACKEND" not in os.environ:
     os.environ["MPLBACKEND"] = "Agg"
@@ -363,12 +365,6 @@ def plot_covariance_analysis(
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 
 REPORT_DATE = "20260515"
-
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 
 def _parquet_path(name: str, date: str) -> Path:

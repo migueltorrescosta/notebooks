@@ -482,7 +482,9 @@ def _compute_single_N_metrics(
             # CSS, noon, twin_fock all use the noon generator in the current
             # implementation (CSS and twin-fock are approximated by noon states).
             state = prepare_input_state(
-                "noon", max_photons=max_photons, n_particles=N,
+                "noon",
+                max_photons=max_photons,
+                n_particles=N,
             )
 
         # Compute all sensitivity metrics
@@ -582,7 +584,12 @@ def sensitivity_scaling(
     results = []
     for N in N_range:
         result = _compute_single_N_metrics(
-            state_type.lower(), N, noise_config, phi_true, n_mc, seed,
+            state_type.lower(),
+            N,
+            noise_config,
+            phi_true,
+            n_mc,
+            seed,
         )
         if result is not None:
             results.append(result)

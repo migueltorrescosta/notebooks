@@ -39,10 +39,12 @@ from __future__ import annotations
 import operator
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
-import pandas as pd
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class ParquetSerializable(ABC):
@@ -151,7 +153,7 @@ class ParquetSerializable(ABC):
         return
 
     @classmethod
-    def _load_sidecars(cls, path: Path) -> dict:
+    def _load_sidecars(cls, path: Path) -> dict:  # noqa: ARG003
         """Override to load sidecar data for use in ``from_parquet``.
 
         Args:

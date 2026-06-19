@@ -4,6 +4,7 @@ Lightning-fast sequential continuation of Step 3 N-scaling (J_A = N/2).
 Minimal random samples for N≥8, no refinement.
 Runs each (N, ω) sequentially to avoid any parallel overhead.
 """
+
 import importlib.util
 import sys
 import time
@@ -18,14 +19,14 @@ module = importlib.util.module_from_spec(spec)
 sys.modules["local"] = module
 spec.loader.exec_module(module)
 
+
 # Adaptive sample count: shrinking with N
 def get_n_random(N: int) -> int:
     if N <= 7:
         return 0  # Already done
-    elif N <= 10:
+    if N <= 10:
         return 200
-    else:
-        return 100
+    return 100
 
 
 checkpoint_dir = (
@@ -54,7 +55,7 @@ else:
     for N in remaining:
         n_rand = get_n_random(N)
         ancilla_dim = N + 1
-        print(f"\nN={N}, dim={(N+1)*ancilla_dim}, n_rand={n_rand}")
+        print(f"\nN={N}, dim={(N + 1) * ancilla_dim}, n_rand={n_rand}")
         sys.stdout.flush()
 
         ops = module.build_full_ancilla_combined_operators(N)
@@ -68,18 +69,33 @@ else:
 
             best_delta = float("inf")
             best_params = np.zeros(7)
-            for i in range(n_rand):
-                params = np.array([
-                    rng.uniform(-5, 5), rng.uniform(-5, 5), rng.uniform(-5, 5),
-                    rng.uniform(-20, 20), rng.uniform(-20, 20),
-                    rng.uniform(-20, 20), rng.uniform(-20, 20),
-                ])
+            for _i in range(n_rand):
+                params = np.array(
+                    [
+                        rng.uniform(-5, 5),
+                        rng.uniform(-5, 5),
+                        rng.uniform(-5, 5),
+                        rng.uniform(-20, 20),
+                        rng.uniform(-20, 20),
+                        rng.uniform(-20, 20),
+                        rng.uniform(-20, 20),
+                    ]
+                )
                 d = module.compute_combined_sensitivity(
-                    N, psi0, module.T_BS, module.T_HOLD, omega,
-                    float(params[0]), float(params[1]), float(params[2]),
-                    float(params[3]), float(params[4]),
-                    float(params[5]), float(params[6]),
-                    ops, ancilla_dim,
+                    N,
+                    psi0,
+                    module.T_BS,
+                    module.T_HOLD,
+                    omega,
+                    float(params[0]),
+                    float(params[1]),
+                    float(params[2]),
+                    float(params[3]),
+                    float(params[4]),
+                    float(params[5]),
+                    float(params[6]),
+                    ops,
+                    ancilla_dim,
                 )
                 if np.isfinite(d) and d < best_delta:
                     best_delta = d
@@ -87,33 +103,57 @@ else:
 
             # Diagnostics
             psi_final = module.evolve_combined_circuit(
-                N, psi0, module.T_BS, module.T_HOLD, omega,
-                float(best_params[0]), float(best_params[1]), float(best_params[2]),
-                float(best_params[3]), float(best_params[4]),
-                float(best_params[5]), float(best_params[6]),
-                ops, ancilla_dim,
+                N,
+                psi0,
+                module.T_BS,
+                module.T_HOLD,
+                omega,
+                float(best_params[0]),
+                float(best_params[1]),
+                float(best_params[2]),
+                float(best_params[3]),
+                float(best_params[4]),
+                float(best_params[5]),
+                float(best_params[6]),
+                ops,
+                ancilla_dim,
             )
-            from src.analysis.ancilla_optimization import compute_expectation_and_variance
+            from src.analysis.ancilla_optimization import (
+                compute_expectation_and_variance,
+            )
+
             exp_val, var_val = compute_expectation_and_variance(psi_final, ops["Jz_S"])
             sql_val = module.sql_reference(N)
             ratio_val = sql_val / best_delta if best_delta > 0 else float("nan")
 
             t1 = time.time()
-            print(f"  ω={omega:.1f}: Δω={best_delta:.6f}, R={ratio_val:.3f}, t={t1-t0:.1f}s")
+            print(
+                f"  ω={omega:.1f}: Δω={best_delta:.6f}, R={ratio_val:.3f}, t={t1 - t0:.1f}s"
+            )
             sys.stdout.flush()
 
-            results.append({
-                "N": N, "omega": omega,
-                "delta_omega_opt": best_delta, "sql": sql_val, "ratio": ratio_val,
-                "a_x_opt": float(best_params[0]), "a_y_opt": float(best_params[1]),
-                "a_z_opt": float(best_params[2]),
-                "alpha_xx_opt": float(best_params[3]),
-                "alpha_xz_opt": float(best_params[4]),
-                "alpha_zx_opt": float(best_params[5]),
-                "alpha_zz_opt": float(best_params[6]),
-                "expectation_Jz": float(exp_val), "variance_Jz": float(var_val),
-                "success": 1, "nfev": n_rand, "n_starts": n_rand, "n_converged": 1,
-            })
+            results.append(
+                {
+                    "N": N,
+                    "omega": omega,
+                    "delta_omega_opt": best_delta,
+                    "sql": sql_val,
+                    "ratio": ratio_val,
+                    "a_x_opt": float(best_params[0]),
+                    "a_y_opt": float(best_params[1]),
+                    "a_z_opt": float(best_params[2]),
+                    "alpha_xx_opt": float(best_params[3]),
+                    "alpha_xz_opt": float(best_params[4]),
+                    "alpha_zx_opt": float(best_params[5]),
+                    "alpha_zz_opt": float(best_params[6]),
+                    "expectation_Jz": float(exp_val),
+                    "variance_Jz": float(var_val),
+                    "success": 1,
+                    "nfev": n_rand,
+                    "n_starts": n_rand,
+                    "n_converged": 1,
+                }
+            )
 
         if results:
             ckpt = checkpoint_dir / f"N_{N:03d}.parquet"
@@ -145,7 +185,9 @@ if all_dfs:
     for N in sorted(combined["N"].unique()):
         sub = combined[combined["N"] == N].sort_values("omega")
         for _, r in sub.iterrows():
-            print(f"  N={int(r['N'])}, ω={r['omega']:.1f}: Δω={r['delta_omega_opt']:.6f}, R={r['ratio']:.3f}")
+            print(
+                f"  N={int(r['N'])}, ω={r['omega']:.1f}: Δω={r['delta_omega_opt']:.6f}, R={r['ratio']:.3f}"
+            )
 else:
     print("[warn] No data!")
 

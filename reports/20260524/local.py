@@ -60,6 +60,7 @@ from src.evolution.lindblad_solver import (
     vectorise_rho,
 )
 from src.utils.parallel import parallel_map
+from src.utils.paths import fig_path, parquet_path
 
 sns.set_theme(style="whitegrid")
 
@@ -2079,11 +2080,6 @@ def plot_noise_improvement_ratio(
 # ============================================================================
 # Data / Figure Generation Pipeline
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 DATE_TAG = "20260524"

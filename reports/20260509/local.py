@@ -14,10 +14,9 @@ from __future__ import annotations
 
 import argparse
 import os
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -44,6 +43,7 @@ from src.physics.pseudomode_system import (  # noqa: F401 — re-exported for te
     tripartite_operator,
     validate_pseudomode_density,
 )
+from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable
 
 # Force non-interactive backend before any plotting imports.
@@ -90,15 +90,8 @@ TIME_N_POINTS: int = 51
 # Theta values for time sweep overlay
 TIME_THETA_VALUES: list[float] = [0.0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]
 
-# =============================================================================
-# Path Helpers
-# =============================================================================
-
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def _parquet_path(name: str) -> Path:

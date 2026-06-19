@@ -50,6 +50,7 @@ from src.physics.n_particle_drive import (
     n_particle_initial_state,
 )
 from src.utils.parallel import parallel_map
+from src.utils.paths import fig_path, parquet_path
 from src.visualization.scaling_plots import (
     plot_n_scaling_optimal_params,
     plot_n_scaling_ratio,
@@ -77,11 +78,6 @@ NM_MAXITER: int = 5000
 # ============================================================================
 # Path Helpers
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260611"

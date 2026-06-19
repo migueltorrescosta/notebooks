@@ -23,10 +23,9 @@ Usage:
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,6 +44,7 @@ from src.physics.n_particle_drive import (
     n_particle_initial_state,
 )
 from src.utils.enums import OperatorBasis
+from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
@@ -82,10 +82,8 @@ PROTOCOL_LINEAR: str = "linear"
 PROTOCOL_PARITY: str = "parity"
 PROTOCOL_CFI: str = "cfi"
 
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ============================================================================
 # Path Helpers
@@ -104,9 +102,7 @@ def _fig_path(name: str) -> Path:
     return fig_path(REPORTS_DIR, REPORT_DATE, name)
 
 
-def _try_load_scan_cache(
-    out_path: Path, force: bool
-) -> NonLinearScanResult | None:
+def _try_load_scan_cache(out_path: Path, force: bool) -> NonLinearScanResult | None:
     """Return cached scan result if available and not forced."""
     if out_path.exists() and not force:
         print(f"[load] {out_path.name} exists, loading...")

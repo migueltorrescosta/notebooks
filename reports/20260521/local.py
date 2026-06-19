@@ -68,6 +68,7 @@ from src.analysis.decoupled_baseline import (
     generate_decoupled_baseline,
 )
 from src.utils.constants import I_4
+from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
@@ -551,19 +552,33 @@ class GeneralOmegaScanResult(ParquetSerializable):
             rows.append(
                 {
                     "omega": float(self.omega_values[i]),
-                    "alpha_xx_opt": self._safe_get(self.alpha_xx_opt_per_omega, i, float("nan")),
-                    "alpha_xz_opt": self._safe_get(self.alpha_xz_opt_per_omega, i, float("nan")),
-                    "alpha_zx_opt": self._safe_get(self.alpha_zx_opt_per_omega, i, float("nan")),
-                    "alpha_zz_opt": self._safe_get(self.alpha_zz_opt_per_omega, i, float("nan")),
+                    "alpha_xx_opt": self._safe_get(
+                        self.alpha_xx_opt_per_omega, i, float("nan")
+                    ),
+                    "alpha_xz_opt": self._safe_get(
+                        self.alpha_xz_opt_per_omega, i, float("nan")
+                    ),
+                    "alpha_zx_opt": self._safe_get(
+                        self.alpha_zx_opt_per_omega, i, float("nan")
+                    ),
+                    "alpha_zz_opt": self._safe_get(
+                        self.alpha_zz_opt_per_omega, i, float("nan")
+                    ),
                     "best_delta_omega": best,
                     "sql": sql,
                     "ratio": best / sql
                     if np.isfinite(best) and sql > 0
                     else float("inf"),
-                    "expectation_Jz": self._safe_get(self.expectation_Jz_per_omega, i, 0.0),
+                    "expectation_Jz": self._safe_get(
+                        self.expectation_Jz_per_omega, i, 0.0
+                    ),
                     "variance_Jz": self._safe_get(self.variance_Jz_per_omega, i, 0.0),
-                    "d_exp_d_omega": self._safe_get(self.d_exp_d_omega_per_omega, i, 0.0),
-                    "n_converged": int(self._safe_get(self.n_converged_per_omega, i, 0.0)),
+                    "d_exp_d_omega": self._safe_get(
+                        self.d_exp_d_omega_per_omega, i, 0.0
+                    ),
+                    "n_converged": int(
+                        self._safe_get(self.n_converged_per_omega, i, 0.0)
+                    ),
                 }
             )
         return pd.DataFrame(rows)
@@ -1033,11 +1048,6 @@ def plot_general_convergence(
 # ============================================================================
 # Data / Figure Generation Pipeline
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 DATE_TAG = "20260521"

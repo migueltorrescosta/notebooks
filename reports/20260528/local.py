@@ -48,6 +48,7 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
     single_qubit_state,
 )
+from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
@@ -55,11 +56,6 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 # Constants
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260528"

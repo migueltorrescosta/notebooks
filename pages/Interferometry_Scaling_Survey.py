@@ -687,7 +687,15 @@ def export_controls(raw_df: pd.DataFrame, fit_df: pd.DataFrame) -> None:
 
 
 def _render_sidebar() -> tuple[
-    bool, list[ModelConfig], str, list[float], int, int, int, float, int,
+    bool,
+    list[ModelConfig],
+    str,
+    list[float],
+    int,
+    int,
+    int,
+    float,
+    int,
 ]:
     """Render the sidebar configuration panel.
 
@@ -729,7 +737,17 @@ def _render_sidebar() -> tuple[
             help="For reproducible random sampling.",
         )
 
-    return run_button, models, noise_type, noise_levels, N_min, N_max, n_points, phi_phase, int(seed)
+    return (
+        run_button,
+        models,
+        noise_type,
+        noise_levels,
+        N_min,
+        N_max,
+        n_points,
+        phi_phase,
+        int(seed),
+    )
 
 
 def _initialize_session_state() -> None:
@@ -822,9 +840,17 @@ def main() -> None:
     - Where **scaling collapse** occurs ($\alpha \to 0$)
     """)
 
-    run_button, models, noise_type, noise_levels, N_min, N_max, n_points, phi_phase, seed = (
-        _render_sidebar()
-    )
+    (
+        run_button,
+        models,
+        noise_type,
+        noise_levels,
+        N_min,
+        N_max,
+        n_points,
+        phi_phase,
+        seed,
+    ) = _render_sidebar()
     _initialize_session_state()
 
     # Run survey on button click
@@ -834,7 +860,16 @@ def main() -> None:
         elif not noise_levels:
             st.error("Please specify at least one noise level")
         else:
-            _execute_survey(models, noise_type, noise_levels, N_min, N_max, n_points, phi_phase, seed)
+            _execute_survey(
+                models,
+                noise_type,
+                noise_levels,
+                N_min,
+                N_max,
+                n_points,
+                phi_phase,
+                seed,
+            )
 
     # Display results or welcome message
     if st.session_state.survey_results is not None:

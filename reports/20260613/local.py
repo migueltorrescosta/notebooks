@@ -36,6 +36,7 @@ from src.physics.n_particle_drive import (
     evolve_n_particle_circuit,
     n_particle_initial_state,
 )
+from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
@@ -64,11 +65,6 @@ NM_MAXITER: int = 5000
 # ============================================================================
 # Path Helpers
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260613"

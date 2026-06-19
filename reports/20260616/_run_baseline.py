@@ -1,4 +1,5 @@
 """Run decoupled baseline for J_A = N/2 and generate remaining data."""
+
 import importlib.util
 import sys
 from pathlib import Path

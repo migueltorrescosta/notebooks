@@ -59,6 +59,7 @@ from src.analysis.ancilla_optimization import (
 )
 from src.utils.constants import I_4
 from src.utils.parallel import parallel_map
+from src.utils.paths import fig_path, parquet_path
 
 sns.set_theme(style="whitegrid")
 
@@ -1108,11 +1109,6 @@ def plot_drive_fraction_below_sql(
 # Data / Figure Generation Pipeline
 # (moved from src/visualization/report_figures.py)
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 PHASE_DATE = "20260519"

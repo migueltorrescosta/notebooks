@@ -52,6 +52,7 @@ from src.analysis.ancilla_optimization import (
 from src.utils.monte_carlo import (
     stratified_ball_sample,
 )
+from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable
 from src.visualization.ancilla_drive_plots import (
     plot_drive_2d_slice_heatmap,
@@ -62,11 +63,6 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 # Constants
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260527"
@@ -955,9 +951,7 @@ def _collect_ratios_by_slice(
 
     for omega in all_omegas:
         for st in ("ax", "ay", "az"):
-            if st in slice_results and np.isclose(
-                slice_results[st].omega_value, omega
-            ):
+            if st in slice_results and np.isclose(slice_results[st].omega_value, omega):
                 grid = slice_results[st].delta_omega_grid
                 finite_mask = np.isfinite(grid)
                 if np.any(finite_mask):

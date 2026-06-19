@@ -325,7 +325,14 @@ def wigner_sde_trajectory(
     # SDE integration via Euler-Maruyama
     for step in range(num_steps):
         J_vec = _euler_maruyama_step(
-            J_vec, dt, J, chi, gamma_1, gamma_2, gamma_phi, rng,
+            J_vec,
+            dt,
+            J,
+            chi,
+            gamma_1,
+            gamma_2,
+            gamma_phi,
+            rng,
         )
 
         # Store if requested

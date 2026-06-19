@@ -34,6 +34,7 @@ import seaborn as sns
 from scipy.linalg import expm
 
 from src.utils.parallel import parallel_map
+from src.utils.paths import fig_path, parquet_path
 
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
@@ -415,13 +416,17 @@ class XXOmegaScanResult(ParquetSerializable):
             rows.append(
                 {
                     "omega": float(self.omega_values[i]),
-                    "alpha_xx_opt": self._safe_get(self.alpha_xx_opt_per_omega, i, float("nan")),
+                    "alpha_xx_opt": self._safe_get(
+                        self.alpha_xx_opt_per_omega, i, float("nan")
+                    ),
                     "best_delta_omega": best,
                     "sql": sql,
                     "ratio": best / sql
                     if np.isfinite(best) and sql > 0
                     else float("inf"),
-                    "expectation_Jz": self._safe_get(self.expectation_Jz_per_omega, i, 0.0),
+                    "expectation_Jz": self._safe_get(
+                        self.expectation_Jz_per_omega, i, 0.0
+                    ),
                     "variance_Jz": self._safe_get(self.variance_Jz_per_omega, i, 0.0),
                     "count_below_sql": int(count_below),
                     "total_points": int(total),
@@ -879,11 +884,6 @@ def plot_xx_grid_scan_example(
 # ============================================================================
 # Data / Figure Generation Pipeline
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 XX_DATE = "20260520"

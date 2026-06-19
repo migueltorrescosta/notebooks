@@ -9,6 +9,7 @@ Uses progressively fewer random samples as N grows:
 
 Runs ω values in parallel for each N (ThreadPoolExecutor).
 """
+
 import importlib.util
 import sys
 import time
@@ -16,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from scipy.optimize import minimize
 
 local_path = Path(__file__).resolve().parent / "local.py"
@@ -25,16 +27,24 @@ sys.modules["local"] = module
 spec.loader.exec_module(module)
 
 NM_MAXITER = {
-    6: 100, 7: 100,
-    8: 50, 9: 50,
-    10: 50, 11: 50,
-    12: 50, 13: 50,
+    6: 100,
+    7: 100,
+    8: 50,
+    9: 50,
+    10: 50,
+    11: 50,
+    12: 50,
+    13: 50,
 }
 N_RANDOM_MAP = {
-    6: 2000, 7: 2000,
-    8: 1000, 9: 1000,
-    10: 500, 11: 500,
-    12: 200, 13: 200,
+    6: 2000,
+    7: 2000,
+    8: 1000,
+    9: 1000,
+    10: 500,
+    11: 500,
+    12: 200,
+    13: 200,
 }
 
 print("Adaptive Step 3 N-scaling continuation")
@@ -43,7 +53,9 @@ sys.stdout.flush()
 
 
 def _run_single_n_omega(
-    N: int, omega: float, ancilla_dim: int,
+    N: int,
+    omega: float,
+    ancilla_dim: int,
 ) -> dict:
     """Run random search + Nelder-Mead for a single (N, ω)."""
     n_random = N_RANDOM_MAP.get(N, 500)
@@ -63,18 +75,33 @@ def _run_single_n_omega(
     best_delta = float("inf")
     best_sample = np.zeros(7, dtype=float)
 
-    for i in range(n_random):
-        params = np.array([
-            rng.uniform(-5, 5), rng.uniform(-5, 5), rng.uniform(-5, 5),
-            rng.uniform(-20, 20), rng.uniform(-20, 20),
-            rng.uniform(-20, 20), rng.uniform(-20, 20),
-        ])
+    for _i in range(n_random):
+        params = np.array(
+            [
+                rng.uniform(-5, 5),
+                rng.uniform(-5, 5),
+                rng.uniform(-5, 5),
+                rng.uniform(-20, 20),
+                rng.uniform(-20, 20),
+                rng.uniform(-20, 20),
+                rng.uniform(-20, 20),
+            ]
+        )
         d = module.compute_combined_sensitivity(
-            N, psi0, module.T_BS, module.T_HOLD, omega,
-            float(params[0]), float(params[1]), float(params[2]),
-            float(params[3]), float(params[4]),
-            float(params[5]), float(params[6]),
-            ops, ancilla_dim,
+            N,
+            psi0,
+            module.T_BS,
+            module.T_HOLD,
+            omega,
+            float(params[0]),
+            float(params[1]),
+            float(params[2]),
+            float(params[3]),
+            float(params[4]),
+            float(params[5]),
+            float(params[6]),
+            ops,
+            ancilla_dim,
         )
         if np.isfinite(d) and d < best_delta:
             best_delta = d
@@ -82,16 +109,29 @@ def _run_single_n_omega(
 
     # Nelder-Mead refinement (gradient-free)
     if np.isfinite(best_delta) and best_delta < 1e6:
+
         def _nm_obj(p: np.ndarray) -> float:
             return module.compute_combined_sensitivity(
-                N, psi0, module.T_BS, module.T_HOLD, omega,
-                float(p[0]), float(p[1]), float(p[2]),
-                float(p[3]), float(p[4]), float(p[5]), float(p[6]),
-                ops, ancilla_dim,
+                N,
+                psi0,
+                module.T_BS,
+                module.T_HOLD,
+                omega,
+                float(p[0]),
+                float(p[1]),
+                float(p[2]),
+                float(p[3]),
+                float(p[4]),
+                float(p[5]),
+                float(p[6]),
+                ops,
+                ancilla_dim,
             )
+
         try:
             nm_res = minimize(
-                _nm_obj, best_sample,
+                _nm_obj,
+                best_sample,
                 method="Nelder-Mead",
                 bounds=[(-5, 5)] * 3 + [(-20, 20)] * 4,
                 options={"maxiter": nm_maxiter, "xatol": 1e-3, "fatol": 1e-4},
@@ -104,20 +144,32 @@ def _run_single_n_omega(
 
     # Diagnostics
     psi_final = module.evolve_combined_circuit(
-        N, psi0, module.T_BS, module.T_HOLD, omega,
-        float(best_sample[0]), float(best_sample[1]), float(best_sample[2]),
-        float(best_sample[3]), float(best_sample[4]),
-        float(best_sample[5]), float(best_sample[6]),
-        ops, ancilla_dim,
+        N,
+        psi0,
+        module.T_BS,
+        module.T_HOLD,
+        omega,
+        float(best_sample[0]),
+        float(best_sample[1]),
+        float(best_sample[2]),
+        float(best_sample[3]),
+        float(best_sample[4]),
+        float(best_sample[5]),
+        float(best_sample[6]),
+        ops,
+        ancilla_dim,
     )
     from src.analysis.ancilla_optimization import compute_expectation_and_variance
+
     exp_val, var_val = compute_expectation_and_variance(psi_final, ops["Jz_S"])
     sql_val = module.sql_reference(N)
     ratio_val = sql_val / best_delta if best_delta > 0 else float("nan")
 
     t1 = time.time()
-    print(f"  [N={N}, ω={omega:.1f}] Δω={best_delta:.6f}, R={ratio_val:.3f}, "
-          f"t={t1-t0:.1f}s, n_rand={n_random}")
+    print(
+        f"  [N={N}, ω={omega:.1f}] Δω={best_delta:.6f}, R={ratio_val:.3f}, "
+        f"t={t1 - t0:.1f}s, n_rand={n_random}"
+    )
     sys.stdout.flush()
 
     return {
@@ -142,8 +194,6 @@ def _run_single_n_omega(
     }
 
 
-import pandas as pd
-
 checkpoint_dir = (
     module._REPORTS_DIR / module._REPORT_DATE / "raw_data" / "checkpoints_step3"
 )
@@ -167,24 +217,26 @@ print(f"Remaining N values: {remaining}")
 if not remaining:
     print("All N values already checkpointed. Consolidating...")
 else:
-    print(f"\nRunning {len(remaining)} N values × 5 ω values = {len(remaining) * 5} pairs")
+    print(
+        f"\nRunning {len(remaining)} N values × 5 ω values = {len(remaining) * 5} pairs"
+    )
     sys.stdout.flush()
 
     for N in remaining:
         ancilla_dim = N + 1
         omega_items = module.OMEGA_VALS_N_SCALING
-        print(f"\n[N={N}, dim={ancilla_dim}] "
-              f"{len(omega_items)} ω values, "
-              f"n_rand={N_RANDOM_MAP.get(N, 500)}")
+        print(
+            f"\n[N={N}, dim={ancilla_dim}] "
+            f"{len(omega_items)} ω values, "
+            f"n_rand={N_RANDOM_MAP.get(N, 500)}"
+        )
         sys.stdout.flush()
 
         # Run 5 ω values in parallel with ThreadPoolExecutor
         results: list[dict] = []
         with ThreadPoolExecutor(max_workers=5) as executor:
             futures = {
-                executor.submit(
-                    _run_single_n_omega, N, omega, ancilla_dim
-                ): omega
+                executor.submit(_run_single_n_omega, N, omega, ancilla_dim): omega
                 for omega in omega_items
             }
             for future in as_completed(futures):
@@ -234,8 +286,10 @@ if all_dfs:
     for N in sorted(combined_df["N"].unique()):
         sub = combined_df[combined_df["N"] == N].sort_values("omega")
         for _, row in sub.iterrows():
-            line = (f"N={int(row['N'])}, ω={row['omega']:.1f}: "
-                    f"Δω={row['delta_omega_opt']:.6f}, R={row['ratio']:.3f}")
+            line = (
+                f"N={int(row['N'])}, ω={row['omega']:.1f}: "
+                f"Δω={row['delta_omega_opt']:.6f}, R={row['ratio']:.3f}"
+            )
             summary_rows.append(line)
             print(f"  {line}")
 else:

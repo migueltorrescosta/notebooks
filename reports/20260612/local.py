@@ -51,6 +51,7 @@ from src.physics.beam_splitter import bs_dicke
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.utils.enums import OperatorBasis
 from src.utils.parallel import parallel_map
+from src.utils.paths import fig_path, parquet_path
 from src.visualization.scaling_plots import (
     plot_n_scaling_optimal_params,
     plot_n_scaling_ratio,
@@ -81,11 +82,6 @@ NM_MAXITER: int = 5000
 # ============================================================================
 # Path Helpers
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260612"

@@ -148,9 +148,7 @@ def _make_noon(N: int, max_photons: int | None = None) -> np.ndarray:
     return noon_state(N, effective_max)
 
 
-def _make_coherent(
-    N: int, max_photons: int | None = None, **kwargs: Any
-) -> np.ndarray:
+def _make_coherent(N: int, max_photons: int | None = None, **kwargs: Any) -> np.ndarray:
     """Create a two-mode coherent state.
 
     Kwargs:
@@ -179,9 +177,7 @@ def _make_coherent(
     return state
 
 
-def _make_single_photon_split(
-    N: int, max_photons: int | None = None
-) -> np.ndarray:
+def _make_single_photon_split(N: int, max_photons: int | None = None) -> np.ndarray:
     """Create a single-photon split state (|N-1,1⟩ + |1,N-1⟩)/√2."""
     effective_max = max(N - 1, max_photons or N)
     return single_photon_split_state(N, effective_max)
@@ -215,9 +211,7 @@ def _make_css(N: int, max_photons: int | None = None, **kwargs: Any) -> np.ndarr
         mp = max_photons
     dim = mp + 1
     css_state: np.ndarray = (
-        qutip.tensor(qutip.coherent(dim, alpha), qutip.fock(dim, 0))
-        .full()
-        .ravel()
+        qutip.tensor(qutip.coherent(dim, alpha), qutip.fock(dim, 0)).full().ravel()
     )
     return css_state
 
@@ -248,9 +242,7 @@ def _make_squeezed_vacuum(
     effective_max = max(N, max_photons or N)
     dim = effective_max + 1
     squeezed = qutip.squeeze(dim, r * np.exp(1j * phi_sv)) @ qutip.fock(dim, 0)
-    sv_state: np.ndarray = (
-        qutip.tensor(squeezed, qutip.fock(dim, 0)).full().ravel()
-    )
+    sv_state: np.ndarray = qutip.tensor(squeezed, qutip.fock(dim, 0)).full().ravel()
     return sv_state
 
 

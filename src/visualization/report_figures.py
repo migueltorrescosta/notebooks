@@ -142,7 +142,7 @@ def plot_n1_2d_slice(
         shading="auto",
         cmap="viridis",
     )
-    cbar = fig.colorbar(im, ax=ax, label=r"$\log_{10}(\Delta\omega)$")
+    fig.colorbar(im, ax=ax, label=r"$\log_{10}(\Delta\omega)$")
 
     cs = ax.contour(
         alpha_zz_vals,
@@ -221,11 +221,14 @@ def plot_combined_n_scaling_sensitivity(
     hl_line = 1.0 / (N_range * t_hold)
 
     ax.loglog(
-        N_range, sql_line, "k--", alpha=0.7, linewidth=1.5, label=r"SQL $1/(\sqrt{N}t_H)$"
+        N_range,
+        sql_line,
+        "k--",
+        alpha=0.7,
+        linewidth=1.5,
+        label=r"SQL $1/(\sqrt{N}t_H)$",
     )
-    ax.loglog(
-        N_range, hl_line, "k:", alpha=0.5, linewidth=1.2, label=r"HL $1/(N t_H)$"
-    )
+    ax.loglog(N_range, hl_line, "k:", alpha=0.5, linewidth=1.2, label=r"HL $1/(N t_H)$")
 
     ax.set_xlabel(r"$N$ (system particles)")
     ax.set_ylabel(r"$\Delta\omega_{\mathrm{opt}}$")
@@ -363,7 +366,7 @@ def plot_combined_optimal_params_vs_n(
         ax.set_ylabel(param_label)
         ax.set_xlabel(r"$N$")
 
-    for ax in axes[len(param_cols):]:
+    for ax in axes[len(param_cols) :]:
         ax.set_visible(False)
 
     axes[0].legend(fontsize=8, title=r"$\omega$", loc="upper right")

@@ -639,9 +639,17 @@ def sensitivity_objective(
 
     # Bound enforcement (penalty method)
     penalty = _enforce_bounds(
-        theta_S, theta_A, phi_S, phi_A,
-        T_BS1, T_BS2, t_hold,
-        alpha, bounds, penalty_scale, fixed_alpha,
+        theta_S,
+        theta_A,
+        phi_S,
+        phi_A,
+        T_BS1,
+        T_BS2,
+        t_hold,
+        alpha,
+        bounds,
+        penalty_scale,
+        fixed_alpha,
     )
     if penalty > 0.0:
         return float(1e10 + penalty)

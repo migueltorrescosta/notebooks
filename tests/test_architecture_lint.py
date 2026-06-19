@@ -88,9 +88,11 @@ def _find_module_level_constants(tree: ast.Module) -> list[tuple[str, int]]:
                 targets = node.targets
             else:
                 targets = [node.target]
-            for t in targets:
-                if isinstance(t, ast.Name) and t.id.isupper():
-                    constants.append((t.id, node.lineno))
+            constants.extend(
+                (t.id, node.lineno)
+                for t in targets
+                if isinstance(t, ast.Name) and t.id.isupper()
+            )
     return constants
 
 
@@ -151,9 +153,9 @@ def _find_imports_from_local_py(source: str) -> list[tuple[int, str]]:
     violations: list[tuple[int, str]] = []
     for line_idx, line in enumerate(source.splitlines(), start=1):
         stripped = line.strip()
-        if not stripped or stripped.startswith("#") or stripped.startswith('"""'):
+        if not stripped or stripped.startswith(("#", '"""')):
             continue
-        if stripped.startswith("r") or stripped.startswith("f"):
+        if stripped.startswith(("r", "f")):
             continue
         for pat in patterns:
             if re.search(pat, line):
@@ -200,15 +202,17 @@ def _all_project_py_files() -> list[Path]:
     for directory in (_SRC_DIR, _PAGES_DIR, _TESTS_DIR):
         files.extend(_py_files_under(directory))
     # Root-level .py files
-    for f in _PROJECT_ROOT.glob("*.py"):
-        if f.name != "__init__.py":
-            files.append(f)
+    files.extend(f for f in _PROJECT_ROOT.glob("*.py") if f.name != "__init__.py")
     # Report directories (local.py, test_local.py, runner scripts, etc.)
     for report_dir in sorted(_PROJECT_ROOT.joinpath("reports").iterdir()):
-        if report_dir.is_dir() and report_dir.name.isdigit() and len(report_dir.name) == 8:
-            for f in sorted(report_dir.glob("*.py")):
-                if f.name != "__init__.py":
-                    files.append(f)
+        if (
+            report_dir.is_dir()
+            and report_dir.name.isdigit()
+            and len(report_dir.name) == 8
+        ):
+            files.extend(
+                f for f in sorted(report_dir.glob("*.py")) if f.name != "__init__.py"
+            )
     return sorted(set(files))
 
 
@@ -219,13 +223,16 @@ def _find_alias_imports_from_src(tree: ast.Module) -> list[tuple[str, str, str, 
     """
     violations: list[tuple[str, str, str, int]] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            if node.module and node.module.startswith("src."):
-                for alias in node.names:
-                    if alias.asname and alias.asname != alias.name:
-                        violations.append(
-                            (node.module, alias.name, alias.asname, node.lineno)
-                        )
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.module.startswith("src.")
+        ):
+            violations.extend(
+                (node.module, alias.name, alias.asname, node.lineno)
+                for alias in node.names
+                if alias.asname and alias.asname != alias.name
+            )
     return violations
 
 
@@ -305,7 +312,13 @@ class TestRadonCyclomaticComplexity:
             grade = cc_rank(block.complexity)
             if grade >= _GRADE_THRESHOLD:
                 violations.append(
-                    (type(block).__name__, block.name, block.complexity, grade, block.lineno)
+                    (
+                        type(block).__name__,
+                        block.name,
+                        block.complexity,
+                        grade,
+                        block.lineno,
+                    )
                 )
 
         if violations:

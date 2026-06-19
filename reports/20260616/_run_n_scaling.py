@@ -3,6 +3,7 @@ Run Step 3 N-scaling (J_A = N/2) with reduced BFGS refinements.
 Step 2 (J_A = 1/2) already complete for N=1..13.
 Now running the same N range with ancilla_dim = N+1.
 """
+
 import importlib.util
 import sys
 import time
@@ -30,14 +31,18 @@ def _run_worker(args: tuple[int, float, int]) -> dict:
     print(f"  [N={N}, omega={omega}, dim={ancilla_dim}] starting...")
     sys.stdout.flush()
     result = module.run_combined_single_n_omega(
-        N, omega, ancilla_dim,
+        N,
+        omega,
+        ancilla_dim,
         n_random=REDUCED_RANDOM,
         n_bfgs_refine=REDUCED_BFGS,
     )
     t1 = time.time()
-    print(f"  [N={N}, omega={omega}] delta_omega={result.delta_omega_opt:.6f}, "
-          f"R={result.ratio:.3f}, n_conv={result.n_converged}, "
-          f"t={(t1-t0)/60:.1f}min")
+    print(
+        f"  [N={N}, omega={omega}] delta_omega={result.delta_omega_opt:.6f}, "
+        f"R={result.ratio:.3f}, n_conv={result.n_converged}, "
+        f"t={(t1 - t0) / 60:.1f}min"
+    )
     sys.stdout.flush()
     return {
         "N": result.N,
@@ -115,10 +120,13 @@ run_step3(
     omega_values=module.OMEGA_VALS_N_SCALING,
     label="Step3",
     parquet_path=module._parquet_path("step3-n-scaling"),
-    checkpoint_dir=module._REPORTS_DIR / module._REPORT_DATE / "raw_data" / "checkpoints_step3",
+    checkpoint_dir=module._REPORTS_DIR
+    / module._REPORT_DATE
+    / "raw_data"
+    / "checkpoints_step3",
 )
 t1 = time.time()
-print(f"Step 3 total: {(t1-t0)/60:.1f} min")
+print(f"Step 3 total: {(t1 - t0) / 60:.1f} min")
 sys.stdout.flush()
 
 print("\nDone!")

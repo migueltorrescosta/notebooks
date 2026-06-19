@@ -293,9 +293,7 @@ def plot_n_scaling_single_omega(
     ax.loglog(N_dense, sql_line, "--", color="gray", alpha=0.7, label="SQL")
     if include_2n_sql:
         sql_2n_line = 1.0 / (np.sqrt(2 * N_dense) * t_hold)
-        ax.loglog(
-            N_dense, sql_2n_line, "-.", color="gray", alpha=0.5, label="2N-SQL"
-        )
+        ax.loglog(N_dense, sql_2n_line, "-.", color="gray", alpha=0.5, label="2N-SQL")
     ax.loglog(N_dense, hl_line, ":", color="gray", alpha=0.5, label="HL")
 
     # Data

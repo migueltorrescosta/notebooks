@@ -142,9 +142,7 @@ def test_generate_n_scaling_plots_skip_existing(
     assert fig_p2.exists()
 
 
-def test_generate_n_scaling_plots_with_2n_sql(
-    mock_sweep: Path, tmp_path: Path
-) -> None:
+def test_generate_n_scaling_plots_with_2n_sql(mock_sweep: Path, tmp_path: Path) -> None:
     fig_p = tmp_path / "n-scaling-omega0.1.svg"
     generate_n_scaling_plots(
         parquet_path=mock_sweep,

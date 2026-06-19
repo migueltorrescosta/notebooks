@@ -20,6 +20,7 @@ from src.analysis.ancilla_drive_metrology import (
     evolve_phase_modulated_circuit,
 )
 from src.analysis.ancilla_optimization import free_ancilla_initial_state
+from src.utils.serialization import assert_roundtrip_fields
 
 _local_path = Path(__file__).resolve().parent / "local.py"
 _spec = importlib.util.spec_from_file_location("local", str(_local_path))
@@ -51,8 +52,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     run_modulated_omega_scan,
     t_hold,
 )
-
-from src.utils.serialization import assert_roundtrip_fields
 
 # ============================================================================
 # Fixtures
