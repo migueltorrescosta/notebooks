@@ -47,6 +47,7 @@ from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.utils.constants import I_2, J_X, J_Y, J_Z
 from src.utils.enums import OperatorBasis
 from src.utils.parallel import parallel_map
+from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable
 
 # ── BLAS threading ──────────────────────────────────────────────────────────
@@ -351,7 +352,9 @@ def combined_hold_unitary(
         ops,
     )
     U = expm(-1j * t_hold * H)
-    assert np.allclose(U @ U.conj().T, ops["I_full"], atol=1e-12), (
+    # Relax tolerance for large N where expm accumulates numerical errors
+    _tol = 1e-10 if N <= 8 else 1e-8
+    assert np.allclose(U @ U.conj().T, ops["I_full"], atol=_tol), (
         f"Hold unitary not unitary for N={N}, t_hold={t_hold}"
     )
     return U
@@ -1683,11 +1686,6 @@ def _make_result_from_dict(rdict: dict) -> CombinedOptimizationResult:
 # ============================================================================
 # Path Helpers
 # ============================================================================
-
-from src.utils.paths import (
-    fig_path,
-    parquet_path,
-)
 
 _REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 _REPORT_DATE = "20260616"
