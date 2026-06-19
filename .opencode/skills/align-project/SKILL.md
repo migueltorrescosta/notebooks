@@ -33,6 +33,7 @@ This skill inspects, reports, and auto-fixes only purely mechanical issues (form
    - The full `# Backlog` section — list every item, its priority emoji, and theme group.
    - The current weekly section (date range).
 3. **Survey the repo state** — Run `ls reports/` to get a high-level view of active and completed report directories.
+4. **Review the findings document** — Read `reports/findings/interferometric_sensitivity_improvements.md` to check whether it accurately reflects the current set of completed experiments. Note any experiments that are missing from the findings document but exist in the CHANGELOG or `reports/` directories. Flag for update if the findings document is out of date.
 
 ## 2. Priority Alignment
 
@@ -148,6 +149,7 @@ Save this summary to agentmemory via `agentmemory_memory_save()` with type `"pat
 - [ ] Searched agentmemory for prior align-project runs and relevant decisions (`project:notebooks`)
 - [ ] Read CHANGELOG.md (colour legend, full Backlog, current weekly section)
 - [ ] Surveyed reports directory (`ls reports/`)
+- [ ] Reviewed findings document (`reports/findings/interferometric_sensitivity_improvements.md`) for currency
 
 ### During analysis
 - **Priority Alignment (§2a Backlog)**:

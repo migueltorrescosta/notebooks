@@ -64,6 +64,7 @@ Review a report in `reports/` after simulations have been run and results genera
 - [ ] Read the report (hypothesis, success criteria, expected results)
 - [ ] Surveyed raw data in `reports/{date}/raw_data/`
 - [ ] Surveyed figures in `reports/{date}/figures/`
+- [ ] Read the findings document (`reports/findings/interferometric_sensitivity_improvements.md`) to prepare for updating it
 
 ### After implementation
 - [ ] All CSVs and Parquet files in `raw_data/` inspected and validated against physical invariants
@@ -73,5 +74,6 @@ Review a report in `reports/` after simulations have been run and results genera
 - [ ] Success Criteria updated with PASS/FAIL annotations
 - [ ] Conclusions updated with summary of findings
 - [ ] Internal consistency verified: Results match Success Criteria match Conclusions
+- [ ] **Update findings document** — Read `reports/findings/interferometric_sensitivity_improvements.md`, add an entry for this experiment following the same format as existing entries, and update the summary table and "Top Enhancement Mechanisms" section if this experiment qualifies. Preserve the existing structure.
 - [ ] CHANGELOG updated with entry under the appropriate weekly section using the format `- **Title** (#YYYYMMDD) — description`; backlog entry removed if task came from backlog; any errors that predated the current session added to the backlog
 - [ ] Saved key decisions to agentmemory (`project:notebooks`)

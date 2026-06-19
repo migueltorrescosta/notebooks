@@ -21,12 +21,13 @@ Guide the creation of a new simulation report from initial research question thr
 
 ## 1. Before writing
 
-1. **Survey existing reports** — Read `reports/` to identify gaps not yet covered by prior simulations.
-2. **Check the CHANGELOG backlog** — If a backlog entry for this experiment already exists, note its section and theme group. If not, consider adding one in the appropriate theme group using the format: `- **Title** (#YYYYMMDD) — description. Next step: plan report.`
-3. **Clarify the research question** — Distill the physics claim into a specific, testable hypothesis with a clear null and alternative.
-4. **Determine the minimum Hilbert space** — Determine the dimension, basis, and operators needed to answer the question without unnecessary overhead.
-5. **Challenge assumptions** — Highlight likely mistakes present in the user's request before drafting the plan.
-6. **Iterate with the user** — Ask questions and refine the plan until the user is satisfied. Only then write the report file.
+1. **Read the findings document** — Read `reports/findings/interferometric_sensitivity_improvements.md` to understand all prior experiments, their outcomes, and the overall narrative. This ensures the new experiment does not duplicate past work and is correctly positioned in the broader story.
+2. **Survey existing reports** — Read `reports/` to identify gaps not yet covered by prior simulations.
+3. **Check the CHANGELOG backlog** — If a backlog entry for this experiment already exists, note its section and theme group. If not, consider adding one in the appropriate theme group using the format: `- **Title** (#YYYYMMDD) — description. Next step: plan report.`
+4. **Clarify the research question** — Distill the physics claim into a specific, testable hypothesis with a clear null and alternative.
+5. **Determine the minimum Hilbert space** — Determine the dimension, basis, and operators needed to answer the question without unnecessary overhead.
+6. **Challenge assumptions** — Highlight likely mistakes present in the user's request before drafting the plan.
+7. **Iterate with the user** — Ask questions and refine the plan until the user is satisfied. Only then write the report file.
 
 ## 2. Writing the report
 
@@ -39,10 +40,11 @@ Guide the creation of a new simulation report from initial research question thr
 
 ### Before implementation
 - [ ] Searched agentmemory for relevant prior reports and decisions (`project:notebooks`)
+- [ ] Read the findings document (`reports/findings/interferometric_sensitivity_improvements.md`)
 - [ ] Surveyed existing reports in `reports/`
 - [ ] Consulted CHANGELOG backlog for existing entry
 - [ ] Confirmed challenged assumptions with the user
-- [ ] Asked clarifying questionsN
+- [ ] Asked clarifying questions
 - [ ] Read relevant code for existing patterns
 
 ### After implementation
