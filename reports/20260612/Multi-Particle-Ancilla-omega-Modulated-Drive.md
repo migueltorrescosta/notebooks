@@ -238,7 +238,7 @@ The implementation is a direct modification of `reports/20260611/local.py`. The 
 
 ## 🔬 Results
 
-Simulations were run for the decoupled baseline (100 (N, ω) pairs), N=1 consistency check, and the 4D optimisation scan. The full 100-pair N-scaling scan is **partially complete** — checkpoints exist for N=1 through N=8 (40/100 pairs). The remaining pairs (N=9 through N=20) are still pending. The three downstream plots (ratio vs N, sensitivity vs N, optimal params vs N) require the full dataset and have therefore not been generated yet. All conclusions in this section are drawn from the N=1—8 data.
+Simulations were run for the decoupled baseline (100 (N, ω) pairs), N=1 consistency check, and the 4D optimisation scan. The full 100-pair N-scaling scan is **partially complete** — checkpoints exist for N=1 through N=8 (40/100 pairs). The remaining pairs (N=9 through N=20) are still pending. Figures below are generated from the N=1–8 data. All conclusions in this section are drawn from the N=1–8 data.
 
 ### N=1 Consistency
 
@@ -287,6 +287,14 @@ The best ratio remains remarkably stable between $R \approx 4.7-5.5$ across all 
 
 **Key Finding**: The multi-particle ancilla produces SQL violation at all completed (N, ω) pairs with ratios that stay above 4.5 for the best ω at each N. This is a dramatic improvement over the $J_A=1/2$ case where $R(8) \approx 1.3$.
 
+![SQL-violation ratio vs N](figures/20260612-ratio-vs-n.svg)
+
+*Figure 1: SQL-violation ratio $R(N) = \Delta\omega_{\mathrm{SQL}} / \Delta\omega_{\mathrm{opt}}$ vs system particle number $N$, coloured by $\omega$. The horizontal dashed line marks the SQL ($R=1$). All completed pairs beat SQL, and the best ratios remain stable between 4.5–5.5 across N=1–8.*
+
+![Optimal parameters vs N](figures/20260612-optimal-params-vs-n.svg)
+
+*Figure 2: Optimal drive and interaction parameters $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$ vs $N$, coloured by $\omega$. Non-commuting drive ($|a_x^*|>0$ or $|a_y^*|>0$) is essential at all N and ω.*
+
 ### N-Scaling Analysis
 
 **Status: PARTIAL (N=1–8 only)**
@@ -306,6 +314,14 @@ The best exponent, $\alpha = -0.54$ at $\omega=1.0$, is only marginally better t
 The ratio decay model $R(N) = 1 + c N^\beta$ fitted to the multi-particle data gives $\beta \approx 0$ (essentially flat) for $\omega=0.2$ and $\omega=0.5$, in stark contrast to the $J_A=1/2$ case where $R(N)$ decays as $N^{-0.5}$ to $N^{-1.0}$.
 
 **Key Finding**: The scaling exponent remains at SQL level ($\alpha \approx -0.5$), rejecting the Heisenberg-limit hypothesis. The ratio does NOT decay to 1 — the model fit shows $R(N)$ is essentially constant across N=1–8 for the best ω values, confirming that the multi-particle ancilla arrests the ratio decay.
+
+![Optimal sensitivity vs N](figures/20260612-sensitivity-vs-n.svg)
+
+*Figure 3: Optimal sensitivity $\Delta\omega_{\mathrm{opt}}$ vs $N$ on log-log axes, coloured by $\omega$. The SQL (dashed) and Heisenberg limit (dotted) reference lines are shown. All curves cluster near the SQL line, confirming $\alpha \approx -0.5$ for all $\omega$.*
+
+![Variance and derivative scaling](figures/20260612-variance-derivative.svg)
+
+*Figure 4: Diagnostic log-log plots of $\mathrm{Var}(J_z^S)$ (left) and the estimated signal derivative $|\partial\langle J_z^S\rangle/\partial\omega|$ (right) vs $N$. Both quantities grow with $N$, keeping their ratio — and hence $\Delta\omega$ — near the SQL level.*
 
 ### Comparison with $J_A=1/2$ (#20260611)
 
@@ -327,6 +343,10 @@ The $J_A=N/2$ multi-particle ancilla dramatically improves the SQL-violation rat
 The improvement factor grows with N, reaching 3.4–3.8× at N=7–8. The ratio $R_{\text{multi}}(N)$ shows no decay toward 1, in stark contrast to $R_{\text{fixed}}(N)$ which decays monotonically from $R=4.9$ at $N=1$ to $R\approx1.3$ at $N=8$.
 
 **Key Finding**: The multi-particle ancilla hypothesis is supported — the $O(N)$ ancilla contribution to $\partial H/\partial\omega$ successfully arrests the ratio decay. However, the $N$-scaling exponent does not improve beyond SQL, suggesting that while the absolute sensitivity is enhanced, the scaling is still limited by the S-only measurement or the product-state initial condition.
+
+![Comparison with fixed ancilla](figures/20260612-comparison-multi-vs-fixed.svg)
+
+*Figure 5: SQL-violation ratio $R(N)$ for the multi-particle ancilla ($J_A=N/2$, solid lines) compared to the fixed ancilla ($J_A=1/2$, dashed lines) from #20260611. The multi-particle ancilla maintains $R > 4$ across N=1–8, while the fixed ancilla decays to $R \approx 1.3$ at N=8.*
 
 ### Summary
 

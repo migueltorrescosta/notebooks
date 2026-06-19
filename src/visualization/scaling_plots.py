@@ -232,6 +232,93 @@ def plot_n_scaling_optimal_params(
     return save_path
 
 
+def plot_n_scaling_ratio_comparison(
+    df_multi: pd.DataFrame,
+    df_fixed: pd.DataFrame,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (10, 6),
+) -> Path:
+    """Plot SQL-violation ratio R(N) comparing multi-particle vs fixed ancilla.
+
+    Shows R_multi(N) (solid) and R_fixed(N) (dashed) for each ω value,
+    highlighting the dramatic improvement from J_A = N/2 over J_A = 1/2.
+
+    Args:
+        df_multi: DataFrame for multi-particle ancilla (J_A=N/2) with
+            columns 'N', 'omega', 'ratio'.
+        df_fixed: DataFrame for fixed ancilla (J_A=1/2) with
+            columns 'N', 'omega', 'ratio'.
+        save_path: Output SVG path.
+        figsize: Figure size.
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if df_multi.empty:
+        print("[skip] No multi-particle data to plot.")
+        return save_path
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    omega_values = sorted(df_multi["omega"].unique())
+    colours = plt.colormaps["viridis"](np.linspace(0.2, 0.9, len(omega_values)))
+
+    for omega_val, colour in zip(omega_values, colours, strict=False):
+        # Multi-particle (solid)
+        sub_m = df_multi[np.isclose(df_multi["omega"], omega_val)]
+        sub_m = sub_m.sort_values("N")
+        valid_m = np.isfinite(sub_m["ratio"])
+        if np.any(valid_m):
+            ax.plot(
+                sub_m["N"][valid_m],
+                sub_m["ratio"][valid_m],
+                "o-",
+                color=colour,
+                label=rf"$\omega={omega_val:.1f}$  (multi)",
+                markersize=6,
+                linewidth=1.8,
+            )
+
+        # Fixed (dashed)
+        sub_f = df_fixed[np.isclose(df_fixed["omega"], omega_val)]
+        sub_f = sub_f.sort_values("N")
+        valid_f = np.isfinite(sub_f["ratio"])
+        if np.any(valid_f):
+            ax.plot(
+                sub_f["N"][valid_f],
+                sub_f["ratio"][valid_f],
+                "s--",
+                color=colour,
+                label=rf"$\omega={omega_val:.1f}$  (fixed)",
+                markersize=4,
+                linewidth=1.0,
+                alpha=0.6,
+            )
+
+    ax.axhline(
+        y=1.0,
+        color="gray",
+        linestyle="--",
+        alpha=0.7,
+        linewidth=1.5,
+        label="SQL (R=1)",
+    )
+
+    ax.set_xlabel(r"$N$ (system particles)")
+    ax.set_ylabel(r"$R(N) = \Delta\omega_{\mathrm{SQL}} / \Delta\omega_{\mathrm{opt}}$")
+    ax.set_title("SQL-violation ratio: multi-particle vs fixed ancilla")
+    ax.legend(fontsize=8, title=r"Protocol", ncol=2)
+    ax.set_xlim(left=0.5)
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
 def plot_n_scaling_single_omega(
     df: pd.DataFrame,
     omega_fixed: float,
