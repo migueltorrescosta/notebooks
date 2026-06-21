@@ -52,26 +52,20 @@ print(f"N range: {module.N_VALS_FULL_ANCILLA}")
 sys.stdout.flush()
 
 
-def _run_single_n_omega(
+def _random_search_and_refine(
+    rng: np.random.Generator,
+    n_random: int,
     N: int,
+    psi0: np.ndarray,
     omega: float,
+    ops: dict,
     ancilla_dim: int,
-) -> dict:
-    """Run random search + Nelder-Mead for a single (N, ω)."""
-    n_random = N_RANDOM_MAP.get(N, 500)
-    nm_maxiter = NM_MAXITER.get(N, 50)
-    t0 = time.time()
+    nm_maxiter: int,
+) -> tuple[float, np.ndarray]:
+    """Random parameter search + Nelder-Mead refinement for a single (N, ω).
 
-    # Build operators
-    if ancilla_dim == N + 1:
-        ops = module.build_full_ancilla_combined_operators(N)
-    else:
-        ops = module.build_fixed_ancilla_combined_operators(N)
-    d_tot = (N + 1) * ancilla_dim
-    psi0 = module.combined_initial_state(d_tot)
-
-    # Random search
-    rng = np.random.default_rng(42 + N * 100 + int(omega * 10))
+    Returns (best_delta, best_sample).
+    """
     best_delta = float("inf")
     best_sample = np.zeros(7, dtype=float)
 
@@ -141,6 +135,32 @@ def _run_single_n_omega(
                 best_sample = nm_res.x.copy()
         except Exception:
             pass
+
+    return best_delta, best_sample
+
+
+def _run_single_n_omega(
+    N: int,
+    omega: float,
+    ancilla_dim: int,
+) -> dict:
+    """Run random search + Nelder-Mead for a single (N, ω)."""
+    n_random = N_RANDOM_MAP.get(N, 500)
+    nm_maxiter = NM_MAXITER.get(N, 50)
+    t0 = time.time()
+
+    # Build operators
+    if ancilla_dim == N + 1:
+        ops = module.build_full_ancilla_combined_operators(N)
+    else:
+        ops = module.build_fixed_ancilla_combined_operators(N)
+    d_tot = (N + 1) * ancilla_dim
+    psi0 = module.combined_initial_state(d_tot)
+
+    rng = np.random.default_rng(42 + N * 100 + int(omega * 10))
+    best_delta, best_sample = _random_search_and_refine(
+        rng, n_random, N, psi0, omega, ops, ancilla_dim, nm_maxiter
+    )
 
     # Diagnostics
     psi_final = module.evolve_combined_circuit(
