@@ -23,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import os
 import sys
 from dataclasses import dataclass, field
@@ -1520,6 +1521,60 @@ def _combined_slice_worker(args: tuple) -> tuple[int, np.ndarray]:
     return start_idx, chunk_grid
 
 
+def _run_parallel_combined_slice(
+    omega: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    alpha_xx_vals: np.ndarray,
+    alpha_zz_vals: np.ndarray,
+    ancilla_dim: int,
+    n_jobs: int,
+) -> np.ndarray:
+    """Run parallel 2D slice evaluation across multiple workers.
+
+    Args:
+        omega: Phase rate value.
+        a_x, a_y, a_z: Fixed drive coefficients.
+        alpha_xx_vals: Array of alpha_xx values.
+        alpha_zz_vals: Array of alpha_zz values.
+        ancilla_dim: Ancilla dimension.
+        n_jobs: Number of parallel workers (-1 for all cores).
+
+    Returns:
+        2D grid array of Delta_omega values,
+        shape (len(alpha_xx_vals), len(alpha_zz_vals)).
+    """
+    n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
+    indices = np.arange(len(alpha_xx_vals))
+    chunks = np.array_split(indices, n_workers)
+    worker_args = [
+        (
+            omega,
+            a_x,
+            a_y,
+            a_z,
+            alpha_xx_vals[chunk],
+            alpha_zz_vals,
+            ancilla_dim,
+            int(chunk[0]),
+        )
+        for chunk in chunks
+    ]
+    grid = np.full((len(alpha_xx_vals), len(alpha_zz_vals)), np.inf, dtype=float)
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=n_workers,
+    ) as executor:
+        futures = {
+            executor.submit(_combined_slice_worker, args): args for args in worker_args
+        }
+        for future in concurrent.futures.as_completed(futures):
+            start_idx, chunk_grid = future.result()
+            n_chunk = chunk_grid.shape[0]
+            grid[start_idx : start_idx + n_chunk, :] = chunk_grid
+    return grid
+
+
 def combined_2d_slice(
     omega: float,
     a_x: float = 0.0,
@@ -1547,63 +1602,33 @@ def combined_2d_slice(
     Returns:
         Combined2DSliceResult.
     """
-    import concurrent.futures
-
     alpha_xx_vals = np.linspace(alpha_xx_range[0], alpha_xx_range[1], n_alpha_xx)
     alpha_zz_vals = np.linspace(alpha_zz_range[0], alpha_zz_range[1], n_alpha_zz)
 
     if n_jobs is None or n_jobs == 1:
-        ops = build_full_ancilla_combined_operators(1)
-        d_tot = 2 * ancilla_dim
-        psi0 = combined_initial_state(d_tot)
-        grid = np.full((n_alpha_xx, n_alpha_zz), np.inf, dtype=float)
-        for i, a_xx in enumerate(alpha_xx_vals):
-            for j, a_zz in enumerate(alpha_zz_vals):
-                grid[i, j] = compute_combined_sensitivity(
-                    1,
-                    psi0,
-                    T_BS,
-                    T_HOLD,
-                    omega,
-                    a_x,
-                    a_y,
-                    a_z,
-                    float(a_xx),
-                    0.0,
-                    0.0,
-                    float(a_zz),
-                    ops,
-                    ancilla_dim,
-                )
-    else:
-        n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
-        indices = np.arange(n_alpha_xx)
-        chunks = np.array_split(indices, n_workers)
-        worker_args = [
+        _, grid = _combined_slice_worker(
             (
                 omega,
                 a_x,
                 a_y,
                 a_z,
-                alpha_xx_vals[chunk],
+                alpha_xx_vals,
                 alpha_zz_vals,
                 ancilla_dim,
-                int(chunk[0]),
+                0,
             )
-            for chunk in chunks
-        ]
-        grid = np.full((n_alpha_xx, n_alpha_zz), np.inf, dtype=float)
-        with concurrent.futures.ProcessPoolExecutor(
-            max_workers=n_workers,
-        ) as executor:
-            futures = {
-                executor.submit(_combined_slice_worker, args): args
-                for args in worker_args
-            }
-            for future in concurrent.futures.as_completed(futures):
-                start_idx, chunk_grid = future.result()
-                n_chunk = chunk_grid.shape[0]
-                grid[start_idx : start_idx + n_chunk, :] = chunk_grid
+        )
+    else:
+        grid = _run_parallel_combined_slice(
+            omega,
+            a_x,
+            a_y,
+            a_z,
+            alpha_xx_vals,
+            alpha_zz_vals,
+            ancilla_dim,
+            n_jobs,
+        )
 
     return Combined2DSliceResult(
         alpha_xx_values=alpha_xx_vals,
