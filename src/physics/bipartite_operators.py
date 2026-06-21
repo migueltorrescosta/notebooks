@@ -14,7 +14,6 @@ from __future__ import annotations
 import math
 
 import numpy as np
-from scipy.linalg import expm
 
 from src.physics.beam_splitter import bs_dicke
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator

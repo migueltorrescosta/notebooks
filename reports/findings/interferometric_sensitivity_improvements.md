@@ -283,7 +283,14 @@ The default baseline is a single-particle ($N=1$) MZI with system-only phase enc
 
 ---
 
-## Summary of Key Results
+### 29. Bell-State Initial S--A Entanglement in Driven-Ancilla Metrology (2026-06-21)
+
+- **Configuration**: System--ancilla pair ($N=1$ each, $J=1/2$), system-only MZI (50/50 BS on S only), **Bell-state initial state** $|\Phi^+\rangle = (|00\rangle + |11\rangle)/\sqrt{2}$ (maximally entangled S--A), ancilla drive $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$ ($\omega$-independent), Ising interaction $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, measurement $J_z^S$ on system. 4-parameter random search (1000 samples + 15 NM refinements) per $(\text{scenario},\omega)$ pair. 50-point $\omega$ scan from $0.1$ to $5.0$ (step $0.1$). 200 optimisation runs total.
+- **Interferometric improvement**: **None** — all 150 finite-Δω results (Scenarios A, B, D) give exactly $\Delta\omega = 0.100000 = \text{SQL}$ at every $\omega$. Scenario C (Bell + drive only) produces all fringe ($\Delta\omega \to \infty$), confirming that $H_{\text{int}}$ is essential for any sensitivity. The optimal $t_{\text{hold}}$ always saturates its upper bound (10.0), and optimal drive/interaction parameters vary widely across $\omega$ but all converge to the same SQL-level sensitivity.
+- **Unexpected findings**: None — the result is fully consistent with the null hypothesis: the $J=1/2$ spectral radius bound holds regardless of initial entanglement. The Bell state's maximal S--A covariance ($\text{Cov}(J_z^S, J_z^A) = +1/4$) cannot increase the effective generator's eigenvalue range beyond $T_H/2$ because $\omega$ enters only through $H_S = \omega J_z^S$.
+- **Explanation**: The bound argument from #20260512 applies to any initial state, not just product states. For $J=1/2$, the generator $J_z^S$ has a fixed eigenvalue range of $1$, and no amount of initial S--A entanglement can increase it. The effective generator $G_{\text{eff}} = \int_0^{T_H} e^{i t H_{\text{rest}}} J_z^S e^{-i t H_{\text{rest}}}\,dt$ has a variance bounded by $\|J_z^S\|^2 T_H^2 = T_H^2/4$, giving $\Delta\omega \geq 1/T_H$ for any initial state. This closes the question: for $\omega$-independent drives, initial entanglement cannot substitute for $\omega$-modulation of the ancilla drive.
+
+---
 
 | Experiment | Outcome vs SQL | Key Physical Mechanism |
 |---|---|---|
@@ -311,6 +318,7 @@ The default baseline is a single-particle ($N=1$) MZI with system-only phase enc
 | **26. 4-param + $\omega$-modulated drive** ($N=1$–$13$) | $5.51\times$ SQL ($N=1$), degrades $\alpha>0$ | 7D landscape intractable at $N>8$; BCH classes don't compound |
 | **27. OAT pre-squeezing** ($N=1$–$6$, $J_A=N/2$) | **$R=1.4$–$6.2$, $\alpha\approx-0.18$** | OAT improves sensitivity ($\mathcal{I}=1.0$–$4.1$ at $N=1$, $\mathcal{I}$ median $1.72$ at $N=2$–$6$) but scaling exponent worse than SQL. CSS ancilla + OAT intermediate between $\theta$-drive and $\omega$-drive protocols. 7/10 criteria PASS, 1 PARTIAL, 1 FAIL. |
 | **28. Multi-particle ancilla + free init state + $\omega$-independent drive** ($N=1$–$10$, $M=1$–$4$) | **$=$ SQL** ($R=1.0$, all configurations) | $\omega$-independent drive cannot beat SQL regardless of system or ancilla size. $\omega$-modulation is the essential mechanism. 80 directly-verified triples, 200 total. 6/6 criteria PASS (null hypothesis confirmed). |
+| **29. Bell-state initial S--A entanglement** ($N=1$, $J=1/2$) | **$=$ SQL** ($R=1.0$, all 150 finite-Δω results) | $J=1/2$ spectral radius bound is absolute regardless of initial entanglement. $\omega$-modulation is the essential mechanism for SQL violation. 200 optimisation runs, 69 tests pass. 4/5 criteria PASS, 1 N/A (conditional not met). |
 
 ## Top Three Enhancement Mechanisms
 

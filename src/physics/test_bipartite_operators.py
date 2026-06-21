@@ -20,7 +20,12 @@ class TestBuildOperators:
     @pytest.mark.parametrize(
         ("N_sys", "N_anc"),
         [(1, 1), (3, 2), (5, 4), (10, 1)],
-        ids=["N_sys=1,N_anc=1", "N_sys=3,N_anc=2", "N_sys=5,N_anc=4", "N_sys=10,N_anc=1"],
+        ids=[
+            "N_sys=1,N_anc=1",
+            "N_sys=3,N_anc=2",
+            "N_sys=5,N_anc=4",
+            "N_sys=10,N_anc=1",
+        ],
     )
     def test_operator_dimensions(self, N_sys: int, N_anc: int) -> None:
         d_tot = (N_sys + 1) * (N_anc + 1)
@@ -75,7 +80,12 @@ class TestBuildSystemOnlyBSUnitary:
     @pytest.mark.parametrize(
         ("N_sys", "N_anc"),
         [(1, 1), (2, 3), (5, 2), (10, 4)],
-        ids=["N_sys=1,N_anc=1", "N_sys=2,N_anc=3", "N_sys=5,N_anc=2", "N_sys=10,N_anc=4"],
+        ids=[
+            "N_sys=1,N_anc=1",
+            "N_sys=2,N_anc=3",
+            "N_sys=5,N_anc=2",
+            "N_sys=10,N_anc=4",
+        ],
     )
     def test_bs_unitary(self, N_sys: int, N_anc: int) -> None:
         d_tot = (N_sys + 1) * (N_anc + 1)

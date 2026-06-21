@@ -31,6 +31,7 @@ import pandas as pd
 from scipy.linalg import expm
 from scipy.optimize import minimize
 
+import src.physics.bipartite_operators as _bipartite
 from src.algorithms.spin_squeezing import coherent_spin_state
 from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
@@ -38,7 +39,6 @@ from src.analysis.ancilla_optimization import (
 from src.analysis.decoupled_baseline import (
     generate_decoupled_baseline,
 )
-import src.physics.bipartite_operators as _bipartite
 from src.analysis.sensitivity_metrics import sql_reference
 from src.utils.parallel import parallel_map
 from src.utils.paths import fig_path, parquet_path
@@ -494,7 +494,9 @@ def build_system_only_bs_unitary(N_S: int, N_A: int, T_bs: float = T_BS) -> np.n
         (N_S+1)*(N_A+1) x (N_S+1)*(N_A+1) unitary matrix.
     """
     return _bipartite.build_system_only_bs_unitary(
-        N_sys=N_S, N_anc=N_A, T_bs=T_bs,
+        N_sys=N_S,
+        N_anc=N_A,
+        T_bs=T_bs,
     )
 
 
