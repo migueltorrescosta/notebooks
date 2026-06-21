@@ -38,10 +38,8 @@ from src.analysis.ancilla_optimization import (
 from src.analysis.decoupled_baseline import (
     generate_decoupled_baseline,
 )
+import src.physics.bipartite_operators as _bipartite
 from src.analysis.sensitivity_metrics import sql_reference
-from src.physics.beam_splitter import bs_dicke
-from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
-from src.utils.enums import OperatorBasis
 from src.utils.parallel import parallel_map
 from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable
@@ -69,12 +67,14 @@ PHASE1_N_SYSTEM: int = 1
 PHASE1_N_ANCILLA: int = 2
 
 # Phase 2: N values for symmetric case (J_A = N/2, N >= 2)
-PHASE2_N_VALS: list[int] = list(range(2, 11))
+# N up to 6 is practical (dim up to 49, ~40ms/eval at N=6).
+# N≥7 becomes prohibitively slow (500-900ms/eval) with full optimisation budget.
+PHASE2_N_VALS: list[int] = list(range(2, 7))
 
 # Random search parameters
 N_RANDOM: int = 1000
-N_NM_REFINE: int = 50
-NM_MAXITER: int = 5000
+N_NM_REFINE: int = 10
+NM_MAXITER: int = 2000
 
 
 # ============================================================================
@@ -464,10 +464,8 @@ class OATNScalingScanResult(ParquetSerializable):
 def build_operators(N_S: int, N_A: int) -> dict[str, np.ndarray]:
     """Build operators in the (N_S+1)*(N_A+1)-dimensional total Hilbert space.
 
-    Total space: H_S ⊗ H_A with dimension (N_S+1)*(N_A+1).
-    Basis ordering: {|m_S⟩_S ⊗ |m_A⟩_A}
-    where m_S descends from +N_S/2 to -N_S/2 and m_A descends from +N_A/2 to -N_A/2.
-    Basis index: i = m_S_idx * (N_A+1) + m_A_idx.
+    Delegates to :func:`src.physics.bipartite_operators.build_operators`
+    with ``N_sys=N_S, N_anc=N_A``.
 
     Args:
         N_S: Number of system particles (N_S >= 1). System dim = N_S + 1.
@@ -478,77 +476,14 @@ def build_operators(N_S: int, N_A: int) -> dict[str, np.ndarray]:
         each a (N_S+1)*(N_A+1) x (N_S+1)*(N_A+1) complex Hermitian matrix.
         Also includes 'I_S', 'I_A' (identities) and 'I_full'.
     """
-    if N_S < 1:
-        raise ValueError(f"N_S must be >= 1, got {N_S}")
-    if N_A < 1:
-        raise ValueError(f"N_A must be >= 1, got {N_A}")
-
-    d_sys = N_S + 1  # System Hilbert space dimension
-    d_anc = N_A + 1  # Ancilla Hilbert space dimension
-    d_tot = d_sys * d_anc  # Total Hilbert space dimension
-
-    # System operators in Dicke basis
-    Jz_dicke_S = jz_operator(N_S, basis=OperatorBasis.DICKE)
-    Jx_dicke_S = jx_operator(N_S, basis=OperatorBasis.DICKE)
-    Jy_dicke_S = jy_operator(N_S, basis=OperatorBasis.DICKE)
-
-    # Ancilla operators in Dicke basis
-    Jz_dicke_A = jz_operator(N_A, basis=OperatorBasis.DICKE)
-    Jx_dicke_A = jx_operator(N_A, basis=OperatorBasis.DICKE)
-    Jy_dicke_A = jy_operator(N_A, basis=OperatorBasis.DICKE)
-
-    I_S = np.eye(d_sys, dtype=complex)
-    I_A = np.eye(d_anc, dtype=complex)
-
-    # Embed into total space via Kronecker products
-    ops: dict[str, np.ndarray] = {
-        # System: J_k(N_S) ⊗ I_{N_A+1}
-        "Jz_S": np.kron(Jz_dicke_S, I_A).astype(complex),
-        "Jx_S": np.kron(Jx_dicke_S, I_A).astype(complex),
-        "Jy_S": np.kron(Jy_dicke_S, I_A).astype(complex),
-        # Ancilla: I_{N_S+1} ⊗ J_k(N_A)
-        "Jz_A": np.kron(I_S, Jz_dicke_A).astype(complex),
-        "Jx_A": np.kron(I_S, Jx_dicke_A).astype(complex),
-        "Jy_A": np.kron(I_S, Jy_dicke_A).astype(complex),
-        # Identities
-        "I_S": I_S,
-        "I_A": I_A,
-        "I_full": np.eye(d_tot, dtype=complex),
-    }
-
-    # Validate dimensions
-    for key in ("Jz_S", "Jx_S", "Jy_S", "Jz_A", "Jx_A", "Jy_A"):
-        assert ops[key].shape == (d_tot, d_tot), (
-            f"{key} has shape {ops[key].shape}, expected ({d_tot}, {d_tot})"
-        )
-
-    # Validate Hermiticity
-    for key in ("Jz_S", "Jx_S", "Jy_S", "Jz_A", "Jx_A", "Jy_A"):
-        assert np.allclose(ops[key], ops[key].conj().T, atol=1e-12), (
-            f"{key} is not Hermitian for N_S={N_S}, N_A={N_A}"
-        )
-
-    # Validate commutation relations: [J_z^S, J_x^S] = i J_y^S
-    comm_s = ops["Jz_S"] @ ops["Jx_S"] - ops["Jx_S"] @ ops["Jz_S"]
-    expected_s = 1j * ops["Jy_S"]
-    assert np.allclose(comm_s, expected_s, atol=1e-10), (
-        f"[J_z^S, J_x^S] = i J_y^S violated for N_S={N_S}"
-    )
-
-    # Validate commutation relations for ancilla: [J_z^A, J_x^A] = i J_y^A
-    comm_a = ops["Jz_A"] @ ops["Jx_A"] - ops["Jx_A"] @ ops["Jz_A"]
-    expected_a = 1j * ops["Jy_A"]
-    assert np.allclose(comm_a, expected_a, atol=1e-10), (
-        f"[J_z^A, J_x^A] = i J_y^A violated for N_A={N_A}"
-    )
-
-    return ops
+    return _bipartite.build_operators(N_sys=N_S, N_anc=N_A)
 
 
 def build_system_only_bs_unitary(N_S: int, N_A: int, T_bs: float = T_BS) -> np.ndarray:
     """System-only beam-splitter unitary in the total Hilbert space.
 
-    U_BS_S = exp(-i T_bs J_x(N_S)) ⊗ I_{N_A+1}
+    Delegates to :func:`src.physics.bipartite_operators.build_system_only_bs_unitary`
+    with ``N_sys=N_S, N_anc=N_A, T_bs=T_bs``.
 
     Args:
         N_S: Number of system particles.
@@ -558,15 +493,9 @@ def build_system_only_bs_unitary(N_S: int, N_A: int, T_bs: float = T_BS) -> np.n
     Returns:
         (N_S+1)*(N_A+1) x (N_S+1)*(N_A+1) unitary matrix.
     """
-    d_tot = (N_S + 1) * (N_A + 1)
-    bs_sys = bs_dicke(N_S, T_bs)
-    I_A = np.eye(N_A + 1, dtype=complex)
-    U = np.kron(bs_sys, I_A).astype(complex)
-    I_full = np.eye(d_tot, dtype=complex)
-    assert np.allclose(U @ U.conj().T, I_full, atol=1e-12), (
-        f"BS unitary not unitary for N_S={N_S}, N_A={N_A}, T_bs={T_bs}"
+    return _bipartite.build_system_only_bs_unitary(
+        N_sys=N_S, N_anc=N_A, T_bs=T_bs,
     )
-    return U
 
 
 # ============================================================================
@@ -659,7 +588,7 @@ def oat_unitary(N_A: int, q: float, d_S: int) -> np.ndarray:
 # ============================================================================
 
 
-def build_drive_hamiltonian(
+def build_modulated_drive_hamiltonian(
     N_A: int,
     omega: float,
     a_x: float,
@@ -703,7 +632,7 @@ def build_iszz_interaction(
 ) -> np.ndarray:
     """Build the Ising interaction Hamiltonian.
 
-    H_int = a_zz J_z^S J_z^A
+    Delegates to :func:`src.physics.bipartite_operators.build_iszz_interaction`.
 
     Args:
         a_zz: Interaction coupling coefficient.
@@ -712,13 +641,7 @@ def build_iszz_interaction(
     Returns:
         Hermitian matrix in the total Hilbert space.
     """
-    d_tot = next(iter(ops.values())).shape[0]
-    H = np.zeros((d_tot, d_tot), dtype=complex)
-    if a_zz != 0.0:
-        H += a_zz * (ops["Jz_S"] @ ops["Jz_A"])
-    H = 0.5 * (H + H.conj().T)
-    assert np.allclose(H, H.conj().T, atol=1e-12), "Ising interaction not Hermitian"
-    return H
+    return _bipartite.build_iszz_interaction(a_zz, ops)
 
 
 def build_hold_hamiltonian(
@@ -749,7 +672,7 @@ def build_hold_hamiltonian(
         Hermitian Hamiltonian matrix.
     """
     H = omega * ops["Jz_S"]
-    H += build_drive_hamiltonian(N_A, omega, a_x, a_y, a_z, ops)
+    H += build_modulated_drive_hamiltonian(N_A, omega, a_x, a_y, a_z, ops)
     H += build_iszz_interaction(a_zz, ops)
     H = 0.5 * (H + H.conj().T)
     assert np.allclose(H, H.conj().T, atol=1e-12), (
@@ -1403,6 +1326,22 @@ def run_single_oat_optimisation(
     ops = build_operators(N_S, N_A)
     psi0 = oat_initial_state(N_S, N_A)
 
+    # N-dependent optimisation budget: larger N is slower, so use fewer NM runs
+    # with lower maxiter to keep wall time practical.
+    dim = (N_S + 1) * (N_A + 1)
+    if dim <= 16:  # N_S, N_A <= 3
+        n_nm_refine = 10
+        nm_maxiter = 2000
+    elif dim <= 25:  # N_S, N_A <= 4
+        n_nm_refine = 8
+        nm_maxiter = 1500
+    elif dim <= 36:  # N_S, N_A <= 5
+        n_nm_refine = 6
+        nm_maxiter = 1000
+    else:  # N_S, N_A >= 6
+        n_nm_refine = 4
+        nm_maxiter = 500
+
     # Stage 1: Random search
     rs_result = oat_random_search(
         N_S,
@@ -1412,9 +1351,9 @@ def run_single_oat_optimisation(
         seed=base_seed,
     )
 
-    # Sort by Delta_omega, take top N_NM_REFINE
+    # Sort by Delta_omega, take top n_nm_refine
     sorted_indices = np.argsort(rs_result.delta_omega_values)
-    top_indices = sorted_indices[:N_NM_REFINE]
+    top_indices = sorted_indices[:n_nm_refine]
 
     # Stage 2: Nelder-Mead refinement from each top point
     nm_results: list[OATNelderMeadResult] = []
@@ -1427,6 +1366,7 @@ def run_single_oat_optimisation(
             ops=ops,
             psi0=psi0,
             x0=x0,
+            maxiter=nm_maxiter,
             seed=base_seed + int(omega * 1000) + 10000 + rank,
         )
         nm_results.append(nm)

@@ -47,7 +47,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     OATNScalingResult,
     OATNScalingScanResult,
     OATRandomSearchResult,
-    build_drive_hamiltonian,
+    build_modulated_drive_hamiltonian,
     build_hold_hamiltonian,
     build_iszz_interaction,
     build_operators,
@@ -444,29 +444,29 @@ class TestDriveHamiltonian:
         self,
         make_ops: dict,
     ) -> None:
-        H = build_drive_hamiltonian(2, 0.0, 1.0, 2.0, 3.0, make_ops)
+        H = build_modulated_drive_hamiltonian(2, 0.0, 1.0, 2.0, 3.0, make_ops)
         assert np.allclose(H, 0.0, atol=1e-12)
 
     def test_given_zero_coefficients_then_zero(
         self,
         make_ops: dict,
     ) -> None:
-        H = build_drive_hamiltonian(2, 1.0, 0.0, 0.0, 0.0, make_ops)
+        H = build_modulated_drive_hamiltonian(2, 1.0, 0.0, 0.0, 0.0, make_ops)
         assert np.allclose(H, 0.0, atol=1e-12)
 
     def test_given_drive_then_hermitian(
         self,
         make_ops: dict,
     ) -> None:
-        H = build_drive_hamiltonian(2, 1.5, 1.0, 2.0, 3.0, make_ops)
+        H = build_modulated_drive_hamiltonian(2, 1.5, 1.0, 2.0, 3.0, make_ops)
         assert np.allclose(H, H.conj().T, atol=1e-12)
 
     def test_given_drive_then_proportional_to_omega(
         self,
         make_ops: dict,
     ) -> None:
-        H_half = build_drive_hamiltonian(2, 0.5, 1.0, 2.0, 3.0, make_ops)
-        H_full = build_drive_hamiltonian(2, 1.0, 1.0, 2.0, 3.0, make_ops)
+        H_half = build_modulated_drive_hamiltonian(2, 0.5, 1.0, 2.0, 3.0, make_ops)
+        H_full = build_modulated_drive_hamiltonian(2, 1.0, 1.0, 2.0, 3.0, make_ops)
         assert np.allclose(2.0 * H_half, H_full, atol=1e-12)
 
 

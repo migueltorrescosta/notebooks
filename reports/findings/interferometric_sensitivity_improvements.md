@@ -274,6 +274,15 @@ The default baseline is a single-particle ($N=1$) MZI with system-only phase enc
 
 ---
 
+### 28. Multi-Particle Ancilla ($J_A > 1/2$) with Free Initial State and $\omega$-Independent Drive (2026-06-20)
+
+- **Configuration**: System--ancilla pair with $N$ system particles ($J_S=N/2$, $N=1$--$10$), $M$ ancilla particles ($J_A=M/2$, $M \in \{1,2,3,4\}$), system-only MZI (50/50 BS on S only), **$\omega$-independent ancilla drive** $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$, Ising interaction $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, **free ancilla initial state** as a CSS $|\psi_A(\theta_A,\phi_A)\rangle$, measurement $J_z^S$ on system. 6-parameter random search (1000 samples + 30 Nelder--Mead refinements) per $(N,M,\omega)$ triple. Fixed holding time $T_H=10$.
+- **Interferometric improvement**: **None** — all 80 directly-verified $(N,M,\omega)$ triples give exactly $\Delta\omega = 1/(\sqrt{N}\,T_H)$ ($R=1.0$). No configuration of $(N,M,\omega,\theta_A,\phi_A,a_x,a_y,a_z,a_{zz})$ with $M>1$ produces sub-SQL sensitivity. The SQL bound for $\omega$-independent drives is absolute regardless of Hilbert space dimensions of either subsystem.
+- **Unexpected findings**: The 6D optimisation landscape is strictly flat at the SQL level — the optimiser consistently converges to the decoupled limit (zero drive, zero interaction). Larger ancilla sizes ($M=2,3,4$, $J_A=1,3/2,2$) provide no benefit over the $M=1$ baseline ($J_A=1/2$). The free initial state $(\theta_A,\phi_A)$ is irrelevant — the optimum never exploits it.
+- **Explanation**: Because $\partial H/\partial\omega = J_z^S$ contains no ancilla contribution, $\omega$ enters the evolution exclusively through the system operator. The ancilla can only acquire $\omega$-sensitivity indirectly via $H_{\text{int}}$, which the optimiser always turns off. This extends the #20260528 result from $N=M=1$ to arbitrary subsystem sizes and confirms that $\omega$-modulation of the ancilla drive (demonstrated in #20260519, #20260610, #20260611, #20260612) is the essential mechanism for SQL violation.
+
+---
+
 ## Summary of Key Results
 
 | Experiment | Outcome vs SQL | Key Physical Mechanism |
@@ -300,7 +309,8 @@ The default baseline is a single-particle ($N=1$) MZI with system-only phase enc
 | **24. $\omega$-modulated + weighted joint measurement** ($N=1$–$20$) | **$9.7\times$ SQL** ($N=1$), **$1.94\times$ SQL** ($N=20$) | Joint measurement extracts S--A correlations; $O(1/N)$ bound refuted |
 | **25. Non-linear measurement** ($N=1$–$20$, S-only) | CFI $1.67\times$ SQL, parity 8–34% above linear | S-only CFI captures only 44–47% of total FI; joint measurement essential |
 | **26. 4-param + $\omega$-modulated drive** ($N=1$–$13$) | $5.51\times$ SQL ($N=1$), degrades $\alpha>0$ | 7D landscape intractable at $N>8$; BCH classes don't compound |
-| **27. OAT pre-squeezing** ($N=1$–$10$) | **PENDING** | Squeezing reduces ancilla variance, amplifying feedback via $H_{\text{int}}$ |
+| **27. OAT pre-squeezing** ($N=1$–$6$, $J_A=N/2$) | **$R=1.4$–$6.2$, $\alpha\approx-0.18$** | OAT improves sensitivity ($\mathcal{I}=1.0$–$4.1$ at $N=1$, $\mathcal{I}$ median $1.72$ at $N=2$–$6$) but scaling exponent worse than SQL. CSS ancilla + OAT intermediate between $\theta$-drive and $\omega$-drive protocols. 7/10 criteria PASS, 1 PARTIAL, 1 FAIL. |
+| **28. Multi-particle ancilla + free init state + $\omega$-independent drive** ($N=1$–$10$, $M=1$–$4$) | **$=$ SQL** ($R=1.0$, all configurations) | $\omega$-independent drive cannot beat SQL regardless of system or ancilla size. $\omega$-modulation is the essential mechanism. 80 directly-verified triples, 200 total. 6/6 criteria PASS (null hypothesis confirmed). |
 
 ## Top Three Enhancement Mechanisms
 
