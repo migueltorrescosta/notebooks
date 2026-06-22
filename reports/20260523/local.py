@@ -64,7 +64,7 @@ from src.physics.multi_mzi import (
     embed_combined_operators,
     single_bs_unitary,
 )
-from src.utils import paths as _path_utils
+from src.utils import paths
 from src.utils.enums import OperatorBasis
 from src.utils.serialization import ParquetSerializable
 
@@ -1444,12 +1444,12 @@ REPORT_DATE = "20260523"
 
 def parquet_path(name: str) -> Path:
     """Return path to a raw_data Parquet file for this report."""
-    return _path_utils.parquet_path(REPORTS_DIR, REPORT_DATE, name)
+    return paths.parquet_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 def fig_path(name: str) -> Path:
     """Return path to a figures SVG file for this report."""
-    return _path_utils.fig_path(REPORTS_DIR, REPORT_DATE, name)
+    return paths.fig_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 # ── Generator Functions ────────────────────────────────────────────────

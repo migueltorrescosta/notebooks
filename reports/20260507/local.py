@@ -34,7 +34,6 @@ from src.evolution.lindblad_solver import (
     evolve_lindblad_scipy,
     validate_density_matrix,
 )
-from src.physics.hybrid_mzi import qfi_hybrid_mzi
 from src.physics.hybrid_mzi import (  # F401 — re-exported for tests via _report_local
     compute_wigner_for_state,
     embed_hybrid_in_mzi,
@@ -44,6 +43,7 @@ from src.physics.hybrid_mzi import (  # F401 — re-exported for tests via _repo
     mzi_output_probabilities,  # noqa: F401 — re-exported for tests
     mzi_phase_generator,
     mzi_phase_shift,  # noqa: F401 — re-exported for tests
+    qfi_hybrid_mzi,
     wigner_from_hybrid_state,  # noqa: F401 — re-exported for tests
     wigner_function_single,  # noqa: F401 — re-exported for tests
     wigner_is_negative,

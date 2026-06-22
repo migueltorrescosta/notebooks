@@ -64,7 +64,7 @@ from src.physics.multi_mzi import (
     hold_unitary_dicke,  # noqa: F401 — re-exported for tests
     single_bs_unitary,  # noqa: F401 — re-exported for tests
 )
-from src.utils import paths as _path_utils
+from src.utils import paths
 from src.utils.enums import OperatorBasis
 from src.utils.serialization import ParquetSerializable
 
@@ -753,12 +753,12 @@ N_VALS: list[int] = list(range(1, 21))
 
 def parquet_path(name: str) -> Path:
     """Return path to a raw_data Parquet file for this report."""
-    return _path_utils.parquet_path(REPORTS_DIR, REPORT_DATE, name)
+    return paths.parquet_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 def fig_path(name: str) -> Path:
     """Return path to a figures SVG file for this report."""
-    return _path_utils.fig_path(REPORTS_DIR, REPORT_DATE, name)
+    return paths.fig_path(REPORTS_DIR, REPORT_DATE, name)
 
 
 # Backward-compatible aliases

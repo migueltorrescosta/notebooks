@@ -132,14 +132,16 @@ ignore = [
     "EM",        # Exception message formatting
     "ERA",       # Commented-out code (development WIP)
     "FBT",       # Boolean trap
-    "FIX",       # FIXME/TODO markers — essential in research code
+    "FIX002",    # TODO — legitimate in research code for tracking future work
+    "FIX004",    # HACK — allowed as temporary workaround annotation
     "SIM105",    # Suppressible exception (explicit try/except preferred)
     "SIM108",    # If-else → ternary (explicit branches preferred)
     "SIM117",    # Multiple with statements (nested readability)
     "S",         # Security — not applicable for simulation code
     "SLF",       # Self/private access
     "T20",       # print — extensively used in research test output
-    "TD",        # TODO formatting — too opinionated for research code
+    "TD002",     # Missing author in TODO — excessive for solo/team research
+    "TD003",     # Missing issue link in TODO — excessive for inline notes
     "TRY",       # try/except style
     # ── Patterns handled by intentional code design ──
     "INP001",                      # Report dirs are not packages
