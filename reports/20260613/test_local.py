@@ -22,6 +22,19 @@ if TYPE_CHECKING:
 from src.analysis.ancilla_optimization import compute_expectation_and_variance
 from src.analysis.decoupled_baseline import verify_decoupled_baseline
 from src.analysis.sensitivity_metrics import sql_reference
+from src.physics.n_particle_drive import (
+    build_n_particle_hold_hamiltonian,
+    build_n_particle_iszz_interaction,
+    build_n_particle_operators,
+    build_n_particle_phase_modulated_drive_hamiltonian,
+    build_n_particle_system_only_bs_unitary,
+    compute_n_particle_decoupled_baseline,
+    compute_n_particle_sensitivity,
+    evolve_n_particle_circuit,
+    n_particle_hold_unitary,
+    n_particle_initial_state,
+)
+from src.utils.serialization import assert_roundtrip_fields
 
 _local_path = _Path(__file__).resolve().parent / "local.py"
 _spec = importlib.util.spec_from_file_location("local", str(_local_path))
@@ -44,20 +57,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     run_single_joint_n_omega,
     run_single_sonly_n_omega,
 )
-
-from src.physics.n_particle_drive import (  # noqa: E402
-    build_n_particle_hold_hamiltonian,
-    build_n_particle_iszz_interaction,
-    build_n_particle_operators,
-    build_n_particle_phase_modulated_drive_hamiltonian,
-    build_n_particle_system_only_bs_unitary,
-    compute_n_particle_decoupled_baseline,
-    compute_n_particle_sensitivity,
-    evolve_n_particle_circuit,
-    n_particle_hold_unitary,
-    n_particle_initial_state,
-)
-from src.utils.serialization import assert_roundtrip_fields  # noqa: E402
 
 # ============================================================================
 # Fixtures

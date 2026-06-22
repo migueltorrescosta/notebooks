@@ -1533,6 +1533,49 @@ def generate_decoupled_baseline_scan(force: bool = False) -> None:
     print(f"[save] {parquet_path_p}")
 
 
+def _get_pending_items(
+    completed: set[tuple[int, int, float]],
+) -> list[tuple[int, int, float]]:
+    """Return :math:`(N, M, \\omega)` triples that have not yet been completed.
+
+    Args:
+        completed: Set of ``(N, M, omega)`` triples already processed.
+
+    Returns:
+        List of pending ``(N, M, omega)`` triples.
+    """
+    return [
+        (N, M, omega)
+        for N in N_VALS
+        for M in M_VALS
+        for omega in OMEGA_VALS
+        if (N, M, omega) not in completed
+    ]
+
+
+def _generate_n_scaling_figures(summary: FreeAncillaNScalingScanResult) -> None:
+    """Generate N-scaling figures for each M value.
+
+    Produces ratio, sensitivity, and optimal-params plots per M.
+
+    Args:
+        summary: Scan result containing results for all ``(N, M, omega)`` triples.
+    """
+    df = summary.to_dataframe()
+    for m_val in sorted(df["M"].unique()):
+        df_m = df[df["M"] == m_val].copy()
+        m_suffix = f"-M{m_val}"
+        p_ratio = _fig_path(f"n-scaling-ratio{m_suffix}")
+        p_sens = _fig_path(f"n-scaling-sensitivity{m_suffix}")
+        p_params = _fig_path(f"n-scaling-optimal-params{m_suffix}")
+        plot_n_scaling_ratio(df_m, p_ratio)
+        print(f"[fig]  {p_ratio}")
+        plot_n_scaling_sensitivity(df_m, p_sens, t_hold=T_HOLD)
+        print(f"[fig]  {p_sens}")
+        plot_n_scaling_optimal_params(df_m, p_params)
+        print(f"[fig]  {p_params}")
+
+
 def generate_n_scaling_scan(force: bool = False) -> None:
     """Full :math:`(N, M, \\omega)` scan.
 
@@ -1562,13 +1605,7 @@ def generate_n_scaling_scan(force: bool = False) -> None:
 
         completed, checkpoint_results = _load_checkpoints(checkpoint_dir)
 
-        items_to_run = [
-            (N, M, omega)
-            for N in N_VALS
-            for M in M_VALS
-            for omega in OMEGA_VALS
-            if (N, M, omega) not in completed
-        ]
+        items_to_run = _get_pending_items(completed)
         if items_to_run:
             print(
                 f"[run] N-scaling scan: {len(items_to_run)} remaining "
@@ -1586,19 +1623,7 @@ def generate_n_scaling_scan(force: bool = False) -> None:
         print(f"[save] {parquet_p}")
 
     # Generate figures — one set per M value
-    df = summary.to_dataframe()
-    for m_val in sorted(df["M"].unique()):
-        df_m = df[df["M"] == m_val].copy()
-        m_suffix = f"-M{m_val}"
-        p_ratio = _fig_path(f"n-scaling-ratio{m_suffix}")
-        p_sens = _fig_path(f"n-scaling-sensitivity{m_suffix}")
-        p_params = _fig_path(f"n-scaling-optimal-params{m_suffix}")
-        plot_n_scaling_ratio(df_m, p_ratio)
-        print(f"[fig]  {p_ratio}")
-        plot_n_scaling_sensitivity(df_m, p_sens, t_hold=T_HOLD)
-        print(f"[fig]  {p_sens}")
-        plot_n_scaling_optimal_params(df_m, p_params)
-        print(f"[fig]  {p_params}")
+    _generate_n_scaling_figures(summary)
 
 
 # ============================================================================

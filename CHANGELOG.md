@@ -52,18 +52,19 @@ Items below are **pro/con studies** — evaluate feasibility, maintenance burden
 ### Ongoing Infrastructure Tasks
 
 - 🔴 **3D slice visualization** — Heatmap infrastructure currently supports 2D slices only. For studying all three drive components simultaneously, 3D volumetric plots or 2D projections of 3D landscapes are needed.
-- 🟠 **Survey of existing ignored checks (e.g., `# noqa`) with the goal of not ignoring them** — The codebase has ~60 `# noqa` comments across `src/`, `reports/`, `tests/`, `pages/`. Every `# noqa` is a suppressed rule violation. Audit each one: classify as legitimate (e.g., `# noqa: F401 — re-exported for tests` is intentional), fixable (suppression can be removed by refactoring), or stale (suppression for a rule no longer enforced). Produce a summary table and a plan to eliminate all fixable/stale suppressions.
+
 - 🟠 **CI/CD pipeline** — Automated test/lint/type-check on push and PR; automated CHANGELOG management.
 - 🟡 **Performance benchmarks** — Automated per-function timing to catch regressions exceeding the 100 ms per-simulation budget.
 - 🟡 **Advanced architecture simulation functions** — Implement six model-specific simulators and figure generators for the PENDING advanced architecture surveys (non-Markovian bath, thermal noise, cavity-enhanced MZI, distributed arrays, dynamical decoupling, tilt-to-length noise).
 - 🟠 **CI lint rule for module-level constants in `src/`** — Add a ruff-compatible check (or standalone `scripts/` script) flagging module-level numeric/string literal assignments outside `src/utils/constants.py`. Only 2 true violators exist (`TEST_FUNCTIONS`, `MINIMIZERS` in `optimization.py`), so the guardrail is mostly preventive.
-- 🟢 **`combined_objective` parameter reduction** (#20260616) — The `combined_objective` function takes 11 positional parameters plus 4 optional kwargs. Introduce a `CombinedProtocolConfig` dataclass to bundle `drive_bounds`, `alpha_bounds`, `t_hold`, `T_bs`, `fd_step`, `penalty_scale` into a single argument, reducing cognitive overhead and caller verbosity. See #20260616 audit §7.1.
-- 🟡 **`run_single_oat_optimisation` cyclomatic complexity** (#20260619) — `reports/20260619/local.py` has one C-grade block: `run_single_oat_optimisation` (CC=12). Currently fails the Radon CC test. Refactor by extracting the per-omega optimisation sub-loop into a helper function. See #20260619.
-- 🟡 **`generate_n_scaling_scan` cyclomatic complexity** (#20260620) — `reports/20260620/local.py` has one C-grade block: `generate_n_scaling_scan` (CC=12). Currently fails the Radon CC test. Refactor by extracting the per-(N, M, omega) evaluation into a helper function. See #20260620.
-- 🟡 **`generate_scenario_scan` cyclomatic complexity** (#20260621) — `reports/20260621/local.py` has one C-grade block: `generate_scenario_scan` (CC=12). Currently fails the Radon CC test. Refactor by extracting the per-scenario dispatch logic into a helper function. See #20260621.
-
 
 ---
+
+## Week 26 (Jun 22–28)
+
+### Infrastructure
+- **`combined_objective` parameter reduction** (#20260616) — Introduced `CombinedProtocolConfig` dataclass in `reports/20260616/local.py` bundling `drive_bounds`, `alpha_bounds`, `t_hold`, `T_bs`, `fd_step`, `penalty_scale` into a single `cfg` argument. Updated 4 function signatures (`combined_objective`, `combined_random_search`, `run_combined_bfgs_optimization`, `_run_single_bfgs_from_x0`), reducing total parameter count by 5 per function. All 132 non-slow tests pass.
+- **`# noqa` suppression survey and cleanup** — Surveyed 72 `# noqa` comment instances (98 suppressed violations) across the codebase. Classified as legitimate (architecturally necessary), fixable (removable by refactoring), or stale. Eliminated 44 suppressions (45%) via refactoring: moved `mp.set_start_method` after imports in 20260525/local.py (10 E402), moved `from src.*` imports above importlib blocks in 5 test files (10 E402), promoted late `_path_utils` imports to top in 3 local.py files (3 E402), added `check=True` to 4 `subprocess.run` calls (4 PLW1510), trimmed dead re-exports from 20260509/local.py (16 F401), merged 20260507/local.py re-exports into top block (2 E402). 54 legitimate suppressions remain (20 E402 from `from local import ...`, 25 F401 for re-exports, 6 TC003 for type-checking blocks, 3 ARG003 for required class-method API). All modified tests pass. See CHANGELOG backlog item.
 
 ## Week 25 (Jun 15–21)
 
@@ -82,6 +83,9 @@ Items below are **pro/con studies** — evaluate feasibility, maintenance burden
 - **Project alignment review** — Backlog priorities refreshed (27 items: 2🔴, 7🟠, 11🟡, 7🟢). 4 radon CC violations added to backlog as 🟡 items. Stale runner `reports/20260522/run_parallel_sweep.py` deleted. Findings document Experiment 27 (OAT Pre-Squeezing) updated from PENDING to actual compiled results.
 - **`combined_2d_slice` complexity reduction** (#20260616) — `combined_2d_slice` reduced from CC=10 (grade B) to CC=3 (grade A) by extracting the parallel dispatch into `_run_parallel_combined_slice` and delegating the sequential path through the shared `_combined_slice_worker` helper. See #20260616 audit §3.4.
 - **`_run_single_n_omega` complexity reduction** (#20260616) — `_run_single_n_omega` in `reports/20260616/_run_n_scaling_fast.py` reduced from CC=11 (grade C) to CC=3 (grade A) by extracting the random-search + Nelder-Mead refinement loop into `_random_search_and_refine` (CC=9, grade B). Radon CC test now passes for this file. See #20260616.
+- **`run_single_oat_optimisation` complexity reduction** (#20260619) — `run_single_oat_optimisation` in `reports/20260619/local.py` reduced from CC=12 (grade C) to CC=5 (grade A) by extracting the NM-refinement loop, no-OAT baseline, and result assembly into `_refine_and_assemble_oat_result` (CC=8, grade B). Radon CC test now passes for this file. See #20260619.
+- **`generate_n_scaling_scan` complexity reduction** (#20260620) — `generate_n_scaling_scan` in `reports/20260620/local.py` reduced from CC=12 (grade C) to CC=7 (grade B) by extracting the triple-nested list comprehension into `_get_pending_items` (CC=5, grade A) and the figure-generation loop into `_generate_n_scaling_figures` (CC=2, grade A). Radon CC test now passes for this file. See #20260620.
+- **`generate_scenario_scan` complexity reduction** (#20260621) — `generate_scenario_scan` in `reports/20260621/local.py` reduced from CC=12 (grade C) to CC=8 (grade B) by extracting the per-scenario dispatch loop body (try/except, progress bar, result assembly) into `_process_scan_item` (CC=5, grade A). Radon CC test now passes for this file. See #20260621.
 
 ## Week 24 (Jun 8–14)
 

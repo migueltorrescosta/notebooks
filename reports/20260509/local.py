@@ -23,25 +23,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from src.physics.pseudomode_system import (  # noqa: F401 — re-exported for tests via importlib
+from src.physics.pseudomode_system import (
     PseudomodeConfig,
-    apply_ancilla_entanglement,
-    build_pseudomode_hamiltonian,
-    build_pseudomode_lindblad_operators,
-    check_pseudomode_occupancy,
-    compute_qfi_with_ancilla,
-    compute_qfi_without_ancilla,
-    create_pseudomode_operators,
-    evolve_pseudomode,
-    pseudomode_initial_state,
-    pseudomode_number_operator,
-    qfi_preservation_ratio,
     run_metrology_protocol,
-    trace_out_pseudomode,
-    trace_out_spin,
-    trace_out_spin_and_pseudomode,
-    tripartite_operator,
-    validate_pseudomode_density,
 )
 from src.utils.paths import fig_path, parquet_path
 from src.utils.serialization import ParquetSerializable

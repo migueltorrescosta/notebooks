@@ -75,6 +75,32 @@ N_BFGS_REFINE: int = 200  # L-BFGS-B refinements per (N, ω)
 BFGS_MAXITER: int = 1000  # Max L-BFGS-B iterations
 BFGS_GTOL: float = 1e-6  # L-BFGS-B gradient tolerance
 
+
+@dataclass
+class CombinedProtocolConfig:
+    """Configuration for the combined ω-modulated drive + 4-parameter interaction.
+
+    Bundles the six parameters that control bounds enforcement, timing, and
+    finite-difference numerics into a single argument, reducing cognitive
+    overhead and caller verbosity.
+
+    Attributes:
+        drive_bounds: (min, max) for a_x, a_y, a_z drive parameters.
+        alpha_bounds: (min, max) for α_{ij} interaction parameters.
+        t_hold: Holding time for sensitivity evolution.
+        T_bs: Beam-splitter duration.
+        fd_step: Finite-difference step for ∂⟨J_z^S⟩/∂ω.
+        penalty_scale: Scale for bound-violation quadratic penalty.
+    """
+
+    drive_bounds: tuple[float, float] = DRIVE_BOUNDS
+    alpha_bounds: tuple[float, float] = ALPHA_BOUNDS
+    t_hold: float = T_HOLD
+    T_bs: float = T_BS
+    fd_step: float = FD_STEP
+    penalty_scale: float = 1e6
+
+
 # ω values for N-scaling scans
 OMEGA_VALS_N_SCALING: list[float] = [0.1, 0.2, 0.5, 1.0, 2.0]
 
@@ -942,39 +968,36 @@ def combined_objective(
     ops: dict[str, np.ndarray],
     psi0: np.ndarray,
     ancilla_dim: int,
-    t_hold: float = T_HOLD,
-    T_bs: float = T_BS,
-    fd_step: float = FD_STEP,
-    drive_bounds: tuple[float, float] = DRIVE_BOUNDS,
-    alpha_bounds: tuple[float, float] = ALPHA_BOUNDS,
-    penalty_scale: float = 1e6,
+    cfg: CombinedProtocolConfig | None = None,
 ) -> float:
     """Objective function for minimising Δω in the combined protocol.
 
     params = [a_x, a_y, a_z, α_xx, α_xz, α_zx, α_zz] (7 elements).
 
-    Bounds enforcement: a parameters use drive_bounds, α parameters use
-    alpha_bounds. Out-of-bounds values receive a quadratic penalty.
+    Bounds enforcement: a parameters use cfg.drive_bounds, α parameters use
+    cfg.alpha_bounds. Out-of-bounds values receive a quadratic penalty.
 
     Returns:
         Δω (plus penalty if bounds violated).
     """
+    if cfg is None:
+        cfg = CombinedProtocolConfig()
     a_x, a_y, a_z, alpha_xx, alpha_xz, alpha_zx, alpha_zz = _params_to_args(params)
 
     # Bound enforcement (different bounds for drive vs α)
     penalty = 0.0
-    lo_d, hi_d = drive_bounds
+    lo_d, hi_d = cfg.drive_bounds
     for val in (a_x, a_y, a_z):
         if val < lo_d:
-            penalty += penalty_scale * (lo_d - val) ** 2
+            penalty += cfg.penalty_scale * (lo_d - val) ** 2
         if val > hi_d:
-            penalty += penalty_scale * (val - hi_d) ** 2
-    lo_a, hi_a = alpha_bounds
+            penalty += cfg.penalty_scale * (val - hi_d) ** 2
+    lo_a, hi_a = cfg.alpha_bounds
     for val in (alpha_xx, alpha_xz, alpha_zx, alpha_zz):
         if val < lo_a:
-            penalty += penalty_scale * (lo_a - val) ** 2
+            penalty += cfg.penalty_scale * (lo_a - val) ** 2
         if val > hi_a:
-            penalty += penalty_scale * (val - hi_a) ** 2
+            penalty += cfg.penalty_scale * (val - hi_a) ** 2
 
     if penalty > 0.0:
         return float(1e10 + penalty)
@@ -982,8 +1005,8 @@ def combined_objective(
     return compute_combined_sensitivity(
         N,
         psi0,
-        T_bs,
-        t_hold,
+        cfg.T_bs,
+        cfg.t_hold,
         omega_true,
         a_x,
         a_y,
@@ -994,7 +1017,7 @@ def combined_objective(
         alpha_zz,
         ops,
         ancilla_dim,
-        fd_step,
+        cfg.fd_step,
     )
 
 
@@ -1005,14 +1028,13 @@ def combined_random_search(
     psi0: np.ndarray,
     ancilla_dim: int,
     n_samples: int = N_RANDOM,
-    drive_bounds: tuple[float, float] = DRIVE_BOUNDS,
-    alpha_bounds: tuple[float, float] = ALPHA_BOUNDS,
+    cfg: CombinedProtocolConfig | None = None,
     seed: int | None = 42,
 ) -> CombinedRandomSearchResult:
     """7D random search over (a_x, a_y, a_z, α_xx, α_xz, α_zx, α_zz).
 
-    Drive parameters sampled uniformly in drive_bounds.
-    α parameters sampled uniformly in alpha_bounds.
+    Drive parameters sampled uniformly in cfg.drive_bounds.
+    α parameters sampled uniformly in cfg.alpha_bounds.
 
     Args:
         N: Number of system particles.
@@ -1021,16 +1043,17 @@ def combined_random_search(
         psi0: Initial state vector.
         ancilla_dim: Dimension of ancilla space.
         n_samples: Number of random points.
-        drive_bounds: (min, max) for a_x, a_y, a_z.
-        alpha_bounds: (min, max) for α_{ij}.
+        cfg: Protocol configuration (bounds, timing, fd_step).
         seed: Random seed for reproducibility.
 
     Returns:
         CombinedRandomSearchResult.
     """
+    if cfg is None:
+        cfg = CombinedProtocolConfig()
     rng = np.random.default_rng(seed)
-    lo_d, hi_d = drive_bounds
-    lo_a, hi_a = alpha_bounds
+    lo_d, hi_d = cfg.drive_bounds
+    lo_a, hi_a = cfg.alpha_bounds
 
     # Generate samples: first 3 columns = drive params, last 4 = α params
     samples = np.zeros((n_samples, 7), dtype=float)
@@ -1046,8 +1069,8 @@ def combined_random_search(
         domega = compute_combined_sensitivity(
             N,
             psi0,
-            T_BS,
-            T_HOLD,
+            cfg.T_bs,
+            cfg.t_hold,
             omega,
             a_x,
             a_y,
@@ -1080,7 +1103,7 @@ def combined_random_search(
         best_delta_omega=float(deltas[best_idx]),
         omega_value=omega,
         sql=sql_reference(N),
-        t_hold=T_HOLD,
+        t_hold=cfg.t_hold,
     )
 
 
@@ -1095,12 +1118,8 @@ def run_combined_bfgs_optimization(
     ops: dict[str, np.ndarray],
     psi0: np.ndarray,
     ancilla_dim: int,
-    drive_bounds: tuple[float, float] = DRIVE_BOUNDS,
-    alpha_bounds: tuple[float, float] = ALPHA_BOUNDS,
     n_starts: int = N_BFGS_REFINE,
-    t_hold: float = T_HOLD,
-    T_bs: float = T_BS,
-    fd_step: float = FD_STEP,
+    cfg: CombinedProtocolConfig | None = None,
     seed: int | None = 42,
     maxiter: int = BFGS_MAXITER,
     gtol: float = BFGS_GTOL,
@@ -1118,12 +1137,8 @@ def run_combined_bfgs_optimization(
         ops: Operators from build_*_combined_operators().
         psi0: Initial state vector.
         ancilla_dim: Dimension of ancilla space.
-        drive_bounds: (min, max) for a_x, a_y, a_z.
-        alpha_bounds: (min, max) for α_{ij}.
         n_starts: Number of random starts.
-        t_hold: Holding time.
-        T_bs: Beam-splitter duration.
-        fd_step: Finite-difference step.
+        cfg: Protocol configuration (bounds, timing, fd_step).
         seed: Base random seed (incremented per start).
         maxiter: Maximum L-BFGS-B iterations.
         gtol: L-BFGS-B gradient convergence tolerance.
@@ -1131,8 +1146,10 @@ def run_combined_bfgs_optimization(
     Returns:
         CombinedOptimizationResult with best parameters found.
     """
-    lo_d, hi_d = drive_bounds
-    lo_a, hi_a = alpha_bounds
+    if cfg is None:
+        cfg = CombinedProtocolConfig()
+    lo_d, hi_d = cfg.drive_bounds
+    lo_a, hi_a = cfg.alpha_bounds
     base_seed = seed if seed is not None else 42
 
     best_delta = float("inf")
@@ -1154,11 +1171,7 @@ def run_combined_bfgs_optimization(
             psi0,
             ancilla_dim,
             x0,
-            drive_bounds=drive_bounds,
-            alpha_bounds=alpha_bounds,
-            t_hold=t_hold,
-            T_bs=T_bs,
-            fd_step=fd_step,
+            cfg=cfg,
             maxiter=maxiter,
             gtol=gtol,
         )
@@ -1188,8 +1201,8 @@ def run_combined_bfgs_optimization(
     psi_final = evolve_combined_circuit(
         N,
         psi0,
-        T_bs,
-        t_hold,
+        cfg.T_bs,
+        cfg.t_hold,
         omega_true,
         float(best_params_7[0]),
         float(best_params_7[1]),
@@ -1225,8 +1238,8 @@ def run_combined_bfgs_optimization(
         alpha_zz_opt=float(best_params_7[6]),
         expectation_Jz=exp_val,
         variance_Jz=var_val,
-        t_hold=t_hold,
-        fd_step=fd_step,
+        t_hold=cfg.t_hold,
+        fd_step=cfg.fd_step,
         success=best_success,
         nfev=best_nfev,
         n_starts=n_starts,
@@ -1318,11 +1331,7 @@ def _run_single_bfgs_from_x0(
     psi0: np.ndarray,
     ancilla_dim: int,
     x0: np.ndarray,
-    drive_bounds: tuple[float, float] = DRIVE_BOUNDS,
-    alpha_bounds: tuple[float, float] = ALPHA_BOUNDS,
-    t_hold: float = T_HOLD,
-    T_bs: float = T_BS,
-    fd_step: float = FD_STEP,
+    cfg: CombinedProtocolConfig | None = None,
     seed: int | None = 42,
     maxiter: int = BFGS_MAXITER,
     gtol: float = BFGS_GTOL,
@@ -1336,11 +1345,7 @@ def _run_single_bfgs_from_x0(
         psi0: Initial state vector.
         ancilla_dim: Dimension of ancilla space.
         x0: Starting point (7-element array).
-        drive_bounds: (min, max) for a_x, a_y, a_z.
-        alpha_bounds: (min, max) for α_{ij}.
-        t_hold: Holding time.
-        T_bs: Beam-splitter duration.
-        fd_step: Finite-difference step.
+        cfg: Protocol configuration (bounds, timing, fd_step, penalty_scale).
         seed: Random seed (unused here, kept for API consistency).
         maxiter: Maximum L-BFGS-B iterations.
         gtol: L-BFGS-B gradient convergence tolerance.
@@ -1348,8 +1353,10 @@ def _run_single_bfgs_from_x0(
     Returns:
         CombinedOptimizationResult for this single run.
     """
-    lo_d, hi_d = drive_bounds
-    lo_a, hi_a = alpha_bounds
+    if cfg is None:
+        cfg = CombinedProtocolConfig()
+    lo_d, hi_d = cfg.drive_bounds
+    lo_a, hi_a = cfg.alpha_bounds
     bounds_ls = [(lo_d, hi_d)] * 3 + [(lo_a, hi_a)] * 4
 
     result = minimize(
@@ -1361,12 +1368,7 @@ def _run_single_bfgs_from_x0(
             ops,
             psi0,
             ancilla_dim,
-            t_hold,
-            T_bs,
-            fd_step,
-            drive_bounds,
-            alpha_bounds,
-            1e6,
+            cfg,
         ),
         method="L-BFGS-B",
         bounds=bounds_ls,
@@ -1384,8 +1386,8 @@ def _run_single_bfgs_from_x0(
     psi_final = evolve_combined_circuit(
         N,
         psi0,
-        T_bs,
-        t_hold,
+        cfg.T_bs,
+        cfg.t_hold,
         omega_true,
         float(opt_params[0]),
         float(opt_params[1]),
@@ -1421,8 +1423,8 @@ def _run_single_bfgs_from_x0(
         alpha_zz_opt=float(opt_params[6]),
         expectation_Jz=exp_val,
         variance_Jz=var_val,
-        t_hold=t_hold,
-        fd_step=fd_step,
+        t_hold=cfg.t_hold,
+        fd_step=cfg.fd_step,
         success=bool(result.success),
         nfev=int(result.nfev),
         n_starts=1,

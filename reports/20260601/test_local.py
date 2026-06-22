@@ -1043,7 +1043,7 @@ class TestEdgeCases:
 
 class TestCLI:
     def test_cli_help(self) -> None:
-        result = subprocess.run(  # noqa: PLW1510
+        result = subprocess.run(
             [
                 "uv",
                 "run",
@@ -1054,6 +1054,6 @@ class TestCLI:
             capture_output=True,
             text=True,
             timeout=30,
+            check=True,
         )
-        assert result.returncode == 0
         assert "usage" in result.stdout.lower() or "usage" in result.stderr.lower()

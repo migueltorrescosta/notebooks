@@ -64,6 +64,7 @@ from src.physics.multi_mzi import (
     hold_unitary_dicke,  # noqa: F401 — re-exported for tests
     single_bs_unitary,  # noqa: F401 — re-exported for tests
 )
+from src.utils import paths as _path_utils
 from src.utils.enums import OperatorBasis
 from src.utils.serialization import ParquetSerializable
 
@@ -743,8 +744,6 @@ def plot_omega_dependence(
 # ============================================================================
 # Data / Figure Generation Pipeline
 # ============================================================================
-
-import src.utils.paths as _path_utils  # noqa: E402
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260522"

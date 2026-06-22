@@ -22,6 +22,8 @@ import numpy as np
 import pytest
 import scipy
 
+from src.physics.hybrid_system import hybrid_hamiltonian_n, hybrid_vacuum_state
+
 # ── Load local.py via importlib ──────────────────────────────────────────────
 _local_path = Path(__file__).resolve().parent / "local.py"
 _dirname = Path(__file__).resolve().parent.name
@@ -60,12 +62,6 @@ validate_hybrid_unitary = _report_local.validate_hybrid_unitary
 wigner_from_hybrid_state = _report_local.wigner_from_hybrid_state
 wigner_function_single = _report_local.wigner_function_single
 wigner_is_negative = _report_local.wigner_is_negative
-
-# Non-migrated helpers from src/
-from src.physics.hybrid_system import (  # noqa: E402
-    hybrid_hamiltonian_n,
-    hybrid_vacuum_state,
-)
 
 # =============================================================================
 # Tests from test_hybrid_system.py

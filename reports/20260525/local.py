@@ -35,16 +35,14 @@ from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar
 
-# Use spawn start method to avoid fork + BLAS threading deadlock.
-mp.set_start_method("spawn", force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from scipy.optimize import minimize
 
-import matplotlib.pyplot as plt  # noqa: E402
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-import seaborn as sns  # noqa: E402
-from scipy.optimize import minimize  # noqa: E402
-
-from src.utils.serialization import ParquetSerializable  # noqa: E402
+from src.utils import paths as _path_utils
+from src.utils.serialization import ParquetSerializable
 
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
@@ -52,19 +50,19 @@ if "MPLBACKEND" not in os.environ:
 if "OMP_NUM_THREADS" not in os.environ:
     os.environ["OMP_NUM_THREADS"] = "1"
 
-from src.analysis.decoupled_baseline import (  # noqa: E402
+from src.analysis.decoupled_baseline import (
     generate_decoupled_baseline,
     plot_decoupled_baseline_heatmap,
 )
-from src.analysis.multi_mzi_scaling import (  # noqa: E402
+from src.analysis.multi_mzi_scaling import (
     ScalingAnalysisResult,  # noqa: F401 — re-exported for tests
     fit_scaling_exponents,  # noqa: F401 — re-exported for tests
     generate_scaling_analysis,
 )
-from src.analysis.n_scaling_sweep import (  # noqa: E402
+from src.analysis.n_scaling_sweep import (
     generate_n_scaling_plots,
 )
-from src.physics.multi_mzi import (  # noqa: E402
+from src.physics.multi_mzi import (
     build_hold_hamiltonian,  # noqa: F401 — re-exported for tests
     dual_bs_unitary,  # noqa: F401 — re-exported for tests
     embed_combined_operators,
@@ -72,6 +70,10 @@ from src.physics.multi_mzi import (  # noqa: E402
     hold_unitary_dicke,  # noqa: F401 — re-exported for tests
     single_bs_unitary,  # noqa: F401 — re-exported for tests
 )
+
+# Use spawn start method to avoid fork + BLAS threading deadlock. Must run
+# before any ProcessPoolExecutor is created, but after all imports.
+mp.set_start_method("spawn", force=True)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -1506,8 +1508,6 @@ def plot_comparison_traced_out(
 # ============================================================================
 # Data / Figure Generation Pipeline
 # ============================================================================
-
-import src.utils.paths as _path_utils  # noqa: E402
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260525"

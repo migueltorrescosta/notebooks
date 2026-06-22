@@ -17,6 +17,24 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+# Functions promoted to src/ — imported directly from shared modules.
+from src.analysis.ancilla_optimization import validate_hold_unitarity
+from src.analysis.scaling_fit import fit_scaling_exponent
+from src.physics.mzi_simulation import beam_splitter_unitary
+from src.physics.mzi_states import (
+    compute_jz_variance,
+    two_mode_jz_operator,
+)
+from src.physics.single_particle_mzi import (
+    build_holding_unitary,
+    compute_analytical_derivative,
+    compute_delta_omega_from_propagation,
+    compute_numerical_derivative,
+    compute_sensitivity_sweep,
+    evolve_single_particle_mzi,
+    run_validation,
+)
+
 # ── Load local.py via importlib ──────────────────────────────────────────────
 _local_path = Path(__file__).resolve().parent / "local.py"
 _dirname = Path(__file__).resolve().parent.name
@@ -27,24 +45,6 @@ _report_local = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 sys.modules[_modname] = _report_local
 _spec.loader.exec_module(_report_local)
-
-# Functions promoted to src/ — imported directly
-from src.analysis.ancilla_optimization import validate_hold_unitarity  # noqa: E402
-from src.analysis.scaling_fit import fit_scaling_exponent  # noqa: E402
-from src.physics.mzi_simulation import beam_splitter_unitary  # noqa: E402
-from src.physics.mzi_states import (  # noqa: E402
-    compute_jz_variance,
-    two_mode_jz_operator,
-)
-from src.physics.single_particle_mzi import (  # noqa: E402
-    build_holding_unitary,
-    compute_analytical_derivative,
-    compute_delta_omega_from_propagation,
-    compute_numerical_derivative,
-    compute_sensitivity_sweep,
-    evolve_single_particle_mzi,
-    run_validation,
-)
 
 
 def _fock_state(n0: int, n1: int) -> np.ndarray:

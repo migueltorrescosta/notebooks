@@ -20,6 +20,7 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+from src.algorithms.coherent_spin_state import coherent_spin_state
 from src.analysis.sensitivity_metrics import sql_reference
 from src.utils.serialization import assert_roundtrip_fields
 
@@ -59,8 +60,6 @@ from local import (  # noqa: E402
     sensitivity_objective,
     verify_decoupled_baseline,
 )
-
-from src.algorithms.coherent_spin_state import coherent_spin_state  # noqa: E402
 
 # ============================================================================
 # Fixtures

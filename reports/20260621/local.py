@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import argparse
 import math
-import os
 import time
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -1154,8 +1153,7 @@ def run_single_scenario_omega(
     # This happens for Scenario C (no interaction, a_zz=0), where
     # independent S/A evolution gives zero ⟨J_z^S⟩ for all parameters.
     all_fringe = all(
-        not np.isfinite(d) or d > 1e6
-        for d in rs_result.delta_omega_values
+        not np.isfinite(d) or d > 1e6 for d in rs_result.delta_omega_values
     )
 
     if all_fringe:
@@ -1311,6 +1309,63 @@ def generate_decoupled_baseline(force: bool = False) -> None:
     print(f"[save] {parquet_p}")
 
 
+def _process_scan_item(
+    item: tuple[str, float],
+    idx: int,
+    total: int,
+    t_start: float,
+    results: list[BellOptimisationResult],
+) -> None:
+    """Process a single (scenario, omega) item for the scenario scan.
+
+    Handles try/except around the worker call, prints a progress bar with ETA,
+    and appends non-fringe results to ``results`` in-place.
+    """
+    sc_str, omega_val = item
+    t_item = time.monotonic()
+    try:
+        rdict = _worker(item)
+    except Exception as exc:
+        print(f"\n  [ERROR] S={sc_str}, ω={omega_val}: {exc}")
+        return
+    elapsed = time.monotonic() - t_item
+    delta = rdict["delta_omega_opt"]
+    ratio_str = f"Δω={delta:.6f}" if np.isfinite(delta) else "Δω=∞"
+    frac = (idx + 1) / total
+    nbars = int(frac * 40)
+    bar = "█" * nbars + "░" * (40 - nbars)
+    total_elapsed = time.monotonic() - t_start
+    remaining = total_elapsed / (idx + 1) * (total - idx - 1) if idx > 0 else 0
+    print(
+        f"  [{bar}] {idx + 1:3d}/{total} "
+        f"S={sc_str} ω={omega_val:3.1f} {ratio_str} "
+        f"({elapsed:.1f}s, ETA {remaining:.0f}s)",
+        flush=True,
+    )
+    if not np.isfinite(delta):
+        return
+    results.append(
+        BellOptimisationResult(
+            scenario=str(rdict["scenario"]),
+            omega=float(rdict["omega"]),
+            delta_omega_opt=float(rdict["delta_omega_opt"]),
+            sql=float(rdict["sql"]),
+            ratio=float(rdict["ratio"]),
+            a_x_opt=float(rdict["a_x_opt"]),
+            a_y_opt=float(rdict["a_y_opt"]),
+            a_z_opt=float(rdict["a_z_opt"]),
+            a_zz_opt=float(rdict["a_zz_opt"]),
+            expectation_Jz=float(rdict["expectation_Jz"]),
+            variance_Jz=float(rdict["variance_Jz"]),
+            drive_norm=float(rdict["drive_norm"]),
+            d_exp=float(rdict["d_exp"]),
+            is_fringe=bool(rdict["is_fringe"]),
+            success=bool(rdict["success"]),
+            nfev=int(rdict["nfev"]),
+        ),
+    )
+
+
 def generate_scenario_scan(force: bool = False) -> None:
     """Full (scenario, omega) scan.
 
@@ -1341,55 +1396,11 @@ def generate_scenario_scan(force: bool = False) -> None:
         results: list[BellOptimisationResult] = []
         t_start = time.monotonic()
         for idx, item in enumerate(items_to_run):
-            sc_str, omega_val = item
-            t_item = time.monotonic()
-            try:
-                rdict = _worker(item)
-            except Exception as exc:
-                print(f"\n  [ERROR] S={sc_str}, ω={omega_val}: {exc}")
-                continue
-            elapsed = time.monotonic() - t_item
-            delta = rdict["delta_omega_opt"]
-            ratio_str = (
-                f"Δω={delta:.6f}"
-                if np.isfinite(delta)
-                else "Δω=∞"
-            )
-            frac = (idx + 1) / total
-            nbars = int(frac * 40)
-            bar = "█" * nbars + "░" * (40 - nbars)
-            total_elapsed = time.monotonic() - t_start
-            remaining = total_elapsed / (idx + 1) * (total - idx - 1) if idx > 0 else 0
-            print(
-                f"  [{bar}] {idx+1:3d}/{total} "
-                f"S={sc_str} ω={omega_val:3.1f} {ratio_str} "
-                f"({elapsed:.1f}s, ETA {remaining:.0f}s)",
-                flush=True,
-            )
-            if not np.isfinite(delta):
-                continue
-            results.append(
-                BellOptimisationResult(
-                    scenario=str(rdict["scenario"]),
-                    omega=float(rdict["omega"]),
-                    delta_omega_opt=float(rdict["delta_omega_opt"]),
-                    sql=float(rdict["sql"]),
-                    ratio=float(rdict["ratio"]),
-                    a_x_opt=float(rdict["a_x_opt"]),
-                    a_y_opt=float(rdict["a_y_opt"]),
-                    a_z_opt=float(rdict["a_z_opt"]),
-                    a_zz_opt=float(rdict["a_zz_opt"]),
-                    expectation_Jz=float(rdict["expectation_Jz"]),
-                    variance_Jz=float(rdict["variance_Jz"]),
-                    drive_norm=float(rdict["drive_norm"]),
-                    d_exp=float(rdict["d_exp"]),
-                    is_fringe=bool(rdict["is_fringe"]),
-                    success=bool(rdict["success"]),
-                    nfev=int(rdict["nfev"]),
-                ),
-            )
+            _process_scan_item(item, idx, total, t_start, results)
         total_time = time.monotonic() - t_start
-        print(f"  Total: {total_time:.0f}s for {total} pairs ({total_time/total:.1f}s avg)")
+        print(
+            f"  Total: {total_time:.0f}s for {total} pairs ({total_time / total:.1f}s avg)"
+        )
         summary = BellScanResult(results=results)
         summary.save_parquet(parquet_p)
         print(f"[save] {parquet_p}")

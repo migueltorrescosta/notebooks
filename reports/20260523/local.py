@@ -64,6 +64,7 @@ from src.physics.multi_mzi import (
     embed_combined_operators,
     single_bs_unitary,
 )
+from src.utils import paths as _path_utils
 from src.utils.enums import OperatorBasis
 from src.utils.serialization import ParquetSerializable
 
@@ -1436,8 +1437,6 @@ def plot_omega_scan(
 # ============================================================================
 # Data / Figure Generation Pipeline
 # ============================================================================
-
-import src.utils.paths as _path_utils  # noqa: E402
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260523"

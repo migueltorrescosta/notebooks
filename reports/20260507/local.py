@@ -35,14 +35,33 @@ from src.evolution.lindblad_solver import (
     validate_density_matrix,
 )
 from src.physics.hybrid_mzi import qfi_hybrid_mzi
+from src.physics.hybrid_mzi import (  # F401 — re-exported for tests via _report_local
+    compute_wigner_for_state,
+    embed_hybrid_in_mzi,
+    evolve_hybrid_mzi,  # noqa: F401 — re-exported for tests
+    mzi_beam_splitter,  # noqa: F401 — re-exported for tests
+    mzi_marginal_photon_probs,  # noqa: F401 — re-exported for tests
+    mzi_output_probabilities,  # noqa: F401 — re-exported for tests
+    mzi_phase_generator,
+    mzi_phase_shift,  # noqa: F401 — re-exported for tests
+    wigner_from_hybrid_state,  # noqa: F401 — re-exported for tests
+    wigner_function_single,  # noqa: F401 — re-exported for tests
+    wigner_is_negative,
+)
 from src.physics.hybrid_system import (
+    adaptive_truncation,
+    evolve_hybrid_state,  # noqa: F401 — re-exported for tests
+    hybrid_coherent_state,  # noqa: F401 — re-exported for tests
     hybrid_hamiltonian_n,
+    hybrid_mean_photon,
     hybrid_vacuum_state,
     oscillator_annihilation,
     oscillator_creation,
     oscillator_power,
     spin_operator_phi,
     spin_operator_z,
+    validate_hybrid_state,
+    validate_hybrid_unitary,  # noqa: F401 — re-exported for tests
 )
 
 REPORT_DATE = "20260507"
@@ -50,40 +69,6 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent
 _REPORT_DIR = REPORTS_DIR / REPORT_DATE
 _RAW_DIR = _REPORT_DIR / "raw_data"
 _FIG_DIR = _REPORT_DIR / "figures"
-
-
-# =============================================================================
-# Section: Re-imported from src/physics/hybrid_system.py
-# =============================================================================
-# These functions have been promoted back to src/physics/hybrid_system.py
-# and are re-exported here for backward compatibility with existing tests.
-
-# =============================================================================
-# Section: Re-imported from src/physics/hybrid_mzi.py
-# =============================================================================
-# These functions have been promoted back to src/physics/hybrid_mzi.py
-# and are re-exported here for backward compatibility.
-from src.physics.hybrid_mzi import (  # noqa: E402, F401
-    compute_wigner_for_state,
-    embed_hybrid_in_mzi,
-    evolve_hybrid_mzi,
-    mzi_beam_splitter,
-    mzi_marginal_photon_probs,
-    mzi_output_probabilities,
-    mzi_phase_generator,
-    mzi_phase_shift,
-    wigner_from_hybrid_state,
-    wigner_function_single,
-    wigner_is_negative,
-)
-from src.physics.hybrid_system import (  # noqa: E402, F401
-    adaptive_truncation,
-    evolve_hybrid_state,
-    hybrid_coherent_state,
-    hybrid_mean_photon,
-    validate_hybrid_state,
-    validate_hybrid_unitary,
-)
 
 # =============================================================================
 # Section: From src/physics/hybrid_lindblad.py
