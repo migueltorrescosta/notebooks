@@ -64,8 +64,8 @@ from src.physics.multi_mzi import (
     hold_unitary_dicke,  # noqa: F401 — re-exported for tests
     single_bs_unitary,  # noqa: F401 — re-exported for tests
 )
-from src.utils import paths
 from src.utils.enums import OperatorBasis
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 if TYPE_CHECKING:
@@ -751,15 +751,7 @@ OMEGA_VALS: list[float] = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist
 N_VALS: list[int] = list(range(1, 21))
 
 
-def parquet_path(name: str) -> Path:
-    """Return path to a raw_data Parquet file for this report."""
-    return paths.parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def fig_path(name: str) -> Path:
-    """Return path to a figures SVG file for this report."""
-    return paths.fig_path(REPORTS_DIR, REPORT_DATE, name)
-
+parquet_path, fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 # Backward-compatible aliases
 _parquet_path = parquet_path

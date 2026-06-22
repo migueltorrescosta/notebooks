@@ -48,7 +48,12 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
     single_qubit_state,
 )
-from src.utils.paths import fig_path, parquet_path
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_omega_scan,
+)
+from src.utils.monte_carlo import marsaglia_ball_sample
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
@@ -86,12 +91,7 @@ SLICE_N: int = 201
 # ============================================================================
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ============================================================================
@@ -215,47 +215,6 @@ def compute_free_ancilla_sensitivity(
 # ============================================================================
 
 
-def _marsaglia_3ball_sample(
-    rng: np.random.Generator,
-    n_samp: int,
-    R: float,
-    azz_lo: float,
-    azz_hi: float,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Generate uniform samples from the 3-ball of radius R.
-
-    Uses Marsaglia's method: generate 3 i.i.d. standard normal variates,
-    divide by their norm, multiply by R * u^(1/3) where u ~ U[0,1].
-
-    Args:
-        rng: NumPy random generator.
-        n_samp: Number of samples.
-        R: Ball radius.
-        azz_lo: Lower bound for a_zz.
-        azz_hi: Upper bound for a_zz.
-
-    Returns:
-        Tuple ``(drive_samples, azz_samples)`` where drive_samples has shape
-        ``(n_samp, 3)`` with columns ``[a_x, a_y, a_z]``, and azz_samples has
-        shape ``(n_samp,)``.
-    """
-    # Step 1: 3 i.i.d. standard normal variates
-    z = rng.normal(0.0, 1.0, size=(n_samp, 3))
-    # Step 2: Normalise to unit sphere
-    sphere_norm = np.sqrt(np.sum(z**2, axis=1))
-    sphere_norm = np.maximum(sphere_norm, 1e-300)  # avoid division by zero
-    z_unit = z / sphere_norm[:, np.newaxis]
-    # Step 3: Radial scaling for uniform volume distribution
-    u = rng.uniform(0.0, 1.0, size=n_samp)
-    r_scaled = R * (u ** (1.0 / 3.0))
-    drive_samples = z_unit * r_scaled[:, np.newaxis]
-
-    # a_zz sampled uniformly in [azz_lo, azz_hi]
-    azz_samples = rng.uniform(azz_lo, azz_hi, size=n_samp)
-
-    return drive_samples, azz_samples
-
-
 # ============================================================================
 # Scenario Sampling Helpers
 # ============================================================================
@@ -272,7 +231,7 @@ def _sample_scenario_A(
     Returns:
         Tuple ``(theta_A, phi_A, a_x, a_y, a_z, a_zz)``.
     """
-    drive, azz = _marsaglia_3ball_sample(rng, 1, R_MAX, AZZ_BOUNDS[0], AZZ_BOUNDS[1])
+    drive, azz = marsaglia_ball_sample(rng, 1, R_MAX, AZZ_BOUNDS[0], AZZ_BOUNDS[1])
     return (
         0.0,
         0.0,
@@ -296,7 +255,7 @@ def _sample_scenario_B(
     """
     theta_A = rng.uniform(0.0, np.pi)
     phi_A = rng.uniform(0.0, 2.0 * np.pi)
-    drive, azz = _marsaglia_3ball_sample(rng, 1, R_MAX, AZZ_BOUNDS[0], AZZ_BOUNDS[1])
+    drive, azz = marsaglia_ball_sample(rng, 1, R_MAX, AZZ_BOUNDS[0], AZZ_BOUNDS[1])
     return (
         theta_A,
         phi_A,
@@ -337,7 +296,7 @@ def _sample_scenario_D(
     """
     theta_A = rng.uniform(0.0, np.pi)
     phi_A = rng.uniform(0.0, 2.0 * np.pi)
-    drive, _ = _marsaglia_3ball_sample(rng, 1, R_MAX, 0.0, 0.0)
+    drive, _ = marsaglia_ball_sample(rng, 1, R_MAX, 0.0, 0.0)
     return (
         theta_A,
         phi_A,
@@ -1197,75 +1156,57 @@ def run_free_ancilla_omega_scan(
     Returns:
         FreeAncillaOmegaScanResult.
     """
-    omega_arr = np.asarray(omega_values, dtype=float)
-    base_seed = seed if seed is not None else 42
+    config = TwoPhaseConfig(n_random=n_random, n_nm_refine=n_nm_refine, seed=seed)
 
-    best_params_list: list[tuple[float, float, float, float, float, float]] = []
-    best_deltas: list[float] = []
-    sql_vals: list[float] = []
-    exp_vals: list[float] = []
-    var_vals: list[float] = []
-
-    for omega in omega_arr:
-        # Stage 1: Random search
-        rs_result = free_ancilla_random_search(
+    def rs_fn(n_samples, seed, **kw):
+        omega = kw["omega"]
+        return free_ancilla_random_search(
             omega,
             scenario,
-            n_samples=n_random,
+            n_samples=n_samples,
+            seed=seed,
             R=R,
             azz_bounds=azz_bounds,
             t_hold=t_hold,
             T_BS=T_BS,
-            seed=base_seed + int(omega * 1000),
         )
 
-        # Sort random-search results by Δω, take top n_nm_refine
-        sorted_indices = np.argsort(rs_result.delta_omega_values)
-        top_indices = sorted_indices[:n_nm_refine]
+    def nm_fn(x0, seed, **kw):
+        omega = kw["omega_true"]
+        scenario_x0 = {
+            "A": lambda x: x[2:6].copy(),
+            "B": lambda x: x.copy(),
+            "C": lambda x: np.array([x[0], x[1], x[5]]),
+            "D": lambda x: np.array([x[0], x[1], x[2], x[3], x[4]]),
+        }[scenario](x0)
+        return run_free_ancilla_nelder_mead(
+            omega_true=omega,
+            scenario=scenario,
+            x0=scenario_x0,
+            seed=seed,
+            t_hold=t_hold,
+            T_BS=T_BS,
+            maxiter=maxiter,
+            bounds=bounds,
+        )
 
-        # Stage 2: Nelder--Mead refinement from each top point
-        nm_results: list[FreeAncillaNelderMeadResult] = []
-        for rank, idx in enumerate(top_indices):
-            # Build x0 from the full 6-param sample, keeping only the free params
-            full = rs_result.samples[idx]
-            if scenario == "A":
-                x0 = full[2:6].copy()  # [a_x, a_y, a_z, a_zz]
-            elif scenario == "B":
-                x0 = full.copy()  # [theta_A, phi_A, a_x, a_y, a_z, a_zz]
-            elif scenario == "C":
-                x0 = np.array([full[0], full[1], full[5]])  # [theta_A, phi_A, a_zz]
-            elif scenario == "D":
-                x0 = np.array(
-                    [full[0], full[1], full[2], full[3], full[4]]
-                )  # [theta_A, phi_A, a_x, a_y, a_z]
-            else:
-                raise ValueError(f"Unknown scenario: {scenario}")
+    best_results, _ = run_omega_scan(
+        omega_values,
+        rs_fn,
+        nm_fn,
+        config,
+        rs_kwargs={"scenario": scenario, "t_hold": t_hold, "T_BS": T_BS},
+        nm_kwargs={"scenario": scenario, "t_hold": t_hold, "T_BS": T_BS},
+    )
 
-            nm = run_free_ancilla_nelder_mead(
-                omega_true=omega,
-                scenario=scenario,
-                x0=x0,
-                seed=base_seed + int(omega * 1000) + 10000 + rank,
-                maxiter=maxiter,
-                bounds=bounds,
-                t_hold=t_hold,
-                T_BS=T_BS,
-                track_history=False,
-            )
-            nm_results.append(nm)
-
-        # Sort NM results by Δω
-        nm_results.sort(key=lambda r: r.delta_omega_opt)
-        best_nm = nm_results[0]
-
-        best_params_list.append(best_nm.full_params_opt)
-        best_deltas.append(best_nm.delta_omega_opt)
-        sql_vals.append(1.0 / t_hold)
-        exp_vals.append(best_nm.expectation_Jz)
-        var_vals.append(best_nm.variance_Jz)
+    best_params_list = [r.full_params_opt for r in best_results]
+    best_deltas = [r.delta_omega_opt for r in best_results]
+    sql_vals = [1.0 / t_hold] * len(best_results)
+    exp_vals = [r.expectation_Jz for r in best_results]
+    var_vals = [r.variance_Jz for r in best_results]
 
     return FreeAncillaOmegaScanResult(
-        omega_values=omega_arr,
+        omega_values=np.asarray(omega_values, dtype=float),
         best_params_per_omega=best_params_list,
         best_delta_omega_per_omega=np.array(best_deltas, dtype=float),
         sql_values=np.array(sql_vals, dtype=float),

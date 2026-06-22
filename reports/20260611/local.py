@@ -27,7 +27,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
 
 from src.analysis.ancilla_drive_metrology import (
     DriveNelderMeadResult,
@@ -41,6 +40,12 @@ from src.analysis.decoupled_baseline import (
     verify_decoupled_baseline,
 )
 from src.analysis.n_scaling_result import NScalingResult, NScalingScanResult
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_nelder_mead,
+    run_random_search,
+    run_two_phase_pipeline,
+)
 from src.analysis.sensitivity_metrics import sql_reference
 from src.physics.n_particle_drive import (
     build_n_particle_operators,
@@ -50,7 +55,7 @@ from src.physics.n_particle_drive import (
     n_particle_initial_state,
 )
 from src.utils.parallel import parallel_map
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.visualization.scaling_plots import (
     plot_n_scaling_optimal_params,
     plot_n_scaling_ratio,
@@ -83,77 +88,65 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260611"
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ============================================================================
-# 4D Random Search
+# N-Scaling Scan (Single (N, ω) Worker)
 # ============================================================================
 
 
-def n_particle_random_search(
+def _make_n_particle_objective(
     N: int,
     omega: float,
-    n_samples: int = N_RANDOM,
-    bounds: tuple[float, float] = DRIVE_BOUNDS,
-    seed: int | None = 42,
-) -> DriveRandomSearchResult:
-    """Random search over the 4D parameter space (a_x, a_y, a_z, a_zz).
+    ops: dict[str, np.ndarray],
+    psi0: np.ndarray,
+) -> Callable[[np.ndarray], float]:
+    """Build the raw (unpenalised) Δω objective for a given (N, ω) pair."""
 
-    Args:
-        N: Number of system particles.
-        omega: Phase rate value.
-        n_samples: Number of random points to evaluate.
-        bounds: (min, max) for all four coefficients.
-        seed: Random seed for reproducibility.
-
-    Returns:
-        DriveRandomSearchResult with all samples and best found.
-    """
-    rng = np.random.default_rng(seed)
-    ops = build_n_particle_operators(N)
-    psi0 = n_particle_initial_state(N)
-    lo, hi = bounds
-
-    samples = rng.uniform(lo, hi, size=(n_samples, 4))
-    deltas = np.full(n_samples, np.inf, dtype=float)
-
-    for i in range(n_samples):
-        ax = float(samples[i, 0])
-        ay = float(samples[i, 1])
-        az = float(samples[i, 2])
-        azz = float(samples[i, 3])
-        domega = compute_n_particle_sensitivity(
+    def _raw_objective(p: np.ndarray) -> float:
+        return compute_n_particle_sensitivity(
             N,
             psi0,
             T_BS,
             T_HOLD,
             omega,
-            ax,
-            ay,
-            az,
-            azz,
+            float(p[0]),
+            float(p[1]),
+            float(p[2]),
+            float(p[3]),
             ops,
+            FD_STEP,
         )
-        deltas[i] = domega
 
-    best_idx = int(np.argmin(deltas))
-    best_params: tuple[float, float, float, float] = (
-        float(samples[best_idx, 0]),
-        float(samples[best_idx, 1]),
-        float(samples[best_idx, 2]),
-        float(samples[best_idx, 3]),
+    return _raw_objective
+
+
+def _build_rs_result(
+    raw_objective: Callable[[np.ndarray], float],
+    n_samples: int,
+    seed: int,
+    omega: float,
+    N: int,
+) -> DriveRandomSearchResult:
+    """Run random search and wrap result in DriveRandomSearchResult."""
+    samples, deltas = run_random_search(
+        raw_objective,
+        n_params=4,
+        n_samples=n_samples,
+        bounds=DRIVE_BOUNDS,
+        seed=seed,
     )
-
+    best_idx = int(np.argmin(deltas))
     return DriveRandomSearchResult(
         samples=samples,
         delta_omega_values=deltas,
-        best_params=best_params,
+        best_params=(
+            float(samples[best_idx, 0]),
+            float(samples[best_idx, 1]),
+            float(samples[best_idx, 2]),
+            float(samples[best_idx, 3]),
+        ),
         best_delta_omega=float(deltas[best_idx]),
         omega_value=omega,
         sql=sql_reference(N),
@@ -161,183 +154,47 @@ def n_particle_random_search(
     )
 
 
-# ============================================================================
-# Nelder-Mead Optimisation
-# ============================================================================
-
-
-def n_particle_sensitivity_objective(
-    params: np.ndarray,
+def _build_nm_result(
+    raw_objective: Callable[[np.ndarray], float],
+    x0: np.ndarray,
     N: int,
-    omega_true: float,
+    omega: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray,
-    t_hold: float = T_HOLD,
-    T_bs: float = T_BS,
-    fd_step: float = FD_STEP,
-    bounds: tuple[float, float] = DRIVE_BOUNDS,
-    penalty_scale: float = 1e6,
-) -> float:
-    """Objective function for minimising Δω in the N-particle protocol.
-
-    params = [a_x, a_y, a_z, a_zz] (4 elements).
-
-    Args:
-        params: 4-element parameter vector.
-        N: Number of system particles.
-        omega_true: True phase rate.
-        ops: N-particle operators.
-        psi0: Initial state vector.
-        t_hold: Holding time.
-        T_bs: Beam-splitter duration.
-        fd_step: Finite-difference step.
-        bounds: (min, max) for all parameters.
-        penalty_scale: Scale for bound-violation penalty.
-
-    Returns:
-        Δω (plus infinite penalty if bounds violated).
-    """
-    ax = float(params[0])
-    ay = float(params[1])
-    az = float(params[2])
-    azz = float(params[3])
-
-    # Bound enforcement
-    lo, hi = bounds
-    penalty = 0.0
-    for val in (ax, ay, az, azz):
-        if val < lo:
-            penalty += penalty_scale * (lo - val) ** 2
-        if val > hi:
-            penalty += penalty_scale * (val - hi) ** 2
-
-    if penalty > 0.0:
-        return float(1e10 + penalty)
-
-    return compute_n_particle_sensitivity(
-        N,
-        psi0,
-        T_bs,
-        t_hold,
-        omega_true,
-        ax,
-        ay,
-        az,
-        azz,
-        ops,
-        fd_step,
-    )
-
-
-def run_n_particle_nelder_mead(
-    N: int,
-    omega_true: float,
-    ops: dict[str, np.ndarray] | None = None,
-    psi0: np.ndarray | None = None,
-    x0: np.ndarray | None = None,
-    seed: int | None = None,
-    maxiter: int = NM_MAXITER,
-    xatol: float = 1e-8,
-    fatol: float = 1e-8,
-    adaptive: bool = True,
-    bounds: tuple[float, float] = DRIVE_BOUNDS,
-    track_history: bool = False,
 ) -> DriveNelderMeadResult:
-    """Run Nelder-Mead optimisation for the N-particle ω-modulated protocol.
-
-    Args:
-        N: Number of system particles.
-        omega_true: True phase rate parameter.
-        ops: N-particle operators (built if None).
-        psi0: Initial state (built if None).
-        x0: Initial 4-parameter vector [ax, ay, az, azz]. Random if None.
-        seed: Random seed (used if x0 is None).
-        maxiter: Maximum Nelder-Mead iterations.
-        xatol: Absolute parameter tolerance.
-        fatol: Absolute function tolerance.
-        adaptive: Use adaptive Nelder-Mead parameters.
-        bounds: (min, max) for all four parameters.
-        track_history: If True, record objective values per iteration.
-
-    Returns:
-        DriveNelderMeadResult.
-    """
-    if ops is None:
-        ops = build_n_particle_operators(N)
-    if psi0 is None:
-        psi0 = n_particle_initial_state(N)
-
-    if x0 is None:
-        rng = np.random.default_rng(seed)
-        lo, hi = bounds
-        x0 = rng.uniform(lo, hi, size=4)
-    else:
-        x0 = np.asarray(x0, dtype=float)
-        assert x0.shape == (4,), f"x0 must have 4 elements, got {x0.shape}"
-
-    def objective(p: np.ndarray) -> float:
-        return n_particle_sensitivity_objective(
-            p,
-            N,
-            omega_true,
-            ops,
-            psi0,
-            bounds=bounds,
-        )
-
-    history: list[float] = []
-
-    def callback(_x: np.ndarray) -> None:
-        if track_history:
-            val = objective(_x)
-            history.append(val)
-
-    result = minimize(
-        objective,
+    """Run Nelder-Mead and wrap result in DriveNelderMeadResult."""
+    nm = run_nelder_mead(
+        raw_objective,
         x0=x0,
-        method="Nelder-Mead",
-        callback=callback if track_history else None,  # type: ignore[arg-type]
-        options={  # type: ignore[call-overload]
-            "maxiter": maxiter,
-            "xatol": xatol,
-            "fatol": fatol,
-            "adaptive": adaptive,
-        },
+        bounds=DRIVE_BOUNDS,
+        maxiter=NM_MAXITER,
+        track_history=False,
     )
-
-    opt_params = result.x.copy()
-
-    # Compute diagnostics at the optimal point
+    opt_p = nm["x_opt"]
     psi_final = evolve_n_particle_circuit(
         N,
         psi0,
         T_BS,
         T_HOLD,
-        omega_true,
-        float(opt_params[0]),
-        float(opt_params[1]),
-        float(opt_params[2]),
-        float(opt_params[3]),
+        omega,
+        float(opt_p[0]),
+        float(opt_p[1]),
+        float(opt_p[2]),
+        float(opt_p[3]),
         ops,
     )
     exp_val, var_val = compute_expectation_and_variance(psi_final, ops["Jz_S"])
-
     return DriveNelderMeadResult(
-        delta_omega_opt=float(result.fun),
-        params_opt=opt_params,
-        omega_true=omega_true,
-        success=bool(result.success),
-        nfev=int(result.nfev),
-        message=str(result.message),
+        delta_omega_opt=nm["fun_opt"],
+        params_opt=opt_p,
+        omega_true=omega,
+        success=nm["success"],
+        nfev=nm["nfev"],
+        message=nm["message"],
         expectation_Jz=exp_val,
         variance_Jz=var_val,
-        history=history.copy(),
+        history=nm["history"],
     )
-
-
-# ============================================================================
-# N-Scaling Scan (Single (N, ω) Worker)
-# ============================================================================
 
 
 def run_single_n_omega(
@@ -362,35 +219,28 @@ def run_single_n_omega(
     base_seed = seed if seed is not None else 42
     ops = build_n_particle_operators(N)
     psi0 = n_particle_initial_state(N)
+    raw_obj = _make_n_particle_objective(N, omega, ops, psi0)
 
-    # Stage 1: Random search
-    rs_result = n_particle_random_search(
-        N,
-        omega,
-        n_samples=N_RANDOM,
-        seed=base_seed,
+    best_nm, _ = run_two_phase_pipeline(
+        random_search_fn=lambda n_samples, seed, **kw: _build_rs_result(
+            raw_obj,
+            n_samples,
+            seed,
+            omega,
+            N,
+        ),
+        nm_fn=lambda x0, seed, **kw: _build_nm_result(
+            raw_obj,
+            x0,
+            N,
+            omega,
+            ops,
+            psi0,
+        ),
+        config=TwoPhaseConfig(
+            n_random=N_RANDOM, n_nm_refine=N_NM_REFINE, seed=base_seed
+        ),
     )
-
-    # Sort by Δω, take top N_NM_REFINE
-    sorted_indices = np.argsort(rs_result.delta_omega_values)
-    top_indices = sorted_indices[:N_NM_REFINE]
-
-    # Stage 2: Nelder-Mead refinement from each top point
-    nm_results: list[DriveNelderMeadResult] = []
-    for rank, idx in enumerate(top_indices):
-        x0 = rs_result.samples[idx].copy()
-        nm = run_n_particle_nelder_mead(
-            N=N,
-            omega_true=omega,
-            ops=ops,
-            psi0=psi0,
-            x0=x0,
-            seed=base_seed + int(omega * 1000) + 10000 + rank,
-        )
-        nm_results.append(nm)
-
-    nm_results.sort(key=lambda r: r.delta_omega_opt)
-    best_nm = nm_results[0]
 
     sql_val = sql_reference(N)
     return NScalingResult(

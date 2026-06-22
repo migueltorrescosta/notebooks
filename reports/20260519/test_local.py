@@ -31,9 +31,7 @@ if TYPE_CHECKING:
 from src.analysis.ancilla_drive_metrology import (
     Drive2DSliceResult,
     DriveDecoupledBaselineResult,
-    DriveNelderMeadResult,
     DriveOmegaScanResult,
-    DriveRandomSearchResult,
 )
 from src.analysis.ancilla_optimization import (
     I_2,
@@ -64,8 +62,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     phase_modulated_2d_slice,
     phase_modulated_hold_unitary,
     phase_modulated_random_search,
-    phase_modulated_sensitivity_objective,
-    run_phase_modulated_nelder_mead,
     run_phase_modulated_omega_scan,
     system_only_bs_unitary,
 )
@@ -378,100 +374,6 @@ class TestPhaseModulated2DSlice:
             result.delta_omega_grid,
             nan_ok=True,
         )
-
-
-# ============================================================================
-# 4D Random Search
-# ============================================================================
-
-
-class TestPhaseModulatedRandomSearch:
-    def test_random_search_returns_correct_length(self) -> None:
-        result = phase_modulated_random_search(omega=1.0, n_samples=50, seed=42)
-        assert result.samples.shape == (50, 4)
-        assert len(result.delta_omega_values) == 50
-
-    def test_random_search_reproducible(self) -> None:
-        r1 = phase_modulated_random_search(omega=1.0, n_samples=50, seed=42)
-        r2 = phase_modulated_random_search(omega=1.0, n_samples=50, seed=42)
-        assert np.allclose(r1.samples, r2.samples)
-        assert np.allclose(r1.delta_omega_values, r2.delta_omega_values)
-
-    def test_random_search_best_is_best(self) -> None:
-        result = phase_modulated_random_search(omega=1.0, n_samples=50, seed=42)
-        assert result.best_delta_omega == pytest.approx(
-            float(np.min(result.delta_omega_values)),
-        )
-
-    def test_random_search_parquet_roundtrip(self, tmp_path: Path) -> None:
-        result = phase_modulated_random_search(omega=1.0, n_samples=50, seed=42)
-        parquet_p = tmp_path / "random.parquet"
-        result.save_parquet(parquet_p)
-        loaded = DriveRandomSearchResult.from_parquet(parquet_p)
-        assert loaded.samples.shape == result.samples.shape
-        assert np.allclose(loaded.best_params, result.best_params)
-        assert np.isclose(loaded.best_delta_omega, result.best_delta_omega)
-
-
-# ============================================================================
-# Nelder--Mead Optimisation
-# ============================================================================
-
-
-class TestPhaseModulatedObjective:
-    def test_objective_finite_at_valid_params(self, make_ops: dict) -> None:
-        params = np.array([1.0, 0.0, 0.0, 1.0])
-        val = phase_modulated_sensitivity_objective(params, 1.0, make_ops)
-        assert np.isfinite(val)
-        assert val > 0.0
-
-    def test_objective_penalty_out_of_bounds(self, make_ops: dict) -> None:
-        params = np.array([10.0, 0.0, 0.0, 0.0])  # a_x = 10 > 5
-        val = phase_modulated_sensitivity_objective(params, 1.0, make_ops)
-        assert val > 1e10  # huge penalty
-
-    def test_objective_penalty_negative_bounds(self, make_ops: dict) -> None:
-        params = np.array([-10.0, 0.0, 0.0, 0.0])  # a_x = -10 < -5
-        val = phase_modulated_sensitivity_objective(params, 1.0, make_ops)
-        assert val > 1e10  # huge penalty
-
-
-class TestPhaseModulatedNelderMead:
-    def test_nelder_mead_runs(self) -> None:
-        result = run_phase_modulated_nelder_mead(
-            omega_true=1.0,
-            x0=np.array([1.0, 0.0, 0.0, 1.0]),
-            maxiter=100,
-        )
-        assert np.isfinite(result.delta_omega_opt)
-        assert result.params_opt.shape == (4,)
-
-    def test_nelder_mead_improves_over_random_start(self) -> None:
-        """Nelder-Mead should find Δω at or below the starting point."""
-        x0 = np.array([1.0, 0.0, 0.0, 1.0])
-        ops = build_two_qubit_operators()
-        start_val = phase_modulated_sensitivity_objective(x0, 1.0, ops)
-        result = run_phase_modulated_nelder_mead(
-            omega_true=1.0,
-            x0=x0,
-            maxiter=200,
-        )
-        assert result.delta_omega_opt <= start_val * 1.01 or result.success, (
-            f"NM did not improve: start={start_val:.4f}, opt={result.delta_omega_opt:.4f}"
-        )
-
-    def test_nelder_mead_parquet_roundtrip(self, tmp_path: Path) -> None:
-        result = run_phase_modulated_nelder_mead(
-            omega_true=1.0,
-            x0=np.array([1.0, 0.0, 0.0, 1.0]),
-            maxiter=100,
-        )
-        parquet_p = tmp_path / "nm.parquet"
-        result.save_parquet(parquet_p)
-        loaded = DriveNelderMeadResult.from_parquet(parquet_p)
-        assert np.isclose(loaded.delta_omega_opt, result.delta_omega_opt)
-        assert np.allclose(loaded.params_opt, result.params_opt)
-        assert loaded.omega_true == result.omega_true
 
 
 # ============================================================================

@@ -48,7 +48,7 @@ from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.utils.constants import I_2, J_X, J_Y, J_Z
 from src.utils.enums import OperatorBasis
 from src.utils.parallel import parallel_map
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 # ── BLAS threading ──────────────────────────────────────────────────────────
@@ -1718,12 +1718,7 @@ _REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 _REPORT_DATE = "20260616"
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(_REPORTS_DIR, _REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(_REPORTS_DIR, _REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(_REPORTS_DIR, _REPORT_DATE)
 
 
 # ============================================================================

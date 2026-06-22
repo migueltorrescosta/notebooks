@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import re
+import warnings
 from pathlib import Path
 
 import pytest
@@ -332,3 +333,137 @@ class TestRadonCyclomaticComplexity:
                 f"{lines}\n"
                 "Refactor to reduce cyclomatic complexity below 11 (grade B)."
             )
+
+
+# ── Function length ─────────────────────────────────────────────────────────
+
+
+class TestFunctionLength:
+    """Functions must not exceed length limits.
+
+    Hard limit: 200 LOC (all lines counted — docstrings, blanks, comments).
+    Soft limit: 175 LOC (advisory, still fails the test).
+
+    Counts physical lines (``end_lineno - lineno + 1``) via AST, so blank
+    readability spacing and multi-line docstrings are included.  The limits
+    are deliberately generous to accommodate physics-verbose code (inline
+    assertions, operator construction, multi-line docstrings).
+    """
+
+    _SOFT_LIMIT = 175
+    _HARD_LIMIT = 200
+
+    @pytest.mark.parametrize(
+        "py_path",
+        _all_project_py_files(),
+        ids=lambda p: p.relative_to(_PROJECT_ROOT).as_posix(),
+    )
+    def test_function_length_within_limits(self, py_path: Path) -> None:
+        """No function shall exceed ``_HARD_LIMIT`` lines."""
+        source = py_path.read_text(encoding="utf-8")
+        try:
+            tree = ast.parse(source, filename=str(py_path))
+        except SyntaxError:
+            pytest.fail(f"Syntax error in {py_path.relative_to(_PROJECT_ROOT)}")
+
+        violations: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if node.end_lineno is None:
+                    continue  # malformed node (should not happen in valid code)
+                n_lines = node.end_lineno - node.lineno + 1
+                if n_lines > self._HARD_LIMIT:
+                    violations.append(
+                        f"L{node.lineno}: HARD — {node.name} ({n_lines} lines, "
+                        f"exceeds hard limit of {self._HARD_LIMIT})"
+                    )
+                elif n_lines > self._SOFT_LIMIT:
+                    violations.append(
+                        f"L{node.lineno}: SOFT — {node.name} ({n_lines} lines, "
+                        f"exceeds soft limit of {self._SOFT_LIMIT})"
+                    )
+
+        if violations:
+            rel = py_path.relative_to(_PROJECT_ROOT)
+            detail = "\n".join(f"  {v}" for v in violations)
+            pytest.fail(
+                f"{rel}: {len(violations)} function(s) exceed length limits:\n"
+                f"{detail}\n"
+                "Refactor by extracting helper functions or shortening docstrings."
+            )
+
+
+# ── File length ────────────────────────────────────────────────────────────
+
+
+class TestFileLength:
+    """Files must not exceed length limits.
+
+    Hard limit: 1500 LOC — any file exceeding this (and not in the whitelist)
+    is a test failure.  Soft limit: 500 LOC — advisory warning only (printed to
+    stderr, test passes).
+
+    Known hard violators are whitelisted in ``_HARD_OVERRIDES`` and tracked in
+    the CHANGELOG backlog under "File Length Reduction Campaign".  Any file NOT
+    in the override set that exceeds ``_HARD_LIMIT`` is a regression that must
+    be fixed or explicitly added to the backlog.
+    """
+
+    _HARD_LIMIT = 1500
+    _SOFT_LIMIT = 500
+
+    # Known hard violations (≥_HARD_LIMIT) — tracked in CHANGELOG backlog.
+    # New files exceeding the hard limit must be added here with a backlog entry.
+    _HARD_OVERRIDES: frozenset[str] = frozenset(
+        {
+            "src/analysis/scaling_survey.py",
+            "src/analysis/ancilla_optimization.py",
+            "src/analysis/ancilla_drive_metrology.py",
+            "reports/20260518/local.py",
+            "reports/20260524/local.py",
+            "reports/20260616/local.py",
+            "reports/20260528/local.py",
+            "reports/20260525/local.py",
+            "reports/20260619/local.py",
+            "reports/20260610/local.py",
+            "reports/20260523/local.py",
+            "reports/20260620/local.py",
+            "reports/20260615/local.py",
+            "reports/20260519/local.py",
+            "reports/20260621/local.py",
+        }
+    )
+
+    @pytest.mark.parametrize(
+        "py_path",
+        _all_project_py_files(),
+        ids=lambda p: p.relative_to(_PROJECT_ROOT).as_posix(),
+    )
+    def test_file_length_within_limits(self, py_path: Path) -> None:
+        """No file shall exceed ``_HARD_LIMIT`` lines (unless whitelisted)."""
+        source = py_path.read_text(encoding="utf-8")
+        n_lines = len(source.splitlines())
+        rel = py_path.relative_to(_PROJECT_ROOT).as_posix()
+
+        in_override = rel in self._HARD_OVERRIDES
+
+        # Hard violation → fail unless whitelisted
+        if n_lines > self._HARD_LIMIT:
+            if in_override:
+                # Acknowledged — let test pass (backlog entry exists)
+                pass
+            else:
+                pytest.fail(
+                    f"{rel}: {n_lines} lines exceeds hard limit "
+                    f"({self._HARD_LIMIT}). "
+                    "Refactor or add to _HARD_OVERRIDES with a backlog entry."
+                )
+
+        # Soft violation → warning only (always reported, even for overrides)
+        if n_lines > self._SOFT_LIMIT:
+            msg = (
+                f"SOFT: {rel}: {n_lines} lines exceeds soft limit ({self._SOFT_LIMIT})."
+            )
+            if in_override:
+                msg += " (whitelisted hard violation)"
+            warnings.warn(msg, stacklevel=2)

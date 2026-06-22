@@ -46,7 +46,7 @@ from src.physics.mzi_states import (
     input_state_factory,
     two_mode_jz_operator,
 )
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 # Force non-interactive backend before any plotting imports.
@@ -87,12 +87,7 @@ ALPHA_TOL: float = 0.02  # Tolerance on fitted α for PASS/FAIL determination
 # ============================================================================
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ============================================================================

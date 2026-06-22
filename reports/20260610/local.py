@@ -25,7 +25,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -48,8 +48,12 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
     free_ancilla_initial_state,
 )
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_omega_scan,
+)
 from src.utils.monte_carlo import marsaglia_ball_sample
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
@@ -98,12 +102,7 @@ DEFAULT_FIXED_DRIVE: dict[float, tuple[float, float, float]] = {
 # ============================================================================
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ============================================================================
@@ -1175,49 +1174,64 @@ def run_modulated_omega_scan(
     Returns:
         FreeAncillaModulatedOmegaScanResult.
     """
-    omega_arr = np.asarray(omega_values, dtype=float)
-    base_seed = seed if seed is not None else 42
+    config = TwoPhaseConfig(
+        n_random=n_random,
+        n_nm_refine=n_nm_refine,
+        nm_maxiter=maxiter,
+        seed=seed,
+    )
 
+    def rs_fn(
+        n_samples: int, seed: int | None, **kw: Any
+    ) -> FreeAncillaModulatedSearchResult:
+        return free_ancilla_modulated_random_search(
+            omega=kw["omega"],
+            n_samples=n_samples,
+            R=R,
+            azz_bounds=azz_bounds,
+            t_hold=t_hold,
+            T_BS=T_BS,
+            seed=seed,
+        )
+
+    def nm_fn(
+        x0: np.ndarray, seed: int | None, **kw: Any
+    ) -> FreeAncillaModulatedNelderMeadResult:
+        return run_modulated_nelder_mead(
+            omega_true=kw["omega_true"],
+            x0=x0,
+            seed=seed,
+            maxiter=maxiter,
+            t_hold=t_hold,
+            T_BS=T_BS,
+            track_history=False,
+        )
+
+    best_results, _all_results = run_omega_scan(
+        omega_values,
+        rs_fn,
+        nm_fn,
+        config,
+        rs_kwargs={
+            "R": R,
+            "azz_bounds": azz_bounds,
+            "t_hold": t_hold,
+            "T_BS": T_BS,
+        },
+        nm_kwargs={
+            "t_hold": t_hold,
+            "T_BS": T_BS,
+        },
+    )
+
+    omega_arr = np.asarray(omega_values, dtype=float)
     best_params_list: list[tuple[float, float, float, float, float, float]] = []
     best_deltas: list[float] = []
     sql_vals: list[float] = []
     exp_vals: list[float] = []
     var_vals: list[float] = []
 
-    for omega_val in omega_arr:
-        # Stage 2: Random search
-        rs_result = free_ancilla_modulated_random_search(
-            omega_val,
-            n_samples=n_random,
-            R=R,
-            azz_bounds=azz_bounds,
-            t_hold=t_hold,
-            T_BS=T_BS,
-            seed=base_seed + int(omega_val * 1000),
-        )
-
-        # Sort by Δω, take top n_nm_refine
-        sorted_indices = np.argsort(rs_result.delta_omega_values)
-        top_indices = sorted_indices[:n_nm_refine]
-
-        # Stage 3: Nelder-Mead refinement
-        nm_results: list[FreeAncillaModulatedNelderMeadResult] = []
-        for rank, idx in enumerate(top_indices):
-            x0 = rs_result.samples[idx].copy()
-            nm = run_modulated_nelder_mead(
-                omega_true=omega_val,
-                x0=x0,
-                seed=base_seed + int(omega_val * 1000) + 10000 + rank,
-                maxiter=maxiter,
-                t_hold=t_hold,
-                T_BS=T_BS,
-                track_history=False,
-            )
-            nm_results.append(nm)
-
-        nm_results.sort(key=lambda r: r.delta_omega_opt)
-        best_nm = nm_results[0]
-
+    for best_nm in best_results:
         best_params_list.append(
             (
                 float(best_nm.params_opt[0]),

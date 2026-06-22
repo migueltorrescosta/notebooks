@@ -34,7 +34,7 @@ import seaborn as sns
 from scipy.linalg import expm
 
 from src.utils.parallel import parallel_map
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
@@ -891,12 +891,7 @@ XX_OMEGA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
 XX_N_GRID = 2001
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, XX_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, XX_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, XX_DATE)
 
 
 # ── Generator functions ───────────────────────────────────────────────────

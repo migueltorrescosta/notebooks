@@ -50,9 +50,10 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
 )
 from src.utils.monte_carlo import (
+    marsaglia_ball_sample,
     stratified_ball_sample,
 )
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 from src.visualization.ancilla_drive_plots import (
     plot_drive_2d_slice_heatmap,
@@ -99,12 +100,7 @@ N_STRATA: int = 50
 # ============================================================================
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ============================================================================
@@ -310,47 +306,6 @@ class NormBallResult(ParquetSerializable):
 # ============================================================================
 
 
-def _marsaglia_3ball_sample(
-    rng: np.random.Generator,
-    n_samp: int,
-    R: float,
-    azz_lo: float,
-    azz_hi: float,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Generate uniform samples from the 3-ball of radius R.
-
-    Uses Marsaglia's method: generate 3 i.i.d. standard normal variates,
-    divide by their norm, multiply by R * u^(1/3) where u ~ U[0,1].
-
-    Args:
-        rng: NumPy random generator.
-        n_samp: Number of samples.
-        R: Ball radius.
-        azz_lo: Lower bound for a_zz.
-        azz_hi: Upper bound for a_zz.
-
-    Returns:
-        Tuple (drive_samples, azz_samples) where drive_samples has shape
-        (n_samp, 3) with columns [a_x, a_y, a_z], and azz_samples has
-        shape (n_samp,).
-    """
-    # Step 1: 3 i.i.d. standard normal variates
-    z = rng.normal(0.0, 1.0, size=(n_samp, 3))
-    # Step 2: Normalise to unit sphere
-    sphere_norm = np.sqrt(np.sum(z**2, axis=1))
-    sphere_norm = np.maximum(sphere_norm, 1e-300)  # avoid division by zero
-    z_unit = z / sphere_norm[:, np.newaxis]
-    # Step 3: Radial scaling for uniform volume distribution
-    u = rng.uniform(0.0, 1.0, size=n_samp)
-    r_scaled = R * (u ** (1.0 / 3.0))
-    drive_samples = z_unit * r_scaled[:, np.newaxis]
-
-    # a_zz sampled uniformly in [azz_lo, azz_hi]
-    azz_samples = rng.uniform(azz_lo, azz_hi, size=n_samp)
-
-    return drive_samples, azz_samples
-
-
 def _sample_ball_for_omega(
     omega_rng: np.random.Generator,
     n_samp: int,
@@ -379,7 +334,7 @@ def _sample_ball_for_omega(
         ValueError: If *sampling_method* is unknown.
     """
     if sampling_method == "marsaglia":
-        return _marsaglia_3ball_sample(omega_rng, n_samp, R, azz_lo, azz_hi)
+        return marsaglia_ball_sample(omega_rng, n_samp, R, azz_lo, azz_hi)
     if sampling_method == "stratified":
         if n_samp % n_strata != 0:
             raise ValueError(

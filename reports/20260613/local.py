@@ -29,6 +29,10 @@ import pandas as pd
 from scipy.optimize import minimize
 
 from src.analysis.ancilla_optimization import compute_expectation_and_variance
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_two_phase_pipeline,
+)
 from src.analysis.sensitivity_metrics import sql_reference
 from src.physics.n_particle_drive import (
     build_n_particle_operators,
@@ -36,7 +40,7 @@ from src.physics.n_particle_drive import (
     evolve_n_particle_circuit,
     n_particle_initial_state,
 )
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
@@ -70,12 +74,7 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260613"
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 def build_joint_measurement_operator(
@@ -653,21 +652,38 @@ def run_single_joint_n_omega(
     Returns:
         JointNScalingResult with sensitivity and optimal parameters.
     """
-    nm_result = run_joint_nelder_mead(
-        N=N,
-        omega_true=omega,
-        ops=ops,
-        psi0=psi0,
-        seed=seed,
-        maxiter=maxiter,
+    if ops is None:
+        ops = build_n_particle_operators(N)
+    if psi0 is None:
+        psi0 = n_particle_initial_state(N)
+
+    def rs_fn(n_samples: int, seed: int, **kw: object) -> JointRandomSearchResult:
+        return joint_random_search(N, omega, n_samples=n_samples, seed=seed)
+
+    def nm_fn(x0: np.ndarray, seed: int, **kw: object) -> JointNMSensitivityResult:
+        return run_joint_nelder_mead(
+            N,
+            omega_true=omega,
+            ops=ops,
+            psi0=psi0,
+            x0=x0,
+            seed=seed,
+            maxiter=maxiter,
+        )
+
+    best_nm, _ = run_two_phase_pipeline(
+        rs_fn,
+        nm_fn,
+        config=TwoPhaseConfig(n_random=N_RANDOM, n_nm_refine=N_NM_REFINE, seed=seed),
     )
+
     sql = 1.0 / (np.sqrt(N) * T_HOLD)
-    ratio = nm_result.delta_omega_opt / sql if sql > 0 else 0.0
-    params = nm_result.params_opt
+    ratio = best_nm.delta_omega_opt / sql if sql > 0 else 0.0
+    params = best_nm.params_opt
     return JointNScalingResult(
         N=N,
         omega=omega,
-        delta_omega_opt=nm_result.delta_omega_opt,
+        delta_omega_opt=best_nm.delta_omega_opt,
         sql=sql,
         ratio=ratio,
         a_x_opt=float(params[0]),
@@ -675,14 +691,14 @@ def run_single_joint_n_omega(
         a_z_opt=float(params[2]),
         a_zz_opt=float(params[3]),
         psi_opt=float(params[4]),
-        expectation_Jz=nm_result.expectation_Jz,
-        variance_Jz=nm_result.variance_Jz,
-        expectation_M=nm_result.expectation_M,
-        variance_M=nm_result.variance_M,
-        d_expectation=nm_result.d_expectation,
+        expectation_Jz=best_nm.expectation_Jz,
+        variance_Jz=best_nm.variance_Jz,
+        expectation_M=best_nm.expectation_M,
+        variance_M=best_nm.variance_M,
+        d_expectation=best_nm.d_expectation,
         t_hold=T_HOLD,
-        success=nm_result.success,
-        nfev=nm_result.nfev,
+        success=best_nm.success,
+        nfev=best_nm.nfev,
     )
 
 

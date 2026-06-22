@@ -23,6 +23,13 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
 )
 from src.analysis.decoupled_baseline import verify_decoupled_baseline
+from src.physics.n_particle_drive import (
+    build_n_particle_iszz_interaction,
+    build_n_particle_operators,
+    build_n_particle_phase_modulated_drive_hamiltonian,
+    build_n_particle_system_only_bs_unitary,
+    n_particle_hold_unitary,
+)
 from src.utils.serialization import assert_roundtrip_fields
 
 _local_path = _Path(__file__).resolve().parent / "local.py"
@@ -39,18 +46,10 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     T_HOLD,
     NScalingResult,
     NScalingScanResult,
-    build_n_particle_hold_hamiltonian,
-    build_n_particle_iszz_interaction,
-    build_n_particle_operators,
-    build_n_particle_phase_modulated_drive_hamiltonian,
-    build_n_particle_system_only_bs_unitary,
     compute_n_particle_decoupled_baseline,
     compute_n_particle_sensitivity,
     evolve_n_particle_circuit,
-    n_particle_hold_unitary,
     n_particle_initial_state,
-    n_particle_random_search,
-    run_n_particle_nelder_mead,
     run_single_n_omega,
     sql_reference,
 )
@@ -251,6 +250,8 @@ class TestIsingInteraction:
 
 class TestHoldHamiltonian:
     def test_given_hold_then_hermitian(self, make_N: int, make_ops: dict) -> None:
+        from src.physics.n_particle_drive import build_n_particle_hold_hamiltonian
+
         H = build_n_particle_hold_hamiltonian(
             make_N,
             0.5,
@@ -457,55 +458,6 @@ class TestN1Consistency:
         assert np.isclose(result.delta_omega_opt, expected, rtol=0.2), (
             f"N=1, ω=0.2: Δω={result.delta_omega_opt:.6f}, expected ~{expected:.6f}"
         )
-
-
-# ============================================================================
-# Random Search
-# ============================================================================
-
-
-class TestRandomSearch:
-    def test_given_random_search_then_returns_result(self, make_N: int) -> None:
-        result = n_particle_random_search(make_N, 0.5, n_samples=20, seed=42)
-        assert result.samples.shape == (20, 4)
-        assert len(result.delta_omega_values) == 20
-        assert result.best_delta_omega > 0.0
-
-    def test_given_random_search_then_best_is_minimum(
-        self,
-        make_N: int,
-    ) -> None:
-        result = n_particle_random_search(make_N, 0.5, n_samples=20, seed=42)
-        assert np.isclose(
-            result.best_delta_omega,
-            np.min(result.delta_omega_values),
-        )
-
-
-# ============================================================================
-# Nelder-Mead Optimisation
-# ============================================================================
-
-
-class TestNelderMead:
-    def test_given_nm_then_converges(self, make_N: int) -> None:
-        result = run_n_particle_nelder_mead(
-            N=make_N,
-            omega_true=0.5,
-            seed=42,
-        )
-        assert result.delta_omega_opt > 0.0
-        assert np.isfinite(result.delta_omega_opt)
-        assert result.params_opt.shape == (4,)
-
-    def test_given_nm_then_expectation_finite(self, make_N: int) -> None:
-        result = run_n_particle_nelder_mead(
-            N=make_N,
-            omega_true=0.5,
-            seed=42,
-        )
-        assert np.isfinite(result.expectation_Jz)
-        assert result.variance_Jz >= 0.0
 
 
 # ============================================================================

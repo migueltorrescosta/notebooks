@@ -59,7 +59,7 @@ from src.analysis.ancilla_drive_metrology import (
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.physics.multi_mzi import single_bs_unitary
 from src.utils.enums import OperatorBasis
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 from src.visualization.ancilla_drive_plots import (
     plot_drive_2d_slice_heatmap,
@@ -3474,12 +3474,7 @@ REPORT_DATE = "20260518"
 DRIVE_OMEGA_VALS = [0.1, 0.5, 1.0, 2.0, 5.0]
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 def generate_n_scaling(force: bool = False) -> None:

@@ -40,10 +40,10 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     SQL,
     EnvelopeResult,
     NormBallResult,
-    _marsaglia_3ball_sample,
     _sample_ball_for_omega,
     compute_sensitivity_with_extra,
     extract_envelope_curve,
+    marsaglia_ball_sample,
     norm_ball_sampling,
     plot_best_ratio_by_slice,
     plot_norm_envelope_curve,
@@ -66,23 +66,23 @@ def make_ops() -> dict[str, np.ndarray]:
 # ============================================================================
 
 
-class TestMarsaglia3BallSample:
+class TestMarsagliaBallSample:
     def test_shape(self) -> None:
         rng = np.random.default_rng(42)
-        drive, azz = _marsaglia_3ball_sample(rng, 100, 10.0, -5.0, 5.0)
+        drive, azz = marsaglia_ball_sample(rng, 100, 10.0, -5.0, 5.0)
         assert drive.shape == (100, 3)
         assert azz.shape == (100,)
 
     def test_norms_within_ball(self) -> None:
         rng = np.random.default_rng(42)
-        drive, _ = _marsaglia_3ball_sample(rng, 1000, 10.0, -5.0, 5.0)
+        drive, _ = marsaglia_ball_sample(rng, 1000, 10.0, -5.0, 5.0)
         norms = np.sqrt(np.sum(drive**2, axis=1))
         assert np.all(norms <= 10.0 + 1e-12), "Samples must be within ball"
         assert np.all(norms >= 0.0), "Norms must be non-negative"
 
     def test_azz_within_bounds(self) -> None:
         rng = np.random.default_rng(42)
-        _, azz = _marsaglia_3ball_sample(rng, 1000, 10.0, -5.0, 5.0)
+        _, azz = marsaglia_ball_sample(rng, 1000, 10.0, -5.0, 5.0)
         assert np.all(azz >= -5.0 - 1e-12), "a_zz must be ≥ lower bound"
         assert np.all(azz <= 5.0 + 1e-12), "a_zz must be ≤ upper bound"
 
@@ -90,7 +90,7 @@ class TestMarsaglia3BallSample:
         """KS test: P(||a|| ≤ r) = (r/R)³ for 3-ball."""
         rng = np.random.default_rng(42)
         R = 10.0
-        drive, _ = _marsaglia_3ball_sample(rng, 5000, R, -5.0, 5.0)
+        drive, _ = marsaglia_ball_sample(rng, 5000, R, -5.0, 5.0)
         norms = np.sqrt(np.sum(drive**2, axis=1))
         # Theoretical CDF: F(r) = (r/R)³
         stat, pval = kstest(norms, lambda x: (x / R) ** 3)
@@ -102,8 +102,8 @@ class TestMarsaglia3BallSample:
     def test_deterministic_with_seed(self) -> None:
         rng1 = np.random.default_rng(42)
         rng2 = np.random.default_rng(42)
-        d1, a1 = _marsaglia_3ball_sample(rng1, 100, 10.0, -5.0, 5.0)
-        d2, a2 = _marsaglia_3ball_sample(rng2, 100, 10.0, -5.0, 5.0)
+        d1, a1 = marsaglia_ball_sample(rng1, 100, 10.0, -5.0, 5.0)
+        d2, a2 = marsaglia_ball_sample(rng2, 100, 10.0, -5.0, 5.0)
         assert np.allclose(d1, d2)
         assert np.allclose(a1, a2)
 

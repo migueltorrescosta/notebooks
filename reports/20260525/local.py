@@ -41,7 +41,7 @@ import pandas as pd
 import seaborn as sns
 from scipy.optimize import minimize
 
-from src.utils import paths
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 # Force non-interactive matplotlib backend before any plotting.
@@ -1517,15 +1517,7 @@ OMEGA_VALS: list[float] = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist
 N_VALS: list[int] = list(range(1, 21))
 
 
-def parquet_path(name: str) -> Path:
-    """Return path to a raw_data Parquet file for this report."""
-    return paths.parquet_path(REPORTS_DIR, _REPORT_DATE_PREFIX, name)
-
-
-def fig_path(name: str) -> Path:
-    """Return path to a figures SVG file for this report."""
-    return paths.fig_path(REPORTS_DIR, _REPORT_DATE_PREFIX, name)
-
+parquet_path, fig_path = report_path_fn(REPORTS_DIR, _REPORT_DATE_PREFIX)
 
 # Backward-compatible aliases
 _parquet_path = parquet_path

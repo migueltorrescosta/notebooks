@@ -35,6 +35,10 @@ from scipy.optimize import minimize
 
 from src.analysis.ancilla_optimization import compute_expectation_and_variance
 from src.analysis.fisher_information import classical_fisher_information_single
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_two_phase_pipeline,
+)
 from src.analysis.sensitivity_metrics import sql_reference
 from src.physics.dicke_basis import jz_operator
 from src.physics.n_particle_drive import (
@@ -44,7 +48,7 @@ from src.physics.n_particle_drive import (
     n_particle_initial_state,
 )
 from src.utils.enums import OperatorBasis
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
@@ -94,12 +98,7 @@ REPORT_DATE = "20260615"
 JOINT_REPORT_DATE = "20260613"
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 def _try_load_scan_cache(out_path: Path, force: bool) -> NonLinearScanResult | None:
@@ -1075,6 +1074,33 @@ def run_non_linear_nelder_mead(
     }
 
 
+# ============================================================================
+# Adapter wrappers for the shared optimisation pipeline
+# ============================================================================
+
+
+class _AdaptedRS:
+    """Wrap non_linear_random_search tuple return for run_two_phase_pipeline."""
+
+    __slots__ = ("delta_omega_values", "samples")
+
+    def __init__(self, samples, deltas):
+        self.samples = samples
+        self.delta_omega_values = deltas
+
+
+class _AdaptedNM:
+    """Wrap run_non_linear_nelder_mead dict return for run_two_phase_pipeline."""
+
+    __slots__ = ("delta_omega_opt", "nfev", "params_opt", "success")
+
+    def __init__(self, delta_omega_opt, params_opt, success, nfev):
+        self.delta_omega_opt = delta_omega_opt
+        self.params_opt = params_opt
+        self.success = success
+        self.nfev = nfev
+
+
 def run_single_non_linear_n_omega(
     N: int,
     omega: float,
@@ -1107,51 +1133,42 @@ def run_single_non_linear_n_omega(
     projectors = compute_jz_projectors(N, ops)
     sql = sql_reference(N)
 
-    # Stage 1: Random search
-    samples, deltas, _best_params_rs = non_linear_random_search(
-        N,
-        omega,
-        protocol,
-        n_samples=n_random,
+    config = TwoPhaseConfig(
+        n_random=n_random,
+        n_nm_refine=n_nm_refine,
+        nm_maxiter=nm_maxiter,
         seed=seed,
     )
 
-    # Stage 2: NM refinement from top points
-    top_k = min(n_nm_refine, len(deltas))
-    top_indices = np.argsort(deltas)[:top_k]
-
-    best_dw = float(deltas[top_indices[0]])
-    best_a = (
-        float(samples[top_indices[0], 0]),
-        float(samples[top_indices[0], 1]),
-        float(samples[top_indices[0], 2]),
-        float(samples[top_indices[0], 3]),
-    )
-    best_success = False
-    best_nfev = 0
-
-    for idx in top_indices:
-        x0 = (
-            float(samples[idx, 0]),
-            float(samples[idx, 1]),
-            float(samples[idx, 2]),
-            float(samples[idx, 3]),
-        )
-        nm_result = run_non_linear_nelder_mead(
+    def rs_fn(n_samples, seed, **kw):
+        samples, deltas, _ = non_linear_random_search(
             N,
             omega,
-            x0,
+            protocol,
+            n_samples=n_samples,
+            seed=seed,
+        )
+        return _AdaptedRS(samples, deltas)
+
+    def nm_fn(x0, seed, **kw):
+        x0_t = (float(x0[0]), float(x0[1]), float(x0[2]), float(x0[3]))
+        res = run_non_linear_nelder_mead(
+            N,
+            omega,
+            x0_t,
             protocol,
             ops=ops,
             psi0=psi0,
             projectors=projectors,
             maxiter=nm_maxiter,
         )
-        if nm_result["fun_opt"] < best_dw:
-            best_dw = nm_result["fun_opt"]
-            best_a = nm_result["x_opt"]
-            best_success = nm_result["success"]
-            best_nfev = nm_result["nfev"]
+        return _AdaptedNM(res["fun_opt"], res["x_opt"], res["success"], res["nfev"])
+
+    best_nm, _ = run_two_phase_pipeline(rs_fn, nm_fn, config=config)
+
+    best_a = best_nm.params_opt
+    best_success = best_nm.success
+    best_nfev = best_nm.nfev
 
     # Evaluate all three protocols at the best params found
     evals = evaluate_protocols_at_params(

@@ -39,9 +39,13 @@ from src.analysis.ancilla_optimization import (
 from src.analysis.decoupled_baseline import (
     generate_decoupled_baseline,
 )
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_two_phase_pipeline,
+)
 from src.analysis.sensitivity_metrics import sql_reference
 from src.utils.parallel import parallel_map
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 from src.visualization.scaling_plots import (
     plot_n_scaling_optimal_params,
@@ -85,12 +89,7 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260619"
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ============================================================================
@@ -1302,55 +1301,68 @@ def run_oat_nelder_mead(
 # ============================================================================
 
 
-def _refine_and_assemble_oat_result(
-    rs_result: OATRandomSearchResult,
-    n_nm_refine: int,
-    nm_maxiter: int,
+def run_single_oat_optimisation(
     N_S: int,
     N_A: int,
     omega: float,
-    ops: dict[str, np.ndarray],
-    psi0: np.ndarray,
-    base_seed: int,
+    seed: int | None = 42,
 ) -> OATNScalingResult:
-    """Refine top random-search points with Nelder-Mead, compute no-OAT
-    baseline, and assemble the final OATNScalingResult.
+    """Run the full optimisation pipeline for a single (N_S, N_A, ω) triple.
+
+    1. 5D random search (1000 samples).
+    2. Nelder-Mead refinement from top points.
+    3. No-OAT baseline at the optimal drive parameters.
+    4. Return the best result.
 
     Args:
-        rs_result: Result from the random-search stage.
-        n_nm_refine: Number of top points to refine.
-        nm_maxiter: Max iterations per Nelder-Mead run.
         N_S: Number of system particles.
         N_A: Number of ancilla particles.
         omega: Phase rate value.
-        ops: Operators from build_operators().
-        psi0: Initial state vector.
-        base_seed: Base random seed.
+        seed: Base random seed (incremented per call).
 
     Returns:
         OATNScalingResult with the optimal parameters and sensitivity.
     """
-    sorted_indices = np.argsort(rs_result.delta_omega_values)
-    top_indices = sorted_indices[:n_nm_refine]
+    base_seed = seed if seed is not None else 42
+    ops = build_operators(N_S, N_A)
+    psi0 = oat_initial_state(N_S, N_A)
 
-    # Stage 2: Nelder-Mead refinement from each top point
-    nm_results: list[OATNelderMeadResult] = []
-    for rank, idx in enumerate(top_indices):
-        x0 = rs_result.samples[idx].copy()
-        nm = run_oat_nelder_mead(
+    # N-dependent optimisation budget: larger N is slower, so use fewer NM runs
+    # with lower maxiter to keep wall time practical.
+    dim = (N_S + 1) * (N_A + 1)
+    if dim <= 16:  # N_S, N_A <= 3
+        n_nm_refine = 10
+        nm_maxiter = 2000
+    elif dim <= 25:  # N_S, N_A <= 4
+        n_nm_refine = 8
+        nm_maxiter = 1500
+    elif dim <= 36:  # N_S, N_A <= 5
+        n_nm_refine = 6
+        nm_maxiter = 1000
+    else:  # N_S, N_A >= 6
+        n_nm_refine = 4
+        nm_maxiter = 500
+
+    def rs_fn(n_samples: int, seed: int, **kw: object) -> OATRandomSearchResult:
+        return oat_random_search(N_S, N_A, omega, n_samples=n_samples, seed=seed)
+
+    def nm_fn(x0: np.ndarray, seed: int, **kw: object) -> OATNelderMeadResult:
+        return run_oat_nelder_mead(
             N_S=N_S,
             N_A=N_A,
             omega_true=omega,
             ops=ops,
             psi0=psi0,
             x0=x0,
+            seed=seed,
             maxiter=nm_maxiter,
-            seed=base_seed + int(omega * 1000) + 10000 + rank,
         )
-        nm_results.append(nm)
 
-    nm_results.sort(key=lambda r: r.delta_omega_opt)
-    best_nm = nm_results[0]
+    best_nm, _ = run_two_phase_pipeline(
+        rs_fn,
+        nm_fn,
+        TwoPhaseConfig(n_random=N_RANDOM, n_nm_refine=n_nm_refine, seed=base_seed),
+    )
 
     # No-OAT baseline: recompute with q=0 at optimal drive parameters
     delta_no_oat = compute_oat_sensitivity(
@@ -1400,70 +1412,6 @@ def _refine_and_assemble_oat_result(
         variance_Jz=best_nm.variance_Jz,
         success=best_nm.success,
         nfev=best_nm.nfev,
-    )
-
-
-def run_single_oat_optimisation(
-    N_S: int,
-    N_A: int,
-    omega: float,
-    seed: int | None = 42,
-) -> OATNScalingResult:
-    """Run the full optimisation pipeline for a single (N_S, N_A, ω) triple.
-
-    1. 5D random search (1000 samples).
-    2. Nelder-Mead refinement from top 50 points.
-    3. No-OAT baseline at the optimal drive parameters.
-    4. Return the best result.
-
-    Args:
-        N_S: Number of system particles.
-        N_A: Number of ancilla particles.
-        omega: Phase rate value.
-        seed: Base random seed (incremented per call).
-
-    Returns:
-        OATNScalingResult with the optimal parameters and sensitivity.
-    """
-    base_seed = seed if seed is not None else 42
-    ops = build_operators(N_S, N_A)
-    psi0 = oat_initial_state(N_S, N_A)
-
-    # N-dependent optimisation budget: larger N is slower, so use fewer NM runs
-    # with lower maxiter to keep wall time practical.
-    dim = (N_S + 1) * (N_A + 1)
-    if dim <= 16:  # N_S, N_A <= 3
-        n_nm_refine = 10
-        nm_maxiter = 2000
-    elif dim <= 25:  # N_S, N_A <= 4
-        n_nm_refine = 8
-        nm_maxiter = 1500
-    elif dim <= 36:  # N_S, N_A <= 5
-        n_nm_refine = 6
-        nm_maxiter = 1000
-    else:  # N_S, N_A >= 6
-        n_nm_refine = 4
-        nm_maxiter = 500
-
-    # Stage 1: Random search
-    rs_result = oat_random_search(
-        N_S,
-        N_A,
-        omega,
-        n_samples=N_RANDOM,
-        seed=base_seed,
-    )
-
-    return _refine_and_assemble_oat_result(
-        rs_result,
-        n_nm_refine,
-        nm_maxiter,
-        N_S,
-        N_A,
-        omega,
-        ops,
-        psi0,
-        base_seed,
     )
 
 

@@ -51,8 +51,12 @@ from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
     compute_expectation_and_variance,
 )
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_two_phase_pipeline,
+)
 from src.analysis.sensitivity_metrics import sql_reference
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
@@ -92,12 +96,7 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260621"
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ============================================================================
@@ -1130,6 +1129,9 @@ def run_single_scenario_omega(
 ) -> BellOptimisationResult:
     """Run the full optimisation pipeline for a single (scenario, omega) pair.
 
+    Uses the shared two-phase pipeline (:func:`run_two_phase_pipeline`) for
+    random search + Nelder--Mead refinement.
+
     1. Random search (1000 samples).
     2. Nelder--Mead refinement from top 15 points.
        - Skipped when all random-search samples are fringe (Scenario C),
@@ -1146,7 +1148,7 @@ def run_single_scenario_omega(
     base_seed = seed if seed is not None else 42
     ops = build_two_qubit_operators()
 
-    # Stage 1: Random search
+    # Stage 1: Random search (also used for fringe detection)
     rs_result = run_random_search(scenario, omega, n_samples=N_RANDOM, seed=base_seed)
 
     # If all random samples are fringe (Δω > 1e6), skip NM refinement.
@@ -1157,7 +1159,6 @@ def run_single_scenario_omega(
     )
 
     if all_fringe:
-        # Return the best from random search as-is (fringe configuration)
         sql_val = sql_reference(1, T_HOLD)
         a_x, a_y, a_z, a_zz = rs_result.best_params
         drive_norm = math.sqrt(a_x**2 + a_y**2 + a_z**2)
@@ -1180,24 +1181,25 @@ def run_single_scenario_omega(
             nfev=N_RANDOM,
         )
 
-    # Stage 2: Nelder-Mead refinement from each top point
-    sorted_indices = np.argsort(rs_result.delta_omega_values)
-    top_indices = sorted_indices[:N_NM_REFINE]
+    # Wrapper callables for the shared pipeline
+    def rs_fn(n_samples, seed, **kw):
+        return run_random_search(scenario, omega, n_samples=n_samples, seed=seed)
 
-    nm_results: list[BellNelderMeadResult] = []
-    for rank, idx in enumerate(top_indices):
-        x0 = rs_result.samples[idx].copy()
-        nm = run_nelder_mead(
-            scenario=scenario,
-            omega_true=omega,
-            ops=ops,
-            x0=x0,
-            seed=base_seed + int(omega * 1000) + 10000 + rank,
-        )
-        nm_results.append(nm)
+    def nm_fn(x0, seed, **kw):
+        return run_nelder_mead(scenario, omega_true=omega, ops=ops, x0=x0, seed=seed)
 
-    nm_results.sort(key=lambda r: r.delta_omega_opt)
-    best_nm = nm_results[0]
+    config = TwoPhaseConfig(
+        n_random=N_RANDOM,
+        n_nm_refine=N_NM_REFINE,
+        nm_maxiter=NM_MAXITER,
+    )
+
+    best_nm, _all_nm = run_two_phase_pipeline(
+        random_search_fn=rs_fn,
+        nm_fn=nm_fn,
+        config=config,
+        seed=base_seed,
+    )
 
     sql_val = sql_reference(1, T_HOLD)
     a_x, a_y, a_z, a_zz = _unpack_opt_params(best_nm.params_opt, scenario)

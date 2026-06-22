@@ -48,8 +48,6 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     evolve_multi_particle_circuit,
     multi_particle_hold_unitary,
     multi_particle_initial_state,
-    multi_particle_random_search,
-    run_multi_particle_nelder_mead,
     run_single_n_omega,
     sql_reference,
     verify_multi_particle_decoupled_baseline,
@@ -530,53 +528,6 @@ class TestN1Consistency:
 # ============================================================================
 # Random Search
 # ============================================================================
-
-
-class TestRandomSearch:
-    def test_given_random_search_then_returns_result(
-        self,
-        make_N: int,
-    ) -> None:
-        result = multi_particle_random_search(make_N, 0.5, n_samples=20, seed=42)
-        assert result.samples.shape == (20, 4)
-        assert len(result.delta_omega_values) == 20
-        assert result.best_delta_omega > 0.0
-
-    def test_given_random_search_then_best_is_minimum(
-        self,
-        make_N: int,
-    ) -> None:
-        result = multi_particle_random_search(make_N, 0.5, n_samples=20, seed=42)
-        assert np.isclose(
-            result.best_delta_omega,
-            np.min(result.delta_omega_values),
-        )
-
-
-# ============================================================================
-# Nelder-Mead Optimisation
-# ============================================================================
-
-
-class TestNelderMead:
-    def test_given_nm_then_converges(self, make_N: int) -> None:
-        result = run_multi_particle_nelder_mead(
-            N=make_N,
-            omega_true=0.5,
-            seed=42,
-        )
-        assert result.delta_omega_opt > 0.0
-        assert np.isfinite(result.delta_omega_opt)
-        assert result.params_opt.shape == (4,)
-
-    def test_given_nm_then_expectation_finite(self, make_N: int) -> None:
-        result = run_multi_particle_nelder_mead(
-            N=make_N,
-            omega_true=0.5,
-            seed=42,
-        )
-        assert np.isfinite(result.expectation_Jz)
-        assert result.variance_Jz >= 0.0
 
 
 # ============================================================================

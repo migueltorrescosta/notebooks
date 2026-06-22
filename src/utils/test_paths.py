@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import fig_path, parquet_path, report_path_fn
 
 
 def test_parquet_path_standard() -> None:
@@ -61,3 +61,34 @@ def test_reports_dir_preserved() -> None:
     reports_dir = Path("/custom/path/to/reports")
     p = parquet_path(reports_dir, "20260601", "mzi-scan")
     assert str(p).startswith(str(reports_dir))
+
+
+def test_report_path_fn_parquet() -> None:
+    """report_path_fn parquet closure matches parquet_path(reports_dir, date, name)."""
+    pq_fn, _ = report_path_fn(Path("/r"), "20260616")
+    result = pq_fn("n-scaling-scan")
+    expected = parquet_path(Path("/r"), "20260616", "n-scaling-scan")
+    assert result == expected
+
+
+def test_report_path_fn_fig() -> None:
+    """report_path_fn fig closure matches fig_path(reports_dir, date, name)."""
+    _, fig_fn = report_path_fn(Path("/r"), "20260616")
+    result = fig_fn("ratio-vs-n")
+    expected = fig_path(Path("/r"), "20260616", "ratio-vs-n")
+    assert result == expected
+
+
+def test_report_path_fn_different_dates() -> None:
+    """Each date gets its own independent closure pair."""
+    pq_a, fig_a = report_path_fn(Path("/r"), "20260601")
+    pq_b, fig_b = report_path_fn(Path("/r"), "20260616")
+    assert pq_a("foo") != pq_b("foo")
+    assert fig_a("bar") != fig_b("bar")
+
+
+def test_report_path_fn_different_dirs() -> None:
+    """Each reports_dir gets its own independent closure pair."""
+    pq_a, _ = report_path_fn(Path("/a"), "20260601")
+    pq_b, _ = report_path_fn(Path("/b"), "20260616")
+    assert pq_a("foo") != pq_b("foo")

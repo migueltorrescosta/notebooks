@@ -64,8 +64,8 @@ from src.physics.multi_mzi import (
     embed_combined_operators,
     single_bs_unitary,
 )
-from src.utils import paths
 from src.utils.enums import OperatorBasis
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 if TYPE_CHECKING:
@@ -1442,14 +1442,7 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent
 REPORT_DATE = "20260523"
 
 
-def parquet_path(name: str) -> Path:
-    """Return path to a raw_data Parquet file for this report."""
-    return paths.parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def fig_path(name: str) -> Path:
-    """Return path to a figures SVG file for this report."""
-    return paths.fig_path(REPORTS_DIR, REPORT_DATE, name)
+parquet_path, fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ── Generator Functions ────────────────────────────────────────────────

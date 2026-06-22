@@ -68,7 +68,7 @@ from src.analysis.decoupled_baseline import (
     generate_decoupled_baseline,
 )
 from src.utils.constants import I_4
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
@@ -1054,12 +1054,7 @@ DATE_TAG = "20260521"
 BFGS_TABLE_DIR = str(REPORTS_DIR / DATE_TAG / "raw_data" / "bfgs-results")
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, DATE_TAG, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, DATE_TAG, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, DATE_TAG)
 
 
 def _upsert_bfgs_result(result: GeneralBFGSOptimizationResult) -> None:

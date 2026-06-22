@@ -27,7 +27,7 @@ from src.physics.pseudomode_system import (
     PseudomodeConfig,
     run_metrology_protocol,
 )
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 
 # Force non-interactive backend before any plotting imports.
@@ -77,13 +77,7 @@ TIME_THETA_VALUES: list[float] = [0.0, np.pi / 4, np.pi / 2, 3 * np.pi / 4]
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-
-def _parquet_path(name: str) -> Path:
-    return parquet_path(_REPORT_DIR.parent, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(_REPORT_DIR.parent, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(_REPORT_DIR.parent, REPORT_DATE)
 
 
 # =============================================================================

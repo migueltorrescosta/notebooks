@@ -53,6 +53,10 @@ from src.analysis.ancilla_drive_metrology import (
 from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_two_phase_pipeline,
+)
 from src.evolution.lindblad_solver import (
     build_vectorized_liouvillian,
     unvectorise_rho,
@@ -60,7 +64,7 @@ from src.evolution.lindblad_solver import (
     vectorise_rho,
 )
 from src.utils.parallel import parallel_map
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 
 sns.set_theme(style="whitegrid")
 
@@ -966,6 +970,30 @@ def run_noisy_nelder_mead(
 
 
 # ============================================================================
+# Adapter classes for the shared optimisation pipeline
+# ============================================================================
+
+
+class _AdaptedRS:
+    """Wrap ``run_noisy_random_search`` tuple return as pipeline-compatible object."""
+
+    def __init__(self, samples: np.ndarray, deltas: np.ndarray) -> None:
+        self.samples = samples
+        self.delta_omega_values = deltas
+
+
+class _AdaptedNM:
+    """Wrap ``run_noisy_nelder_mead`` dict return as pipeline-compatible object."""
+
+    def __init__(self, result: dict[str, Any]) -> None:
+        self.delta_omega_opt = float(result["delta_omega_opt"])
+        self.params_opt = result["params_opt"]
+        self.expectation_Jz = float(result.get("expectation_Jz", 0.0))
+        self.variance_Jz = float(result.get("variance_Jz", 0.0))
+        self.d_exp_d_omega = float(result.get("d_exp_d_omega", 0.0))
+
+
+# ============================================================================
 # Noise Scan: (ω, γ_φ) Grid
 # ============================================================================
 
@@ -1003,69 +1031,58 @@ def _run_single_noise_pair(
     seed_raw = base_seed + int(omega * 1000) + int(100 * np.log10(gamma_phi + 1e-10))
     seed_val = abs(seed_raw)  # ensure non-negative for numpy
 
-    # Stage 1: Random search
-    samples, deltas, best_params, best_delta = run_noisy_random_search(
-        omega,
-        gamma_phi,
-        n_samples=n_random,
-        bounds=bounds,
-        t_hold=t_hold,
-        T_BS=T_BS,
+    config = TwoPhaseConfig(
+        n_random=n_random,
+        n_nm_refine=n_nm_refine,
+        nm_maxiter=maxiter,
         seed=seed_val,
+        bounds=bounds,
     )
 
-    # Stage 2: Nelder-Mead refinement from top candidates
-    sorted_indices = np.argsort(deltas)
-    top_indices = sorted_indices[: min(n_nm_refine, n_random)]
+    def _rs_fn(n_samples: int, seed: int) -> _AdaptedRS:
+        result = run_noisy_random_search(
+            omega,
+            gamma_phi,
+            n_samples=n_samples,
+            bounds=bounds,
+            t_hold=t_hold,
+            T_BS=T_BS,
+            seed=seed,
+        )
+        return _AdaptedRS(samples=result[0], deltas=result[1])
 
-    nm_best_delta = best_delta
-    nm_best_params = best_params
-    nm_best_diag: dict[str, float] = {
-        "expectation_Jz": 0.0,
-        "variance_Jz": 0.0,
-        "d_exp_d_omega": 0.0,
-    }
-
-    for rank, idx in enumerate(top_indices):
-        x0 = samples[idx].copy()
-        nm_result = run_noisy_nelder_mead(
+    def _nm_fn(x0: np.ndarray, seed: int) -> _AdaptedNM:
+        result = run_noisy_nelder_mead(
             omega_true=omega,
             gamma_phi=gamma_phi,
             x0=x0,
-            seed=seed_val + 10000 + rank,
+            seed=seed,
             maxiter=maxiter,
             early_stop_patience=early_stop_patience,
             bounds=bounds,
             t_hold=t_hold,
             T_BS=T_BS,
         )
+        return _AdaptedNM(result)
 
-        dt = float(nm_result["delta_omega_opt"])
-        if np.isfinite(dt) and dt < nm_best_delta:
-            nm_best_delta = dt
-            nm_best_params = (
-                float(nm_result["params_opt"][0]),
-                float(nm_result["params_opt"][1]),
-                float(nm_result["params_opt"][2]),
-                float(nm_result["params_opt"][3]),
-            )
-            nm_best_diag = {
-                "expectation_Jz": float(nm_result["expectation_Jz"]),
-                "variance_Jz": float(nm_result["variance_Jz"]),
-                "d_exp_d_omega": float(nm_result["d_exp_d_omega"]),
-            }
+    best_nm, _all_nm = run_two_phase_pipeline(
+        random_search_fn=_rs_fn,
+        nm_fn=_nm_fn,
+        config=config,
+        seed=seed_val,
+    )
 
     return {
         "omega": omega,
         "gamma_phi": gamma_phi,
-        "a_x": nm_best_params[0],
-        "a_y": nm_best_params[1],
-        "a_z": nm_best_params[2],
-        "a_zz": nm_best_params[3],
-        "delta_omega": nm_best_delta,
-        "expectation_Jz": nm_best_diag["expectation_Jz"],
-        "variance_Jz": nm_best_diag["variance_Jz"],
-        "d_exp_d_omega": nm_best_diag["d_exp_d_omega"],
+        "a_x": float(best_nm.params_opt[0]),
+        "a_y": float(best_nm.params_opt[1]),
+        "a_z": float(best_nm.params_opt[2]),
+        "a_zz": float(best_nm.params_opt[3]),
+        "delta_omega": float(best_nm.delta_omega_opt),
+        "expectation_Jz": float(best_nm.expectation_Jz),
+        "variance_Jz": float(best_nm.variance_Jz),
+        "d_exp_d_omega": float(best_nm.d_exp_d_omega),
     }
 
 
@@ -2085,12 +2102,7 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent
 DATE_TAG = "20260524"
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, DATE_TAG, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, DATE_TAG, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, DATE_TAG)
 
 
 # ── Parallel dispatch helper ──────────────────────────────────────────────

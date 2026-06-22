@@ -29,13 +29,15 @@ import os
 import sys
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from scipy.linalg import expm
-from scipy.optimize import minimize
 
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
@@ -57,9 +59,16 @@ from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
     compute_expectation_and_variance,
 )
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_nelder_mead,
+    run_omega_scan,
+    run_random_search,
+    run_two_phase_pipeline,
+)
 from src.utils.constants import I_4
 from src.utils.parallel import parallel_map
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 
 sns.set_theme(style="whitegrid")
 
@@ -429,6 +438,108 @@ def phase_modulated_2d_slice(
 
 
 # ============================================================================
+# Shared Pipeline Helpers
+# ============================================================================
+
+
+def _make_objective(
+    omega: float,
+    ops: dict[str, np.ndarray],
+    psi0: np.ndarray,
+    t_hold: float = DEFAULT_t_hold,
+    T_BS: float = DEFAULT_T_BS,
+) -> Callable[[np.ndarray], float]:
+    """Build the raw (unpenalised) Δω objective for a given ω."""
+
+    def _raw_objective(p: np.ndarray) -> float:
+        return compute_phase_modulated_sensitivity(
+            psi0,
+            T_BS,
+            t_hold,
+            omega,
+            float(p[0]),
+            float(p[1]),
+            float(p[2]),
+            float(p[3]),
+            ops,
+        )
+
+    return _raw_objective
+
+
+def _build_rs_result(
+    raw_objective: Callable[[np.ndarray], float],
+    n_samples: int,
+    seed: int,
+    omega: float,
+) -> DriveRandomSearchResult:
+    """Run random search and wrap result in DriveRandomSearchResult."""
+    samples, deltas = run_random_search(
+        raw_objective,
+        n_params=4,
+        n_samples=n_samples,
+        bounds=DRIVE_BOUNDS,
+        seed=seed,
+    )
+    best_idx = int(np.argmin(deltas))
+    return DriveRandomSearchResult(
+        samples=samples,
+        delta_omega_values=deltas,
+        best_params=(
+            float(samples[best_idx, 0]),
+            float(samples[best_idx, 1]),
+            float(samples[best_idx, 2]),
+            float(samples[best_idx, 3]),
+        ),
+        best_delta_omega=float(deltas[best_idx]),
+        omega_value=omega,
+        sql=1.0 / DEFAULT_t_hold,
+        t_hold=DEFAULT_t_hold,
+    )
+
+
+def _build_nm_result(
+    raw_objective: Callable[[np.ndarray], float],
+    x0: np.ndarray,
+    omega: float,
+    ops: dict[str, np.ndarray],
+    psi0: np.ndarray,
+) -> DriveNelderMeadResult:
+    """Run Nelder-Mead and wrap result in DriveNelderMeadResult."""
+    nm = run_nelder_mead(
+        raw_objective,
+        x0=x0,
+        bounds=DRIVE_BOUNDS,
+        maxiter=5000,
+        track_history=False,
+    )
+    opt_p = nm["x_opt"]
+    psi_final = evolve_phase_modulated_circuit(
+        psi0,
+        DEFAULT_T_BS,
+        DEFAULT_t_hold,
+        omega,
+        float(opt_p[0]),
+        float(opt_p[1]),
+        float(opt_p[2]),
+        float(opt_p[3]),
+        ops,
+    )
+    exp_val, var_val = compute_expectation_and_variance(psi_final, ops["Jz_S"])
+    return DriveNelderMeadResult(
+        delta_omega_opt=nm["fun_opt"],
+        params_opt=opt_p,
+        omega_true=omega,
+        success=nm["success"],
+        nfev=nm["nfev"],
+        message=nm["message"],
+        expectation_Jz=exp_val,
+        variance_Jz=var_val,
+        history=nm["history"],
+    )
+
+
+# ============================================================================
 # 4D Random Search
 # ============================================================================
 
@@ -456,113 +567,14 @@ def phase_modulated_random_search(
     Returns:
         DriveRandomSearchResult with all samples and best found.
     """
-    rng = np.random.default_rng(seed)
     ops = build_two_qubit_operators()
-    lo, hi = bounds
-
-    samples = rng.uniform(lo, hi, size=(n_samples, 4))
-    deltas = np.full(n_samples, np.inf, dtype=float)
-
-    for i in range(n_samples):
-        ax = float(samples[i, 0])
-        ay = float(samples[i, 1])
-        az = float(samples[i, 2])
-        azz = float(samples[i, 3])
-
-        domega = compute_phase_modulated_sensitivity(
-            DEFAULT_PSI0,
-            T_BS,
-            t_hold,
-            omega,
-            ax,
-            ay,
-            az,
-            azz,
-            ops,
-        )
-        deltas[i] = domega
-
-    best_idx = int(np.argmin(deltas))
-    best_params: tuple[float, float, float, float] = (
-        float(samples[best_idx, 0]),
-        float(samples[best_idx, 1]),
-        float(samples[best_idx, 2]),
-        float(samples[best_idx, 3]),
-    )
-
-    return DriveRandomSearchResult(
-        samples=samples,
-        delta_omega_values=deltas,
-        best_params=best_params,
-        best_delta_omega=float(deltas[best_idx]),
-        omega_value=omega,
-        sql=1.0 / t_hold,
-        t_hold=t_hold,
-    )
+    raw_obj = _make_objective(omega, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS)
+    return _build_rs_result(raw_obj, n_samples, seed or 42, omega)
 
 
 # ============================================================================
 # Nelder--Mead Optimisation
 # ============================================================================
-
-
-def phase_modulated_sensitivity_objective(
-    params: np.ndarray,
-    omega_true: float,
-    ops: dict[str, np.ndarray],
-    t_hold: float = DEFAULT_t_hold,
-    T_BS: float = DEFAULT_T_BS,
-    fd_step: float = 1e-6,
-    bounds: tuple[float, float] = DRIVE_BOUNDS,
-    penalty_scale: float = 1e6,
-) -> float:
-    """Objective function for minimising Δω in the ω-modulated protocol.
-
-    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed t_hold.
-    params = [a_x, a_y, a_z, a_zz] (4 elements).
-
-    Args:
-        params: 4-element parameter vector.
-        omega_true: True phase rate.
-        ops: Two-qubit operators.
-        t_hold: Holding time.
-        T_BS: Beam-splitter duration.
-        fd_step: Finite-difference step.
-        bounds: (min, max) for all parameters.
-        penalty_scale: Scale for bound-violation penalty.
-
-    Returns:
-        Δω (plus infinite penalty if bounds violated).
-    """
-    ax = float(params[0])
-    ay = float(params[1])
-    az = float(params[2])
-    azz = float(params[3])
-
-    # Bound enforcement
-    lo, hi = bounds
-    penalty = 0.0
-    for val in (ax, ay, az, azz):
-        if val < lo:
-            penalty += penalty_scale * (lo - val) ** 2
-        if val > hi:
-            penalty += penalty_scale * (val - hi) ** 2
-
-    if penalty > 0.0:
-        return float(1e10 + penalty)
-
-    return compute_phase_modulated_sensitivity(
-        DEFAULT_PSI0,
-        T_BS,
-        t_hold,
-        omega_true,
-        ax,
-        ay,
-        az,
-        azz,
-        ops,
-        fd_step,
-    )
 
 
 def run_phase_modulated_nelder_mead(
@@ -606,62 +618,42 @@ def run_phase_modulated_nelder_mead(
         x0 = np.asarray(x0, dtype=float)
         assert x0.shape == (4,), f"x0 must have 4 elements, got {x0.shape}"
 
-    def objective(p: np.ndarray) -> float:
-        return phase_modulated_sensitivity_objective(
-            p,
-            omega_true,
-            ops,
-            t_hold=t_hold,
-            T_BS=T_BS,
-            bounds=bounds,
-        )
-
-    history: list[float] = []
-
-    def callback(intermediate_result: Any) -> None:
-        if track_history:
-            val = objective(intermediate_result.x)
-            history.append(val)
-
-    result = minimize(
-        objective,
+    raw_obj = _make_objective(omega_true, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS)
+    nm = run_nelder_mead(
+        raw_obj,
         x0=x0,
-        method="Nelder-Mead",
-        callback=callback,
-        options={
-            "maxiter": maxiter,
-            "xatol": xatol,
-            "fatol": fatol,
-            "adaptive": adaptive,
-        },
+        bounds=bounds,
+        maxiter=maxiter,
+        xatol=xatol,
+        fatol=fatol,
+        adaptive=adaptive,
+        track_history=track_history,
     )
 
-    opt_params = result.x.copy()
-
-    # Compute diagnostics at the optimal point
+    opt_p = nm["x_opt"]
     psi_final = evolve_phase_modulated_circuit(
         DEFAULT_PSI0,
         T_BS,
         t_hold,
         omega_true,
-        float(opt_params[0]),
-        float(opt_params[1]),
-        float(opt_params[2]),
-        float(opt_params[3]),
+        float(opt_p[0]),
+        float(opt_p[1]),
+        float(opt_p[2]),
+        float(opt_p[3]),
         ops,
     )
     exp_val, var_val = compute_expectation_and_variance(psi_final, ops["Jz_S"])
 
     return DriveNelderMeadResult(
-        delta_omega_opt=float(result.fun),
-        params_opt=opt_params,
+        delta_omega_opt=nm["fun_opt"],
+        params_opt=opt_p,
         omega_true=omega_true,
-        success=bool(result.success),
-        nfev=int(result.nfev),
-        message=str(result.message),
+        success=nm["success"],
+        nfev=nm["nfev"],
+        message=nm["message"],
         expectation_Jz=exp_val,
         variance_Jz=var_val,
-        history=history.copy(),
+        history=nm["history"],
     )
 
 
@@ -701,73 +693,55 @@ def run_phase_modulated_omega_scan(
     Returns:
         DriveOmegaScanResult with optimal parameters and sensitivities.
     """
+    ops = build_two_qubit_operators()
+
+    config = TwoPhaseConfig(
+        n_random=n_random,
+        n_nm_refine=n_nm_refine,
+        nm_maxiter=maxiter,
+        seed=seed,
+        bounds=bounds,
+    )
+
+    def _rs_fn(n_samples: int, seed: int, **kw: Any) -> DriveRandomSearchResult:
+        omega = kw["omega"]
+        raw_obj = _make_objective(omega, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS)
+        return _build_rs_result(raw_obj, n_samples, seed, omega)
+
+    def _nm_fn(x0: np.ndarray, seed: int, **kw: Any) -> DriveNelderMeadResult:
+        omega = kw["omega_true"]
+        raw_obj = _make_objective(omega, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS)
+        return _build_nm_result(raw_obj, x0, omega, ops, DEFAULT_PSI0)
+
+    best_results, all_results = run_omega_scan(
+        omega_values=omega_values,
+        random_search_fn=_rs_fn,
+        nm_fn=_nm_fn,
+        config=config,
+    )
+
     omega_arr = np.asarray(omega_values, dtype=float)
-    base_seed = seed if seed is not None else 42
-
-    best_params_list: list[tuple[float, float, float, float]] = []
-    best_deltas: list[float] = []
-    sql_vals: list[float] = []
-    exp_vals: list[float] = []
-    var_vals: list[float] = []
-    all_results_dict: dict[float, list[DriveNelderMeadResult]] = {}
-
-    for omega in omega_arr:
-        # Stage 1: Random search
-        rs_result = phase_modulated_random_search(
-            omega,
-            n_samples=n_random,
-            bounds=bounds,
-            t_hold=t_hold,
-            T_BS=T_BS,
-            seed=base_seed + int(omega * 1000),
-        )
-
-        # Sort random-search results by Δω, take top n_nm_refine
-        sorted_indices = np.argsort(rs_result.delta_omega_values)
-        top_indices = sorted_indices[:n_nm_refine]
-
-        # Stage 2: Nelder--Mead refinement from each top point
-        nm_results: list[DriveNelderMeadResult] = []
-        for rank, idx in enumerate(top_indices):
-            x0 = rs_result.samples[idx].copy()
-            nm = run_phase_modulated_nelder_mead(
-                omega_true=omega,
-                x0=x0,
-                seed=base_seed + int(omega * 1000) + 10000 + rank,
-                maxiter=maxiter,
-                bounds=bounds,
-                t_hold=t_hold,
-                T_BS=T_BS,
-                track_history=False,
-            )
-            nm_results.append(nm)
-
-        # Sort Nelder--Mead results by Δω
-        nm_results.sort(key=lambda r: r.delta_omega_opt)
-        best_nm = nm_results[0]
-
-        best_params_list.append(
-            (
-                float(best_nm.params_opt[0]),
-                float(best_nm.params_opt[1]),
-                float(best_nm.params_opt[2]),
-                float(best_nm.params_opt[3]),
-            )
-        )
-        best_deltas.append(best_nm.delta_omega_opt)
-        sql_vals.append(1.0 / t_hold)
-        exp_vals.append(best_nm.expectation_Jz)
-        var_vals.append(best_nm.variance_Jz)
-        all_results_dict[float(omega)] = nm_results
+    sql = 1.0 / t_hold
 
     return DriveOmegaScanResult(
         omega_values=omega_arr,
-        best_params_per_omega=best_params_list,
-        best_delta_omega_per_omega=np.array(best_deltas, dtype=float),
-        sql_values=np.array(sql_vals, dtype=float),
-        expectation_Jz_per_omega=np.array(exp_vals, dtype=float),
-        variance_Jz_per_omega=np.array(var_vals, dtype=float),
-        all_results=all_results_dict,
+        best_params_per_omega=[
+            (
+                float(r.params_opt[0]),
+                float(r.params_opt[1]),
+                float(r.params_opt[2]),
+                float(r.params_opt[3]),
+            )
+            for r in best_results
+        ],
+        best_delta_omega_per_omega=np.array([r.delta_omega_opt for r in best_results]),
+        sql_values=np.full(len(best_results), sql),
+        expectation_Jz_per_omega=np.array([r.expectation_Jz for r in best_results]),
+        variance_Jz_per_omega=np.array([r.variance_Jz for r in best_results]),
+        all_results={
+            float(omega): results
+            for omega, results in zip(omega_arr, all_results, strict=True)
+        },
     )
 
 
@@ -1116,12 +1090,7 @@ PHASE_OMEGA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
 PHASE_N_GRID = 201
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, PHASE_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, PHASE_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, PHASE_DATE)
 
 
 # ── Parallel dispatch helper ──────────────────────────────────────────────
@@ -1236,40 +1205,29 @@ def _run_phase_omega_scan_single(omega: float) -> dict[str, float | np.ndarray]:
     Returns a dict with per-ω results that can be aggregated into a
     ``DriveOmegaScanResult``.
     """
-    base_seed: int = 42
-    n_random: int = 500
-    n_nm_refine: int = 50
-    maxiter_val: int = 5000
-    bounds: tuple[float, float] = (-5.0, 5.0)
+    ops = build_two_qubit_operators()
+    raw_obj = _make_objective(omega, ops, DEFAULT_PSI0)
 
-    # Stage 1: Random search
-    rs_result = phase_modulated_random_search(
-        omega,
-        n_samples=n_random,
-        bounds=bounds,
-        seed=base_seed + int(omega * 1000),
+    def _rs_fn(n_samples: int, seed: int, **kw: Any) -> DriveRandomSearchResult:
+        return _build_rs_result(raw_obj, n_samples, seed, omega)
+
+    def _nm_fn(x0: np.ndarray, seed: int, **kw: Any) -> DriveNelderMeadResult:
+        return _build_nm_result(raw_obj, x0, omega, ops, DEFAULT_PSI0)
+
+    config = TwoPhaseConfig(
+        n_random=500,
+        n_nm_refine=50,
+        nm_maxiter=5000,
+        seed=42,
+        bounds=(-5.0, 5.0),
     )
 
-    # Sort by Δω, take top n_nm_refine
-    sorted_indices = np.argsort(rs_result.delta_omega_values)
-    top_indices = sorted_indices[:n_nm_refine]
-
-    # Stage 2: Nelder--Mead refinement from each top point
-    nm_results: list[DriveNelderMeadResult] = []
-    for rank, idx in enumerate(top_indices):
-        x0 = rs_result.samples[idx].copy()
-        nm = run_phase_modulated_nelder_mead(
-            omega_true=omega,
-            x0=x0,
-            seed=base_seed + int(omega * 1000) + 10000 + rank,
-            maxiter=maxiter_val,
-            bounds=bounds,
-            track_history=False,
-        )
-        nm_results.append(nm)
-
-    nm_results.sort(key=lambda r: r.delta_omega_opt)
-    best_nm = nm_results[0]
+    best_nm, _ = run_two_phase_pipeline(
+        random_search_fn=_rs_fn,
+        nm_fn=_nm_fn,
+        config=config,
+        seed=42 + int(omega * 1000),
+    )
 
     return {
         "omega": omega,

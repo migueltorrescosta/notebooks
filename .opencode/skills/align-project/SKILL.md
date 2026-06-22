@@ -89,7 +89,7 @@ Run all four checks in order. Stop at the first failure:
 2. **Type checking (static)** — `uv run mypy .`
 3. **Type checking (live)** — `uvx pyright src/ pages/`
 4. **Tests** — `uv run pytest . --testmon --quiet --tb=short`
-5. **Coverage** — `uv run coverage run -m pytest . -m "not slow" && uv run coverage report --fail-under=85`
+5. **Coverage** — `uv run coverage run -m pytest . -m "not slow" && uv run coverage report --fail-under=85` 
 
 For any failure, report the full command output and flag as a regression. Do not attempt to fix.
 

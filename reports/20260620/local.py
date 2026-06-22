@@ -35,9 +35,13 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
 )
 from src.analysis.n_scaling_result import NScalingResult
+from src.analysis.optimisation_pipeline import (
+    TwoPhaseConfig,
+    run_two_phase_pipeline,
+)
 from src.analysis.sensitivity_metrics import sql_reference
 from src.utils.parallel import parallel_map
-from src.utils.paths import fig_path, parquet_path
+from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 from src.visualization.scaling_plots import (
     plot_n_scaling_optimal_params,
@@ -74,12 +78,7 @@ REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 REPORT_DATE = "20260620"
 
 
-def _parquet_path(name: str) -> Path:
-    return parquet_path(REPORTS_DIR, REPORT_DATE, name)
-
-
-def _fig_path(name: str) -> Path:
-    return fig_path(REPORTS_DIR, REPORT_DATE, name)
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ============================================================================
@@ -1267,35 +1266,17 @@ def run_single_n_m_omega(
     base_seed = seed if seed is not None else 42
     ops = build_operators(N, M)
 
-    # Stage 1: Random search
-    rs_result = random_search(
-        N,
-        M,
-        omega,
-        n_samples=N_RANDOM,
-        seed=base_seed,
+    def rs_fn(n_samples, seed, **kw):
+        return random_search(N, M, omega, n_samples=n_samples, seed=seed)
+
+    def nm_fn(x0, seed, **kw):
+        return run_nelder_mead(N, M, omega_true=omega, ops=ops, x0=x0, seed=seed)
+
+    best_nm, _ = run_two_phase_pipeline(
+        rs_fn,
+        nm_fn,
+        TwoPhaseConfig(n_random=N_RANDOM, n_nm_refine=N_NM_REFINE, seed=base_seed),
     )
-
-    # Sort by Delta_omega, take top N_NM_REFINE
-    sorted_indices = np.argsort(rs_result.delta_omega_values)
-    top_indices = sorted_indices[:N_NM_REFINE]
-
-    # Stage 2: Nelder-Mead refinement from each top point
-    nm_results: list[FreeAncillaNelderMeadResult] = []
-    for rank, idx in enumerate(top_indices):
-        x0 = rs_result.samples[idx].copy()
-        nm = run_nelder_mead(
-            N=N,
-            M=M,
-            omega_true=omega,
-            ops=ops,
-            x0=x0,
-            seed=base_seed + int(omega * 1000) + 10000 + rank,
-        )
-        nm_results.append(nm)
-
-    nm_results.sort(key=lambda r: r.delta_omega_opt)
-    best_nm = nm_results[0]
 
     sql_val = sql_reference(N, T_HOLD)
     return FreeAncillaNScalingResult(
