@@ -57,9 +57,9 @@ The Twin-Fock QFI bound scales as $\Delta\omega_Q \propto 1/N$ for large $N$ (as
 
 ### Implementation Strategy
 
-1. **State preparation** — Use `input_state_factory` from `src.physics.mzi_states` with `state_type="noon"` to produce the NOON state. For the standard Twin-Fock $\vert N/2, N/2\rangle$, implement a local helper in the report's `local.py` since the codebase's `twin_fock_state` produces the uniform superposition. The Twin-Fock requires $N$ even; for odd $N$, those data points are skipped. The Hilbert space dimension is $(N+1)^2$, with $N_{\text{max}} = N$ as the truncation (exact for definite-$N$ states).
+1. **State preparation** — Use `input_state_factory` from `src.physics.mzi_states` with `state_type="noon"` to produce the NOON state. For the standard Twin-Fock $\vert N/2, N/2\rangle$, implement a local helper in the report's `heisenberg_limit_noon_twinfock.py` since the codebase's `twin_fock_state` produces the uniform superposition. The Twin-Fock requires $N$ even; for odd $N$, those data points are skipped. The Hilbert space dimension is $(N+1)^2$, with $N_{\text{max}} = N$ as the truncation (exact for definite-$N$ states).
 
-2. **MZI evolution** — For each combination of state type, $N$, and $\omega$, use `simple_mzi_evolution` from `local.py` which applies the full MZI circuit (BS1 is skipped when `skip_bs1=True` for NOON). The phase shift is $\phi = \omega \cdot H_t$, with $H_t = 10$ and beam splitter parameter $\theta_{\text{BS}} = \pi/4$.
+2. **MZI evolution** — For each combination of state type, $N$, and $\omega$, use `simple_mzi_evolution` from `heisenberg_limit_noon_twinfock.py` which applies the full MZI circuit (BS1 is skipped when `skip_bs1=True` for NOON). The phase shift is $\phi = \omega \cdot H_t$, with $H_t = 10$ and beam splitter parameter $\theta_{\text{BS}} = \pi/4$.
 
 3. **Sweep structure** — Nested loops over $(N, \omega)$ produce a 2D grid of sensitivity values. For each $(N, \omega)$:
    - Evolve the state through the MZI
@@ -186,7 +186,7 @@ The Twin-Fock $\Delta\omega_C$ is a factor $\sqrt{2}$ larger than NOON at the sa
 
 **Key Finding**: Both states saturate their respective QFI bounds under number-difference measurement in the balanced MZI. The Twin-Fock state, despite having input variance $\text{Var}(J_z) = 0$, acquires sufficient variance after BS1 ($\text{Var}(J_z) = N(N+2)/8$) to achieve Heisenberg-like scaling $\Delta\omega_C \propto 1/\sqrt{N(N+2)/2} \to 1/(\sqrt{2} H_t N)$.
 
-**See**: `local.py` — `output_number_diff_distribution`, `compute_fisher_classical` (delegates to `src.analysis.fisher_information.classical_fisher_information_single`), `compute_mzi_sensitivity_grid`, `plot_delta_omega_overlay`, `plot_standard_deviation_comparison`. Source modules: `src.physics.mzi_simulation` (beam splitter, phase shift), `src.physics.mzi_states` ($J_z$ operator), `src.analysis.fisher_information` (CFI computation), `src.analysis.scaling_fit` (exponent fitting).
+**See**: `heisenberg_limit_noon_twinfock.py` — `output_number_diff_distribution`, `compute_fisher_classical` (delegates to `src.analysis.fisher_information.classical_fisher_information_single`), `compute_mzi_sensitivity_grid`, `plot_delta_omega_overlay`, `plot_standard_deviation_comparison`. Source modules: `src.physics.mzi_simulation` (beam splitter, phase shift), `src.physics.mzi_states` ($J_z$ operator), `src.analysis.fisher_information` (CFI computation), `src.analysis.scaling_fit` (exponent fitting).
 
 ## ✅ Success Criteria
 

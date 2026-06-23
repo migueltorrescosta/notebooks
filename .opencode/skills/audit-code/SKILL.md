@@ -25,7 +25,7 @@ Audit the codebase implementation related to a specific report against all proje
    - The simulation functions and dataclasses used
    - The expected outputs and success criteria
 2. **Read the relevant code** — Open all source files related to this report:
-   - The report's own `local.py` and `test_local.py` in `reports/YYYYMMDD/`
+   - The report's own experiment module (e.g., `phase_modulated_drive.py`) and its test file (`test_*.py`) in `reports/YYYYMMDD/`
    - Physics modules (`src/physics/`)
    - Evolution modules (`src/evolution/`)
    - Analysis modules (`src/analysis/`)
@@ -37,14 +37,14 @@ Audit the codebase implementation related to a specific report against all proje
 
 Before listing individual violations, identify opportunities to reduce duplication by promoting shared infrastructure to `src/` modules. This has higher impact than fixing cosmetic or style issues in duplicate code.
 1. **Cross-reference for duplicates** — Compare each function/constant name and signature with:
-   - Other report `local.py` files (same name? same signature? same implementation body?)
+   - Other report experiment modules (same name? same signature? same implementation body?)
    - Existing `src/` modules (does a canonical version already exist?)
 4. **Categorise each duplicate**:
    - **Exact match** — Same name, same signature, same implementation. → Promote to `src/`.
    - **Near match** — Same logic, different name or minor signature difference. → Promote with a unifying API, then update all call sites.
    - **Superficial match** — Same name but different implementation. → Keep both local; flag as naming collision (MAJOR).
 5. **Flag for promotion** — For each function/constant duplicated across ≥2 reports:
-   - Record it as a `MAJOR` violation with the suggested fix: "Create `src/.../...py` containing the shared implementation, then update all N report `local.py` files to import from the new module."
+   - Record it as a `MAJOR` violation with the suggested fix: "Create `src/.../...py` containing the shared implementation, then update all N report experiment modules to import from the new module."
    - This must be done **before** any cosmetic-only fixes (E402, line length, etc.) are suggested for the duplicated code, since the cosmetic issues will disappear once the code is promoted to `src/`.
 
 ## 3. Reporting violations
@@ -81,7 +81,7 @@ After the full audit, provide:
 ### Before implementation
 - [ ] Searched agentmemory for relevant prior decisions and standards (`project:notebooks`)
 - [ ] Read the report (Hilbert space, operators, protocol)
-- [ ] Read all relevant source files (report's `local.py` and `test_local.py`, plus affected modules in `src/`, `pages/`, `tests/`)
+- [ ] Read all relevant source files (report's experiment module and its test file, plus affected modules in `src/`, `pages/`, `tests/`)
 - [ ] Consulted CHANGELOG backlog if applicable
 
 ### During analysis
@@ -95,8 +95,8 @@ After the full audit, provide:
 - [ ] Coverage >= 85% — run `uv run coverage run -m pytest . -m "not slow" && uv run coverage report --fail-under=85`
 - [ ] Checked for pyright violations in `src/` and `pages/` (`uvx pyright src/ pages/`)
 - [ ] Checked for module-level constants in `src/` (violation of Global Constraint §6)
-- [ ] Checked for imports from `local.py` originating outside the report directory (violation of Global Constraint §7)
-- [ ] Checked that new report-specific code was added to `local.py`, not to `src/` (violation of Global Constraint §5)
+- [ ] Checked for imports from report experiment modules originating outside the report directory (violation of Global Constraint §7)
+- [ ] Checked that new report-specific code was added to the experiment module, not to `src/` (violation of Global Constraint §5)
 - [ ] Each violation recorded with file, line, standard violated, severity, description, and suggested fix
 - [ ] CHANGELOG updated with entry under the appropriate weekly section if the audit uncovered actionable items; any errors that predated the current session added to the backlog
 - [ ] Saved key findings to agentmemory (`project:notebooks`)

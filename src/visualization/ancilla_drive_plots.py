@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
-from src.analysis.ancilla_drive_metrology import (
+from src.analysis.ancilla_drive_results import (
     Drive2DSliceResult,
     DriveDecoupledBaselineResult,
     DriveOmegaScanResult,
@@ -351,7 +351,7 @@ def plot_drive_optimal_params(
 #       cross-experiment comparison, fraction below SQL
 # ──────────────────────────────────────────────
 #
-# These plot functions have been moved to ``reports/20260519/local.py``
+# These plot functions have been moved to ``reports/20260519/phase_modulated_drive.py``
 # as they are used exclusively by the 20260519 report.
 
 

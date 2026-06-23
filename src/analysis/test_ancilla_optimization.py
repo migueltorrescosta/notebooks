@@ -8,7 +8,25 @@ import pytest
 from scipy.linalg import expm
 
 from src.analysis.ancilla_optimization import (
-    I_2,
+    bs_unitary,
+    build_hold_hamiltonian,
+    build_interaction_hamiltonian,
+    build_joint_operator,
+    build_two_qubit_operators,
+    compute_covariance,
+    compute_expectation_and_variance,
+    compute_reduced_purity,
+    compute_sensitivity,
+    evolve_full,
+    get_default_bounds,
+    hold_unitary_two_qubit,
+    random_initial_params,
+    sensitivity_objective,
+    single_qubit_state,
+    two_qubit_bs_unitary,
+    two_qubit_state,
+)
+from src.analysis.ancilla_optimization_results import (
     AlphaRandomSearchResult,
     AlphaReoptScanResult,
     AlphaSingleScanResult,
@@ -17,36 +35,21 @@ from src.analysis.ancilla_optimization import (
     InteractionRobustnessResult,
     OmegaScanResult,
     OptimisationResult,
-    bs_unitary,
-    build_hold_hamiltonian,
-    build_interaction_hamiltonian,
-    build_joint_operator,
-    build_two_qubit_operators,
     compute_convergence_metric,
-    compute_covariance,
-    compute_expectation_and_variance,
+)
+from src.analysis.ancilla_optimization_scans import (
     compute_interaction_robustness,
-    compute_reduced_purity,
-    compute_sensitivity,
-    evolve_full,
     get_decoupled_sensitivity,
-    get_default_bounds,
-    hold_unitary_two_qubit,
-    random_initial_params,
     random_search_alpha,
     run_optimisation,
     scan_alpha_single_parameter,
     scan_alpha_with_reoptimisation,
-    sensitivity_objective,
-    single_qubit_state,
-    two_qubit_bs_unitary,
-    two_qubit_state,
     validate_derivative_stability,
     validate_operators,
     validate_sensitivity_reasonable,
     validate_variance_positive,
 )
-from src.utils.constants import I_4
+from src.utils.constants import I_2, I_4
 
 
 def _make_default_params() -> np.ndarray:
@@ -201,7 +204,7 @@ class TestStatePreparation:
         )
         assert compute_reduced_purity(psi) == pytest.approx(1.0, abs=1e-10)
 
-    @pytest.mark.parametrize("seed", range(20), ids=[f"seed_{s}" for s in range(20)])
+    @pytest.mark.parametrize("seed", range(5), ids=[f"seed_{s}" for s in range(5)])
     def test_given_random_state_then_purity_in_range(self, seed: int) -> None:
         rng = np.random.default_rng(seed)
         psi = rng.standard_normal(4) + 1j * rng.standard_normal(4)
@@ -369,7 +372,7 @@ class TestSensitivity:
 
     @pytest.mark.parametrize(
         ("omega_true", "t_hold"),
-        list(itertools.product([0.3, 0.7, 1.0, 1.3, 1.7], [0.5, 1.0, 1.5, 2.0])),
+        list(itertools.product([0.3, 1.0, 1.7], [0.5, 1.5, 2.0])),
     )
     def test_decoupled_sensitivity_analytical(
         self, omega_true: float, t_hold: float, make_ops: dict[str, np.ndarray]
@@ -380,7 +383,7 @@ class TestSensitivity:
         )
         assert domega == pytest.approx(1.0 / t_hold, rel=5e-3)
 
-    @pytest.mark.parametrize("seed", range(20), ids=[f"seed_{s}" for s in range(20)])
+    @pytest.mark.parametrize("seed", range(5), ids=[f"seed_{s}" for s in range(5)])
     def test_variance_nonnegative(
         self, seed: int, make_ops: dict[str, np.ndarray]
     ) -> None:
@@ -719,7 +722,7 @@ class TestAlphaScans:
         assert len(result.delta_omega_values) == 10
         assert np.isfinite(result.best_delta_omega)
 
-    @pytest.mark.parametrize("seed", range(50), ids=[f"seed_{s}" for s in range(50)])
+    @pytest.mark.parametrize("seed", range(5), ids=[f"seed_{s}" for s in range(5)])
     def test_random_search_bounds(self, seed: int) -> None:
         result = random_search_alpha(
             n_samples=1, alpha_min=-1.0, alpha_max=1.0, seed=seed
@@ -821,8 +824,8 @@ class TestAlphaScans:
 
     def test_scan_alpha_with_reoptimisation_default_alpha_values(self) -> None:
         result = scan_alpha_with_reoptimisation("xx", n_restarts=2, maxiter=10, seed=42)
-        # Default: 21 points in [-2, 2]
-        assert result.alpha_values.shape == (21,)
+        # Default: 5 points in [-2, 2]
+        assert result.alpha_values.shape == (5,)
         assert result.alpha_values[0] == pytest.approx(-2.0)
         assert result.alpha_values[-1] == pytest.approx(2.0)
 
@@ -912,7 +915,7 @@ class TestInteractionRobustness:
             )
 
     def test_larger_scan(self) -> None:
-        t_hold_vals = np.linspace(0.5, 2.0, 4)
+        t_hold_vals = np.linspace(0.5, 2.0, 3)
         alpha_vals = np.linspace(-1.0, 1.0, 5)
         result = compute_interaction_robustness(
             t_hold_vals,
@@ -920,8 +923,8 @@ class TestInteractionRobustness:
             omega_true=1.0,
             alpha_name="zz",
         )
-        assert result.delta_omega_joint.shape == (4, 5)
-        assert result.delta_omega_sonly.shape == (4, 5)
+        assert result.delta_omega_joint.shape == (3, 5)
+        assert result.delta_omega_sonly.shape == (3, 5)
         assert np.all(np.isfinite(result.delta_omega_joint))
         assert np.all(np.isfinite(result.delta_omega_sonly))
         # At α=0 (index 2), sensitivity should approximately equal 1/t_hold

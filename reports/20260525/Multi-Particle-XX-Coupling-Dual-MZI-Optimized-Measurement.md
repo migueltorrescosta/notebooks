@@ -177,7 +177,7 @@ The following physical invariants are verified throughout every simulation run:
 - **Scaling analysis** — Log-log fit $\log(\Delta\omega) = \alpha \log(N) + \log(C)$ for each $\omega$ — reused.
 - **Validation helpers** — Hermiticity, unitarity, variance positivity, SQL baseline recovery, derivative stability — adapted and verified.
 
-**Tests**: The companion `test_local.py` module provides test cases covering operator construction (dimension, Hermiticity, commutation relations), full-state measurement (variance positivity, trace equivalence at $\psi=0$), sensitivity ($N$-SQL recovery at $\psi=0$, $2N$-SQL saturation at $\psi=\pi/4$, $\alpha_{xx}=0$), 2D optimisation (finite return, bounds, convergence), full sweep (small run, metadata), decoupled baseline (all $\psi$-dependent predictions), scaling analysis ($2N$-SQL exponent), Parquet roundtrip (metadata + fail-fast), and physical invariants.
+**Tests**: The companion `test_joint_measurement_xx_coupling.py` module provides test cases covering operator construction (dimension, Hermiticity, commutation relations), full-state measurement (variance positivity, trace equivalence at $\psi=0$), sensitivity ($N$-SQL recovery at $\psi=0$, $2N$-SQL saturation at $\psi=\pi/4$, $\alpha_{xx}=0$), 2D optimisation (finite return, bounds, convergence), full sweep (small run, metadata), decoupled baseline (all $\psi$-dependent predictions), scaling analysis ($2N$-SQL exponent), Parquet roundtrip (metadata + fail-fast), and physical invariants.
 
 ## ⚠️ Expected Failure Conditions
 

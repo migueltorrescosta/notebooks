@@ -245,7 +245,7 @@ class TestBuildPseudomodeHamiltonian:
         """Hamiltonian should be real-valued when omega_0=0."""
         H = build_pseudomode_hamiltonian(PseudomodeConfig(N=5, K=3, omega_0=0.0))
         # Check imaginary part is zero
-        assert np.allclose(H.imag, 0.0, atol=1e-12)
+        assert np.allclose(np.imag(H), 0.0, atol=1e-12)
 
 
 # =============================================================================

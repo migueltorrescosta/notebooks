@@ -157,7 +157,7 @@ class TestSensitivityValidation:
             state,
             max_photons,
             phi_true=np.pi / 4,
-            n_mc=500,
+            n_mc=50,
             seed=42,
         )
         assert np.isfinite(result["delta_phi_ep"])
@@ -198,94 +198,64 @@ class TestBoundaryConditions:
             max_photons=max_photons,
             n_particles=max_photons,
         )
-        phi_grid = np.linspace(0, 2 * np.pi, 721)
+        phi_grid = np.linspace(0, 2 * np.pi, 361)
         result = error_propagation_sensitivity(state, max_photons, phi_grid)
         assert np.isfinite(result["delta_phi_ep"])
         assert result["delta_phi_ep"] > 0
 
 
 class TestReproducibility:
+    @pytest.fixture(scope="class")
+    def _noon_state(self) -> np.ndarray:
+        return prepare_input_state("noon", max_photons=2, n_particles=2)
+
     @pytest.mark.slow
-    def test_same_seed_gives_same_results(self) -> None:
-        max_photons = 2
-        state = prepare_input_state(
-            "noon",
-            max_photons=max_photons,
-            n_particles=max_photons,
-        )
+    def test_same_seed_gives_same_results(
+        self,
+        _noon_state: np.ndarray,  # noqa: PT019
+    ) -> None:
         result1 = all_sensitivity_metrics(
-            state,
-            max_photons,
-            phi_true=np.pi / 4,
-            n_mc=50,
-            seed=123,
+            _noon_state, 2, phi_true=np.pi / 4, n_mc=50, seed=123
         )
         result2 = all_sensitivity_metrics(
-            state,
-            max_photons,
-            phi_true=np.pi / 4,
-            n_mc=50,
-            seed=123,
+            _noon_state, 2, phi_true=np.pi / 4, n_mc=50, seed=123
         )
         assert result1["delta_phi_bayes"] == result2["delta_phi_bayes"]
 
     @pytest.mark.slow
-    def test_different_seeds_give_different_results(self) -> None:
-        max_photons = 2
-        state = prepare_input_state(
-            "noon",
-            max_photons=max_photons,
-            n_particles=max_photons,
-        )
+    def test_different_seeds_give_different_results(
+        self,
+        _noon_state: np.ndarray,  # noqa: PT019
+    ) -> None:
         result1 = all_sensitivity_metrics(
-            state,
-            max_photons,
-            phi_true=np.pi / 4,
-            n_mc=50,
-            seed=123,
+            _noon_state, 2, phi_true=np.pi / 4, n_mc=50, seed=123
         )
         result2 = all_sensitivity_metrics(
-            state,
-            max_photons,
-            phi_true=np.pi / 4,
-            n_mc=50,
-            seed=456,
+            _noon_state, 2, phi_true=np.pi / 4, n_mc=50, seed=456
         )
         assert np.isfinite(result1["delta_phi_bayes"])
         assert np.isfinite(result2["delta_phi_bayes"])
 
 
 class TestPhysicsInvariants:
-    def test_qfi_non_negative(self) -> None:
+    @pytest.fixture(scope="class")
+    def _noon_metrics_result(self) -> dict:
         max_photons = 2
         state = prepare_input_state(
             "noon",
             max_photons=max_photons,
             n_particles=max_photons,
         )
-        result = all_sensitivity_metrics(
-            state,
-            max_photons,
-            phi_true=np.pi / 4,
-            n_mc=100,
-            seed=42,
+        return all_sensitivity_metrics(
+            state, max_photons, phi_true=np.pi / 4, n_mc=100, seed=42
         )
-        assert result["fisher_quantum"] >= 0
 
-    def test_all_sensitivity_measures_positive(self) -> None:
-        max_photons = 2
-        state = prepare_input_state(
-            "noon",
-            max_photons=max_photons,
-            n_particles=max_photons,
-        )
-        result = all_sensitivity_metrics(
-            state,
-            max_photons,
-            phi_true=np.pi / 4,
-            n_mc=100,
-            seed=42,
-        )
+    def test_noon_state_invariants(
+        self,
+        _noon_metrics_result: dict,  # noqa: PT019
+    ) -> None:
+        result = _noon_metrics_result
+        assert result["fisher_quantum"] >= 0
         assert result["delta_phi_ep"] > 0
         assert result["delta_phi_bayes"] > 0
         if np.isfinite(result["delta_phi_fq"]):

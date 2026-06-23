@@ -12,8 +12,8 @@ import pytest
 from src.analysis.ancilla_optimization import (
     build_joint_operator,
     build_two_qubit_operators,
-    run_omega_scan,
 )
+from src.analysis.ancilla_optimization_scans import run_omega_scan
 
 
 class TestJointMeasurementE2E:

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -228,7 +228,7 @@ class TestRunTwoPhasePipeline:
     def test_basic_pipeline(self) -> None:
         obj = _make_quadratic()
 
-        def rs_fn(n_samples: int, seed: int, **kw) -> _FakeRSResult:
+        def rs_fn(n_samples: int, seed: int, **kw: Any) -> _FakeRSResult:
             samples, values = run_random_search(
                 obj,
                 n_params=2,
@@ -237,7 +237,7 @@ class TestRunTwoPhasePipeline:
             )
             return _FakeRSResult(samples=samples, delta_omega_values=values)
 
-        def nm_fn(x0: np.ndarray, seed: int, **kw) -> _FakeNMResult:
+        def nm_fn(x0: np.ndarray, seed: int, **kw: Any) -> _FakeNMResult:
             res = run_nelder_mead(obj, x0=x0, maxiter=1000)
             return _FakeNMResult(
                 delta_omega_opt=res["fun_opt"],
@@ -258,7 +258,7 @@ class TestRunTwoPhasePipeline:
     def test_pipeline_deterministic(self) -> None:
         obj = _make_quadratic()
 
-        def rs_fn(n_samples: int, seed: int, **kw) -> _FakeRSResult:
+        def rs_fn(n_samples: int, seed: int, **kw: Any) -> _FakeRSResult:
             samples, values = run_random_search(
                 obj,
                 n_params=2,
@@ -267,7 +267,7 @@ class TestRunTwoPhasePipeline:
             )
             return _FakeRSResult(samples=samples, delta_omega_values=values)
 
-        def nm_fn(x0: np.ndarray, seed: int, **kw) -> _FakeNMResult:
+        def nm_fn(x0: np.ndarray, seed: int, **kw: Any) -> _FakeNMResult:
             res = run_nelder_mead(obj, x0=x0, maxiter=1000)
             return _FakeNMResult(
                 delta_omega_opt=res["fun_opt"],
@@ -282,14 +282,14 @@ class TestRunTwoPhasePipeline:
     def test_kwargs_forwarded(self) -> None:
         """Verify that rs_kwargs and nm_kwargs are passed to the callbacks."""
 
-        def rs_fn(n_samples: int, seed: int, **kw) -> _FakeRSResult:
+        def rs_fn(n_samples: int, seed: int, **kw: Any) -> _FakeRSResult:
             assert kw.get("custom_arg") == "hello"
             return _FakeRSResult(
                 samples=np.zeros((n_samples, 2)),
                 delta_omega_values=np.full(n_samples, 1.0),
             )
 
-        def nm_fn(x0: np.ndarray, seed: int, **kw) -> _FakeNMResult:
+        def nm_fn(x0: np.ndarray, seed: int, **kw: Any) -> _FakeNMResult:
             assert kw.get("custom_arg") == "hello"
             return _FakeNMResult(delta_omega_opt=0.5, params_opt=x0)
 
@@ -312,7 +312,7 @@ class TestRunOmegaScan:
     def test_basic_omega_scan(self) -> None:
         obj = _make_quadratic()
 
-        def rs_fn(n_samples: int, seed: int, **kw) -> _FakeRSResult:
+        def rs_fn(n_samples: int, seed: int, **kw: Any) -> _FakeRSResult:
             samples, values = run_random_search(
                 obj,
                 n_params=2,
@@ -321,7 +321,7 @@ class TestRunOmegaScan:
             )
             return _FakeRSResult(samples=samples, delta_omega_values=values)
 
-        def nm_fn(x0: np.ndarray, seed: int, **kw) -> _FakeNMResult:
+        def nm_fn(x0: np.ndarray, seed: int, **kw: Any) -> _FakeNMResult:
             # Verify omega kwarg is passed
             assert "omega" in kw or "omega_true" in kw
             res = run_nelder_mead(obj, x0=x0, maxiter=500)
@@ -347,14 +347,14 @@ class TestRunOmegaScan:
     def test_custom_omega_keys(self) -> None:
         collected: list[float] = []
 
-        def rs_fn(n_samples: int, seed: int, **kw) -> _FakeRSResult:
+        def rs_fn(n_samples: int, seed: int, **kw: Any) -> _FakeRSResult:
             collected.append(kw.get("my_omega", -1.0))
             return _FakeRSResult(
                 samples=np.zeros((n_samples, 2)),
                 delta_omega_values=np.full(n_samples, 1.0),
             )
 
-        def nm_fn(x0: np.ndarray, seed: int, **kw) -> _FakeNMResult:
+        def nm_fn(x0: np.ndarray, seed: int, **kw: Any) -> _FakeNMResult:
             return _FakeNMResult(delta_omega_opt=0.5, params_opt=x0)
 
         run_omega_scan(
@@ -369,7 +369,7 @@ class TestRunOmegaScan:
     def test_deterministic_omega_scan(self) -> None:
         obj = _make_quadratic()
 
-        def rs_fn(n_samples: int, seed: int, **kw) -> _FakeRSResult:
+        def rs_fn(n_samples: int, seed: int, **kw: Any) -> _FakeRSResult:
             samples, values = run_random_search(
                 obj,
                 n_params=2,
@@ -378,7 +378,7 @@ class TestRunOmegaScan:
             )
             return _FakeRSResult(samples=samples, delta_omega_values=values)
 
-        def nm_fn(x0: np.ndarray, seed: int, **kw) -> _FakeNMResult:
+        def nm_fn(x0: np.ndarray, seed: int, **kw: Any) -> _FakeNMResult:
             res = run_nelder_mead(obj, x0=x0, maxiter=500)
             return _FakeNMResult(
                 delta_omega_opt=res["fun_opt"],

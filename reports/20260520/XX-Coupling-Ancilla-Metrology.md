@@ -137,7 +137,7 @@ The following physical invariants are verified throughout every simulation run:
 - **Decoupled baseline** — $\alpha_{xx} = 0$ verification at all 50 $\omega$ values.
 - **Validation helpers** — Hermiticity, unitarity, trace preservation, SQL baseline recovery.
 
-**Tests**: The companion test module `test_local.py` contains **54 test functions** covering operators, Hamiltonians, unitarity, circuit evolution, sensitivity computation, reduced variance, grid scan, $\omega$ scan, CSV roundtrip (including fail-fast deserialisation), and physical invariants. All tests pass.
+**Tests**: The companion test module `test_xx_coupling_ancilla.py` contains **54 test functions** covering operators, Hamiltonians, unitarity, circuit evolution, sensitivity computation, reduced variance, grid scan, $\omega$ scan, CSV roundtrip (including fail-fast deserialisation), and physical invariants. All tests pass.
 
 ## ⚠️ Failure Conditions — Actual Outcomes
 

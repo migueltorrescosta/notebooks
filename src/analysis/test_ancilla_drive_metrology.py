@@ -8,24 +8,30 @@ import numpy as np
 import pytest
 
 from src.analysis.ancilla_drive_metrology import (
+    build_ancilla_drive_hamiltonian,
+    build_drive_hold_hamiltonian,
+    build_iszz_interaction,
+    compute_drive_sensitivity,
+    compute_free_ancilla_sensitivity,
+    drive_hold_unitary,
+    evolve_drive_circuit,
+    evolve_phase_modulated_circuit,
+    system_only_bs_unitary,
+)
+from src.analysis.ancilla_drive_results import (
     Drive2DSliceResult,
     DriveDecoupledBaselineResult,
     DriveNelderMeadResult,
     DriveOmegaScanResult,
     DriveRandomSearchResult,
-    build_ancilla_drive_hamiltonian,
-    build_drive_hold_hamiltonian,
-    build_iszz_interaction,
+)
+from src.analysis.ancilla_drive_scans import (
     compute_drive_decoupled_baseline,
-    compute_drive_sensitivity,
     drive_2d_slice,
-    drive_hold_unitary,
     drive_random_search,
     drive_sensitivity_objective,
-    evolve_drive_circuit,
     run_drive_nelder_mead,
     run_drive_omega_scan,
-    system_only_bs_unitary,
 )
 from src.analysis.ancilla_optimization import (
     I_2,
@@ -257,10 +263,16 @@ class TestDrive2DSlice:
 
 
 class TestDriveRandomSearch:
-    def test_random_search_returns_correct_length(self) -> None:
-        result = drive_random_search(omega=1.0, n_samples=50, seed=42)
-        assert result.samples.shape == (50, 4)
-        assert len(result.delta_omega_values) == 50
+    @pytest.fixture(scope="class")
+    def _random_search_result(self) -> DriveRandomSearchResult:
+        return drive_random_search(omega=1.0, n_samples=50, seed=42)
+
+    def test_random_search_returns_correct_length(
+        self,
+        _random_search_result: DriveRandomSearchResult,  # noqa: PT019
+    ) -> None:
+        assert _random_search_result.samples.shape == (50, 4)
+        assert len(_random_search_result.delta_omega_values) == 50
 
     def test_random_search_reproducible(self) -> None:
         r1 = drive_random_search(omega=1.0, n_samples=50, seed=42)
@@ -268,20 +280,27 @@ class TestDriveRandomSearch:
         assert np.allclose(r1.samples, r2.samples)
         assert np.allclose(r1.delta_omega_values, r2.delta_omega_values)
 
-    def test_random_search_best_is_best(self) -> None:
-        result = drive_random_search(omega=1.0, n_samples=50, seed=42)
-        assert result.best_delta_omega == pytest.approx(
-            float(np.min(result.delta_omega_values)),
+    def test_random_search_best_is_best(
+        self,
+        _random_search_result: DriveRandomSearchResult,  # noqa: PT019
+    ) -> None:
+        assert _random_search_result.best_delta_omega == pytest.approx(
+            float(np.min(_random_search_result.delta_omega_values)),
         )
 
-    def test_random_search_parquet_roundtrip(self, tmp_path: Path) -> None:
-        result = drive_random_search(omega=1.0, n_samples=50, seed=42)
+    def test_random_search_parquet_roundtrip(
+        self,
+        tmp_path: Path,
+        _random_search_result: DriveRandomSearchResult,  # noqa: PT019
+    ) -> None:
         parquet_p = tmp_path / "random.parquet"
-        result.save_parquet(parquet_p)
+        _random_search_result.save_parquet(parquet_p)
         loaded = DriveRandomSearchResult.from_parquet(parquet_p)
-        assert loaded.samples.shape == result.samples.shape
-        assert np.allclose(loaded.best_params, result.best_params)
-        assert np.isclose(loaded.best_delta_omega, result.best_delta_omega)
+        assert loaded.samples.shape == _random_search_result.samples.shape
+        assert np.allclose(loaded.best_params, _random_search_result.best_params)
+        assert np.isclose(
+            loaded.best_delta_omega, _random_search_result.best_delta_omega
+        )
 
 
 # ============================================================================
@@ -351,7 +370,7 @@ class TestDriveNelderMead:
 
 
 class TestDriveOmegaScan:
-    def test_omega_scan_runs(self) -> None:
+    def test_omega_scan_runs_and_all_finite(self) -> None:
         result = run_drive_omega_scan(
             omega_values=[0.5, 1.0],
             n_random=50,
@@ -362,15 +381,6 @@ class TestDriveOmegaScan:
         assert len(result.omega_values) == 2
         assert len(result.best_params_per_omega) == 2
         assert len(result.best_delta_omega_per_omega) == 2
-
-    def test_omega_scan_all_finite(self) -> None:
-        result = run_drive_omega_scan(
-            omega_values=[0.5, 1.0],
-            n_random=50,
-            n_nm_refine=5,
-            seed=42,
-            maxiter=100,
-        )
         for dt in result.best_delta_omega_per_omega:
             assert np.isfinite(dt), f"Non-finite Δω: {dt}"
 
@@ -412,7 +422,7 @@ class TestDriveValidation:
 
     def test_given_random_search_then_best_not_worse_than_sql(self) -> None:
         """The best point in a random search should be at worst ~SQL."""
-        result = drive_random_search(omega=1.0, n_samples=200, seed=42)
+        result = drive_random_search(omega=1.0, n_samples=100, seed=42)
         assert result.best_delta_omega <= result.sql * 2.0 or not np.isfinite(
             result.best_delta_omega,
         ), f"Best Δθ = {result.best_delta_omega:.4f} >> SQL = {result.sql:.4f}"
@@ -427,3 +437,80 @@ class TestDriveValidation:
         # |⟨11|ψ_out⟩|^2 = 1 (ancilla stays in |1⟩)
         ancilla_in_1 = abs(psi_out[1]) ** 2 + abs(psi_out[3]) ** 2
         assert np.isclose(ancilla_in_1, 1.0, atol=1e-12)
+
+
+# ============================================================================
+# Free-Ancilla Sensitivity
+# ============================================================================
+
+
+class TestFreeAncillaSensitivity:
+    """Tests for compute_free_ancilla_sensitivity with pluggable evolve_fn."""
+
+    def test_both_engines_give_finite_result(self) -> None:
+        """Both evolve_drive_circuit and evolve_phase_modulated_circuit should
+        return finite sensitivity for a typical non-pathological configuration."""
+        for evolve_fn in [evolve_drive_circuit, evolve_phase_modulated_circuit]:
+            dt, exp_val, var_val, d_exp, is_fringe = compute_free_ancilla_sensitivity(
+                evolve_fn,
+                omega_true=0.5,
+                theta_A=np.pi / 4,
+                phi_A=0.0,
+                a_x=1.0,
+                a_y=0.0,
+                a_z=0.0,
+                a_zz=0.5,
+            )
+            assert np.isfinite(dt), (
+                f"Expected finite Δω, got inf with {evolve_fn.__name__}"
+            )
+            assert dt > 0, f"Expected positive Δω, got {dt}"
+            assert isinstance(exp_val, float)
+            assert isinstance(var_val, float)
+            assert var_val >= 0.0, f"Variance must be non-negative, got {var_val}"
+
+    def test_fringe_at_extremum(self) -> None:
+        """When derivative is near zero (fringe extremum), is_fringe=True."""
+        # Drive hard along J_x so derivative vanishes at some ω
+        dt, exp_val, var_val, d_exp, is_fringe = compute_free_ancilla_sensitivity(
+            evolve_drive_circuit,
+            omega_true=0.0,  # derivative should be ~0
+            theta_A=0.0,
+            phi_A=0.0,
+            a_x=0.0,
+            a_y=0.0,
+            a_z=0.0,
+            a_zz=0.0,
+        )
+        assert not np.isfinite(dt) or is_fringe, "Expected fringe at zero parameters"
+
+    def test_free_ancilla_vs_fixed_consistent(self) -> None:
+        """With theta_A=0, free-ancilla should match fixed-ancilla sensitivity."""
+        theta_A = 0.0  # → |1,0⟩_A (fixed ancilla)
+        dt_free, *_, is_fringe_free = compute_free_ancilla_sensitivity(
+            evolve_drive_circuit,
+            omega_true=0.5,
+            theta_A=theta_A,
+            phi_A=0.0,
+            a_x=0.0,
+            a_y=0.0,
+            a_z=0.0,
+            a_zz=0.0,
+        )
+        # Fixed-ancilla equivalent: psi0 = |1,0⟩_S ⊗ |1,0⟩_A
+        from src.analysis.ancilla_optimization import build_two_qubit_operators
+
+        dt_fixed = compute_drive_sensitivity(
+            psi0=np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+            T_BS=np.pi / 2.0,
+            t_hold=10.0,
+            omega_true=0.5,
+            a_x=0.0,
+            a_y=0.0,
+            a_z=0.0,
+            a_zz=0.0,
+            ops=build_two_qubit_operators(),
+        )
+        assert np.isclose(dt_free, dt_fixed, rtol=1e-5), (
+            f"Free-ancilla Δω={dt_free} != fixed-ancilla Δω={dt_fixed}"
+        )

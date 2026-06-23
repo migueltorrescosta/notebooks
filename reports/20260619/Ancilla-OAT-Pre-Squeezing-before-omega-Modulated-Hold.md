@@ -71,7 +71,7 @@ Critically, the variance $\text{Var}(J_z^S)$ is not directly affected by the anc
 
 ### Implementation Strategy
 
-1. **Operator construction** — Reuse `build_multi_particle_operators(N)` from `reports/20260612/local.py` unchanged. This provides $J_z^S$, $J_x^S$, $J_y^S$, $J_z^A$, $J_x^A$, $J_y^A$ as $(N+1)^2 \times (N+1)^2$ matrices in the Kronecker basis.
+1. **Operator construction** — Reuse `build_multi_particle_operators(N)` from `reports/20260612/multi_particle_ancilla_omega_drive.py` unchanged. This provides $J_z^S$, $J_x^S$, $J_y^S$, $J_z^A$, $J_x^A$, $J_y^A$ as $(N+1)^2 \times (N+1)^2$ matrices in the Kronecker basis.
 
 2. **Coherent spin state preparation** — Use `coherent_spin_state(N)` from `src.algorithms.spin_squeezing` to construct the $(N+1)$-dimensional CSS along $-x$ for the ancilla. Embed into the full $(N+1)^2$-dimensional space by tensoring with the system top-Dicke state: $|\Psi_0\rangle = |J_S, J_S\rangle_S \otimes |\text{CSS}_A\rangle$. The system top-Dicke state $|J_S, J_S\rangle_S = [1, 0, \dots, 0]^T$ is the first Dicke basis vector of length $N+1$.
 
@@ -143,7 +143,7 @@ The following physical invariants are verified throughout every simulation run:
 - **Data serialisation** — Parquet store with fail-fast deserialisation; checkpoint-based incremental saving.
 - **Physical invariants** — All validation checks implemented as automated assertions.
 
-**Tests**: 197 tests in `test_local.py` cover operator construction (dimension, Hermiticity, commutation for asymmetric and symmetric cases), CSS preparation (normalisation, expectation values), OAT unitarity (diagonal form, $[U_{\text{OAT}}, J_z^A]=0$), circuit normalisation, decoupled baseline recovery, OAT irrelevance in decoupled limit, no-OAT consistency with baselines, sensitivity positivity, 5D random search integrity, Nelder--Mead convergence, squeezing parameter verification, N-scaling analysis, and Parquet roundtrip (metadata preservation, fail-fast on missing columns).
+**Tests**: 197 tests in `test_ancilla_oat_pre_squeezing.py` cover operator construction (dimension, Hermiticity, commutation for asymmetric and symmetric cases), CSS preparation (normalisation, expectation values), OAT unitarity (diagonal form, $[U_{\text{OAT}}, J_z^A]=0$), circuit normalisation, decoupled baseline recovery, OAT irrelevance in decoupled limit, no-OAT consistency with baselines, sensitivity positivity, 5D random search integrity, Nelder--Mead convergence, squeezing parameter verification, N-scaling analysis, and Parquet roundtrip (metadata preservation, fail-fast on missing columns).
 
 ## ⚠️ Expected Failure Conditions
 
@@ -281,7 +281,7 @@ The OAT protocol shows $R_{\text{OAT}} / R_{\text{20260612}}$ ratios between $0.
 
 - **Improved scaling exponent** — The $N$-scaling exponent $\alpha$ from $\Delta\omega_{\text{opt}} \propto N^{\alpha}$ satisfies $\alpha < -0.5$ (better than SQL) for at least one $\omega$ value when OAT is enabled. The observed $\alpha \in [-0.24, -0.10]$ across all $\omega$ values is worse than SQL ($-0.5$). The scaling exponent criterion is clearly rejected. — **FAIL**
 
-- **Finite squeezing verified** — For the optimal $q^* > 0$ at each $(N, \omega)$ pair, the squeezing parameter $\xi(N, q^*) < 1$ on the ancilla-only subsystem, confirming that OAT creates actual squeezing. Verified via ancilla-only OAT evolution tests in `test_local.py`. — **PASS**
+- **Finite squeezing verified** — For the optimal $q^* > 0$ at each $(N, \omega)$ pair, the squeezing parameter $\xi(N, q^*) < 1$ on the ancilla-only subsystem, confirming that OAT creates actual squeezing. Verified via ancilla-only OAT evolution tests in `test_ancilla_oat_pre_squeezing.py`. — **PASS**
 
 - **Non-commuting drive essential** — The optimal $a_x^*$ or $a_y^*$ is non-zero for all $(N, \omega)$ pairs, consistent with #20260612. The OAT benefit requires $[H_A, J_z^A] \neq 0$ to rotate the squeezed state. — **PASS**
 

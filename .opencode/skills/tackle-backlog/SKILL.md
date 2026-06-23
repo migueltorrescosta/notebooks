@@ -94,7 +94,7 @@ The skill proceeds in four phases:
    - `uv run mypy .`
    - `uvx pyright src/ pages/`
 3. **Run inline `Verify:` steps** — Execute any verification commands specified in the backlog item (e.g., `**Verify**: uv run radon cc <file> -n B`). Confirm each returns the expected result.
-4. **Verify backward compatibility** — Run `uv run pytest reports/*/test_local.py -q --tb=short` to confirm no report-level regressions.
+4. **Verify backward compatibility** — Run `uv run pytest reports/*/test_*.py -q --tb=short` to confirm no report-level regressions.
 5. **Save lessons to agentmemory** — Call `agentmemory_memory_save()` with:
    - Type: `"workflow"`
    - Tags: `"tackle-backlog", "infrastructure", <backlog-item-keywords>`
@@ -118,7 +118,7 @@ The skill proceeds in four phases:
 - [ ] Static type checking passes (`uv run mypy .`)
 - [ ] Live type checking passes (`uvx pyright src/ pages/`)
 - [ ] All inline `Verify:` steps from the backlog item executed and passed
-- [ ] Backward compatibility verified (no report-level regressions — `uv run pytest reports/*/test_local.py -q --tb=short`)
+- [ ] Backward compatibility verified (no report-level regressions — `uv run pytest reports/*/test_*.py -q --tb=short`)
 - [ ] Agent config updated if needed (`.opencode/agents/research-assistant.md`, `opencode.json`)
 - [ ] Skills updated if the change introduces new conventions (`.opencode/skills/*/SKILL.md`)
 - [ ] CHANGELOG updated: backlog item moved to appropriate weekly `### Infrastructure` section, using the established format

@@ -28,27 +28,23 @@ References:
 
 from __future__ import annotations
 
-import concurrent.futures
-import json
-import os
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 from scipy.linalg import expm
-from scipy.optimize import minimize
 
 # Reuse shared primitives from ancilla_optimization
 from src.analysis.ancilla_optimization import (
     I_2,
     build_two_qubit_operators,
     compute_expectation_and_variance,
+    free_ancilla_initial_state,
 )
 from src.physics.beam_splitter import bs_qubit
 from src.utils.constants import I_4
-from src.utils.serialization import ParquetSerializable
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ============================================================================
 # Operator Construction
@@ -562,1035 +558,193 @@ def compute_drive_sensitivity(
     return float(np.sqrt(var) / abs(d_exp))
 
 
-# ============================================================================
-# Dataclasses
-# ============================================================================
-
-
-@dataclass
-class DriveDecoupledBaselineResult(ParquetSerializable):
-    """Result from evaluating the decoupled baseline (a_x = a_y = a_z = a_zz = 0).
-
-    Attributes:
-        t_hold_value: The holding-time value used.
-        delta_omega: Computed Δω at the decoupled configuration.
-        sql: SQL = 1/t_hold value (time-based SQL; contrast with particle-number SQL 1/√N).
-        omega_value: The ω value at which the baseline was evaluated.
-    """
-
-    t_hold_value: float
-    delta_omega: float
-    sql: float
-    omega_value: float = 1.0
-
-    _PARQUET_COLUMNS: ClassVar[list[str]] = [
-        "t_hold",
-        "delta_omega",
-        "sql",
-        "omega_value",
-        "ratio",
-    ]
-
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "t_hold": [self.t_hold_value],
-                "delta_omega": [self.delta_omega],
-                "sql": [self.sql],
-                "omega_value": [self.omega_value],
-                "ratio": [
-                    self.delta_omega / self.sql if self.sql > 0 else float("nan")
-                ],
-            },
-        )
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> DriveDecoupledBaselineResult:
-        df = pd.read_parquet(path)
-        cls._validate_columns(df)
-        return cls(
-            t_hold_value=float(df["t_hold"].iloc[0]),
-            delta_omega=float(df["delta_omega"].iloc[0]),
-            sql=float(df["sql"].iloc[0]),
-            omega_value=float(df["omega_value"].iloc[0]),
-        )
-
-
-@dataclass
-class Drive2DSliceResult(ParquetSerializable):
-    """Result from a 2D parameter slice scan over (a_drive, a_zz).
-
-    Attributes:
-        drive_values: Array of drive coefficient values (a_x, a_y, or a_z).
-        azz_values: Array of a_zz (interaction) values.
-        delta_omega_grid: 2D array of Δω values, shape
-            (len(drive_values), len(azz_values)).
-        omega_value: The ω value at which the scan was performed.
-        slice_type: 'ax', 'ay', or 'az'.
-        sql: SQL = 1/t_hold reference value (time-based SQL).
-    """
-
-    drive_values: np.ndarray
-    azz_values: np.ndarray
-    delta_omega_grid: np.ndarray
-    omega_value: float
-    slice_type: str = "ax"
-    sql: float = 0.1
-
-    _PARQUET_COLUMNS: ClassVar[list[str]] = [
-        "drive",
-        "azz",
-        "delta_omega",
-        "omega_value",
-        "slice_type",
-        "sql",
-    ]
-
-    def to_dataframe(self) -> pd.DataFrame:
-        """Melt the 2D array into a long-format DataFrame."""
-        n_d = len(self.drive_values)
-        n_a = len(self.azz_values)
-        rows: list[dict[str, float | str]] = [
-            {
-                "drive": float(self.drive_values[i]),
-                "azz": float(self.azz_values[j]),
-                "delta_omega": float(self.delta_omega_grid[i, j]),
-                "omega_value": float(self.omega_value),
-                "slice_type": str(self.slice_type),
-                "sql": float(self.sql),
-            }
-            for i in range(n_d)
-            for j in range(n_a)
-        ]
-        return pd.DataFrame(rows)
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> Drive2DSliceResult:
-        df = pd.read_parquet(path)
-        cls._validate_columns(df)
-        drive_unique = sorted(df["drive"].unique())
-        azz_unique = sorted(df["azz"].unique())
-        n_d = len(drive_unique)
-        n_a = len(azz_unique)
-        grid = np.full((n_d, n_a), np.nan, dtype=float)
-        for _, row in df.iterrows():
-            i = drive_unique.index(row["drive"])
-            j = azz_unique.index(row["azz"])
-            grid[i, j] = row["delta_omega"]
-        omega_value = float(df["omega_value"].iloc[0])
-        slice_type = str(df["slice_type"].iloc[0])
-        sql = float(df["sql"].iloc[0])
-        return cls(
-            drive_values=np.array(drive_unique, dtype=float),
-            azz_values=np.array(azz_unique, dtype=float),
-            delta_omega_grid=grid,
-            omega_value=omega_value,
-            slice_type=slice_type,
-            sql=sql,
-        )
-
-
-@dataclass
-class DriveRandomSearchResult(ParquetSerializable):
-    """Result from a 4D random search over (a_x, a_y, a_z, a_zz).
-
-    Attributes:
-        samples: Array of shape (N, 4) with sampled parameter values.
-        delta_omega_values: Array of shape (N,) with Δω for each sample.
-        best_params: The (a_x, a_y, a_z, a_zz) that gave minimal Δω.
-        best_delta_omega: The minimal Δω found.
-        omega_value: ω at which the search was performed.
-        sql: SQL = 1/t_hold reference (time-based SQL).
-    """
-
-    samples: np.ndarray
-    delta_omega_values: np.ndarray
-    best_params: tuple[float, float, float, float]
-    best_delta_omega: float
-    omega_value: float = 1.0
-    sql: float = 0.1
-    t_hold: float = 10.0
-
-    _PARQUET_COLUMNS: ClassVar[list[str]] = [
-        "a_x",
-        "a_y",
-        "a_z",
-        "a_zz",
-        "delta_omega",
-        "omega_value",
-        "sql",
-        "t_hold",
-    ]
-
-    def to_dataframe(self) -> pd.DataFrame:
-        n = len(self.samples)
-        return pd.DataFrame(
-            {
-                "a_x": self.samples[:, 0],
-                "a_y": self.samples[:, 1],
-                "a_z": self.samples[:, 2],
-                "a_zz": self.samples[:, 3],
-                "delta_omega": self.delta_omega_values,
-                "omega_value": [self.omega_value] * n,
-                "sql": [self.sql] * n,
-                "t_hold": [self.t_hold] * n,
-            },
-        )
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> DriveRandomSearchResult:
-        df = pd.read_parquet(path)
-        cls._validate_columns(df)
-        samples = df[["a_x", "a_y", "a_z", "a_zz"]].to_numpy(dtype=float)
-        deltas = df["delta_omega"].to_numpy(dtype=float)
-        best_idx = int(np.argmin(deltas))
-        return cls(
-            samples=samples,
-            delta_omega_values=deltas,
-            best_params=(
-                float(samples[best_idx, 0]),
-                float(samples[best_idx, 1]),
-                float(samples[best_idx, 2]),
-                float(samples[best_idx, 3]),
-            ),
-            best_delta_omega=float(deltas[best_idx]),
-            omega_value=float(df["omega_value"].iloc[0]),
-            sql=float(df["sql"].iloc[0]),
-            t_hold=float(df["t_hold"].iloc[0]),
-        )
-
-
-@dataclass
-class DriveNelderMeadResult(ParquetSerializable):
-    """Result of a single Nelder--Mead run for the driven-ancilla protocol.
-
-    Attributes:
-        delta_omega_opt: Best sensitivity Δω found.
-        params_opt: Optimal 4-element parameter vector (a_x, a_y, a_z, a_zz).
-        omega_true: True ω used for this optimisation.
-        success: Whether the optimiser reported success.
-        nfev: Number of function evaluations.
-        message: Optimiser message.
-        expectation_Jz: ⟨J_z^S⟩ at the optimal operating point.
-        variance_Jz: Var(J_z^S) at the optimal operating point.
-        history: Objective function values at each iteration.
-    """
-
-    delta_omega_opt: float
-    params_opt: np.ndarray
-    omega_true: float
-    success: bool
-    nfev: int
-    message: str = ""
-    expectation_Jz: float = 0.0
-    variance_Jz: float = 0.0
-    history: list[float] = field(default_factory=list)
-
-    _PARQUET_COLUMNS: ClassVar[list[str]] = [
-        "delta_omega",
-        "a_x",
-        "a_y",
-        "a_z",
-        "a_zz",
-        "omega_true",
-        "success",
-        "nfev",
-        "expectation_Jz",
-        "variance_Jz",
-        "message",
-        "history_json",
-    ]
-
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "a_x": [float(self.params_opt[0])],
-                "a_y": [float(self.params_opt[1])],
-                "a_z": [float(self.params_opt[2])],
-                "a_zz": [float(self.params_opt[3])],
-                "delta_omega": [self.delta_omega_opt],
-                "omega_true": [self.omega_true],
-                "success": [int(self.success)],
-                "nfev": [self.nfev],
-                "expectation_Jz": [self.expectation_Jz],
-                "variance_Jz": [self.variance_Jz],
-                "message": [self.message],
-                "history_json": [json.dumps(self.history)],
-            },
-        )
-
-    def _save_sidecars(self, path: Path) -> None:
-        """Save optimisation history as a sidecar Parquet file."""
-        history_path = path.with_stem(path.stem + "-history")
-        pd.DataFrame({"history": [self.history]}).to_parquet(history_path, index=False)
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> DriveNelderMeadResult:
-        df = pd.read_parquet(path)
-        cls._validate_columns(df)
-        history_path = Path(path).with_stem(Path(path).stem + "-history")
-        if history_path.exists():
-            history = list(pd.read_parquet(history_path)["history"].iloc[0])
-        else:
-            history = []
-        return cls(
-            delta_omega_opt=float(df["delta_omega"].iloc[0]),
-            params_opt=np.array(
-                [
-                    float(df["a_x"].iloc[0]),
-                    float(df["a_y"].iloc[0]),
-                    float(df["a_z"].iloc[0]),
-                    float(df["a_zz"].iloc[0]),
-                ]
-            ),
-            omega_true=float(df["omega_true"].iloc[0]),
-            success=bool(int(df["success"].iloc[0])),
-            nfev=int(df["nfev"].iloc[0]),
-            message=str(df["message"].iloc[0]),
-            expectation_Jz=float(df["expectation_Jz"].iloc[0]),
-            variance_Jz=float(df["variance_Jz"].iloc[0]),
-            history=history,
-        )
-
-
-@dataclass
-class DriveOmegaScanResult(ParquetSerializable):
-    """Results of an ω scan over driven-ancilla parameters.
-
-    Attributes:
-        omega_values: Array of ω values scanned.
-        best_params_per_omega: List of optimal (a_x, a_y, a_z, a_zz) tuples.
-        best_delta_omega_per_omega: Optimal Δω for each ω value.
-        sql_values: SQL = 1/t_hold for each ω (time-based SQL).
-        expectation_Jz_per_omega: ⟨J_z^S⟩ at each optimal point.
-        variance_Jz_per_omega: Var(J_z^S) at each optimal point.
-        all_results: All Nelder-Mead results keyed by ω (for spread analysis).
-    """
-
-    _PARQUET_COLUMNS: ClassVar[list[str]] = [
-        "omega",
-        "best_delta_omega",
-        "sql",
-        "ratio",
-        "a_x",
-        "a_y",
-        "a_z",
-        "a_zz",
-        "expectation_Jz",
-        "variance_Jz",
-    ]
-
-    omega_values: np.ndarray = field(default_factory=lambda: np.array([]))
-    best_params_per_omega: list[tuple[float, float, float, float]] = field(
-        default_factory=list
-    )
-    best_delta_omega_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
-    sql_values: np.ndarray = field(default_factory=lambda: np.array([]))
-    expectation_Jz_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
-    variance_Jz_per_omega: np.ndarray = field(default_factory=lambda: np.array([]))
-    all_results: dict[float, list[DriveNelderMeadResult]] = field(default_factory=dict)
-
-    def to_dataframe(self) -> pd.DataFrame:
-        rows: list[dict[str, float | str]] = []
-        for i, omega in enumerate(self.omega_values):
-            sql = float(self.sql_values[i]) if i < len(self.sql_values) else 0.1
-            best = (
-                self.best_delta_omega_per_omega[i]
-                if i < len(self.best_delta_omega_per_omega)
-                else float("inf")
-            )
-            params = (
-                self.best_params_per_omega[i]
-                if i < len(self.best_params_per_omega)
-                else (0.0, 0.0, 0.0, 0.0)
-            )
-            exp_jz = (
-                float(self.expectation_Jz_per_omega[i])
-                if i < len(self.expectation_Jz_per_omega)
-                else 0.0
-            )
-            var_jz = (
-                float(self.variance_Jz_per_omega[i])
-                if i < len(self.variance_Jz_per_omega)
-                else 0.0
-            )
-            rows.append(
-                {
-                    "omega": float(omega),
-                    "best_delta_omega": best,
-                    "sql": sql,
-                    "ratio": best / sql
-                    if np.isfinite(best) and sql > 0
-                    else float("inf"),
-                    "a_x": float(params[0]),
-                    "a_y": float(params[1]),
-                    "a_z": float(params[2]),
-                    "a_zz": float(params[3]),
-                    "expectation_Jz": exp_jz,
-                    "variance_Jz": var_jz,
-                }
-            )
-        return pd.DataFrame(rows)
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> DriveOmegaScanResult:
-        df = pd.read_parquet(path)
-        cls._validate_columns(df)
-        omegas = df["omega"].to_numpy(dtype=float)
-        best = df["best_delta_omega"].to_numpy(dtype=float)
-        sql = df["sql"].to_numpy(dtype=float)
-        exps = df["expectation_Jz"].to_numpy(dtype=float)
-        vars_ = df["variance_Jz"].to_numpy(dtype=float)
-        params_list: list[tuple[float, float, float, float]] = []
-        for _, row in df.iterrows():
-            params_list.append(
-                (
-                    float(row["a_x"]),
-                    float(row["a_y"]),
-                    float(row["a_z"]),
-                    float(row["a_zz"]),
-                )
-            )
-        return cls(
-            omega_values=omegas,
-            best_params_per_omega=params_list,
-            best_delta_omega_per_omega=best,
-            sql_values=sql,
-            expectation_Jz_per_omega=exps,
-            variance_Jz_per_omega=vars_,
-        )
-
-
-# ============================================================================
-# Default configuration
-# ============================================================================
-
-# Note: Default parameters are inlined in function signatures below.
-# See Global Constraints §6 — no module-level constants for defaults.
-
-
-# ============================================================================
-# Decoupled Baseline
-# ============================================================================
-
-
-def compute_drive_decoupled_baseline(
-    t_hold: float = 10.0,
-    omega_true: float = 1.0,
-) -> DriveDecoupledBaselineResult:
-    """Compute the decoupled baseline sensitivity Δω.
-
-    At (a_x = a_y = a_z = a_zz = 0), the driving-ancilla circuit reduces
-    to a standard single-qubit MZI with |1,0⟩ input and 50/50 BS,
-    giving Δω = 1/t_hold.
-
-    Args:
-        t_hold: Holding-time strength.
-        omega_true: True phase rate.
-
-    Returns:
-        DriveDecoupledBaselineResult.
-    """
-    ops = build_two_qubit_operators()
-    domega = compute_drive_sensitivity(
-        np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
-        np.pi / 2.0,
-        t_hold,
-        omega_true,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        ops,
-    )
-    return DriveDecoupledBaselineResult(
-        t_hold_value=t_hold,
-        delta_omega=domega,
-        sql=1.0 / t_hold,
-        omega_value=omega_true,
-    )
-
-
-# ============================================================================
-# 2D Slice Scan (ax, ay, or az)
-# ============================================================================
-
-
-def _evaluate_grid_point(
-    d_val: float,
-    a_val: float,
-    slice_type: str,
-    omega: float,
-    t_hold: float,
+def compute_drive_sensitivity_with_details(
+    psi0: np.ndarray,
     T_BS: float,
+    t_hold: float,
+    omega_true: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
     ops: dict[str, np.ndarray],
-) -> float:
-    """Evaluate Δω at a single (drive, a_zz) grid point.
+    fd_step: float = 1e-6,
+    meas_op: np.ndarray | None = None,
+) -> tuple[float, float, float, float, bool]:
+    """Error-propagation sensitivity with diagnostic details.
+
+    Same core computation as :func:`compute_drive_sensitivity` but also
+    returns the intermediate expectation value, variance, derivative, and
+    fringe flag alongside the sensitivity.
 
     Args:
-        d_val: Drive coefficient value (a_x, a_y, or a_z depending on slice_type).
-        a_val: Interaction coefficient a_zz value.
-        slice_type: 'ax', 'ay', or 'az'.
-        omega: Phase rate value.
-        t_hold: Holding time.
+        psi0: Initial 4-vector (product state).
         T_BS: Beam-splitter duration.
-        ops: Two-qubit operators.
+        t_hold: Holding-time strength.
+        omega_true: True phase rate parameter.
+        a_x: Ancilla J_x drive coefficient.
+        a_y: Ancilla J_y drive coefficient.
+        a_z: Ancilla J_z drive coefficient.
+        a_zz: Ising interaction coefficient.
+        ops: Two-qubit operators (must contain 'Jz_S').
+        fd_step: Finite-difference step size (default 1e-6).
+        meas_op: Measurement operator. Defaults to ops['Jz_S'] (S-only).
 
     Returns:
-        Δω sensitivity at this grid point.
+        Tuple ``(delta_omega, expectation, variance, derivative, is_fringe)``.
+        ``is_fringe`` is ``True`` when sensitivity diverges (derivative near
+        zero or zero-variance eigenstate).
     """
-    if slice_type == "ax":
-        ax, ay, az = d_val, 0.0, 0.0
-    elif slice_type == "ay":
-        ax, ay, az = 0.0, d_val, 0.0
-    else:
-        ax, ay, az = 0.0, 0.0, d_val
-    return compute_drive_sensitivity(
-        np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+    if meas_op is None:
+        meas_op = ops["Jz_S"]
+
+    # Evaluate at omega_true
+    psi = evolve_drive_circuit(
+        psi0,
         T_BS,
         t_hold,
-        omega,
-        ax,
-        ay,
-        az,
-        a_val,
+        omega_true,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
         ops,
     )
+    exp_val, var_val = compute_expectation_and_variance(psi, meas_op)
 
-
-def _drive_slice_chunk_worker(args: tuple) -> tuple[int, np.ndarray]:
-    """Worker for parallel 2D slice evaluation (module-level for pickling).
-
-    Args:
-        args: Tuple (omega, drive_chunk, azz_vals, slice_type, t_hold, T_BS, start_idx).
-
-    Returns:
-        Tuple (start_idx, chunk_grid) where chunk_grid has shape
-        (len(drive_chunk), len(azz_vals)).
-    """
-    omega, drive_chunk, azz_vals, slice_type, t_hold, T_BS, start_idx = args
-    local_ops = build_two_qubit_operators()
-    n_d = len(drive_chunk)
-    n_a = len(azz_vals)
-    chunk_grid = np.full((n_d, n_a), np.inf, dtype=float)
-    for i, d_val in enumerate(drive_chunk):
-        for j, a_val in enumerate(azz_vals):
-            chunk_grid[i, j] = _evaluate_grid_point(
-                d_val,
-                a_val,
-                slice_type,
-                omega,
-                t_hold,
-                T_BS,
-                local_ops,
-            )
-    return start_idx, chunk_grid
-
-
-def _evaluate_sequential_slice(
-    drive_vals: np.ndarray,
-    azz_vals: np.ndarray,
-    slice_type: str,
-    omega: float,
-    t_hold: float,
-    T_BS: float,
-) -> np.ndarray:
-    """Evaluate the 2D slice sequentially.
-
-    Args:
-        drive_vals: Drive coefficient values.
-        azz_vals: Interaction coefficient values.
-        slice_type: 'ax', 'ay', or 'az'.
-        omega: Phase rate value.
-        t_hold: Holding time.
-        T_BS: Beam-splitter duration.
-
-    Returns:
-        2D grid of Δω values, shape (len(drive_vals), len(azz_vals)).
-    """
-    ops = build_two_qubit_operators()
-    n_d = len(drive_vals)
-    n_a = len(azz_vals)
-    grid = np.full((n_d, n_a), np.inf, dtype=float)
-    for i, d_val in enumerate(drive_vals):
-        for j, a_val in enumerate(azz_vals):
-            grid[i, j] = _evaluate_grid_point(
-                d_val,
-                a_val,
-                slice_type,
-                omega,
-                t_hold,
-                T_BS,
-                ops,
-            )
-    return grid
-
-
-def _evaluate_parallel_slice(
-    drive_vals: np.ndarray,
-    azz_vals: np.ndarray,
-    slice_type: str,
-    omega: float,
-    t_hold: float,
-    T_BS: float,
-    n_jobs: int,
-) -> np.ndarray:
-    """Evaluate the 2D slice in parallel using process workers.
-
-    The drive dimension is split into ``n_jobs`` chunks, each evaluated
-    by a separate worker process.
-
-    Args:
-        drive_vals: Drive coefficient values.
-        azz_vals: Interaction coefficient values.
-        slice_type: 'ax', 'ay', or 'az'.
-        omega: Phase rate value.
-        t_hold: Holding time.
-        T_BS: Beam-splitter duration.
-        n_jobs: Number of parallel workers (-1 uses all CPUs).
-
-    Returns:
-        2D grid of Δω values, shape (len(drive_vals), len(azz_vals)).
-    """
-    n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
-    n_drive = len(drive_vals)
-    drive_indices = np.arange(n_drive)
-    chunks = np.array_split(drive_indices, n_workers)
-    worker_args = [
-        (
-            omega,
-            drive_vals[chunk],
-            azz_vals,
-            slice_type,
-            t_hold,
-            T_BS,
-            int(chunk[0]),
-        )
-        for chunk in chunks
-    ]
-
-    grid = np.full((n_drive, len(azz_vals)), np.inf, dtype=float)
-    with concurrent.futures.ProcessPoolExecutor(
-        max_workers=n_workers,
-    ) as executor:
-        futures = {
-            executor.submit(_drive_slice_chunk_worker, args): args
-            for args in worker_args
-        }
-        for future in concurrent.futures.as_completed(futures):
-            start_idx, chunk_grid = future.result()
-            n_chunk = chunk_grid.shape[0]
-            grid[start_idx : start_idx + n_chunk, :] = chunk_grid
-    return grid
-
-
-def drive_2d_slice(
-    omega: float,
-    drive_range: tuple[float, float] = (-5.0, 5.0),
-    azz_range: tuple[float, float] = (-5.0, 5.0),
-    n_drive: int = 201,
-    n_azz: int = 201,
-    slice_type: str = "ax",
-    t_hold: float = 10.0,
-    T_BS: float = np.pi / 2.0,
-    n_jobs: int | None = None,
-) -> Drive2DSliceResult:
-    """Run a 2D slice scan over (a_drive, a_zz).
-
-    For slice_type='ax': varies a_x (with a_y = a_z = 0).
-    For slice_type='ay': varies a_y (with a_x = a_z = 0).
-    For slice_type='az': varies a_z (with a_x = a_y = 0).
-
-    When n_jobs > 1, the grid is split across ``n_jobs`` worker processes
-    for parallel evaluation.
-
-    Args:
-        omega: Phase rate value.
-        drive_range: (min, max) for the drive coefficient.
-        azz_range: (min, max) for the interaction coefficient.
-        n_drive: Number of drive-coefficient points.
-        n_azz: Number of a_zz points.
-        slice_type: 'ax', 'ay', or 'az'.
-        t_hold: Holding time (default 10).
-        T_BS: Beam-splitter duration (default π/2).
-        n_jobs: Number of parallel workers. ``None`` (default) = sequential.
-            Pass ``-1`` to use all available CPUs.
-
-    Returns:
-        Drive2DSliceResult with the sensitivity grid.
-    """
-    if slice_type not in ("ax", "ay", "az"):
-        raise ValueError(f"slice_type must be 'ax', 'ay' or 'az', got {slice_type}")
-
-    drive_vals = np.linspace(drive_range[0], drive_range[1], n_drive)
-    azz_vals = np.linspace(azz_range[0], azz_range[1], n_azz)
-
-    if n_jobs is None or n_jobs == 1:
-        grid = _evaluate_sequential_slice(
-            drive_vals,
-            azz_vals,
-            slice_type,
-            omega,
-            t_hold,
-            T_BS,
-        )
-    else:
-        grid = _evaluate_parallel_slice(
-            drive_vals,
-            azz_vals,
-            slice_type,
-            omega,
-            t_hold,
-            T_BS,
-            n_jobs,
-        )
-
-    return Drive2DSliceResult(
-        drive_values=drive_vals,
-        azz_values=azz_vals,
-        delta_omega_grid=grid,
-        omega_value=omega,
-        slice_type=slice_type,
-        sql=1.0 / t_hold,
+    # Central finite difference for d<O>/domega
+    psi_plus = evolve_drive_circuit(
+        psi0,
+        T_BS,
+        t_hold,
+        omega_true + fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
     )
-
-
-# ============================================================================
-# 4D Random Search
-# ============================================================================
-
-
-def drive_random_search(
-    omega: float,
-    n_samples: int = 500,
-    bounds: tuple[float, float] = (-5.0, 5.0),
-    t_hold: float = 10.0,
-    T_BS: float = np.pi / 2.0,
-    seed: int | None = 42,
-) -> DriveRandomSearchResult:
-    """Random search over the 4D parameter space (a_x, a_y, a_z, a_zz).
-
-    Args:
-        omega: Phase rate value.
-        n_samples: Number of random points to evaluate.
-        bounds: (min, max) for all four coefficients.
-        t_hold: Holding time.
-        T_BS: Beam-splitter duration.
-        seed: Random seed for reproducibility.
-
-    Returns:
-        DriveRandomSearchResult with all samples and best found.
-    """
-    rng = np.random.default_rng(seed)
-    ops = build_two_qubit_operators()
-    lo, hi = bounds
-
-    samples = rng.uniform(lo, hi, size=(n_samples, 4))
-    deltas = np.full(n_samples, np.inf, dtype=float)
-
-    for i in range(n_samples):
-        ax = float(samples[i, 0])
-        ay = float(samples[i, 1])
-        az = float(samples[i, 2])
-        azz = float(samples[i, 3])
-
-        domega = compute_drive_sensitivity(
-            np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
-            T_BS,
-            t_hold,
-            omega,
-            ax,
-            ay,
-            az,
-            azz,
-            ops,
-        )
-        deltas[i] = domega
-
-    best_idx = int(np.argmin(deltas))
-    best_params: tuple[float, float, float, float] = (
-        float(samples[best_idx, 0]),
-        float(samples[best_idx, 1]),
-        float(samples[best_idx, 2]),
-        float(samples[best_idx, 3]),
+    psi_minus = evolve_drive_circuit(
+        psi0,
+        T_BS,
+        t_hold,
+        omega_true - fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
     )
+    exp_plus = np.real(psi_plus.conj() @ meas_op @ psi_plus)
+    exp_minus = np.real(psi_minus.conj() @ meas_op @ psi_minus)
+    d_exp = (exp_plus - exp_minus) / (2.0 * fd_step)
 
-    return DriveRandomSearchResult(
-        samples=samples,
-        delta_omega_values=deltas,
-        best_params=best_params,
-        best_delta_omega=float(deltas[best_idx]),
-        omega_value=omega,
-        sql=1.0 / t_hold,
-        t_hold=t_hold,
-    )
+    is_fringe = abs(d_exp) < 1e-12 or var_val < 1e-15
+    if is_fringe:
+        return float("inf"), exp_val, var_val, float(d_exp), True
 
-
-# ============================================================================
-# Nelder--Mead Optimisation
-# ============================================================================
+    delta = float(np.sqrt(var_val) / abs(d_exp))
+    return delta, exp_val, var_val, float(d_exp), False
 
 
-def drive_sensitivity_objective(
-    params: np.ndarray,
+def compute_free_ancilla_sensitivity(
+    evolve_fn: Callable[
+        [
+            np.ndarray,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            float,
+            dict[str, np.ndarray],
+        ],
+        np.ndarray,
+    ],
     omega_true: float,
-    ops: dict[str, np.ndarray],
+    theta_A: float,
+    phi_A: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    *,
     t_hold: float = 10.0,
     T_BS: float = np.pi / 2.0,
     fd_step: float = 1e-6,
-    bounds: tuple[float, float] = (-5.0, 5.0),
-    penalty_scale: float = 1e6,
-) -> float:
-    """Objective function for minimising Δω in the driven-ancilla protocol.
+) -> tuple[float, float, float, float, bool]:
+    """Error-propagation sensitivity with a free-ancilla initial state.
 
-    Fixed configuration: |00⟩ initial state, fixed T_BS, fixed t_hold.
-    params = [a_x, a_y, a_z, a_zz] (4 elements).
+    Constructs the free-ancilla initial state :math:`|1,0\\rangle_S \\otimes
+    |\\psi_A(\\theta_A,\\phi_A)\\rangle`, runs the circuit through
+    *evolve_fn*, and computes :math:`\\Delta\\omega = \\sqrt{\\mathrm{Var}(O)}
+    / |\\partial\\langle O\\rangle/\\partial\\omega|` with central finite
+    differences.
 
-    Args:
-        params: 4-element parameter vector.
-        omega_true: True phase rate.
-        ops: Two-qubit operators.
-        t_hold: Holding time.
-        T_BS: Beam-splitter duration.
-        fd_step: Finite-difference step.
-        bounds: (min, max) for all parameters.
-        penalty_scale: Scale for bound-violation penalty.
+    The *evolve_fn* callback must have the signature::
 
-    Returns:
-        Δω (plus infinite penalty if bounds violated).
-    """
-    ax = float(params[0])
-    ay = float(params[1])
-    az = float(params[2])
-    azz = float(params[3])
-
-    # Bound enforcement
-    lo, hi = bounds
-    penalty = 0.0
-    for val in (ax, ay, az, azz):
-        if val < lo:
-            penalty += penalty_scale * (lo - val) ** 2
-        if val > hi:
-            penalty += penalty_scale * (val - hi) ** 2
-
-    if penalty > 0.0:
-        return float(1e10 + penalty)
-
-    return compute_drive_sensitivity(
-        np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
-        T_BS,
-        t_hold,
-        omega_true,
-        ax,
-        ay,
-        az,
-        azz,
-        ops,
-        fd_step,
-    )
-
-
-def run_drive_nelder_mead(
-    omega_true: float,
-    x0: np.ndarray | None = None,
-    seed: int | None = None,
-    maxiter: int = 5000,
-    xatol: float = 1e-8,
-    fatol: float = 1e-8,
-    adaptive: bool = True,
-    bounds: tuple[float, float] = (-5.0, 5.0),
-    t_hold: float = 10.0,
-    T_BS: float = np.pi / 2.0,
-    track_history: bool = False,
-) -> DriveNelderMeadResult:
-    """Run Nelder--Mead optimisation for the driven-ancilla protocol.
+        evolve_fn(psi0, T_BS, t_hold, omega, a_x, a_y, a_z, a_zz, ops) -> psi_final
 
     Args:
+        evolve_fn: Circuit evolution function (e.g. ``evolve_drive_circuit``
+            or ``evolve_phase_modulated_circuit``).
         omega_true: True phase rate parameter.
-        x0: Initial 4-parameter vector [ax, ay, az, azz]. Random if None.
-        seed: Random seed (used if x0 is None).
-        maxiter: Maximum Nelder--Mead iterations.
-        xatol: Absolute parameter tolerance.
-        fatol: Absolute function tolerance.
-        adaptive: Use adaptive Nelder--Mead parameters.
-        bounds: (min, max) for all four parameters.
-        t_hold: Holding time.
-        T_BS: Beam-splitter duration.
-        track_history: If True, record objective values per iteration.
+        theta_A: Ancilla polar angle :math:`\\in [0, \\pi]`.
+        phi_A: Ancilla azimuthal angle :math:`\\in [0, 2\\pi)`.
+        a_x: Ancilla :math:`J_x` drive coefficient.
+        a_y: Ancilla :math:`J_y` drive coefficient.
+        a_z: Ancilla :math:`J_z` drive coefficient.
+        a_zz: Ising interaction coefficient.
+        t_hold: Holding-time strength (default 10.0).
+        T_BS: Beam-splitter duration (default :math:`\\pi/2`).
+        fd_step: Finite-difference step size (default 1e-6).
 
     Returns:
-        DriveNelderMeadResult.
+        Tuple ``(delta_omega, expectation, variance, derivative, is_fringe)``.
+        ``is_fringe`` is ``True`` when sensitivity diverges (derivative near
+        zero or zero-variance eigenstate).
     """
+    psi0 = free_ancilla_initial_state(theta_A, phi_A)
     ops = build_two_qubit_operators()
+    meas_op = ops["Jz_S"]
 
-    if x0 is None:
-        rng = np.random.default_rng(seed)
-        lo, hi = bounds
-        x0 = rng.uniform(lo, hi, size=4)
-    else:
-        x0 = np.asarray(x0, dtype=float)
-        assert x0.shape == (4,), f"x0 must have 4 elements, got {x0.shape}"
+    # Evaluate at omega_true
+    psi = evolve_fn(psi0, T_BS, t_hold, omega_true, a_x, a_y, a_z, a_zz, ops)
+    exp_val, var_val = compute_expectation_and_variance(psi, meas_op)
 
-    def objective(p: np.ndarray) -> float:
-        return drive_sensitivity_objective(
-            p,
-            omega_true,
-            ops,
-            t_hold=t_hold,
-            T_BS=T_BS,
-            bounds=bounds,
-        )
-
-    history: list[float] = []
-
-    def callback(_x: np.ndarray) -> None:
-        if track_history:
-            val = objective(_x)
-            history.append(val)
-
-    result = minimize(
-        objective,
-        x0=x0,
-        method="Nelder-Mead",
-        callback=callback if track_history else None,  # type: ignore[arg-type]
-        options={  # type: ignore[call-overload]
-            "maxiter": maxiter,
-            "xatol": xatol,
-            "fatol": fatol,
-            "adaptive": adaptive,
-        },
-    )
-
-    opt_params = result.x.copy()
-
-    # Compute diagnostics at the optimal point
-    psi_final = evolve_drive_circuit(
-        np.array([1.0, 0.0, 0.0, 0.0], dtype=complex),
+    # Central finite difference for d<O>/domega
+    psi_plus = evolve_fn(
+        psi0,
         T_BS,
         t_hold,
-        omega_true,
-        float(opt_params[0]),
-        float(opt_params[1]),
-        float(opt_params[2]),
-        float(opt_params[3]),
+        omega_true + fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
         ops,
     )
-    exp_val, var_val = compute_expectation_and_variance(psi_final, ops["Jz_S"])
-
-    return DriveNelderMeadResult(
-        delta_omega_opt=float(result.fun),
-        params_opt=opt_params,
-        omega_true=omega_true,
-        success=bool(result.success),
-        nfev=int(result.nfev),
-        message=str(result.message),
-        expectation_Jz=exp_val,
-        variance_Jz=var_val,
-        history=history.copy(),
+    psi_minus = evolve_fn(
+        psi0,
+        T_BS,
+        t_hold,
+        omega_true - fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
     )
+    exp_plus = float(np.real(psi_plus.conj() @ meas_op @ psi_plus))
+    exp_minus = float(np.real(psi_minus.conj() @ meas_op @ psi_minus))
+    d_exp = (exp_plus - exp_minus) / (2.0 * fd_step)
 
+    if abs(d_exp) < 1e-12:
+        return float("inf"), exp_val, var_val, 0.0, True
 
-# ============================================================================
-# ω Scan with Random Search + Nelder--Mead Refinement
-# ============================================================================
+    if var_val < 1e-15:
+        return float("inf"), exp_val, var_val, d_exp, True
 
-
-def run_drive_omega_scan(
-    omega_values: list[float] | np.ndarray,
-    n_random: int = 500,
-    n_nm_refine: int = 50,
-    seed: int | None = 42,
-    maxiter: int = 5000,
-    bounds: tuple[float, float] = (-5.0, 5.0),
-    t_hold: float = 10.0,
-    T_BS: float = np.pi / 2.0,
-) -> DriveOmegaScanResult:
-    """Scan over ω values with 4D random search and Nelder--Mead refinement.
-
-    For each ω:
-    1. Run `n_random` random evaluations in the 4D parameter space.
-    2. Select the best `n_nm_refine` points.
-    3. Run Nelder--Mead refinement from each selected point.
-    4. Record the best overall result.
-
-    Args:
-        omega_values: ω values to scan.
-        n_random: Number of random search points per ω.
-        n_nm_refine: Number of Nelder--Mead refinements per ω.
-        seed: Base random seed (incremented per ω).
-        maxiter: Maximum Nelder--Mead iterations.
-        bounds: (min, max) for all parameters.
-        t_hold: Holding time.
-        T_BS: Beam-splitter duration.
-
-    Returns:
-        DriveOmegaScanResult with optimal parameters and sensitivities.
-    """
-    omega_arr = np.asarray(omega_values, dtype=float)
-    base_seed = seed if seed is not None else 42
-
-    best_params_list: list[tuple[float, float, float, float]] = []
-    best_deltas: list[float] = []
-    sql_vals: list[float] = []
-    exp_vals: list[float] = []
-    var_vals: list[float] = []
-    all_results_dict: dict[float, list[DriveNelderMeadResult]] = {}
-
-    for omega_val in omega_arr:
-        # Stage 1: Random search
-        rs_result = drive_random_search(
-            omega_val,
-            n_samples=n_random,
-            bounds=bounds,
-            t_hold=t_hold,
-            T_BS=T_BS,
-            seed=base_seed + int(omega_val * 1000),
-        )
-
-        # Sort random-search results by Δω, take top n_nm_refine
-        sorted_indices = np.argsort(rs_result.delta_omega_values)
-        top_indices = sorted_indices[:n_nm_refine]
-
-        # Stage 2: Nelder--Mead refinement from each top point
-        nm_results: list[DriveNelderMeadResult] = []
-        for rank, idx in enumerate(top_indices):
-            x0 = rs_result.samples[idx].copy()
-            nm = run_drive_nelder_mead(
-                omega_true=omega_val,
-                x0=x0,
-                seed=base_seed + int(omega_val * 1000) + 10000 + rank,
-                maxiter=maxiter,
-                bounds=bounds,
-                t_hold=t_hold,
-                T_BS=T_BS,
-                track_history=False,
-            )
-            nm_results.append(nm)
-
-        # Sort Nelder--Mead results by Δω
-        nm_results.sort(key=lambda r: r.delta_omega_opt)
-        best_nm = nm_results[0]
-
-        best_params_list.append(
-            (
-                float(best_nm.params_opt[0]),
-                float(best_nm.params_opt[1]),
-                float(best_nm.params_opt[2]),
-                float(best_nm.params_opt[3]),
-            )
-        )
-        best_deltas.append(best_nm.delta_omega_opt)
-        sql_vals.append(1.0 / t_hold)
-        exp_vals.append(best_nm.expectation_Jz)
-        var_vals.append(best_nm.variance_Jz)
-        all_results_dict[float(omega_val)] = nm_results
-
-    return DriveOmegaScanResult(
-        omega_values=omega_arr,
-        best_params_per_omega=best_params_list,
-        best_delta_omega_per_omega=np.array(best_deltas, dtype=float),
-        sql_values=np.array(sql_vals, dtype=float),
-        expectation_Jz_per_omega=np.array(exp_vals, dtype=float),
-        variance_Jz_per_omega=np.array(var_vals, dtype=float),
-        all_results=all_results_dict,
-    )
+    delta_omega = float(np.sqrt(var_val) / abs(d_exp))
+    return delta_omega, exp_val, var_val, d_exp, False

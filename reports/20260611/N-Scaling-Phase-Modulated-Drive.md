@@ -231,7 +231,7 @@ At $N \gtrsim 5$ and all $\omega$, the optimal $a_z^*$ is zero (or near-zero), i
 
 **Key Finding**: The null hypothesis is confirmed — the $4.91\times$ SQL violation at $N=1$ does not extend to larger system sizes. The ratio decays as $R(N) - 1 \propto N^{-1}$, consistent with the dimensional analysis that the $O(1)$ ancilla contribution becomes negligible compared to the $O(N)$ system contribution. The crossover scale is $N_c \lesssim 3$, meaning the advantage is essentially a single-particle effect.
 
-**See**: `local.py` for the simulation module (1630 lines, 135 tests). Raw data stored as Parquet files in `raw_data/`: `20260611-decoupled-baseline.parquet`, `20260611-n1-consistency.parquet`, `20260611-n-scaling-scan.parquet`. Figures in `figures/`:
+**See**: `n_scaling_phase_modulated.py` for the simulation module (1630 lines, 135 tests). Raw data stored as Parquet files in `raw_data/`: `20260611-decoupled-baseline.parquet`, `20260611-n1-consistency.parquet`, `20260611-n-scaling-scan.parquet`. Figures in `figures/`:
 
 - `20260611-n-scaling-ratio.svg` — SQL-violation ratio $R(N)$ vs $N$ for all $\omega$
 - `20260611-n-scaling-sensitivity.svg` — $\Delta\omega_{\text{opt}}$ vs $N$ on log-log axes

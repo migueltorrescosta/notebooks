@@ -10,7 +10,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
 # Rules
 
 1. Read the report thoroughly before running any simulations.
-2. Explore existing implemented code in `src/` **and** the report's own `local.py` to understand available functions. Functions for the report's simulation may live in either location.
+2. Explore existing implemented code in `src/` **and** the report's own experiment module (e.g., `phase_modulated_drive.py`) to understand available functions. Functions for the report's simulation may live in either location.
 3. Generate all figures through the standard pipeline (dataclass → Parquet → plot → embed).
 4. Respect the 100 ms per-simulation performance budget.
 5. Save results with the correct naming convention and directory structure.
@@ -25,7 +25,7 @@ Execute the simulation experiments defined in a report, produce all raw data and
    - The parameter sweeps (ranges, step sizes, point counts)
    - The expected output quantities (sensitivity vs N, QFI values, etc.)
    - The success criteria and expected physical invariants
-2. **Explore existing code** — Read relevant modules in `src/` **and** the report's `local.py` to find:
+2. **Explore existing code** — Read relevant modules in `src/` **and** the report's experiment module to find:
    - Result dataclasses and their `to_dataframe()` / `from_parquet()` methods
    - Simulation functions that implement the report's protocol
    - Existing figure generation functions in `src/visualization/`
@@ -63,7 +63,7 @@ Every simulation run follows a strict four-step sequence. Execute these in order
 
 1. **Read the report** – Extract parameter sweeps, output quantities, and success criteria from the report markdown.
 
-2. **Run the simulation** – Call the simulation functions (found in `src/` modules or the report's own `local.py`) for each point in the parameter sweep. Respect the 100 ms per-simulation budget.
+2. **Run the simulation** – Call the simulation functions (found in `src/` modules or the report's own experiment module) for each point in the parameter sweep. Respect the 100 ms per-simulation budget.
 
 3. **Save raw data** – Use the result dataclass's `save_parquet()` method to write to `reports/{date}/raw_data/{date}-{name}.parquet`.
 
@@ -84,7 +84,7 @@ Every simulation run follows a strict four-step sequence. Execute these in order
 ### Before implementation
 - [ ] Searched agentmemory for relevant prior results and decisions (`project:notebooks`)
 - [ ] Read the report (parameter sweeps, expected outputs, success criteria)
-- [ ] Explored existing code in `src/` and the report's `local.py`
+- [ ] Explored existing code in `src/` and the report's experiment module
 - [ ] Consulted CHANGELOG backlog before starting
 
 ### After implementation

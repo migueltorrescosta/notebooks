@@ -2,7 +2,7 @@
 Generic two-phase optimisation pipeline: random search + Nelder-Mead refinement.
 
 Provides shared infrastructure for the common pattern used across 11+ report
-``local.py`` files:
+report experiment modules (was ``local.py``):
 
     1. Uniform random search over a D-dimensional parameter space.
     2. Sort results by sensitivity, take top-k points.
@@ -36,6 +36,12 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from scipy.optimize import minimize
+
+from src.analysis.ancilla_drive_results import (
+    DriveNelderMeadResult,
+    DriveRandomSearchResult,
+)
+from src.analysis.ancilla_optimization import compute_expectation_and_variance
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -206,6 +212,8 @@ def run_nelder_mead(
         ``message``, and ``history`` (list of objective values).
     """
     x0 = np.asarray(x0, dtype=float)
+
+    wrapped_obj: Callable[[np.ndarray], float]
 
     if bounds is not None:
         bounds_list = _expand_bounds(bounds, len(x0))
@@ -393,3 +401,134 @@ def run_omega_scan(
         all_results.append(all_nm)
 
     return best_results, all_results
+
+
+# ---------------------------------------------------------------------------
+# Result-wrapping helpers (promoted from report local.py files)
+# ---------------------------------------------------------------------------
+
+
+def build_rs_result(
+    raw_objective: Callable[[np.ndarray], float],
+    n_samples: int,
+    seed: int,
+    *,
+    omega: float,
+    sql: float,
+    t_hold: float,
+    bounds: tuple[float, float] = (-5.0, 5.0),
+) -> DriveRandomSearchResult:
+    """4D random search → DriveRandomSearchResult.
+
+    Runs :func:`run_random_search` over the 4D parameter space
+    ``(a_x, a_y, a_z, a_zz)`` and wraps the result in a
+    :class:`~src.analysis.ancilla_drive_results.DriveRandomSearchResult`.
+
+    Args:
+        raw_objective: Raw (unpenalised) objective ``f(params) -> Δω``.
+        n_samples: Number of random points to evaluate.
+        seed: RNG seed.
+        omega: ω value at which the search was performed.
+        sql: SQL reference value for the result.
+        t_hold: Holding time for the result.
+        bounds: Parameter bounds ``(lo, hi)`` (same for all 4 dimensions).
+
+    Returns:
+        DriveRandomSearchResult with samples, deltas, and best found.
+    """
+    samples, deltas = run_random_search(
+        raw_objective,
+        n_params=4,
+        n_samples=n_samples,
+        bounds=bounds,
+        seed=seed,
+    )
+    best_idx = int(np.argmin(deltas))
+    return DriveRandomSearchResult(
+        samples=samples,
+        delta_omega_values=deltas,
+        best_params=(
+            float(samples[best_idx, 0]),
+            float(samples[best_idx, 1]),
+            float(samples[best_idx, 2]),
+            float(samples[best_idx, 3]),
+        ),
+        best_delta_omega=float(deltas[best_idx]),
+        omega_value=omega,
+        sql=sql,
+        t_hold=t_hold,
+    )
+
+
+def build_nm_result(
+    raw_objective: Callable[[np.ndarray], float],
+    x0: np.ndarray,
+    *,
+    omega: float,
+    ops: dict[str, np.ndarray],
+    psi0: np.ndarray,
+    evolve_fn: Callable[
+        [np.ndarray, float, float, float, float, dict[str, np.ndarray]],
+        np.ndarray,
+    ],
+    t_hold: float,
+    maxiter: int = 5000,
+    bounds: tuple[float, float] = (-5.0, 5.0),
+) -> DriveNelderMeadResult:
+    """Nelder-Mead refinement → DriveNelderMeadResult.
+
+    Runs :func:`run_nelder_mead` from a given starting point, evaluates
+    the final evolved state with *evolve_fn* to extract measurement
+    statistics, and wraps the result in a
+    :class:`~src.analysis.ancilla_drive_results.DriveNelderMeadResult`.
+
+    The *evolve_fn* callback must have the signature::
+
+        evolve_fn(psi0, a_x, a_y, a_z, a_zz, ops) -> evolved_state
+
+    Each report wraps its own circuit evolution function (which may
+    carry ``N``, ``T_BS``, ``T_HOLD``, etc. as closures) to match this
+    interface.
+
+    Args:
+        raw_objective: Raw (unpenalised) objective ``f(params) -> Δω``.
+        x0: Nelder-Mead starting point (4-element vector).
+        omega: True ω value.
+        ops: Operator dict (must contain ``'Jz_S'``).
+        psi0: Initial state vector.
+        evolve_fn: Callable that applies the full circuit evolution.
+        t_hold: Holding time (for result metadata).
+        maxiter: Maximum Nelder-Mead iterations.
+        bounds: Parameter bounds ``(lo, hi)``.
+
+    Returns:
+        DriveNelderMeadResult with optimal params and diagnostics.
+    """
+    nm = run_nelder_mead(
+        raw_objective,
+        x0=x0,
+        bounds=bounds,
+        maxiter=maxiter,
+        track_history=False,
+    )
+    opt_p = nm["x_opt"]
+    psi_final = evolve_fn(
+        psi0,
+        float(opt_p[0]),
+        float(opt_p[1]),
+        float(opt_p[2]),
+        float(opt_p[3]),
+        ops,
+    )
+    exp_val, var_val = compute_expectation_and_variance(psi_final, ops["Jz_S"])
+    return DriveNelderMeadResult(
+        delta_omega_opt=nm["fun_opt"],
+        params_opt=opt_p,
+        omega_true=omega,
+        success=nm["success"],
+        nfev=nm["nfev"],
+        message=nm["message"],
+        expectation_Jz=exp_val,
+        variance_Jz=var_val,
+        history=nm["history"],
+    )

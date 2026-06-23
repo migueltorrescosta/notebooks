@@ -27,22 +27,21 @@ import pandas as pd
 import streamlit as st
 from plotly import graph_objects as go
 
-from src.analysis.scaling_survey import (
-    CavityMziConfig,
+from src.analysis.cavity_mzi import CavityMziConfig, cavity_enhanced_sensitivity
+from src.analysis.distributed_mzi import (
     DistributedMziConfig,
+    distributed_mzi_sensitivity,
+)
+from src.analysis.dynamical_decoupling import dd_phase_sensitivity
+from src.analysis.scaling_survey import (
     ModelConfig,
     SurveyConfig,
-    TTLNoiseConfig,
-    cavity_enhanced_sensitivity,
-    combined_sensitivity,
-    create_default_survey,
-    create_thermal_config,
-    dd_phase_sensitivity,
-    distributed_mzi_sensitivity,
     fit_all_exponents,
     run_scaling_survey,
-    ttl_limited_sensitivity,
 )
+from src.analysis.survey_models import create_default_survey
+from src.analysis.thermal_noise import combined_sensitivity, create_thermal_config
+from src.analysis.tilt_to_length_noise import TTLNoiseConfig, ttl_limited_sensitivity
 
 # Page configuration
 st.set_page_config(

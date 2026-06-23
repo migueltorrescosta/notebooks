@@ -105,19 +105,19 @@ class TestBuildSystemOnlyBSUnitary:
 class TestBuildIszzInteraction:
     """Tests for build_iszz_interaction."""
 
-    @pytest.mark.parametrize("N_sys,N_anc", [(1, 1), (3, 2), (5, 4)])
+    @pytest.mark.parametrize(("N_sys", "N_anc"), [(1, 1), (3, 2), (5, 4)])
     def test_iszz_hermitian(self, N_sys: int, N_anc: int) -> None:
         ops = build_operators(N_sys, N_anc)
         H = build_iszz_interaction(2.5, ops)
         assert np.allclose(H, H.conj().T, atol=1e-12)
 
-    @pytest.mark.parametrize("N_sys,N_anc", [(1, 1), (3, 2), (5, 4)])
+    @pytest.mark.parametrize(("N_sys", "N_anc"), [(1, 1), (3, 2), (5, 4)])
     def test_iszz_zero_at_zero(self, N_sys: int, N_anc: int) -> None:
         ops = build_operators(N_sys, N_anc)
         H = build_iszz_interaction(0.0, ops)
         assert np.allclose(H, 0.0, atol=1e-12)
 
-    @pytest.mark.parametrize("N_sys,N_anc", [(2, 3), (4, 2)])
+    @pytest.mark.parametrize(("N_sys", "N_anc"), [(2, 3), (4, 2)])
     def test_iszz_dimension(self, N_sys: int, N_anc: int) -> None:
         d_tot = (N_sys + 1) * (N_anc + 1)
         ops = build_operators(N_sys, N_anc)

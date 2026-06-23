@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from src.physics.beam_splitter import bs_dicke, bs_fock, bs_qubit
 
@@ -118,3 +120,83 @@ class TestBsDicke:
         U2 = bs_dicke(5, np.pi / 4)
         assert U1 is not U2
         assert not np.allclose(U1, U2)
+
+
+# ── Hypothesis property-based tests ───────────────────────────────────────────
+
+
+class TestHypothesisBsFock:
+    """Property-based tests for bs_fock unitarity using hypothesis.
+
+    These replace the need for hand-picked @pytest.mark.parametrize — hypothesis
+    explores the continuous parameter space (theta, phi_bs) and discrete space
+    (max_photons) automatically, ensuring the unitarity invariant holds across
+    a wider range than manual parametrization could cover.
+    """
+
+    @settings(max_examples=50, deadline=5000)
+    @given(
+        theta=st.floats(0.0, np.pi),
+        phi_bs=st.floats(0.0, 2 * np.pi),
+        max_photons=st.integers(1, 5),
+    )
+    def test_unitary(self, theta: float, phi_bs: float, max_photons: int) -> None:
+        """U @ U† = I for any beam-splitter angle, phase, and truncation."""
+        U = bs_fock(theta, phi_bs, max_photons)
+        dim = (max_photons + 1) ** 2
+        assert U.shape == (dim, dim)
+        assert np.allclose(U @ U.conj().T, np.eye(dim), atol=1e-10)
+
+    @settings(max_examples=20, deadline=2000)
+    @given(
+        theta=st.floats(0.0, np.pi),
+        phi_bs=st.floats(0.0, 2 * np.pi),
+        max_photons=st.integers(1, 5),
+    )
+    def test_correct_dimension(
+        self, theta: float, phi_bs: float, max_photons: int
+    ) -> None:
+        """Output dimension matches (max_photons + 1)^2."""
+        U = bs_fock(theta, phi_bs, max_photons)
+        expected_dim = (max_photons + 1) ** 2
+        assert U.shape == (expected_dim, expected_dim)
+
+
+class TestHypothesisBsDicke:
+    """Property-based tests for bs_dicke unitarity using hypothesis."""
+
+    @settings(max_examples=50, deadline=5000)
+    @given(
+        N=st.integers(1, 20),
+        T_BS=st.floats(0.0, np.pi),
+    )
+    def test_unitary(self, N: int, T_BS: float) -> None:
+        """U @ U† = I for any particle number and BS angle."""
+        U = bs_dicke(N, T_BS)
+        assert U.shape == (N + 1, N + 1)
+        assert np.allclose(U @ U.conj().T, np.eye(N + 1), atol=1e-12)
+
+    @settings(max_examples=20, deadline=5000)
+    @given(
+        N=st.integers(1, 20),
+        T_BS=st.floats(0.0, np.pi),
+    )
+    def test_correct_dimension(self, N: int, T_BS: float) -> None:
+        """Output dimension matches N + 1."""
+        U = bs_dicke(N, T_BS)
+        assert U.shape == (N + 1, N + 1)
+
+
+class TestHypothesisBsQubit:
+    """Property-based tests for bs_qubit unitarity using hypothesis."""
+
+    @settings(max_examples=50, deadline=5000)
+    @given(
+        T_BS=st.floats(0.0, 2 * np.pi),
+    )
+    def test_unitary(self, T_BS: float) -> None:
+        """U @ U† = I for any qubit BS angle."""
+        U = bs_qubit(T_BS)
+        assert U.shape == (2, 2)
+        assert np.allclose(U @ U.conj().T, np.eye(2), atol=1e-12)
+        assert np.allclose(U.conj().T @ U, np.eye(2), atol=1e-12)

@@ -1,0 +1,1451 @@
+"""
+Local module for the 2026-05-27 Drive-Component Analysis in Ancilla-Enhanced Metrology.
+
+Contains all code exclusive to this report:
+- Norm-ball sampling via Marsaglia's method (uniform 3-ball)
+- NormBallResult and EnvelopeResult dataclasses with Parquet roundtrip
+- Envelope curve extraction (best ratio vs drive norm)
+- 2D slice generation for the (a_z, a_zz) slice
+- Exclusive plot functions (norm-envelope curve, best-ratio-by-slice bar chart)
+- CLI pipeline
+
+Usage:
+    uv run python reports/20260527/drive_component_analysis.py --force
+
+This module is **not** importable as ``reports.20260527.local`` (the directory
+name contains hyphens).  Instead, importers add the report directory to
+``sys.path`` and do ``import local``.
+"""
+
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import os
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from tqdm import tqdm
+
+# Force non-interactive matplotlib backend before any plotting imports.
+if "MPLBACKEND" not in os.environ:
+    os.environ["MPLBACKEND"] = "Agg"
+
+from src.analysis.ancilla_drive_metrology import (
+    evolve_drive_circuit,
+)
+from src.analysis.ancilla_drive_results import (
+    Drive2DSliceResult,
+)
+from src.analysis.ancilla_drive_scans import (
+    drive_2d_slice,
+)
+from src.analysis.ancilla_optimization import (
+    build_two_qubit_operators,
+    compute_expectation_and_variance,
+)
+from src.utils.monte_carlo import (
+    marsaglia_ball_sample,
+    stratified_ball_sample,
+)
+from src.utils.paths import report_path_fn
+from src.utils.serialization import ParquetSerializable
+from src.visualization.ancilla_drive_plots import (
+    plot_drive_2d_slice_heatmap,
+)
+
+sns.set_theme(style="whitegrid")
+
+# ============================================================================
+# Constants
+# ============================================================================
+
+REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
+REPORT_DATE = "20260527"
+t_hold: float = 10.0
+SQL: float = 1.0 / t_hold  # 0.1
+FD_STEP: float = 1e-6
+T_BS: float = np.pi / 2.0
+
+# ω values for the 2D slice heatmaps (5 values, matching original report)
+DRIVE_OMEGA_VALS: list[float] = [0.1, 0.5, 1.0, 2.0, 5.0]
+
+# ω values for the norm-ball scan (50 values, step 0.1)
+OMEGA_VALS: np.ndarray = np.arange(0.1, 5.05, 0.1)
+
+# Norm-ball parameters
+N_SAMP: int = 5000
+R_MAX: float = 10.0
+AZZ_BOUNDS: tuple[float, float] = (-5.0, 5.0)
+
+# 2D slice range
+DRIVE_RANGE: tuple[float, float] = (-5.0, 5.0)
+N_DRIVE: int = 201
+N_AZZ: int = 201
+
+# Envelope grid
+N_R: int = 100
+
+# Stratified sampling (used when method="stratified")
+N_STRATA: int = 50
+
+
+# ============================================================================
+# Path Helpers
+# ============================================================================
+
+
+_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
+
+
+# ============================================================================
+# Sensitivity Computation with Extra Metadata
+# ============================================================================
+
+
+def compute_sensitivity_with_extra(
+    omega_true: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    *,
+    t_hold: float = t_hold,
+    T_BS: float = T_BS,
+    fd_step: float = FD_STEP,
+) -> tuple[float, float, float, float, bool]:
+    """Compute Δω plus ⟨J_z^S⟩, Var(J_z^S), and d⟨J_z^S⟩/dω.
+
+    Args:
+        omega_true: True phase rate parameter.
+        a_x: Ancilla J_x drive coefficient.
+        a_y: Ancilla J_y drive coefficient.
+        a_z: Ancilla J_z drive coefficient.
+        a_zz: Ising interaction coefficient.
+        t_hold: Holding-time strength.
+        T_BS: Beam-splitter duration.
+        fd_step: Finite-difference step size.
+
+    Returns:
+        Tuple (delta_omega, expectation, variance, derivative, is_fringe_extremum).
+        Returns (inf, exp_val, var_val, 0.0, True) when the derivative is zero
+        (fringe extremum).
+    """
+    psi0 = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)
+    ops = build_two_qubit_operators()
+    meas_op = ops["Jz_S"]
+
+    # Evaluate at omega_true
+    psi = evolve_drive_circuit(psi0, T_BS, t_hold, omega_true, a_x, a_y, a_z, a_zz, ops)
+    exp_val, var_val = compute_expectation_and_variance(psi, meas_op)
+
+    # Central finite difference for ∂⟨O⟩/∂ω
+    psi_plus = evolve_drive_circuit(
+        psi0,
+        T_BS,
+        t_hold,
+        omega_true + fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
+    )
+    psi_minus = evolve_drive_circuit(
+        psi0,
+        T_BS,
+        t_hold,
+        omega_true - fd_step,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
+    )
+    exp_plus = float(np.real(psi_plus.conj() @ meas_op @ psi_plus))
+    exp_minus = float(np.real(psi_minus.conj() @ meas_op @ psi_minus))
+    d_exp = (exp_plus - exp_minus) / (2.0 * fd_step)
+
+    if abs(d_exp) < 1e-12:
+        return float("inf"), exp_val, var_val, 0.0, True
+
+    # Zero-variance case: the state is an eigenstate of the measurement
+    # operator, giving a deterministic measurement outcome.  Error propagation
+    # would yield Δω = 0 (unphysical), because a deterministic measurement
+    # provides zero information about ω.  Flag as fringe extremum.
+    if var_val < 1e-15:
+        return float("inf"), exp_val, var_val, d_exp, True
+
+    delta_omega = float(np.sqrt(var_val) / abs(d_exp))
+    return delta_omega, exp_val, var_val, d_exp, False
+
+
+# ============================================================================
+# NormBallResult Dataclass
+# ============================================================================
+
+
+@dataclass
+class NormBallResult(ParquetSerializable):
+    """Result from norm-ball sampling over (a_x, a_y, a_z, a_zz).
+
+    Attributes:
+        omega_values: Array of ω values scanned (N_omega,).
+        samples: Array of sampled parameters, shape (N_omega, N_samp, 4)
+            ordered as [a_x, a_y, a_z, a_zz].
+        delta_omega_values: Δω for each sample, shape (N_omega, N_samp).
+        expectation_values: ⟨J_z^S⟩ for each sample, shape (N_omega, N_samp).
+        variance_values: Var(J_z^S) for each sample, shape (N_omega, N_samp).
+        deriv_values: d⟨J_z^S⟩/dω for each sample, shape (N_omega, N_samp).
+        norms: ‖a‖ for each sample, shape (N_omega, N_samp).
+        sql: SQL = 1/t_hold reference value.
+        t_hold: Holding-time strength.
+        R: Ball radius constraint.
+    """
+
+    omega_values: np.ndarray
+    samples: np.ndarray
+    delta_omega_values: np.ndarray
+    expectation_values: np.ndarray
+    variance_values: np.ndarray
+    deriv_values: np.ndarray
+    norms: np.ndarray
+    sql: float = SQL
+    t_hold: float = t_hold
+    R: float = R_MAX
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "a_x",
+        "a_y",
+        "a_z",
+        "a_zz",
+        "norm",
+        "delta_omega",
+        "expectation",
+        "variance",
+        "derivative",
+        "sql",
+        "t_hold",
+        "R",
+    ]
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Melt all data into a long-format DataFrame."""
+        n_omega = len(self.omega_values)
+        n_samp = self.samples.shape[1]
+        rows: list[dict[str, float | str]] = [
+            {
+                "omega": float(self.omega_values[ti]),
+                "a_x": float(self.samples[ti, si, 0]),
+                "a_y": float(self.samples[ti, si, 1]),
+                "a_z": float(self.samples[ti, si, 2]),
+                "a_zz": float(self.samples[ti, si, 3]),
+                "norm": float(self.norms[ti, si]),
+                "delta_omega": float(self.delta_omega_values[ti, si]),
+                "expectation": float(self.expectation_values[ti, si]),
+                "variance": float(self.variance_values[ti, si]),
+                "derivative": float(self.deriv_values[ti, si]),
+                "sql": float(self.sql),
+                "t_hold": float(self.t_hold),
+                "R": float(self.R),
+            }
+            for ti in range(n_omega)
+            for si in range(n_samp)
+        ]
+        return pd.DataFrame(rows)
+
+    @classmethod
+    def from_parquet(cls, path: str | Path) -> NormBallResult:
+        df = pd.read_parquet(path)
+        cls._validate_columns(df)
+        omega_values = np.array(sorted(df["omega"].unique()), dtype=float)
+        n_omega = len(omega_values)
+        # Infer n_samp from the data
+        n_samp = len(df) // n_omega
+        samples = np.zeros((n_omega, n_samp, 4), dtype=float)
+        deltas = np.zeros((n_omega, n_samp), dtype=float)
+        exps = np.zeros((n_omega, n_samp), dtype=float)
+        vars_ = np.zeros((n_omega, n_samp), dtype=float)
+        derivs = np.zeros((n_omega, n_samp), dtype=float)
+        norms = np.zeros((n_omega, n_samp), dtype=float)
+        for ti, omega in enumerate(omega_values):
+            mask = np.isclose(df["omega"].to_numpy(dtype=float), omega)
+            subset = df[mask]
+            n_rows = np.sum(mask)
+            samples[ti, :n_rows, 0] = subset["a_x"].to_numpy(dtype=float)
+            samples[ti, :n_rows, 1] = subset["a_y"].to_numpy(dtype=float)
+            samples[ti, :n_rows, 2] = subset["a_z"].to_numpy(dtype=float)
+            samples[ti, :n_rows, 3] = subset["a_zz"].to_numpy(dtype=float)
+            deltas[ti, :n_rows] = subset["delta_omega"].to_numpy(dtype=float)
+            exps[ti, :n_rows] = subset["expectation"].to_numpy(dtype=float)
+            vars_[ti, :n_rows] = subset["variance"].to_numpy(dtype=float)
+            derivs[ti, :n_rows] = subset["derivative"].to_numpy(dtype=float)
+            norms[ti, :n_rows] = subset["norm"].to_numpy(dtype=float)
+        return cls(
+            omega_values=omega_values,
+            samples=samples,
+            delta_omega_values=deltas,
+            expectation_values=exps,
+            variance_values=vars_,
+            deriv_values=derivs,
+            norms=norms,
+            sql=float(df["sql"].iloc[0]),
+            t_hold=float(df["t_hold"].iloc[0]),
+            R=float(df["R"].iloc[0]),
+        )
+
+
+# ============================================================================
+# Norm-Ball Sampling (Marsaglia's Method)
+# ============================================================================
+
+
+def _sample_ball_for_omega(
+    omega_rng: np.random.Generator,
+    n_samp: int,
+    R: float,
+    azz_lo: float,
+    azz_hi: float,
+    sampling_method: str,
+    n_strata: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Dispatch to the appropriate ball-sampling method.
+
+    Args:
+        omega_rng: Random generator for this ω value.
+        n_samp: Total number of samples.
+        R: Ball radius.
+        azz_lo: Lower bound for a_zz.
+        azz_hi: Upper bound for a_zz.
+        sampling_method: ``"marsaglia"`` or ``"stratified"``.
+        n_strata: Number of radial strata (only used when
+            *sampling_method* is ``"stratified"``).
+
+    Returns:
+        Tuple (drive_samples, azz_samples).
+
+    Raises:
+        ValueError: If *sampling_method* is unknown.
+    """
+    if sampling_method == "marsaglia":
+        return marsaglia_ball_sample(omega_rng, n_samp, R, azz_lo, azz_hi)
+    if sampling_method == "stratified":
+        if n_samp % n_strata != 0:
+            raise ValueError(
+                f"n_samp={n_samp} must be divisible by n_strata={n_strata} "
+                "for stratified sampling"
+            )
+        n_per_stratum = n_samp // n_strata
+        return stratified_ball_sample(
+            omega_rng,
+            n_per_stratum,
+            n_strata,
+            R,
+            azz_lo,
+            azz_hi,
+        )
+    raise ValueError(
+        f"Unknown sampling_method='{sampling_method}'. "
+        "Must be 'marsaglia' or 'stratified'."
+    )
+
+
+def _normball_omega_chunk_worker(args: tuple) -> dict:
+    """Worker for parallel norm-ball ω chunk (module-level for pickling).
+
+    Args:
+        args: Tuple (omega_list, n_samp, R, azz_lo, azz_hi, t_hold, T_BS,
+            fd_step, base_seed, sampling_method, n_strata).
+
+    Returns:
+        Dict with keys 'omega_values', 'samples', 'deltas', 'exps',
+        'vars_', 'derivs', 'norms', each a numpy array for the chunk.
+    """
+    (
+        omega_list,
+        n_samp,
+        R,
+        azz_lo,
+        azz_hi,
+        t_hold,
+        T_BS,
+        fd_step,
+        base_seed,
+        sampling_method,
+        n_strata,
+    ) = args
+    n_omega = len(omega_list)
+    samples = np.zeros((n_omega, n_samp, 4), dtype=float)
+    deltas = np.full((n_omega, n_samp), np.inf, dtype=float)
+    exps = np.zeros((n_omega, n_samp), dtype=float)
+    vars_ = np.zeros((n_omega, n_samp), dtype=float)
+    derivs = np.zeros((n_omega, n_samp), dtype=float)
+    norms = np.zeros((n_omega, n_samp), dtype=float)
+
+    for ti, omega in enumerate(omega_list):
+        omega_rng = np.random.default_rng(
+            base_seed + int(omega * 1000) if base_seed is not None else None
+        )
+        drive_samp, azz_samp = _sample_ball_for_omega(
+            omega_rng,
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            sampling_method,
+            n_strata,
+        )
+        for si in range(n_samp):
+            ax = float(drive_samp[si, 0])
+            ay = float(drive_samp[si, 1])
+            az = float(drive_samp[si, 2])
+            azz = float(azz_samp[si])
+
+            domega, exp_val, var_val, deriv, _ = compute_sensitivity_with_extra(
+                omega,
+                ax,
+                ay,
+                az,
+                azz,
+                t_hold=t_hold,
+                T_BS=T_BS,
+                fd_step=fd_step,
+            )
+
+            samples[ti, si, :] = [ax, ay, az, azz]
+            deltas[ti, si] = domega
+            exps[ti, si] = exp_val
+            vars_[ti, si] = var_val
+            derivs[ti, si] = deriv
+            norms[ti, si] = float(np.sqrt(ax**2 + ay**2 + az**2))
+
+    return {
+        "omega_values": np.array(omega_list, dtype=float),
+        "samples": samples,
+        "deltas": deltas,
+        "exps": exps,
+        "vars_": vars_,
+        "derivs": derivs,
+        "norms": norms,
+    }
+
+
+def _normball_sequential(
+    omega_arr: np.ndarray,
+    n_samp: int,
+    R: float,
+    azz_lo: float,
+    azz_hi: float,
+    t_hold: float,
+    T_BS: float,
+    fd_step: float,
+    seed: int | None,
+    sampling_method: str,
+    n_strata: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Sequential norm-ball sampling with tqdm progress bar.
+
+    Returns (samples, deltas, exps, vars_, derivs, norms).
+    """
+    n_omega = len(omega_arr)
+    samples = np.zeros((n_omega, n_samp, 4), dtype=float)
+    deltas = np.full((n_omega, n_samp), np.inf, dtype=float)
+    exps = np.zeros((n_omega, n_samp), dtype=float)
+    vars_ = np.zeros((n_omega, n_samp), dtype=float)
+    derivs = np.zeros((n_omega, n_samp), dtype=float)
+    norms = np.zeros((n_omega, n_samp), dtype=float)
+
+    for ti, omega in enumerate(
+        tqdm(omega_arr, desc="Norm-ball sampling", unit="\u03c9")
+    ):
+        omega_rng = np.random.default_rng(
+            seed + int(omega * 1000) if seed is not None else None
+        )
+        drive_samp, azz_samp = _sample_ball_for_omega(
+            omega_rng,
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            sampling_method,
+            n_strata,
+        )
+
+        for si in range(n_samp):
+            ax = float(drive_samp[si, 0])
+            ay = float(drive_samp[si, 1])
+            az = float(drive_samp[si, 2])
+            azz = float(azz_samp[si])
+
+            domega, exp_val, var_val, deriv, _ = compute_sensitivity_with_extra(
+                omega,
+                ax,
+                ay,
+                az,
+                azz,
+                t_hold=t_hold,
+                T_BS=T_BS,
+                fd_step=fd_step,
+            )
+
+            samples[ti, si, :] = [ax, ay, az, azz]
+            deltas[ti, si] = domega
+            exps[ti, si] = exp_val
+            vars_[ti, si] = var_val
+            derivs[ti, si] = deriv
+            norms[ti, si] = float(np.sqrt(ax**2 + ay**2 + az**2))
+
+    return samples, deltas, exps, vars_, derivs, norms
+
+
+def _concatenate_and_sort_partials(
+    partials: list[dict],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Concatenate partial results from parallel workers and sort by omega.
+
+    Returns (samples, deltas, exps, vars_, derivs, norms) sorted by omega.
+    """
+    all_omega = np.concatenate([p["omega_values"] for p in partials])
+    sort_idx = np.argsort(all_omega)
+
+    keys = ["samples", "deltas", "exps", "vars_", "derivs", "norms"]
+    results: dict[str, np.ndarray] = {}
+    for key in keys:
+        results[key] = np.concatenate([p[key] for p in partials], axis=0)[sort_idx]
+
+    return (
+        results["samples"],
+        results["deltas"],
+        results["exps"],
+        results["vars_"],
+        results["derivs"],
+        results["norms"],
+    )
+
+
+def _normball_parallel(
+    omega_arr: np.ndarray,
+    n_samp: int,
+    R: float,
+    azz_lo: float,
+    azz_hi: float,
+    t_hold: float,
+    T_BS: float,
+    fd_step: float,
+    seed: int | None,
+    sampling_method: str,
+    n_strata: int,
+    n_jobs: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Parallel norm-ball sampling using process pool.
+
+    Returns (samples, deltas, exps, vars_, derivs, norms) sorted by omega.
+    """
+    n_workers = max(1, os.cpu_count() or 4) if n_jobs == -1 else n_jobs
+    chunks = np.array_split(omega_arr, n_workers)
+    worker_args = [
+        (
+            chunk.tolist(),
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            t_hold,
+            T_BS,
+            fd_step,
+            seed,
+            sampling_method,
+            n_strata,
+        )
+        for chunk in chunks
+    ]
+
+    partials: list[dict] = [{}] * len(worker_args)
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=n_workers,
+    ) as executor:
+        futures = {
+            executor.submit(_normball_omega_chunk_worker, args): i
+            for i, args in enumerate(worker_args)
+        }
+        for future in concurrent.futures.as_completed(futures):
+            idx = futures[future]
+            partials[idx] = future.result()
+
+    return _concatenate_and_sort_partials(partials)
+
+
+def norm_ball_sampling(
+    omega_values: np.ndarray | list[float],
+    *,
+    n_samp: int = N_SAMP,
+    R: float = R_MAX,
+    azz_bounds: tuple[float, float] = AZZ_BOUNDS,
+    t_hold: float = t_hold,
+    T_BS: float = T_BS,
+    fd_step: float = FD_STEP,
+    seed: int | None = 42,
+    n_jobs: int | None = None,
+    sampling_method: str = "marsaglia",
+    n_strata: int = 10,
+) -> NormBallResult:
+    """Run norm-ball Monte Carlo sampling over multiple ω values.
+
+    For each ω, generates ``n_samp`` configurations from the 3-ball
+    ‖a‖ ≤ R with a_zz ~ U[azz_lo, azz_hi] independently, and evaluates
+    the sensitivity Δω for each configuration.
+
+    Two sampling methods are available:
+
+    - **marsaglia** (default): uniform volume distribution.  Most samples
+      lie at large radii (``P(r) ∝ r²``).
+    - **stratified**: uniform linear density in *r*.  The ball is divided
+      into *n_strata* equal-width radial bins; each bin receives
+      ``n_samp / n_strata`` samples.  Use this to resolve the small-r
+      regime.
+
+    When ``n_jobs > 1``, ω values are split across worker processes.
+
+    Args:
+        omega_values: ω values to scan.
+        n_samp: Number of random samples per ω.  Must be divisible by
+            *n_strata* when using ``"stratified"``.
+        R: Norm-ball radius.
+        azz_bounds: (min, max) for a_zz.
+        t_hold: Holding-time strength.
+        T_BS: Beam-splitter duration.
+        fd_step: Finite-difference step size.
+        seed: Random seed for reproducibility.
+        n_jobs: Number of parallel workers. ``None`` (default) = sequential.
+            Pass ``-1`` to use all available CPUs.
+        sampling_method: ``"marsaglia"`` or ``"stratified"``.
+        n_strata: Number of radial strata for stratified sampling.
+            Ignored when *sampling_method* is ``"marsaglia"``.
+
+    Returns:
+        NormBallResult with all sample data.
+
+    Raises:
+        ValueError: If *sampling_method* is unknown, or if *n_samp* is not
+            divisible by *n_strata* for stratified sampling.
+    """
+    omega_arr = np.asarray(omega_values, dtype=float)
+    azz_lo, azz_hi = azz_bounds
+
+    if n_jobs is None or n_jobs == 1:
+        samples, deltas, exps, vars_, derivs, norms = _normball_sequential(
+            omega_arr,
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            t_hold,
+            T_BS,
+            fd_step,
+            seed,
+            sampling_method,
+            n_strata,
+        )
+    else:
+        samples, deltas, exps, vars_, derivs, norms = _normball_parallel(
+            omega_arr,
+            n_samp,
+            R,
+            azz_lo,
+            azz_hi,
+            t_hold,
+            T_BS,
+            fd_step,
+            seed,
+            sampling_method,
+            n_strata,
+            n_jobs,
+        )
+
+    return NormBallResult(
+        omega_values=omega_arr,
+        samples=samples,
+        delta_omega_values=deltas,
+        expectation_values=exps,
+        variance_values=vars_,
+        deriv_values=derivs,
+        norms=norms,
+        sql=1.0 / t_hold,
+        t_hold=t_hold,
+        R=R,
+    )
+
+
+# ============================================================================
+# EnvelopeResult Dataclass
+# ============================================================================
+
+
+@dataclass
+class EnvelopeResult(ParquetSerializable):
+    """Result from extracting the norm-constrained envelope curve.
+
+    Attributes:
+        r_values: Grid of drive-norm thresholds (N_r,).
+        best_ratio_per_omega: min Δω/SQL for each ω and r, shape
+            (N_omega, N_r).
+        omega_values: ω values (N_omega,).
+        sql: SQL reference value.
+    """
+
+    r_values: np.ndarray
+    best_ratio_per_omega: np.ndarray
+    omega_values: np.ndarray
+    sql: float = SQL
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = ["omega", "r", "best_ratio", "sql"]
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Melt the envelope into long-format DataFrame."""
+        n_omega = len(self.omega_values)
+        n_r = len(self.r_values)
+        rows: list[dict[str, float]] = [
+            {
+                "omega": float(self.omega_values[ti]),
+                "r": float(self.r_values[ri]),
+                "best_ratio": float(self.best_ratio_per_omega[ti, ri]),
+                "sql": float(self.sql),
+            }
+            for ti in range(n_omega)
+            for ri in range(n_r)
+        ]
+        return pd.DataFrame(rows)
+
+    @classmethod
+    def from_parquet(cls, path: str | Path) -> EnvelopeResult:
+        df = pd.read_parquet(path)
+        cls._validate_columns(df)
+        omega_values = np.array(sorted(df["omega"].unique()), dtype=float)
+        r_values = np.array(sorted(df["r"].unique()), dtype=float)
+        n_omega = len(omega_values)
+        n_r = len(r_values)
+        grid = np.full((n_omega, n_r), np.nan, dtype=float)
+        for _, row in df.iterrows():
+            ti = int(np.searchsorted(omega_values, row["omega"]))
+            ri = int(np.searchsorted(r_values, row["r"]))
+            grid[ti, ri] = row["best_ratio"]
+        return cls(
+            r_values=r_values,
+            best_ratio_per_omega=grid,
+            omega_values=omega_values,
+            sql=float(df["sql"].iloc[0]),
+        )
+
+
+# ============================================================================
+# Envelope Curve Extraction
+# ============================================================================
+
+
+def extract_envelope_curve(
+    result: NormBallResult,
+    n_r: int = N_R,
+    r_max: float | None = None,
+) -> EnvelopeResult:
+    """Compute the norm-constrained best-ratio envelope curve.
+
+    For each ω and each r in a fine grid, find the minimum Δω/SQL among
+    all samples whose drive norm does not exceed r.
+
+    Args:
+        result: NormBallResult with all sample data.
+        n_r: Number of r grid points.
+        r_max: Maximum r value (defaults to result.R).
+
+    Returns:
+        EnvelopeResult with best_ratio(r) for each ω.
+    """
+    if r_max is None:
+        r_max = result.R
+    r_values = np.linspace(0.0, r_max, n_r)
+    n_omega = len(result.omega_values)
+    best_ratio = np.full((n_omega, n_r), np.inf, dtype=float)
+
+    for ti in range(n_omega):
+        valid = np.isfinite(result.delta_omega_values[ti])
+        the_norms = result.norms[ti, valid]
+        the_ratios = result.delta_omega_values[ti, valid] / result.sql
+        n_valid = np.sum(valid)
+        if n_valid == 0:
+            best_ratio[ti, :] = float("inf")
+            continue
+        for ri, r_val in enumerate(r_values):
+            mask = the_norms <= r_val
+            if np.any(mask):
+                best_ratio[ti, ri] = float(np.min(the_ratios[mask]))
+            # else: leave as inf (no samples within this radius)
+
+    return EnvelopeResult(
+        r_values=r_values,
+        best_ratio_per_omega=best_ratio,
+        omega_values=result.omega_values,
+        sql=result.sql,
+    )
+
+
+# ============================================================================
+# Plot Functions
+# ============================================================================
+
+
+def plot_norm_envelope_curve(
+    envelope: EnvelopeResult | str | Path,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 6),
+) -> Path:
+    """Plot min Δω/SQL vs drive norm r for each ω.
+
+    Shows individual curves for a subset of ω values (5 representative ones),
+    the overall minimum across ω as a thick line, and SQL reference at y=1.
+
+    Args:
+        envelope: EnvelopeResult or path to Parquet file.
+        save_path: Output SVG path.
+        figsize: Figure size.
+
+    Returns:
+        Path to saved SVG.
+    """
+    if isinstance(envelope, (str, Path)):
+        envelope = EnvelopeResult.from_parquet(envelope)
+
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Representative ω values for individual curves
+    show_omegas = [0.1, 0.5, 1.0, 2.0, 5.0]
+    colours = ["C0", "C1", "C2", "C3", "C4"]
+
+    for idx, omega_val in enumerate(show_omegas):
+        mask = np.isclose(envelope.omega_values, omega_val, atol=1e-6)
+        if not np.any(mask):
+            continue
+        ti = int(np.argmax(mask))
+        valid = np.isfinite(envelope.best_ratio_per_omega[ti])
+        ax.plot(
+            envelope.r_values[valid],
+            envelope.best_ratio_per_omega[ti, valid],
+            color=colours[idx % len(colours)],
+            linestyle="-",
+            linewidth=1.2,
+            alpha=0.7,
+            label=rf"$\omega = {omega_val:.1f}$",
+        )
+
+    # Overall minimum across all ω
+    over_min = np.nanmin(envelope.best_ratio_per_omega, axis=0)
+    valid_over = np.isfinite(over_min)
+    ax.plot(
+        envelope.r_values[valid_over],
+        over_min[valid_over],
+        color="black",
+        linestyle="-",
+        linewidth=2.5,
+        label="Overall minimum",
+    )
+
+    # SQL reference line
+    ax.axhline(
+        y=1.0, color="red", linestyle="--", linewidth=1.5, alpha=0.8, label="SQL"
+    )
+
+    ax.set_xlabel(r"Drive norm $\|\mathbf{a}\|$")
+    ax.set_ylabel(r"$\min \Delta\omega \;/\; \mathrm{SQL}$")
+    ax.set_title("Norm-constrained best sensitivity ratio")
+    ax.set_ylim(0.95, 1.5)
+    ax.legend(fontsize=9, loc="upper right")
+
+    # Annotate that the minimum is always 1.0
+    min_overall = float(np.nanmin(over_min[valid_over]))
+    ax.annotate(
+        f"Min ratio = {min_overall:.8f}",
+        xy=(envelope.r_values[-1], min_overall),
+        xytext=(envelope.r_values[-1] * 0.6, min_overall + 0.08),
+        arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.0},
+        fontsize=10,
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "white", "edgecolor": "gray"},
+    )
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+def _collect_ratios_by_slice(
+    slice_results: dict[str, Drive2DSliceResult],
+) -> tuple[list[float], dict[str, list[float]]]:
+    """Collect best Δω/SQL ratios for each slice type across ω values.
+
+    Args:
+        slice_results: Dict mapping slice_type to Drive2DSliceResult.
+
+    Returns:
+        Tuple (all_omegas, ratios) where ``ratios`` maps slice type
+        to a list of min Δω/SQL values.
+    """
+    omega_set: set[float] = set()
+    for res in slice_results.values():
+        omega_set.add(res.omega_value)
+    all_omegas = sorted(omega_set)
+
+    ratios: dict[str, list[float]] = {"ax": [], "ay": [], "az": []}
+
+    for omega in all_omegas:
+        for st in ("ax", "ay", "az"):
+            if st in slice_results and np.isclose(slice_results[st].omega_value, omega):
+                grid = slice_results[st].delta_omega_grid
+                finite_mask = np.isfinite(grid)
+                if np.any(finite_mask):
+                    min_val = float(np.min(grid[finite_mask]))
+                    ratios[st].append(min_val / slice_results[st].sql)
+                else:
+                    ratios[st].append(float("inf"))
+            else:
+                ratios[st].append(float("nan"))
+
+    return all_omegas, ratios
+
+
+def plot_best_ratio_by_slice(
+    slice_results: dict[str, Drive2DSliceResult],
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 5),
+) -> Path:
+    """Grouped bar chart comparing min Δω/SQL across slice types.
+
+    Args:
+        slice_results: Dict mapping slice_type to Drive2DSliceResult.
+        save_path: Output SVG path.
+        figsize: Figure size.
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    all_omegas, ratios = _collect_ratios_by_slice(slice_results)
+
+    # Grouped bar chart
+    n_groups = len(all_omegas)
+    x = np.arange(n_groups)
+    width = 0.25
+    colours = {"ax": "C0", "ay": "C1", "az": "C2"}
+    labels = {
+        "ax": r"$(a_x, a_{zz})$",
+        "ay": r"$(a_y, a_{zz})$",
+        "az": r"$(a_z, a_{zz})$",
+    }
+
+    for idx, st in enumerate(("ax", "ay", "az")):
+        vals = [r if np.isfinite(r) else 0.0 for r in ratios[st]]
+        ax.bar(
+            x + (idx - 1) * width,
+            vals,
+            width,
+            color=colours[st],
+            alpha=0.8,
+            edgecolor="black",
+            linewidth=0.5,
+            label=labels[st],
+        )
+
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\min \Delta\omega \;/\; \mathrm{SQL}$")
+    ax.set_title("Best sensitivity ratio by slice type")
+    ax.set_xticks(x)
+    ax.set_xticklabels([rf"$\omega={t:.1f}$" for t in all_omegas])
+    ax.axhline(
+        y=1.0, color="red", linestyle="--", linewidth=1.5, alpha=0.7, label="SQL"
+    )
+    ax.legend(fontsize=9)
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+def plot_barycentric_sensitivity_heatmap(
+    omega: float,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 6),
+) -> Path:
+    """Barycentric RGB heatmap combining all three 2D slices at given ω.
+
+    For each (a_zz, a_drive) point, the RGB colour is the barycentric
+    weight of log₁₀(Δω/SQL) from each slice:
+      R = w_x = S_x / (S_x + S_y + S_z)
+      G = w_y = S_y / (S_x + S_y + S_z)
+      B = w_z = S_z / (S_x + S_y + S_z)
+    where S_i = log₁₀(Δω_i / SQL).
+
+    Pure red   → (a_x, a_zz) slice dominates (most degradation).
+    Pure green → (a_y, a_zz) slice dominates.
+    Pure blue  → (a_z, a_zz) slice dominates.
+    White      → all three at SQL (log ratio ≈ 0).
+    Grey       → fringe extremum in at least one slice.
+
+    Args:
+        omega: ω value to plot.
+        save_path: Output SVG path.
+        figsize: Figure size.
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load the three slice Parquet files
+    dfs: dict[str, pd.DataFrame] = {}
+    for st in ("ax", "ay", "az"):
+        tag = f"drive-2d-slice-{st}-azz-omega{omega}"
+        csv_p = _parquet_path(tag)
+        if not csv_p.exists():
+            raise FileNotFoundError(
+                f"Required data file not found: {csv_p}. "
+                f"Run the 2D slice generation first."
+            )
+        dfs[st] = pd.read_parquet(csv_p)
+
+    sql = float(dfs["ax"]["sql"].iloc[0])
+
+    # Merge on (drive, azz) — all three share the same grid
+    merged = dfs["ax"].rename(columns={"delta_omega": "dt_ax"})
+    for st in ("ay", "az"):
+        merged = merged.merge(
+            dfs[st][["drive", "azz", "delta_omega"]].rename(
+                columns={"delta_omega": f"dt_{st}"}
+            ),
+            on=["drive", "azz"],
+        )
+
+    # Compute log₁₀(Δω/SQL) for each slice
+    for st in ("ax", "ay", "az"):
+        col = f"dt_{st}"
+        ratio = merged[col].to_numpy(dtype=float) / sql
+        # Replace fringe (inf) and zero-variance (0) cases with NaN
+        ratio = np.where(np.isfinite(ratio) & (ratio > 0.0), ratio, np.nan)
+        merged[f"log_{st}"] = np.log10(ratio)
+
+    # Sum of logs (only where all three are finite)
+    total = merged["log_ax"] + merged["log_ay"] + merged["log_az"]
+
+    # Determine pixel status
+    all_finite = np.isfinite(total) & (total > 0.0)
+    all_zero = np.isfinite(total) & (total == 0.0)
+
+    # Barycentric weights (only where all three are finite and total > 0)
+    for st in ("ax", "ay", "az"):
+        merged[f"w_{st}"] = np.where(all_finite, merged[f"log_{st}"] / total, np.nan)
+
+    # Reshape to 2D grid (201 × 201)
+    drive_vals = np.sort(merged["drive"].unique())
+    azz_vals = np.sort(merged["azz"].unique())
+    n_drive = len(drive_vals)
+    n_azz = len(azz_vals)
+
+    def _gridify_float(col: pd.Series) -> np.ndarray:
+        return col.to_numpy(dtype=float).reshape(n_drive, n_azz)
+
+    def _gridify_bool(col: pd.Series) -> np.ndarray:
+        return col.to_numpy(dtype=bool).reshape(n_drive, n_azz)
+
+    w_x = _gridify_float(merged["w_ax"])
+    w_y = _gridify_float(merged["w_ay"])
+    w_z = _gridify_float(merged["w_az"])
+    zero_mask = _gridify_bool(pd.Series(all_zero, name="z"))
+    fringe_mask = ~_gridify_bool(pd.Series(all_finite, name="f"))
+
+    # Build RGB array: shape (n_drive, n_azz, 3)
+    rgb = np.stack([w_x, w_y, w_z], axis=-1)
+
+    # White for all-SQL points (all three log ratios are zero)
+    rgb[zero_mask] = 1.0
+
+    # Light grey for fringe-extremum points
+    rgb[fringe_mask] = 0.85
+
+    # Clip to [0, 1]
+    rgb = np.clip(rgb, 0.0, 1.0)
+
+    # ── Plot ────────────────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=figsize)
+
+    extent = (
+        float(azz_vals.min()),
+        float(azz_vals.max()),
+        float(drive_vals.min()),
+        float(drive_vals.max()),
+    )
+    ax.imshow(
+        rgb, extent=extent, aspect="auto", origin="lower", interpolation="nearest"
+    )
+
+    ax.set_xlabel(r"$a_{zz}$ (Ising interaction)")
+    ax.set_ylabel("$a_{\\mathrm{drive}}$ (ancilla drive coefficient)")
+    ax.set_title(
+        rf"Barycentric sensitivity: $\omega = {omega:.1f}$, "
+        r"$\log_{10}(\Delta\omega/\mathrm{SQL})$ weights"
+    )
+
+    # Annotations / legend (manually placed)
+    legend_text = (
+        "   R = $(a_x, a_{zz})$ slice\n"
+        "   G = $(a_y, a_{zz})$ slice\n"
+        "   B = $(a_z, a_{zz})$ slice\n"
+        "   White = all at SQL\n"
+        "   Grey = fringe extremum"
+    )
+    ax.annotate(
+        legend_text,
+        xy=(0.02, 0.02),
+        xycoords="axes fraction",
+        fontsize=8,
+        family="monospace",
+        va="bottom",
+        ha="left",
+        bbox={"boxstyle": "round,pad=0.4", "facecolor": "wheat", "alpha": 0.85},
+    )
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+def plot_normball_histogram(
+    result: NormBallResult | str | Path,
+    omega: float,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 5),
+    n_bins: int = 50,
+) -> Path:
+    """Histogram of Δω values from norm-ball sampling at a specific ω.
+
+    Args:
+        result: NormBallResult or path to Parquet file.
+        omega: ω value to plot.
+        save_path: Output SVG path.
+        figsize: Figure size.
+        n_bins: Number of histogram bins.
+
+    Returns:
+        Path to saved SVG.
+    """
+    if isinstance(result, (str, Path)):
+        result = NormBallResult.from_parquet(result)
+
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Find ω index
+    mask = np.isclose(result.omega_values, omega, atol=1e-6)
+    if not np.any(mask):
+        raise ValueError(f"ω={omega} not found in NormBallResult")
+    ti = int(np.argmax(mask))
+    deltas = result.delta_omega_values[ti]
+    finite = deltas[np.isfinite(deltas)]
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    ax.hist(
+        finite, bins=n_bins, color="C0", alpha=0.7, edgecolor="black", linewidth=0.5
+    )
+    ax.axvline(
+        x=result.sql,
+        color="C1",
+        linestyle="--",
+        linewidth=1.5,
+        label=rf"SQL = {result.sql:.4f}",
+    )
+
+    below_sql = np.sum(finite < result.sql)
+    total = len(finite)
+    ax.annotate(
+        rf"{below_sql} / {total} below SQL ({100 * below_sql / total:.1f}%)",
+        xy=(result.sql, 0.7 * ax.get_ylim()[1]),
+        fontsize=10,
+        color="red",
+    )
+
+    ax.set_xlabel(r"$\Delta\omega$")
+    ax.set_ylabel("Count")
+    ax.set_title(
+        rf"Norm-ball sampling at $\omega={omega:.1f}$, "
+        rf"$R={result.R:.0f}$ ({total} finite points)"
+    )
+    ax.legend()
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ============================================================================
+# Dataset Generation Functions
+# ============================================================================
+
+
+def _run_2d_slice(
+    omega: float,
+    slice_type: str,
+    force: bool,
+    n_jobs: int | None = None,
+) -> None:
+    """Run a 2D slice scan for a single ω value and generate CSV + SVG."""
+    tag = f"drive-2d-slice-{slice_type}-azz-omega{omega}"
+    csv_p = _parquet_path(tag)
+    fig_p = _fig_path(tag)
+
+    if csv_p.exists() and not force:
+        print(f"  [skip] {csv_p.name} exists (use --force to overwrite)")
+        result = Drive2DSliceResult.from_parquet(csv_p)
+    else:
+        print(f"  [run]  Computing ({slice_type}, a_zz) slice at ω={omega}...")
+        result = drive_2d_slice(
+            omega=omega,
+            slice_type=slice_type,
+            drive_range=DRIVE_RANGE,
+            azz_range=AZZ_BOUNDS,
+            n_drive=N_DRIVE,
+            n_azz=N_AZZ,
+            t_hold=t_hold,
+            T_BS=T_BS,
+            n_jobs=n_jobs,
+        )
+        result.save_parquet(csv_p)
+        print(f"  [save] {csv_p}")
+
+    plot_drive_2d_slice_heatmap(result, fig_p)
+    print(f"  [fig]  {fig_p}")
+
+
+def generate_2d_slice_ax_azz(force: bool = False, n_jobs: int | None = None) -> None:
+    """Experiment 1a: 2D slice scans over (a_x, a_zz) at all ω values."""
+    print(f"[run]  (a_x, a_zz) slice at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        _run_2d_slice(omega, slice_type="ax", force=force, n_jobs=n_jobs)
+
+
+def generate_2d_slice_ay_azz(force: bool = False, n_jobs: int | None = None) -> None:
+    """Experiment 1b: 2D slice scans over (a_y, a_zz) at all ω values."""
+    print(f"[run]  (a_y, a_zz) slice at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        _run_2d_slice(omega, slice_type="ay", force=force, n_jobs=n_jobs)
+
+
+def generate_2d_slice_az_azz(force: bool = False, n_jobs: int | None = None) -> None:
+    """Experiment 1c: 2D slice scans over (a_z, a_zz) at all ω values."""
+    print(f"[run]  (a_z, a_zz) slice at {DRIVE_OMEGA_VALS}")
+    for omega in DRIVE_OMEGA_VALS:
+        _run_2d_slice(omega, slice_type="az", force=force, n_jobs=n_jobs)
+
+
+def generate_norm_ball(
+    force: bool = False,
+    n_jobs: int | None = None,
+    sampling_method: str = "marsaglia",
+) -> None:
+    """Experiment 2: Norm-ball sampling at 50 ω values × 5000 samples.
+
+    Args:
+        force: Re-run even if Parquet files exist.
+        n_jobs: Number of parallel workers.
+        sampling_method: ``"marsaglia"`` or ``"stratified"``.
+    """
+    if sampling_method == "stratified":
+        suffix = "-stratified"
+    else:
+        suffix = ""
+    csv_p = _parquet_path(f"normball-samples{suffix}")
+    env_csv_p = _parquet_path(f"normball-envelope{suffix}")
+    fig_env_p = _fig_path(f"norm-envelope{suffix}")
+
+    if csv_p.exists() and not force:
+        print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
+        result = NormBallResult.from_parquet(csv_p)
+    else:
+        n_strata = 50 if sampling_method == "stratified" else 1
+        method_label = (
+            f"{sampling_method} ({n_strata} strata)"
+            if sampling_method == "stratified"
+            else sampling_method
+        )
+        print(
+            "[run]  Computing norm-ball sampling "
+            f"({len(OMEGA_VALS)} ω × {N_SAMP} samples = "
+            f"{len(OMEGA_VALS) * N_SAMP} evaluations, "
+            f"method={method_label})..."
+        )
+        result = norm_ball_sampling(
+            omega_values=OMEGA_VALS,
+            n_samp=N_SAMP,
+            R=R_MAX,
+            azz_bounds=AZZ_BOUNDS,
+            t_hold=t_hold,
+            T_BS=T_BS,
+            fd_step=FD_STEP,
+            seed=42,
+            n_jobs=n_jobs,
+            sampling_method=sampling_method,
+            n_strata=n_strata,
+        )
+        result.save_parquet(csv_p)
+        print(f"[save] {csv_p}")
+
+    # Compute and save envelope
+    if env_csv_p.exists() and not force:
+        print(f"[skip] {env_csv_p.name} exists (use --force to overwrite)")
+        envelope = EnvelopeResult.from_parquet(env_csv_p)
+    else:
+        print("[run]  Computing envelope curve...")
+        envelope = extract_envelope_curve(result, n_r=N_R)
+        envelope.save_parquet(env_csv_p)
+        print(f"[save] {env_csv_p}")
+
+    plot_norm_envelope_curve(envelope, fig_env_p)
+    print(f"[fig]  {fig_env_p}")
+
+
+def generate_best_ratio_comparison(force: bool = False) -> None:
+    """Experiment 3: Compare best ratio across slice types at a single ω."""
+    fig_p = _fig_path("best-ratio-by-slice")
+
+    print("[run]  Loading slice results for best-ratio comparison...")
+    slice_results: dict[str, Drive2DSliceResult] = {}
+    for st in ("ax", "ay", "az"):
+        for omega in DRIVE_OMEGA_VALS:
+            tag = f"drive-2d-slice-{st}-azz-omega{omega}"
+            csv_p = _parquet_path(tag)
+            if csv_p.exists():
+                result = Drive2DSliceResult.from_parquet(csv_p)
+                # Simple keys — last ω loaded (omega=5.0) overwrites earlier ones
+                slice_results[st] = result
+
+    plot_best_ratio_by_slice(slice_results, fig_p)
+    print(f"[fig]  {fig_p}")
+
+
+def generate_all_slices(force: bool = False, n_jobs: int | None = None) -> None:
+    """Generate all three 2D slice types."""
+    generate_2d_slice_ax_azz(force=force, n_jobs=n_jobs)
+    generate_2d_slice_ay_azz(force=force, n_jobs=n_jobs)
+    generate_2d_slice_az_azz(force=force, n_jobs=n_jobs)
+
+
+# ============================================================================
+# CLI Entry Point
+# ============================================================================
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Generate 2026-05-27 report figures and CSV",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-run all simulations (overwrite existing CSVs)",
+    )
+    parser.add_argument(
+        "--only",
+        type=str,
+        default=None,
+        help="Generate only one dataset, e.g. 'normball'",
+    )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=None,
+        help="Number of parallel workers. -1 = all CPUs (default: sequential)",
+    )
+    parser.add_argument(
+        "--method",
+        type=str,
+        default="marsaglia",
+        choices=["marsaglia", "stratified"],
+        help="Sampling method for norm-ball (default: marsaglia)",
+    )
+    args = parser.parse_args()
+
+    # Ensure per-date directories exist
+    (REPORTS_DIR / REPORT_DATE / "raw_data").mkdir(parents=True, exist_ok=True)
+    (REPORTS_DIR / REPORT_DATE / "figures").mkdir(parents=True, exist_ok=True)
+
+    n_jobs: int | None = -1 if args.jobs == -1 else args.jobs
+
+    tasks: dict[str, Callable[..., None]] = {
+        "slice-ax-azz": generate_2d_slice_ax_azz,
+        "slice-ay-azz": generate_2d_slice_ay_azz,
+        "slice-az-azz": generate_2d_slice_az_azz,
+        "all-slices": generate_all_slices,
+        "normball": generate_norm_ball,
+        "best-ratio-comparison": generate_best_ratio_comparison,
+    }
+
+    # Some tasks don't accept n_jobs (dispatch function) kwarg
+    def _dispatch(
+        func: Callable[..., None],
+        *,
+        force: bool,
+        n_jobs: int | None,
+        sampling_method: str,
+    ) -> None:
+        import inspect
+
+        sig = inspect.signature(func)
+        kwargs: dict[str, object] = {"force": force}
+        if "n_jobs" in sig.parameters:
+            kwargs["n_jobs"] = n_jobs
+        if "sampling_method" in sig.parameters:
+            kwargs["sampling_method"] = sampling_method
+        func(**kwargs)
+
+    if args.only:
+        if args.only not in tasks:
+            print(f"Unknown dataset '{args.only}'. Options: {list(tasks.keys())}")
+            sys.exit(1)
+        _dispatch(
+            tasks[args.only],
+            force=args.force,
+            n_jobs=n_jobs,
+            sampling_method=args.method,
+        )
+    else:
+        for name, func in tasks.items():
+            print(f"\n=== {name} ===")
+            _dispatch(
+                func,
+                force=args.force,
+                n_jobs=n_jobs,
+                sampling_method=args.method,
+            )
+
+    print("\nDone.")
+
+
+if __name__ == "__main__":
+    main()

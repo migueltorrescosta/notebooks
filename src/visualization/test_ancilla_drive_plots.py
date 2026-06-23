@@ -16,7 +16,7 @@ import pytest
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-from src.analysis.ancilla_drive_metrology import (
+from src.analysis.ancilla_drive_results import (
     Drive2DSliceResult,
     DriveDecoupledBaselineResult,
     DriveOmegaScanResult,

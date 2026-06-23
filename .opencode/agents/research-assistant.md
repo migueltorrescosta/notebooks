@@ -46,9 +46,9 @@ These apply to every task, regardless of which skills are loaded:
 2. **Package management**: Use `uv` only.
 3. **Simplicity**: When in doubt, prefer **simplicity, explicitness, and reuse**.
 4. **Project root**: The root `conftest.py` inserts the project root into `sys.path`, enabling absolute imports like `from src.physics.mzi_states import ...` in both `pages/` and `tests/`.
-5. **New code in `local.py`**: All new report-specific simulation code must be added to the report's `reports/YYYYMMDD/local.py`. Only promote code to `src/` when it is demonstrably reusable across multiple reports.
+5. **New code in experiment module**: All new report-specific simulation code must be added to a descriptive-name Python file in the report's `reports/YYYYMMDD/` directory (e.g., `phase_modulated_drive.py`). Only promote code to `src/` when it is demonstrably reusable across multiple reports.
 6. **No module-level constants in `src/`**: Shared modules under `src/` must not define module-level constants for default parameters, bounds, or reference values. Use function-level defaults or `@dataclass` config objects instead.
-7. **No imports from `local.py`**: Code inside `local.py` must never be imported by modules outside its own report directory — including `src/`, `tests/`, and `pages/`. If a function in `local.py` is needed externally, promote it to a `src/` module first.
+7. **No imports from report experiment modules**: Code inside a report's experiment module must never be imported by modules outside its own report directory — including `src/`, `tests/`, and `pages/`. If a function in a report module is needed externally, promote it to a `src/` module first.
 8. **Keep the CHANGELOG current.** Every completed experiment or infrastructure task from the `# Backlog` in `CHANGELOG.md` must be moved into the appropriate weekly release section as part of the work. Never leave finished work unrecorded.
 9. **Backlog priority scheme** — The `# Backlog` in `CHANGELOG.md` uses 🔴🟠🟡🟢 as a 4-level scale (most → least urgent). When asked to **"Review priorities"**, reassign all backlog emojis following this scale with exactly 2–3 🔴 items and the rest roughly evenly split. Update or confirm the colour legend at the top of the `# Backlog` section.
 10. **Search agentmemory before starting** — call `memory_recall` or `memory_smart_search` for relevant prior work, decisions, and architecture context before implementing.
@@ -75,11 +75,11 @@ Load skills based on the current stage of work:
 ```
 ├── .streamlit/             # Streamlit configuration directory
 ├── pages/                  # Streamlit UI (one page per simulation)
-├── reports/                # Report directories: markdown + local.py + test_local.py
+├── reports/                # Report directories: markdown + <slug>.py + test_<slug>.py
 │   └── YYYYMMDD/           # Dated report directory (no dashes)
 │       ├── {title}.md          # Report write-up (10-section template)
-│       ├── local.py            # All report-specific simulation code
-│       └── test_local.py       # Tests for local.py code
+│       ├── {slug}.py           # All report-specific simulation code
+│       └── test_{slug}.py      # Tests for the experiment code
 ├── revise/                 # GoCard revision files
 ├── src/                    # Core modules organized by domain
 │   ├── algorithms/           # Algorithm implementations
@@ -99,7 +99,7 @@ Key notes:
 - Unit tests live alongside source modules in `src/` subdirectories.
 - Integration and E2E tests live in `tests/`.
 - The root `conftest.py` inserts the project root into `sys.path` — this enables absolute imports like `from src.physics.mzi_states import ...` in both `pages/` and `tests/`.
-- Each report directory under `reports/` contains a `local.py` module with all report-specific simulation code and a co-located `test_local.py` for its tests.
+- Each report directory under `reports/` contains a descriptive-name experiment module with all report-specific simulation code and a co-located `test_{slug}.py` for its tests.
 
 ### Code Style
 
@@ -131,7 +131,7 @@ Multi-worker parallel pipelines (e.g., BFGS theta scans) use Delta Lake for resu
 Each page in `pages/` follows:
 
 1. **Colour scheme** — use semantic dividers as documented in README.md (blue=primary, gray=setup, green=results, orange=data, red=summary, violet=special).
-2. **No physics logic** — all computation lives in `src/` modules; pages import from `src.*` and only orchestrate UI rendering. Pages must never import from `local.py` files in `reports/`. If report-specific code is needed by a page, promote it from `local.py` to `src/` first.
+2. **No physics logic** — all computation lives in `src/` modules; pages import from `src.*` and only orchestrate UI rendering. Pages must never import from report experiment modules in `reports/`. If report-specific code is needed by a page, promote it to `src/` first.
 3. **Imports** — use `from src.physics.module import ...` (the project root is on `sys.path` via `conftest.py`).
 4. **Error handling** — wrap simulation calls in `try/except` and display errors via `st.error`; never let exceptions propagate unhandled.
 5. **State** — use `st.session_state` for persistent UI state (widget values, cached results); use function return values for transient simulation results.

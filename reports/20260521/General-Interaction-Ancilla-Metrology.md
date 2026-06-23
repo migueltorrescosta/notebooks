@@ -167,7 +167,7 @@ The following physical invariants are verified throughout every simulation run:
 - **Decoupled baseline** — $\alpha = (0,0,0,0)$ verification at all 50 $\omega$ values.
 - **Validation helpers** — Hermiticity, unitarity, trace preservation, SQL baseline recovery, derivative stability, L-BFGS-B convergence checks.
 
-**Tests**: The companion test module `test_local.py` covers operators, Hamiltonians, unitarity, circuit evolution, sensitivity computation, reduced variance, L-BFGS-B optimisation convergence, $\omega$-scan aggregation, CSV roundtrip (including fail-fast deserialisation), and physical invariants. **All 83 tests pass.**
+**Tests**: The companion test module `test_general_interaction_ancilla.py` covers operators, Hamiltonians, unitarity, circuit evolution, sensitivity computation, reduced variance, L-BFGS-B optimisation convergence, $\omega$-scan aggregation, CSV roundtrip (including fail-fast deserialisation), and physical invariants. **All 83 tests pass.**
 
 ## ⚠️ Expected Failure Conditions
 
@@ -236,7 +236,7 @@ A notable feature is that the sensitivity improvement is **strongest at larger $
 The commutator analysis from the Analytical Bounds section is confirmed numerically:
 - $[J_z^S, H_{\text{int}}]$ for the active terms $\alpha_{xx}$ and $\alpha_{xz}$ is non-zero, confirming they directly affect the $J_z^S$ dynamics.
 - $[J_z^S, H_{\text{int}}]$ for the inactive terms $\alpha_{zx}$ and $\alpha_{zz}$ is zero, confirming they have no **direct** effect.
-- The $\alpha_{zz}$-only limit was tested in `test_local.py::TestPhysicalInvariants::test_zz_only_gives_sql` and confirmed to give exactly $\Delta\omega = \text{SQL}$, independent of $\alpha_{zz}$.
+- The $\alpha_{zz}$-only limit was tested in `test_general_interaction_ancilla.py::TestPhysicalInvariants::test_zz_only_gives_sql` and confirmed to give exactly $\Delta\omega = \text{SQL}$, independent of $\alpha_{zz}$.
 - The $\alpha_{zx}$-only limit produces finite (but near-SQL) $\Delta\omega$, consistent with BCH corrections at $\mathcal{O}(\omega \alpha_{zx} T_H^2)$.
 - Derivative stability was confirmed across $\delta \in [10^{-7}, 10^{-5}]$ with $< 5\%$ relative deviation.
 

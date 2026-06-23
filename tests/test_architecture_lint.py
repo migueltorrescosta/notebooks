@@ -7,9 +7,13 @@ project-wide rules that were previously checked only during manual audits.
 from __future__ import annotations
 
 import ast
+import json
 import re
+import subprocess
+import tempfile
 import warnings
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -34,24 +38,30 @@ def _py_files_under(directory: Path, *, exclude_tests: bool = False) -> list[Pat
     return files
 
 
-# ── Module-level constants ─────────────────────────────────────────────────
+# ── Module-level numeric/string constants ──────────────────────────────────
+
+# The set of Python types considered "numeric or string literal" for the
+# purposes of the module-level constant check.  These are the types that
+# project convention says must live in function-level defaults or
+# @dataclass config objects, not as module-level UPPER_CASE names.
+_LITERAL_CONSTANT_TYPES: tuple[type, ...] = (int, float, complex, str, bool)
 
 
 class TestNoModuleLevelConstantsInSrc:
     """Global Constraint 6: No module-level constants in ``src/``.
 
-    Shared modules must not define module-level ``UPPER_CASE`` constants
-    for default parameters, bounds, or reference values.  Use function-level
-    defaults or ``@dataclass`` config objects instead.
-    """
+    Shared modules must not define module-level ``UPPER_CASE`` names
+    assigned to numeric or string literal values (``int``, ``float``,
+    ``complex``, ``str``, ``bool``).  Use function-level defaults or
+    ``@dataclass`` config objects instead.
 
-    # Whitelist for modules that intentionally define constants
-    _WHITELIST: frozenset[str] = frozenset(
-        {
-            "constants.py",  # This IS the constants module
-            "optimization.py",  # TEST_FUNCTIONS / MINIMIZERS are benchmark definitions
-        }
-    )
+    Checks only literal values — dicts of callables (e.g.
+    ``TEST_FUNCTIONS``, ``MINIMIZERS`` in ``optimization.py``) and
+    operator definitions (``SIGMA_X = np.array(...)`` in
+    ``constants.py``) are not flagged.  ``src/utils/constants.py`` is
+    the designated place for physical operators, but even there,
+    numeric/string parameter defaults should be avoided.
+    """
 
     @pytest.mark.parametrize(
         "py_path",
@@ -59,10 +69,7 @@ class TestNoModuleLevelConstantsInSrc:
         ids=lambda p: p.relative_to(_PROJECT_ROOT).as_posix(),
     )
     def test_no_module_level_constants(self, py_path: Path) -> None:
-        """No ``UPPER_CASE = ...`` assignments at module level."""
-        if py_path.name in self._WHITELIST:
-            pytest.skip(f"{py_path.name} is whitelisted (intentional constants module)")
-
+        """No ``UPPER_CASE = <literal>`` at module level in ``src/``."""
         source = py_path.read_text(encoding="utf-8")
         try:
             tree = ast.parse(source, filename=str(py_path))
@@ -72,28 +79,40 @@ class TestNoModuleLevelConstantsInSrc:
         constants = _find_module_level_constants(tree)
         if constants:
             rel = py_path.relative_to(_PROJECT_ROOT)
-            details = "; ".join(f"{name} (L{lineno})" for name, lineno in constants)
+            details = "; ".join(
+                f"{name} (L{lineno}, {typ})" for name, lineno, typ in constants
+            )
             pytest.fail(
-                f"{rel}: module-level constant(s) found: {details}."
+                f"{rel}: module-level literal constant(s) found: {details}."
                 " Use function-level defaults or @dataclass config objects instead."
             )
 
 
-def _find_module_level_constants(tree: ast.Module) -> list[tuple[str, int]]:
-    """Return ``(name, lineno)`` for every ``UPPER_CASE`` module-level assignment."""
-    constants: list[tuple[str, int]] = []
+def _find_module_level_constants(
+    tree: ast.Module,
+) -> list[tuple[str, int, str]]:
+    """Return ``(name, lineno, type_name)`` for every module-level assignment
+    where the target is ``UPPER_CASE`` and the value is a numeric/string
+    literal (``int``, ``float``, ``complex``, ``str``, ``bool``)."""
+    constants: list[tuple[str, int, str]] = []
     for node in ast.iter_child_nodes(tree):
-        if isinstance(node, (ast.Assign, ast.AnnAssign)):
-            targets: list[ast.expr]
-            if isinstance(node, ast.Assign):
-                targets = node.targets
-            else:
-                targets = [node.target]
-            constants.extend(
-                (t.id, node.lineno)
-                for t in targets
-                if isinstance(t, ast.Name) and t.id.isupper()
-            )
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        if node.value is None or not isinstance(node.value, ast.Constant):
+            continue
+        if not isinstance(node.value.value, _LITERAL_CONSTANT_TYPES):
+            continue
+
+        targets: list[ast.expr]
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        else:
+            targets = [node.target]
+        constants.extend(
+            (t.id, node.lineno, type(node.value.value).__name__)
+            for t in targets
+            if isinstance(t, ast.Name) and t.id.isupper()
+        )
     return constants
 
 
@@ -139,17 +158,17 @@ class TestNoLinalgInvInSrc:
             pytest.fail(msg)
 
 
-# ── Imports from local.py ──────────────────────────────────────────────────
+# ── Imports from report code files ─────────────────────────────────────────
 
 
-def _find_imports_from_local_py(source: str) -> list[tuple[int, str]]:
-    """Return ``(line_number, line_text)`` for each import from ``local.py``.
+def _find_imports_from_reports(source: str) -> list[tuple[int, str]]:
+    """Return ``(line_number, line_text)`` for each import from a report module.
 
     Only matches actual Python import statements, not comments or docstrings.
     """
     patterns = [
-        r"^\s*from\s+reports\..*local\s+import\s+",
-        r"^\s*import\s+reports\..*local",
+        r"^\s*from\s+reports\.\d{8}\.\w+\s+import\s+",
+        r"^\s*import\s+reports\.\d{8}\.\w+",
     ]
     violations: list[tuple[int, str]] = []
     for line_idx, line in enumerate(source.splitlines(), start=1):
@@ -165,12 +184,12 @@ def _find_imports_from_local_py(source: str) -> list[tuple[int, str]]:
     return violations
 
 
-class TestNoImportsFromLocalPy:
-    """Global Constraint 7: No imports from ``local.py`` outside reports.
+class TestNoImportsFromReportCode:
+    """Global Constraint 7: No imports from report code files outside reports.
 
     Code in ``src/``, ``pages/``, and ``tests/`` must never import from a
-    report's ``local.py``.  If the function is needed externally, promote it
-    to ``src/`` first.
+    report's experiment module (was ``local.py``).  If the function is needed
+    externally, promote it to ``src/`` first.
     """
 
     @pytest.mark.parametrize(
@@ -180,13 +199,13 @@ class TestNoImportsFromLocalPy:
         + _py_files_under(_TESTS_DIR),
         ids=lambda p: p.relative_to(_PROJECT_ROOT).as_posix(),
     )
-    def test_no_imports_from_local_py(self, py_path: Path) -> None:
-        """No ``from reports.*local import`` or ``import reports.*local``."""
+    def test_no_imports_from_reports(self, py_path: Path) -> None:
+        """No ``from reports.YYYYMMDD.<slug> import`` or similar."""
         source = py_path.read_text(encoding="utf-8")
-        violations = _find_imports_from_local_py(source)
+        violations = _find_imports_from_reports(source)
         if violations:
             rel = py_path.relative_to(_PROJECT_ROOT)
-            msg = f"{rel}: import from report's local.py found:\n"
+            msg = f"{rel}: import from report code file found:\n"
             for lineno, text in violations:
                 msg += f"  L{lineno}: {text}\n"
             msg += "Promote the needed code to src/ first."
@@ -204,7 +223,7 @@ def _all_project_py_files() -> list[Path]:
         files.extend(_py_files_under(directory))
     # Root-level .py files
     files.extend(f for f in _PROJECT_ROOT.glob("*.py") if f.name != "__init__.py")
-    # Report directories (local.py, test_local.py, runner scripts, etc.)
+    # Report directories (<slug>.py, test_<slug>.py, runner scripts, etc.)
     for report_dir in sorted(_PROJECT_ROOT.joinpath("reports").iterdir()):
         if (
             report_dir.is_dir()
@@ -416,21 +435,19 @@ class TestFileLength:
     # New files exceeding the hard limit must be added here with a backlog entry.
     _HARD_OVERRIDES: frozenset[str] = frozenset(
         {
-            "src/analysis/scaling_survey.py",
-            "src/analysis/ancilla_optimization.py",
             "src/analysis/ancilla_drive_metrology.py",
-            "reports/20260518/local.py",
-            "reports/20260524/local.py",
-            "reports/20260616/local.py",
-            "reports/20260528/local.py",
-            "reports/20260525/local.py",
-            "reports/20260619/local.py",
-            "reports/20260610/local.py",
-            "reports/20260523/local.py",
-            "reports/20260620/local.py",
-            "reports/20260615/local.py",
-            "reports/20260519/local.py",
-            "reports/20260621/local.py",
+            "reports/20260518/ancilla_drive_enhanced_metrology.py",
+            "reports/20260524/phase_diffusion_robustness.py",
+            "reports/20260616/general_4param_omega_drive.py",
+            "reports/20260528/free_ancilla_initial_state.py",
+            "reports/20260525/joint_measurement_xx_coupling.py",
+            "reports/20260619/ancilla_oat_pre_squeezing.py",
+            "reports/20260610/free_ancilla_omega_modulated.py",
+            "reports/20260523/four_param_coupling_multi_particle.py",
+            "reports/20260620/multi_particle_free_ancilla.py",
+            "reports/20260615/nonlinear_measurement_parity_cfi.py",
+            "reports/20260519/phase_modulated_drive.py",
+            "reports/20260621/bell_state_initial_entanglement.py",
         }
     )
 
@@ -467,3 +484,138 @@ class TestFileLength:
             if in_override:
                 msg += " (whitelisted hard violation)"
             warnings.warn(msg, stacklevel=2)
+
+
+# ── Code duplication baseline (jscpd) ────────────────────────────────────────
+
+
+_JSCPD_CONFIG = _PROJECT_ROOT / ".jscpd.json"
+
+
+class TestDuplicationBaseline:
+    """Code duplication must not increase beyond the measured baseline.
+
+    Uses ``jscpd`` (Rust engine, v5) with ``.jscpd.json`` configuration
+    (minLines=15, minTokens=50, mode=mild).  The test runs jscpd on
+    ``src/`` and ``reports/`` separately, parses the JSON output, and
+    compares the duplication percentage against a hardcoded baseline.
+
+    The test **only** fails when duplication *increases* (regression).
+    If duplication decreases, a warning is emitted and the test passes
+    — the baseline should be updated manually.
+
+    Skipped if ``jscpd`` is not installed.
+    """
+
+    # Baselines recorded on 2026-06-25 with jscpd 5.0.11.
+    # Thresholds: minLines=15, minTokens=50, mode=mild.
+    # Update these whenever a deliberate deduplication campaign completes.
+    _BASELINES: ClassVar[dict[str, float]] = {
+        "src": 0.61,  # 263 duplicated / 43748 total = 0.601%
+        "reports": 5.92,  # 3458 duplicated / 58431 total = 5.918%
+    }
+
+    _JSCPD_CMD: ClassVar[str] = "jscpd"
+
+    @staticmethod
+    def _jscpd_available() -> bool:
+        """Check whether ``jscpd`` is installed and reachable."""
+        try:
+            subprocess.run(
+                [TestDuplicationBaseline._JSCPD_CMD, "--version"],
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+            return True
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+
+    def _run_jscpd(self, target: str) -> dict:
+        """Run ``jscpd`` on *target* (relative to project root) and return the
+        parsed JSON statistics dictionary.
+
+        Raises ``RuntimeError`` if jscpd fails or produces no output.
+        """
+        target_path = _PROJECT_ROOT / target
+        out_dir = Path(tempfile.mkdtemp(prefix="jscpd_"))
+        try:
+            result = subprocess.run(
+                [
+                    self._JSCPD_CMD,
+                    str(target_path),
+                    "--config",
+                    str(_JSCPD_CONFIG),
+                    "--format",
+                    "python",
+                    "--output",
+                    str(out_dir),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+        except FileNotFoundError:
+            pytest.skip("jscpd not installed — install via `npm install -g jscpd`")
+            return {}  # unreachable, but satisfies type checker
+
+        report_file = out_dir / "jscpd-report.json"
+        if not report_file.exists():
+            stderr = result.stderr[:500] if result.stderr else ""
+            raise RuntimeError(
+                f"jscpd did not produce a report for '{target}'. stderr: {stderr}"
+            )
+
+        with report_file.open() as f:
+            data = json.load(f)
+
+        stats = data.get("statistics", {})
+        if not stats:
+            raise RuntimeError(f"jscpd returned empty statistics for '{target}'")
+
+        return stats
+
+    @pytest.mark.parametrize(
+        "target",
+        ["src", "reports"],
+        ids=lambda t: f"target={t}",
+    )
+    def test_duplication_not_increased(self, target: str) -> None:
+        """Duplication percentage for ``{target}/`` must not exceed baseline."""
+        if not self._jscpd_available():
+            pytest.skip("jscpd not installed — install via `npm install -g jscpd`")
+
+        stats = self._run_jscpd(target)
+        total = stats.get("total", {})
+        pct = total.get("percentage", 0.0)
+        clones = total.get("clones", 0)
+        duplicated_lines = total.get("duplicatedLines", 0)
+        total_lines = total.get("lines", 0)
+        sources = total.get("sources", 0)
+
+        baseline = self._BASELINES[target]
+
+        msg = (
+            f"{target}/: {clones} clones, {duplicated_lines}/{total_lines} lines "
+            f"({pct:.2f}%) duplicated across {sources} files. "
+            f"Baseline: {baseline:.2f}%."
+        )
+
+        if pct <= baseline:
+            # Test passes — duplication is at or below baseline.
+            if pct < baseline * 0.9:
+                # Significant improvement — suggest updating baseline.
+                warnings.warn(
+                    f"{msg}  Duplication dropped significantly "
+                    f"(was {baseline:.2f}%). Consider updating the baseline.",
+                    stacklevel=2,
+                )
+            return
+
+        pytest.fail(
+            f"{msg}\n"
+            f"Duplication increased from {baseline:.2f}% to {pct:.2f}%.\n"
+            "Either refactor the new duplication or update the baseline in "
+            "TestDuplicationBaseline._BASELINES if the increase is justified."
+        )

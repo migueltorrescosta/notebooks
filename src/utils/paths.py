@@ -62,7 +62,7 @@ def report_path_fn(
     The returned functions each take a single *name* argument and delegate
     to :func:`parquet_path` and :func:`fig_path` with *reports_dir* and
     *date* already filled in.  This is the standard pattern used across
-    all report ``local.py`` files::
+    all report experiment code files (was ``local.py``)::
 
         _parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
         path = _parquet_path("n-scaling-scan")   # → …/raw_data/{date}-n-scaling-scan.parquet

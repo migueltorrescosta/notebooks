@@ -215,7 +215,7 @@ The following physical invariants are verified throughout every simulation run:
 
 #### 🔧 Implementation Status (COMPLETED)
 
-The implementation is a direct modification of `reports/20260611/local.py`. The changes are confined to operator construction and dimension management:
+The implementation is a direct modification of `reports/20260611/n_scaling_phase_modulated.py`. The changes are confined to operator construction and dimension management:
 
 - Operator construction — Replace 2D ancilla Pauli embedding with $(N+1)$-D Dicke embedding. The `build_n_particle_operators` function changes from `np.kron(J_k_dicke, I_2)` to `np.kron(J_k_dicke, I_{N+1})` for system ops, and from `np.kron(I_S, J_Z)` to `np.kron(I_S, J_k_dicke)` for ancilla ops.
 - State preparation — Initial state dimension changes from $2(N+1)$ to $(N+1)^2$.

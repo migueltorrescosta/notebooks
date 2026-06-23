@@ -70,6 +70,60 @@ def verify_decoupled_baseline(
     return results
 
 
+def build_decoupled_baseline_df(
+    *,
+    compute_fn: Callable[[int, float], float] = compute_n_particle_decoupled_baseline,
+    N_values: list[int] | None = None,
+    omega_values: list[float] | None = None,
+    rtol: float = 1e-10,
+    **compute_kwargs: Any,
+) -> pd.DataFrame:
+    """Build a DataFrame of decoupled baseline verification results.
+
+    Reuses :func:`verify_decoupled_baseline` for the verification loop and
+    constructs a DataFrame with columns ``N, omega, delta_omega, sql, ratio,
+    pass``.
+
+    Each report can replace its local ``_build_decoupled_baseline_df`` with
+    this shared function by passing the appropriate ``compute_fn`` (and, if
+    needed, extra keyword arguments).
+
+    Args:
+        compute_fn: Function ``(N, omega) → Δω`` at decoupled parameters.
+            Default is ``compute_n_particle_decoupled_baseline``.
+        N_values: Passed to ``verify_decoupled_baseline``.
+        omega_values: Passed to ``verify_decoupled_baseline``.
+        rtol: Passed to ``verify_decoupled_baseline``.
+        **compute_kwargs: Forwarded to ``verify_decoupled_baseline`` and
+            ``compute_fn``.
+
+    Returns:
+        DataFrame with one row per ``(N, ω)`` pair.
+    """
+    verifications = verify_decoupled_baseline(
+        N_values=N_values,
+        omega_values=omega_values,
+        rtol=rtol,
+        compute_fn=compute_fn,
+        **compute_kwargs,
+    )
+    results_list: list[dict[str, float | int | str]] = []
+    for (N, omega), passed in verifications.items():
+        sql_ref = sql_reference(N)
+        delta = compute_fn(N, omega, **compute_kwargs)
+        results_list.append(
+            {
+                "N": N,
+                "omega": omega,
+                "delta_omega": delta,
+                "sql": sql_ref,
+                "ratio": delta / sql_ref if sql_ref > 0 else float("nan"),
+                "pass": str(passed),
+            },
+        )
+    return pd.DataFrame(results_list)
+
+
 def generate_decoupled_baseline(
     force: bool = False,
     *,

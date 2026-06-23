@@ -111,8 +111,8 @@ The 2D slice scan $(\theta_A, a_{zz})$ at fixed $H_A=0$ (Scenario C with only $\
 #### 🔧 Implementation Status
 
 To be built during the implementation phase:
-- **`free_ancilla_initial_state()`** -- Constructs $|\Psi_0\rangle = |1,0\rangle_S \otimes |\psi_A(\theta_A,\phi_A)\rangle$. New function in `reports/20260528/local.py`.
-- **Scenario dispatchers** -- Four functions `run_scenario_A/B/C/D()` that set up the relevant parameter ranges and call random search + NM refinement. New functions in `local.py`.
+- **`free_ancilla_initial_state()`** -- Constructs $|\Psi_0\rangle = |1,0\rangle_S \otimes |\psi_A(\theta_A,\phi_A)\rangle$. New function in `reports/20260528/free_ancilla_initial_state.py`.
+- **Scenario dispatchers** -- Four functions `run_scenario_A/B/C/D()` that set up the relevant parameter ranges and call random search + NM refinement. New functions in `free_ancilla_initial_state.py`.
 - **2D slice $(\theta_A, a_{zz})$** -- Reuses `drive_2d_slice()` from `src.analysis.ancilla_drive_metrology` with `slice_type='theta_A'`, scanning $\theta_A$ against $a_{zz}$ with $a_x=a_y=a_z=0$, $\phi_A=0$.
 - **Cross-scenario comparison plot** -- Bar chart comparing best $\Delta\omega/\text{SQL}$ across the four scenarios for each $\omega$.
 - **Norm-envelope comparison** -- Overlay of best-ratio($r$) curves for Scenarios A and B to show whether the free ancilla consistently improves the envelope.

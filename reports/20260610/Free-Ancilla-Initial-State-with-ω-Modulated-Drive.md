@@ -58,7 +58,7 @@ The **sensitivity** via error propagation is: $\Delta\omega = \sqrt{\text{Var}(J
 
 ### Implementation Strategy
 
-1. **Reuse existing infrastructure** — The $\omega$-modulated Hamiltonian builders (`build_phase_modulated_hold_hamiltonian`), circuit evolution (`evolve_drive_circuit` from `src.analysis.ancilla_drive_metrology`), sensitivity computation (`compute_drive_sensitivity`), and Nelder--Mead refinement (`run_drive_nelder_mead`) already accept an arbitrary 4-vector `psi0` as the initial state. The sensitivity function `compute_drive_sensitivity` has the signature `(psi0, T_BS, T_hold, omega, a_x, a_y, a_z, a_zz, ops)` — no core changes are needed. The free-ancilla initial state function `free_ancilla_initial_state(theta_A, phi_A)` is already implemented in `reports/20260528/local.py`.
+1. **Reuse existing infrastructure** — The $\omega$-modulated Hamiltonian builders (`build_phase_modulated_hold_hamiltonian`), circuit evolution (`evolve_drive_circuit` from `src.analysis.ancilla_drive_metrology`), sensitivity computation (`compute_drive_sensitivity`), and Nelder--Mead refinement (`run_drive_nelder_mead`) already accept an arbitrary 4-vector `psi0` as the initial state. The sensitivity function `compute_drive_sensitivity` has the signature `(psi0, T_BS, T_hold, omega, a_x, a_y, a_z, a_zz, ops)` — no core changes are needed. The free-ancilla initial state function `free_ancilla_initial_state(theta_A, phi_A)` is already implemented in `reports/20260528/free_ancilla_initial_state.py`.
 
 2. **Parameter dimension** — Scenario B searches 6 parameters: $(\theta_A, \phi_A, a_x, a_y, a_z, a_{zz})$ at each $\omega$ value. The 20260519 baseline (Scenario A) searched 4 parameters $(a_x, a_y, a_z, a_{zz})$ with $\theta_A = \phi_A = 0$. Every result dataclass must store all input parameters alongside computed results — theta_A, phi_A, a_x, a_y, a_z, a_zz, omega, T_H, SQL, and ratio — so that Parquet files are fully self-describing.
 
@@ -108,7 +108,7 @@ The **sensitivity** via error propagation is: $\Delta\omega = \sqrt{\text{Var}(J
 #### 🔧 Implementation Status
 
 To be built during the implementation phase:
-- **Free-ancilla $\omega$-modulated objective** — A 6D objective function wrapper that takes $(\theta_A, \phi_A, a_x, a_y, a_z, a_{zz})$ and computes $\Delta\omega$ using the $\omega$-modulated Hamiltonian combined with the free-ancilla initial state. Core computations already exist in both `reports/20260519/local.py` and `reports/20260528/local.py`; this is a composition step.
+- **Free-ancilla $\omega$-modulated objective** — A 6D objective function wrapper that takes $(\theta_A, \phi_A, a_x, a_y, a_z, a_{zz})$ and computes $\Delta\omega$ using the $\omega$-modulated Hamiltonian combined with the free-ancilla initial state. Core computations already exist in both `reports/20260519/phase_modulated_drive.py` and `reports/20260528/free_ancilla_initial_state.py`; this is a composition step.
 - **Stage 1 dispatcher** — For each $\omega$ and associated 20260519 optimal drive $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$, scan $(\theta_A, a_{zz})$ on a $101\times 101$ grid with $a_x, a_y, a_z$ fixed and $\phi_A = 0$.
 - **Stage 2 dispatcher** — 6D random search over $(\theta_A, \phi_A)$ on the Bloch sphere and $(a_x, a_y, a_z, a_{zz})$ in the drive+interaction space, 3000 samples per $\omega$.
 - **Stage 3 dispatcher** — Nelder--Mead refinement from best 40 Stage 2 points in 6D, with bound enforcement ($\theta_A \in [0, \pi]$, $\phi_A \in [0, 2\pi)$, $\|\mathbf{a}\| \le 10$, $a_{zz} \in [-5, 5]$).

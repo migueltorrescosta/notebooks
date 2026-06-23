@@ -315,7 +315,7 @@ class TestReportStructure:
             pytest.fail(msg)
 
 
-# ── Duplication checks (reports/*/local.py) ────────────────────────────────
+# ── Duplication checks (reports/*/<slug>.py) ───────────────────────────────
 
 
 class TestReportDuplication:
@@ -350,21 +350,26 @@ class TestReportDuplication:
         }
     )
 
+    @staticmethod
+    def _report_code_files() -> list[Path]:
+        """Return sorted list of experiment code files (was ``local.py``)."""
+        return sorted(
+            p
+            for p in _REPORTS_DIR.rglob("*.py")
+            if not p.name.startswith("test_") and not p.name.startswith("_")
+        )
+
     # ── Function duplication ─────────────────────────────────────────────
 
-    @pytest.mark.xfail(
-        strict=False,
-        reason="5 pre-existing duplicated functions (>=4 reports) \u2014 run audit-code to promote to src/",
-    )
     def test_functions_duplicated_across_reports(self) -> None:
         """No function defined in >=4 reports without being promoted to ``src/``.
 
-        Replaces the manual ``grep -rn "^def " reports/*/local.py`` check.
+        Replaces the manual ``grep -rn "^def " reports/*/<slug>.py`` check.
         """
         func_to_reports: dict[str, set[str]] = {}
-        for local_py in sorted(_REPORTS_DIR.rglob("local.py")):
-            report_name = local_py.parent.name
-            text = local_py.read_text(encoding="utf-8")
+        for py_file in self._report_code_files():
+            report_name = py_file.parent.name
+            text = py_file.read_text(encoding="utf-8")
             for match in re.finditer(r"^def (\w+)", text, re.MULTILINE):
                 name = match.group(1)
                 if name not in self.FUNCTION_BLACKLIST:
@@ -392,9 +397,9 @@ class TestReportDuplication:
         Replaces the manual ``grep -rn "^[A-Z_][A-Z_0-9]* *="`` check.
         """
         const_to_reports: dict[str, list[str]] = {}
-        for local_py in sorted(_REPORTS_DIR.rglob("local.py")):
-            report_name = local_py.parent.name
-            text = local_py.read_text(encoding="utf-8")
+        for py_file in self._report_code_files():
+            report_name = py_file.parent.name
+            text = py_file.read_text(encoding="utf-8")
             for match in re.finditer(r"^([A-Z_][A-Z_0-9]*) *=", text, re.MULTILINE):
                 name = match.group(1)
                 if name not in self.CONSTANT_BLACKLIST:

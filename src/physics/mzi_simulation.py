@@ -22,6 +22,8 @@ Conventions:
 - State ordering: |n₁, n₂⟩ with n₁ as first mode, n₂ as second mode
 """
 
+from functools import lru_cache
+
 import numpy as np
 import qutip
 import scipy
@@ -75,6 +77,7 @@ def noon_state(N: int, max_photons: int) -> np.ndarray:
 # =============================================================================
 
 
+@lru_cache(maxsize=32)
 def create_system_operators(
     max_photons: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -170,6 +173,7 @@ def create_ancilla_operators(ancilla_dim: int) -> tuple[np.ndarray, np.ndarray]:
     return jx, jz
 
 
+@lru_cache(maxsize=64)
 def beam_splitter_unitary(theta: float, phi_bs: float, max_photons: int) -> np.ndarray:
     r"""Compute the beam splitter unitary transformation in Fock space.
 
@@ -238,6 +242,7 @@ def phase_shift_unitary(phi_phase: float, max_photons: int) -> np.ndarray:
     return phase_op
 
 
+@lru_cache(maxsize=64)
 def system_ancilla_interaction_unitary(
     g: float,
     interaction_time: float,
@@ -351,6 +356,30 @@ def evolve_mzi(
     """
     ancilla_dim_val = ancilla_dim
 
+    # Fast path: no ancilla (dimension 1) — skip kron and use element-wise phase shift
+    if ancilla_dim_val == 1:
+        bs = beam_splitter_unitary(theta, phi_bs, max_photons)
+
+        # BS1
+        state = bs @ initial_system_state
+
+        # Phase shift: element-wise on Fock index n2
+        # reshaped as (N+1, N+1) so columns correspond to n2
+        Np1 = max_photons + 1
+        state_2d = state.reshape(Np1, Np1)
+        state_2d *= np.exp(1j * phi_phase * np.arange(Np1))
+        state = state_2d.ravel()
+
+        # No interaction needed (ancilla_dim=1 → H_int ≡ 0 regardless of g)
+        # BS2
+        final_state = bs @ state
+
+        assert np.isclose(np.linalg.norm(final_state), 1.0, rtol=1e-5, atol=1e-8), (
+            f"Final state not normalized: norm={np.linalg.norm(final_state)}"
+        )
+        return final_state
+
+    # General path: system + ancilla
     # Initial ancilla state (ground state |0>)
     ancilla_0 = np.zeros(ancilla_dim_val, dtype=complex)
     ancilla_0[0] = 1.0

@@ -36,10 +36,10 @@ def _wait_for_server(
 
     for _ in range(max_retries):
         try:
-            urllib.request.urlopen(base_url, timeout=1)
+            urllib.request.urlopen(base_url, timeout=0.5)
             return
         except urllib.error.URLError:
-            time.sleep(1)
+            time.sleep(0.2)
     process.terminate()
     pytest.fail("Streamlit server failed to start")
 
@@ -84,8 +84,11 @@ def test_given_streamlit_app_launches_then_start_without_immediate_errors(
 ) -> None:
     """Verify the Streamlit process stays running after launch."""
     process, _port = streamlit_server
-    time.sleep(5)
-    assert process.poll() is None, "Streamlit process should be running"
+    # Verify process stays running after launch (poll quickly instead of sleep)
+    for _ in range(10):
+        if process.poll() is not None:
+            pytest.fail("Streamlit process exited during launch verification")
+        time.sleep(0.1)
 
 
 def test_given_app_running_then_serves_home_page(

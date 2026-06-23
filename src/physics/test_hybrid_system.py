@@ -9,7 +9,7 @@ Physical Validation:
 
 Note: Tests for adaptive_truncation, hybrid_mean_photon, evolve_hybrid_state,
 validate_hybrid_state, validate_hybrid_unitary, hybrid_coherent_state have been
-migrated to reports/20260507/test_local.py.
+migrated to reports/20260507/test_high_order_squeezing.py.
 """
 
 import numpy as np

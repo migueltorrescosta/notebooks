@@ -170,7 +170,7 @@ class TestParquetSerializableNoSubclass:
                 return cls()
 
         with pytest.raises(TypeError):
-            _Bad2()
+            _Bad2()  # type: ignore[abstract]
 
     def test_missing_from_parquet_raises(self) -> None:
         """Subclass without from_parquet cannot be instantiated."""
@@ -182,4 +182,4 @@ class TestParquetSerializableNoSubclass:
                 return pd.DataFrame()
 
         with pytest.raises(TypeError):
-            _Bad3()
+            _Bad3()  # type: ignore[abstract]

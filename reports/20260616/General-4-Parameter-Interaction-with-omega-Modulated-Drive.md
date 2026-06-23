@@ -150,7 +150,7 @@ The following physical invariants are verified throughout every simulation run:
 
 #### 🔧 Implementation Status
 
-All components below refer to code to be implemented in `reports/20260616/local.py`.
+All components below refer to code to be implemented in `reports/20260616/general_4param_omega_drive.py`.
 
 - **Operator construction** — Pauli matrices ($N=1$), Dicke-basis operators ($N>1$), Kronecker embedding into $\dim\mathcal{H}_{\text{tot}}$, for both $J_A = 1/2$ and $J_A = N/2$ cases.
 - **$\omega$-modulated drive Hamiltonian** — $H_A = \omega(a_x J_x^A + a_y J_y^A + a_z J_z^A)$.
@@ -170,7 +170,7 @@ All components below refer to code to be implemented in `reports/20260616/local.
 - **Data serialisation** — Parquet store with fail-fast deserialisation; Delta tables for multi-worker compatibility.
 - **Scaling analysis** — Log-log fit $\log(\Delta\omega) = \alpha \log(N) + \log(C)$; compute $F_Q = 1/\Delta\omega^2$ and check $\alpha \leq -1.0$.
 
-**Tests**: The companion test module `test_local.py` will cover operator construction (dimension, Hermiticity, commutation), BS/hold unitarity, circuit normalisation, sensitivity positivity, decoupled baseline ($\Delta\omega = 1/\sqrt{N}T_H$), $N=1$ consistency (both #20260519 and #20260521 regimes), 7D random search integrity, L-BFGS-B convergence, scaling analysis, and Parquet roundtrip (metadata preservation, fail-fast on missing columns).
+**Tests**: The companion test module `test_general_4param_omega_drive.py` will cover operator construction (dimension, Hermiticity, commutation), BS/hold unitarity, circuit normalisation, sensitivity positivity, decoupled baseline ($\Delta\omega = 1/\sqrt{N}T_H$), $N=1$ consistency (both #20260519 and #20260521 regimes), 7D random search integrity, L-BFGS-B convergence, scaling analysis, and Parquet roundtrip (metadata preservation, fail-fast on missing columns).
 
 ## ⚠️ Expected Failure Conditions
 
@@ -329,7 +329,7 @@ Several factors likely contribute to this failure:
 - **Non-commuting drive essential** — The optimal $a_x$ or $a_y$ is non-zero for every ($N$, $\omega$) pair, confirming that $[H_A, J_z^A] \neq 0$ is required. Verified: all 50 $\omega$ values in the N=1 scan and all 65 values in Step 2 have $|a_x| > 0.1$ or $|a_y| > 0.1$. — **PASS**
 - **Finite non-zero $\alpha$ parameters** — At least one of the four $\alpha$ parameters is non-zero at the optimal point for most ($N$, $\omega$) pairs, confirming that the general interaction contributes beyond the Ising-only case. Verified: all 50 $\omega$ values in the N=1 scan have at least one $|\alpha_{ij}| > 0.01$. — **PASS**
 - **Numerical validity** — Unitarity, Hermiticity, normalisation, variance positivity, derivative stability all verified across all simulation runs. All unitarity and Hermiticity assertions pass; variance is non-negative; finite-difference derivatives produce finite $\Delta\omega$. — **PASS**
-- **Parquet roundtrip** — All metadata fields survive serialisation/deserialisation; fail-fast on missing columns. Verified by roundtrip tests in `test_local.py`. — **PASS**
+- **Parquet roundtrip** — All metadata fields survive serialisation/deserialisation; fail-fast on missing columns. Verified by roundtrip tests in `test_general_4param_omega_drive.py`. — **PASS**
 
 Of the 10 success criteria, **7 PASS** and **3 FAIL**. The three failures (Hypothesis 2: ratio improvement at $J_A=1/2$; Hypothesis 3: $F_Q \propto N^2$ at $J_A=N/2$; scaling analysis) are the central N-scaling predictions of the combined-protocol hypothesis. The N=1 results uniformly pass — the combined protocol works at the single-particle level — but the mechanism stubbornly refuses to scale. The most likely explanation is that the 7D optimisation landscape becomes intractable at larger N: the fixed random-search budget cannot explore a 7D hypercube whose relevant features scale with Hilbert space dimension. Increasing the search budget (e.g., 50,000 random samples) or using more sophisticated optimisation (Bayesian optimisation, evolutionary strategies) could potentially reveal the predicted $F_Q \propto N^2$ scaling, but the present results clearly show that the basic random-search + L-BFGS-B pipeline is insufficient at $N > 8$.
 

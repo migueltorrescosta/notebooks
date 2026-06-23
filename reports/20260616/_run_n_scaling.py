@@ -9,10 +9,12 @@ import sys
 import time
 from pathlib import Path
 
-local_path = Path(__file__).resolve().parent / "local.py"
-spec = importlib.util.spec_from_file_location("local", str(local_path))
+local_path = Path(__file__).resolve().parent / "general_4param_omega_drive.py"
+spec = importlib.util.spec_from_file_location(
+    "general_4param_omega_drive", str(local_path)
+)
 module = importlib.util.module_from_spec(spec)
-sys.modules["local"] = module
+sys.modules["general_4param_omega_drive"] = module
 spec.loader.exec_module(module)
 
 # Override constants for faster execution

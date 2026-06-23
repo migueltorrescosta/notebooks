@@ -179,7 +179,7 @@ The full simulation code described in this plan has been implemented and unit-te
 - ``src/physics/test_pseudomode_system.py`` — operator construction, Hamiltonian, Lindblad
   operators, state preparation, ancilla entanglement, partial trace, evolution, QFI computation,
   metrology protocol, physical invariants
-- ``reports/20260509/test_local.py`` — sweep functions, result dataclass with Parquet roundtrip,
+- ``reports/20260509/test_non_markovian_ancilla.py`` — sweep functions, result dataclass with Parquet roundtrip,
   plot functions, CLI pipeline
 
 All tests passing.

@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 import qutip
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
 from src.physics.mzi_simulation import noon_state
 from src.utils.validators import validate_state_mzi
@@ -196,3 +198,59 @@ class TestSinglePhotonSplit:
         state = single_photon_split_state(N=4)
         jz_mean = np.real(compute_jz_expectation(state, 4))
         assert jz_mean == pytest.approx(0.0, abs=1e-10)
+
+
+# ── Hypothesis property-based tests ───────────────────────────────────────────
+
+
+class TestHypothesisStateNormalization:
+    """Property-based tests for state normalization across input types.
+
+    Verifies that core states produced by input_state_factory are always
+    properly normalized, regardless of the specific parameter values — an
+    invariant that hypothesis can explore more thoroughly than manual
+    parametrization.
+    """
+
+    @settings(max_examples=50, deadline=5000)
+    @given(
+        N=st.integers(1, 6),
+        max_photons=st.integers(1, 8),
+    )
+    def test_noon_normalized(self, N: int, max_photons: int) -> None:
+        """NOON state is always normalized for valid N, max_photons."""
+        assume(max_photons >= N)
+        state = noon_state(N, max_photons=max_photons)
+        norm = np.sum(np.abs(state) ** 2)
+        assert norm == pytest.approx(1.0)
+
+    @settings(max_examples=50, deadline=2000)
+    @given(
+        N=st.integers(2, 10).filter(lambda n: n % 2 == 0),
+    )
+    def test_twin_fock_normalized(self, N: int) -> None:
+        """Twin-Fock state is always normalized for even N."""
+        state = twin_fock_state(N)
+        norm = np.sum(np.abs(state) ** 2)
+        assert norm == pytest.approx(1.0)
+
+    @settings(max_examples=50, deadline=2000)
+    @given(
+        N=st.integers(0, 6),
+    )
+    def test_fock_normalized(self, N: int) -> None:
+        """Fock |N,0⟩ state is always normalized."""
+        state = input_state_factory("fock", N)
+        assert validate_state_mzi(state)
+
+    @settings(max_examples=50, deadline=2000)
+    @given(
+        N=st.integers(2, 6).filter(lambda n: n % 2 == 0),
+    )
+    def test_twin_fock_variance_positivity(self, N: int) -> None:
+        """Twin-Fock variance is always positive and matches formula."""
+        state = twin_fock_state(N)
+        jz_var = compute_jz_variance(state, N)
+        assert jz_var >= 0.0
+        expected_var = N * (N + 2) / 12
+        assert jz_var == pytest.approx(expected_var, rel=1e-6)

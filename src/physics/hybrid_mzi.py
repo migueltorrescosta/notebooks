@@ -428,7 +428,7 @@ def wigner_function_single(
     # qutip.wigner returns (len(p), len(x)); transpose to (len(x), len(p))
     wigner_result = qutip.wigner(rho_qobj, x_range, p_range, g=2)
     assert wigner_result is not None
-    return wigner_result.T
+    return wigner_result.T  # type: ignore[attr-defined]
 
 
 def wigner_from_hybrid_state(
@@ -477,7 +477,7 @@ def wigner_from_hybrid_state(
     # qutip.wigner returns (len(p), len(x)); transpose to (len(x), len(p))
     wigner_result = qutip.wigner(rho_qobj, x_range, p_range, g=2)
     assert wigner_result is not None
-    return wigner_result.T
+    return wigner_result.T  # type: ignore[attr-defined]
 
 
 def compute_wigner_for_state(

@@ -22,18 +22,20 @@ import streamlit as st
 from src.analysis.ancilla_optimization import (
     build_joint_operator,
     build_two_qubit_operators,
-    compute_convergence_metric,
     compute_covariance,
     compute_expectation_and_variance,
     compute_reduced_purity,
     compute_sensitivity,
     evolve_full,
     get_default_bounds,
+    two_qubit_state,
+)
+from src.analysis.ancilla_optimization_results import compute_convergence_metric
+from src.analysis.ancilla_optimization_scans import (
     random_search_alpha,
     run_omega_scan,
     scan_alpha_single_parameter,
     scan_alpha_with_reoptimisation,
-    two_qubit_state,
     validate_bs_unitarity,
     validate_derivative_stability,
     validate_hold_unitarity,

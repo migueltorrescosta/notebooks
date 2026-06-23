@@ -67,11 +67,12 @@ This skill inspects, reports, and auto-fixes only purely mechanical issues (form
 ### 3a. Stale file scan
 
 1. **Stale runner scripts** — Glob for `reports/*/run_parallel.py` and `reports/*/sweep_runner.py`. For each file:
-   - Check whether its functionality is covered by `local.py` in the same directory.
-   - If yes, delete it (the runner's core functionality lives in `local.py`; git history preserves the original).
+   - Check whether its functionality is covered by the experiment module in the same directory.
+   - If yes, delete it (the runner's core functionality lives in the experiment module; git history preserves the original).
    - If no, note the gap.
 2. **Unreferenced Parquet files** — List all `reports/*/raw_data/*.parquet` files. Cross-reference against their report's `.md` file (grep for the filename stem). Flag any Parquet files not referenced by any report as potentially orphaned.
-3. **Orphaned report directories** — Check if any `reports/YYYYMMDD/` directory lacks both a `.md` file and a `local.py` file. Flag as possibly stale scaffolding.
+3. **Orphaned report directories** — Check if any `reports/YYYYMMDD/` directory lacks both a `.md` file and a `.py` experiment module. Flag as possibly stale scaffolding.
+4. **Dead code detection** — Run `vulture . --exclude '.venv,.opencode,.git,__pycache__' --sort-by-size` to identify unused functions, methods, and imports. Review findings manually (expect ~75% noise — mock `return_value`, pytest hooks, argparse-dispatch, and public API functions are common false positives).
 
 ### 3b. Shared-infrastructure cross-report analysis
 1. **Cross-reference for duplicates** — Compare each function/constant name across report directories:
@@ -163,9 +164,9 @@ Save this summary to agentmemory via `agentmemory_memory_save()` with type `"pat
   - [ ] Cross-referenced all `reports/YYYYMMDD/` directories against CHANGELOG entries — no completed reports missing
   - [ ] Verified no completed items remain in the Backlog (cross-referenced against weekly entries)
 - **Stale file scan (§3a)**:
-  - [ ] Scanned for stale runner scripts (`reports/*/run_parallel.py`, `reports/*/sweep_runner.py`) — coverage judged against `local.py`
+  - [ ] Scanned for stale runner scripts (`reports/*/run_parallel.py`, `reports/*/sweep_runner.py`) — coverage judged against the experiment module
   - [ ] Scanned for unreferenced Parquet files (`reports/*/raw_data/*.parquet`) — cross-referenced against report `.md` files
-  - [ ] Checked for orphaned report directories (any `reports/YYYYMMDD/` lacking both `.md` and `local.py`)
+  - [ ] Checked for orphaned report directories (any `reports/YYYYMMDD/` lacking both `.md` and an experiment module)
 - **Shared-infrastructure analysis (§3b)**:
   - [ ] Cross-referenced each candidate against existing `src/` modules (to avoid re-promoting already-promoted code)
   - [ ] Categorised each duplicate as exact-match, near-match, or superficial-match
@@ -197,4 +198,4 @@ Save this summary to agentmemory via `agentmemory_memory_save()` with type `"pat
 - [ ] Summary produced with sections: Changed, Suggested, Blockers, Next review
 - [ ] Summary saved to agentmemory via `agentmemory_memory_save()` with type `"pattern"` and tags `"align-project", "maintenance"`
 - [ ] CHANGELOG updated with entry under the appropriate weekly section using the format `- **Project alignment review** — backlog priorities refreshed, sanity checks completed. [# of backlog items reviewed, # of actions taken/suggested].`; backlog item removed if one was completed by this run
-- [ ] No simulation code (`src/`, `pages/`, `reports/*/local.py`, tests) was modified — only CHANGELOG formatting, agent definition, and skill files were touched
+- [ ] No simulation code (`src/`, `pages/`, `reports/*/*.py` experiment modules, tests) was modified — only CHANGELOG formatting, agent definition, and skill files were touched

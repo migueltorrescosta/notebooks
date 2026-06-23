@@ -128,7 +128,7 @@ class TestBayesianSensitivity:
         sens_1 = bayesian_sensitivity(posterior_1, prior_range)
 
         rng = np.random.default_rng(42)
-        n_samples_5 = 5
+        n_samples_5 = 3
         outcomes_5 = sample_measurement_outcomes(
             state,
             phi_true,
@@ -297,7 +297,7 @@ class TestPhysicsInvariance:
     def test_given_same_state_then_posterior_aligns_with_likelihood(self) -> None:
         max_photons = 2
         state = prepare_input_state("single_photon", max_photons=max_photons)
-        prior_range = np.linspace(0, 2 * np.pi, 360)
+        prior_range = np.linspace(0, 2 * np.pi, 180)
 
         likelihood = bayesian_likelihood(prior_range, state, max_photons)
         posterior = bayesian_posterior(

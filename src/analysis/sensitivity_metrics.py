@@ -327,7 +327,7 @@ def all_sensitivity_metrics(
     # -----------------------------------------------------------------------------
     # 1. Error Propagation Sensitivity
     # -----------------------------------------------------------------------------
-    phi_grid = np.linspace(0, 2 * np.pi, 361)
+    phi_grid = np.linspace(0, 2 * np.pi, 181)
     ep_result = error_propagation_sensitivity(state, max_photons, phi_grid)
     delta_phi_ep = ep_result["delta_phi_ep"]
 
