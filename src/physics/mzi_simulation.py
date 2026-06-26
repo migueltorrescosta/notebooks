@@ -20,6 +20,9 @@ Conventions:
 - Beam splitter transformation: a → cos(θ)a + i*e^{iφ}sin(θ)b
 - Phase convention: e^{iφn} applied to mode 1 (second mode)
 - State ordering: |n₁, n₂⟩ with n₁ as first mode, n₂ as second mode
+- Ancilla-free MZI functions (apply_phase_shift_mzi, simple_mzi_evolution,
+  compute_mzi_sensitivity_grid) use the generator J_z = (n₁ - n₂)/2 for the
+  phase shift, which is correct for indefinite-N states.
 """
 
 from functools import lru_cache
@@ -876,6 +879,272 @@ def evolve_mzi_with_noise(
     )
 
     return final_rho, reduced_system_rho
+
+
+# =============================================================================
+# Ancilla-Free MZI Evolution (shared by MZI-scaling reports)
+# =============================================================================
+
+
+def _build_jz_operator(max_photons: int) -> np.ndarray:
+    r"""Build :math:`J_z = (n_1 - n_2)/2` as a diagonal operator.
+
+    Args:
+        max_photons: Maximum photon number per mode.
+
+    Returns:
+        Diagonal J_z operator of dimension ``(max_photons+1)^2``.
+    """
+    dim = max_photons + 1
+    jz = np.zeros((dim * dim,), dtype=float)
+    for n1 in range(dim):
+        for n2 in range(dim):
+            idx = n1 * dim + n2
+            jz[idx] = (n1 - n2) / 2.0
+    return np.diag(jz)
+
+
+def apply_phase_shift_mzi(
+    state: np.ndarray,
+    phi: float,
+    max_photons: int,
+) -> np.ndarray:
+    r"""Apply :math:`\exp(-i \phi J_z)` as element-wise multiplication.
+
+    The generator is :math:`J_z = (n_1 - n_2)/2`, so the phase factor is:
+    :math:`\exp(-i\phi J_z) = \exp(-i\phi n_1/2) \cdot \exp(i\phi n_2/2)`.
+
+    This is O(d) instead of O(d²) required by a full matrix-vector multiply.
+
+    Args:
+        state: State vector in the two-mode Fock basis, shape ``((M+1)^2,)``.
+        phi: Phase angle in radians.
+        max_photons: Maximum photon number per mode.
+
+    Returns:
+        State with phase applied (mutated copy).
+    """
+    dim = max_photons + 1
+    state_2d = state.reshape(dim, dim)
+    n1 = np.arange(dim, dtype=float)
+    n2 = np.arange(dim, dtype=float)
+    # exp(-i·phi·J_z) = exp(-i·phi·(n1-n2)/2) = exp(-i·phi·n1/2) · exp(i·phi·n2/2)
+    phase_factors = np.exp(-1j * phi * n1[:, None] / 2) * np.exp(
+        1j * phi * n2[None, :] / 2
+    )
+    state_2d *= phase_factors
+    return state_2d.ravel()
+
+
+def simple_mzi_evolution(
+    initial_state: np.ndarray,
+    omega: float,
+    max_photons: int,
+    t_hold: float = 10.0,
+    skip_bs1: bool = False,
+    bs: np.ndarray | None = None,
+) -> np.ndarray:
+    r"""Evolve a state through a standard MZI with no ancilla.
+
+    Circuit: BS1(:math:`\pi/4`) → Phase(:math:`t_hold \cdot \omega`) → BS2(:math:`\pi/4`)
+
+    The phase shift uses the generator :math:`J_z = (n_1 - n_2)/2`:
+    :math:`U_\phi = \exp(-i \cdot \omega \cdot t_hold \cdot J_z)`.
+
+    When ``skip_bs1=True``, the first BS is omitted (the input state is already
+    path-entangled and is used directly as the probe).
+
+    Args:
+        initial_state: Input state in the two-mode Fock basis.
+        omega: Unknown phase parameter :math:`\omega`.
+        max_photons: Maximum photon number per mode.
+        t_hold: Holding time (sensitivity amplification factor).
+        skip_bs1: If True, omit the first beam splitter.
+        bs: Pre-computed beam-splitter unitary. If None, computed fresh.
+
+    Returns:
+        Output state after the full MZI circuit.
+    """
+    if bs is None:
+        bs = beam_splitter_unitary(np.pi / 4, 0.0, max_photons)
+    phi = omega * t_hold
+
+    if skip_bs1:
+        state = apply_phase_shift_mzi(initial_state.copy(), phi, max_photons)
+    else:
+        state = bs @ initial_state  # BS1
+        state = apply_phase_shift_mzi(state, phi, max_photons)  # Phase shift
+    return bs @ state  # BS2
+
+
+def compute_mzi_sensitivity_grid(
+    initial_state: np.ndarray,
+    omega_grid: np.ndarray,
+    max_photons: int,
+    t_hold: float = 10.0,
+    skip_bs1: bool = False,
+    cfi_epsilon: float = 1e-6,
+    prob_floor: float = 1e-15,
+    bs: np.ndarray | None = None,
+) -> dict[str, np.ndarray | float]:
+    r"""Compute :math:`\Delta\omega_C`, :math:`\Delta\omega_{\text{EP}}` and
+    :math:`\Delta\omega_Q` across a :math:`\omega` grid.
+
+    For each :math:`\omega_i`:
+        1. Evolve the state through the MZI
+        2. Compute :math:`P(m|\omega_i)` from the output state
+        3. Compute :math:`\langle J_z\rangle_{\text{out}}` and
+           :math:`\text{Var}(J_z)_{\text{out}}`
+        4. Compute :math:`\partial P(m|\omega)/\partial\omega` via
+           central finite differences with step ``cfi_epsilon``
+        5. :math:`F_C = \sum_m (\partial P/\partial\omega)^2 / P`
+        6. :math:`\Delta\omega_C = 1/\sqrt{F_C}`
+
+    The QFI bound :math:`\Delta\omega_Q = 1/\sqrt{F_Q}` is computed from the
+    probe state using :math:`F_Q = 4 t_hold^2 \text{Var}(J_z)_{\text{probe}}`,
+    independent of :math:`\omega`.
+
+    Args:
+        initial_state: Input state in the two-mode Fock basis.
+        omega_grid: Array of :math:`\omega` values to evaluate.
+        max_photons: Maximum photon number per mode.
+        t_hold: Holding time.
+        skip_bs1: If True, omit BS1 from both probe and evolution.
+        cfi_epsilon: Finite-difference step for CFI and EP derivatives.
+        prob_floor: Minimum probability floor for CFI denominator.
+
+    Returns:
+        Dictionary with keys:
+        - ``omega_values``: The input :math:`\omega` grid.
+        - ``expectation_values``: :math:`\langle J_z\rangle_{\text{out}}`.
+        - ``variance_values``: :math:`\text{Var}(J_z)_{\text{out}}`.
+        - ``derivative_values``: :math:`\partial\langle J_z\rangle/\partial\omega`.
+        - ``delta_omega_ep``: :math:`\Delta\omega_{\text{EP}}` (error propagation).
+        - ``delta_omega_q``: :math:`\Delta\omega_Q` (scalar, :math:`\omega`-independent).
+        - ``fisher_quantum``: :math:`F_Q` (scalar).
+        - ``fisher_classical``: :math:`F_C(\omega)` (array, primary sensitivity metric).
+        - ``delta_omega_c``: :math:`\Delta\omega_C(\omega)` (array).
+    """
+    n_omega = len(omega_grid)
+    jz = _build_jz_operator(max_photons)
+    jz2 = jz @ jz
+
+    # Pre-compute beam splitter (same for all ω)
+    if bs is not None:
+        assert bs.shape == ((max_photons + 1) ** 2, (max_photons + 1) ** 2), (
+            f"BS shape {bs.shape} != {((max_photons + 1) ** 2, (max_photons + 1) ** 2)}"
+        )
+    else:
+        bs = beam_splitter_unitary(np.pi / 4, 0.0, max_photons)
+
+    # Compute the probe state for QFI bound
+    if skip_bs1:
+        probe_state = initial_state.copy()
+    else:
+        probe_state = bs @ initial_state
+    mean_probe = np.conj(probe_state) @ jz @ probe_state
+    mean_sq_probe = np.conj(probe_state) @ jz2 @ probe_state
+    var_probe = float(np.real(mean_sq_probe - mean_probe**2))
+    fq = 4.0 * t_hold**2 * var_probe
+    delta_omega_q = 1.0 / np.sqrt(fq) if fq > 0 else float("inf")
+
+    # Evolve state at each ω and compute statistics
+    expectation_values = np.zeros(n_omega, dtype=float)
+    variance_values = np.zeros(n_omega, dtype=float)
+    derivative_values = np.zeros(n_omega, dtype=float)
+    fisher_classical = np.full(n_omega, np.nan, dtype=float)
+
+    # Cache P(m|ω_i) for each ω_i
+    from src.physics.mzi_distribution import output_number_diff_distribution
+
+    P_grid = np.zeros((n_omega, 2 * max_photons + 1), dtype=float)
+
+    # Pre-compute post-BS1 state (used in main loop when skip_bs1=False)
+    bs1_state = bs @ initial_state if not skip_bs1 else None
+
+    def _jz_expectation(state: np.ndarray) -> float:
+        return float(np.real(np.conj(state) @ jz @ state))
+
+    def _jz_variance(state: np.ndarray) -> float:
+        mean = np.conj(state) @ jz @ state
+        mean_sq = np.conj(state) @ jz2 @ state
+        return float(np.real(mean_sq - mean**2))
+
+    for i, omega in enumerate(omega_grid):
+        phi = omega * t_hold
+        if skip_bs1:
+            state = apply_phase_shift_mzi(initial_state.copy(), phi, max_photons)
+        else:
+            assert bs1_state is not None
+            state = apply_phase_shift_mzi(
+                bs1_state.copy(), phi, max_photons
+            )  # Phase on cached BS1
+        state = bs @ state  # BS2
+
+        # J_z statistics
+        exp_val = _jz_expectation(state)
+        var_val = _jz_variance(state)
+
+        expectation_values[i] = exp_val
+        variance_values[i] = var_val
+
+        # Full distribution P(m|ω)
+        P_grid[i] = output_number_diff_distribution(state, max_photons)
+
+        # Evolve at ω ± ε
+        state_plus = simple_mzi_evolution(
+            initial_state,
+            omega + cfi_epsilon,
+            max_photons,
+            t_hold=t_hold,
+            skip_bs1=skip_bs1,
+            bs=bs,
+        )
+        state_minus = simple_mzi_evolution(
+            initial_state,
+            omega - cfi_epsilon,
+            max_photons,
+            t_hold=t_hold,
+            skip_bs1=skip_bs1,
+            bs=bs,
+        )
+
+        # Derivative from ω±ε states
+        exp_plus = _jz_expectation(state_plus)
+        exp_minus = _jz_expectation(state_minus)
+        derivative_values[i] = (exp_plus - exp_minus) / (2.0 * cfi_epsilon)
+
+        # CFI from P(m|ω±ε) distributions
+        from src.analysis.fisher_information import (
+            classical_fisher_information_single,
+        )
+
+        P_plus = output_number_diff_distribution(state_plus, max_photons)
+        P_minus = output_number_diff_distribution(state_minus, max_photons)
+        fisher_classical[i] = classical_fisher_information_single(
+            P_plus,
+            P_minus,
+            cfi_epsilon,
+            p_at_theta=P_grid[i],
+            prob_floor=prob_floor,
+        )
+
+    # Error-propagation sensitivity
+    abs_deriv = np.abs(derivative_values)
+    delta_omega_ep = np.sqrt(variance_values) / np.maximum(abs_deriv, 1e-300)
+    delta_omega_c = 1.0 / np.sqrt(np.maximum(fisher_classical, 1e-300))
+
+    return {
+        "omega_values": omega_grid,
+        "expectation_values": expectation_values,
+        "variance_values": variance_values,
+        "derivative_values": derivative_values,
+        "delta_omega_ep": delta_omega_ep,
+        "delta_omega_q": float(delta_omega_q),
+        "fisher_quantum": float(fq),
+        "fisher_classical": fisher_classical,
+        "delta_omega_c": delta_omega_c,
+    }
 
 
 # =============================================================================

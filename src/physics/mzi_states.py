@@ -131,6 +131,35 @@ def single_photon_split_state(N: int, max_photons: int | None = None) -> np.ndar
     return state
 
 
+def standard_twin_fock_state(N: int, max_photons: int) -> np.ndarray:
+    r"""Standard Twin-Fock state :math:`|N/2, N/2\rangle`.
+
+    This is a single two-mode Fock state with exactly ``N/2`` photons in
+    each mode. It differs from :func:`twin_fock_state`, which is the
+    uniform superposition :math:`\sum_n |n, N-n\rangle / \sqrt{N+1}`.
+
+    Args:
+        N: Total photon number (must be even).
+        max_photons: Maximum photon number per mode (Hilbert space truncation).
+
+    Returns:
+        Normalised state vector of dimension ``(max_photons+1)^2``.
+
+    Raises:
+        ValueError: If N is odd.
+    """
+    if N % 2 != 0:
+        raise ValueError(
+            f"Standard Twin-Fock |N/2,N/2\rangle requires even N, got N={N}"
+        )
+    dim = (max_photons + 1) ** 2
+    state = np.zeros(dim, dtype=complex)
+    n = N // 2
+    idx = n * (max_photons + 1) + n  # |N/2, N/2⟩
+    state[idx] = 1.0
+    return state
+
+
 # =============================================================================
 # Private Factory Functions for Input State Creation
 # =============================================================================

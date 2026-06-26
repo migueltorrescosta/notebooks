@@ -76,9 +76,17 @@ class TestFitValidation:
         with pytest.raises(ValueError, match="NaN"):
             _validate_fit_inputs(np.array([1.0, np.nan]), np.array([1.0, 2.0]))
 
-    def test_validate_inputs_inf(self) -> None:
-        with pytest.raises(ValueError, match=r"NaN|Infinite|Inf"):
-            _validate_fit_inputs(np.array([1.0, 2.0]), np.array([1.0, np.inf]))
+    def test_filter_fit_points_handles_inf_delta(self) -> None:
+        """Inf in delta is tolerated and filtered out by _filter_fit_points."""
+        N = np.array([4, 8, 16])
+        delta = np.array([1.0, np.inf, 0.5])
+        # Should not raise
+        prepared, _warnings = _filter_fit_points(N, delta, min_N=4)
+        assert prepared is not None
+        N_fit, delta_fit = prepared
+        assert len(N_fit) == 2
+        assert len(delta_fit) == 2
+        assert not np.any(np.isinf(delta_fit))
 
     def test_filter_fit_points_all_valid(self) -> None:
         N = np.array([4, 8, 16, 32])

@@ -21,6 +21,7 @@ from src.physics.mzi_states import (
     compute_jz_expectation,
     compute_jz_variance,
     input_state_factory,
+    standard_twin_fock_state,
 )
 from src.utils.serialization import assert_roundtrip_fields
 
@@ -35,7 +36,6 @@ del _local_path, _spec, _module
 
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     MziSensitivityData,
-    _make_standard_twin_fock_state,
     analyse_best_worst_sensitivity,
     compute_fisher_classical,
     compute_mzi_sensitivity_grid,
@@ -54,27 +54,27 @@ class TestStandardTwinFockState:
     def test_normalized(self) -> None:
         """The standard Twin-Fock state must have unit norm."""
         for N in [2, 4, 6, 10]:
-            state = _make_standard_twin_fock_state(N, N)
+            state = standard_twin_fock_state(N, N)
             assert np.isclose(np.linalg.norm(state), 1.0), f"Failed for N={N}"
 
     def test_jz_expectation_zero(self) -> None:
         r"""⟨J_z⟩ = 0 for |N/2, N/2⟩ before any BS."""
         for N in [2, 4, 6, 10]:
-            state = _make_standard_twin_fock_state(N, N)
+            state = standard_twin_fock_state(N, N)
             exp = np.real(compute_jz_expectation(state, N))
             assert np.isclose(exp, 0.0, atol=1e-12), f"Failed for N={N}"
 
     def test_jz_variance_zero_before_bs(self) -> None:
         r"""Var(J_z) = 0 for |N/2, N/2⟩ before any BS (number eigenstate)."""
         for N in [2, 4, 6, 10]:
-            state = _make_standard_twin_fock_state(N, N)
+            state = standard_twin_fock_state(N, N)
             var = compute_jz_variance(state, N)
             assert np.isclose(var, 0.0, atol=1e-12), f"Failed for N={N}"
 
     def test_fock_index_correct(self) -> None:
         r"""The state must be exactly |N/2, N/2⟩ in the Fock basis."""
         N = 4
-        state = _make_standard_twin_fock_state(N, N)
+        state = standard_twin_fock_state(N, N)
         dim = (N + 1) ** 2
         expected = np.zeros(dim, dtype=complex)
         idx = (N // 2) * (N + 1) + (N // 2)  # |2, 2⟩
@@ -84,11 +84,11 @@ class TestStandardTwinFockState:
     def test_odd_N_raises(self) -> None:
         r"""Odd N is invalid for |N/2, N/2⟩."""
         with pytest.raises(ValueError, match="even"):
-            _make_standard_twin_fock_state(3, 5)
+            standard_twin_fock_state(3, 5)
 
     def test_max_photons_larger_than_N(self) -> None:
         """State works when max_photons > N (padding with extra basis states)."""
-        state = _make_standard_twin_fock_state(4, 10)
+        state = standard_twin_fock_state(4, 10)
         assert np.isclose(np.linalg.norm(state), 1.0)
         # Dimension should be (10+1)^2 = 121
         assert len(state) == 121
@@ -107,7 +107,7 @@ class TestTwinFockAfterBS1:
         Note: this differs from the N/4 scaling that would hold for a
         different BS convention. The codebase's BS gives N(N+2)/8.
         """
-        state = _make_standard_twin_fock_state(N, N)
+        state = standard_twin_fock_state(N, N)
         bs = beam_splitter_unitary(np.pi / 4, 0.0, N)
         state_bs1 = bs @ state
         var = compute_jz_variance(state_bs1, N)
@@ -139,7 +139,7 @@ class TestSimpleMziEvolution:
     @pytest.mark.parametrize("N", [2, 4, 6])
     def test_norm_preserved_twin_fock_std(self, N: int) -> None:
         """MZI evolution must preserve norm for standard Twin-Fock."""
-        state = _make_standard_twin_fock_state(N, N)
+        state = standard_twin_fock_state(N, N)
         final = simple_mzi_evolution(
             state,
             omega=1.0,
@@ -236,7 +236,7 @@ class TestTwinFockStdQFI:
     @pytest.mark.parametrize("N", [2, 4, 6, 10])
     def test_qfi_bound(self, N: int) -> None:
         r"""F_Q = t_hold² · N(N+2)/2, Δθ_Q = 1 / (t_hold · √(N(N+2)/2)) for TF after BS1."""
-        state = _make_standard_twin_fock_state(N, N)
+        state = standard_twin_fock_state(N, N)
         bs = beam_splitter_unitary(np.pi / 4, 0.0, N)
         state_bs1 = bs @ state
         var = compute_jz_variance(state_bs1, N)
@@ -369,7 +369,7 @@ class TestComputeMziSensitivityGrid:
     def test_cramer_rao_inequality_twin_fock(self) -> None:
         r"""Δθ_EP ≥ Δθ_Q for standard Twin-Fock (Cramér-Rao bound)."""
         N = 4
-        state = _make_standard_twin_fock_state(N, N)
+        state = standard_twin_fock_state(N, N)
         omega_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
             state,
@@ -469,7 +469,7 @@ class TestComputeMziSensitivityGrid:
     @pytest.mark.parametrize("N", [2, 4])
     def test_cfi_cramer_rao_twin_fock(self, N: int) -> None:
         r"""Δθ_C ≥ Δθ_Q for standard Twin-Fock (quantum Cramér-Rao bound)."""
-        state = _make_standard_twin_fock_state(N, N)
+        state = standard_twin_fock_state(N, N)
         omega_grid = np.linspace(0.1, 5.0, 10)
         result = compute_mzi_sensitivity_grid(
             state,
@@ -553,7 +553,7 @@ class TestNOONvsTwinFockQFI:
     def test_noon_beats_twin_fock(self, N: int) -> None:
         r"""NOON QFI should exceed Twin-Fock QFI by factor ~2N/(N+2) ≈ 2."""
         noon_state = input_state_factory("noon", N, N)
-        tf_state = _make_standard_twin_fock_state(N, N)
+        tf_state = standard_twin_fock_state(N, N)
         bs = beam_splitter_unitary(np.pi / 4, 0.0, N)
 
         # NOON QFI from probe = input (skip BS1)
@@ -991,7 +991,7 @@ class TestEdgeCases:
     def test_twin_fock_min_N(self) -> None:
         r"""The smallest standard Twin-Fock is |1,1⟩ (N=2)."""
         N = 2
-        state = _make_standard_twin_fock_state(N, N)
+        state = standard_twin_fock_state(N, N)
         omega_grid = np.linspace(0.1, 5.0, 5)
         result = compute_mzi_sensitivity_grid(
             state,

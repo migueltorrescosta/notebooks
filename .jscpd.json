@@ -1,0 +1,15 @@
+{
+  "minLines": 15,
+  "minTokens": 50,
+  "mode": "mild",
+  "ignore": [
+    "**/__pycache__/**",
+    "**/.venv/**",
+    "**/.git/**",
+    "**/node_modules/**"
+  ],
+  "ignoreCase": false,
+  "gitignore": false,
+  "reporters": ["json"],
+  "output": "/tmp/jscpd-baseline"
+}

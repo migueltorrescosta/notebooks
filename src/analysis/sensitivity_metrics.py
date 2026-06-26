@@ -29,6 +29,7 @@ References:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -48,6 +49,10 @@ from src.physics.mzi_simulation import (
 )
 from src.physics.mzi_states import two_mode_jz_operator
 from src.physics.noise_channels import NoiseConfig
+from src.utils.serialization import ParquetSerializable
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # =============================================================================
 # Type Definitions
@@ -691,3 +696,227 @@ def compare_sensitivity_methods(
             else np.inf
         ),
     }
+
+
+# =============================================================================
+# Best/Worst Sensitivity Analysis
+# =============================================================================
+
+
+def analyse_best_worst_sensitivity(
+    resource_values: np.ndarray,
+    omega_values: np.ndarray,
+    sensitivity_grid: np.ndarray,
+) -> dict:
+    """Find best (min) and worst (max) sensitivity at each resource value.
+
+    Args:
+        resource_values: Array of resource values, shape ``(n_R,)``.
+        omega_values: Array of ω values, shape ``(n_omega,)``.
+        sensitivity_grid: 2D array of sensitivity values, shape ``(n_R, n_omega)``.
+
+    Returns:
+        Dictionary with keys:
+        - ``resource_values``: Array of resource values.
+        - ``best_sensitivity``: Minimum sensitivity at each resource value.
+        - ``best_omega``: ω where minimum occurs.
+        - ``worst_sensitivity``: Maximum finite sensitivity at each resource value.
+        - ``worst_omega``: ω where maximum occurs.
+    """
+    n_R = len(resource_values)
+    best_sens = np.full(n_R, np.inf, dtype=float)
+    best_th = np.full(n_R, np.nan, dtype=float)
+    worst_sens = np.full(n_R, -np.inf, dtype=float)
+    worst_th = np.full(n_R, np.nan, dtype=float)
+
+    for i in range(n_R):
+        slice_ = sensitivity_grid[i, :]
+        finite_mask = np.isfinite(slice_)
+        if np.any(finite_mask):
+            full_indices = np.where(finite_mask)[0]
+
+            b_idx = int(np.argmin(slice_[finite_mask]))
+            actual_idx = full_indices[b_idx]
+            best_sens[i] = float(slice_[actual_idx])
+            best_th[i] = float(omega_values[actual_idx])
+
+            w_idx = int(np.argmax(slice_[finite_mask]))
+            actual_w_idx = full_indices[w_idx]
+            worst_sens[i] = float(slice_[actual_w_idx])
+            worst_th[i] = float(omega_values[actual_w_idx])
+
+    return {
+        "resource_values": resource_values.copy(),
+        "best_sensitivity": best_sens,
+        "best_omega": best_th,
+        "worst_sensitivity": worst_sens,
+        "worst_omega": worst_th,
+    }
+
+
+# =============================================================================
+# Minimal MZI Sensitivity Data (shared by reports)
+# =============================================================================
+
+
+@dataclass
+class MziSensitivityData(ParquetSerializable):
+    r"""Sensitivity data for one state type across resource :math:`R` and :math:`\omega`.
+
+    Stores a 2D grid indexed by ``(resource, omega)``, plus per-resource QFI
+    bounds.  This is the canonical version used by MZI-scaling reports; report-
+    specific subclasses may add extra metadata fields (e.g. ``squeezing_q``).
+
+    The primary sensitivity metric is :math:`\Delta\omega_C` (Classical Fisher
+    Information from the full :math:`P(m|\omega)` distribution).
+
+    Attributes:
+        state_type: State identifier (e.g. ``"noon"``, ``"sv"``, ``"oat"``).
+        resource_type: ``"N"`` for fixed-N states, ``"mean_N"`` for squeezed.
+        resource_values: Array of resource parameter values, shape ``(n_R,)``.
+        omega_values: Array of :math:`\omega` values, shape ``(n_omega,)``.
+        expectation_grid: :math:`\langle J_z\rangle` at each ``(R, omega)``.
+        variance_grid: :math:`\text{Var}(J_z)` at each ``(R, omega)``.
+        derivative_grid: :math:`\partial\langle J_z\rangle/\partial\omega`.
+        delta_omega_ep_grid: :math:`\Delta\omega_{\text{EP}}`.
+        delta_omega_q_per_R: :math:`\Delta\omega_Q` per resource value (length ``n_R``).
+        fisher_classical_grid: :math:`F_C` at each ``(R, omega)``.
+        delta_omega_c_grid: :math:`\Delta\omega_C` at each ``(R, omega)``.
+        t_hold: Holding time.
+        truncation_M_per_R: Truncation M used per resource value (optional).
+        squeezing_q_per_R: Squeezing parameter per resource value (optional).
+    """
+
+    state_type: str
+    resource_type: str
+    resource_values: np.ndarray
+    omega_values: np.ndarray
+    expectation_grid: np.ndarray
+    variance_grid: np.ndarray
+    derivative_grid: np.ndarray
+    delta_omega_ep_grid: np.ndarray
+    delta_omega_q_per_R: np.ndarray
+    fisher_classical_grid: np.ndarray
+    delta_omega_c_grid: np.ndarray
+    t_hold: float = 10.0
+    truncation_M_per_R: np.ndarray | None = None
+    squeezing_q_per_R: np.ndarray | None = None
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "state_type",
+        "resource_type",
+        "resource",
+        "omega",
+        "expectation",
+        "variance",
+        "derivative",
+        "delta_omega_ep",
+        "delta_omega_q",
+        "fisher_classical",
+        "delta_omega_c",
+        "t_hold",
+        "truncation_M",
+        "squeezing_q",
+    ]
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert to long-format DataFrame (one row per resource, ω combination)."""
+        n_R = len(self.resource_values)
+        n_omega = len(self.omega_values)
+        rows: list[dict] = []
+        trunc_M = (
+            self.truncation_M_per_R
+            if self.truncation_M_per_R is not None
+            else np.full(n_R, np.nan)
+        )
+        sq_q = (
+            self.squeezing_q_per_R
+            if self.squeezing_q_per_R is not None
+            else np.full(n_R, np.nan)
+        )
+        for i in range(n_R):
+            for j in range(n_omega):
+                dt_ep = float(self.delta_omega_ep_grid[i, j])
+                dt_c = float(self.delta_omega_c_grid[i, j])
+                rows.append(
+                    {
+                        "state_type": self.state_type,
+                        "resource_type": self.resource_type,
+                        "resource": float(self.resource_values[i]),
+                        "omega": float(self.omega_values[j]),
+                        "expectation": float(self.expectation_grid[i, j]),
+                        "variance": float(self.variance_grid[i, j]),
+                        "derivative": float(self.derivative_grid[i, j]),
+                        "delta_omega_ep": (
+                            dt_ep if np.isfinite(dt_ep) else float("inf")
+                        ),
+                        "delta_omega_q": float(self.delta_omega_q_per_R[i]),
+                        "fisher_classical": float(self.fisher_classical_grid[i, j]),
+                        "delta_omega_c": (dt_c if np.isfinite(dt_c) else float("inf")),
+                        "t_hold": self.t_hold,
+                        "truncation_M": float(trunc_M[i]),
+                        "squeezing_q": float(sq_q[i]),
+                    }
+                )
+        return pd.DataFrame(rows)
+
+    @classmethod
+    def from_parquet(cls, path: str | Path) -> MziSensitivityData:
+        """Load from Parquet, reconstructing the 2D grids."""
+        df = pd.read_parquet(path)
+        cls._validate_columns(df)
+        state_type = str(df["state_type"].iloc[0])
+        resource_type = str(df["resource_type"].iloc[0])
+        t_hold_val = float(df["t_hold"].iloc[0])
+        R_vals = sorted(df["resource"].unique())
+        omega_vals = sorted(df["omega"].unique())
+        n_R = len(R_vals)
+        n_omega = len(omega_vals)
+
+        expectation_grid = np.full((n_R, n_omega), np.nan, dtype=float)
+        variance_grid = np.full((n_R, n_omega), np.nan, dtype=float)
+        derivative_grid = np.full((n_R, n_omega), np.nan, dtype=float)
+        delta_omega_ep_grid = np.full((n_R, n_omega), np.nan, dtype=float)
+        delta_omega_q_per_R = np.full(n_R, np.nan, dtype=float)
+        fisher_classical_grid = np.full((n_R, n_omega), np.nan, dtype=float)
+        delta_omega_c_grid = np.full((n_R, n_omega), np.nan, dtype=float)
+        truncation_M_per_R = np.full(n_R, np.nan, dtype=float)
+        squeezing_q_per_R = np.full(n_R, np.nan, dtype=float)
+
+        for _, row in df.iterrows():
+            r_idx = R_vals.index(float(row["resource"]))
+            t_idx = omega_vals.index(float(row["omega"]))
+            expectation_grid[r_idx, t_idx] = row["expectation"]
+            variance_grid[r_idx, t_idx] = row["variance"]
+            derivative_grid[r_idx, t_idx] = row["derivative"]
+            delta_omega_ep_grid[r_idx, t_idx] = row["delta_omega_ep"]
+            dq = float(row["delta_omega_q"])
+            if np.isnan(delta_omega_q_per_R[r_idx]):
+                delta_omega_q_per_R[r_idx] = dq
+            elif not np.isclose(delta_omega_q_per_R[r_idx], dq, rtol=1e-10):
+                raise ValueError(
+                    f"Inconsistent delta_omega_q for resource={row['resource']}: "
+                    f"expected {delta_omega_q_per_R[r_idx]}, got {dq}. "
+                    f"Regenerate the file."
+                )
+            fisher_classical_grid[r_idx, t_idx] = float(row["fisher_classical"])
+            delta_omega_c_grid[r_idx, t_idx] = float(row["delta_omega_c"])
+            truncation_M_per_R[r_idx] = float(row["truncation_M"])
+            squeezing_q_per_R[r_idx] = float(row["squeezing_q"])
+
+        return cls(
+            state_type=state_type,
+            resource_type=resource_type,
+            resource_values=np.array(R_vals, dtype=float),
+            omega_values=np.array(omega_vals, dtype=float),
+            expectation_grid=expectation_grid,
+            variance_grid=variance_grid,
+            derivative_grid=derivative_grid,
+            delta_omega_ep_grid=delta_omega_ep_grid,
+            delta_omega_q_per_R=delta_omega_q_per_R,
+            fisher_classical_grid=fisher_classical_grid,
+            delta_omega_c_grid=delta_omega_c_grid,
+            t_hold=t_hold_val,
+            truncation_M_per_R=truncation_M_per_R,
+            squeezing_q_per_R=squeezing_q_per_R,
+        )

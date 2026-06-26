@@ -448,6 +448,7 @@ class TestFileLength:
             "reports/20260615/nonlinear_measurement_parity_cfi.py",
             "reports/20260519/phase_modulated_drive.py",
             "reports/20260621/bell_state_initial_entanglement.py",
+            "reports/20260625/heisenberg_limit_mzi_sq_oat.py",
         }
     )
 

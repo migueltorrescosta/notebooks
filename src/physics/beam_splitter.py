@@ -68,6 +68,7 @@ from src.utils.constants import I_2, SIGMA_X
 from src.utils.enums import OperatorBasis
 
 
+@cache
 def bs_fock(theta: float, phi_bs: float, max_photons: int) -> np.ndarray:
     r"""Two-mode Fock space beam-splitter unitary.
 

@@ -70,7 +70,8 @@ def _validate_fit_inputs(N: np.ndarray, delta: np.ndarray) -> None:
 
     Raises:
         ValueError: If arrays have mismatched lengths, are empty, or contain
-            NaN/Inf values.
+            NaN/Inf values.  (NaN/Inf values in ``delta`` are tolerated and
+            handled by :func:`_filter_fit_points`.)
 
     """
     if len(N) != len(delta):
@@ -82,8 +83,6 @@ def _validate_fit_inputs(N: np.ndarray, delta: np.ndarray) -> None:
 
     if np.any(np.isnan(N)) or np.any(np.isinf(N)):
         raise ValueError("N contains NaN or infinite values")
-    if np.any(np.isnan(delta)) or np.any(np.isinf(delta)):
-        raise ValueError("delta_phi contains NaN or infinite values")
 
 
 def _filter_fit_points(
@@ -93,8 +92,8 @@ def _filter_fit_points(
 ) -> tuple[tuple[np.ndarray, np.ndarray] | None, list[str]]:
     """Filter valid points for scaling fit.
 
-    Applies the ``min_N`` lower bound and removes non-positive ``delta``
-    values (log is undefined for non-positive numbers).
+    Applies the ``min_N`` lower bound, removes NaN/Inf values, and removes
+    non-positive ``delta`` values (log is undefined for non-positive numbers).
 
     Args:
         N: Particle number array (already validated).
@@ -114,6 +113,17 @@ def _filter_fit_points(
 
     N_fit = N[mask]
     delta_fit = delta[mask]
+
+    # Remove NaN/Inf in either array
+    finite_mask = np.isfinite(N_fit) & np.isfinite(delta_fit)
+    if not np.all(finite_mask):
+        n_dropped = np.sum(~finite_mask)
+        warnings.append(f"Excluded {n_dropped} NaN/Inf values")
+        N_fit = N_fit[finite_mask]
+        delta_fit = delta_fit[finite_mask]
+
+    if len(N_fit) == 0:
+        return None, warnings
 
     # Exclude non-positive values (log is undefined)
     pos_mask = delta_fit > 0
