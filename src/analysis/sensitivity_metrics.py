@@ -920,3 +920,17 @@ class MziSensitivityData(ParquetSerializable):
             truncation_M_per_R=truncation_M_per_R,
             squeezing_q_per_R=squeezing_q_per_R,
         )
+
+
+@dataclass
+class MziSensitivityDataSV(MziSensitivityData):
+    """Sensitivity data for squeezed-vacuum MZI.
+
+    Inherits all fields, serialization, and Parquet I/O from the shared
+    :class:`MziSensitivityData`.  This subclass exists purely to give a
+    more specific return type to ``from_parquet``.
+    """
+
+    @classmethod
+    def from_parquet(cls, path: str | Path) -> MziSensitivityDataSV:  # type: ignore[override]
+        return super().from_parquet(path)  # type: ignore[return-value]

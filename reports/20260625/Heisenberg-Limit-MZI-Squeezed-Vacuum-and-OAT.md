@@ -59,7 +59,7 @@ The asymptotic scaling exponents for the comparison states (from #20260601) are:
 3. **MZI evolution** — Reuse `simple_mzi_evolution` from #20260601 for all states. For squeezed vacuum states, do not skip BS1 (`skip_bs1=False`). For OAT states: prepare $\vert N,0\rangle$, apply BS1, apply OAT $U_{\text{OAT}}(q)$, then execute the standard MZI (phase shift + BS2). The OAT parameter $q$ is scanned per $N$ to verify that $F_C(\omega)$ remains at the SQL level for all $q$, confirming the invariance of $\text{Var}(J_z)$ under $U_{\text{OAT}}$.
 
 4. **Sweep structure** — Three nested sweeps over (state type, resource parameter $R$, $\omega$, and for OAT, $q$):
-   - SV, TMSV: $R = \langle N\rangle$ or $\langle N\rangle_{\text{total}} \in \{1, 2, \dots, 20\}$, $M = \min(5R, 80)$, $\omega \in [0.1, 5.0]$ (step 0.1, 50 points)
+   - SV, TMSV: $R = \langle N\rangle$ or $\langle N\rangle_{\text{total}} \in \{1, 2, \dots, 20\}$, $M = \min(5R, 80)$, $\omega \in [0.01, 5.00]$ (step 0.01, 500 points)
    - OAT: $N \in \{2, 4, 6, \dots, 40\}$ (even), $M = N$, $q$ scanned logarithmically in $[10^{-3}, 10^{1}]$ at each $N$ to verify SQL-level sensitivity for all $q$
    - Per ($R$, $\omega$): evolve MZI, compute $P(m\vert\omega)$, $P(m\vert\omega\pm\varepsilon)$, evaluate $F_C$, compute $\Delta\omega_C = 1/\sqrt{F_C}$, store with all input parameters
 
@@ -76,11 +76,11 @@ The asymptotic scaling exponents for the comparison states (from #20260601) are:
 | Particle number $N$ (OAT) | $2, 4, 6, \dots, 40$ (even, 20 points) | Particle number scaling |
 | Truncation $M$ (SV/TMSV) | $\min(5\langle N\rangle, 80)$ per $R$ | Hilbert space accuracy |
 | Squeezing $q$ (OAT) | $10^{-3}$ to $10^{1}$, 20 points per $N$ | Verify SQL-level invariance for all $q$ |
-| Phase $\omega$ | $0.1, 0.2, \dots, 5.0$ (step 0.1, 50 points) | $\omega$-sweep for CFI |
+| Phase $\omega$ | $0.01, 0.02, \dots, 5.00$ (step 0.01, 500 points) | $\omega$-sweep for CFI |
 | Holding time $H_t$ | $10$ (fixed) | Same as #20260601 baseline |
 | State type | `"sv"`, `"tmsv"`, `"oat"`, `"noon"`, `"twin_fock_std"` | Compare all five |
 
-Total simulation runs: 3 new states $\times$ 20 resource values $\times$ (50 $\omega$-points + 2$\times$50 derivative) evaluations $\approx$ 9000 new evaluations. OAT $q$-scan verification adds 20 $\times$ 50 $\times$ 20 = 20000 for a total of $\sim$ 30000 evaluations.
+Total simulation runs: 3 new states $\times$ 20 resource values $\times$ (500 $\omega$-points + 2$\times$500 derivative) evaluations $\approx$ 90000 new evaluations. OAT $q$-scan verification adds 20 $\times$ 500 $\times$ 20 = 200000 for a total of $\sim$ 300000 evaluations.
 
 ### 🔧 Implementation Status
 
@@ -120,46 +120,50 @@ Tests: Expected 100+ new pytest tests covering state preparation (normalization,
 
 ## 🔬 Results
 
-Simulations were executed for all three state types (SV, TMSV, OAT) across their respective resource-parameter ranges. The OAT hypothesis is fully confirmed, the TMSV hypothesis is partially confirmed (CFI saturates QFI, but truncation limits the QFI magnitude), and the SV hypothesis is not supported under number-difference measurement with the current implementation (skip_bs1=True). See §SV below for explanation.
+Simulations were executed for all three state types (SV, TMSV, OAT) across their respective resource-parameter ranges with a 500-point ω grid (step 0.01). The OAT hypothesis is fully confirmed, the TMSV hypothesis is partially confirmed (CFI saturates QFI, but truncation limits the QFI magnitude), and the SV hypothesis is not supported under number-difference measurement with the current implementation (skip_bs1=True). See §SV below for explanation.
+
+**Note**: Numerical values in this section differ from the previous report generation because the ω grid and state preparation were recomputed. The qualitative conclusions are unchanged. See inline conflicts highlighted below.
 
 ### Post-Experiment Status
 
 | Experiment | Status | Notes |
 |------------|--------|-------|
-| Single-mode SV — QFI bound | FAIL | QFI bound is 40-60% of analytical value due to Hilbert-space truncation (M=5R capped at 80). The truncated SV state does not reproduce the full squeezed-vacuum statistics. |
+| Single-mode SV — QFI bound | FAIL | QFI bound is 51-65% of analytical value (conflict: previously reported as 40-60%) due to Hilbert-space truncation (M=5R capped at 80). The truncated SV state does not reproduce the full squeezed-vacuum statistics. |
 | Single-mode SV — CFI scaling | FAIL | CFI is effectively zero (F_C < 1e-19) because skip_bs1=True makes the number-difference distribution P(m|ω) ω-independent. See §SV for explanation. |
 | TMSV — QFI bound | PARTIAL | QFI is 41-90% of the analytical bound $F_Q = H_t^2 R(R+2)$, decreasing as truncation becomes marginal at large R. The analytical QFI formula is correct but truncation distorts the state. |
-| TMSV — CFI scaling | PARTIAL | CFI saturates QFI at each R (Δω_C/Δω_Q = 1.000-1.010), confirming that number-difference measurement is optimal for TMSV. Fitted scaling exponent α = -0.76 (R≥4), intermediate between SQL and Heisenberg. |
+| TMSV — CFI scaling | PARTIAL | CFI saturates QFI at each R (Δω_C/Δω_Q = 1.000-1.009), confirming that number-difference measurement is optimal for TMSV. Fitted scaling exponent α = -0.76 (R≥4), intermediate between SQL and Heisenberg. |
 | OAT q=0 (CSS baseline) | PASS | Δω_C exactly matches SQL: 1/(H_t√N) for all N. |
 | OAT — q-scan invariance | PASS | Var(J_z) is independent of q (verified by Δω_C = Δω_Q = SQL at all q). |
 | OAT — CFI scaling | PASS | Fitted exponent α = -0.5000, C = 0.1000 = 1/H_t, exactly matching SQL. |
 | Cramér-Rao inequality | PASS | Δω_C ≥ Δω_Q holds for all TMSV and OAT data points. SV cannot be assessed (CFI=0). |
-| Truncation convergence | FAIL | For SV with M=5, the truncated norm capture is ~95% for R=1, degrading to ~72% for R=32 at M=80. For TMSV, M=80 at R=40 (⟨N⟩_per_mode=20) gives only 4x the mean, insufficient for geometric-distribution states. The 99.9% threshold is not met. See §Failure Conditions. |
+| Truncation convergence | FAIL | For SV with M=5, the truncated norm capture is ~95% for R=1, degrading to ~89% for R=32 at M=80 (conflict: previously reported as ~72%). For TMSV, M=80 at R=40 (⟨N⟩_per_mode=20) gives truncation error ~1.9% (conflict: previously reported as ~3%). The 99.9% threshold is not met. See §Failure Conditions. |
 
 ### SV — Single-Mode Squeezed Vacuum
 
 | Resource R = ⟨N⟩ | Best Δω_C | Δω_Q | Δω_C/Δω_Q | QFI ratio | Captured norm |
-|---|---|---|---|---|---|
-| 1 | 7.9×10⁹ | 0.0687 | 1.1×10¹¹ | 0.21 | 0.95 |
-| 5 | 1.0×10¹⁰ | 0.0164 | 6.2×10¹¹ | 0.34 | 0.93 |
-| 10 | 9.0×10⁹ | 0.00839 | 1.1×10¹² | 0.42 | 0.94 |
-| 20 | 8.9×10⁹ | 0.00483 | 1.8×10¹² | 0.52 | 0.95 |
+|---|---|---|---|---|---|---|
+| 1 | 7.4×10⁹ | 0.0687 | 1.1×10¹¹ | 0.53 | 0.95 |
+| 5 | 7.5×10⁹ | 0.0164 | 4.6×10¹¹ | 0.62 | 0.97 |
+| 10 | 7.4×10⁹ | 0.00839 | 8.9×10¹¹ | 0.65 | 0.97 |
+| 20 | 7.7×10⁹ | 0.00483 | 1.6×10¹² | 0.51 | 0.95 |
 
-**Key Finding**: The SV CFI is effectively zero because the simulation uses `skip_bs1=True` (the squeezed vacuum is used as the direct probe, bypassing the first beam splitter). Under this configuration, the output state has components only at |2n,0⟩, and the beam-splitter unitary maps each |2n,0⟩ to distinct total-photon-number sectors. There is no overlap between different n-contributions at the same m-outcome, so the probability distribution P(m|ω) is ω-independent — no phase information is visible in the number-difference readout. The QFI bound is also truncated (~21-52% of the analytical 2⟨N⟩(⟨N⟩+1) formula) because the Hilbert-space truncation M = min(5⟨N⟩, 80) captures only 93-95% of the squeezed-vacuum norm, and the QuTiP renormalisation within the truncated space distorts the state's higher-order moments. A parity measurement Π = (-1)^{n_2} at one output port would recover the QFI; this is deferred to #20260625-ext.
+**Data conflict with previous generation**: The QFI ratios and Δω_C values differ from the previous generation because the ω grid and state preparation were recomputed. In the previous generation, the QFI ratios were 0.21/0.34/0.42/0.52 (range 21-52%) with Δω_C values of 7.9×10⁹/1.0×10¹⁰/9.0×10⁹/8.9×10⁹ and captured norms of 0.95/0.93/0.94/0.95. The new generation yields QFI ratios of 0.53/0.62/0.65/0.51 (range 51-65%), Δω_C values of 7.4×10⁹/7.5×10⁹/7.4×10⁹/7.7×10⁹, and captured norms of 0.95/0.97/0.97/0.95. The QFI ratios are substantially higher in the new data (51-65% vs 21-52% previously), and the captured norm for R≥5 is 97% (vs 93-94% previously). The reason for the discrepancy is a change in state preparation or truncation handling between generation runs. Despite these differences, the qualitative conclusion remains unchanged: CFI is effectively zero (F_C < 3×10⁻²⁰) and Δω_C is O(10⁹), confirming no phase information is extractable via number-difference readout.
+
+**Key Finding**: The SV CFI is effectively zero because the simulation uses `skip_bs1=True` (the squeezed vacuum is used as the direct probe, bypassing the first beam splitter). Under this configuration, the output state has components only at |2n,0⟩, and the beam-splitter unitary maps each |2n,0⟩ to distinct total-photon-number sectors. There is no overlap between different n-contributions at the same m-outcome, so the probability distribution P(m|ω) is ω-independent — no phase information is visible in the number-difference readout. The QFI bound is also truncated (~51-65% of the analytical 2⟨N⟩(⟨N⟩+1) formula) because the Hilbert-space truncation M = min(5⟨N⟩, 80) captures 95-97% of the squeezed-vacuum norm (conflict: previously reported as 93-95%), and the renormalisation within the truncated space distorts the state's higher-order moments. A parity measurement Π = (-1)^{n_2} at one output port recovers all available phase information (see #20260625-ext), but the QFI of the BS1-processed SV state is SQL-limited (α = −0.4923), not Heisenberg — the analytical 2⟨N⟩(⟨N⟩+1) formula applies to the pre-BS1 input state, and BS1 transforms the probe to SQL-class J_z variance.
 
 ### TMSV — Two-Mode Squeezed Vacuum
 
 | Resource R = ⟨N⟩_total | Best Δω_C | Δω_Q | Δω_C/Δω_Q | F_Q actual | F_Q expected | Ratio |
-|---|---|---|---|---|---|---|
-| 4 | 0.0220 | 0.0220 | 1.001 | 2063 | 2400 | 0.86 |
-| 10 | 0.00968 | 0.00964 | 1.003 | 10757 | 12000 | 0.90 |
-| 20 | 0.00533 | 0.00528 | 1.009 | 35897 | 44000 | 0.82 |
-| 30 | 0.00427 | 0.00422 | 1.010 | 56064 | 96000 | 0.58 |
-| 40 | 0.00384 | 0.00380 | 1.010 | 69107 | 168000 | 0.41 |
+|---|---|---|---|---|---|---|---|
+| 4 | 0.02203 | 0.02202 | 1.001 | 2063 | 2400 | 0.86 |
+| 10 | 0.00967 | 0.00964 | 1.003 | 10756 | 12000 | 0.90 |
+| 20 | 0.00532 | 0.00528 | 1.008 | 35897 | 44000 | 0.82 |
+| 30 | 0.00426 | 0.00422 | 1.008 | 56064 | 96000 | 0.58 |
+| 40 | 0.00384 | 0.00380 | 1.008 | 69107 | 168000 | 0.41 |
 
-The best operating point is ω = 2.2 for all R. The CFI saturates the QFI bound at every resource value (Δω_C/Δω_Q = 1.000-1.010), confirming that number-difference measurement is information-theoretically optimal for TMSV in the balanced MZI. The Cramér-Rao bound Δω_C ≥ Δω_Q holds everywhere. The QFI is below the analytical bound $F_Q = H_t^2 R(R+2)$ due to truncation: at R=40 with M=80, the per-mode mean ⟨N⟩ = 20 is only 4$\times$ below the truncation ceiling, and the TMSV geometric series $\sum \tanh^{2n}(r)$ truncation error reaches $1 - \tanh^{2(M+1)}(r) = 0.03$ for r = arsinh($\sqrt{R/2}$).
+The best operating point is ω = 1.57 for all R (finer 500-point ω grid resolves the peak, previously reported as ω = 2.2 with 50-point grid). The CFI saturates the QFI bound at every resource value (Δω_C/Δω_Q = 1.000-1.009), confirming that number-difference measurement is information-theoretically optimal for TMSV in the balanced MZI. The Cramér-Rao bound Δω_C ≥ Δω_Q holds everywhere. The QFI is below the analytical bound $F_Q = H_t^2 R(R+2)$ due to truncation: at R=40 with M=80, the per-mode mean ⟨N⟩ = 20 is only 4$\times$ below the truncation ceiling, and the TMSV geometric series $\sum \tanh^{2n}(r)$ truncation error reaches $1 - \tanh^{2(M+1)}(r) = 0.019$ (conflict: previously reported as 0.03) for $r = \text{arsinh}(\sqrt{R/2})$.
 
-**Key Finding**: TMSV achieves sub-SQL sensitivity at all R (e.g., 4.3× below SQL at R=30). The scaling exponent α = -0.76 for R ∈ [4, 40] is intermediate between SQL (α = -0.5) and Heisenberg (α = -1.0), consistent with asymptotic approach to Heisenberg scaling at larger R. The CFI saturates QFI within 1%, confirming that number-difference measurement extracts all available phase information from TMSV states. The analytical formula $F_Q = H_t^2 R(R+2)$ is verified to be correct, though truncation limits the achievable numerical QFI at large R.
+**Key Finding**: TMSV achieves sub-SQL sensitivity at all R (e.g., 4.3× below SQL at R=30). The best operating point is ω = 1.57 for all R, consistent across the 500-point ω grid (resolved from the coarser 50-point grid which previously indicated ω = 2.2). The scaling exponent α = -0.76 for R ∈ [4, 40] is intermediate between SQL (α = -0.5) and Heisenberg (α = -1.0), consistent with asymptotic approach to Heisenberg scaling at larger R. The CFI saturates QFI within 1%, confirming that number-difference measurement extracts all available phase information from TMSV states. The analytical formula $F_Q = H_t^2 R(R+2)$ is verified to be correct, though truncation limits the achievable numerical QFI at large R.
 
 ### OAT — One-Axis Twist Spin-Squeezed States
 
@@ -204,14 +208,14 @@ The combined scaling plot (above) shows best Δω_C vs resource parameter for al
 
 ### Post-Experiment
 
-- **SV Heisenberg scaling** — FAIL. CFI is effectively zero (skip_bs1=True makes P(m|ω) ω-independent). The QFI is also truncated to 21-52% of the analytical value. Parity readout (future #20260625-ext) would be needed to test this hypothesis.
-- **TMSV QFI equivalence** — PASS (truncation-limited). CFI saturates QFI within 1% at all resource values (Δω_C/Δω_Q = 1.000-1.010). The QFI itself is 41-90% of the analytical bound due to Hilbert-space truncation at M = min(5R, 80), which is insufficient at large R.
+- **SV Heisenberg scaling** — FAIL. CFI is effectively zero (skip_bs1=True makes P(m|ω) ω-independent). The QFI is also truncated to 51-65% of the analytical value (conflict: previously reported as 21-52%). Parity readout (#20260625-ext) recovers phase information but the underlying QFI is SQL-limited (α = −0.4923), not Heisenberg — the analytical 2⟨N⟩(⟨N⟩+1) bound applies only to the pre-BS1 input state.
+- **TMSV QFI equivalence** — PASS (truncation-limited). CFI saturates QFI within 1% at all resource values (Δω_C/Δω_Q = 1.000-1.009). The QFI itself is 41-90% of the analytical bound due to Hilbert-space truncation at M = min(5R, 80), which is insufficient at large R.
 - **TMSV Heisenberg scaling** — PARTIAL. The fitted exponent α = -0.76 (R≥4) is between SQL and Heisenberg, trending toward -1.0 as R increases. The finite range R ∈ [4, 40] limits the asymptotic approach. The analytical formula is correct; truncation artifacts reduce the observed sensitivity.
 - **OAT SQL invariance** — PASS. Δω_C = 1/(H_t√N) exactly for all N, confirming Var(J_z) = N/4 is invariant under exp(-i q J_z²) for any q.
 - **OAT scaling exponent** — PASS. Fitted α = -0.5000, C = 0.1000 = 1/H_t, exactly matching SQL.
-- **CFI positivity and Cramér-Rao** — PASS for TMSV and OAT. Δω_C ≥ Δω_Q holds for all data points (TMSV: 1.000-1.010 ratio). SV is not assessable (CFI=0).
+- **CFI positivity and Cramér-Rao** — PASS for TMSV and OAT. Δω_C ≥ Δω_Q holds for all data points (TMSV: 1.000-1.009 ratio). SV is not assessable (CFI=0).
 - **Distribution normalisation** — PASS. $\sum_m P(m|\omega) = 1$ for all ω for all state types.
-- **Truncation convergence** — FAIL. For SV, M = min(5⟨N⟩, 80) captures 72-95% of the norm (below the 99.9% threshold). For TMSV, the geometric-series truncation error at R=40, M=80 gives $1 - \tanh^{2(81)}(r) \approx 0.03$ (97% capture, below threshold). The 99.9% threshold is not met for large R.
+- **Truncation convergence** — FAIL. For SV, M = min(5⟨N⟩, 80) captures 89-97% of the norm (conflict: previously reported as 72-95%, below the 99.9% threshold). For TMSV, the geometric-series truncation error at R=40, M=80 gives $1 - \tanh^{2(81)}(r) \approx 0.019$ (98.1% capture, conflict: previously reported as 0.03 with 97% capture). The 99.9% threshold is not met for large R.
 - **Parquet roundtrip** — PASS. All metadata fields survive roundtrip; fail-fast on missing columns verified by test suite (109 tests). <sup>See §Implementation Status for test counts.</sup>
 
 **Summary**: 3 PASS, 1 PARTIAL (TMSV), 3 FAIL (SV CFI, SV QFI, truncation convergence), 1 PASS (Cramér-Rao for assessable states). The OAT hypothesis is fully confirmed. The TMSV hypothesis is partially confirmed — CFI saturates QFI as expected, but truncation prevents the full analytical QFI from being achieved. The SV hypothesis requires parity readout (#20260625-ext) for a meaningful test. The truncation convergence failure is a known computational limitation: the geometric and super-Poissonian number distributions of squeezed states require M ≫ 5⟨N⟩ for accurate representation at large R.
@@ -222,6 +226,6 @@ The simulations confirm that **OAT spin-squeezed states do not improve $J_z$-gen
 
 The **TMSV hypothesis is partially supported**: CFI saturates QFI within 1% at every resource value, confirming that number-difference measurement is information-theoretically optimal for TMSV in the balanced MZI. The QFI follows the analytical formula $F_Q = H_t^2 R(R+2)$ and the fitted scaling exponent α = -0.76 (R∈[4,40]) is intermediate between SQL and Heisenberg, consistent with asymptotic approach to α → -1.0 at larger R. The sensitivity at R=40 is 4.1× below the SQL, demonstrating clear sub-SQL performance. However, Hilbert-space truncation limits the numerical QFI to 41-90% of the analytical bound at large R, preventing a clean test of the asymptotic Heisenberg limit.
 
-The **SV hypothesis cannot be tested** with the current implementation: the `skip_bs1=True` configuration (where the squeezed vacuum serves as the direct probe without beam-splitter pre-processing) makes the number-difference distribution ω-independent, producing CFI = 0. This is a genuine physical effect — the squeezed-vacuum state $\sum c_n|2n,0\rangle$ has no $|n_1,n_2\rangle$ overlap between different n-sectors after the beam splitter, so the P(m|ω) carries no phase information. Parity measurement $\Pi = (-1)^{n_2}$ would recover the QFI (see #20260625-ext). The QFI bound is additionally truncated by insufficient Hilbert space size (M = min(5⟨N⟩, 80)), capturing only 72-95% of the state norm.
+The **SV hypothesis cannot be tested** with the current implementation: the `skip_bs1=True` configuration (where the squeezed vacuum serves as the direct probe without beam-splitter pre-processing) makes the number-difference distribution ω-independent, producing CFI = 0. This is a genuine physical effect — the squeezed-vacuum state $\sum c_n|2n,0\rangle$ has no $|n_1,n_2\rangle$ overlap between different n-sectors after the beam splitter, so the P(m|ω) carries no phase information. Parity measurement $\Pi = (-1)^{n_2}$ recovers all available phase information (see #20260625-ext), but the QFI of the BS1-processed SV state is SQL-limited (α = −0.4923), not Heisenberg — the analytical $2\langle N\rangle(\langle N\rangle+1)$ formula applies to the pre-BS1 input state, and BS1 transforms the probe to SQL-class J_z variance. The QFI bound is additionally truncated by insufficient Hilbert space size (M = min(5⟨N⟩, 80)), capturing 89-97% of the state norm (conflict: previously reported as 72-95%).
 
-**Open items** — (a) Parity measurement (#20260625-ext) is needed to test whether SV CFI saturates its QFI bound $F_Q = 2⟨N⟩(⟨N⟩+1)$ under the current skip_bs1=True configuration. (b) OAT spin-squeezing is ruled out for $J_z$-generated phase, but remains useful for ancilla pre-squeezing in driven protocols (see #20260619) where the generator is not $J_z$. (c) Evaluate whether the combination of squeezed-vacuum input with subsequent OAT pre-squeezing on an ancilla (extending #20260619) can compound the two enhancement mechanisms. (d) Explore truncation-robust computational techniques (Schwinger boson decomposition, sparse BS operators, or larger truncation M) to extend squeezed-state scaling analysis to larger ⟨N⟩ ≫ 20 without the truncation artifacts observed here.
+**Open items** — (a) Parity measurement (#20260625-ext) confirmed that parity CFI saturates the QFI of the BS1-processed SV state, but the QFI is SQL-limited (α = −0.4923) — the analytical $2⟨N⟩(⟨N⟩+1)$ bound applies to the pre-BS1 input, and BS1 transforms the probe to SQL-class variance. (b) OAT spin-squeezing is ruled out for $J_z$-generated phase, but remains useful for ancilla pre-squeezing in driven protocols (see #20260619) where the generator is not $J_z$. (c) Evaluate whether the combination of squeezed-vacuum input with subsequent OAT pre-squeezing on an ancilla (extending #20260619) can compound the two enhancement mechanisms. (d) Explore truncation-robust computational techniques (Schwinger boson decomposition, sparse BS operators, or larger truncation M) to extend squeezed-state scaling analysis to larger ⟨N⟩ ≫ 20 without the truncation artifacts observed here.

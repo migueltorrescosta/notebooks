@@ -18,6 +18,7 @@ import pytest
 
 from src.analysis.fisher_information import classical_fisher_information_single
 from src.analysis.scaling_fit import fit_scaling_exponent
+from src.physics.hilbert_space import resource_value_to_truncation
 from src.physics.mzi_simulation import beam_splitter_unitary
 from src.physics.mzi_states import (
     compute_jz_expectation,
@@ -25,9 +26,15 @@ from src.physics.mzi_states import (
     input_state_factory,
     standard_twin_fock_state,
 )
+from src.physics.sv_qfi import (
+    check_truncation_convergence,
+    compute_sv_qfi,
+    verify_sv_qfi,
+)
 from src.utils.serialization import assert_roundtrip_fields
 
 _local_path = Path(__file__).resolve().parent / "heisenberg_limit_mzi_sq_oat.py"
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
 _spec = importlib.util.spec_from_file_location("local", str(_local_path))
 assert _spec is not None
 _module = importlib.util.module_from_spec(_spec)
@@ -39,8 +46,6 @@ del _local_path, _spec, _module
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     MziSensitivityDataSV,
     OATQScanResult,
-    _check_truncation_convergence,
-    _compute_sv_qfi,
     _compute_tmsv_qfi,
     _dicke_to_fock,
     _generate_single_resource_data,
@@ -50,9 +55,7 @@ from local import (  # type: ignore[import-untyped]  # noqa: E402
     _maybe_plot_delta_omega_overlays,
     _oat_q_grid,
     _prepare_state,
-    _resource_value_to_truncation,
     _verify_oat_q0_qfi,
-    _verify_sv_qfi,
     _verify_tmsv_qfi,
     analyse_best_worst_sensitivity,
     compute_mzi_sensitivity_grid,
@@ -379,19 +382,19 @@ class TestSVQFI:
         state = input_state_factory("squeezed_vacuum", mean_N, M, r=r)
         var = compute_jz_variance(state, M)
         fq = 4.0 * t_hold**2 * var
-        expected_fq = _compute_sv_qfi(float(mean_N), t_hold)
+        expected_fq = compute_sv_qfi(float(mean_N), t_hold)
         assert np.isclose(fq, expected_fq, rtol=1e-3), (
             f"mean_N={mean_N}: F_Q={fq}, expected {expected_fq}"
         )
 
     @pytest.mark.parametrize("mean_N", [1])
-    def test_verify_sv_qfi_helper(self, mean_N: int) -> None:
+    def testverify_sv_qfi_helper(self, mean_N: int) -> None:
         """Verification helper must return True for SV probe."""
         M = self._SV_M[mean_N]
         r = float(np.arcsinh(np.sqrt(float(mean_N))))
         state = input_state_factory("squeezed_vacuum", mean_N, M, r=r)
         var = compute_jz_variance(state, M)
-        assert _verify_sv_qfi(float(mean_N), var), f"Failed at mean_N={mean_N}"
+        assert verify_sv_qfi(float(mean_N), var), f"Failed at mean_N={mean_N}"
 
 
 # ============================================================================
@@ -642,23 +645,23 @@ class TestTruncationConvergence:
             (4.0, 50),
         ]
         for mean_N, M in cases:
-            assert _check_truncation_convergence(
+            assert check_truncation_convergence(
                 threshold=0.999, mean_n=mean_N, max_photons=M
             ), f"truncation should pass at mean_N={mean_N}, M={M}"
 
     def test_sv_truncation_insufficient(self) -> None:
         """SV analytical check: insufficient truncation is detected."""
         # M=5 for mean_N=1 captures only ~95% (verified analytically).
-        assert not _check_truncation_convergence(
+        assert not check_truncation_convergence(
             threshold=0.999, mean_n=1.0, max_photons=5
         ), "truncation should fail at mean_N=1, M=5"
 
     def test_tmsv_truncation(self) -> None:
         """TMSV state should have >99.9% norm within truncation."""
         for mean_total in [2, 4, 10]:
-            M = _resource_value_to_truncation(float(mean_total), "tmsv")
+            M = resource_value_to_truncation(float(mean_total), "tmsv")
             state = _make_two_mode_squeezed_vacuum(float(mean_total), M)
-            assert _check_truncation_convergence(state, threshold=0.999), (
+            assert check_truncation_convergence(state, threshold=0.999), (
                 f"truncation failed at mean_total={mean_total}, M={M}"
             )
 
@@ -947,20 +950,20 @@ class TestEdgeCases:
     def test_truncation_oat_exact(self) -> None:
         """OAT truncation equals N."""
         for N in [2, 4, 10, 40]:
-            M = _resource_value_to_truncation(float(N), "oat")
+            M = resource_value_to_truncation(float(N), "oat")
             assert M == N, f"OAT truncation: expected {N}, got {M}"
 
     def test_truncation_sv_scaling(self) -> None:
         """SV truncation scales with mean N."""
         for mean_N in [1, 5, 10, 20]:
-            M = _resource_value_to_truncation(float(mean_N), "sv")
+            M = resource_value_to_truncation(float(mean_N), "sv")
             assert mean_N <= M, f"SV truncation M={M} < mean_N={mean_N}"
             assert M <= 80, f"SV truncation M={M} exceeds max"
 
     def test_truncation_tmsv_scaling(self) -> None:
         """TMSV truncation scales with total mean N."""
         for mean_total in [2, 10, 20]:
-            M = _resource_value_to_truncation(float(mean_total), "tmsv")
+            M = resource_value_to_truncation(float(mean_total), "tmsv")
             assert mean_total // 2 <= M, (
                 f"TMSV truncation M={M} too small for mean_total={mean_total}"
             )
@@ -1037,14 +1040,14 @@ class TestTMSVTruncationWarning:
 class TestTMSVAnalyticalTruncation:
     def test_analytical_check_passes(self) -> None:
         """TMSV analytical truncation check passes for adequate M."""
-        assert _check_truncation_convergence(
+        assert check_truncation_convergence(
             threshold=0.999, mean_total=2.0, max_photons=20
         )
 
     def test_analytical_fallthrough_raises(self) -> None:
-        """_check_truncation_convergence with no arguments raises ValueError."""
+        """check_truncation_convergence with no arguments raises ValueError."""
         with pytest.raises(ValueError, match="Must provide"):
-            _check_truncation_convergence()
+            check_truncation_convergence()
 
 
 # ============================================================================
@@ -1115,7 +1118,9 @@ class TestGenerateFullData:
 
 
 class TestMaybeGenerateFullData:
-    def test_maybe_generate_full_data_loads_existing(self) -> None:
+    def test_maybe_generate_full_data_loads_existing(
+        self, tmp_path: Path,
+    ) -> None:
         """_maybe_generate_full_data loads existing Parquet on second call."""
         import sys as _sys
 
@@ -1134,16 +1139,21 @@ class TestMaybeGenerateFullData:
                 mod.OMEGA_STEP,  # type: ignore[attr-defined]
             )
 
+            # Use tmp_path to avoid corrupting production data
+            pq_path = tmp_path / "test_sv.parquet"
+
             # First call: generate and save
             data1 = _maybe_generate_full_data(
-                "sv", r_range, "SV", omega_grid, force=True, only=None
+                "sv", r_range, "SV", omega_grid,
+                force=True, only=None, override_pq_path=pq_path,
             )
             assert data1 is not None
             assert data1.state_type == "sv"
 
             # Second call: load from existing Parquet
             data2 = _maybe_generate_full_data(
-                "sv", r_range, "SV", omega_grid, force=False, only=None
+                "sv", r_range, "SV", omega_grid,
+                force=False, only=None, override_pq_path=pq_path,
             )
             assert data2 is not None
             assert data2.state_type == "sv"

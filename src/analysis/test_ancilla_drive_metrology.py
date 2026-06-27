@@ -451,7 +451,7 @@ class TestFreeAncillaSensitivity:
         """Both evolve_drive_circuit and evolve_phase_modulated_circuit should
         return finite sensitivity for a typical non-pathological configuration."""
         for evolve_fn in [evolve_drive_circuit, evolve_phase_modulated_circuit]:
-            dt, exp_val, var_val, d_exp, is_fringe = compute_free_ancilla_sensitivity(
+            dt, exp_val, var_val, _d_exp, _is_fringe = compute_free_ancilla_sensitivity(
                 evolve_fn,
                 omega_true=0.5,
                 theta_A=np.pi / 4,
@@ -472,7 +472,7 @@ class TestFreeAncillaSensitivity:
     def test_fringe_at_extremum(self) -> None:
         """When derivative is near zero (fringe extremum), is_fringe=True."""
         # Drive hard along J_x so derivative vanishes at some ω
-        dt, exp_val, var_val, d_exp, is_fringe = compute_free_ancilla_sensitivity(
+        dt, _exp_val, _var_val, _d_exp, is_fringe = compute_free_ancilla_sensitivity(
             evolve_drive_circuit,
             omega_true=0.0,  # derivative should be ~0
             theta_A=0.0,
@@ -487,7 +487,7 @@ class TestFreeAncillaSensitivity:
     def test_free_ancilla_vs_fixed_consistent(self) -> None:
         """With theta_A=0, free-ancilla should match fixed-ancilla sensitivity."""
         theta_A = 0.0  # → |1,0⟩_A (fixed ancilla)
-        dt_free, *_, is_fringe_free = compute_free_ancilla_sensitivity(
+        dt_free, *_rest = compute_free_ancilla_sensitivity(
             evolve_drive_circuit,
             omega_true=0.5,
             theta_A=theta_A,

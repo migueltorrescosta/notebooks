@@ -28,24 +28,30 @@ from __future__ import annotations
 
 import argparse
 import os
+import subprocess
+import sys
+import tempfile
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-
-from src.analysis.fisher_information import classical_fisher_information_single
-from src.analysis.scaling_fit import (
-    fit_scaling_exponent,
+from _shared import (
+    SV_N_RANGE,
+    _fig_path,
+    _parquet_path,
+    t_hold,
 )
+
+from src.analysis import mzi_pipeline
+from src.analysis.fisher_information import classical_fisher_information_single
 
 # Re-export shared analysis functions for backward compatibility with local imports.
 from src.analysis.sensitivity_metrics import (
-    MziSensitivityData,
-    analyse_best_worst_sensitivity,
+    MziSensitivityDataSV,
 )
+from src.physics.hilbert_space import resource_value_to_truncation
 from src.physics.mzi_distribution import output_number_diff_distribution
 from src.physics.mzi_simulation import (
     beam_splitter_unitary,
@@ -56,7 +62,7 @@ from src.physics.mzi_states import (
     input_state_factory,
     standard_twin_fock_state,
 )
-from src.utils.paths import report_path_fn
+from src.visualization import mzi_plots
 
 # Force non-interactive backend before any plotting imports.
 if "MPLBACKEND" not in os.environ:
@@ -68,35 +74,20 @@ sns.set_theme(style="whitegrid")
 # Constants
 # ============================================================================
 
-REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
-REPORT_DATE = "20260625"
-t_hold: float = 10.0  # Holding time
-TRUNC_MULTIPLIER: float = 5.0  # Truncation multiplier for SV/TMSV
-MAX_TRUNC: int = 80  # Maximum truncation per mode
 OAT_N_Q_POINTS: int = 20  # Number of q points per OAT N value
 OAT_CHI: float = 1.0  # OAT coupling strength
 
 # Parameter sweep ranges
-SV_N_RANGE: list[float] = [float(n) for n in range(1, 21)]  # ⟨N⟩ = 1..20
 TMSV_N_RANGE: list[float] = [
     float(n) for n in range(2, 41, 2)
 ]  # Total ⟨N⟩ = 2..40 even
 OAT_N_RANGE: list[int] = list(range(2, 41, 2))  # Even N=2..40
-OMEGA_RANGE: tuple[float, float] = (0.1, 5.0)
-OMEGA_STEP: float = 0.1
+OMEGA_RANGE: tuple[float, float] = (0.01, 5.0)
+OMEGA_STEP: float = 0.01
 
 # Scaling fit
-SV_ALPHA_EXPECTED: float = -1.0  # SV → Heisenberg
 TMSV_ALPHA_EXPECTED: float = -1.0  # TMSV → Heisenberg
 OAT_ALPHA_EXPECTED: float = -0.5  # OAT → SQL (invariant under J_z²)
-ALPHA_TOL: float = 0.05  # Tolerance on fitted α for PASS/FAIL determination
-
-
-# ============================================================================
-# Path Helpers
-# ============================================================================
-
-_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
 
 
 # ============================================================================
@@ -255,26 +246,6 @@ def _make_oat_state(N: int, q: float) -> np.ndarray:
 # ============================================================================
 
 
-def _resource_value_to_truncation(resource_value: float, state_type: str) -> int:
-    r"""Compute appropriate Hilbert space truncation for a given resource value.
-
-    For SV: resource_value = mean photon number :math:`\langle N \rangle`.
-    For TMSV: resource_value = total mean photon number :math:`\langle N \rangle_{\text{total}}`.
-    For OAT: truncation = N (exact).
-
-    Args:
-        resource_value: The resource parameter.
-        state_type: ``"sv"``, ``"tmsv"``, or ``"oat"``.
-
-    Returns:
-        Truncation M (max photons per mode).
-    """
-    if state_type == "oat":
-        return int(resource_value)
-    # For SV/TMSV: use truncation multiplier
-    return min(int(np.ceil(TRUNC_MULTIPLIER * resource_value)), MAX_TRUNC)
-
-
 def _prepare_state(
     state_type: str,
     resource_value: float,
@@ -316,23 +287,8 @@ def _prepare_state(
 
 
 # ============================================================================
-# Analytical QFI Computation
+# TMSV Analytical QFI (SV QFI imported from shared src.physics.sv_qfi)
 # ============================================================================
-
-
-def _compute_sv_qfi(mean_N: float, t_hold: float = t_hold) -> float:
-    r"""Analytical QFI for single-mode squeezed vacuum.
-
-    :math:`F_Q = 2 \cdot t_hold^2 \cdot \langle N \rangle (\langle N \rangle + 1)`
-
-    Args:
-        mean_N: Mean photon number :math:`\langle N \rangle = \sinh^2(r)`.
-        t_hold: Holding time.
-
-    Returns:
-        Quantum Fisher information.
-    """
-    return 2.0 * t_hold**2 * mean_N * (mean_N + 1.0)
 
 
 def _compute_tmsv_qfi(mean_total: float, t_hold: float = t_hold) -> float:
@@ -350,101 +306,6 @@ def _compute_tmsv_qfi(mean_total: float, t_hold: float = t_hold) -> float:
         Quantum Fisher information.
     """
     return t_hold**2 * mean_total * (mean_total + 2.0)
-
-
-# ============================================================================
-# Truncation Convergence Check
-# ============================================================================
-
-
-def _compute_sv_captured_norm(mean_N: float, max_photons: int) -> float:
-    r"""Analytical norm captured by SV truncated at ``max_photons`` per mode.
-
-    The single-mode squeezed vacuum :math:`S(r)\vert 0\rangle_1 \otimes \vert 0\rangle_2`
-    only populates states :math:`\vert 2n, 0\rangle`.  The probability of the
-    :math:`2n`-photon component satisfies the recurrence:
-
-    .. math::
-
-        P(0) = \frac{1}{\cosh(r)},\qquad
-        P(2n) = \frac{2n-1}{2n}\,\tanh^{2}(r)\,P(2n-2)
-
-    The captured norm is :math:`\sum_{n=0}^{\lfloor M/2\rfloor} P(2n)` where
-    :math:`M =` ``max_photons`` and :math:`\langle N \rangle = \sinh^{2}(r)`.
-
-    Args:
-        mean_N: Mean photon number :math:`\langle N \rangle = \sinh^{2}(r)`.
-        max_photons: Truncation per mode (maximum photon number).
-
-    Returns:
-        Fraction of total norm captured in :math:`[0, 1]`.
-    """
-    r = float(np.arcsinh(np.sqrt(mean_N)))
-    tanh_sq = np.tanh(r) ** 2
-    cosh_r = np.cosh(r)
-    max_n = max_photons // 2  # only even n are populated
-
-    prob = 1.0 / cosh_r  # P(0)
-    captured = prob
-
-    for n in range(1, max_n + 1):
-        prob *= (2.0 * n - 1.0) / (2.0 * n) * tanh_sq
-        captured += prob
-
-    return float(captured)
-
-
-def _check_truncation_convergence(
-    state: np.ndarray | None = None,
-    threshold: float = 0.999,
-    *,
-    mean_total: float | None = None,
-    mean_n: float | None = None,
-    max_photons: int | None = None,
-) -> bool:
-    r"""Check that the truncated Hilbert space captures enough norm.
-
-    For SV states, the analytical truncation error is computed using the
-    photon-number recurrence of the squeezed vacuum *before* renormalisation
-    (which would otherwise hide the truncation loss).
-
-    For TMSV states, the analytical truncation error is the geometric series:
-
-    .. math::
-
-        \sum_{n=0}^{M} \frac{\tanh^{2n}(r)}{\cosh^{2}(r)}
-        = 1 - \tanh^{2(M+1)}(r)
-
-    Args:
-        state: State vector (only used as fallback when analytical parameters
-            are not provided).
-        threshold: Minimum captured fraction (default 0.999).
-        mean_total: Total mean photon number for TMSV (analytical check).
-        mean_n: Mean photon number for SV (analytical check).
-        max_photons: Truncation per mode (required for analytical checks).
-
-    Returns:
-        True if the captured norm fraction >= threshold.
-
-    Raises:
-        ValueError: If neither analytical parameters nor state are provided.
-    """
-    if mean_n is not None and max_photons is not None:
-        # Analytical check for SV before renormalisation
-        captured = _compute_sv_captured_norm(mean_n, max_photons)
-        return captured >= threshold
-    if mean_total is not None and max_photons is not None:
-        # Analytical check for TMSV before renormalisation
-        r = float(np.arcsinh(np.sqrt(mean_total / 2.0)))
-        tanh_r = np.tanh(r)
-        captured = 1.0 - tanh_r ** (2 * (max_photons + 1))
-        return captured >= threshold
-    if state is not None:
-        return bool(np.linalg.norm(state) >= threshold)
-    raise ValueError(
-        "Must provide (mean_n, max_photons) for SV, "
-        "(mean_total, max_photons) for TMSV, or state."
-    )
 
 
 # ============================================================================
@@ -466,22 +327,7 @@ def _use_skip_bs1(state_type: str) -> bool:
     return state_type in ("sv", "oat", "noon")
 
 
-# ============================================================================
-# MziSensitivityDataSV Dataclass
-# ============================================================================
-
-
-@dataclass
-class MziSensitivityDataSV(MziSensitivityData):
-    """Sensitivity data for squeezed-vacuum or OAT MZI.
-
-    Inherits all fields, serialization, and Parquet I/O from the shared
-    :class:`MziSensitivityData` in ``src.analysis.sensitivity_metrics``.
-    """
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> MziSensitivityDataSV:
-        return super().from_parquet(path)  # type: ignore[return-value]
+# MziSensitivityDataSV is imported from src.analysis.sensitivity_metrics
 
 
 # ============================================================================
@@ -666,7 +512,7 @@ def generate_single_omega_scan(
         ValueError: If ``state_type="oat"`` and ``q`` is ``None``.
     """
     if max_photons is None:
-        max_photons = _resource_value_to_truncation(resource_value, state_type)
+        max_photons = resource_value_to_truncation(resource_value, state_type)
 
     # Determine resource type label
     if state_type in ("oat", "noon", "twin_fock_std"):
@@ -741,6 +587,9 @@ def _generate_single_resource_data(
 ) -> MziSensitivityDataSV | None:
     r"""Run omega scan for a single resource value, returning None on failure.
 
+    Delegates to :func:`mzi_pipeline.safe_generate_scan` with a closure that computes
+    the truncation and calls :func:`generate_single_omega_scan`.
+
     Args:
         state_type: ``"sv"``, ``"tmsv"``, or ``"oat"``.
         resource_value: Resource parameter.
@@ -751,65 +600,69 @@ def _generate_single_resource_data(
     Returns:
         MziSensitivityDataSV with one resource value, or None on failure.
     """
-    try:
-        max_photons = _resource_value_to_truncation(resource_value, state_type)
-        return generate_single_omega_scan(
-            state_type,
-            resource_value,
-            omega_grid,
-            max_photons=max_photons,
-            t_hold=t_hold,
-            q=q,
+    def _gen_one(R: float, og: np.ndarray, t_hold: float) -> MziSensitivityDataSV | None:
+        max_photons = resource_value_to_truncation(R, state_type)
+        result = generate_single_omega_scan(
+            state_type, R, og,
+            max_photons=max_photons, t_hold=t_hold, q=q,
         )
-    except (ValueError, AssertionError) as exc:
-        print(f"Warning: resource={resource_value} failed for {state_type}: {exc}")
-        return None
+        # Free the beam-splitter matrix from the LRU cache after each R value.
+        # Without this, all cached BS matrices (M=5..80) accumulate ~2.5 GB,
+        # causing OOM crashes around SV R=14 (M=70).
+        beam_splitter_unitary.cache_clear()
+        # Force glibc to release freed memory back to the OS.  BS construction
+        # (bs_fock) creates dense operators + dense expm, allocating 5-8 GB
+        # temporarily.  Python's allocator does not return this to the OS,
+        # so RSS grows monotonically across R values until OOM.
+        import ctypes
+        try:
+            libc = ctypes.CDLL("libc.so.6")
+            libc.malloc_trim(0)
+        except Exception:
+            pass  # Non-glibc systems may lack malloc_trim
+        return result
+
+    return mzi_pipeline.safe_generate_scan(
+        _gen_one, resource_value, omega_grid, t_hold,
+        fail_label=f"{state_type} R={resource_value}",
+    )
 
 
-def _collect_metadata_per_r(
-    scan_results: list[MziSensitivityDataSV],
-) -> tuple[np.ndarray, np.ndarray]:
-    """Extract truncation_M and squeezing_q arrays from scan results."""
-    trunc_Ms: list[float] = []
-    sq_qs: list[float] = []
-    for r in scan_results:
-        trunc_val = (
-            r.truncation_M_per_R[0] if r.truncation_M_per_R is not None else np.nan
-        )
-        sq_val = r.squeezing_q_per_R[0] if r.squeezing_q_per_R is not None else np.nan
-        trunc_Ms.append(float(trunc_val))
-        sq_qs.append(float(sq_val))
-    return np.array(trunc_Ms, dtype=float), np.array(sq_qs, dtype=float)
-
-
-def _concatenate_scan_results(
-    scan_results: list[MziSensitivityDataSV],
+def _run_worker(
     state_type: str,
+    R: float,
+    omega_start: float,
+    omega_end: float,
+    omega_step: float,
     t_hold: float,
-) -> MziSensitivityDataSV:
-    """Concatenate a list of single-resource scan results."""
-    resource_type = scan_results[0].resource_type
-    omega_values = scan_results[0].omega_values
-    trunc_Ms, sq_qs = _collect_metadata_per_r(scan_results)
+    output_path: Path,
+) -> None:
+    r"""Run a single R value in a **subprocess** to avoid OOM.
 
-    def _cat(field: str) -> np.ndarray:
-        return np.concatenate([getattr(r, field) for r in scan_results])
-
-    return MziSensitivityDataSV(
-        state_type=state_type,
-        resource_type=resource_type,
-        resource_values=_cat("resource_values"),
-        omega_values=omega_values,
-        expectation_grid=_cat("expectation_grid"),
-        variance_grid=_cat("variance_grid"),
-        derivative_grid=_cat("derivative_grid"),
-        delta_omega_ep_grid=_cat("delta_omega_ep_grid"),
-        delta_omega_q_per_R=_cat("delta_omega_q_per_R"),
-        fisher_classical_grid=_cat("fisher_classical_grid"),
-        delta_omega_c_grid=_cat("delta_omega_c_grid"),
-        t_hold=t_hold,
-        truncation_M_per_R=trunc_Ms,
-        squeezing_q_per_R=sq_qs,
+    Each worker process is a fresh Python interpreter; when it finishes, the OS
+    fully reclaims all memory (BS construction temporaries, expm arenas, etc.).
+    """
+    # The worker script runs inline (-c) to avoid serialising large arrays.
+    # Uses short-circuit ``and`` instead of ``if`` because ``-c`` scripts
+    # cannot contain keyword statements after semicolons.
+    # pylint: disable=line-too-long
+    script = (
+        "import os,sys,numpy as np;"
+        f"os.environ.setdefault('MPLBACKEND','Agg');"
+        f"sys.path.insert(0,{str(Path(__file__).parent)!r});"
+        f"from heisenberg_limit_mzi_sq_oat import generate_single_omega_scan;"
+        f"from src.physics.mzi_simulation import beam_splitter_unitary;"
+        f"from src.physics.hilbert_space import resource_value_to_truncation;"
+        f"beam_splitter_unitary.cache_clear();"
+        f"M=resource_value_to_truncation({R},{state_type!r});"
+        f"og=np.arange({omega_start},{omega_end}+{omega_step}/2,{omega_step});"
+        f"r=generate_single_omega_scan({state_type!r},{R},og,max_photons=M,t_hold={t_hold});"
+        f"r is not None and r.save_parquet({str(output_path)!r})"
+    )
+    subprocess.run(
+        [sys.executable, "-c", script],
+        check=True,
+        timeout=7200,
     )
 
 
@@ -821,6 +674,11 @@ def generate_full_data(
 ) -> MziSensitivityDataSV:
     r"""Generate sensitivity data for all resource values in a range.
 
+    For state types with :math:`M \ge 30` (SV and TMSV at large R), each R value
+    is run in a **subprocess** to avoid OOM from BS construction (``bs_fock``
+    creates dense operators + dense expm, allocating 5--8 GB temporarily, and
+    glibc does not release the freed arenas back to the OS).
+
     Args:
         state_type: ``"sv"``, ``"tmsv"``, or ``"oat"``.
         resource_range: List of resource parameter values.
@@ -830,22 +688,59 @@ def generate_full_data(
     Returns:
         MziSensitivityDataSV with all resource values.
     """
+    # OAT uses M ≤ 40 (BS ~45 MB), fine in-process.
+    # SV/TMSV can use M up to 80 (BS ~688 MB, BS construction peak ~8 GB)
+    # so we run each R value in a separate process for large M.
+    if state_type == "oat":
+        def _gen(R: float, og: np.ndarray, t_hold: float) -> MziSensitivityDataSV | None:
+            return _generate_single_resource_data(state_type, R, og, t_hold=t_hold)
+        return mzi_pipeline.generate_full_data(
+            state_type, resource_range, omega_grid, _gen, t_hold=t_hold,
+        )
+
+    # SV / TMSV: use subprocess workers
+    omega_start = omega_grid[0]
+    omega_step = omega_grid[1] - omega_grid[0]
+    omega_end = omega_grid[-1]
+
     scan_results: list[MziSensitivityDataSV] = []
-    for idx, R in enumerate(resource_range):
-        print(
-            f"  Sweeping {state_type} R={R} ({idx + 1}/{len(resource_range)})...",
-            flush=True,
-        )
-        scan = _generate_single_resource_data(
-            state_type, float(R), omega_grid, t_hold=t_hold
-        )
-        if scan is not None:
-            scan_results.append(scan)
+    tmpdir = Path(tempfile.mkdtemp())
+    try:
+        for idx, R in enumerate(resource_range):
+            print(
+                f"  Sweeping {state_type} R={R} ({idx + 1}/{len(resource_range)})...",
+                flush=True,
+            )
+            tf = tmpdir / f"R_{R}.parquet"
+            # Retry up to 3 times with a 60s pause; OOM-killed workers can
+            # be transient when the system is under memory pressure.
+            for attempt in range(3):
+                try:
+                    _run_worker(state_type, R, omega_start, omega_end,
+                                omega_step, t_hold, tf)
+                    break
+                except subprocess.CalledProcessError:
+                    if attempt < 2:
+                        import time as _time
+                        _time.sleep(60)
+                        print(f"  Retrying {state_type} R={R}...", flush=True)
+                        continue
+                    raise
+            if tf.exists():
+                scan_results.append(MziSensitivityDataSV.from_parquet(tf))
+            # Brief pause between large-R workers so the OS can reclaim memory
+            # and reduce OOM pressure from concurrent page reclaim / compaction.
+            if R >= 10:
+                import time as _time
+                _time.sleep(30)
 
-    if not scan_results:
-        raise RuntimeError(f"No valid resource values for state_type={state_type}")
+        if not scan_results:
+            raise RuntimeError(f"No valid resource values for {state_type}")
 
-    return _concatenate_scan_results(scan_results, state_type, t_hold)
+        return mzi_pipeline.concatenate_scan_results(scan_results, state_type, t_hold)
+    finally:
+        import shutil
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def _maybe_generate_full_data(
@@ -855,8 +750,14 @@ def _maybe_generate_full_data(
     omega_grid: np.ndarray,
     force: bool,
     only: str | None,
+    override_pq_path: Path | None = None,
 ) -> MziSensitivityDataSV | None:
     r"""Load or generate sensitivity data for one state type.
+
+    Delegates to the report's :func:`generate_full_data` (with subprocess
+    workers for SV/TMSV) instead of the shared
+    :func:`mzi_pipeline.maybe_generate_full_data`, so that BS construction
+    memory is fully reclaimed between R values.
 
     Args:
         st: State type key (e.g. ``"sv"``, ``"tmsv"``, ``"oat"``).
@@ -865,6 +766,8 @@ def _maybe_generate_full_data(
         omega_grid: :math:`\omega` grid.
         force: Re-generate even if Parquet exists.
         only: If set, only load/generate for matching state type.
+        override_pq_path: If set, use this path instead of the default
+            production path.  Intended for tests.
 
     Returns:
         MziSensitivityDataSV or None if filtered out by ``only``.
@@ -872,13 +775,14 @@ def _maybe_generate_full_data(
     if only is not None and st != only:
         return None
 
-    pq_path = _parquet_path(f"{st}_sensitivity")
+    pq_path = override_pq_path or _parquet_path(f"{st}_sensitivity")
+
     if pq_path.exists() and not force:
         print(f"Loading existing data for {label} from {pq_path}")
         return MziSensitivityDataSV.from_parquet(pq_path)
 
-    print(f"Generating {label} sensitivity data (R={r_range[0]}..{r_range[-1]})")
-    data = generate_full_data(st, r_range, omega_grid, t_hold=t_hold)
+    print(f"Generating {label} data (R={r_range[0]}..{r_range[-1]})")
+    data = generate_full_data(st, r_range, omega_grid, t_hold=10.0)
     data.save_parquet(pq_path)
     print(f"  Saved to {pq_path}")
     return data
@@ -900,6 +804,9 @@ def plot_delta_omega_overlay(
 ) -> Path:
     """Overlay Δω_C and Δω_Q vs ω for multiple resource values on a single panel.
 
+    Delegates to the shared :func:`mzi_plots.plot_delta_omega_overlay` with
+    :func:`_fig_path` for default save-path resolution.
+
     Args:
         data: Sensitivity data containing all resource values.
         selected_R: Which resource values to include (auto-selected if None).
@@ -908,59 +815,12 @@ def plot_delta_omega_overlay(
     Returns:
         Path to saved SVG.
     """
-    if selected_R is None:
-        n_R = len(data.resource_values)
-        step = max(1, n_R // 7)
-        selected_R = [float(data.resource_values[i]) for i in range(0, n_R, step)]
-
     if save_path is None:
         save_path = _fig_path(f"{data.state_type}_delta_omega_comparison")
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    state_label = data.state_type.upper()
-    fig, ax = plt.subplots(figsize=(10, 6))
-
-    cmap = plt.colormaps["viridis"]
-    colors = cmap(np.linspace(0.15, 0.85, len(selected_R)))
-
-    for idx, R_val in enumerate(selected_R):
-        match = np.where(np.isclose(data.resource_values, R_val, rtol=1e-10))[0]
-        if len(match) == 0:
-            continue
-        r_idx = match[0]
-        omega = data.omega_values
-        dt_c = data.delta_omega_c_grid[r_idx, :]
-        dt_q = data.delta_omega_q_per_R[r_idx]
-
-        c_finite = np.isfinite(dt_c)
-        if np.any(c_finite):
-            ax.semilogy(
-                omega[c_finite],
-                dt_c[c_finite],
-                color=colors[idx],
-                linewidth=1.5,
-                label=rf"R={R_val}  $\Delta\omega_{{\mathrm{{C}}}}$",
-            )
-
-        ax.axhline(
-            y=float(dt_q),
-            color=colors[idx],
-            linestyle="--",
-            linewidth=1.0,
-            alpha=0.6,
-        )
-
-    ax.set_xlabel(r"$\omega$")
-    ax.set_ylabel(r"$\Delta\omega$")
-    ax.set_title(rf"{state_label} — Phase Sensitivity vs $\omega$")
-    ax.legend(fontsize=8, loc="best", ncol=1)
-    ax.grid(True, alpha=0.3, which="both")
-
-    plt.tight_layout()
-    fig.savefig(save_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    return save_path
+    return mzi_plots.plot_delta_omega_overlay(
+        data, selected_R=selected_R, save_path=save_path,
+        title=f"{data.state_type.upper()} --- Phase Sensitivity vs $\\omega$",
+    )
 
 
 def plot_scaling(
@@ -971,7 +831,8 @@ def plot_scaling(
 ) -> Path:
     """Log-log plot of best Δω vs resource parameter with analytical QFI bounds and fits.
 
-    Overlays multiple state types on a single figure.
+    Delegates to the shared :func:`mzi_plots.plot_scaling` with
+    :func:`_fig_path` for default save-path resolution.
 
     Args:
         data_list: List of sensitivity data (entries may be None).
@@ -982,95 +843,11 @@ def plot_scaling(
     Returns:
         Path to saved SVG.
     """
-    if all(d is None for d in data_list):
-        raise ValueError("At least one data set must be provided")
-
     if save_path is None:
         save_path = _fig_path("scaling_comparison")
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig, ax = plt.subplots(figsize=(8, 6))
-
-    # Reference lines — use a generic resource axis
-    R_ref = np.logspace(0, 1.5, 50)
-    ax.plot(
-        R_ref,
-        1.0 / (t_hold * R_ref),
-        "k--",
-        alpha=0.4,
-        label=r"$\propto 1/R$ (Heisenberg)",
+    return mzi_plots.plot_scaling(
+        data_list, labels, save_path=save_path, N_min_fit=N_min_fit,
     )
-    ax.plot(
-        R_ref,
-        1.0 / (t_hold * np.sqrt(R_ref)),
-        "k:",
-        alpha=0.4,
-        label=r"$\propto 1/\sqrt{R}$ (SQL)",
-    )
-
-    colours = ["C0", "C1", "C2", "C3", "C4"]
-    markers = ["o", "s", "^", "D", "v"]
-
-    for i, (data, label) in enumerate(zip(data_list, labels, strict=False)):
-        if data is None:
-            continue
-        colour = colours[i % len(colours)]
-        marker = markers[i % len(markers)]
-
-        # QFI bound
-        ax.loglog(
-            data.resource_values,
-            data.delta_omega_q_per_R,
-            f"{colour}--",
-            alpha=0.5,
-            label=f"{label} QFI bound",
-        )
-
-        # Best Δω_C at each resource value
-        analysis = analyse_best_worst_sensitivity(
-            data.resource_values,
-            data.omega_values,
-            data.delta_omega_c_grid,
-        )
-        R_vals = analysis["resource_values"]
-        best_dt_c = analysis["best_sensitivity"]
-        finite = np.isfinite(best_dt_c)
-        if np.any(finite):
-            ax.loglog(
-                R_vals[finite],
-                best_dt_c[finite],
-                f"{colour}{marker}-",
-                label=rf"{label} best $\Delta\omega_{{\mathrm{{C}}}}$",
-            )
-
-        # Fit exponent
-        best_c_finite = np.array(best_dt_c, dtype=float)
-        fit_result = fit_scaling_exponent(
-            np.array(R_vals, dtype=float), best_c_finite, min_N=int(N_min_fit)
-        )
-        if fit_result.valid:
-            N_fit = fit_result.N_values
-            delta_fit = fit_result.C * N_fit**fit_result.alpha
-            ax.loglog(
-                N_fit,
-                delta_fit,
-                f"{colour}--",
-                alpha=0.7,
-                linewidth=1.5,
-                label=f"{label}: "
-                rf"$\alpha = {fit_result.alpha:.3f}$",
-            )
-
-    ax.set_xlabel("Resource parameter $R$")
-    ax.set_ylabel(r"$\Delta\omega$")
-    ax.set_title("Phase Sensitivity Scaling in Standard MZI")
-    ax.legend(fontsize=9)
-    ax.grid(True, alpha=0.3, which="both")
-    plt.tight_layout()
-    fig.savefig(save_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    return save_path
 
 
 # ============================================================================
@@ -1085,16 +862,9 @@ def _maybe_plot_delta_omega_overlays(
     only: str | None,
 ) -> None:
     """Plot Δω overlay figures for each state type."""
-    for st, _r_range, _label in state_configs:
-        if only is not None and st != only:
-            continue
-        data = results.get(st)
-        if data is None:
-            continue
-        overlay_path = _fig_path(f"{st}_delta_omega_comparison")
-        if not overlay_path.exists() or force:
-            plot_delta_omega_overlay(data, save_path=overlay_path)
-            print(f"  Plotted {overlay_path}")
+    mzi_plots.maybe_plot_delta_omega_overlays(
+        results, state_configs, force, only, _fig_path,
+    )
 
 
 def _maybe_plot_scaling_comparison(
@@ -1102,18 +872,11 @@ def _maybe_plot_scaling_comparison(
     force: bool,
 ) -> None:
     """Plot combined scaling comparison."""
-    path = _fig_path("scaling_comparison")
-    if not path.exists() or force:
-        plot_scaling(
-            [
-                results.get("sv"),
-                results.get("tmsv"),
-                results.get("oat"),
-            ],
-            ["SV", "TMSV", "OAT"],
-            save_path=path,
-        )
-        print(f"  Plotted {path}")
+    mzi_plots.maybe_plot_scaling_comparison(
+        results, force, _fig_path,
+        data_keys=["sv", "tmsv", "oat"],
+        data_labels=["SV", "TMSV", "OAT"],
+    )
 
 
 def _generate_plots(
@@ -1123,29 +886,16 @@ def _generate_plots(
     only: str | None,
 ) -> None:
     """Generate all plots from the computed sensitivity data."""
-    _maybe_plot_delta_omega_overlays(results, state_configs, force, only)
-    _maybe_plot_scaling_comparison(results, force)
+    mzi_plots.generate_plots(
+        results, state_configs, force, only, _fig_path,
+        scaling_data_keys=["sv", "tmsv", "oat"],
+        scaling_data_labels=["SV", "TMSV", "OAT"],
+    )
 
 
 # ============================================================================
 # Analytical QFI Verification Functions
 # ============================================================================
-
-
-def _verify_sv_qfi(mean_N: float, var_probe: float) -> bool:
-    r"""Verify that Var(J_z) satisfies the SV analytical formula.
-
-    :math:`\text{Var}(J_z)_{\text{probe}} = \langle N \rangle (\langle N \rangle + 1) / 2`
-
-    Args:
-        mean_N: Mean photon number.
-        var_probe: Computed variance of J_z from the probe state.
-
-    Returns:
-        True if the variance matches the analytical formula within tolerance.
-    """
-    expected_var = mean_N * (mean_N + 1.0) / 2.0
-    return bool(np.isclose(var_probe, expected_var, rtol=1e-4))
 
 
 def _verify_tmsv_qfi(mean_total: float, var_probe: float) -> bool:

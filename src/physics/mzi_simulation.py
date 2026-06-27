@@ -25,6 +25,7 @@ Conventions:
   phase shift, which is correct for indefinite-N states.
 """
 
+from collections.abc import Callable
 from functools import lru_cache
 
 import numpy as np
@@ -886,7 +887,7 @@ def evolve_mzi_with_noise(
 # =============================================================================
 
 
-def _build_jz_operator(max_photons: int) -> np.ndarray:
+def build_jz_operator(max_photons: int) -> np.ndarray:
     r"""Build :math:`J_z = (n_1 - n_2)/2` as a diagonal operator.
 
     Args:
@@ -901,7 +902,7 @@ def _build_jz_operator(max_photons: int) -> np.ndarray:
         for n2 in range(dim):
             idx = n1 * dim + n2
             jz[idx] = (n1 - n2) / 2.0
-    return np.diag(jz)
+    return jz  # 1D diagonal — callers wrap with np.diag() if a full matrix is needed
 
 
 def apply_phase_shift_mzi(
@@ -977,6 +978,88 @@ def simple_mzi_evolution(
     return bs @ state  # BS2
 
 
+# ── Helpers for compute_mzi_sensitivity_grid ────────────────────────────────
+
+
+def _setup_mzi_callbacks(
+    distribution_fn: Callable[[np.ndarray, int], np.ndarray] | None,
+    observable_fn: Callable[[np.ndarray, int], tuple[float, float]] | None,
+    max_photons: int,
+) -> tuple[
+    Callable[[np.ndarray, int], np.ndarray],
+    Callable[[np.ndarray], tuple[float, float]],
+]:
+    """Resolve the distribution and observable callbacks.
+
+    Args:
+        distribution_fn: Optional custom distribution function.
+        observable_fn: Optional custom observable function.
+        max_photons: Hilbert space truncation.
+
+    Returns:
+        ``(dist_fn, obs_fn)`` ready for use in the main loop.
+    """
+    if distribution_fn is not None:
+        dist_fn = distribution_fn
+    else:
+        from src.physics.mzi_distribution import output_number_diff_distribution
+
+        dist_fn = output_number_diff_distribution
+
+    if observable_fn is not None:
+        obs_fn = lambda s: observable_fn(s, max_photons)  # type: ignore[unused-ignore,misc]
+    else:
+        # J_z is diagonal in the Fock basis; use element-wise ops for speed.
+        jz_diag = build_jz_operator(max_photons)
+        jz2_diag = jz_diag ** 2
+
+        def _jz_obs(state: np.ndarray) -> tuple[float, float]:
+            probs = np.abs(state) ** 2
+            exp = float(np.real(np.sum(probs * jz_diag)))
+            var = float(np.real(np.sum(probs * jz2_diag) - exp**2))
+            return exp, var
+
+        obs_fn = _jz_obs
+
+    return dist_fn, obs_fn
+
+
+def _resolve_beam_splitter(
+    bs: np.ndarray | None,
+    max_photons: int,
+) -> np.ndarray:
+    """Return a validated beam-splitter unitary."""
+    if bs is not None:
+        assert bs.shape == (
+            (max_photons + 1) ** 2,
+            (max_photons + 1) ** 2,
+        ), f"BS shape {bs.shape} != {((max_photons + 1) ** 2, (max_photons + 1) ** 2)}"
+        return bs
+    return beam_splitter_unitary(np.pi / 4, 0.0, max_photons)
+
+
+def _compute_qfi_bound(
+    initial_state: np.ndarray,
+    skip_bs1: bool,
+    t_hold: float,
+    max_photons: int,
+    bs: np.ndarray,
+) -> tuple[float, float]:
+    """Compute Δω_Q and F_Q from J_z variance of the probe state."""
+    # J_z is diagonal in the Fock basis; use element-wise ops for speed.
+    jz_diag = build_jz_operator(max_photons)
+    jz2_diag = jz_diag ** 2
+
+    probe_state = initial_state.copy() if skip_bs1 else bs @ initial_state
+    probs = np.abs(probe_state) ** 2
+    mean_probe = float(np.real(np.sum(probs * jz_diag)))
+    mean_sq_probe = float(np.real(np.sum(probs * jz2_diag)))
+    var_probe = mean_sq_probe - mean_probe**2
+    fq = 4.0 * t_hold**2 * var_probe
+    delta_omega_q = 1.0 / np.sqrt(fq) if fq > 0 else float("inf")
+    return float(delta_omega_q), float(fq)
+
+
 def compute_mzi_sensitivity_grid(
     initial_state: np.ndarray,
     omega_grid: np.ndarray,
@@ -986,23 +1069,37 @@ def compute_mzi_sensitivity_grid(
     cfi_epsilon: float = 1e-6,
     prob_floor: float = 1e-15,
     bs: np.ndarray | None = None,
+    *,
+    distribution_fn: Callable[[np.ndarray, int], np.ndarray] | None = None,
+    observable_fn: Callable[[np.ndarray, int], tuple[float, float]] | None = None,
 ) -> dict[str, np.ndarray | float]:
     r"""Compute :math:`\Delta\omega_C`, :math:`\Delta\omega_{\text{EP}}` and
     :math:`\Delta\omega_Q` across a :math:`\omega` grid.
 
+    The default behaviour (all callbacks ``None``) computes the number-difference
+    distribution :math:`P(m|\omega)` and uses :math:`J_z` as the observable for
+    error propagation (matching the standard MZI with number-difference readout).
+
+    Custom ``distribution_fn`` and ``observable_fn`` callbacks enable alternative
+    measurement strategies (e.g. single-mode parity).  When provided:
+
+    * ``distribution_fn(state, max_photons)`` returns the measurement-outcome
+      probability distribution as a 1D array.
+    * ``observable_fn(state, max_photons)`` returns a ``(expectation, variance)``
+      pair used for the error-propagation sensitivity curve.
+
     For each :math:`\omega_i`:
         1. Evolve the state through the MZI
-        2. Compute :math:`P(m|\omega_i)` from the output state
-        3. Compute :math:`\langle J_z\rangle_{\text{out}}` and
-           :math:`\text{Var}(J_z)_{\text{out}}`
-        4. Compute :math:`\partial P(m|\omega)/\partial\omega` via
+        2. Compute :math:`P(m|\omega_i)` via ``distribution_fn``
+        3. Compute and store the expectation and variance via ``observable_fn``
+        4. Compute :math:`\partial\langle O\rangle/\partial\omega` via
            central finite differences with step ``cfi_epsilon``
-        5. :math:`F_C = \sum_m (\partial P/\partial\omega)^2 / P`
+        5. :math:`F_C = \sum_m (\partial P_m/\partial\omega)^2 / P_m`
         6. :math:`\Delta\omega_C = 1/\sqrt{F_C}`
 
-    The QFI bound :math:`\Delta\omega_Q = 1/\sqrt{F_Q}` is computed from the
+    The QFI bound :math:`\Delta\omega_Q = 1/\sqrt{F_Q}` is always computed from the
     probe state using :math:`F_Q = 4 t_hold^2 \text{Var}(J_z)_{\text{probe}}`,
-    independent of :math:`\omega`.
+    independent of :math:`\omega` and the measurement choice.
 
     Args:
         initial_state: Input state in the two-mode Fock basis.
@@ -1012,13 +1109,19 @@ def compute_mzi_sensitivity_grid(
         skip_bs1: If True, omit BS1 from both probe and evolution.
         cfi_epsilon: Finite-difference step for CFI and EP derivatives.
         prob_floor: Minimum probability floor for CFI denominator.
+        distribution_fn: Optional custom distribution function
+            ``(state, max_photons) -> array``.  Defaults to
+            ``output_number_diff_distribution``.
+        observable_fn: Optional custom observable function
+            ``(state, max_photons) -> (expectation, variance)``.
+            Defaults to :math:`J_z`-based computation.
 
     Returns:
         Dictionary with keys:
         - ``omega_values``: The input :math:`\omega` grid.
-        - ``expectation_values``: :math:`\langle J_z\rangle_{\text{out}}`.
-        - ``variance_values``: :math:`\text{Var}(J_z)_{\text{out}}`.
-        - ``derivative_values``: :math:`\partial\langle J_z\rangle/\partial\omega`.
+        - ``expectation_values``: Observable expectation at each :math:`\omega`.
+        - ``variance_values``: Observable variance at each :math:`\omega`.
+        - ``derivative_values``: Derivative of expectation w.r.t. :math:`\omega`.
         - ``delta_omega_ep``: :math:`\Delta\omega_{\text{EP}}` (error propagation).
         - ``delta_omega_q``: :math:`\Delta\omega_Q` (scalar, :math:`\omega`-independent).
         - ``fisher_quantum``: :math:`F_Q` (scalar).
@@ -1026,49 +1129,29 @@ def compute_mzi_sensitivity_grid(
         - ``delta_omega_c``: :math:`\Delta\omega_C(\omega)` (array).
     """
     n_omega = len(omega_grid)
-    jz = _build_jz_operator(max_photons)
-    jz2 = jz @ jz
 
-    # Pre-compute beam splitter (same for all ω)
-    if bs is not None:
-        assert bs.shape == ((max_photons + 1) ** 2, (max_photons + 1) ** 2), (
-            f"BS shape {bs.shape} != {((max_photons + 1) ** 2, (max_photons + 1) ** 2)}"
-        )
-    else:
-        bs = beam_splitter_unitary(np.pi / 4, 0.0, max_photons)
+    # ── Set up distribution and observable callbacks ──────────────────────
+    dist_fn, obs_fn = _setup_mzi_callbacks(
+        distribution_fn, observable_fn, max_photons,
+    )
 
-    # Compute the probe state for QFI bound
-    if skip_bs1:
-        probe_state = initial_state.copy()
-    else:
-        probe_state = bs @ initial_state
-    mean_probe = np.conj(probe_state) @ jz @ probe_state
-    mean_sq_probe = np.conj(probe_state) @ jz2 @ probe_state
-    var_probe = float(np.real(mean_sq_probe - mean_probe**2))
-    fq = 4.0 * t_hold**2 * var_probe
-    delta_omega_q = 1.0 / np.sqrt(fq) if fq > 0 else float("inf")
+    # Determine distribution dimension from a sample call
+    sample_dist = dist_fn(initial_state, max_photons)
+    distribution_dim = len(sample_dist)
 
-    # Evolve state at each ω and compute statistics
+    # ── QFI bound (always from J_z, independent of measurement) ──────────
+    bs = _resolve_beam_splitter(bs, max_photons)
+    delta_omega_q, fq = _compute_qfi_bound(initial_state, skip_bs1, t_hold, max_photons, bs)
+
+    # ── Evolve state at each ω and compute statistics ─────────────────────
     expectation_values = np.zeros(n_omega, dtype=float)
     variance_values = np.zeros(n_omega, dtype=float)
     derivative_values = np.zeros(n_omega, dtype=float)
     fisher_classical = np.full(n_omega, np.nan, dtype=float)
 
-    # Cache P(m|ω_i) for each ω_i
-    from src.physics.mzi_distribution import output_number_diff_distribution
+    P_grid = np.zeros((n_omega, distribution_dim), dtype=float)
 
-    P_grid = np.zeros((n_omega, 2 * max_photons + 1), dtype=float)
-
-    # Pre-compute post-BS1 state (used in main loop when skip_bs1=False)
     bs1_state = bs @ initial_state if not skip_bs1 else None
-
-    def _jz_expectation(state: np.ndarray) -> float:
-        return float(np.real(np.conj(state) @ jz @ state))
-
-    def _jz_variance(state: np.ndarray) -> float:
-        mean = np.conj(state) @ jz @ state
-        mean_sq = np.conj(state) @ jz2 @ state
-        return float(np.real(mean_sq - mean**2))
 
     for i, omega in enumerate(omega_grid):
         phi = omega * t_hold
@@ -1081,15 +1164,13 @@ def compute_mzi_sensitivity_grid(
             )  # Phase on cached BS1
         state = bs @ state  # BS2
 
-        # J_z statistics
-        exp_val = _jz_expectation(state)
-        var_val = _jz_variance(state)
-
+        # Observable statistics
+        exp_val, var_val = obs_fn(state)
         expectation_values[i] = exp_val
         variance_values[i] = var_val
 
-        # Full distribution P(m|ω)
-        P_grid[i] = output_number_diff_distribution(state, max_photons)
+        # Full distribution
+        P_grid[i] = dist_fn(state, max_photons)
 
         # Evolve at ω ± ε
         state_plus = simple_mzi_evolution(
@@ -1110,17 +1191,17 @@ def compute_mzi_sensitivity_grid(
         )
 
         # Derivative from ω±ε states
-        exp_plus = _jz_expectation(state_plus)
-        exp_minus = _jz_expectation(state_minus)
+        exp_plus, _ = obs_fn(state_plus)
+        exp_minus, _ = obs_fn(state_minus)
         derivative_values[i] = (exp_plus - exp_minus) / (2.0 * cfi_epsilon)
 
-        # CFI from P(m|ω±ε) distributions
+        # CFI from distributions
         from src.analysis.fisher_information import (
             classical_fisher_information_single,
         )
 
-        P_plus = output_number_diff_distribution(state_plus, max_photons)
-        P_minus = output_number_diff_distribution(state_minus, max_photons)
+        P_plus = dist_fn(state_plus, max_photons)
+        P_minus = dist_fn(state_minus, max_photons)
         fisher_classical[i] = classical_fisher_information_single(
             P_plus,
             P_minus,
@@ -1129,9 +1210,9 @@ def compute_mzi_sensitivity_grid(
             prob_floor=prob_floor,
         )
 
-    # Error-propagation sensitivity
+    # Error-propagation sensitivity (clamp variance for numerical safety)
     abs_deriv = np.abs(derivative_values)
-    delta_omega_ep = np.sqrt(variance_values) / np.maximum(abs_deriv, 1e-300)
+    delta_omega_ep = np.sqrt(np.maximum(variance_values, 0.0)) / np.maximum(abs_deriv, 1e-300)
     delta_omega_c = 1.0 / np.sqrt(np.maximum(fisher_classical, 1e-300))
 
     return {
