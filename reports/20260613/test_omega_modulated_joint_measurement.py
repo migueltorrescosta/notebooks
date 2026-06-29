@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 from src.analysis.ancilla_optimization import compute_expectation_and_variance
 from src.analysis.decoupled_baseline import verify_decoupled_baseline
 from src.analysis.sensitivity_metrics import sql_reference
+from src.physics.joint_measurement import build_joint_measurement_operator
 from src.physics.n_particle_drive import (
     build_n_particle_hold_hamiltonian,
     build_n_particle_iszz_interaction,
@@ -52,7 +53,6 @@ from omega_modulated_joint_measurement import (  # type: ignore[import-untyped] 
     T_HOLD,
     JointNScalingResult,
     JointNScalingScanResult,
-    build_joint_measurement_operator,
     joint_2d_psi_azz_slice,
     joint_random_search,
     run_joint_nelder_mead,

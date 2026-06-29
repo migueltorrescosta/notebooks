@@ -35,6 +35,7 @@ from src.analysis.optimisation_pipeline import (
 )
 from src.analysis.sensitivity_metrics import sql_reference
 from src.analysis.slice_scan import sequential_grid_scan
+from src.physics.joint_measurement import build_joint_measurement_operator
 from src.physics.n_particle_drive import (
     build_n_particle_operators,
     compute_n_particle_sensitivity,
@@ -76,38 +77,6 @@ REPORT_DATE = "20260613"
 
 
 _parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
-
-
-def build_joint_measurement_operator(
-    N: int,
-    psi: float,
-    ops: dict[str, np.ndarray],
-) -> np.ndarray:
-    """Build the weighted joint measurement operator M(ψ).
-
-    M(ψ) = cosψ · J_z^S + sinψ · J_z^A
-
-    The coefficients automatically satisfy m_s² + m_a² = 1 with
-    m_s = cosψ, m_a = sinψ.
-
-    Args:
-        N: Number of system particles (for dimension check).
-        psi: Measurement weight angle (radians).
-        ops: Operators from build_n_particle_operators(N).
-
-    Returns:
-        2(N+1) × 2(N+1) Hermitian matrix.
-    """
-    d_tot = 2 * (N + 1)
-    M = np.cos(psi) * ops["Jz_S"] + np.sin(psi) * ops["Jz_A"]
-    M = 0.5 * (M + M.conj().T)
-    assert M.shape == (d_tot, d_tot), (
-        f"M has shape {M.shape}, expected ({d_tot}, {d_tot})"
-    )
-    assert np.allclose(M, M.conj().T, atol=1e-12), (
-        "Joint measurement operator not Hermitian"
-    )
-    return M
 
 
 # ============================================================================
