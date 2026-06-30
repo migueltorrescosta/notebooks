@@ -19,6 +19,24 @@ from __future__ import annotations
 import numpy as np
 
 
+def compute_tmsv_captured_norm(mean_total: float, max_photons: int) -> float:
+    r"""Analytical fraction of the TMSV norm captured within truncation.
+
+    For TMSV, the geometric series truncation error is:
+        :math:`1 - \tanh^{2(M+1)}(r)`
+
+    Args:
+        mean_total: Total mean photon number :math:`\langle N \rangle`.
+        max_photons: Truncation per mode.
+
+    Returns:
+        Captured norm fraction in [0, 1].
+    """
+    r = float(np.arcsinh(np.sqrt(mean_total / 2.0)))
+    tanh_r = np.tanh(r)
+    return float(1.0 - tanh_r ** (2 * (max_photons + 1)))
+
+
 def compute_sv_captured_norm(mean_N: float, max_photons: int) -> float:
     r"""Analytical norm captured by SV truncated at ``max_photons`` per mode.
 
@@ -68,6 +86,23 @@ def compute_sv_qfi(mean_N: float, t_hold: float = 10.0) -> float:
         Quantum Fisher information.
     """
     return 2.0 * t_hold**2 * mean_N * (mean_N + 1.0)
+
+
+def compute_tmsv_qfi(mean_total: float, t_hold: float = 10.0) -> float:
+    r"""Analytical QFI for two-mode squeezed vacuum.
+
+    :math:`F_Q = t_{\text{hold}}^2 \cdot \langle N \rangle (\langle N \rangle + 2)`
+
+    where :math:`\langle N \rangle = 2\sinh^2(r)` is the total mean photon number.
+
+    Args:
+        mean_total: Total mean photon number :math:`\langle N \rangle`.
+        t_hold: Holding time.
+
+    Returns:
+        Quantum Fisher information.
+    """
+    return t_hold**2 * mean_total * (mean_total + 2.0)
 
 
 def verify_sv_qfi(mean_N: float, var_probe: float) -> bool:
@@ -125,9 +160,7 @@ def check_truncation_convergence(
         captured = compute_sv_captured_norm(mean_n, max_photons)
         return captured >= threshold
     if mean_total is not None and max_photons is not None:
-        r = float(np.arcsinh(np.sqrt(mean_total / 2.0)))
-        tanh_r = np.tanh(r)
-        captured = 1.0 - tanh_r ** (2 * (max_photons + 1))
+        captured = compute_tmsv_captured_norm(mean_total, max_photons)
         return captured >= threshold
     if state is not None:
         return bool(np.linalg.norm(state) >= threshold)

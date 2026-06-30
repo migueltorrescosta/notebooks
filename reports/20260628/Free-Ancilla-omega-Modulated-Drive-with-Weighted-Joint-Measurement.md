@@ -193,7 +193,7 @@ The 7D optimisation over $(\theta_A,\phi_A,a_x,a_y,a_z,a_{zz},\psi)$ was perform
 
 **Key Finding**: The combined 7D optimisation achieves $R \approx 7.19 \pm 0.04\times$ SQL across all $\omega$, with a best of $7.26\times$ at $\omega=2.0$. This is **worse** than the joint-measurement-only baseline (#20260613, $R=9.7\times$ at $\omega=0.5$, $\Delta\omega=0.01027$) and comparable to the free-ancilla-only baseline (#20260610, $R=7.3\times$ at $\omega=0.1$). No $\omega$ value achieves $\Delta\omega < 0.01027$. The free-ancilla degree of freedom $\theta_A^*$ converges to the fixed-ancilla limit ($0$ or $\pi$) in 5 of 6 cases — the optimiser cannot exploit it when the joint measurement is already active. The optimal measurement angle $\psi^*$ is always non-zero ($|\psi^*| \in [1.07, 1.91]$), confirming the joint measurement is the active mechanism. The two mechanisms **do not compound**: the free-ancilla DOF is redundant in the presence of the joint measurement, and the expanded 7D landscape introduces worse local minima than the 5D fixed-ancilla optimisation.
 
-![Ratio vs $\omega$ for Exp. 1](../figures/20260628-exp1-ratio-vs-omega.svg)
+![Ratio vs $\omega$ for Exp. 1](figures/20260628-exp1-ratio-vs-omega.svg)
 
 ### Decoupled Baseline
 
@@ -213,9 +213,9 @@ All decoupled configurations give $\Delta\omega = 1/(\sqrt{N}T_H)$ exactly (rati
 
 The S-only control ($\psi=0$, fixed $\theta_A=0$) at $\omega=0.2$ reproduces the expected $R(N)$ decay from #20260519/$20260611$: $R(1)=3.27$, decaying to $R(20)=1.0$ (SQL-limited for $N\ge 3$).
 
-![Ratio vs N for $\omega=0.1$](../figures/20260628-exp2-ratio-vs-n-omega0.1.svg)
-![Ratio vs N for $\omega=0.2$](../figures/20260628-exp2-ratio-vs-n-omega0.2.svg)
-![Ratio vs N for $\omega=0.5$](../figures/20260628-exp2-ratio-vs-n-omega0.5.svg)
+![Ratio vs N for $\omega=0.1$](figures/20260628-exp2-ratio-vs-n-omega0.1.svg)
+![Ratio vs N for $\omega=0.2$](figures/20260628-exp2-ratio-vs-n-omega0.2.svg)
+![Ratio vs N for $\omega=0.5$](figures/20260628-exp2-ratio-vs-n-omega0.5.svg)
 
 **Scaling exponent**: At $\omega=0.2$, $\Delta\omega \propto N^{-0.059}$ — far below the SQL exponent $-0.5$. The sensitivity is roughly constant with $N$ while the SQL improves as $1/\sqrt{N}$, producing the decaying ratio.
 
@@ -239,16 +239,16 @@ Several configurations are flagged with `success=False` (fringe minima where $|\
 
 **Scaling**: The scaling exponents $\alpha \approx -0.33$ to $-0.36$ (success=True fits) are below the SQL exponent $-0.5$ but do not reach Heisenberg scaling. The positive exponent at $\omega=0.2$ reflects the unreliable fit from only 3 success=True points.
 
-![Ratio vs N at $\omega=0.1$](../figures/20260628-exp3-ratio-vs-n-omega0.1.svg)
-![Ratio vs N at $\omega=0.2$](../figures/20260628-exp3-ratio-vs-n-omega0.2.svg)
-![All-$\omega$ comparison for Exp. 3](../figures/20260628-exp3-all-omega-comparison.svg)
+![Ratio vs N at $\omega=0.1$](figures/20260628-exp3-ratio-vs-n-omega0.1.svg)
+![Ratio vs N at $\omega=0.2$](figures/20260628-exp3-ratio-vs-n-omega0.2.svg)
+![All-$\omega$ comparison for Exp. 3](figures/20260628-exp3-all-omega-comparison.svg)
 
 **Key Finding**: The multi-particle ancilla ($J_A=N/2$) with free CSS initial state and joint measurement achieves the highest absolute ratios of any protocol in this project ($R \approx 7.4$ at $N=6$, $\omega=0.1$), significantly surpassing the qubit-ancilla protocols. The ratios remain flat at $5$–$7\times$ SQL for $N\le 7$, arresting the decay that limited all $J_A=1/2$ protocols. However, the scaling exponent remains at SQL level ($\alpha \approx -0.33$ to $-0.36$), not Heisenberg. The optimisation over the $(N+1)^2$-dimensional Hilbert space is challenging: the success rate decreases at larger $N$, and the full $N=20$ sweep was not completed. The multi-particle ancilla provides higher absolute sensitivity but does not unlock $F_Q \propto N^2$ scaling with the current protocol and optimisation budget.
 
 ### Overall Comparison
 
-![Combined comparison: all protocols](../figures/20260628-combined-all-protocols.svg)
-![Combined scaling comparison](../figures/20260628-combined-scaling-comparison.svg)
+![Combined comparison: all protocols](figures/20260628-combined-all-protocols.svg)
+![Combined scaling comparison](figures/20260628-combined-scaling-comparison.svg)
 
 ## ✅ Success Criteria
 

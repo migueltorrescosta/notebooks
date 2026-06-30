@@ -186,11 +186,11 @@ The combined scaling plot (above) shows best Δω_C vs resource parameter for al
 
 ### Figure Gallery
 
-| State | Δω vs ω overlay |
-|---|---|
-| SV | ![SV comparison](figures/20260625-sv_delta_omega_comparison.svg) |
-| TMSV | ![TMSV comparison](figures/20260625-tmsv_delta_omega_comparison.svg) |
-| OAT | ![OAT comparison](figures/20260625-oat_delta_omega_comparison.svg) |
+**SV** — ![SV Δω vs ω](figures/20260625-sv_delta_omega_comparison.svg)
+
+**TMSV** — ![TMSV Δω vs ω](figures/20260625-tmsv_delta_omega_comparison.svg)
+
+**OAT** — ![OAT Δω vs ω](figures/20260625-oat_delta_omega_comparison.svg)
 
 ## ✅ Success Criteria
 

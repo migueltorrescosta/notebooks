@@ -347,6 +347,8 @@ class TestReportDuplication:
             "REPORTS_DIR",
             "DATE_TAG",
             "_REPORT_DIR",
+            "_REPORT_DATE",
+            "_REPORTS_DIR",
         }
     )
 

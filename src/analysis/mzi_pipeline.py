@@ -13,7 +13,7 @@ All functions operate on :class:`~src.analysis.sensitivity_metrics.MziSensitivit
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import numpy as np
 
@@ -28,9 +28,9 @@ T = TypeVar("T", bound=MziSensitivityData)
 
 def safe_generate_scan[T: MziSensitivityData](
     generator_fn: Callable[..., T | None],
-    *args,
+    *args: Any,
     fail_label: str = "",
-    **kwargs,
+    **kwargs: Any,
 ) -> T | None:
     """Run *generator_fn* and return its result, or ``None`` on failure.
 

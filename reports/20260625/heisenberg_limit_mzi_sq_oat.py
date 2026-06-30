@@ -31,18 +31,11 @@ import os
 import subprocess
 import sys
 import tempfile
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import seaborn as sns
-from _shared import (
-    SV_N_RANGE,
-    _fig_path,
-    _parquet_path,
-    t_hold,
-)
 
 from src.analysis import mzi_pipeline
 from src.analysis.fisher_information import classical_fisher_information_single
@@ -60,8 +53,10 @@ from src.physics.mzi_simulation import (
 )
 from src.physics.mzi_states import (
     input_state_factory,
+    make_two_mode_squeezed_vacuum,
     standard_twin_fock_state,
 )
+from src.utils.paths import report_path_fn
 from src.visualization import mzi_plots
 
 # Force non-interactive backend before any plotting imports.
@@ -73,6 +68,12 @@ sns.set_theme(style="whitegrid")
 # ============================================================================
 # Constants
 # ============================================================================
+
+_REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
+_REPORT_DATE = "20260625"
+t_hold: float = 10.0  # Holding time
+SV_N_RANGE: list[float] = [float(n) for n in range(1, 21)]
+_parquet_path, _fig_path = report_path_fn(_REPORTS_DIR, _REPORT_DATE)
 
 OAT_N_Q_POINTS: int = 20  # Number of q points per OAT N value
 OAT_CHI: float = 1.0  # OAT coupling strength
@@ -93,56 +94,7 @@ OAT_ALPHA_EXPECTED: float = -0.5  # OAT → SQL (invariant under J_z²)
 # ============================================================================
 # Two-Mode Squeezed Vacuum State
 # ============================================================================
-
-
-def _make_two_mode_squeezed_vacuum(mean_total: float, max_photons: int) -> np.ndarray:
-    r"""Create a two-mode squeezed vacuum state.
-
-    The TMSV state is:
-        :math:`|\psi\rangle = \sum_{n=0}^\infty \frac{\tanh^n(r)}{\cosh(r)} |n, n\rangle`
-
-    The total mean photon number is :math:`\langle N \rangle = 2\sinh^2(r)`.
-
-    Args:
-        mean_total: Target total mean photon number :math:`\langle N \rangle`.
-        max_photons: Maximum photon number per mode (truncation).
-
-    Returns:
-        Normalised state vector of dimension ``(max_photons+1)^2``.
-
-    Raises:
-        ValueError: If mean_total <= 0.
-    """
-    if mean_total <= 0:
-        raise ValueError(f"Total mean photon number must be positive, got {mean_total}")
-    r = float(np.arcsinh(np.sqrt(mean_total / 2.0)))
-    dim_single = max_photons + 1
-    dim = dim_single**2
-    state = np.zeros(dim, dtype=complex)
-
-    tanh_r = np.tanh(r)
-    sech_r = 1.0 / np.cosh(r)
-
-    for n in range(max_photons + 1):
-        c_n = sech_r * (tanh_r**n)
-        idx = n * dim_single + n  # |n, n⟩
-        state[idx] = c_n
-
-    # Check truncation convergence BEFORE normalisation
-    raw_norm = np.linalg.norm(state)
-    if raw_norm < 0.999:
-        warnings.warn(
-            f"TMSV truncation at M={max_photons} captures only "
-            f"{raw_norm:.4f} of the total norm "
-            f"(target mean_total={mean_total}). Increase max_photons.",
-            stacklevel=2,
-        )
-
-    # Normalise (truncation may cause slight norm loss)
-    if raw_norm > 0:
-        state /= raw_norm
-
-    return state
+# (make_two_mode_squeezed_vacuum imported from src.physics.mzi_states)
 
 
 # ============================================================================
@@ -275,7 +227,7 @@ def _prepare_state(
                 r=float(np.arcsinh(np.sqrt(max(resource_value, 1.0)))),
             )
         case "tmsv":
-            return _make_two_mode_squeezed_vacuum(resource_value, max_photons)
+            return make_two_mode_squeezed_vacuum(resource_value, max_photons)
         case "oat":
             return _make_oat_state(round(resource_value), q)
         case "noon":
@@ -284,28 +236,6 @@ def _prepare_state(
             return standard_twin_fock_state(round(resource_value), max_photons)
         case _:
             raise ValueError(f"Unknown state_type: {state_type}")
-
-
-# ============================================================================
-# TMSV Analytical QFI (SV QFI imported from shared src.physics.sv_qfi)
-# ============================================================================
-
-
-def _compute_tmsv_qfi(mean_total: float, t_hold: float = t_hold) -> float:
-    r"""Analytical QFI for two-mode squeezed vacuum.
-
-    :math:`F_Q = t_hold^2 \cdot \langle N \rangle (\langle N \rangle + 2)`
-
-    where :math:`\langle N \rangle = 2\sinh^2(r)` is the total mean photon number.
-
-    Args:
-        mean_total: Total mean photon number :math:`\langle N \rangle`.
-        t_hold: Holding time.
-
-    Returns:
-        Quantum Fisher information.
-    """
-    return t_hold**2 * mean_total * (mean_total + 2.0)
 
 
 # ============================================================================
@@ -600,11 +530,18 @@ def _generate_single_resource_data(
     Returns:
         MziSensitivityDataSV with one resource value, or None on failure.
     """
-    def _gen_one(R: float, og: np.ndarray, t_hold: float) -> MziSensitivityDataSV | None:
+
+    def _gen_one(
+        R: float, og: np.ndarray, t_hold: float
+    ) -> MziSensitivityDataSV | None:
         max_photons = resource_value_to_truncation(R, state_type)
         result = generate_single_omega_scan(
-            state_type, R, og,
-            max_photons=max_photons, t_hold=t_hold, q=q,
+            state_type,
+            R,
+            og,
+            max_photons=max_photons,
+            t_hold=t_hold,
+            q=q,
         )
         # Free the beam-splitter matrix from the LRU cache after each R value.
         # Without this, all cached BS matrices (M=5..80) accumulate ~2.5 GB,
@@ -615,6 +552,7 @@ def _generate_single_resource_data(
         # temporarily.  Python's allocator does not return this to the OS,
         # so RSS grows monotonically across R values until OOM.
         import ctypes
+
         try:
             libc = ctypes.CDLL("libc.so.6")
             libc.malloc_trim(0)
@@ -623,7 +561,10 @@ def _generate_single_resource_data(
         return result
 
     return mzi_pipeline.safe_generate_scan(
-        _gen_one, resource_value, omega_grid, t_hold,
+        _gen_one,
+        resource_value,
+        omega_grid,
+        t_hold,
         fail_label=f"{state_type} R={resource_value}",
     )
 
@@ -692,10 +633,18 @@ def generate_full_data(
     # SV/TMSV can use M up to 80 (BS ~688 MB, BS construction peak ~8 GB)
     # so we run each R value in a separate process for large M.
     if state_type == "oat":
-        def _gen(R: float, og: np.ndarray, t_hold: float) -> MziSensitivityDataSV | None:
+
+        def _gen(
+            R: float, og: np.ndarray, t_hold: float
+        ) -> MziSensitivityDataSV | None:
             return _generate_single_resource_data(state_type, R, og, t_hold=t_hold)
+
         return mzi_pipeline.generate_full_data(
-            state_type, resource_range, omega_grid, _gen, t_hold=t_hold,
+            state_type,
+            resource_range,
+            omega_grid,
+            _gen,
+            t_hold=t_hold,
         )
 
     # SV / TMSV: use subprocess workers
@@ -716,12 +665,14 @@ def generate_full_data(
             # be transient when the system is under memory pressure.
             for attempt in range(3):
                 try:
-                    _run_worker(state_type, R, omega_start, omega_end,
-                                omega_step, t_hold, tf)
+                    _run_worker(
+                        state_type, R, omega_start, omega_end, omega_step, t_hold, tf
+                    )
                     break
                 except subprocess.CalledProcessError:
                     if attempt < 2:
                         import time as _time
+
                         _time.sleep(60)
                         print(f"  Retrying {state_type} R={R}...", flush=True)
                         continue
@@ -732,6 +683,7 @@ def generate_full_data(
             # and reduce OOM pressure from concurrent page reclaim / compaction.
             if R >= 10:
                 import time as _time
+
                 _time.sleep(30)
 
         if not scan_results:
@@ -740,6 +692,7 @@ def generate_full_data(
         return mzi_pipeline.concatenate_scan_results(scan_results, state_type, t_hold)
     finally:
         import shutil
+
         shutil.rmtree(tmpdir, ignore_errors=True)
 
 
@@ -818,7 +771,9 @@ def plot_delta_omega_overlay(
     if save_path is None:
         save_path = _fig_path(f"{data.state_type}_delta_omega_comparison")
     return mzi_plots.plot_delta_omega_overlay(
-        data, selected_R=selected_R, save_path=save_path,
+        data,
+        selected_R=selected_R,
+        save_path=save_path,
         title=f"{data.state_type.upper()} --- Phase Sensitivity vs $\\omega$",
     )
 
@@ -846,7 +801,10 @@ def plot_scaling(
     if save_path is None:
         save_path = _fig_path("scaling_comparison")
     return mzi_plots.plot_scaling(
-        data_list, labels, save_path=save_path, N_min_fit=N_min_fit,
+        data_list,
+        labels,
+        save_path=save_path,
+        N_min_fit=N_min_fit,
     )
 
 
@@ -863,7 +821,11 @@ def _maybe_plot_delta_omega_overlays(
 ) -> None:
     """Plot Δω overlay figures for each state type."""
     mzi_plots.maybe_plot_delta_omega_overlays(
-        results, state_configs, force, only, _fig_path,
+        results,
+        state_configs,
+        force,
+        only,
+        _fig_path,
     )
 
 
@@ -873,7 +835,9 @@ def _maybe_plot_scaling_comparison(
 ) -> None:
     """Plot combined scaling comparison."""
     mzi_plots.maybe_plot_scaling_comparison(
-        results, force, _fig_path,
+        results,
+        force,
+        _fig_path,
         data_keys=["sv", "tmsv", "oat"],
         data_labels=["SV", "TMSV", "OAT"],
     )
@@ -887,7 +851,11 @@ def _generate_plots(
 ) -> None:
     """Generate all plots from the computed sensitivity data."""
     mzi_plots.generate_plots(
-        results, state_configs, force, only, _fig_path,
+        results,
+        state_configs,
+        force,
+        only,
+        _fig_path,
         scaling_data_keys=["sv", "tmsv", "oat"],
         scaling_data_labels=["SV", "TMSV", "OAT"],
     )

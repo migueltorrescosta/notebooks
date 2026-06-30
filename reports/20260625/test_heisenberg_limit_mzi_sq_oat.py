@@ -18,17 +18,20 @@ import pytest
 
 from src.analysis.fisher_information import classical_fisher_information_single
 from src.analysis.scaling_fit import fit_scaling_exponent
+from src.analysis.sensitivity_metrics import analyse_best_worst_sensitivity
 from src.physics.hilbert_space import resource_value_to_truncation
 from src.physics.mzi_simulation import beam_splitter_unitary
 from src.physics.mzi_states import (
     compute_jz_expectation,
     compute_jz_variance,
     input_state_factory,
+    make_two_mode_squeezed_vacuum,
     standard_twin_fock_state,
 )
 from src.physics.sv_qfi import (
     check_truncation_convergence,
     compute_sv_qfi,
+    compute_tmsv_qfi,
     verify_sv_qfi,
 )
 from src.utils.serialization import assert_roundtrip_fields
@@ -46,18 +49,15 @@ del _local_path, _spec, _module
 from local import (  # type: ignore[import-untyped]  # noqa: E402
     MziSensitivityDataSV,
     OATQScanResult,
-    _compute_tmsv_qfi,
     _dicke_to_fock,
     _generate_single_resource_data,
     _make_oat_state,
-    _make_two_mode_squeezed_vacuum,
     _maybe_generate_full_data,
     _maybe_plot_delta_omega_overlays,
     _oat_q_grid,
     _prepare_state,
     _verify_oat_q0_qfi,
     _verify_tmsv_qfi,
-    analyse_best_worst_sensitivity,
     compute_mzi_sensitivity_grid,
     generate_full_data,
     generate_single_omega_scan,
@@ -80,7 +80,7 @@ class TestTwoModeSqueezedVacuum:
         """TMSV state must have unit norm."""
         for mean_total in [2, 4, 10, 20]:
             M = int(5 * mean_total)
-            state = _make_two_mode_squeezed_vacuum(float(mean_total), M)
+            state = make_two_mode_squeezed_vacuum(float(mean_total), M)
             assert np.isclose(np.linalg.norm(state), 1.0, rtol=1e-10), (
                 f"Failed for mean_total={mean_total}"
             )
@@ -89,7 +89,7 @@ class TestTwoModeSqueezedVacuum:
         """Mean photon number should match the target value."""
         mean_total = 4.0
         M = 30
-        state = _make_two_mode_squeezed_vacuum(mean_total, M)
+        state = make_two_mode_squeezed_vacuum(mean_total, M)
         dim_single = M + 1
         # Compute mean photon number
         mean_n = 0.0
@@ -106,7 +106,7 @@ class TestTwoModeSqueezedVacuum:
         """TMSV should only have |n, n⟩ components."""
         mean_total = 4.0
         M = 15
-        state = _make_two_mode_squeezed_vacuum(mean_total, M)
+        state = make_two_mode_squeezed_vacuum(mean_total, M)
         dim_single = M + 1
         for n1 in range(M + 1):
             for n2 in range(M + 1):
@@ -120,7 +120,7 @@ class TestTwoModeSqueezedVacuum:
         """⟨J_z⟩ = 0 for TMSV (symmetric in both modes)."""
         for mean_total in [2, 4, 10]:
             M = int(5 * mean_total)
-            state = _make_two_mode_squeezed_vacuum(float(mean_total), M)
+            state = make_two_mode_squeezed_vacuum(float(mean_total), M)
             exp = np.real(compute_jz_expectation(state, M))
             assert np.isclose(exp, 0.0, atol=1e-12), (
                 f"Failed for mean_total={mean_total}"
@@ -129,7 +129,7 @@ class TestTwoModeSqueezedVacuum:
     def test_positive_mean_N_required(self) -> None:
         """TMSV requires mean_total > 0."""
         with pytest.raises(ValueError, match="positive"):
-            _make_two_mode_squeezed_vacuum(0.0, 10)
+            make_two_mode_squeezed_vacuum(0.0, 10)
 
 
 # ============================================================================
@@ -332,7 +332,7 @@ class TestSimpleMziEvolution:
             skip = True
         elif state_type == "tmsv":
             M = int(5 * R)
-            state = _make_two_mode_squeezed_vacuum(float(R), M)
+            state = make_two_mode_squeezed_vacuum(float(R), M)
             skip = False
         else:
             M = R
@@ -412,7 +412,7 @@ class TestTMSVQFI:
         Var(J_z) = ⟨N⟩(⟨N⟩+2)/4
         """
         M = self._TMSV_M[mean_total]
-        state = _make_two_mode_squeezed_vacuum(float(mean_total), M)
+        state = make_two_mode_squeezed_vacuum(float(mean_total), M)
         bs = beam_splitter_unitary(np.pi / 4, 0.0, M)
         probe = bs @ state
         var = compute_jz_variance(probe, M)
@@ -425,12 +425,12 @@ class TestTMSVQFI:
     def test_qfi_bound(self, mean_total: int) -> None:
         r"""F_Q = t_hold² * ⟨N⟩(⟨N⟩+2) for TMSV."""
         M = self._TMSV_M[mean_total]
-        state = _make_two_mode_squeezed_vacuum(float(mean_total), M)
+        state = make_two_mode_squeezed_vacuum(float(mean_total), M)
         bs = beam_splitter_unitary(np.pi / 4, 0.0, M)
         probe = bs @ state
         var = compute_jz_variance(probe, M)
         fq = 4.0 * t_hold**2 * var
-        expected_fq = _compute_tmsv_qfi(float(mean_total), t_hold)
+        expected_fq = compute_tmsv_qfi(float(mean_total), t_hold)
         assert np.isclose(fq, expected_fq, rtol=1e-3), (
             f"mean_total={mean_total}: F_Q={fq}, expected {expected_fq}"
         )
@@ -439,7 +439,7 @@ class TestTMSVQFI:
     def test_verify_tmsv_qfi_helper(self, mean_total: int) -> None:
         """Verification helper must return True."""
         M = self._TMSV_M[mean_total]
-        state = _make_two_mode_squeezed_vacuum(float(mean_total), M)
+        state = make_two_mode_squeezed_vacuum(float(mean_total), M)
         bs = beam_splitter_unitary(np.pi / 4, 0.0, M)
         probe = bs @ state
         var = compute_jz_variance(probe, M)
@@ -502,7 +502,7 @@ class TestComputeMziSensitivityGrid:
             state = input_state_factory("squeezed_vacuum", R, M, r=r)
             skip = True
         elif state_type == "tmsv":
-            state = _make_two_mode_squeezed_vacuum(float(R), M)
+            state = make_two_mode_squeezed_vacuum(float(R), M)
             skip = False
         else:
             state = _make_oat_state(R, 0.5)
@@ -660,7 +660,7 @@ class TestTruncationConvergence:
         """TMSV state should have >99.9% norm within truncation."""
         for mean_total in [2, 4, 10]:
             M = resource_value_to_truncation(float(mean_total), "tmsv")
-            state = _make_two_mode_squeezed_vacuum(float(mean_total), M)
+            state = make_two_mode_squeezed_vacuum(float(mean_total), M)
             assert check_truncation_convergence(state, threshold=0.999), (
                 f"truncation failed at mean_total={mean_total}, M={M}"
             )
@@ -1029,7 +1029,7 @@ class TestTMSVTruncationWarning:
     def test_truncation_warning(self) -> None:
         """Insufficient TMSV truncation must emit a warning."""
         with pytest.warns(UserWarning, match="captures only"):
-            _make_two_mode_squeezed_vacuum(mean_total=20.0, max_photons=3)
+            make_two_mode_squeezed_vacuum(mean_total=20.0, max_photons=3)
 
 
 # ============================================================================
@@ -1105,10 +1105,15 @@ class TestGenerateFullData:
         assert data.truncation_M_per_R is not None
         assert data.squeezing_q_per_R is not None
 
+    @pytest.mark.slow
     def test_full_data_all_invalid_raises(self) -> None:
-        """generate_full_data raises RuntimeError when all resource values fail."""
+        """generate_full_data raises an exception when all resource values fail.
+
+        With the subprocess worker path, the function raises
+        subprocess.CalledProcessError (from the retried _run_worker calls).
+        """
         omega_grid = np.linspace(0.1, 5.0, 2)
-        with pytest.raises(RuntimeError, match="No valid resource values"):
+        with pytest.raises(subprocess.CalledProcessError):
             generate_full_data("invalid", [2.0, 4.0], omega_grid, t_hold=t_hold)
 
 
@@ -1119,7 +1124,8 @@ class TestGenerateFullData:
 
 class TestMaybeGenerateFullData:
     def test_maybe_generate_full_data_loads_existing(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """_maybe_generate_full_data loads existing Parquet on second call."""
         import sys as _sys
@@ -1144,16 +1150,26 @@ class TestMaybeGenerateFullData:
 
             # First call: generate and save
             data1 = _maybe_generate_full_data(
-                "sv", r_range, "SV", omega_grid,
-                force=True, only=None, override_pq_path=pq_path,
+                "sv",
+                r_range,
+                "SV",
+                omega_grid,
+                force=True,
+                only=None,
+                override_pq_path=pq_path,
             )
             assert data1 is not None
             assert data1.state_type == "sv"
 
             # Second call: load from existing Parquet
             data2 = _maybe_generate_full_data(
-                "sv", r_range, "SV", omega_grid,
-                force=False, only=None, override_pq_path=pq_path,
+                "sv",
+                r_range,
+                "SV",
+                omega_grid,
+                force=False,
+                only=None,
+                override_pq_path=pq_path,
             )
             assert data2 is not None
             assert data2.state_type == "sv"

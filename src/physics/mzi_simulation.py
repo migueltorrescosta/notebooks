@@ -1006,12 +1006,17 @@ def _setup_mzi_callbacks(
 
         dist_fn = output_number_diff_distribution
 
+    obs_fn: Callable[[np.ndarray], tuple[float, float]]
     if observable_fn is not None:
-        obs_fn = lambda s: observable_fn(s, max_photons)  # type: ignore[unused-ignore,misc]
+
+        def _obs_fn(s: np.ndarray) -> tuple[float, float]:
+            return observable_fn(s, max_photons)
+
+        obs_fn = _obs_fn
     else:
         # J_z is diagonal in the Fock basis; use element-wise ops for speed.
         jz_diag = build_jz_operator(max_photons)
-        jz2_diag = jz_diag ** 2
+        jz2_diag = jz_diag**2
 
         def _jz_obs(state: np.ndarray) -> tuple[float, float]:
             probs = np.abs(state) ** 2
@@ -1048,7 +1053,7 @@ def _compute_qfi_bound(
     """Compute Δω_Q and F_Q from J_z variance of the probe state."""
     # J_z is diagonal in the Fock basis; use element-wise ops for speed.
     jz_diag = build_jz_operator(max_photons)
-    jz2_diag = jz_diag ** 2
+    jz2_diag = jz_diag**2
 
     probe_state = initial_state.copy() if skip_bs1 else bs @ initial_state
     probs = np.abs(probe_state) ** 2
@@ -1132,7 +1137,9 @@ def compute_mzi_sensitivity_grid(
 
     # ── Set up distribution and observable callbacks ──────────────────────
     dist_fn, obs_fn = _setup_mzi_callbacks(
-        distribution_fn, observable_fn, max_photons,
+        distribution_fn,
+        observable_fn,
+        max_photons,
     )
 
     # Determine distribution dimension from a sample call
@@ -1141,7 +1148,9 @@ def compute_mzi_sensitivity_grid(
 
     # ── QFI bound (always from J_z, independent of measurement) ──────────
     bs = _resolve_beam_splitter(bs, max_photons)
-    delta_omega_q, fq = _compute_qfi_bound(initial_state, skip_bs1, t_hold, max_photons, bs)
+    delta_omega_q, fq = _compute_qfi_bound(
+        initial_state, skip_bs1, t_hold, max_photons, bs
+    )
 
     # ── Evolve state at each ω and compute statistics ─────────────────────
     expectation_values = np.zeros(n_omega, dtype=float)
@@ -1212,7 +1221,9 @@ def compute_mzi_sensitivity_grid(
 
     # Error-propagation sensitivity (clamp variance for numerical safety)
     abs_deriv = np.abs(derivative_values)
-    delta_omega_ep = np.sqrt(np.maximum(variance_values, 0.0)) / np.maximum(abs_deriv, 1e-300)
+    delta_omega_ep = np.sqrt(np.maximum(variance_values, 0.0)) / np.maximum(
+        abs_deriv, 1e-300
+    )
     delta_omega_c = 1.0 / np.sqrt(np.maximum(fisher_classical, 1e-300))
 
     return {

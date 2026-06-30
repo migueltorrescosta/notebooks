@@ -38,9 +38,12 @@ from src.physics.sv_qfi import (
 from src.utils.serialization import assert_roundtrip_fields
 
 _local_path = Path(__file__).resolve().parent / "squeezed_vacuum_parity.py"
-# Insert the report directory so that ``from _shared import ...`` resolves.
+# Insert the report directory so the module can be loaded (the directory
+# name contains hyphens, preventing normal package imports).
 _sys.path.insert(0, str(Path(__file__).resolve().parent))
-_spec = importlib.util.spec_from_file_location("squeezed_vacuum_parity", str(_local_path))
+_spec = importlib.util.spec_from_file_location(
+    "squeezed_vacuum_parity", str(_local_path)
+)
 assert _spec is not None
 _module = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
@@ -208,9 +211,7 @@ class TestParitySensitivityGrid:
         result = compute_parity_sensitivity_grid(
             state, omega_grid, M, t_hold=t_hold, skip_bs1=True
         )
-        assert np.all(result["fisher_classical"] >= -1e-12), (
-            "Some F_C values negative"
-        )
+        assert np.all(result["fisher_classical"] >= -1e-12), "Some F_C values negative"
 
     def test_cfi_cramer_rao(self) -> None:
         """Δω_C >= Δω_Q for SV with parity (quantum Cramér-Rao bound)."""
@@ -244,9 +245,7 @@ class TestParitySensitivityGrid:
         if fq > 0:
             ratio = fc_max / fq
             # With skip_bs1=False, parity CFI saturates the QFI bound
-            assert ratio > 0.9, (
-                f"F_C^Π/F_Q = {ratio:.4f} at best ω, expected > 0.9"
-            )
+            assert ratio > 0.9, f"F_C^Π/F_Q = {ratio:.4f} at best ω, expected > 0.9"
 
     def test_parity_near_qfi(self) -> None:
         """Parity CFI saturates QFI; number-diff CFI is significantly below."""
@@ -273,12 +272,8 @@ class TestParitySensitivityGrid:
         # Parity CFI should be close to QFI; number-diff should be noticeably below
         parity_ratio = fc_parity_max / fq
         nd_ratio = fc_nd_max / fq
-        assert parity_ratio > 0.9, (
-            f"Parity F_C/F_Q={parity_ratio:.4f}, expected > 0.9"
-        )
-        assert nd_ratio < 0.99, (
-            f"Number-diff F_C/F_Q={nd_ratio:.4f}, expected < 0.99"
-        )
+        assert parity_ratio > 0.9, f"Parity F_C/F_Q={parity_ratio:.4f}, expected > 0.9"
+        assert nd_ratio < 0.99, f"Number-diff F_C/F_Q={nd_ratio:.4f}, expected < 0.99"
 
     def test_precomputed_bs_works(self) -> None:
         """Pre-computed BS matrix can be passed in."""
@@ -319,7 +314,7 @@ class TestSVQFI:
 
         jz_diag = build_jz_operator(M)
         mean_probe = np.sum(np.abs(state) ** 2 * jz_diag)
-        mean_sq_probe = np.sum(np.abs(state) ** 2 * jz_diag ** 2)
+        mean_sq_probe = np.sum(np.abs(state) ** 2 * jz_diag**2)
         var_probe = float(np.real(mean_sq_probe - mean_probe**2))
         assert verify_sv_qfi(mean_N, var_probe), (
             f"Var(J_z)={var_probe} does not match analytical"
@@ -400,10 +395,16 @@ class TestMziSensitivityDataSVParquet:
             expectation_grid=np.random.default_rng(42).uniform(-1, 1, (n_R, n_omega)),
             variance_grid=np.random.default_rng(43).uniform(0, 0.5, (n_R, n_omega)),
             derivative_grid=np.random.default_rng(44).uniform(-2, 2, (n_R, n_omega)),
-            delta_omega_ep_grid=np.random.default_rng(45).uniform(0.01, 1, (n_R, n_omega)),
+            delta_omega_ep_grid=np.random.default_rng(45).uniform(
+                0.01, 1, (n_R, n_omega)
+            ),
             delta_omega_q_per_R=np.array([0.05, 0.025, 0.0167]),
-            fisher_classical_grid=np.random.default_rng(46).uniform(1, 100, (n_R, n_omega)),
-            delta_omega_c_grid=np.random.default_rng(47).uniform(0.01, 1, (n_R, n_omega)),
+            fisher_classical_grid=np.random.default_rng(46).uniform(
+                1, 100, (n_R, n_omega)
+            ),
+            delta_omega_c_grid=np.random.default_rng(47).uniform(
+                0.01, 1, (n_R, n_omega)
+            ),
             t_hold=t_hold,
             truncation_M_per_R=np.array([10, 20, 30], dtype=float),
             squeezing_q_per_R=np.zeros(3, dtype=float),
@@ -507,9 +508,7 @@ class TestGenerateSingleResourceData:
 
         with patch("ctypes.CDLL", side_effect=Exception("mock malloc_trim failure")):
             omega_grid = np.linspace(0.1, 5.0, 2)
-            result = _generate_single_resource_data(
-                2.0, omega_grid, t_hold=t_hold
-            )
+            result = _generate_single_resource_data(2.0, omega_grid, t_hold=t_hold)
         assert result is not None
         assert result.state_type == "sv_parity"
 
@@ -552,7 +551,8 @@ class TestGenerateFullData:
 
 class TestMaybeGenerateFullData:
     def test_maybe_generate_creates_and_loads(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """_maybe_generate_full_data generates and can reload from Parquet."""
 
@@ -561,7 +561,10 @@ class TestMaybeGenerateFullData:
 
         # First call: generate and save
         data1 = _maybe_generate_full_data(
-            [2.0], "SV+Parity", omega_grid, force=True,
+            [2.0],
+            "SV+Parity",
+            omega_grid,
+            force=True,
             override_pq_path=pq_path,
         )
         assert data1 is not None
@@ -569,7 +572,10 @@ class TestMaybeGenerateFullData:
 
         # Second call: load from existing Parquet
         data2 = _maybe_generate_full_data(
-            [2.0], "SV+Parity", omega_grid, force=False,
+            [2.0],
+            "SV+Parity",
+            omega_grid,
+            force=False,
             override_pq_path=pq_path,
         )
         assert data2 is not None
@@ -577,13 +583,17 @@ class TestMaybeGenerateFullData:
         np.testing.assert_array_equal(data1.resource_values, data2.resource_values)
 
     def test_maybe_generate_force(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """_maybe_generate_full_data with force=True re-generates data."""
         omega_grid = np.arange(0.1, 5.1, 4.9)
         pq_path = tmp_path / "test_force.parquet"
         data = _maybe_generate_full_data(
-            [3.0], "SV+Parity", omega_grid, force=True,
+            [3.0],
+            "SV+Parity",
+            omega_grid,
+            force=True,
             override_pq_path=pq_path,
         )
         assert data is not None
@@ -833,6 +843,7 @@ print("OK")
             capture_output=True,
             text=True,
             timeout=30,
+            check=False,
         )
         assert result.returncode == 0, f"stderr={result.stderr}"
         assert "OK" in result.stdout

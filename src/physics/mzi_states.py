@@ -8,6 +8,8 @@ Physical Model:
   Under the J_z generator: F_Q = N(N+2)/3 ≈ N²/3 (SQL scaling).
   Note: this differs from the standard twin-Fock |N/2, N/2⟩ state
   which has Var(J_z) = 0 before BS1.
+- Two-mode squeezed vacuum (TMSV): ∑_n tanh^n(r)/cosh(r) |n, n⟩
+  with total mean photon number ⟨N⟩ = 2 sinh²(r).
 
 Hilbert Space:
 - Two-mode Fock basis with max N photons (dimension: (N+1)²)
@@ -24,9 +26,12 @@ Conventions:
 Note:
 - The factory function `input_state_factory` is the preferred way
   to create input states.
-
+- ``make_two_mode_squeezed_vacuum`` is a public constructor for TMSV states.
 """
 
+from __future__ import annotations
+
+import warnings
 from collections.abc import Callable  # noqa: TC003 — used in runtime function body
 from typing import Any
 
@@ -157,6 +162,56 @@ def standard_twin_fock_state(N: int, max_photons: int) -> np.ndarray:
     n = N // 2
     idx = n * (max_photons + 1) + n  # |N/2, N/2⟩
     state[idx] = 1.0
+    return state
+
+
+def make_two_mode_squeezed_vacuum(mean_total: float, max_photons: int) -> np.ndarray:
+    r"""Create a two-mode squeezed vacuum state.
+
+    The TMSV state is:
+        :math:`|\psi\rangle = \sum_{n=0}^\infty \frac{\tanh^n(r)}{\cosh(r)} |n, n\rangle`
+
+    The total mean photon number is :math:`\langle N \rangle = 2\sinh^2(r)`.
+
+    Args:
+        mean_total: Target total mean photon number :math:`\langle N \rangle`.
+        max_photons: Maximum photon number per mode (truncation).
+
+    Returns:
+        Normalised state vector of dimension ``(max_photons+1)^2``.
+
+    Raises:
+        ValueError: If mean_total <= 0.
+    """
+    if mean_total <= 0:
+        raise ValueError(f"Total mean photon number must be positive, got {mean_total}")
+    r = float(np.arcsinh(np.sqrt(mean_total / 2.0)))
+    dim_single = max_photons + 1
+    dim = dim_single**2
+    state = np.zeros(dim, dtype=complex)
+
+    tanh_r = np.tanh(r)
+    sech_r = 1.0 / np.cosh(r)
+
+    for n in range(max_photons + 1):
+        c_n = sech_r * (tanh_r**n)
+        idx = n * dim_single + n  # |n, n⟩
+        state[idx] = c_n
+
+    # Check truncation convergence BEFORE normalisation
+    raw_norm = float(np.linalg.norm(state))
+    if raw_norm < 0.999:
+        warnings.warn(
+            f"TMSV truncation at M={max_photons} captures only "
+            f"{raw_norm:.4f} of the total norm "
+            f"(target mean_total={mean_total}). Increase max_photons.",
+            stacklevel=2,
+        )
+
+    # Normalise (truncation may cause slight norm loss)
+    if raw_norm > 0:
+        state /= raw_norm
+
     return state
 
 

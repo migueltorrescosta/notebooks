@@ -155,10 +155,13 @@ The scaling plot (above) shows best $\Delta\omega_C$ vs $\langle N \rangle$ alon
 
 ### Figure Gallery
 
-| Figure | Description |
-|--------|-------------|
-| ![SV parity $\Delta\omega$ vs $\omega$](figures/20260625-sv_parity_delta_omega_comparison.svg) | $\Delta\omega$ vs $\omega$ overlay for selected $\langle N \rangle$ values. Parity CFI (solid lines) tracks QFI bounds (dashed) within 0.1%. |
-| ![SV parity scaling](figures/20260625-sv_parity_scaling.svg) | Log-log scaling of best $\Delta\omega$ vs $\langle N \rangle$ with SQL reference ($\alpha=-0.5$) and fitted exponent ($\alpha=-0.4923$). |
+![SV parity $\Delta\omega$ vs $\omega$](figures/20260625-sv_parity_delta_omega_comparison.svg)
+
+$\Delta\omega$ vs $\omega$ overlay for selected $\langle N \rangle$ values. Parity CFI (solid lines) tracks QFI bounds (dashed) within 0.1%.
+
+![SV parity scaling](figures/20260625-sv_parity_scaling.svg)
+
+Log-log scaling of best $\Delta\omega$ vs $\langle N \rangle$ with SQL reference ($\alpha=-0.5$) and fitted exponent ($\alpha=-0.4923$).
 
 ## ✅ Success Criteria
 

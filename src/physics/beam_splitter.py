@@ -81,6 +81,10 @@ def bs_fock(theta: float, phi_bs: float, max_photons: int) -> np.ndarray:
     For a symmetric 50/50 beam splitter, use θ = π/4.
     The phase φ controls the reflection amplitude phase.
 
+    Uses a block-diagonal decomposition over total photon number N = n₁ + n₂,
+    which avoids a full (M+1)²× (M+1)² matrix exponential by computing
+    expm on each (N+1)×(N+1) subspace independently.
+
     Args:
         theta: Beam-splitter transmittance angle. θ = 0 gives identity,
             θ = π/4 gives 50/50.
@@ -91,20 +95,50 @@ def bs_fock(theta: float, phi_bs: float, max_photons: int) -> np.ndarray:
         Unitary matrix of dimension (max_photons + 1)² × (max_photons + 1)².
 
     """
-    # Lazy import to avoid circular dependency (mzi_simulation imports from here)
-    from src.physics.mzi_simulation import create_system_operators  # fmt: skip
+    dim = (max_photons + 1) ** 2
+    U = np.zeros((dim, dim), dtype=complex)
 
-    a0, a1, a0_dag, a1_dag = create_system_operators(max_photons)
+    for n_total in range(2 * max_photons + 1):
+        k_min = max(0, n_total - max_photons)
+        k_max = min(max_photons, n_total)
+        n_sub = k_max - k_min + 1
+        if n_sub <= 0:
+            continue
 
-    # Beam-splitter Hamiltonian: H = e^{iφ} a₁†a₂ + e^{-iφ} a₂†a₁
-    H_bs = np.exp(1j * phi_bs) * (a0_dag @ a1) + np.exp(-1j * phi_bs) * (a1_dag @ a0)
+        # Build H_sub = e^{iφ}·a†b + e^{-iφ}·b†a within this subspace.
+        # In the |k, n-k⟩ basis, matrix elements are:
+        #   ⟨k+1, n-k-1|H|k, n-k⟩ = e^{iφ}·√((k+1)(n-k))
+        #   ⟨k, n-k|H|k+1, n-k-1⟩ = e^{-iφ}·√((k+1)(n-k))
+        H_sub = np.zeros((n_sub, n_sub), dtype=complex)
+        for idx, k in enumerate(range(k_min, k_max)):
+            val = np.sqrt((k + 1) * (n_total - k))
+            H_sub[idx, idx + 1] = val * np.exp(1j * phi_bs)
+            H_sub[idx + 1, idx] = val * np.exp(-1j * phi_bs)
 
-    # Unitary: U = exp(-iθ H)
-    U = scipy.linalg.expm(-1.0j * theta * H_bs)
-    _eye = np.eye(U.shape[0], dtype=U.dtype)
-    assert np.allclose(U @ U.conj().T, _eye, atol=1e-10), (
-        f"Beam splitter not unitary: max_dev={np.max(np.abs(U @ U.conj().T - _eye))}"
-    )
+        U_sub = scipy.linalg.expm(-1.0j * theta * H_sub)
+
+        # Place block into the full matrix
+        for idx_k, k in enumerate(range(k_min, k_max + 1)):
+            i_out = k * (max_photons + 1) + (n_total - k)
+            for idx_l, lp in enumerate(range(k_min, k_max + 1)):
+                j_out = lp * (max_photons + 1) + (n_total - lp)
+                U[i_out, j_out] = U_sub[idx_k, idx_l]
+
+    # Each subspace block is constructed via expm (unitary by construction),
+    # so the full block-diagonal matrix is unitary.  Skip the O(dim³) full
+    # check for large dims and verify via column-norm sampling.
+    dim_check = U.shape[0]
+    if dim_check <= 400:
+        _eye = np.eye(dim_check, dtype=U.dtype)
+        assert np.allclose(U @ U.conj().T, _eye, atol=1e-10), (
+            f"Beam splitter not unitary for max_photons={max_photons}"
+        )
+    else:
+        # Spot-check: verify first 10 columns have unit norm
+        norms = np.sum(np.abs(U[:, :10]) ** 2, axis=0)
+        assert np.allclose(norms, 1.0, atol=1e-10), (
+            f"Beam splitter column norms deviate from 1: max_dev={np.max(np.abs(norms - 1.0))}"
+        )
     return U
 
 

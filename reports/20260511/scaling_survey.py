@@ -1,11 +1,10 @@
 """
 Combined local module for the 2026-05-11 reports.
 
-Re-exports all migrated symbols from src/ for the four reports:
+Re-exports all migrated symbols from src/ for the three reports:
 - Ancilla-vs-System-Comparison
 - Scaling-Survey-Fock-MZI
 - Scaling-Survey-Collective-Spin
-- Scaling-Survey-Advanced-Architectures
 
 Usage:
     uv run python reports/20260511/scaling_survey.py --force
@@ -170,20 +169,6 @@ def _generate_collective_spin_figures(force: bool = False) -> None:
     print("  [stub] Collective-Spin figure generation")
 
 
-def _generate_advanced_architectures_raw_data(force: bool = False) -> None:
-    """Generate raw data for Scaling-Survey-Advanced-Architectures report."""
-    raw_dir = _REPORT_DIR / "raw_data"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    print("  [stub] Advanced-Architectures raw data generation")
-
-
-def _generate_advanced_architectures_figures(force: bool = False) -> None:
-    """Generate figures for Scaling-Survey-Advanced-Architectures report."""
-    fig_dir = _REPORT_DIR / "figures"
-    fig_dir.mkdir(parents=True, exist_ok=True)
-    print("  [stub] Advanced-Architectures figure generation")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate report figures and CSVs for 2026-05-11 reports",
@@ -201,7 +186,6 @@ def main() -> None:
             "ancilla-vs-system",
             "fock-mzi",
             "collective-spin",
-            "advanced-architectures",
         ],
         help="Generate only one experiment's data and figures",
     )
@@ -222,10 +206,6 @@ def main() -> None:
         "collective-spin": (
             _generate_collective_spin_raw_data,
             _generate_collective_spin_figures,
-        ),
-        "advanced-architectures": (
-            _generate_advanced_architectures_raw_data,
-            _generate_advanced_architectures_figures,
         ),
     }
 

@@ -99,4 +99,5 @@ After the full audit, provide:
 - [ ] Checked that new report-specific code was added to the experiment module, not to `src/` (violation of Global Constraint §5)
 - [ ] Each violation recorded with file, line, standard violated, severity, description, and suggested fix
 - [ ] CHANGELOG updated with entry under the appropriate weekly section if the audit uncovered actionable items; any errors that predated the current session added to the backlog
+- [ ] Ran dead code detection — `vulture . --exclude '.venv,.opencode,.git,__pycache__' --sort-by-size` (review findings manually; expect ~75% noise from mock `return_value`, pytest hooks, argparse-dispatch, and public API functions)
 - [ ] Saved key findings to agentmemory (`project:notebooks`)

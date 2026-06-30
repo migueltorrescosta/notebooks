@@ -156,11 +156,9 @@ The sensitivity $\Delta\omega_{\text{opt}}$ follows the SQL exactly: $\Delta\ome
 
 **Figure 2**: Optimal sensitivity vs $N$ on log-log axes for all M values and all $\omega$ values. All curves collapse onto the SQL line. The Heisenberg limit (dashed line) is never approached.
 
-### Ratio Heatmap
+### Uniform Ratio Across All Parameters
 
-![Ratio heatmap](figures/20260620-ratio-heatmap.svg)
-
-**Figure 3**: Heatmap of $R(N, M)$ averaged over $\omega$. All values are exactly 1.0, confirming the absolute nature of the SQL bound for $\omega$-independent drives.
+Every $(N, M, \omega)$ triple in the scan yields $R = 1.0$ exactly — all 200 entries in the results table have the same value, with zero variance across system size, ancilla size, and phase rate: $R(N, M, \omega) = 1.0$ uniformly.
 
 ### Decoupled Baseline
 

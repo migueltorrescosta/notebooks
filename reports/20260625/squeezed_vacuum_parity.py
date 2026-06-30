@@ -23,17 +23,13 @@ name contains hyphens).  Instead, importers add the report directory to
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import os
+import time
 from pathlib import Path
 
 import numpy as np
 import seaborn as sns
-from _shared import (
-    SV_N_RANGE,
-    _fig_path,
-    _parquet_path,
-    t_hold,
-)
 
 from src.analysis import mzi_pipeline
 from src.analysis.sensitivity_metrics import MziSensitivityDataSV
@@ -43,6 +39,7 @@ from src.physics.mzi_simulation import (
     compute_mzi_sensitivity_grid,
 )
 from src.physics.mzi_states import input_state_factory
+from src.utils.paths import report_path_fn
 from src.visualization import mzi_plots
 
 # Force non-interactive backend before any plotting imports.
@@ -55,12 +52,18 @@ sns.set_theme(style="whitegrid")
 # Constants
 # ============================================================================
 
+_REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
+_REPORT_DATE = "20260625"
+t_hold: float = 10.0  # Holding time
+SV_N_RANGE: list[float] = [float(n) for n in range(1, 21)]
+_parquet_path, _fig_path = report_path_fn(_REPORTS_DIR, _REPORT_DATE)
+
 TRUNC_MULTIPLIER: float = 5.0  # Truncation multiplier for SV
 MAX_TRUNC: int = 80  # Maximum truncation per mode
 
 # Parameter sweep ranges
 OMEGA_RANGE: tuple[float, float] = (0.1, 5.0)
-OMEGA_STEP: float = 0.1
+OMEGA_STEP: float = 0.01
 
 # Finite difference step for CFI
 CFI_EPSILON: float = 1e-6
@@ -109,6 +112,7 @@ def compute_parity_distribution(
 # ============================================================================
 # Parity Sensitivity Grid
 # ============================================================================
+
 
 def compute_parity_sensitivity_grid(
     initial_state: np.ndarray,
@@ -164,6 +168,7 @@ def compute_parity_sensitivity_grid(
         - ``fisher_classical``: :math:`F_C^\Pi(\omega)` (array).
         - ``delta_omega_c``: :math:`\Delta\omega_C(\omega)` (array).
     """
+
     def _parity_observable(state: np.ndarray, _max_photons: int) -> tuple[float, float]:
         P = compute_parity_distribution(state, _max_photons)
         exp = P[0] - P[1]
@@ -171,9 +176,14 @@ def compute_parity_sensitivity_grid(
         return exp, var
 
     return compute_mzi_sensitivity_grid(
-        initial_state, omega_grid, max_photons,
-        t_hold=t_hold, skip_bs1=skip_bs1,
-        cfi_epsilon=cfi_epsilon, prob_floor=prob_floor, bs=bs,
+        initial_state,
+        omega_grid,
+        max_photons,
+        t_hold=t_hold,
+        skip_bs1=skip_bs1,
+        cfi_epsilon=cfi_epsilon,
+        prob_floor=prob_floor,
+        bs=bs,
         distribution_fn=compute_parity_distribution,
         observable_fn=_parity_observable,
     )
@@ -202,8 +212,9 @@ def generate_single_omega_scan(
         MziSensitivityDataSV with one resource value.
     """
     if max_photons is None:
-        max_photons = resource_value_to_truncation(resource_value, "sv",
-            trunc_multiplier=TRUNC_MULTIPLIER, max_trunc=MAX_TRUNC)
+        max_photons = resource_value_to_truncation(
+            resource_value, "sv", trunc_multiplier=TRUNC_MULTIPLIER, max_trunc=MAX_TRUNC
+        )
 
     resource_type = "mean_N"
     state_type = "sv_parity"
@@ -283,16 +294,30 @@ def _generate_single_resource_data(
     Returns:
         MziSensitivityDataSV with one resource value, or None on failure.
     """
-    def _gen_one(R: float, og: np.ndarray, t_hold: float) -> MziSensitivityDataSV | None:
-        max_photons = resource_value_to_truncation(R, "sv",
-            trunc_multiplier=TRUNC_MULTIPLIER, max_trunc=MAX_TRUNC)
+
+    def _gen_one(
+        R: float, og: np.ndarray, t_hold: float
+    ) -> MziSensitivityDataSV | None:
+        _t0 = time.perf_counter()
+        max_photons = resource_value_to_truncation(
+            R, "sv", trunc_multiplier=TRUNC_MULTIPLIER, max_trunc=MAX_TRUNC
+        )
         result = generate_single_omega_scan(
-            R, og, max_photons=max_photons, t_hold=t_hold,
+            R,
+            og,
+            max_photons=max_photons,
+            t_hold=t_hold,
+        )
+        _elapsed = time.perf_counter() - _t0
+        print(
+            f"    SV R={R} (M={max_photons}, {len(og)} omega points): {_elapsed:.1f}s",
+            flush=True,
         )
         # Free the beam-splitter matrix from the LRU cache after each R value.
         beam_splitter_unitary.cache_clear()
         # Force glibc to release freed memory back to the OS.
         import ctypes
+
         try:
             libc = ctypes.CDLL("libc.so.6")
             libc.malloc_trim(0)
@@ -301,7 +326,10 @@ def _generate_single_resource_data(
         return result
 
     return mzi_pipeline.safe_generate_scan(
-        _gen_one, resource_value, omega_grid, t_hold,
+        _gen_one,
+        resource_value,
+        omega_grid,
+        t_hold,
         fail_label=f"SV R={resource_value}",
     )
 
@@ -323,11 +351,78 @@ def generate_full_data(
     Returns:
         MziSensitivityDataSV with all resource values.
     """
+
     def _gen(R: float, og: np.ndarray, t_hold: float) -> MziSensitivityDataSV | None:
         return _generate_single_resource_data(R, og, t_hold=t_hold)
 
     return mzi_pipeline.generate_full_data(
-        "sv_parity", resource_range, omega_grid, _gen, t_hold=t_hold,
+        "sv_parity",
+        resource_range,
+        omega_grid,
+        _gen,
+        t_hold=t_hold,
+    )
+
+
+def generate_full_data_parallel(
+    resource_range: list[float],
+    omega_grid: np.ndarray,
+    t_hold: float = t_hold,
+    max_workers: int | None = None,
+) -> MziSensitivityDataSV:
+    r"""Generate sensitivity data for all resource values in parallel.
+
+    Uses :class:`~concurrent.futures.ProcessPoolExecutor` to parallelise
+    across resource values.  Falls back to sequential execution when
+    *max_workers=1*.
+
+    Args:
+        resource_range: List of mean photon number values.
+        omega_grid: :math:`\omega` values to scan.
+        t_hold: Holding time.
+        max_workers: Number of parallel worker processes.
+            Defaults to ``os.cpu_count()``.
+
+    Returns:
+        :class:`MziSensitivityDataSV` with all resource values.
+    """
+    if max_workers is None:
+        max_workers = os.cpu_count() or 1
+
+    if max_workers <= 1:
+        return generate_full_data(resource_range, omega_grid, t_hold=t_hold)
+
+    scan_results: list[MziSensitivityDataSV] = []
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=max_workers,
+    ) as pool:
+        future_map: dict[concurrent.futures.Future, float] = {}
+        for R in resource_range:
+            fut = pool.submit(
+                _generate_single_resource_data,
+                R,
+                omega_grid,
+                t_hold,
+            )
+            future_map[fut] = R
+
+        for fut in concurrent.futures.as_completed(future_map):
+            R = future_map[fut]
+            try:
+                result = fut.result()
+                if result is not None:
+                    scan_results.append(result)
+                    print(f"  SV R={R} completed successfully", flush=True)
+            except Exception as exc:
+                print(f"  SV R={R} failed: {exc}", flush=True)
+
+    if not scan_results:
+        raise RuntimeError("No valid resource values for sv_parity")
+
+    return mzi_pipeline.concatenate_scan_results(
+        scan_results,
+        "sv_parity",
+        t_hold,
     )
 
 
@@ -340,7 +435,9 @@ def _maybe_generate_full_data(
 ) -> MziSensitivityDataSV:
     r"""Load or generate sensitivity data for the SV parity measurement.
 
-    Delegates to the shared :func:`pipeline_maybe_generate_full_data`.
+    Uses :func:`generate_full_data_parallel` for generation, with
+    :class:`~concurrent.futures.ProcessPoolExecutor` to parallelise
+    across resource values.  Caches results as Parquet.
 
     Args:
         r_range: List of resource values.
@@ -353,17 +450,24 @@ def _maybe_generate_full_data(
     Returns:
         MziSensitivityDataSV.
     """
-    def _gen(R: float, og: np.ndarray, t_hold: float) -> MziSensitivityDataSV | None:
-        return _generate_single_resource_data(R, og, t_hold=t_hold)
-
     pq_path = override_pq_path or _parquet_path("sv_parity_sensitivity")
-    result = mzi_pipeline.maybe_generate_full_data(
-        "sv_parity", r_range, label, omega_grid, force, only=None,
-        generator_fn=_gen, data_class=MziSensitivityDataSV, pq_path=pq_path,
+
+    if pq_path.exists() and not force:
+        print(f"Loading existing data for {label} from {pq_path}")
+        return MziSensitivityDataSV.from_parquet(pq_path)
+
+    print(
+        f"Generating {label} data (R={r_range[0]}..{r_range[-1]})"
+        f" using {os.cpu_count() or 1} parallel workers"
     )
-    # Always returns data (no ``only`` filter for this report)
-    assert result is not None
-    return result
+    _t0 = time.perf_counter()
+    data = generate_full_data_parallel(r_range, omega_grid, t_hold=10.0)
+    _elapsed = time.perf_counter() - _t0
+    # Normalise elapsed to the same format as _generate_single_resource_data
+    print(f"  Total generation finished in {_elapsed:.1f}s")
+    data.save_parquet(pq_path)
+    print(f"  Saved to {pq_path}")
+    return data
 
 
 # ============================================================================
@@ -392,7 +496,9 @@ def plot_delta_omega_overlay(
     if save_path is None:
         save_path = _fig_path("sv_parity_delta_omega_comparison")
     return mzi_plots.plot_delta_omega_overlay(
-        data, selected_R=selected_R, save_path=save_path,
+        data,
+        selected_R=selected_R,
+        save_path=save_path,
         title="SV + Parity Measurement --- Phase Sensitivity vs $\\omega$",
     )
 
@@ -418,7 +524,10 @@ def plot_scaling(
     if save_path is None:
         save_path = _fig_path("sv_parity_scaling")
     return mzi_plots.plot_scaling(
-        [data], ["SV+Parity"], save_path=save_path, N_min_fit=N_min_fit,
+        [data],
+        ["SV+Parity"],
+        save_path=save_path,
+        N_min_fit=N_min_fit,
         xlabel="Mean photon number $\\langle N \\rangle$",
         title="SV + Parity Measurement --- Phase Sensitivity Scaling",
     )
@@ -446,10 +555,16 @@ def generate_all(
     omega_grid = np.arange(OMEGA_RANGE[0], OMEGA_RANGE[1] + OMEGA_STEP / 2, OMEGA_STEP)
 
     print("Generating SV parity measurement data")
+    _t0 = time.perf_counter()
     data = _maybe_generate_full_data(
-        SV_N_RANGE, "SV+Parity", omega_grid, force,
+        SV_N_RANGE,
+        "SV+Parity",
+        omega_grid,
+        force,
         override_pq_path=override_pq_path,
     )
+    _elapsed = time.perf_counter() - _t0
+    print(f"Total pipeline: {_elapsed:.1f}s")
 
     # Generate plots
     overlay_path = _fig_path("sv_parity_delta_omega_comparison")

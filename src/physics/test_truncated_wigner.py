@@ -14,6 +14,8 @@ from numpy.random import Generator
 
 from .truncated_wigner import (
     TWAConfig,
+    _euler_maruyama_step,
+    compare_with_lindblad,
     compute_phase_sensitivity,
     compute_twa_expectations,
     run_twa_simulation,
@@ -484,6 +486,149 @@ class TestPhysicalValidation:
 
 
 # Edge Cases
+
+
+# ── Euler-Maruyama step tests ─────────────────────────────────────────────────
+
+
+class TestEulerMaruyamaStep:
+    def test_given_two_body_loss_then_norm_preserved(self, rng: Generator) -> None:
+        """Two-body loss (gamma_2 > 0) does not break normalization."""
+        J_init = np.array([1.0, 0.0, 0.0])
+        J_out = _euler_maruyama_step(
+            J_init,
+            dt=0.01,
+            J=5.0,
+            chi=0.0,
+            gamma_1=0.0,
+            gamma_2=0.5,
+            gamma_phi=0.0,
+            rng=rng,
+        )
+        norm = np.linalg.norm(J_out)
+        assert norm == pytest.approx(1.0, abs=1e-6)
+
+    def test_given_two_body_loss_then_output_finite(self, rng: Generator) -> None:
+        """Two-body loss noise produces finite output (sign depends on rng)."""
+        J_init = np.array([0.0, 0.0, 1.0])
+        J_out = _euler_maruyama_step(
+            J_init,
+            dt=0.001,
+            J=5.0,
+            chi=0.0,
+            gamma_1=0.0,
+            gamma_2=1.0,
+            gamma_phi=0.0,
+            rng=rng,
+        )
+        assert np.all(np.isfinite(J_out))
+        norm = np.linalg.norm(J_out)
+        assert norm == pytest.approx(1.0, abs=1e-6)
+
+    def test_given_all_noise_channels_then_complete(self, rng: Generator) -> None:
+        """All three noise channels active simultaneously."""
+        J_init = np.array([1.0, 0.0, 0.0])
+        J_out = _euler_maruyama_step(
+            J_init,
+            dt=0.01,
+            J=5.0,
+            chi=0.5,
+            gamma_1=0.1,
+            gamma_2=0.1,
+            gamma_phi=0.1,
+            rng=rng,
+        )
+        assert np.all(np.isfinite(J_out))
+
+    def test_given_near_zero_norm_then_reset(self, rng: Generator) -> None:
+        """When norm is near zero, _euler_maruyama_step resets to z=1."""
+        J_init = np.array([1e-20, 1e-20, 1e-20])
+        J_out = _euler_maruyama_step(
+            J_init,
+            dt=0.01,
+            J=5.0,
+            chi=0.0,
+            gamma_1=0.0,
+            gamma_2=0.0,
+            gamma_phi=0.0,
+            rng=rng,
+        )
+        # Should be reset to (0, 0, 1)
+        assert J_out[2] == pytest.approx(1.0, abs=1e-10)
+        assert J_out[0] == pytest.approx(0.0, abs=1e-10)
+        assert J_out[1] == pytest.approx(0.0, abs=1e-10)
+
+
+# ── Trajectory storage tests ──────────────────────────────────────────────────
+
+
+class TestTrajectoryStorage:
+    def test_given_store_trajectory_true_then_return_trajectory(
+        self, rng: Generator
+    ) -> None:
+        J_init = np.array([1.0, 0.0, 0.0])
+        params = {"chi": 0.0, "gamma_1": 0.0, "gamma_2": 0.0, "gamma_phi": 0.0, "N": 10}
+        result = wigner_sde_trajectory(
+            J_init,
+            params,
+            T_evo=0.1,
+            dt=0.05,
+            rng=rng,
+            store_trajectory=True,
+        )
+        assert result["trajectory"] is not None
+        # 2 steps + 1 initial = 3 time points
+        assert len(result["trajectory"]) == 3
+
+    def test_given_store_trajectory_false_then_none(self, rng: Generator) -> None:
+        J_init = np.array([1.0, 0.0, 0.0])
+        params = {"chi": 0.0, "gamma_1": 0.0, "gamma_2": 0.0, "gamma_phi": 0.0, "N": 10}
+        result = wigner_sde_trajectory(
+            J_init,
+            params,
+            T_evo=0.1,
+            dt=0.05,
+            rng=rng,
+            store_trajectory=False,
+        )
+        assert result["trajectory"] is None
+
+    def test_given_store_trajectories_true_in_expectations(
+        self, rng: Generator
+    ) -> None:
+        params = {"chi": 0.0, "gamma_1": 0.0, "gamma_2": 0.0, "gamma_phi": 0.0}
+        result = compute_twa_expectations(
+            N=10,
+            state_type="CSS",
+            params=params,
+            T_evo=0.1,
+            n_traj=5,
+            seed=42,
+            store_trajectories=True,
+        )
+        assert "trajectories" in result
+
+
+# ── compare_with_lindblad tests ───────────────────────────────────────────────
+
+
+class TestCompareWithLindblad:
+    def test_given_import_error_then_graceful_return(self) -> None:
+        """When Lindblad module fails to import, returns error dict."""
+        # Use a tiny N to keep things fast even if it does import
+        result = compare_with_lindblad(
+            N=2,
+            state_type="CSS",
+            params={},
+            T_evo=0.0,
+            n_traj=5,
+            seed=42,
+        )
+        # Two possible outcomes: import succeeded (small-N run) or import failed
+        assert "error" in result or "relative_error" in result
+
+
+# ── Edge cases ────────────────────────────────────────────────────────────────
 
 
 class TestEdgeCases:

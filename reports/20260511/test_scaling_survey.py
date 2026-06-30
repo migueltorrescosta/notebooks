@@ -616,4 +616,3 @@ class TestModuleLoading:
         assert callable(_report_local._generate_ancilla_vs_system_raw_data)
         assert callable(_report_local._generate_fock_mzi_raw_data)
         assert callable(_report_local._generate_collective_spin_raw_data)
-        assert callable(_report_local._generate_advanced_architectures_raw_data)

@@ -11,33 +11,39 @@ with weekly groupings corresponding to experimental campaigns.
 
 Priority colours: 🔴🟠🟡🟢
 
-## Partially Completed Reports
-
-Reports that have been started but are not yet fully complete (i.e., not all pipeline steps finished: plan report, implement code, review implementation, generate raw data and figures, write final report).
-
-- 🟡 **High-Order Squeezing Plan** (#20260507) — Hypothesis and theoretical model written. Code implemented, 4/5 criteria PASS. The remaining untested criterion is the decoherence crossover: n=3,4 beat n=2 by $2$-$5\times$ at zero decoherence, but Gaussian states are predicted more robust above $\gamma_c$. Lindblad solver ready; systematic sweeps over $\gamma_1$, $\gamma_\phi$ at $\langle n\rangle=1.0$ for n=2,3,4 would locate $\gamma_c$.
-
-- 🟡 **Advanced Architecture Surveys** (#20260511) — Theoretical framework documented for six models (non-Markovian bath, thermal Langevin noise, cavity-enhanced MZI, distributed sensor arrays, dynamical decoupling, tilt-to-length noise). The highest-priority implementation is the cavity-enhanced TMSV MZI: #20260625 showed TMSV achieves $\alpha=-0.76$ with number-difference readout; cavity finesse $\mathcal{F}$ multiplies the effective interaction time, giving $\Delta\omega = (1/\sqrt{\mathcal{F}})\cdot(1/\sqrt{N(N+2)})$ — a prefactor improvement on sub-SQL scaling.
-
 ## Experiments
 
-- 🟢 **Multi-particle ancilla ($J_A=N/2$) + weighted joint measurement** — #20260628 completed (Exp 3): R flat at 7.19–7.40 for N=1–6 (highest absolute ratios in project) but scaling stays SQL-level ($\alpha\approx-0.33$). Heisenberg scaling hypothesis ($\alpha\to-0.7$ to $-1.0$) rejected. Open question: can larger optimisation budgets (more random samples, alternative optimisers) unlock sub-SQL scaling, or is the SQL bound fundamental for this 5D landscape? See #20260628.
+- 🔴 **High-order squeezing decoherence crossover** (#20260507) — n=3,4 states beat n=2 by $2$-$5\times$ at fixed $\langle n\rangle$ for zero decoherence (confirmed). The critical untested prediction is that Gaussian (n=2) states are more robust above $\gamma_c$. Lindblad solver implemented and validated. Expected: $\gamma_c > 0$, $\gamma_c \approx 0.01$-$0.1$. Below $\gamma_c$: n=4 $>$ n=3 $>$ n=2. Above $\gamma_c$: ordering reverses. Pure sweep task — no new code needed.
 
-- 🟠 **Tunable beam-splitter angle for squeezed-vacuum MZI** — #20260625-ext showed SV parity CFI saturates QFI but the bound is SQL ($\alpha=-0.492$) because the 50/50 BS transforms SV into a probe with SQL-class $J_z$ variance. The pre-BS1 state has Heisenberg-class $F_Q = 2\langle N\rangle(\langle N\rangle+1)$. A tunable BS angle $\theta_{\text{BS}}$ (not 50/50) might partially preserve Heisenberg-class variance through the interferometer. Expected: $\alpha$ varies continuously between $-0.5$ (at $\theta_{\text{BS}}=\pi/4$) and potentially approaching $-1.0$ (as $\theta_{\text{BS}}\to 0$, where parity CFI may recover sensitivity).
+- 🔴 **Tunable beam-splitter angle for squeezed-vacuum MZI** — #20260625-ext showed SV parity CFI saturates QFI but the bound is SQL ($\alpha=-0.492$) because the 50/50 BS transforms SV into a probe with SQL-class $J_z$ variance. The pre-BS1 state has Heisenberg-class $F_Q = 2\langle N\rangle(\langle N\rangle+1)$. A tunable BS angle $\theta_{\text{BS}}$ (not 50/50) might partially preserve Heisenberg-class variance through the interferometer. Expected: $\alpha$ varies continuously between $-0.5$ (at $\theta_{\text{BS}}=\pi/4$) and potentially approaching $-1.0$ (as $\theta_{\text{BS}}\to 0$, where parity CFI may recover sensitivity).
 
-- 🟠 **Cavity-enhanced TMSV MZI** — #20260511 cavity model (PENDING) predicts cavity finesse $\mathcal{F}$ multiplies effective interaction time ($C=1/\sqrt{\mathcal{F}}$). #20260625 showed TMSV achieves $\alpha=-0.76$, saturating QFI within 1%. The cavity improves the prefactor while preserving $\alpha=-0.76$ scaling. Expected: $\alpha=-0.76$ with $C=1/\sqrt{\mathcal{F}}$. At $\mathcal{F}=100$, $\langle N\rangle=40$, this gives $\Delta\omega \approx 0.0013$ — a $77\times$ improvement over SQL, vs $4.1\times$ without the cavity.
-
-- 🟡 **Interaction-based readout for $\omega$-modulated drive** — Proposed in open items across #20260512, #20260515, #20260518, #20260525. Standard protocol: $U_{\text{BS}} \to U_{\text{hold}} \to U_{\text{BS}}^{-1} \to \text{measure } J_z^S$. Adding an interaction period $U_{\text{int}}' = \exp(-i t' H_{\text{int}})$ after the hold but before the second BS could map ancilla-phase correlations back onto the system, enabling sub-SQL sensitivity with S-only measurement. Expected: potential $2\times$ SQL improvement at $N=1$ (effectively reaching the $N=2$ SQL bound $1/(\sqrt{2}t_{\text{hold}})$). Scaling with $N$ is the key unknown.
+- 🟠 **Interaction-based readout for $\omega$-modulated drive** — Proposed in open items across #20260512, #20260515, #20260518, #20260525. Standard protocol: $U_{\text{BS}} \to U_{\text{hold}} \to U_{\text{BS}}^{-1} \to \text{measure } J_z^S$. Adding an interaction period $U_{\text{int}}' = \exp(-i t' H_{\text{int}})$ after the hold but before the second BS could map ancilla-phase correlations back onto the system, enabling sub-SQL sensitivity with S-only measurement. Expected: potential $2\times$ SQL improvement at $N=1$ (effectively reaching the $N=2$ SQL bound $1/(\sqrt{2}t_{\text{hold}})$). Scaling with $N$ is the key unknown.
 
 - 🟡 **CFI-based readout optimisation for $\omega$-modulated drive** — All ancilla protocols (#20260519 onward) use error-propagation sensitivity. #20260601 showed CFI resolves degeneracies where $\langle J_z\rangle=0$ makes error-propagation invalid. The ancilla protocol's $J_z^S$ measurement may face similar degeneracy at specific operating points. Computing $F_C$ via existing `compute_cfi_grid` infrastructure could reveal hidden Fisher information. Expected: up to $2\times$ improvement at derivative-degeneracy points without changing any hardware parameters. Scaling exponent $\alpha$ unchanged.
-
-- 🟡 **High-order squeezing decoherence crossover** (#20260507) — n=3,4 states beat n=2 by $2$-$5\times$ at fixed $\langle n\rangle$ for zero decoherence (confirmed). The critical untested prediction is that Gaussian (n=2) states are more robust above $\gamma_c$. Lindblad solver implemented and validated. Expected: $\gamma_c > 0$, $\gamma_c \approx 0.01$-$0.1$. Below $\gamma_c$: n=4 $>$ n=3 $>$ n=2. Above $\gamma_c$: ordering reverses. Pure sweep task — no new code needed.
 
 - 🟢 **Bell-state initial entanglement + $\omega$-modulated drive** — #20260621 tested Bell-state initialisation with $\omega$-independent drive and found $R=1.0$ everywhere. Open item: does $\omega$-modulated drive behave differently? The BCH cross-term $[\omega J_z^S, a_{zz} J_z^S\otimes J_z^A]$ generates effective $\omega J_z^A$ on the ancilla. With initial S--A entanglement, the covariance $\text{Cov}(J_z^S,J_z^A)$ could amplify $\partial\langle J_z^S\rangle/\partial\omega$ beyond what product states achieve. Expected: unknown — genuinely exploratory. Three possible outcomes (enhancement, interference, or no change) are all physically informative.
 
 ## Infrastructure & Tooling
 
 - 🔴 **3D slice visualization** — Heatmap infrastructure currently supports 2D slices only. For studying all three drive components simultaneously, 3D volumetric plots or 2D projections of 3D landscapes are needed.
+
+---
+
+## Week 27 (Jun 29–Jul 5)
+
+### New Report
+
+- **Cavity-Enhanced TMSV MZI** (#20260629) — Full implementation of cavity-enhanced TMSV MZI simulation (~1100 LOC, 45 tests). Combines cavity finesse $\mathcal{F}$ with TMSV input (from #20260625) to achieve prefactor improvement while preserving $\alpha=-0.76$ scaling. Results generated: full sweep over $\langle N\rangle=2$--$40$ (20 values), $\mathcal{F}=1$--$1000$ (10 values), $\omega$ grid (50 points per $\mathcal{F}$) = 10,000 rows. **Key findings**: Prefactor scaling $\beta = 0.9985 \pm 0.0008$ ($\Delta\omega \propto 1/\mathcal{F}$, $R^2=1.000$), scaling exponent $\alpha=-0.788$ (N=4--28, within $2\sigma$ of expected $-0.76$), compound enhancement at $\mathcal{F}=100,\langle N\rangle=20$ gives $365\times$ below SQL. 7/9 criteria PASS, 2/9 PARTIAL. Optimized `bs_fock` in `src/physics/beam_splitter.py` using block-diagonal subspace decomposition (12.7s for M=100 vs OOM previously). Report compiled with 7 SVG figures, 1 Parquet file. See #20260625.
+
+### Infrastructure
+
+- **Code quality and tooling improvements** — Fixed the last mypy warning (`*args`/`**kwargs` annotations in `safe_generate_scan`), resolved all 14 ruff lint errors (unused imports, import-at-top violations, `subprocess.run` safety, lambda→def, `_shared.py` anti-pattern removal), installed `vulture` as a periodic dead-code scan tool, and raised test coverage from 83% to 88% by adding 3 new test files (48 tests) and expanding 3 existing test files (37 tests) — crossing the 85% CI threshold.
+
+- **Audit remediation and cross-report code promotion** — Remediated 6 findings from the #20260629 code audit (CRITICAL: `delta_omega_sql_eff` formula correction and `C0_err` prefactor error; MAJOR: test isolation; MINOR: field name corrections, `--force` flag, `selected_F` parameter). Promoted 3 duplicated TMSV functions to `src/physics/mzi_states.py` and `src/physics/sv_qfi.py`, and fixed Parquet column naming mismatches across both #20260625 and #20260629.
+
+- **Maintenance, cleanup, and parallel data generation** — Removed the broken blank ratio heatmap from #20260620 (replaced with text paragraph). Regenerated SV parity Δω data at 10× higher resolution with `ProcessPoolExecutor` (16 workers, 20 R values in parallel, 9.2 min wall time). Added test file for the #20260515 joint measurement ancilla module (25 tests). Conducted two project alignment reviews covering backlog priorities, toolchain health, and coverage thresholds.
+
+---
 
 ## Week 26 (Jun 22–28)
 

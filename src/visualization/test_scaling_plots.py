@@ -14,6 +14,7 @@ import pytest
 from src.visualization.scaling_plots import (
     plot_n_scaling_optimal_params,
     plot_n_scaling_ratio,
+    plot_n_scaling_ratio_comparison,
     plot_n_scaling_sensitivity,
     plot_n_scaling_single_omega,
 )
@@ -121,4 +122,60 @@ def test_plot_n_scaling_single_omega_explicit_t_hold(
     result = plot_n_scaling_single_omega(
         make_df, omega_fixed=0.1, save_path=p, t_hold=5.0
     )
+    assert result.exists()
+
+
+# ── Additional edge-case and function coverage ────────────────────────────────
+
+
+def test_plot_n_scaling_sensitivity_empty(tmp_path: Path) -> None:
+    """Empty DataFrame triggers the early-return path (lines 116-117)."""
+    empty = pd.DataFrame(columns=["N", "omega", "delta_omega_opt"])
+    p = tmp_path / "sens-empty.svg"
+    result = plot_n_scaling_sensitivity(empty, p)
+    assert result == p
+
+
+def test_plot_n_scaling_optimal_params_empty(tmp_path: Path) -> None:
+    """Empty DataFrame triggers the early-return path (lines 193-194)."""
+    empty = pd.DataFrame(
+        columns=["N", "omega", "a_x_opt", "a_y_opt", "a_z_opt", "a_zz_opt"]
+    )
+    p = tmp_path / "params-empty.svg"
+    result = plot_n_scaling_optimal_params(empty, p)
+    assert result == p
+
+
+def test_plot_n_scaling_ratio_comparison_basic(
+    make_df: pd.DataFrame, tmp_path: Path
+) -> None:
+    """Basic ratio comparison plot with two DataFrames."""
+    p = tmp_path / "comparison.svg"
+    # Use the same df for multi and fixed to exercise both code paths
+    result = plot_n_scaling_ratio_comparison(make_df, make_df, p)
+    assert result.exists()
+    assert result.suffix == ".svg"
+
+
+def test_plot_n_scaling_ratio_comparison_empty_multi(tmp_path: Path) -> None:
+    """When multi-particle df is empty, function returns early (line 261)."""
+    empty = pd.DataFrame(columns=["N", "omega", "ratio"])
+    fixed = pd.DataFrame(columns=["N", "omega", "ratio"])
+    p = tmp_path / "comparison-empty.svg"
+    result = plot_n_scaling_ratio_comparison(empty, fixed, p)
+    assert result == p
+
+
+def test_plot_n_scaling_ratio_comparison_different_omegas(tmp_path: Path) -> None:
+    """Multi-particle df with data, fixed df with different data."""
+    multi_data = []
+    fixed_data = []
+    for N in [1, 2, 4]:
+        for omega in [0.5, 1.0]:
+            multi_data.append({"N": N, "omega": omega, "ratio": 2.0 + N * 0.1})
+            fixed_data.append({"N": N, "omega": omega, "ratio": 1.0 + N * 0.05})
+    df_multi = pd.DataFrame(multi_data)
+    df_fixed = pd.DataFrame(fixed_data)
+    p = tmp_path / "comparison-omegas.svg"
+    result = plot_n_scaling_ratio_comparison(df_multi, df_fixed, p)
     assert result.exists()

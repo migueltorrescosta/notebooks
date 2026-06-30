@@ -12,7 +12,9 @@ from .mzi_states import (
     compute_jz_expectation,
     compute_jz_variance,
     input_state_factory,
+    make_two_mode_squeezed_vacuum,
     single_photon_split_state,
+    standard_twin_fock_state,
     twin_fock_state,
     two_mode_jz_operator,
     validate_noon,
@@ -152,6 +154,32 @@ class TestInputStateFactory:
         state = input_state_factory("css", N=1)
         assert validate_state_mzi(state)
 
+    def test_factory_creates_css_with_alpha(self) -> None:
+        """CSS with explicit alpha kwarg exercises _make_css kwargs branch."""
+        state = input_state_factory("css", N=2, alpha=2.0 + 0j)
+        assert validate_state_mzi(state)
+
+    def test_factory_creates_sss(self) -> None:
+        """SSS (single-photon split) factory alias."""
+        state = input_state_factory("sss", N=4)
+        assert validate_state_mzi(state)
+        # Check it has the right structure: |3,1⟩ and |1,3⟩
+        dim = 4 + 1
+        idx_31 = 3 * dim + 1
+        idx_13 = 1 * dim + 3
+        assert abs(state[idx_31]) > 1e-10
+        assert abs(state[idx_13]) > 1e-10
+
+    def test_factory_creates_squeezed_vacuum(self) -> None:
+        """Squeezed vacuum factory with default r."""
+        state = input_state_factory("squeezed_vacuum", N=1)
+        assert validate_state_mzi(state)
+
+    def test_factory_creates_squeezed_vacuum_with_explicit_r(self) -> None:
+        """Squeezed vacuum with explicit r kwarg."""
+        state = input_state_factory("squeezed_vacuum", N=1, r=0.5, phi_sv=0.0)
+        assert validate_state_mzi(state)
+
     def test_factory_raises_for_unknown_state_type(self) -> None:
         with pytest.raises(ValueError):
             input_state_factory("unknown_type", N=1)
@@ -167,6 +195,21 @@ class TestValidation:
         N = 3
         state = noon_state(N, max_photons=N)
         assert validate_noon(N, state, N)
+
+    def test_twin_fock_validation_fails_nonzero_jz(self) -> None:
+        """A Fock state |N,0⟩ fails validate_twin_fock because ⟨J_z⟩ ≠ 0."""
+        N = 4
+        max_photons = 4
+        state = np.zeros((max_photons + 1) ** 2, dtype=complex)
+        idx = N * (max_photons + 1)  # |N,0⟩
+        state[idx] = 1.0
+        assert not validate_twin_fock(N, state, max_photons)
+
+    def test_noon_validation_fails_wrong_variance(self) -> None:
+        """A Twin-Fock state fails validate_noon because Var(J_z) ≠ N²/4."""
+        N = 4
+        state = twin_fock_state(N)
+        assert not validate_noon(N, state, N)
 
 
 class TestJ_zOperator:
@@ -198,6 +241,73 @@ class TestSinglePhotonSplit:
         state = single_photon_split_state(N=4)
         jz_mean = np.real(compute_jz_expectation(state, 4))
         assert jz_mean == pytest.approx(0.0, abs=1e-10)
+
+    def test_single_photon_split_n2_equals_fock_11(self) -> None:
+        """N=2 gives |1,1⟩ (both terms coincide)."""
+        state = single_photon_split_state(N=2)
+        expected = np.zeros(9, dtype=complex)
+        expected[1 * 3 + 1] = 1.0  # |1,1⟩
+        assert np.allclose(state, expected)
+
+
+class TestStandardTwinFock:
+    def test_standard_twin_fock_normalized(self) -> None:
+        """|N/2, N/2⟩ is a single computational basis state."""
+        state = standard_twin_fock_state(N=4, max_photons=4)
+        norm = np.sum(np.abs(state) ** 2)
+        assert norm == pytest.approx(1.0)
+
+    def test_standard_twin_fock_occupation(self) -> None:
+        """2 photons in each mode for N=4."""
+        state = standard_twin_fock_state(N=4, max_photons=4)
+        idx = 2 * 5 + 2  # |2,2⟩
+        assert state[idx] == pytest.approx(1.0)
+        assert np.sum(np.abs(state)) == pytest.approx(1.0)
+
+    def test_standard_twin_fock_requires_even_n(self) -> None:
+        with pytest.raises(ValueError):
+            standard_twin_fock_state(N=3, max_photons=4)
+
+    @pytest.mark.parametrize("N", [2, 6, 10])
+    def test_standard_twin_fock_jz_zero(self, N: int) -> None:
+        """⟨J_z⟩ = 0 for |N/2, N/2⟩."""
+        state = standard_twin_fock_state(N=N, max_photons=N)
+        jz_mean = np.real(compute_jz_expectation(state, N))
+        assert jz_mean == pytest.approx(0.0, abs=1e-10)
+
+
+class TestMakeTwoModeSqueezedVacuum:
+    def test_tmsv_normalized(self) -> None:
+        state = make_two_mode_squeezed_vacuum(mean_total=2.0, max_photons=30)
+        norm = np.sum(np.abs(state) ** 2)
+        assert norm == pytest.approx(1.0, rel=1e-6)
+
+    def test_tmsv_only_populates_diagonal(self) -> None:
+        """TMSV only populates |n,n⟩ states."""
+        state = make_two_mode_squeezed_vacuum(mean_total=2.0, max_photons=10)
+        dim_single = 11
+        for n1 in range(11):
+            for n2 in range(11):
+                idx = n1 * dim_single + n2
+                if n1 == n2:
+                    assert abs(state[idx]) > 0
+                else:
+                    assert abs(state[idx]) == pytest.approx(0.0, abs=1e-10)
+
+    def test_tmsv_raises_for_zero_mean(self) -> None:
+        with pytest.raises(ValueError, match="positive"):
+            make_two_mode_squeezed_vacuum(mean_total=0.0, max_photons=10)
+
+    def test_tmsv_truncation_warns(self) -> None:
+        """Small max_photons for large mean_total triggers a warning."""
+        with pytest.warns(UserWarning, match="TMSV truncation"):
+            make_two_mode_squeezed_vacuum(mean_total=50.0, max_photons=3)
+
+    def test_tmsv_small_mean_gives_full_norm(self) -> None:
+        """Small mean_total with large truncation gives norm ≈ 1."""
+        state = make_two_mode_squeezed_vacuum(mean_total=1.0, max_photons=50)
+        norm = np.sum(np.abs(state) ** 2)
+        assert norm == pytest.approx(1.0, rel=1e-10)
 
 
 # ── Hypothesis property-based tests ───────────────────────────────────────────
