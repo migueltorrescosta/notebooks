@@ -9,24 +9,13 @@ Tests verify the remaining migrated modules:
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
+import importlib
 
 import numpy as np
 import pytest
 
 # Load scaling_survey.py via importlib
-# Must register in sys.modules for dataclass machinery to resolve __module__
-_local_path = Path(__file__).resolve().parent / "scaling_survey.py"
-_dirname = Path(__file__).resolve().parent.name
-_modname = f"report_local_{_dirname}"
-_spec = importlib.util.spec_from_file_location(_modname, str(_local_path))
-assert _spec is not None, f"Could not find scaling_survey.py at {_local_path}"
-_report_local = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-sys.modules[_modname] = _report_local
-_spec.loader.exec_module(_report_local)
+_report_local = importlib.import_module("reports.20260511.scaling_survey")
 
 
 # =============================================================================

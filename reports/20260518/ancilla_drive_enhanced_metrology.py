@@ -14,9 +14,7 @@ Contains all code exclusive to this report:
 Usage:
     uv run python reports/20260518/ancilla_drive_enhanced_metrology.py --force
 
-This module is **not** importable as ``reports.20260518.local`` (the directory
-name contains hyphens).  Instead, importers add the report directory to
-``sys.path`` and do ``import local``.
+This module is importable via ``importlib.import_module("reports.20260518.ancilla_drive_enhanced_metrology")``.
 """
 
 from __future__ import annotations

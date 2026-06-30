@@ -16,10 +16,7 @@ Key new tests (not in the fixed-drive test suite):
 
 from __future__ import annotations
 
-# Add the report directory to sys.path so we can import ``local``.
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -40,31 +37,23 @@ from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
 
-_local_path = _Path(__file__).resolve().parent / "phase_modulated_drive.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    DEFAULT_PSI0,
-    DEFAULT_T_BS,
-    DEFAULT_t_hold,
-    build_iszz_interaction,
-    build_phase_modulated_drive_hamiltonian,
-    build_phase_modulated_hold_hamiltonian,
-    compute_phase_modulated_decoupled_baseline,
-    compute_phase_modulated_sensitivity,
-    evolve_phase_modulated_circuit,
-    phase_modulated_2d_slice,
-    phase_modulated_hold_unitary,
-    phase_modulated_random_search,
-    run_phase_modulated_omega_scan,
-    system_only_bs_unitary,
+_m = importlib.import_module("reports.20260519.phase_modulated_drive")
+DEFAULT_PSI0 = _m.DEFAULT_PSI0
+DEFAULT_T_BS = _m.DEFAULT_T_BS
+DEFAULT_t_hold = _m.DEFAULT_t_hold
+build_iszz_interaction = _m.build_iszz_interaction
+build_phase_modulated_drive_hamiltonian = _m.build_phase_modulated_drive_hamiltonian
+build_phase_modulated_hold_hamiltonian = _m.build_phase_modulated_hold_hamiltonian
+compute_phase_modulated_decoupled_baseline = (
+    _m.compute_phase_modulated_decoupled_baseline
 )
+compute_phase_modulated_sensitivity = _m.compute_phase_modulated_sensitivity
+evolve_phase_modulated_circuit = _m.evolve_phase_modulated_circuit
+phase_modulated_2d_slice = _m.phase_modulated_2d_slice
+phase_modulated_hold_unitary = _m.phase_modulated_hold_unitary
+phase_modulated_random_search = _m.phase_modulated_random_search
+run_phase_modulated_omega_scan = _m.run_phase_modulated_omega_scan
+system_only_bs_unitary = _m.system_only_bs_unitary
 
 I_4 = np.eye(4, dtype=complex)
 

@@ -7,9 +7,7 @@ N=1 consistency, optimization, and serialization.
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -26,38 +24,26 @@ from src.analysis.decoupled_baseline import verify_decoupled_baseline
 from src.analysis.sensitivity_metrics import sql_reference
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = _Path(__file__).resolve().parent / "general_4param_omega_drive.py"
-_spec = importlib.util.spec_from_file_location(
-    "general_4param_omega_drive", str(_local_path)
-)
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["general_4param_omega_drive"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from general_4param_omega_drive import (  # type: ignore[import-untyped]  # noqa: E402
-    T_BS,
-    T_HOLD,
-    Combined2DSliceResult,
-    CombinedNScalingScanResult,
-    CombinedOptimizationResult,
-    CombinedRandomSearchResult,
-    build_combined_hold_hamiltonian,
-    build_combined_system_bs_unitary,
-    build_fixed_ancilla_combined_operators,
-    build_full_ancilla_combined_operators,
-    combined_hold_unitary,
-    combined_initial_state,
-    combined_objective,
-    combined_random_search,
-    compute_combined_decoupled_baseline,
-    compute_combined_sensitivity,
-    evolve_combined_circuit,
-    run_combined_bfgs_optimization,
-    run_combined_single_n_omega,
-)
+_m = importlib.import_module("reports.20260616.general_4param_omega_drive")
+T_BS = _m.T_BS
+T_HOLD = _m.T_HOLD
+Combined2DSliceResult = _m.Combined2DSliceResult
+CombinedNScalingScanResult = _m.CombinedNScalingScanResult
+CombinedOptimizationResult = _m.CombinedOptimizationResult
+CombinedRandomSearchResult = _m.CombinedRandomSearchResult
+build_combined_hold_hamiltonian = _m.build_combined_hold_hamiltonian
+build_combined_system_bs_unitary = _m.build_combined_system_bs_unitary
+build_fixed_ancilla_combined_operators = _m.build_fixed_ancilla_combined_operators
+build_full_ancilla_combined_operators = _m.build_full_ancilla_combined_operators
+combined_hold_unitary = _m.combined_hold_unitary
+combined_initial_state = _m.combined_initial_state
+combined_objective = _m.combined_objective
+combined_random_search = _m.combined_random_search
+compute_combined_decoupled_baseline = _m.compute_combined_decoupled_baseline
+compute_combined_sensitivity = _m.compute_combined_sensitivity
+evolve_combined_circuit = _m.evolve_combined_circuit
+run_combined_bfgs_optimization = _m.run_combined_bfgs_optimization
+run_combined_single_n_omega = _m.run_combined_single_n_omega
 
 # ============================================================================
 # Fixtures

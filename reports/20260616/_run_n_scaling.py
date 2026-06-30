@@ -4,18 +4,12 @@ Step 2 (J_A = 1/2) already complete for N=1..13.
 Now running the same N range with ancilla_dim = N+1.
 """
 
-import importlib.util
+import importlib
 import sys
 import time
 from pathlib import Path
 
-local_path = Path(__file__).resolve().parent / "general_4param_omega_drive.py"
-spec = importlib.util.spec_from_file_location(
-    "general_4param_omega_drive", str(local_path)
-)
-module = importlib.util.module_from_spec(spec)
-sys.modules["general_4param_omega_drive"] = module
-spec.loader.exec_module(module)
+module = importlib.import_module("reports.20260616.general_4param_omega_drive")
 
 # Override constants for faster execution
 REDUCED_RANDOM = 1000

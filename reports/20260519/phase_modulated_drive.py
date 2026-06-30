@@ -14,10 +14,7 @@ Usage:
     uv run python reports/20260519/phase_modulated_drive.py --force
     uv run python reports/20260519/phase_modulated_drive.py --only phase-decoupled-baseline
 
-This module is **not** importable as ``reports.20260519.local`` (the directory
-name contains hyphens).  Instead, importers add the report directory to
-``sys.path`` and do ``import local``.  See ``tests/test_ancilla_drive_phase_modulated.py``
-for an example.
+This module is importable via ``importlib.import_module("reports.20260519.phase_modulated_drive")``.
 """
 
 from __future__ import annotations

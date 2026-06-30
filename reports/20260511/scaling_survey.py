@@ -10,7 +10,7 @@ Usage:
     uv run python reports/20260511/scaling_survey.py --force
     uv run python reports/20260511/scaling_survey.py --experiment ancilla-vs-system --force
 
-This module is not importable as reports.20260511.local (hyphens in path).
+This module is importable via ``importlib.import_module("reports.20260511.scaling_survey")``.
 """
 
 from __future__ import annotations

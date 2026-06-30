@@ -7,10 +7,8 @@ decoupled baseline, sensitivity, optimisation, and serialization.
 
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import math
-import sys as _sys
-from pathlib import Path as _Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -20,49 +18,115 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+from src.analysis.ancilla_drive_metrology import compute_drive_sensitivity, compute_drive_sensitivity_with_details
+from src.analysis.ancilla_optimization import build_hold_hamiltonian, build_two_qubit_operators, hold_unitary_two_qubit
 from src.analysis.sensitivity_metrics import sql_reference
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = _Path(__file__).resolve().parent / "bell_state_initial_entanglement.py"
-_spec = importlib.util.spec_from_file_location(
-    "bell_state_initial_entanglement", str(_local_path)
-)
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["bell_state_initial_entanglement"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
+_m = importlib.import_module("reports.20260621.bell_state_initial_entanglement")
 
-from bell_state_initial_entanglement import (  # noqa: E402
-    ACTIVE_SCENARIOS,
-    AZZ_BOUNDS,
-    DRIVE_RADIUS,
-    T_BS,
-    T_HOLD,
-    BellNelderMeadResult,
-    BellOptimisationResult,
-    BellRandomSearchResult,
-    BellScanResult,
-    Scenario,
-    bell_state_phi_minus,
-    bell_state_phi_plus,
-    build_hold_hamiltonian,
-    compute_decoupled_baseline,
-    compute_sensitivity,
-    config_to_params,
-    evolve_circuit,
-    get_initial_state,
-    hold_unitary,
-    product_state_00,
-    run_nelder_mead,
-    run_random_search,
-    run_single_scenario_omega,
-    sample_drive_vector,
-    sample_scenario_config,
-    sensitivity_objective,
-    verify_decoupled_baseline,
-)
+ACTIVE_SCENARIOS = _m.ACTIVE_SCENARIOS
+AZZ_BOUNDS = _m.AZZ_BOUNDS
+DRIVE_RADIUS = _m.DRIVE_RADIUS
+T_BS = _m.T_BS
+T_HOLD = _m.T_HOLD
+BellNelderMeadResult = _m.BellNelderMeadResult
+BellOptimisationResult = _m.BellOptimisationResult
+BellRandomSearchResult = _m.BellRandomSearchResult
+BellScanResult = _m.BellScanResult
+Scenario = _m.Scenario
+bell_state_phi_minus = _m.bell_state_phi_minus
+bell_state_phi_plus = _m.bell_state_phi_plus
+config_to_params = _m.config_to_params
+get_initial_state = _m.get_initial_state
+product_state_00 = _m.product_state_00
+run_nelder_mead = _m.run_nelder_mead
+run_random_search = _m.run_random_search
+run_single_scenario_omega = _m.run_single_scenario_omega
+sample_drive_vector = _m.sample_drive_vector
+sample_scenario_config = _m.sample_scenario_config
+sensitivity_objective = _m.sensitivity_objective
+verify_decoupled_baseline = _m.verify_decoupled_baseline
+
+# ============================================================================
+# Test Helpers (replacements for functions removed from experiment module)
+# ============================================================================
+
+
+def _compute_sensitivity(
+    psi: np.ndarray,
+    omega: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    ops: dict[str, np.ndarray],
+    fd_step: float = 1e-6,
+) -> tuple[float, float, float, float, bool]:
+    """Compute sensitivity with details, wrapping compute_drive_sensitivity_with_details.
+
+    Inserts T_BS and T_HOLD into the call signature.
+    """
+    return compute_drive_sensitivity_with_details(
+        psi, T_BS, T_HOLD, omega, a_x, a_y, a_z, a_zz, ops, fd_step=fd_step,
+    )
+
+
+def _hold_unitary(
+    t_hold: float,
+    omega: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    ops: dict[str, np.ndarray],
+) -> np.ndarray:
+    """Hold unitary, wrapping hold_unitary_two_qubit with individual drive params.
+
+    Converts individual (a_x, a_y, a_z, a_zz) into the alpha tuple.
+    """
+    return hold_unitary_two_qubit(
+        t_hold, omega, (a_x, a_y, a_z, a_zz), ops,
+    )
+
+
+def _evolve_circuit(
+    psi: np.ndarray,
+    omega: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    ops: dict[str, np.ndarray],
+) -> np.ndarray:
+    """Full circuit: BS -> hold -> BS, returning final state.
+
+    Uses build_hold_hamiltonian for the hold step and scipy expm
+    for the beam-splitter rotation on the system.
+    """
+    from scipy.linalg import expm
+
+    U_bs = expm(-1j * T_BS * ops["Jx_S"])
+    H = build_hold_hamiltonian(omega, (a_x, a_y, a_z, a_zz), ops)
+    U_hold = expm(-1j * T_HOLD * H)
+    return U_bs @ U_hold @ U_bs @ psi
+
+
+def _compute_decoupled_baseline(
+    scenario: Scenario,
+    omega_true: float = 1.0,
+) -> float:
+    """Decoupled baseline sensitivity for a given scenario at zero drive.
+
+    For product state (Scenario D), this equals 1/T_HOLD = 0.1.
+    For Bell states, this is infinite (fringe extremum).
+    """
+    psi0 = get_initial_state(scenario)
+    ops = build_two_qubit_operators()
+    return compute_drive_sensitivity(
+        psi0, T_BS, T_HOLD, omega_true, 0.0, 0.0, 0.0, 0.0, ops,
+    )
+
 
 # ============================================================================
 # Fixtures
@@ -222,19 +286,19 @@ class TestHamiltonian:
     """Tests for Hamiltonian construction."""
 
     def test_hold_hamiltonian_hermitian(self, make_ops: dict[str, np.ndarray]) -> None:
-        H = build_hold_hamiltonian(1.0, 1.0, 2.0, -1.5, 2.5, make_ops)
+        H = build_hold_hamiltonian(1.0, (1.0, 2.0, -1.5, 2.5), make_ops)
         assert np.allclose(H, H.conj().T, atol=1e-12)
 
     def test_hold_hamiltonian_zero_drive(self, make_ops: dict[str, np.ndarray]) -> None:
         """With zero drive and interaction, H = omega * J_z^S."""
-        H = build_hold_hamiltonian(1.0, 0.0, 0.0, 0.0, 0.0, make_ops)
+        H = build_hold_hamiltonian(1.0, (0.0, 0.0, 0.0, 0.0), make_ops)
         expected = 1.0 * make_ops["Jz_S"]
         assert np.allclose(H, expected, atol=1e-12), (
             "Zero-drive hold Hamiltonian should be omega * J_z^S"
         )
 
     def test_hold_unitary(self, make_ops: dict[str, np.ndarray]) -> None:
-        U = hold_unitary(T_HOLD, 1.0, 1.0, 2.0, -1.5, 2.5, make_ops)
+        U = _hold_unitary(T_HOLD, 1.0, 1.0, 2.0, -1.5, 2.5, make_ops)
         assert np.allclose(U @ U.conj().T, np.eye(4, dtype=complex), atol=1e-12), (
             "Hold unitary not unitary"
         )
@@ -253,7 +317,7 @@ class TestCircuit:
         make_ops: dict[str, np.ndarray],
         make_bell: np.ndarray,
     ) -> None:
-        psi_final = evolve_circuit(make_bell, 1.0, 1.0, 2.0, -1.5, 2.5, make_ops)
+        psi_final = _evolve_circuit(make_bell, 1.0, 1.0, 2.0, -1.5, 2.5, make_ops)
         assert np.isclose(np.linalg.norm(psi_final), 1.0), (
             "Circuit does not preserve normalisation"
         )
@@ -264,10 +328,10 @@ class TestCircuit:
     ) -> None:
         """At zero params, both Bell and product states should evolve the same way
         up to a different initial state (just the BS transformations)."""
-        psi_bell = evolve_circuit(
+        psi_bell = _evolve_circuit(
             bell_state_phi_plus(), 0.0, 0.0, 0.0, 0.0, 0.0, make_ops
         )
-        psi_product = evolve_circuit(
+        psi_product = _evolve_circuit(
             product_state_00(), 0.0, 0.0, 0.0, 0.0, 0.0, make_ops
         )
         # Both should be normalised
@@ -290,7 +354,7 @@ class TestSensitivity:
         make_ops: dict[str, np.ndarray],
         make_bell: np.ndarray,
     ) -> None:
-        delta, _exp, _var, _dexp, is_fringe = compute_sensitivity(
+        delta, _exp, _var, _dexp, is_fringe = _compute_sensitivity(
             make_bell,
             1.0,
             1.0,
@@ -310,7 +374,7 @@ class TestSensitivity:
         make_ops: dict[str, np.ndarray],
         make_bell: np.ndarray,
     ) -> None:
-        _, _, var_val, _, _ = compute_sensitivity(
+        _, _, var_val, _, _ = _compute_sensitivity(
             make_bell,
             1.0,
             1.0,
@@ -339,14 +403,14 @@ class TestDecoupledBaseline:
         r"""Bell-state decoupled baselines should be fringe (infinite sensitivity).
         The system reduced density matrix is maximally mixed, making
         :math:`\langle J_z^S\rangle` identically zero for all :math:`\omega`."""
-        delta = compute_decoupled_baseline(scenario, omega_true=1.0)
+        delta = _compute_decoupled_baseline(scenario, omega_true=1.0)
         assert not np.isfinite(delta) or delta > 1e6, (
             f"Bell baseline should be fringe for {scenario}, got Δω={delta:.6e}"
         )
 
     def test_decoupled_baseline_product_matches_sql(self) -> None:
         """Product state |00⟩ should give exact SQL at zero params."""
-        delta = compute_decoupled_baseline(Scenario.D, omega_true=1.0)
+        delta = _compute_decoupled_baseline(Scenario.D, omega_true=1.0)
         assert np.isclose(delta, self.SQL_REF, rtol=1e-10), (
             f"Product baseline Δω={delta:.6e} ≠ SQL={self.SQL_REF:.6e}"
         )
@@ -354,7 +418,7 @@ class TestDecoupledBaseline:
     @pytest.mark.parametrize("omega", [0.1, 0.5, 1.0, 2.0, 5.0])
     def test_decoupled_baseline_product_all_omega(self, omega: float) -> None:
         """Product state decoupled baseline should match SQL for all ω."""
-        delta = compute_decoupled_baseline(Scenario.D, omega_true=omega)
+        delta = _compute_decoupled_baseline(Scenario.D, omega_true=omega)
         assert np.isclose(delta, self.SQL_REF, rtol=1e-10), (
             f"Scenario D, ω={omega}: Δω={delta:.6e} ≠ SQL={self.SQL_REF:.6e}"
         )
@@ -826,7 +890,7 @@ class TestPhysicalInvariants:
         assert np.allclose(comm, 1j * make_ops["Jy_S"], atol=1e-10)
 
     def test_hold_unitary(self, make_ops: dict[str, np.ndarray]) -> None:
-        U = hold_unitary(T_HOLD, 1.0, 1.0, 2.0, -1.5, 2.5, make_ops)
+        U = _hold_unitary(T_HOLD, 1.0, 1.0, 2.0, -1.5, 2.5, make_ops)
         assert np.allclose(U @ U.conj().T, np.eye(4, dtype=complex), atol=1e-12), (
             "Hold unitary not unitary"
         )
@@ -839,7 +903,7 @@ class TestPhysicalInvariants:
         steps = [1e-7, 1e-6, 1e-5]
         derivatives = []
         for step in steps:
-            _, _, _, d_exp, _ = compute_sensitivity(
+            _, _, _, d_exp, _ = _compute_sensitivity(
                 psi0,
                 omega,
                 a_x,

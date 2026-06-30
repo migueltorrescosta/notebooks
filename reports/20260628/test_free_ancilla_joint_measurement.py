@@ -7,9 +7,7 @@ decoupled baseline, sensitivity computation, optimisation, and serialization.
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -34,51 +32,54 @@ from src.physics.n_particle_drive import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = _Path(__file__).resolve().parent / "free_ancilla_joint_measurement.py"
-_spec = importlib.util.spec_from_file_location(
-    "free_ancilla_joint_measurement", str(_local_path)
-)
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["free_ancilla_joint_measurement"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
+_m = importlib.import_module("reports.20260628.free_ancilla_joint_measurement")
 
-from free_ancilla_joint_measurement import (  # type: ignore[import-untyped]  # noqa: E402
-    AZZ_BOUNDS,
-    DRIVE_BOUNDS,
-    PHI_A_BOUNDS,
-    PSI_BOUNDS,
-    T_BS,
-    T_HOLD,
-    THETA_A_BOUNDS,
-    BipartiteFreeAncillaJointNMSensitivityResult,
-    BipartiteFreeAncillaJointNScalingResult,
-    BipartiteFreeAncillaJointNScalingScanResult,
-    BipartiteFreeAncillaJointRandomSearchResult,
-    QubitFreeAncillaJointNMSensitivityResult,
-    QubitFreeAncillaJointNScalingResult,
-    QubitFreeAncillaJointNScalingScanResult,
-    QubitFreeAncillaJointRandomSearchResult,
-    bipartite_free_ancilla_joint_objective,
-    bipartite_free_ancilla_joint_random_search,
-    bipartite_hold_unitary,
-    build_bipartite_hold_hamiltonian,
-    compute_bipartite_free_css_joint_sensitivity,
-    compute_bipartite_sensitivity,
-    compute_qubit_free_ancilla_joint_sensitivity,
-    decoupled_baseline,
-    evolve_bipartite_circuit,
-    multi_particle_free_css_initial_state,
-    n_particle_free_ancilla_initial_state,
-    qubit_free_ancilla_joint_objective,
-    qubit_free_ancilla_joint_random_search,
-    run_bipartite_free_ancilla_joint_nelder_mead,
-    run_decoupled_baseline,
-    run_qubit_free_ancilla_joint_nelder_mead,
-    run_single_qubit_n_omega,
+AZZ_BOUNDS = _m.AZZ_BOUNDS
+DRIVE_BOUNDS = _m.DRIVE_BOUNDS
+PHI_A_BOUNDS = _m.PHI_A_BOUNDS
+PSI_BOUNDS = _m.PSI_BOUNDS
+T_BS = _m.T_BS
+T_HOLD = _m.T_HOLD
+THETA_A_BOUNDS = _m.THETA_A_BOUNDS
+BipartiteFreeAncillaJointNMSensitivityResult = (
+    _m.BipartiteFreeAncillaJointNMSensitivityResult
 )
+BipartiteFreeAncillaJointNScalingResult = _m.BipartiteFreeAncillaJointNScalingResult
+BipartiteFreeAncillaJointNScalingScanResult = (
+    _m.BipartiteFreeAncillaJointNScalingScanResult
+)
+BipartiteFreeAncillaJointRandomSearchResult = (
+    _m.BipartiteFreeAncillaJointRandomSearchResult
+)
+QubitFreeAncillaJointNMSensitivityResult = _m.QubitFreeAncillaJointNMSensitivityResult
+QubitFreeAncillaJointNScalingResult = _m.QubitFreeAncillaJointNScalingResult
+QubitFreeAncillaJointNScalingScanResult = _m.QubitFreeAncillaJointNScalingScanResult
+QubitFreeAncillaJointRandomSearchResult = _m.QubitFreeAncillaJointRandomSearchResult
+bipartite_free_ancilla_joint_objective = _m.bipartite_free_ancilla_joint_objective
+bipartite_free_ancilla_joint_random_search = (
+    _m.bipartite_free_ancilla_joint_random_search
+)
+bipartite_hold_unitary = _m.bipartite_hold_unitary
+build_bipartite_hold_hamiltonian = _m.build_bipartite_hold_hamiltonian
+compute_bipartite_free_css_joint_sensitivity = (
+    _m.compute_bipartite_free_css_joint_sensitivity
+)
+compute_bipartite_sensitivity = _m.compute_bipartite_sensitivity
+compute_qubit_free_ancilla_joint_sensitivity = (
+    _m.compute_qubit_free_ancilla_joint_sensitivity
+)
+decoupled_baseline = _m.decoupled_baseline
+evolve_bipartite_circuit = _m.evolve_bipartite_circuit
+multi_particle_free_css_initial_state = _m.multi_particle_free_css_initial_state
+n_particle_free_ancilla_initial_state = _m.n_particle_free_ancilla_initial_state
+qubit_free_ancilla_joint_objective = _m.qubit_free_ancilla_joint_objective
+qubit_free_ancilla_joint_random_search = _m.qubit_free_ancilla_joint_random_search
+run_bipartite_free_ancilla_joint_nelder_mead = (
+    _m.run_bipartite_free_ancilla_joint_nelder_mead
+)
+run_decoupled_baseline = _m.run_decoupled_baseline
+run_qubit_free_ancilla_joint_nelder_mead = _m.run_qubit_free_ancilla_joint_nelder_mead
+run_single_qubit_n_omega = _m.run_single_qubit_n_omega
 
 # ============================================================================
 # Fixtures

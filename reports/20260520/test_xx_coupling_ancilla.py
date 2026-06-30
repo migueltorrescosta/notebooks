@@ -8,9 +8,7 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -24,34 +22,25 @@ from src.analysis.ancilla_optimization import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-_local_path = _Path(__file__).resolve().parent / "xx_coupling_ancilla.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    AXX_BOUNDS,
-    DEFAULT_PSI0,
-    DEFAULT_T_BS,
-    N_GRID_POINTS,
-    SQL_REFERENCE,
-    DEFAULT_t_hold,
-    XXGridScanResult,
-    XXOmegaScanResult,
-    build_xx_hold_hamiltonian,
-    build_xx_interaction,
-    compute_reduced_variance,
-    compute_xx_decoupled_baseline,
-    compute_xx_sensitivity,
-    evolve_xx_circuit,
-    run_xx_omega_scan,
-    xx_grid_scan,
-    xx_hold_unitary,
-)
+_m = importlib.import_module("reports.20260520.xx_coupling_ancilla")
+AXX_BOUNDS = _m.AXX_BOUNDS
+DEFAULT_PSI0 = _m.DEFAULT_PSI0
+DEFAULT_T_BS = _m.DEFAULT_T_BS
+N_GRID_POINTS = _m.N_GRID_POINTS
+SQL_REFERENCE = _m.SQL_REFERENCE
+DEFAULT_t_hold = _m.DEFAULT_t_hold
+XXGridScanResult = _m.XXGridScanResult
+XXOmegaScanResult = _m.XXOmegaScanResult
+build_xx_hold_hamiltonian = _m.build_xx_hold_hamiltonian
+build_xx_interaction = _m.build_xx_interaction
+compute_reduced_variance = _m.compute_reduced_variance
+compute_xx_decoupled_baseline = _m.compute_xx_decoupled_baseline
+compute_xx_sensitivity = _m.compute_xx_sensitivity
+evolve_xx_circuit = _m.evolve_xx_circuit
+run_xx_omega_scan = _m.run_xx_omega_scan
+xx_grid_scan = _m.xx_grid_scan
+xx_hold_unitary = _m.xx_hold_unitary
+system_only_bs_unitary = _m.system_only_bs_unitary
 
 # ============================================================================
 # Fixtures
@@ -168,8 +157,6 @@ class TestReducedVariance:
         """After first BS, the system is in (|0⟩ - i|1⟩)/√2.
         Var(J_z^S) = 1/4 - ⟨J_z^S⟩² = 1/4 - 0 = 1/4.
         """
-        from local import system_only_bs_unitary
-
         U_bs = system_only_bs_unitary(DEFAULT_T_BS)
         psi = U_bs @ DEFAULT_PSI0
         var = compute_reduced_variance(psi, make_ops["Jz_S"])

@@ -15,9 +15,7 @@ Usage:
 
     uv run python reports/20260625/squeezed_vacuum_parity.py --force
 
-This module is **not** importable as ``reports.20260625.local`` (the directory
-name contains hyphens).  Instead, importers add the report directory to
-``sys.path`` and do ``import squeezed_vacuum_parity``.
+This module is importable via ``importlib.import_module("reports.20260625.squeezed_vacuum_parity")``.
 """
 
 from __future__ import annotations

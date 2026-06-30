@@ -10,9 +10,7 @@ Usage:
     uv run python reports/20260512/mzi_holding_time_optimization.py --force
     uv run python reports/20260512/mzi_holding_time_optimization.py --experiment single-particle --force
 
-This module is **not** importable as ``reports.20260512.local`` (the directory
-name contains hyphens).  Importers should use ``importlib.util.spec_from_file_location``
-or add this directory to ``sys.path`` and do ``import local``.
+This module is importable via ``importlib.import_module("reports.20260512.mzi_holding_time_optimization")``.
 """
 
 from __future__ import annotations

@@ -7,9 +7,8 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import subprocess
-import sys as _sys
 from pathlib import Path
 from typing import ClassVar
 
@@ -25,31 +24,21 @@ from src.physics.mzi_states import (
 from src.physics.sv_qfi import compute_tmsv_captured_norm, compute_tmsv_qfi
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = Path(__file__).resolve().parent / "cavity_enhanced_tmsv_mzi.py"
-_sys.path.insert(0, str(Path(__file__).resolve().parent))
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
+_m = importlib.import_module("reports.20260629.cavity_enhanced_tmsv_mzi")
 
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    CavityTmsvScalingFit,
-    CavityTmsvSensitivityResult,
-    H_t,
-    _best_sensitivity_per_config,
-    _fit_scaling_per_finesse,
-    _omega_grid_finesse,
-    _row_dicts_to_result,
-    generate_full_data,
-    generate_single_cavity_point,
-    main,
-    plot_delta_omega_overlay,
-    plot_prefactor_scaling,
-    plot_scaling,
-)
+CavityTmsvScalingFit = _m.CavityTmsvScalingFit
+CavityTmsvSensitivityResult = _m.CavityTmsvSensitivityResult
+H_t = _m.H_t
+_best_sensitivity_per_config = _m._best_sensitivity_per_config
+_fit_scaling_per_finesse = _m._fit_scaling_per_finesse
+_omega_grid_finesse = _m._omega_grid_finesse
+_row_dicts_to_result = _m._row_dicts_to_result
+generate_full_data = _m.generate_full_data
+generate_single_cavity_point = _m.generate_single_cavity_point
+main = _m.main
+plot_delta_omega_overlay = _m.plot_delta_omega_overlay
+plot_prefactor_scaling = _m.plot_prefactor_scaling
+plot_scaling = _m.plot_scaling
 
 # =============================================================================
 # Two-Mode Squeezed Vacuum (TMSV) State
@@ -685,6 +674,8 @@ class TestCLI:
         assert "usage" in result.stdout.lower() or "usage" in result.stderr.lower()
 
     def test_main_direct_help(self) -> None:
+        import sys as _sys
+
         old_argv = _sys.argv[:]
         try:
             _sys.argv = ["script", "--help"]
@@ -697,15 +688,14 @@ class TestCLI:
         """Call main() with --force and --only F=1 to test generation pipeline."""
         import sys as _sys_mod
 
-        mod = _sys_mod.modules["local"]
         old_argv = _sys_mod.argv[:]
-        orig_N = mod.MEAN_TOTAL_RANGE  # type: ignore[attr-defined]
-        orig_F = mod.FINESSE_RANGE  # type: ignore[attr-defined]
-        orig_npts = mod.N_OMEGA_POINTS  # type: ignore[attr-defined]
+        orig_N = _m.MEAN_TOTAL_RANGE
+        orig_F = _m.FINESSE_RANGE
+        orig_npts = _m.N_OMEGA_POINTS
         pq_path = tmp_path / "test_cavity_tmsv.parquet"
         try:
-            mod.MEAN_TOTAL_RANGE = [4.0]  # type: ignore[attr-defined]
-            mod.N_OMEGA_POINTS = 3  # type: ignore[attr-defined]
+            _m.MEAN_TOTAL_RANGE = [4.0]
+            _m.N_OMEGA_POINTS = 3
             _sys_mod.argv = [
                 "script",
                 "--force",
@@ -717,9 +707,9 @@ class TestCLI:
             main()
         finally:
             _sys_mod.argv = old_argv
-            mod.MEAN_TOTAL_RANGE = orig_N  # type: ignore[attr-defined]
-            mod.FINESSE_RANGE = orig_F  # type: ignore[attr-defined]
-            mod.N_OMEGA_POINTS = orig_npts  # type: ignore[attr-defined]
+            _m.MEAN_TOTAL_RANGE = orig_N
+            _m.FINESSE_RANGE = orig_F
+            _m.N_OMEGA_POINTS = orig_npts
 
 
 # =============================================================================
@@ -730,26 +720,23 @@ class TestCLI:
 class TestGenerateAll:
     def test_generate_all_small(self, tmp_path: Path) -> None:
         """generate_all runs end-to-end with small ranges (isolated Parquet)."""
-        import sys as _sys_mod
-
-        mod = _sys_mod.modules["local"]
-        orig_N = mod.MEAN_TOTAL_RANGE  # type: ignore[attr-defined]
-        orig_F = mod.FINESSE_RANGE  # type: ignore[attr-defined]
-        orig_npts = mod.N_OMEGA_POINTS  # type: ignore[attr-defined]
+        orig_N = _m.MEAN_TOTAL_RANGE
+        orig_F = _m.FINESSE_RANGE
+        orig_npts = _m.N_OMEGA_POINTS
         pq_path = tmp_path / "test_cavity_tmsv.parquet"
         try:
-            mod.MEAN_TOTAL_RANGE = [4.0]  # type: ignore[attr-defined]
-            mod.FINESSE_RANGE = [1.0]  # type: ignore[attr-defined]
-            mod.N_OMEGA_POINTS = 3  # type: ignore[attr-defined]
-            data, scaling_fit = mod.generate_all(  # type: ignore[attr-defined]
+            _m.MEAN_TOTAL_RANGE = [4.0]
+            _m.FINESSE_RANGE = [1.0]
+            _m.N_OMEGA_POINTS = 3
+            data, scaling_fit = _m.generate_all(
                 force=True,
                 only="F=1",
                 override_pq_path=pq_path,
             )
         finally:
-            mod.MEAN_TOTAL_RANGE = orig_N  # type: ignore[attr-defined]
-            mod.FINESSE_RANGE = orig_F  # type: ignore[attr-defined]
-            mod.N_OMEGA_POINTS = orig_npts  # type: ignore[attr-defined]
+            _m.MEAN_TOTAL_RANGE = orig_N
+            _m.FINESSE_RANGE = orig_F
+            _m.N_OMEGA_POINTS = orig_npts
 
         assert data is not None
         assert isinstance(data, CavityTmsvSensitivityResult)

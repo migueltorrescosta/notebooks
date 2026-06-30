@@ -12,10 +12,7 @@ Run with:
 
 from __future__ import annotations
 
-# Add the report directory to sys.path so we can import ``local``.
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -31,52 +28,42 @@ from src.utils.serialization import assert_roundtrip_fields
 if TYPE_CHECKING:
     from pathlib import Path
 
-_local_path = _Path(__file__).resolve().parent / "ancilla_drive_enhanced_metrology.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    AlphaReoptResultNM,
-    MScalingResult,
-    WeightedNScalingResult,
-    _bootstrap_scaling,
-    _objective_and_gradient_ad,
-    _weighted_loglog_linear,
-    _weighted_loglog_quadratic,
-    analytical_benchmark_alpha_zz_only,
-    analytical_benchmark_zero_interaction,
-    build_collective_operators,
-    build_interaction_hamiltonian_np,
-    build_weighted_operator_np,
-    compute_covariance_sa,
-    compute_moments_and_derivatives,
-    compute_sensitivity_sonly,
-    compute_sensitivity_weighted,
-    compute_six_moments,
-    compute_weighted_delta_omega,
-    css_state_np,
-    delta_omega_from_psi,
-    evolve_full_np,
-    expectation_and_variance,
-    full_bs_unitary_np,
-    golden_section_minimize,
-    operators_to_torch,
-    optimize_weight_psi,
-    product_css_state_np,
-    random_params_nm,
-    run_alpha_scan_with_reoptimisation,
-    run_lbfgsb_optimisation,
-    run_m_scaling,
-    run_n_scaling,
-    validate_css_state,
-    validate_hl_bound,
-    validate_operators_nm,
-)
+_m = importlib.import_module("reports.20260518.ancilla_drive_enhanced_metrology")
+AlphaReoptResultNM = _m.AlphaReoptResultNM
+MScalingResult = _m.MScalingResult
+WeightedNScalingResult = _m.WeightedNScalingResult
+_bootstrap_scaling = _m._bootstrap_scaling
+_objective_and_gradient_ad = _m._objective_and_gradient_ad
+_weighted_loglog_linear = _m._weighted_loglog_linear
+_weighted_loglog_quadratic = _m._weighted_loglog_quadratic
+analytical_benchmark_alpha_zz_only = _m.analytical_benchmark_alpha_zz_only
+analytical_benchmark_zero_interaction = _m.analytical_benchmark_zero_interaction
+build_collective_operators = _m.build_collective_operators
+build_interaction_hamiltonian_np = _m.build_interaction_hamiltonian_np
+build_weighted_operator_np = _m.build_weighted_operator_np
+compute_covariance_sa = _m.compute_covariance_sa
+compute_moments_and_derivatives = _m.compute_moments_and_derivatives
+compute_sensitivity_sonly = _m.compute_sensitivity_sonly
+compute_sensitivity_weighted = _m.compute_sensitivity_weighted
+compute_six_moments = _m.compute_six_moments
+compute_weighted_delta_omega = _m.compute_weighted_delta_omega
+css_state_np = _m.css_state_np
+delta_omega_from_psi = _m.delta_omega_from_psi
+evolve_full_np = _m.evolve_full_np
+expectation_and_variance = _m.expectation_and_variance
+full_bs_unitary_np = _m.full_bs_unitary_np
+golden_section_minimize = _m.golden_section_minimize
+operators_to_torch = _m.operators_to_torch
+optimize_weight_psi = _m.optimize_weight_psi
+product_css_state_np = _m.product_css_state_np
+random_params_nm = _m.random_params_nm
+run_alpha_scan_with_reoptimisation = _m.run_alpha_scan_with_reoptimisation
+run_lbfgsb_optimisation = _m.run_lbfgsb_optimisation
+run_m_scaling = _m.run_m_scaling
+run_n_scaling = _m.run_n_scaling
+validate_css_state = _m.validate_css_state
+validate_hl_bound = _m.validate_hl_bound
+validate_operators_nm = _m.validate_operators_nm
 
 # ============================================================================
 # Fixtures

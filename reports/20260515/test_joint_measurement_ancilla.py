@@ -11,7 +11,7 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import sys as _sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -34,29 +34,21 @@ if TYPE_CHECKING:
 
 # ── Module loading via importlib ────────────────────────────────────────────
 
-_local_path = Path(__file__).resolve().parent / "joint_measurement_ancilla.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
+_m = importlib.import_module("reports.20260515.joint_measurement_ancilla")
 
-from local import _fig_path as _local_fig_path  # noqa: E402
-from local import _parquet_path as _local_parquet_path  # noqa: E402
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    compute_decoupled_baseline,
-    generate_alpha_reoptimisation,
-    generate_covariance_analysis,
-    generate_interaction_robustness,
-    generate_omega_scan,
-    main,
-    plot_alpha_reoptimisation,
-    plot_covariance_analysis,
-    plot_decoupled_baseline,
-    plot_interaction_robustness,
-    plot_omega_scan,
-)
+_local_fig_path = _m._fig_path
+_local_parquet_path = _m._parquet_path
+compute_decoupled_baseline = _m.compute_decoupled_baseline
+generate_alpha_reoptimisation = _m.generate_alpha_reoptimisation
+generate_covariance_analysis = _m.generate_covariance_analysis
+generate_interaction_robustness = _m.generate_interaction_robustness
+generate_omega_scan = _m.generate_omega_scan
+main = _m.main
+plot_alpha_reoptimisation = _m.plot_alpha_reoptimisation
+plot_covariance_analysis = _m.plot_covariance_analysis
+plot_decoupled_baseline = _m.plot_decoupled_baseline
+plot_interaction_robustness = _m.plot_interaction_robustness
+plot_omega_scan = _m.plot_omega_scan
 
 # ============================================================================
 # Helpers
@@ -81,11 +73,9 @@ def _check_plot(
 def _redirect_to_tmpdir(
     tmp_path: Path,
 ) -> None:
-    """Monkey-patch ``local.REPORTS_DIR`` so generate functions write to *tmp_path*."""
-    import local
-
-    local.REPORTS_DIR = tmp_path
-    local.REPORT_DATE = "20260515"
+    """Monkey-patch ``_m.REPORTS_DIR`` so generate functions write to *tmp_path*."""
+    _m.REPORTS_DIR = tmp_path
+    _m.REPORT_DATE = "20260515"
 
 
 # ============================================================================
@@ -97,25 +87,17 @@ class TestModuleLoading:
     """Verify the module loads correctly and exposes expected names."""
 
     def test_module_has_main(self) -> None:
-        import local
-
-        assert callable(local.main)
+        assert callable(_m.main)
 
     def test_report_date(self) -> None:
-        import local
-
-        assert local.REPORT_DATE == "20260515"
+        assert _m.REPORT_DATE == "20260515"
 
     def test_reports_dir_is_parent(self) -> None:
-        import local
-
-        assert (local.REPORTS_DIR / "20260515").resolve() == Path(
+        assert (_m.REPORTS_DIR / "20260515").resolve() == Path(
             __file__
         ).resolve().parent
 
     def test_module_has_expected_functions(self) -> None:
-        import local
-
         expected = [
             "plot_decoupled_baseline",
             "plot_omega_scan",
@@ -129,8 +111,8 @@ class TestModuleLoading:
             "main",
         ]
         for name in expected:
-            assert hasattr(local, name), f"Missing expected function: {name}"
-            assert callable(getattr(local, name)), f"{name} is not callable"
+            assert hasattr(_m, name), f"Missing expected function: {name}"
+            assert callable(getattr(_m, name)), f"{name} is not callable"
 
 
 # ============================================================================
@@ -327,9 +309,7 @@ class TestGenerateDecoupledBaseline:
 
     def _call_decoupled_baseline(self, force: bool) -> None:
         """Call the decoupled-baseline generator with the same args as ``main()``."""
-        import local as _loc
-
-        _loc.generate_decoupled_baseline(
+        _m.generate_decoupled_baseline(
             force=force,
             parquet_path=_local_parquet_path("decoupled-baseline", date="20260515"),
             fig_path=_local_fig_path("decoupled-baseline", date="20260515"),
@@ -553,9 +533,7 @@ class TestMain:
 
     def test_unknown_dataset_exits(self) -> None:
         """Passing ``--only`` with an unknown name should print an error."""
-        import local
-
-        local.REPORTS_DIR = Path(__file__).resolve().parent.parent
+        _m.REPORTS_DIR = Path(__file__).resolve().parent.parent
 
         _sys.argv = ["prog", "--only", "nonexistent-dataset"]
         with pytest.raises(SystemExit) as exc_info:
@@ -576,9 +554,7 @@ class TestMain:
 
     def test_help_message(self) -> None:
         """``--help`` should print usage."""
-        import local
-
-        local.REPORTS_DIR = Path(__file__).resolve().parent.parent
+        _m.REPORTS_DIR = Path(__file__).resolve().parent.parent
 
         _sys.argv = ["prog", "--help"]
         with pytest.raises(SystemExit) as exc_info:

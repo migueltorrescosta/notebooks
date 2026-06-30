@@ -7,9 +7,7 @@ N=1 consistency, and serialization.
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -32,29 +30,17 @@ from src.physics.n_particle_drive import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = _Path(__file__).resolve().parent / "n_scaling_phase_modulated.py"
-_spec = importlib.util.spec_from_file_location(
-    "n_scaling_phase_modulated", str(_local_path)
-)
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["n_scaling_phase_modulated"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from n_scaling_phase_modulated import (  # type: ignore[import-untyped]  # noqa: E402
-    T_BS,
-    T_HOLD,
-    NScalingResult,
-    NScalingScanResult,
-    compute_n_particle_decoupled_baseline,
-    compute_n_particle_sensitivity,
-    evolve_n_particle_circuit,
-    n_particle_initial_state,
-    run_single_n_omega,
-    sql_reference,
-)
+_m = importlib.import_module("reports.20260611.n_scaling_phase_modulated")
+T_BS = _m.T_BS
+T_HOLD = _m.T_HOLD
+NScalingResult = _m.NScalingResult
+NScalingScanResult = _m.NScalingScanResult
+compute_n_particle_decoupled_baseline = _m.compute_n_particle_decoupled_baseline
+compute_n_particle_sensitivity = _m.compute_n_particle_sensitivity
+evolve_n_particle_circuit = _m.evolve_n_particle_circuit
+n_particle_initial_state = _m.n_particle_initial_state
+run_single_n_omega = _m.run_single_n_omega
+sql_reference = _m.sql_reference
 
 # ============================================================================
 # Fixtures

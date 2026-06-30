@@ -7,9 +7,8 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import subprocess
-import sys as _sys
 from pathlib import Path
 from typing import ClassVar
 
@@ -36,39 +35,30 @@ from src.physics.sv_qfi import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = Path(__file__).resolve().parent / "heisenberg_limit_mzi_sq_oat.py"
-_sys.path.insert(0, str(Path(__file__).resolve().parent))
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
+_m = importlib.import_module("reports.20260625.heisenberg_limit_mzi_sq_oat")
 
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    MziSensitivityDataSV,
-    OATQScanResult,
-    _dicke_to_fock,
-    _generate_single_resource_data,
-    _make_oat_state,
-    _maybe_generate_full_data,
-    _maybe_plot_delta_omega_overlays,
-    _oat_q_grid,
-    _prepare_state,
-    _verify_oat_q0_qfi,
-    _verify_tmsv_qfi,
-    compute_mzi_sensitivity_grid,
-    generate_full_data,
-    generate_single_omega_scan,
-    main,
-    output_number_diff_distribution,
-    plot_delta_omega_overlay,
-    plot_scaling,
-    scan_oat_q,
-    simple_mzi_evolution,
-    t_hold,
-)
+MziSensitivityDataSV = _m.MziSensitivityDataSV
+OATQScanResult = _m.OATQScanResult
+_dicke_to_fock = _m._dicke_to_fock
+_fig_path = _m._fig_path
+_generate_single_resource_data = _m._generate_single_resource_data
+_make_oat_state = _m._make_oat_state
+_maybe_generate_full_data = _m._maybe_generate_full_data
+_maybe_plot_delta_omega_overlays = _m._maybe_plot_delta_omega_overlays
+_oat_q_grid = _m._oat_q_grid
+_prepare_state = _m._prepare_state
+_verify_oat_q0_qfi = _m._verify_oat_q0_qfi
+_verify_tmsv_qfi = _m._verify_tmsv_qfi
+compute_mzi_sensitivity_grid = _m.compute_mzi_sensitivity_grid
+generate_full_data = _m.generate_full_data
+generate_single_omega_scan = _m.generate_single_omega_scan
+main = _m.main
+output_number_diff_distribution = _m.output_number_diff_distribution
+plot_delta_omega_overlay = _m.plot_delta_omega_overlay
+plot_scaling = _m.plot_scaling
+scan_oat_q = _m.scan_oat_q
+simple_mzi_evolution = _m.simple_mzi_evolution
+t_hold = _m.t_hold
 
 # ============================================================================
 # Two-Mode Squeezed Vacuum (TMSV) State
@@ -1128,21 +1118,18 @@ class TestMaybeGenerateFullData:
         tmp_path: Path,
     ) -> None:
         """_maybe_generate_full_data loads existing Parquet on second call."""
-        import sys as _sys
-
-        mod = _sys.modules["local"]
-        orig_sv = mod.SV_N_RANGE
-        orig_omega_range = mod.OMEGA_RANGE
-        orig_omega_step = mod.OMEGA_STEP
+        orig_sv = _m.SV_N_RANGE
+        orig_omega_range = _m.OMEGA_RANGE
+        orig_omega_step = _m.OMEGA_STEP
         try:
-            mod.SV_N_RANGE = [2.0]  # type: ignore[attr-defined]
-            mod.OMEGA_RANGE = (0.1, 5.0)  # type: ignore[attr-defined]
-            mod.OMEGA_STEP = 4.9  # type: ignore[attr-defined]
+            _m.SV_N_RANGE = [2.0]
+            _m.OMEGA_RANGE = (0.1, 5.0)
+            _m.OMEGA_STEP = 4.9
             r_range: list[float] = [2.0]
             omega_grid = np.arange(
-                mod.OMEGA_RANGE[0],  # type: ignore[attr-defined]
-                mod.OMEGA_RANGE[1] + mod.OMEGA_STEP / 2,  # type: ignore[attr-defined]
-                mod.OMEGA_STEP,  # type: ignore[attr-defined]
+                _m.OMEGA_RANGE[0],
+                _m.OMEGA_RANGE[1] + _m.OMEGA_STEP / 2,
+                _m.OMEGA_STEP,
             )
 
             # Use tmp_path to avoid corrupting production data
@@ -1175,9 +1162,9 @@ class TestMaybeGenerateFullData:
             assert data2.state_type == "sv"
             np.testing.assert_array_equal(data1.resource_values, data2.resource_values)
         finally:
-            mod.SV_N_RANGE = orig_sv  # type: ignore[attr-defined]
-            mod.OMEGA_RANGE = orig_omega_range  # type: ignore[attr-defined]
-            mod.OMEGA_STEP = orig_omega_step  # type: ignore[attr-defined]
+            _m.SV_N_RANGE = orig_sv
+            _m.OMEGA_RANGE = orig_omega_range
+            _m.OMEGA_STEP = orig_omega_step
 
 
 # ============================================================================
@@ -1255,8 +1242,6 @@ class TestPlots:
     def test_plot_overlay_no_save_path(self, sample_data: MziSensitivityDataSV) -> None:
         """plot_delta_omega_overlay works without save_path (auto-names)."""
         # Allows SVG in the default location; clean up after.
-        from local import _fig_path  # type: ignore[import-untyped]
-
         path = _fig_path(f"{sample_data.state_type}_delta_omega_comparison")
         try:
             created = plot_delta_omega_overlay(sample_data)
@@ -1276,8 +1261,6 @@ class TestPlots:
 
     def test_plot_scaling_no_save_path(self, sample_data: MziSensitivityDataSV) -> None:
         """plot_scaling works without save_path (auto-names)."""
-        from local import _fig_path  # type: ignore[import-untyped]
-
         path = _fig_path("scaling_comparison")
         try:
             created = plot_scaling([sample_data], ["SV"])
@@ -1343,24 +1326,20 @@ class TestGenerateAll:
     def test_generate_all_sv_only(self, tmp_path: Path) -> None:
         """generate_all with --only sv runs end-to-end for SV."""
         # Use a small omega grid and single resource value for speed.
-        # Access module from sys.modules (injected at import time).
-        import sys
-
-        mod = sys.modules["local"]
         for attr in ("SV_N_RANGE", "OMEGA_RANGE", "OMEGA_STEP"):
-            assert hasattr(mod, attr), f"Module missing {attr}"
-        orig_sv = mod.SV_N_RANGE  # type: ignore[attr-defined]
-        orig_omega_range = mod.OMEGA_RANGE  # type: ignore[attr-defined]
-        orig_omega_step = mod.OMEGA_STEP  # type: ignore[attr-defined]
+            assert hasattr(_m, attr), f"Module missing {attr}"
+        orig_sv = _m.SV_N_RANGE
+        orig_omega_range = _m.OMEGA_RANGE
+        orig_omega_step = _m.OMEGA_STEP
         try:
-            mod.SV_N_RANGE = [2.0]  # type: ignore[attr-defined]
-            mod.OMEGA_RANGE = (0.1, 0.5)  # type: ignore[attr-defined]
-            mod.OMEGA_STEP = 0.4  # type: ignore[attr-defined]
-            results = mod.generate_all(force=True, only="sv")  # type: ignore[attr-defined]
+            _m.SV_N_RANGE = [2.0]
+            _m.OMEGA_RANGE = (0.1, 0.5)
+            _m.OMEGA_STEP = 0.4
+            results = _m.generate_all(force=True, only="sv")
         finally:
-            mod.SV_N_RANGE = orig_sv  # type: ignore[attr-defined]
-            mod.OMEGA_RANGE = orig_omega_range  # type: ignore[attr-defined]
-            mod.OMEGA_STEP = orig_omega_step  # type: ignore[attr-defined]
+            _m.SV_N_RANGE = orig_sv
+            _m.OMEGA_RANGE = orig_omega_range
+            _m.OMEGA_STEP = orig_omega_step
 
         assert "sv" in results
         data = results["sv"]
@@ -1406,19 +1385,18 @@ class TestCLI:
         """Call main() directly with --only sv and small ranges."""
         import sys as _sys
 
-        mod = _sys.modules["local"]
         old_argv = _sys.argv[:]
-        orig_sv = mod.SV_N_RANGE  # type: ignore[attr-defined]
-        orig_omega_range = mod.OMEGA_RANGE  # type: ignore[attr-defined]
-        orig_omega_step = mod.OMEGA_STEP  # type: ignore[attr-defined]
+        orig_sv = _m.SV_N_RANGE
+        orig_omega_range = _m.OMEGA_RANGE
+        orig_omega_step = _m.OMEGA_STEP
         try:
-            mod.SV_N_RANGE = [2.0]  # type: ignore[attr-defined]
-            mod.OMEGA_RANGE = (0.1, 0.5)  # type: ignore[attr-defined]
-            mod.OMEGA_STEP = 0.4  # type: ignore[attr-defined]
+            _m.SV_N_RANGE = [2.0]
+            _m.OMEGA_RANGE = (0.1, 0.5)
+            _m.OMEGA_STEP = 0.4
             _sys.argv = ["script", "--only", "sv"]
             main()
         finally:
             _sys.argv = old_argv
-            mod.SV_N_RANGE = orig_sv  # type: ignore[attr-defined]
-            mod.OMEGA_RANGE = orig_omega_range  # type: ignore[attr-defined]
-            mod.OMEGA_STEP = orig_omega_step  # type: ignore[attr-defined]
+            _m.SV_N_RANGE = orig_sv
+            _m.OMEGA_RANGE = orig_omega_range
+            _m.OMEGA_STEP = orig_omega_step

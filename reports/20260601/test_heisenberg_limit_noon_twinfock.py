@@ -7,16 +7,18 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import subprocess
-import sys as _sys
 from pathlib import Path
 from typing import ClassVar
 
 import numpy as np
 import pytest
 
-from src.physics.mzi_simulation import beam_splitter_unitary
+from src.analysis.fisher_information import classical_fisher_information_single
+from src.analysis.scaling_fit import fit_scaling_exponent
+from src.physics.mzi_distribution import output_number_diff_distribution
+from src.physics.mzi_simulation import beam_splitter_unitary, simple_mzi_evolution
 from src.physics.mzi_states import (
     compute_jz_expectation,
     compute_jz_variance,
@@ -25,25 +27,13 @@ from src.physics.mzi_states import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = Path(__file__).resolve().parent / "heisenberg_limit_noon_twinfock.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
+_m = importlib.import_module("reports.20260601.heisenberg_limit_noon_twinfock")
 
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    MziSensitivityData,
-    analyse_best_worst_sensitivity,
-    compute_fisher_classical,
-    compute_mzi_sensitivity_grid,
-    fit_mzi_scaling_exponent,
-    output_number_diff_distribution,
-    simple_mzi_evolution,
-    t_hold,
-)
+MziSensitivityData = _m.MziSensitivityData
+analyse_best_worst_sensitivity = _m.analyse_best_worst_sensitivity
+compute_mzi_sensitivity_grid = _m.compute_mzi_sensitivity_grid
+generate_omega_scan = _m.generate_omega_scan
+t_hold = _m.t_hold
 
 # ============================================================================
 # Standard Twin-Fock |N/2, N/2⟩ State
@@ -529,11 +519,11 @@ class TestComputeMziSensitivityGrid:
             P_omega = output_number_diff_distribution(state_out, N)
             P_plus = output_number_diff_distribution(state_plus, N)
             P_minus = output_number_diff_distribution(state_minus, N)
-            fc_alt = compute_fisher_classical(
-                P_omega,
+            fc_alt = classical_fisher_information_single(
                 P_plus,
                 P_minus,
-                epsilon=alt_eps,
+                alt_eps,
+                P_omega,
             )
 
             if np.isfinite(fc_alt):
@@ -583,7 +573,7 @@ class TestFitScalingExponent:
         r"""NOON states should give α ≈ -1.0 (Heisenberg)."""
         N_vals = np.array([2, 4, 6, 10, 14, 20], dtype=float)
         delta_vals = 1.0 / (t_hold * N_vals)
-        result = fit_mzi_scaling_exponent(N_vals, delta_vals)
+        result = fit_scaling_exponent(N_vals, delta_vals)
         assert result.valid, f"Fit invalid: {result.warnings}"
         assert np.isclose(result.alpha, -1.0, atol=0.02), (
             f"NOON exponent α={result.alpha}, expected -1.0"
@@ -605,7 +595,7 @@ class TestFitScalingExponent:
         N_vals = np.array([10, 20, 40, 80, 120, 200], dtype=float)
         # Δθ_Q = 1 / (t_hold · √(N(N+2)/2)) → ∝ 1/N for large N
         delta_vals = 1.0 / (t_hold * np.sqrt(N_vals * (N_vals + 2) / 2.0))
-        result = fit_mzi_scaling_exponent(N_vals, delta_vals, N_min=10)
+        result = fit_scaling_exponent(N_vals, delta_vals, min_N=10)
         assert result.valid, f"Fit invalid: {result.warnings}"
         assert np.isclose(result.alpha, -1.0, atol=0.05), (
             f"TF exponent α={result.alpha}, expected ~-1.0"
@@ -624,17 +614,17 @@ class TestFitScalingExponent:
         true_C = 1.0 / t_hold
         delta_vals = true_C * N_vals**true_alpha
         delta_vals *= 1.0 + 0.01 * rng.normal(size=len(N_vals))
-        result = fit_mzi_scaling_exponent(N_vals, delta_vals)
+        result = fit_scaling_exponent(N_vals, delta_vals)
         assert result.valid, f"Fit invalid: {result.warnings}"
         assert np.isclose(result.alpha, true_alpha, atol=0.05), (
             f"Noisy NOON exponent α={result.alpha}, expected {true_alpha}"
         )
 
     def test_min_N_filter(self) -> None:
-        """N_min parameter should exclude small N from fit."""
+        """min_N parameter should exclude small N from fit."""
         N_vals = np.array([1, 2, 4, 6, 10, 20], dtype=float)
         delta_vals = 1.0 / (t_hold * N_vals)
-        result = fit_mzi_scaling_exponent(N_vals, delta_vals, N_min=4)
+        result = fit_scaling_exponent(N_vals, delta_vals, min_N=4)
         assert result.valid, f"Fit invalid: {result.warnings}"
         assert len(result.N_values) == 4, (
             f"Expected 4 fit points (N>=4), got {len(result.N_values)}"
@@ -645,7 +635,7 @@ class TestFitScalingExponent:
         """Fewer than 3 points should return invalid result (valid=False)."""
         N_vals = np.array([2], dtype=float)
         delta_vals = np.array([0.1])
-        result = fit_mzi_scaling_exponent(N_vals, delta_vals)
+        result = fit_scaling_exponent(N_vals, delta_vals)
         assert not result.valid, "Fit should be invalid with only 1 point"
 
 
@@ -724,8 +714,6 @@ class TestMziSensitivityDataParquet:
 class TestGenerateOmegaScan:
     def test_generate_noon_scan(self) -> None:
         """Generate a small θ scan for NOON and verify basic properties."""
-        from local import generate_omega_scan
-
         omega_grid = np.linspace(0.1, 5.0, 5)
         result = generate_omega_scan(
             "noon", N=4, omega_grid=omega_grid, max_photons=4, t_hold=t_hold
@@ -738,8 +726,6 @@ class TestGenerateOmegaScan:
 
     def test_generate_twin_fock_scan(self) -> None:
         """Generate a small θ scan for standard Twin-Fock."""
-        from local import generate_omega_scan
-
         omega_grid = np.linspace(0.1, 5.0, 5)
         result = generate_omega_scan(
             "twin_fock_std", N=4, omega_grid=omega_grid, max_photons=4, t_hold=t_hold
@@ -833,7 +819,7 @@ class TestClassicalFisher:
         P_omega = np.array([0.5, 0.0, 0.5])
         P_plus = np.array([0.5 + 5e-6, 0.0, 0.5 - 5e-6])
         P_minus = np.array([0.5 - 5e-6, 0.0, 0.5 + 5e-6])
-        fc = compute_fisher_classical(P_omega, P_plus, P_minus, epsilon=eps)
+        fc = classical_fisher_information_single(P_plus, P_minus, eps, P_omega)
         assert fc >= 0.0
 
     def test_cfi_known_noon_n1(self) -> None:
@@ -848,7 +834,7 @@ class TestClassicalFisher:
         P_minus = np.array(
             [0.5 + t_hold_val * eps / 2, 0.0, 0.5 - t_hold_val * eps / 2]
         )
-        fc = compute_fisher_classical(P_omega, P_plus, P_minus, epsilon=eps)
+        fc = classical_fisher_information_single(P_plus, P_minus, eps, P_omega)
         expected_fc = t_hold_val**2  # F_Q = t_hold²·N² with N=1
         assert np.isclose(fc, expected_fc, rtol=1e-5), (
             f"F_C={fc}, expected {expected_fc}"
@@ -858,7 +844,7 @@ class TestClassicalFisher:
         """When P_omega = P_plus = P_minus, F_C = 0."""
         eps = 1e-6
         P = np.array([0.5, 0.0, 0.5])
-        fc = compute_fisher_classical(P, P, P, epsilon=eps)
+        fc = classical_fisher_information_single(P, P, eps, P)
         assert np.isclose(fc, 0.0, atol=1e-20), f"F_C={fc}, expected 0"
 
     def test_cfi_epsilon_invariance(self) -> None:
@@ -882,7 +868,7 @@ class TestClassicalFisher:
                     0.5 - t_hold_val * eps / 2,
                 ]
             )
-            fc = compute_fisher_classical(P_omega, P_plus, P_minus, epsilon=eps)
+            fc = classical_fisher_information_single(P_plus, P_minus, eps, P_omega)
             fc_values.append(fc)
 
         for i in range(1, len(fc_values)):
@@ -898,7 +884,7 @@ class TestClassicalFisher:
         # Non-zero dP/dθ in the middle entry (P=0) would cause /0 if unprotected
         P_plus = np.array([0.6, 0.2, 0.2])
         P_minus = np.array([0.4, -0.2, 0.8])
-        fc = compute_fisher_classical(P_omega, P_plus, P_minus, epsilon=1e-6)
+        fc = classical_fisher_information_single(P_plus, P_minus, 1e-6, P_omega)
         assert np.isfinite(fc), "F_C should be finite (no division by zero)"
         assert fc >= 0.0
 

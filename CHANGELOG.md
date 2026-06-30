@@ -37,11 +37,11 @@ Priority colours: 🔴🟠🟡🟢
 
 ### Infrastructure
 
-- **Code quality and tooling improvements** — Fixed the last mypy warning, resolved all 14 ruff lint errors, installed `vulture` for periodic dead-code scans, raised test coverage from 83% to 88% (crossing 85% CI threshold).
+- **`sys.path` eradication campaign** — Removed every `sys.path.insert` anti-pattern from `conftest.py`, standalone scripts, subprocess workers, and all 29 report test files + 5 runner scripts, replacing them with editable-install `.pth` resolution and `PYTHONPATH` env vars. Added `__init__.py` to `reports/` and all 29 subdirectories for native `importlib` importability.
 
-- **Audit remediation and cross-report code promotion** — Remediated 6 findings from the #20260629 code audit (CRITICAL: `delta_omega_sql_eff` formula correction and `C0_err` prefactor error; MAJOR: test isolation; MINOR: field name corrections, `--force` flag, `selected_F` parameter). Promoted 3 duplicated TMSV functions to `src/physics/mzi_states.py` and `src/physics/sv_qfi.py`. Fixed Parquet column naming mismatches across both #20260625 and #20260629.
+- **Code quality, coverage, and tooling** — Fixed the last mypy warning, resolved all 14 ruff lint errors, installed `vulture` for periodic dead-code scans, raised test coverage from 83% to 88% (crossing the 85% CI threshold), and fixed 13 stale import-binding references across 3 report test files (all 260 tests pass).
 
-- **Maintenance, cleanup, and parallel data generation** — Removed the broken blank ratio heatmap from #20260620 (replaced with text paragraph). Regenerated SV parity $\Delta\omega$ data at $10\times$ resolution with `ProcessPoolExecutor` (16 workers). Added test file for the #20260515 joint measurement ancilla module. Conducted two project alignment reviews covering backlog priorities, toolchain health, and coverage thresholds.
+- **Audit remediation and deduplication** — Remediated 6 findings from the #20260629 code audit (critical formula corrections, test isolation, field naming), promoted 3 duplicated TMSV functions to shared `src/` modules, and fixed Parquet column mismatches across both #20260625 and #20260629.
 
 ---
 

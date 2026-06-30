@@ -12,8 +12,7 @@ Usage:
     uv run python reports/20260507/high_order_squeezing.py
     uv run python reports/20260507/high_order_squeezing.py --force  (regenerate data + figures)
 
-This module is not importable as reports.20260507.local (non-standard package name).
-Importers should use importlib.util.spec_from_file_location.
+This module is importable via ``importlib.import_module("reports.20260507.high_order_squeezing")``.
 """
 
 from __future__ import annotations

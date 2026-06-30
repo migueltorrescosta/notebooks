@@ -19,9 +19,7 @@ Usage:
     uv run python reports/20260625/heisenberg_limit_mzi_sq_oat.py --only sv
     uv run python reports/20260625/heisenberg_limit_mzi_sq_oat.py --only oat
 
-This module is **not** importable as ``reports.20260625.local`` (the directory
-name contains hyphens).  Instead, importers add the report directory to
-``sys.path`` and do ``import local``.
+This module is importable via ``importlib.import_module("reports.20260625.heisenberg_limit_mzi_sq_oat")``.
 """
 
 from __future__ import annotations
@@ -587,10 +585,13 @@ def _run_worker(
     # Uses short-circuit ``and`` instead of ``if`` because ``-c`` scripts
     # cannot contain keyword statements after semicolons.
     # pylint: disable=line-too-long
+    # Use PYTHONPATH instead of sys.path.insert so the subprocess can
+    # find this module via flat import (heisenberg_limit_mzi_sq_oat).
+    worker_env = os.environ.copy()
+    worker_env["PYTHONPATH"] = str(Path(__file__).parent)
     script = (
-        "import os,sys,numpy as np;"
+        "import os,numpy as np;"
         f"os.environ.setdefault('MPLBACKEND','Agg');"
-        f"sys.path.insert(0,{str(Path(__file__).parent)!r});"
         f"from heisenberg_limit_mzi_sq_oat import generate_single_omega_scan;"
         f"from src.physics.mzi_simulation import beam_splitter_unitary;"
         f"from src.physics.hilbert_space import resource_value_to_truncation;"
@@ -602,6 +603,7 @@ def _run_worker(
     )
     subprocess.run(
         [sys.executable, "-c", script],
+        env=worker_env,
         check=True,
         timeout=7200,
     )

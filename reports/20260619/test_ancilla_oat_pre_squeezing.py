@@ -7,9 +7,7 @@ decoupled baseline, sensitivity, optimisation, and serialization.
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -28,44 +26,33 @@ from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.utils.enums import OperatorBasis
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = _Path(__file__).resolve().parent / "ancilla_oat_pre_squeezing.py"
-_spec = importlib.util.spec_from_file_location(
-    "ancilla_oat_pre_squeezing", str(_local_path)
-)
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["ancilla_oat_pre_squeezing"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
+_m = importlib.import_module("reports.20260619.ancilla_oat_pre_squeezing")
 
-from ancilla_oat_pre_squeezing import (  # type: ignore[import-untyped]  # noqa: E402
-    FD_STEP,
-    PHASE1_N_ANCILLA,
-    PHASE1_N_SYSTEM,
-    T_BS,
-    T_HOLD,
-    OATNelderMeadResult,
-    OATNScalingResult,
-    OATNScalingScanResult,
-    OATRandomSearchResult,
-    build_hold_hamiltonian,
-    build_iszz_interaction,
-    build_modulated_drive_hamiltonian,
-    build_operators,
-    build_system_only_bs_unitary,
-    compute_oat_decoupled_baseline,
-    compute_oat_decoupled_with_oat,
-    compute_oat_sensitivity,
-    evolve_oat_circuit,
-    hold_unitary,
-    oat_initial_state,
-    oat_random_search,
-    oat_unitary,
-    run_oat_nelder_mead,
-    run_single_oat_optimisation,
-    verify_oat_decoupled_baseline,
-)
+FD_STEP = _m.FD_STEP
+PHASE1_N_ANCILLA = _m.PHASE1_N_ANCILLA
+PHASE1_N_SYSTEM = _m.PHASE1_N_SYSTEM
+T_BS = _m.T_BS
+T_HOLD = _m.T_HOLD
+OATNelderMeadResult = _m.OATNelderMeadResult
+OATNScalingResult = _m.OATNScalingResult
+OATNScalingScanResult = _m.OATNScalingScanResult
+OATRandomSearchResult = _m.OATRandomSearchResult
+build_hold_hamiltonian = _m.build_hold_hamiltonian
+build_iszz_interaction = _m.build_iszz_interaction
+build_modulated_drive_hamiltonian = _m.build_modulated_drive_hamiltonian
+build_operators = _m.build_operators
+build_system_only_bs_unitary = _m.build_system_only_bs_unitary
+compute_oat_decoupled_baseline = _m.compute_oat_decoupled_baseline
+compute_oat_decoupled_with_oat = _m.compute_oat_decoupled_with_oat
+compute_oat_sensitivity = _m.compute_oat_sensitivity
+evolve_oat_circuit = _m.evolve_oat_circuit
+hold_unitary = _m.hold_unitary
+oat_initial_state = _m.oat_initial_state
+oat_random_search = _m.oat_random_search
+oat_unitary = _m.oat_unitary
+run_oat_nelder_mead = _m.run_oat_nelder_mead
+run_single_oat_optimisation = _m.run_single_oat_optimisation
+verify_oat_decoupled_baseline = _m.verify_oat_decoupled_baseline
 
 # ============================================================================
 # Fixtures

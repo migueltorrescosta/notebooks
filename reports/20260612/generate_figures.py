@@ -5,19 +5,15 @@ N-scaling plots (ratio, sensitivity, optimal params) plus a
 comparison plot with the fixed J_A=1/2 ancilla data from #20260611.
 
 Usage:
-    cd /home/miguel/Git/notebooks && uv run python reports/20260612/generate_figures.py
+    cd /home/miguel/Git/notebooks && uv run python -m reports.20260612.generate_figures
 """
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
-# Add project root to sys.path so we can import from src/
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.analysis.n_scaling_result import NScalingResult, NScalingScanResult
 from src.visualization.scaling_plots import (

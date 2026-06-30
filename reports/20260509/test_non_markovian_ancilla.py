@@ -10,10 +10,11 @@ Hamiltonian, evolution, QFI) live in src/physics/test_pseudomode_system.py.
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
-from typing import Any, ClassVar
+import importlib
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import numpy as np
 import pytest
@@ -21,14 +22,7 @@ import pytest
 from src.utils.serialization import assert_roundtrip_fields
 
 # Load non_markovian_ancilla.py via importlib
-# Must register in sys.modules for dataclass machinery to resolve __module__
-_local_path = Path(__file__).resolve().parent / "non_markovian_ancilla.py"
-_spec = importlib.util.spec_from_file_location("report_2026_05_09", str(_local_path))
-assert _spec is not None, f"Could not find non_markovian_ancilla.py at {_local_path}"
-_report_local = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-sys.modules["report_2026_05_09"] = _report_local
-_spec.loader.exec_module(_report_local)
+_report_local = importlib.import_module("reports.20260509.non_markovian_ancilla")
 
 
 # =============================================================================

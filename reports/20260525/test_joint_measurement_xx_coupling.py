@@ -7,10 +7,11 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path
-from typing import ClassVar
+import importlib
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import numpy as np
 import pytest
@@ -20,41 +21,31 @@ from src.physics.dicke_basis import jz_operator
 from src.utils.enums import OperatorBasis
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = Path(__file__).resolve().parent / "joint_measurement_xx_coupling.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    AXX_BOUNDS,
-    DEFAULT_T_BS,
-    FD_STEP,
-    N_RANDOM_STARTS,
-    OMEGA_MAX,
-    OMEGA_MIN,
-    PSI_BOUNDS,
-    DEFAULT_t_hold,
-    DualMZIOptimisedResult,
-    ScalingAnalysisResult,
-    build_hold_hamiltonian,
-    build_measurement_operator,
-    compute_decoupled_baseline,
-    compute_sensitivity_full,
-    dual_bs_unitary,
-    embed_combined_operators,
-    evolve_circuit,
-    fit_scaling_exponents,
-    full_state_expectation_and_variance,
-    hold_unitary_dicke,
-    initial_state,
-    optimise_joint,
-    run_sweep,
-    single_bs_unitary,
-)
+_m = importlib.import_module("reports.20260525.joint_measurement_xx_coupling")
+AXX_BOUNDS = _m.AXX_BOUNDS
+DEFAULT_T_BS = _m.DEFAULT_T_BS
+FD_STEP = _m.FD_STEP
+N_RANDOM_STARTS = _m.N_RANDOM_STARTS
+OMEGA_MAX = _m.OMEGA_MAX
+OMEGA_MIN = _m.OMEGA_MIN
+PSI_BOUNDS = _m.PSI_BOUNDS
+DEFAULT_t_hold = _m.DEFAULT_t_hold
+DualMZIOptimisedResult = _m.DualMZIOptimisedResult
+ScalingAnalysisResult = _m.ScalingAnalysisResult
+build_hold_hamiltonian = _m.build_hold_hamiltonian
+build_measurement_operator = _m.build_measurement_operator
+compute_decoupled_baseline = _m.compute_decoupled_baseline
+compute_sensitivity_full = _m.compute_sensitivity_full
+dual_bs_unitary = _m.dual_bs_unitary
+embed_combined_operators = _m.embed_combined_operators
+evolve_circuit = _m.evolve_circuit
+fit_scaling_exponents = _m.fit_scaling_exponents
+full_state_expectation_and_variance = _m.full_state_expectation_and_variance
+hold_unitary_dicke = _m.hold_unitary_dicke
+initial_state = _m.initial_state
+optimise_joint = _m.optimise_joint
+run_sweep = _m.run_sweep
+single_bs_unitary = _m.single_bs_unitary
 
 
 def _embed_ops_for_tests(N: int) -> dict[str, np.ndarray]:

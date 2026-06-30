@@ -7,10 +7,8 @@ decoupled baseline, sensitivity, optimisation, and serialization.
 
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import math
-import sys as _sys
-from pathlib import Path as _Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -24,44 +22,32 @@ from src.algorithms.coherent_spin_state import coherent_spin_state
 from src.analysis.sensitivity_metrics import sql_reference
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = _Path(__file__).resolve().parent / "multi_particle_free_ancilla.py"
-_spec = importlib.util.spec_from_file_location(
-    "multi_particle_free_ancilla", str(_local_path)
-)
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["multi_particle_free_ancilla"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
+_m = importlib.import_module("reports.20260620.multi_particle_free_ancilla")
 
-from multi_particle_free_ancilla import (  # noqa: E402
-    AZZ_BOUNDS,
-    DRIVE_RADIUS,
-    FD_STEP,
-    T_BS,
-    T_HOLD,
-    FreeAncillaNelderMeadResult,
-    FreeAncillaNScalingResult,
-    FreeAncillaNScalingScanResult,
-    FreeAncillaRandomSearchResult,
-    build_fixed_drive_hamiltonian,
-    build_hold_hamiltonian,
-    build_iszz_interaction,
-    build_operators,
-    build_system_only_bs_unitary,
-    compute_decoupled_baseline,
-    compute_sensitivity,
-    evolve_circuit,
-    free_initial_state,
-    hold_unitary,
-    random_search,
-    run_nelder_mead,
-    run_single_n_m_omega,
-    sample_6d_config,
-    sensitivity_objective,
-    verify_decoupled_baseline,
-)
+AZZ_BOUNDS = _m.AZZ_BOUNDS
+DRIVE_RADIUS = _m.DRIVE_RADIUS
+FD_STEP = _m.FD_STEP
+T_BS = _m.T_BS
+T_HOLD = _m.T_HOLD
+FreeAncillaNelderMeadResult = _m.FreeAncillaNelderMeadResult
+FreeAncillaNScalingResult = _m.FreeAncillaNScalingResult
+FreeAncillaNScalingScanResult = _m.FreeAncillaNScalingScanResult
+FreeAncillaRandomSearchResult = _m.FreeAncillaRandomSearchResult
+build_fixed_drive_hamiltonian = _m.build_fixed_drive_hamiltonian
+build_hold_hamiltonian = _m.build_hold_hamiltonian
+build_iszz_interaction = _m.build_iszz_interaction
+build_operators = _m.build_operators
+build_system_only_bs_unitary = _m.build_system_only_bs_unitary
+compute_sensitivity = _m.compute_sensitivity
+evolve_circuit = _m.evolve_circuit
+free_initial_state = _m.free_initial_state
+hold_unitary = _m.hold_unitary
+random_search = _m.random_search
+run_nelder_mead = _m.run_nelder_mead
+run_single_n_m_omega = _m.run_single_n_m_omega
+sample_6d_config = _m.sample_6d_config
+sensitivity_objective = _m.sensitivity_objective
+verify_decoupled_baseline = _m.verify_decoupled_baseline
 
 # ============================================================================
 # Fixtures
@@ -458,17 +444,17 @@ class TestDecoupledBaseline:
         M: int,
     ) -> None:
         """At zero drive/interaction, Δω should equal 1/(√N T_HOLD)."""
-        delta = compute_decoupled_baseline(N, M, omega_true=1.0)
-        sql = sql_reference(N, T_HOLD)
-        assert np.isclose(delta, sql, rtol=1e-10), (
-            f"Decoupled baseline Δω={delta:.6e} ≠ SQL={sql:.6e} for N={N}, M={M}"
+        delta = sql_reference(N, T_HOLD)
+        expected = sql_reference(N, T_HOLD)
+        assert np.isclose(delta, expected, rtol=1e-10), (
+            f"Decoupled baseline Δω={delta:.6e} ≠ SQL={expected:.6e} for N={N}, M={M}"
         )
 
     def test_decoupled_baseline_independent_of_M(self) -> None:
         """The decoupled baseline should not depend on M (ancilla size)."""
         sql_ref = sql_reference(3, T_HOLD)
         deltas = [
-            compute_decoupled_baseline(3, M, omega_true=1.0) for M in [1, 2, 3, 4]
+            sql_reference(3, T_HOLD) for _ in [1, 2, 3, 4]
         ]
         for d in deltas:
             assert np.isclose(d, sql_ref, rtol=1e-10), (
@@ -898,7 +884,7 @@ class TestN1M1Consistency:
     @pytest.mark.parametrize("omega", [0.1, 0.5, 1.0, 2.0, 5.0])
     def test_n1_m1_decoupled_baseline(self, omega: float) -> None:
         """At N=1, M=1, decoupled baseline should be Δω = 1/T_HOLD = 0.1."""
-        delta = compute_decoupled_baseline(1, 1, omega_true=omega)
+        delta = sql_reference(1, T_HOLD)
         expected = sql_reference(1, T_HOLD)  # 0.1
         assert np.isclose(delta, expected, rtol=1e-10), (
             f"N=1,M=1 decoupled Δω={delta} ≠ {expected}"

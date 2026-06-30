@@ -7,9 +7,7 @@ decoupled baseline, Stage A evaluation, optimisation, and serialization.
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -28,37 +26,25 @@ from src.physics.n_particle_drive import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = _Path(__file__).resolve().parent / "nonlinear_measurement_parity_cfi.py"
-_spec = importlib.util.spec_from_file_location(
-    "nonlinear_measurement_parity_cfi", str(_local_path)
-)
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["nonlinear_measurement_parity_cfi"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from nonlinear_measurement_parity_cfi import (  # noqa: E402
-    PROTOCOL_CFI,
-    PROTOCOL_LINEAR,
-    PROTOCOL_PARITY,
-    T_BS,
-    T_HOLD,
-    NonLinearResult,
-    NonLinearScanResult,
-    build_parity_operator,
-    compute_cfi_sensitivity,
-    compute_jz_probability_distribution,
-    compute_jz_projectors,
-    compute_parity_sensitivity,
-    compute_protocol_sensitivity,
-    evaluate_protocols_at_params,
-    load_joint_optimal_params,
-    non_linear_random_search,
-    run_non_linear_nelder_mead,
-    verify_decoupled_baseline,
-)
+_m = importlib.import_module("reports.20260615.nonlinear_measurement_parity_cfi")
+PROTOCOL_CFI = _m.PROTOCOL_CFI
+PROTOCOL_LINEAR = _m.PROTOCOL_LINEAR
+PROTOCOL_PARITY = _m.PROTOCOL_PARITY
+T_BS = _m.T_BS
+T_HOLD = _m.T_HOLD
+NonLinearResult = _m.NonLinearResult
+NonLinearScanResult = _m.NonLinearScanResult
+build_parity_operator = _m.build_parity_operator
+compute_cfi_sensitivity = _m.compute_cfi_sensitivity
+compute_jz_probability_distribution = _m.compute_jz_probability_distribution
+compute_jz_projectors = _m.compute_jz_projectors
+compute_parity_sensitivity = _m.compute_parity_sensitivity
+compute_protocol_sensitivity = _m.compute_protocol_sensitivity
+evaluate_protocols_at_params = _m.evaluate_protocols_at_params
+load_joint_optimal_params = _m.load_joint_optimal_params
+non_linear_random_search = _m.non_linear_random_search
+run_non_linear_nelder_mead = _m.run_non_linear_nelder_mead
+verify_decoupled_baseline = _m.verify_decoupled_baseline
 
 # ============================================================================
 # Fixtures

@@ -8,15 +8,13 @@ Contains all migrated tests from:
 - test_hybrid_lindblad.py (all test classes)
 - test_wigner.py (all test classes)
 
-Because the report directory name contains hyphens, we load the
-module via importlib to avoid Python import syntax issues.
+The module is loaded via importlib because Python identifiers cannot start with digits,
+making ``from reports.20260507.high_order_squeezing import ...`` a SyntaxError.
 """
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
+import importlib
 
 import numpy as np
 import pytest
@@ -48,16 +46,7 @@ from src.physics.hybrid_system import (
 )
 
 # ── Load high_order_squeezing.py via importlib ──────────────────────────────────────────────
-_local_path = Path(__file__).resolve().parent / "high_order_squeezing.py"
-_dirname = Path(__file__).resolve().parent.name
-_modname = f"report_local_{_dirname}"
-_spec = importlib.util.spec_from_file_location(_modname, str(_local_path))
-assert _spec is not None, f"Could not find high_order_squeezing.py at {_local_path}"
-_report_local = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-# Register in sys.modules so dataclass decorator can resolve types
-sys.modules[_modname] = _report_local
-_spec.loader.exec_module(_report_local)
+_report_local = importlib.import_module("reports.20260507.high_order_squeezing")
 
 # Bind only names defined in the experiment module (not re-exported from src/)
 apply_squeezing = _report_local.apply_squeezing

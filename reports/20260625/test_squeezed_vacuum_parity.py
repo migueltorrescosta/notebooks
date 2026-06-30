@@ -7,7 +7,7 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
+import importlib
 import subprocess
 import sys as _sys
 from pathlib import Path
@@ -37,35 +37,21 @@ from src.physics.sv_qfi import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = Path(__file__).resolve().parent / "squeezed_vacuum_parity.py"
-# Insert the report directory so the module can be loaded (the directory
-# name contains hyphens, preventing normal package imports).
-_sys.path.insert(0, str(Path(__file__).resolve().parent))
-_spec = importlib.util.spec_from_file_location(
-    "squeezed_vacuum_parity", str(_local_path)
-)
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["squeezed_vacuum_parity"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
+_m = importlib.import_module("reports.20260625.squeezed_vacuum_parity")
 
-from squeezed_vacuum_parity import (  # type: ignore[import-untyped]  # noqa: E402
-    MziSensitivityDataSV,
-    _fig_path,
-    _generate_single_resource_data,
-    _maybe_generate_full_data,
-    compute_parity_distribution,
-    compute_parity_sensitivity_grid,
-    generate_all,
-    generate_full_data,
-    generate_single_omega_scan,
-    main,
-    plot_delta_omega_overlay,
-    plot_scaling,
-    t_hold,
-)
+MziSensitivityDataSV = _m.MziSensitivityDataSV
+_fig_path = _m._fig_path
+_generate_single_resource_data = _m._generate_single_resource_data
+_maybe_generate_full_data = _m._maybe_generate_full_data
+compute_parity_distribution = _m.compute_parity_distribution
+compute_parity_sensitivity_grid = _m.compute_parity_sensitivity_grid
+generate_all = _m.generate_all
+generate_full_data = _m.generate_full_data
+generate_single_omega_scan = _m.generate_single_omega_scan
+main = _m.main
+plot_delta_omega_overlay = _m.plot_delta_omega_overlay
+plot_scaling = _m.plot_scaling
+t_hold = _m.t_hold
 
 # ============================================================================
 # Parity Distribution
@@ -533,15 +519,13 @@ class TestGenerateFullData:
         omega_grid = np.linspace(0.1, 5.0, 2)
         # Monkey-patch _generate_single_resource_data to always return None
         # We can do this by patching at module level
-        import squeezed_vacuum_parity as svp_mod
-
-        original = svp_mod._generate_single_resource_data
-        svp_mod._generate_single_resource_data = lambda *a, **kw: None
+        original = _m._generate_single_resource_data
+        _m._generate_single_resource_data = lambda *a, **kw: None
         try:
             with pytest.raises(RuntimeError, match="No valid resource values"):
                 generate_full_data([2.0], omega_grid, t_hold=t_hold)
         finally:
-            svp_mod._generate_single_resource_data = original
+            _m._generate_single_resource_data = original
 
 
 # ============================================================================
@@ -807,39 +791,39 @@ class TestCLI:
         """Call main() directly with --force via sys.argv patching."""
         import sys as _sys
 
-        import squeezed_vacuum_parity as svp_mod
-
         old_argv = _sys.argv[:]
-        orig_sv = svp_mod.SV_N_RANGE
-        orig_omega_range = svp_mod.OMEGA_RANGE
-        orig_omega_step = svp_mod.OMEGA_STEP
+        orig_sv = _m.SV_N_RANGE
+        orig_omega_range = _m.OMEGA_RANGE
+        orig_omega_step = _m.OMEGA_STEP
         try:
-            svp_mod.SV_N_RANGE = [2.0]
-            svp_mod.OMEGA_RANGE = (0.1, 0.5)
-            svp_mod.OMEGA_STEP = 0.4
+            _m.SV_N_RANGE = [2.0]
+            _m.OMEGA_RANGE = (0.1, 0.5)
+            _m.OMEGA_STEP = 0.4
             _sys.argv = ["script", "--force"]
             main()
         finally:
             _sys.argv = old_argv
-            svp_mod.SV_N_RANGE = orig_sv
-            svp_mod.OMEGA_RANGE = orig_omega_range
-            svp_mod.OMEGA_STEP = orig_omega_step
+            _m.SV_N_RANGE = orig_sv
+            _m.OMEGA_RANGE = orig_omega_range
+            _m.OMEGA_STEP = orig_omega_step
 
     def test_mpbackend_not_set(self) -> None:
         """When MPLBACKEND is unset, the module sets it to Agg."""
+        import os as _os
         import subprocess as _sub
+        from pathlib import Path as _Path
 
         code = """
 import os
 os.environ.pop("MPLBACKEND", None)
-import sys
-sys.path.insert(0, "reports/20260625")
 import squeezed_vacuum_parity
 assert os.environ["MPLBACKEND"] == "Agg", f"Got {os.environ.get('MPLBACKEND')}"
 print("OK")
 """
+        worker_env = {**_os.environ, "PYTHONPATH": str(_Path(__file__).parent)}
         result = _sub.run(
             [_sys.executable, "-c", code],
+            env=worker_env,
             capture_output=True,
             text=True,
             timeout=30,
@@ -857,20 +841,18 @@ print("OK")
 class TestGenerateAll:
     def test_generate_all_small(self, tmp_path: Path) -> None:
         """generate_all runs end-to-end with a small parameter range."""
-        import squeezed_vacuum_parity as svp_mod
-
-        orig_sv = svp_mod.SV_N_RANGE
-        orig_omega_range = svp_mod.OMEGA_RANGE
-        orig_omega_step = svp_mod.OMEGA_STEP
+        orig_sv = _m.SV_N_RANGE
+        orig_omega_range = _m.OMEGA_RANGE
+        orig_omega_step = _m.OMEGA_STEP
         try:
-            svp_mod.SV_N_RANGE = [2.0]
-            svp_mod.OMEGA_RANGE = (0.1, 0.5)
-            svp_mod.OMEGA_STEP = 0.4
+            _m.SV_N_RANGE = [2.0]
+            _m.OMEGA_RANGE = (0.1, 0.5)
+            _m.OMEGA_STEP = 0.4
             data = generate_all(force=True, override_pq_path=tmp_path / "test.parquet")
         finally:
-            svp_mod.SV_N_RANGE = orig_sv
-            svp_mod.OMEGA_RANGE = orig_omega_range
-            svp_mod.OMEGA_STEP = orig_omega_step
+            _m.SV_N_RANGE = orig_sv
+            _m.OMEGA_RANGE = orig_omega_range
+            _m.OMEGA_STEP = orig_omega_step
         assert data.state_type == "sv_parity"
         assert len(data.resource_values) == 1
         assert len(data.omega_values) == 2

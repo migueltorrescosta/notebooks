@@ -7,9 +7,7 @@ decoupled baseline, 5D optimisation, and serialization.
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -37,28 +35,16 @@ from src.physics.n_particle_drive import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = _Path(__file__).resolve().parent / "omega_modulated_joint_measurement.py"
-_spec = importlib.util.spec_from_file_location(
-    "omega_modulated_joint_measurement", str(_local_path)
-)
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["omega_modulated_joint_measurement"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from omega_modulated_joint_measurement import (  # type: ignore[import-untyped]  # noqa: E402
-    T_BS,
-    T_HOLD,
-    JointNScalingResult,
-    JointNScalingScanResult,
-    joint_2d_psi_azz_slice,
-    joint_random_search,
-    run_joint_nelder_mead,
-    run_single_joint_n_omega,
-    run_single_sonly_n_omega,
-)
+_m = importlib.import_module("reports.20260613.omega_modulated_joint_measurement")
+T_BS = _m.T_BS
+T_HOLD = _m.T_HOLD
+JointNScalingResult = _m.JointNScalingResult
+JointNScalingScanResult = _m.JointNScalingScanResult
+joint_2d_psi_azz_slice = _m.joint_2d_psi_azz_slice
+joint_random_search = _m.joint_random_search
+run_joint_nelder_mead = _m.run_joint_nelder_mead
+run_single_joint_n_omega = _m.run_single_joint_n_omega
+run_single_sonly_n_omega = _m.run_single_sonly_n_omega
 
 # ============================================================================
 # Fixtures

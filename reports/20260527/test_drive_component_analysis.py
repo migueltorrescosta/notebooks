@@ -7,8 +7,7 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
+import importlib
 from pathlib import Path
 from typing import ClassVar
 
@@ -30,32 +29,23 @@ from src.analysis.ancilla_optimization import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = Path(__file__).resolve().parent / "drive_component_analysis.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-# Import the module we are testing — mypy/pyright ignore the report-local import.
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    AZZ_BOUNDS,
-    REPORT_DATE,
-    SQL,
-    EnvelopeResult,
-    NormBallResult,
-    _sample_ball_for_omega,
-    compute_sensitivity_with_extra,
-    extract_envelope_curve,
-    marsaglia_ball_sample,
-    norm_ball_sampling,
-    plot_best_ratio_by_slice,
-    plot_norm_envelope_curve,
-    plot_normball_histogram,
-    t_hold,
-)
+_m = importlib.import_module("reports.20260527.drive_component_analysis")
+AZZ_BOUNDS = _m.AZZ_BOUNDS
+REPORT_DATE = _m.REPORT_DATE
+SQL = _m.SQL
+EnvelopeResult = _m.EnvelopeResult
+NormBallResult = _m.NormBallResult
+_sample_ball_for_omega = _m._sample_ball_for_omega
+compute_sensitivity_with_extra = _m.compute_sensitivity_with_extra
+extract_envelope_curve = _m.extract_envelope_curve
+marsaglia_ball_sample = _m.marsaglia_ball_sample
+norm_ball_sampling = _m.norm_ball_sampling
+plot_best_ratio_by_slice = _m.plot_best_ratio_by_slice
+plot_norm_envelope_curve = _m.plot_norm_envelope_curve
+plot_normball_histogram = _m.plot_normball_histogram
+_parquet_path = _m._parquet_path
+_fig_path = _m._fig_path
+t_hold = _m.t_hold
 
 # ============================================================================
 # Fixtures
@@ -750,16 +740,12 @@ class TestPlotFunctions:
 
 class TestPathHelpers:
     def test_parquet_path(self) -> None:
-        from local import _parquet_path
-
         p = _parquet_path("test")
         assert str(REPORT_DATE) in str(p)
         assert p.suffix == ".parquet"
         assert "raw_data" in str(p)
 
     def test_fig_path(self) -> None:
-        from local import _fig_path
-
         p = _fig_path("test")
         assert str(REPORT_DATE) in str(p)
         assert p.suffix == ".svg"

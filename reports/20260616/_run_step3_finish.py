@@ -2,21 +2,14 @@
 Finish Step 3: N=11, 12, 13 with 100 random samples each, sequential.
 """
 
-import importlib.util
+import importlib
 import sys
 import time
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-local_path = Path(__file__).resolve().parent / "general_4param_omega_drive.py"
-spec = importlib.util.spec_from_file_location(
-    "general_4param_omega_drive", str(local_path)
-)
-module = importlib.util.module_from_spec(spec)
-sys.modules["general_4param_omega_drive"] = module
-spec.loader.exec_module(module)
+module = importlib.import_module("reports.20260616.general_4param_omega_drive")
 
 checkpoint_dir = (
     module._REPORTS_DIR / module._REPORT_DATE / "raw_data" / "checkpoints_step3"

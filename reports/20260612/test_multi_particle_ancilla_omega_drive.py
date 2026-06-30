@@ -7,9 +7,7 @@ N=1 consistency, and serialization.
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -24,36 +22,28 @@ from src.analysis.ancilla_optimization import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = _Path(__file__).resolve().parent / "multi_particle_ancilla_omega_drive.py"
-_spec = importlib.util.spec_from_file_location(
-    "multi_particle_ancilla_omega_drive", str(_local_path)
+_m = importlib.import_module("reports.20260612.multi_particle_ancilla_omega_drive")
+T_BS = _m.T_BS
+T_HOLD = _m.T_HOLD
+NScalingResult = _m.NScalingResult
+NScalingScanResult = _m.NScalingScanResult
+build_multi_particle_hold_hamiltonian = _m.build_multi_particle_hold_hamiltonian
+build_multi_particle_iszz_interaction = _m.build_multi_particle_iszz_interaction
+build_multi_particle_operators = _m.build_multi_particle_operators
+build_multi_particle_phase_modulated_drive_hamiltonian = (
+    _m.build_multi_particle_phase_modulated_drive_hamiltonian
 )
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["multi_particle_ancilla_omega_drive"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from multi_particle_ancilla_omega_drive import (  # type: ignore[import-untyped]  # noqa: E402
-    T_BS,
-    T_HOLD,
-    NScalingResult,
-    NScalingScanResult,
-    build_multi_particle_hold_hamiltonian,
-    build_multi_particle_iszz_interaction,
-    build_multi_particle_operators,
-    build_multi_particle_phase_modulated_drive_hamiltonian,
-    build_multi_particle_system_only_bs_unitary,
-    compute_multi_particle_decoupled_baseline,
-    compute_multi_particle_sensitivity,
-    evolve_multi_particle_circuit,
-    multi_particle_hold_unitary,
-    multi_particle_initial_state,
-    run_single_n_omega,
-    sql_reference,
-    verify_multi_particle_decoupled_baseline,
+build_multi_particle_system_only_bs_unitary = (
+    _m.build_multi_particle_system_only_bs_unitary
 )
+compute_multi_particle_decoupled_baseline = _m.compute_multi_particle_decoupled_baseline
+compute_multi_particle_sensitivity = _m.compute_multi_particle_sensitivity
+evolve_multi_particle_circuit = _m.evolve_multi_particle_circuit
+multi_particle_hold_unitary = _m.multi_particle_hold_unitary
+multi_particle_initial_state = _m.multi_particle_initial_state
+run_single_n_omega = _m.run_single_n_omega
+sql_reference = _m.sql_reference
+verify_multi_particle_decoupled_baseline = _m.verify_multi_particle_decoupled_baseline
 
 # ============================================================================
 # Fixtures

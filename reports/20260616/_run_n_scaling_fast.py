@@ -10,23 +10,16 @@ Uses progressively fewer random samples as N grows:
 Runs ω values in parallel for each N (ThreadPoolExecutor).
 """
 
-import importlib.util
+import importlib
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
 
-local_path = Path(__file__).resolve().parent / "general_4param_omega_drive.py"
-spec = importlib.util.spec_from_file_location(
-    "general_4param_omega_drive", str(local_path)
-)
-module = importlib.util.module_from_spec(spec)
-sys.modules["general_4param_omega_drive"] = module
-spec.loader.exec_module(module)
+module = importlib.import_module("reports.20260616.general_4param_omega_drive")
 
 NM_MAXITER = {
     6: 100,

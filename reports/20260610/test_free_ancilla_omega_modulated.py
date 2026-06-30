@@ -7,8 +7,7 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
+import importlib
 from pathlib import Path
 from typing import ClassVar
 
@@ -24,36 +23,29 @@ from src.analysis.ancilla_optimization import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = Path(__file__).resolve().parent / "free_ancilla_omega_modulated.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
+_m = importlib.import_module("reports.20260610.free_ancilla_omega_modulated")
 
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    AZZ_BOUNDS,
-    R_MAX,
-    SQL,
-    FreeAncillaModulated2DSliceResult,
-    FreeAncillaModulatedNelderMeadResult,
-    FreeAncillaModulatedOmegaScanResult,
-    FreeAncillaModulatedSearchResult,
-    _modulated_6d_objective,
-    _sample_6d_config,
-    compute_free_ancilla_modulated_sensitivity,
-    free_ancilla_modulated_2d_slice,
-    free_ancilla_modulated_random_search,
-    plot_best_ratio_by_omega,
-    plot_cross_experiment_comparison,
-    plot_optimal_ancilla_state_by_omega,
-    plot_slice_heatmap,
-    run_modulated_nelder_mead,
-    run_modulated_omega_scan,
-    t_hold,
+AZZ_BOUNDS = _m.AZZ_BOUNDS
+R_MAX = _m.R_MAX
+SQL = _m.SQL
+FreeAncillaModulated2DSliceResult = _m.FreeAncillaModulated2DSliceResult
+FreeAncillaModulatedNelderMeadResult = _m.FreeAncillaModulatedNelderMeadResult
+FreeAncillaModulatedOmegaScanResult = _m.FreeAncillaModulatedOmegaScanResult
+FreeAncillaModulatedSearchResult = _m.FreeAncillaModulatedSearchResult
+_modulated_6d_objective = _m._modulated_6d_objective
+_sample_6d_config = _m._sample_6d_config
+compute_free_ancilla_modulated_sensitivity = (
+    _m.compute_free_ancilla_modulated_sensitivity
 )
+free_ancilla_modulated_2d_slice = _m.free_ancilla_modulated_2d_slice
+free_ancilla_modulated_random_search = _m.free_ancilla_modulated_random_search
+plot_best_ratio_by_omega = _m.plot_best_ratio_by_omega
+plot_cross_experiment_comparison = _m.plot_cross_experiment_comparison
+plot_optimal_ancilla_state_by_omega = _m.plot_optimal_ancilla_state_by_omega
+plot_slice_heatmap = _m.plot_slice_heatmap
+run_modulated_nelder_mead = _m.run_modulated_nelder_mead
+run_modulated_omega_scan = _m.run_modulated_omega_scan
+t_hold = _m.t_hold
 
 # ============================================================================
 # Fixtures

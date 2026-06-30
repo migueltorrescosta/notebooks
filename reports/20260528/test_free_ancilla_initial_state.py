@@ -7,8 +7,7 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
+import importlib
 from pathlib import Path
 from typing import ClassVar
 
@@ -23,42 +22,32 @@ from src.analysis.ancilla_optimization import (
 )
 from src.utils.serialization import assert_roundtrip_fields
 
-_local_path = Path(__file__).resolve().parent / "free_ancilla_initial_state.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-# Import the module we are testing — mypy/pyright ignore the report-local import.
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    AZZ_BOUNDS,
-    R_MAX,
-    SQL,
-    FreeAncilla2DSliceResult,
-    FreeAncillaNelderMeadResult,
-    FreeAncillaOmegaScanResult,
-    FreeAncillaSearchResult,
-    _params_to_full,
-    _sample_scenario_A,
-    _sample_scenario_B,
-    _sample_scenario_C,
-    _sample_scenario_D,
-    compute_free_ancilla_sensitivity,
-    free_ancilla_2d_slice,
-    free_ancilla_initial_state,
-    free_ancilla_random_search,
-    marsaglia_ball_sample,
-    plot_cross_scenario_comparison,
-    plot_norm_envelope_comparison,
-    plot_omega_A_azz_slice_heatmap,
-    plot_scenario_best_ratio_by_omega,
-    run_free_ancilla_nelder_mead,
-    run_free_ancilla_omega_scan,
-    t_hold,
-)
+_m = importlib.import_module("reports.20260528.free_ancilla_initial_state")
+AZZ_BOUNDS = _m.AZZ_BOUNDS
+R_MAX = _m.R_MAX
+SQL = _m.SQL
+FreeAncilla2DSliceResult = _m.FreeAncilla2DSliceResult
+FreeAncillaNelderMeadResult = _m.FreeAncillaNelderMeadResult
+FreeAncillaOmegaScanResult = _m.FreeAncillaOmegaScanResult
+FreeAncillaSearchResult = _m.FreeAncillaSearchResult
+_params_to_full = _m._params_to_full
+_sample_scenario_A = _m._sample_scenario_A
+_sample_scenario_B = _m._sample_scenario_B
+_sample_scenario_C = _m._sample_scenario_C
+_sample_scenario_D = _m._sample_scenario_D
+compute_free_ancilla_sensitivity = _m.compute_free_ancilla_sensitivity
+free_ancilla_2d_slice = _m.free_ancilla_2d_slice
+free_ancilla_initial_state = _m.free_ancilla_initial_state
+free_ancilla_random_search = _m.free_ancilla_random_search
+marsaglia_ball_sample = _m.marsaglia_ball_sample
+plot_cross_scenario_comparison = _m.plot_cross_scenario_comparison
+plot_norm_envelope_comparison = _m.plot_norm_envelope_comparison
+plot_omega_A_azz_slice_heatmap = _m.plot_omega_A_azz_slice_heatmap
+plot_scenario_best_ratio_by_omega = _m.plot_scenario_best_ratio_by_omega
+run_free_ancilla_nelder_mead = _m.run_free_ancilla_nelder_mead
+run_free_ancilla_omega_scan = _m.run_free_ancilla_omega_scan
+SCENARIO_FREE_PARAMS = _m.SCENARIO_FREE_PARAMS
+t_hold = _m.t_hold
 
 # ============================================================================
 # Fixtures
@@ -946,21 +935,13 @@ class TestScenarioFreeParams:
     """Verify that SCENARIO_FREE_PARAMS matches expected param counts."""
 
     def test_scenario_A_has_4_params(self) -> None:
-        from local import SCENARIO_FREE_PARAMS  # type: ignore[import-untyped]
-
         assert len(SCENARIO_FREE_PARAMS["A"]) == 4
 
     def test_scenario_B_has_6_params(self) -> None:
-        from local import SCENARIO_FREE_PARAMS  # type: ignore[import-untyped]
-
         assert len(SCENARIO_FREE_PARAMS["B"]) == 6
 
     def test_scenario_C_has_3_params(self) -> None:
-        from local import SCENARIO_FREE_PARAMS  # type: ignore[import-untyped]
-
         assert len(SCENARIO_FREE_PARAMS["C"]) == 3
 
     def test_scenario_D_has_5_params(self) -> None:
-        from local import SCENARIO_FREE_PARAMS  # type: ignore[import-untyped]
-
         assert len(SCENARIO_FREE_PARAMS["D"]) == 5

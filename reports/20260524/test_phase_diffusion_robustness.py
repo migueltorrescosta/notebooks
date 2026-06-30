@@ -7,9 +7,7 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path as _Path
+import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
@@ -22,42 +20,34 @@ from src.utils.serialization import assert_roundtrip_fields
 if TYPE_CHECKING:
     from pathlib import Path
 
-_local_path = _Path(__file__).resolve().parent / "phase_diffusion_robustness.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    DEFAULT_RHO0,
-    DEFAULT_T_BS,
-    DRIVE_BOUNDS,
-    FD_STEP,
-    SQL_REFERENCE,
-    DEFAULT_t_hold,
-    DriveNoiseScanResult,
-    build_noise_drive_hamiltonian,
-    build_noise_hold_hamiltonian,
-    build_noise_iszz_interaction,
-    build_phase_diffusion_operators,
-    build_vectorized_liouvillian,
-    compute_noisy_decoupled_baseline,
-    compute_noisy_sensitivity,
-    compute_noisy_sensitivity_with_diagnostics,
-    density_expectation,
-    density_variance,
-    evolve_noisy_drive_circuit,
-    noisy_sensitivity_objective,
-    run_noise_scan,
-    run_noisy_nelder_mead,
-    run_noisy_random_search,
-    unvectorise_rho,
-    validate_density,
-    vectorise_rho,
+_m = importlib.import_module("reports.20260524.phase_diffusion_robustness")
+DEFAULT_RHO0 = _m.DEFAULT_RHO0
+DEFAULT_T_BS = _m.DEFAULT_T_BS
+DRIVE_BOUNDS = _m.DRIVE_BOUNDS
+FD_STEP = _m.FD_STEP
+SQL_REFERENCE = _m.SQL_REFERENCE
+DEFAULT_t_hold = _m.DEFAULT_t_hold
+DriveNoiseScanResult = _m.DriveNoiseScanResult
+build_noise_drive_hamiltonian = _m.build_noise_drive_hamiltonian
+build_noise_hold_hamiltonian = _m.build_noise_hold_hamiltonian
+build_noise_iszz_interaction = _m.build_noise_iszz_interaction
+build_phase_diffusion_operators = _m.build_phase_diffusion_operators
+build_vectorized_liouvillian = _m.build_vectorized_liouvillian
+compute_noisy_decoupled_baseline = _m.compute_noisy_decoupled_baseline
+compute_noisy_sensitivity = _m.compute_noisy_sensitivity
+compute_noisy_sensitivity_with_diagnostics = (
+    _m.compute_noisy_sensitivity_with_diagnostics
 )
+density_expectation = _m.density_expectation
+density_variance = _m.density_variance
+evolve_noisy_drive_circuit = _m.evolve_noisy_drive_circuit
+noisy_sensitivity_objective = _m.noisy_sensitivity_objective
+run_noise_scan = _m.run_noise_scan
+run_noisy_nelder_mead = _m.run_noisy_nelder_mead
+run_noisy_random_search = _m.run_noisy_random_search
+unvectorise_rho = _m.unvectorise_rho
+validate_density = _m.validate_density
+vectorise_rho = _m.vectorise_rho
 
 # ============================================================================
 # Fixtures

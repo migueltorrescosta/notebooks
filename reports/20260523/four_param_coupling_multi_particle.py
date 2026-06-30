@@ -18,9 +18,7 @@ Contains all code exclusive to this report:
 Usage:
     uv run python reports/20260523/four_param_coupling_multi_particle.py --force
 
-This module is **not** importable as ``reports.20260523.local`` (the directory
-name contains hyphens).  Instead, importers add the report directory to
-``sys.path`` and do ``import local``.
+This module is importable via ``importlib.import_module("reports.20260523.four_param_coupling_multi_particle")``.
 """
 
 from __future__ import annotations

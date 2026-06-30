@@ -7,10 +7,11 @@ Run with:
 
 from __future__ import annotations
 
-import importlib.util
-import sys as _sys
-from pathlib import Path
-from typing import ClassVar
+import importlib
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import numpy as np
 import pytest
@@ -22,37 +23,27 @@ from src.utils.serialization import assert_roundtrip_fields
 
 pytestmark = [pytest.mark.filterwarnings("ignore::DeprecationWarning")]
 
-_local_path = Path(__file__).resolve().parent / "four_param_coupling_multi_particle.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    ALPHA_BOUND,
-    DEFAULT_T_BS,
-    FD_STEP,
-    N_LBFGS_STARTS,
-    DEFAULT_t_hold,
-    FourParamSweepResult,
-    ScalingAnalysisResult,
-    build_hold_hamiltonian,
-    compute_decoupled_baseline,
-    compute_reduced_expectation_and_variance,
-    compute_sensitivity,
-    embed_combined_operators,
-    evolve_circuit,
-    fit_scaling_exponents,
-    hold_unitary,
-    initial_state,
-    optimise_four_params,
-    protocol_bs_unitary,
-    run_sweep,
-    single_bs_unitary,
-)
+_m = importlib.import_module("reports.20260523.four_param_coupling_multi_particle")
+ALPHA_BOUND = _m.ALPHA_BOUND
+DEFAULT_T_BS = _m.DEFAULT_T_BS
+FD_STEP = _m.FD_STEP
+N_LBFGS_STARTS = _m.N_LBFGS_STARTS
+DEFAULT_t_hold = _m.DEFAULT_t_hold
+FourParamSweepResult = _m.FourParamSweepResult
+ScalingAnalysisResult = _m.ScalingAnalysisResult
+build_hold_hamiltonian = _m.build_hold_hamiltonian
+compute_decoupled_baseline = _m.compute_decoupled_baseline
+compute_reduced_expectation_and_variance = _m.compute_reduced_expectation_and_variance
+compute_sensitivity = _m.compute_sensitivity
+embed_combined_operators = _m.embed_combined_operators
+evolve_circuit = _m.evolve_circuit
+fit_scaling_exponents = _m.fit_scaling_exponents
+hold_unitary = _m.hold_unitary
+initial_state = _m.initial_state
+optimise_four_params = _m.optimise_four_params
+protocol_bs_unitary = _m.protocol_bs_unitary
+run_sweep = _m.run_sweep
+single_bs_unitary = _m.single_bs_unitary
 
 
 def _embed_ops(N: int) -> dict[str, np.ndarray]:

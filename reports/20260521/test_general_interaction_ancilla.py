@@ -9,10 +9,8 @@ Run with:
 from __future__ import annotations
 
 import concurrent.futures
-import importlib.util
+import importlib
 import shutil
-import sys as _sys
-from pathlib import Path as _Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -28,36 +26,30 @@ from src.analysis.ancilla_optimization import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-_local_path = _Path(__file__).resolve().parent / "general_interaction_ancilla.py"
-_spec = importlib.util.spec_from_file_location("local", str(_local_path))
-assert _spec is not None
-_module = importlib.util.module_from_spec(_spec)
-assert _spec.loader is not None
-_sys.modules["local"] = _module
-_spec.loader.exec_module(_module)
-del _local_path, _spec, _module
-
-from local import (  # type: ignore[import-untyped]  # noqa: E402
-    ALPHA_BOUNDS,
-    DEFAULT_PSI0,
-    DEFAULT_T_BS,
-    N_BFGS_STARTS,
-    SQL_REFERENCE,
-    DEFAULT_t_hold,
-    GeneralBFGSOptimizationResult,
-    GeneralOmegaScanResult,
-    _upsert_bfgs_result,
-    build_general_hold_hamiltonian,
-    compute_general_decoupled_baseline,
-    compute_general_sensitivity,
-    compute_general_sensitivity_with_diagnostics,
-    compute_reduced_expectation,
-    compute_reduced_variance,
-    evolve_general_circuit,
-    general_hold_unitary,
-    run_general_bfgs_optimization,
-    run_general_omega_scan,
+_m = importlib.import_module("reports.20260521.general_interaction_ancilla")
+ALPHA_BOUNDS = _m.ALPHA_BOUNDS
+DEFAULT_PSI0 = _m.DEFAULT_PSI0
+DEFAULT_T_BS = _m.DEFAULT_T_BS
+N_BFGS_STARTS = _m.N_BFGS_STARTS
+SQL_REFERENCE = _m.SQL_REFERENCE
+DEFAULT_t_hold = _m.DEFAULT_t_hold
+GeneralBFGSOptimizationResult = _m.GeneralBFGSOptimizationResult
+GeneralOmegaScanResult = _m.GeneralOmegaScanResult
+_upsert_bfgs_result = _m._upsert_bfgs_result
+build_general_hold_hamiltonian = _m.build_general_hold_hamiltonian
+compute_general_decoupled_baseline = _m.compute_general_decoupled_baseline
+compute_general_sensitivity = _m.compute_general_sensitivity
+compute_general_sensitivity_with_diagnostics = (
+    _m.compute_general_sensitivity_with_diagnostics
 )
+compute_reduced_expectation = _m.compute_reduced_expectation
+compute_reduced_variance = _m.compute_reduced_variance
+evolve_general_circuit = _m.evolve_general_circuit
+general_hold_unitary = _m.general_hold_unitary
+run_general_bfgs_optimization = _m.run_general_bfgs_optimization
+run_general_omega_scan = _m.run_general_omega_scan
+build_interaction_hamiltonian = _m.build_interaction_hamiltonian
+system_only_bs_unitary = _m.system_only_bs_unitary
 
 # ============================================================================
 # Fixtures
@@ -93,8 +85,6 @@ class TestOperatorConstruction:
         """At ω=0, the Hamiltonian should be just H_int."""
         alpha = (1.0, 2.0, 3.0, 4.0)
         H = build_general_hold_hamiltonian(omega=0.0, alpha=alpha, ops=make_ops)
-        from local import build_interaction_hamiltonian
-
         H_int = build_interaction_hamiltonian(alpha)
         assert np.allclose(H, H_int, atol=1e-12)
 
@@ -221,8 +211,6 @@ class TestReducedVariance:
         """After first BS, the system is in (|0⟩ - i|1⟩)/√2.
         Var(J_z^S) = 1/4 - ⟨J_z^S⟩² = 1/4 - 0 = 1/4.
         """
-        from local import system_only_bs_unitary
-
         U_bs = system_only_bs_unitary(DEFAULT_T_BS)
         psi = U_bs @ DEFAULT_PSI0
         var = compute_reduced_variance(psi)
@@ -806,7 +794,7 @@ class TestDeltaLake:
             n_starts=100,
             n_converged=90,
         )
-        with patch("local.BFGS_TABLE_DIR", table_dir):
+        with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
             _upsert_bfgs_result(result)
 
         dt = DeltaTable(table_dir)
@@ -838,7 +826,7 @@ class TestDeltaLake:
                 n_starts=10,
                 n_converged=10,
             )
-            with patch("local.BFGS_TABLE_DIR", table_dir):
+            with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
                 _upsert_bfgs_result(result)
 
         omegas = [0.1 * i for i in range(10)]
@@ -871,7 +859,7 @@ class TestDeltaLake:
                     n_starts=10,
                     n_converged=10,
                 )
-                with patch("local.BFGS_TABLE_DIR", table_dir):
+                with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
                     _upsert_bfgs_result(result)
 
         # Write 3 rows
@@ -909,7 +897,7 @@ class TestDeltaLake:
                 n_starts=100,
                 n_converged=int(100 - omega * 10),
             )
-            with patch("local.BFGS_TABLE_DIR", table_dir):
+            with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
                 _upsert_bfgs_result(result)
 
         # Read back via DeltaTable
