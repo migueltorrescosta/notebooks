@@ -20,178 +20,253 @@ The default baseline is a single-particle ($N=1$) MZI with system-only phase enc
 
 ---
 
+## 🔍 Sensitivity Classification at a Glance
+
+### SQL Status (absolute sensitivity at a specific particle number $N$)
+
+| Status | Meaning |
+|--------|---------|
+| 🟢 Beats SQL | $\Delta\omega/\Delta\omega_{\text{SQL}} < 1$ |
+| 🟡 SQL-level | $\Delta\omega = \Delta\omega_{\text{SQL}}$ |
+| ⚪ Not assessed | Scaling survey / pedagogical / archived |
+
+> **Note:** SQL status is assessed at the experiment's reported operating point (given $N$, $t_{\text{hold}}$, $\omega$). An experiment that beats SQL at one $N$ may not do so at other $N$ values. The scaling classification (next table) captures the $N$-dependence separately.
+
+### Scaling Classification (asymptotic exponent $\alpha$ in $\Delta\omega \propto N^{\alpha}$)
+
+| Classification | $\alpha$ range |
+|----------------|----------------|
+| 🔵 Heisenberg scaling | $\alpha \approx -1.0$ |
+| 🟣 Sub-SQL (between SQL and HL) | $-1.0 < \alpha < -0.5$ |
+| 🟤 SQL scaling or no scaling data | $\alpha \geq -0.5$ or $N=1$ fixed |
+
+### Top SQL Ratios
+
+| Rank | Experiment | $\Delta\omega_{\text{SQL}}/\Delta\omega$ | Mechanism |
+|------|-----------|---------------------------------------|-----------|
+| 1 | **32**. Cavity-Enhanced TMSV MZI | **$365\times$** ($\mathcal{F}=100$, $\langle N\rangle=20$) | Cavity finesse multiplies effective interaction time |
+| 2 | **24**. $\omega$-Modulated + Joint Measurement | **$9.7\times$** ($N=1$), $1.94\times$ ($N=20$) | Joint measurement extracts S--A correlations |
+| 3 | **21**. Free Ancilla + $\omega$-Modulated Drive | **$7.3\times$** ($\omega=0.1$, $N=1$) | Free ancilla superposition amplifies derivative |
+| 4 | **31**. Free-Ancilla + $\omega$-Drive + Joint Meas. | **$7.26\times$** ($N=1$) | Combined protocol (non-compounding) |
+| 5 | **27**. Ancilla OAT Pre-Squeezing | **$6.2\times$** ($J_A=1$, $\omega=0.1$) | OAT reduces ancilla variance |
+| 6 | **26**. 4-Param + $\omega$-Modulated Drive | **$5.51\times$** ($N=1$) | Full interaction + modulated drive |
+| 7 | **8**. $\omega$-Modulated Ancilla Drive | **$4.91\times$** ($N=1$, $t_{\text{hold}}=10$) | BCH cross-term + parametric amplification |
+| 8 | **23**. Multi-Particle $\omega$-Modulated Drive | **$4.68\times$** ($N=8$, $J_A=N/2$) | $O(N)$ ancilla contribution |
+| 9 | **30**(TMSV). Two-Mode Squeezed Vacuum | **$4.1\times$** ($R=40$) | $F_Q = H_t^2 R(R+2)$ |
+| 10 | **17**. Non-Markovian Bath Protection | **$3.2\times$** (vs no-ancilla) | Pulsed ancilla entanglement amplifies QFI backflow |
+
+---
+
 ## List of Experiments
 
-### 1. Single-Particle MZI: Holding-Time Scaling (2026-05-12)
+### 1. 🟡🔵 Single-Particle MZI: Holding-Time Scaling (2026-05-12)
 
 - **Configuration**: No ancilla; single-particle MZI with $H = \omega J_z$, holding time $t_hold$ swept from $10^{-2}$ to $10^3$.
 - **Interferometric improvement**: None — confirms $\Delta\omega = 1/t_hold$ (SQL) exactly. Scaling exponent $\alpha = -1.0$ (log-log slope).
 - **Unexpected findings**: Analytical and finite-difference derivatives agree to machine precision. At fringe extrema ($\sin(\omega t_hold) = 0$) the sensitivity diverges as expected.
+- **Outcome vs SQL**: $=$ SQL ($\Delta\omega = 1/t_{\text{hold}}$ exactly, scaling exponent $\alpha = -1.0$)
+- **Key Physical Mechanism**: Single-particle MZI without entanglement provides the essential baseline reference
 - **Explanation**: Single-particle MZI without entanglement cannot beat the SQL; provides the essential baseline reference.
 
 ---
 
-### 2. Scaling Survey: Fock-Basis MZI Models (2026-05-11)
+### 2. ⚪🔵 Scaling Survey: Fock-Basis MZI Models (2026-05-11)
 
 - **Configuration**: Two-mode Fock space truncated at $N_{\max}$; various input states (coherent, NOON, squeezed vacuum); Markovian decoherence channels (phase diffusion, single-body loss, two-body loss).
 - **Interferometric improvement**: Coherent states always achieve SQL ($\alpha=-0.5$). Squeezed-vacuum injection achieves Heisenberg-like scaling ($\alpha \to -1.0$) at large $N$ with $F_Q = 2\langle N\rangle(\langle N\rangle+1)$, beating the NOON-state HL prefactor by $2\times$.
 - **Unexpected findings**: NOON states collapse to SQL ($\alpha \to -0.5$) under any loss; two-body loss causes complete collapse ($\alpha \to 0$) for all states at large $N$.
+- **Outcome vs SQL**: SQL for coherent states ($\alpha=-0.5$); Heisenberg-like for squeezed vacuum ($\alpha\to -1.0$); NOON collapses to SQL under loss; two-body loss causes $\alpha\to 0$
+- **Key Physical Mechanism**: Squeezed vacuum has higher QFI than NOON at fixed photon number due to correlations between modes
 - **Explanation**: Squeezed vacuum has higher QFI than NOON at fixed photon number due to correlations between modes. Loss destroys the entanglement advantage.
 
 ---
 
-### 3. Scaling Survey: Collective-Spin / Dicke Basis (2026-05-11)
+### 3. ⚪🔵 Scaling Survey: Collective-Spin / Dicke Basis (2026-05-11)
 
 - **Configuration**: Symmetric Dicke subspace ($J = N/2$) with OAT spin squeezing, balanced Dicke superpositions, non-Gaussian hybrid states, and ancilla-assisted protocols.
 - **Interferometric improvement**: OAT achieves $\alpha = -2/3$ at optimal $t_{\text{opt}} \propto N^{-1/3}$. Balanced Dicke (Twin-Fock) achieves $\alpha = -1.0$ (Heisenberg) with $F_Q = N(N+2)/3$.
 - **Unexpected findings**: Non-Gaussian states have fractional exponents $\alpha \approx -0.75$ to $-0.85$. Ancilla-assisted protocols preserve $\alpha$ but improve the prefactor $C$.
+- **Outcome vs SQL**: OAT achieves $\alpha = -2/3$ (sub-SQL); balanced Dicke (Twin-Fock) achieves $\alpha = -1.0$ (Heisenberg) with $F_Q = N(N+2)/3$
+- **Key Physical Mechanism**: Spin squeezing interpolates between SQL and HL; Dicke superpositions saturate the HL in the symmetric subspace
 - **Explanation**: Spin squeezing interpolates between SQL and HL; Dicke superpositions saturate the HL in the symmetric subspace.
 
 ---
 
-### 4. Ancilla-Assisted Metrology: Full-Parameter Optimization (2026-05-12)
+### 4. 🟡🟤 Ancilla-Assisted Metrology: Full-Parameter Optimization (2026-05-12)
 
 - **Configuration**: System–ancilla pair ($N=1$ each) with general bilinear interaction $H_{\text{int}} = \alpha_{ij} J_i^S \otimes J_j^A$ ($i,j \in \{x,z\}$) and Nelder–Mead optimization over all parameters. S-only MZI.
 - **Interferometric improvement**: **None** — the optimal configuration always $\alpha_{ij} = 0$, recovering the SQL. No configuration beats $\Delta\omega = 1/t_hold$.
 - **Unexpected findings**: Non-zero $\alpha_{ij}$ generally degrades sensitivity when measuring $J_z^S$ alone. The optimum is the trivial decoupled configuration.
+- **Outcome vs SQL**: $=$ SQL (optimal configuration is $\alpha_{ij}=0$, recovering $\Delta\omega = 1/t_{\text{hold}}$)
+- **Key Physical Mechanism**: $J_z^S$ measurement cannot access the ancilla's share of the distributed phase information; information flows from S to A via interaction but is lost at readout
 - **Explanation**: The $J_z^S$ measurement cannot access the ancilla's share of the distributed phase information. Information flows from S to A via the interaction but is lost at readout.
 
 ---
 
-### 5. Ancilla-Assisted Metrology with Joint Measurement (2026-05-15)
+### 5. 🟡🟤 Ancilla-Assisted Metrology with Joint Measurement (2026-05-15)
 
 - **Configuration**: Same system–ancilla pair ($N=1$ each), general bilinear interaction, but now **joint measurement** $M = J_z^S + J_z^A$ (equal-weight sum) instead of $J_z^S$ alone.
 - **Interferometric improvement**: **Sub-SQL impossible** — achieves $\Delta\omega = 1/t_hold$ (SQL) exactly at $\alpha=0$; for $\alpha \neq 0$, joint measurement recovers sensitivity that S-only measurement loses.
 - **Unexpected findings**: The joint measurement never beats the SQL — it at best restores the SQL bound $F_Q \leq t_hold^2$ (QFI bound).
+- **Outcome vs SQL**: $=$ SQL (at best); joint measurement restores the SQL bound but never exceeds it
+- **Key Physical Mechanism**: QFI bounded by $t_{\text{hold}}^2$ regardless of measurement; joint measurement recovers distributed information but cannot exceed the fundamental bound
 - **Explanation**: $\omega$ couples only to S subsystem; QFI is bounded by $t_hold^2$ regardless of measurement. Joint measurement recovers distributed information but cannot exceed the fundamental bound.
 
 ---
 
-### 6. Weighted Joint Measurement: Generalization to N-M Particles (2026-05-18)
+### 6. 🟢🟣 Weighted Joint Measurement: Generalization to N-M Particles (2026-05-18)
 
 - **Configuration**: $N$ system particles, $M$ ancilla particles; bilinear interaction; **optimized weighted** joint measurement $M = a J_z^S + b J_z^A$ with $a^2+b^2=1$.
 - **Interferometric improvement**: **Beats the $N$-particle SQL** — scaling $\Delta\omega \propto 1/(N^\nu t_hold)$ with $\nu > 1/2$, approaching $\nu \to 1$ (Heisenberg) for large $N$ with optimized weights.
 - **Unexpected findings**: The optimal weight ratio $a^*/b^*$ varies with $\alpha_{ij}$, $N$, $M$, and $t_hold$, determined by the relative variances and covariance of $J_z^S$ and $J_z^A$. Ancilla size $M$ matters: larger $M$ increases the variance pool. The $2N$-particle SQL ($1/(\sqrt{2N}\,t_hold)$) is the relevant benchmark when both S and A are measured.
+- **Outcome vs SQL**: $<$ SQL ($\nu > 0.5$, up to $0.509\times\text{SQL}_{2N}$); approaches Heisenberg ($\nu\to 1$) for large $N$
+- **Key Physical Mechanism**: Weighted measurement extracts information from both subsystems; optimal weighting balances signal derivative against total variance
 - **Explanation**: Weighted measurement extracts information from both subsystems; optimal weighting minimizes the error-propagation expression by balancing the signal derivative (scaling with $N$ via $J_z^S$) against the total variance (benefiting from $M$ ancilla particles).
 
 ---
 
-### 7. Ancilla-Drive-Enhanced Metrology (2026-05-18)
+### 7. 🟡🟤 Ancilla-Drive-Enhanced Metrology (2026-05-18)
 
 - **Configuration**: Single-particle S and A, **drive Hamiltonian** on ancilla $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$ (controllable, not exposed to $\omega$), Ising interaction $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, measurement $J_z^S$ on system. S-only MZI.
 - **Interferometric improvement**: **None** — no configuration of $(a_x, a_y, a_z, a_{zz})$ beats the SQL.
 - **Unexpected findings**: The drive-independent result contradicted the hypothesis that an actively driven ancilla could enable SQL violation via effective time-dependent Hamiltonians.
+- **Outcome vs SQL**: $=$ SQL (no configuration of $(a_x,a_y,a_z,a_{zz})$ beats the SQL)
+- **Key Physical Mechanism**: System measurement $J_z^S$ cannot access the ancilla's driven dynamics; drive creates ancilla coherence invisible to S-only measurement
 - **Explanation**: The system measurement $J_z^S$ cannot access the ancilla's driven dynamics. The drive creates ancilla coherence that is invisible to the S-only measurement. This motivated the drive-component analysis (2026-05-27) which confirmed that all 2D slices $(a_z,a_{zz})$, $(a_x,a_{zz})$, $(a_y,a_{zz})$ achieve at best $\Delta\omega/\text{SQL} = 1.0$.
 
 ---
 
-### 8. Ancilla-Drive Phase-Modulated Metrology (2026-05-19)
+### 8. 🟢🟤 Ancilla-Drive Phase-Modulated Metrology (2026-05-19)
 
 - **Configuration**: Same as (7) but **ancilla drive is also exposed to $\omega$**: $H_A = \omega(a_x J_x^A + a_y J_y^A + a_z J_z^A)$.
 - **Interferometric improvement**: **Strong SQL violation** — best $\Delta\omega = 0.02036$, which is **$4.91\times$ below the SQL** ($\Delta\omega_{\text{SQL}} = 0.1$ at $t_hold=10$).
 - **Unexpected findings**: The violation is highly sensitive to the true $\omega$ (best at small $\omega \approx 0.2$). No violation occurs when $a_{zz} = 0$ even with drive. The dominant mechanism is a **static BCH cross-term** $[\omega J_z^S, a_{zz} J_z^S \otimes J_z^A]$ that generates a $J_z^A$ contribution in the effective Hamiltonian, not the direct time-dependent drive.
+- **Outcome vs SQL**: $4.91\times$ below SQL ($N=1$, best $\Delta\omega = 0.02036$ at $t_{\text{hold}}=10$)
+- **Key Physical Mechanism**: BCH cross-term $[\omega J_z^S, a_{zz} J_z^S\otimes J_z^A]$ generates effective $J_z^A$ contribution; parametric amplification via $\partial H_A/\partial\omega$
 - **Explanation**: Phase modulation gives $\partial H_A/\partial\omega$ contributions to the derivative, increasing the slope. The cross-term between $H_S$ and $H_{\text{int}}$ transforms the Ising interaction into an effective $\omega J_z^A$ term on the ancilla, enabling sub-SQL sensitivity even with $N=1$.
 
 ---
 
-### 9. XX-Coupling Ancilla Metrology (2026-05-20)
+### 9. 🟡🟤 XX-Coupling Ancilla Metrology (2026-05-20)
 
 - **Configuration**: Both S and A couple to $\omega$ ($H_S = \omega J_z^S$, $H_A = \omega J_z^A$ — symmetric phase encoding); transverse coupling $H_{\text{int}} = \alpha_{xx} J_x^S \otimes J_x^A$; S-only MZI (BS only on S); measurement $J_z^S$ after tracing out ancilla.
 - **Interferometric improvement**: **None** — $\alpha_{xx} = 0$ is always optimal for all $\omega$ and $\alpha_{xx} \in [0,20]$.
 - **Unexpected findings**: Despite the ancilla now feeling $\omega$ directly ($H_A = \omega J_z^A$), the $J_z^S$ measurement cannot extract the ancilla's phase information because the $J_x^S \otimes J_x^A$ interaction does not correlate $J_z^S$ with $J_z^A$ in a way that a trace-out can recover.
+- **Outcome vs SQL**: $=$ SQL ($\alpha_{xx}=0$ always optimal for all $\omega$ and $\alpha_{xx}\in[0,20]$)
+- **Key Physical Mechanism**: XX coupling creates transverse entanglement destroyed when tracing out ancilla; $J_z^S$ measurement sees only marginal system state with no $\omega$ information from ancilla
 - **Explanation**: The XX coupling creates transverse entanglement, which is destroyed when tracing out the ancilla. The $J_z^S$ measurement sees only the marginal system state, which retains no $\omega$ information from the ancilla.
 
 ---
 
-### 10. General-Interaction Ancilla Metrology (2026-05-21)
+### 10. 🟢🟤 General-Interaction Ancilla Metrology (2026-05-21)
 
 - **Configuration**: Symmetric phase encoding ($H_S = \omega J_z^S$, $H_A = \omega J_z^A$), **full four-parameter interaction** $(\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz})$, L-BFGS-B optimization instead of grid scans. S-only MZI.
 - **Interferometric improvement**: **Modest SQL violation** — best $\Delta\omega = 0.0690$, which is **$0.690\times$ the SQL** ($\Delta\omega_{\text{SQL}} = 0.10$), achieved at $\omega = 3.8$.
 - **Unexpected findings**: The dominant optimal parameters are the inactive couplings $\alpha_{zx}$ and $\alpha_{zz}$ (mean magnitudes 6.22 and 6.37), not the transverse $\alpha_{xx}$ or $\alpha_{xz}$. These generate the SQL violation through **higher-order BCH cross-terms** with $H_0 = \omega(J_z^S + J_z^A)$. The protocol works at large $\omega$ (near $\pi$) where the BCH expansion produces sizable effective ancilla terms.
+- **Outcome vs SQL**: $0.690\times$ SQL (modest violation, best $\Delta\omega = 0.0690$ at $\omega=3.8$)
+- **Key Physical Mechanism**: BCH cross-terms $[\omega J_z^S, \alpha_{zz} J_z^S\otimes J_z^A]$ and $[\omega J_z^A, \alpha_{zx} J_z^S\otimes J_z^A]$ generate effective $J_z^A$ contributions; same mechanism as phase-modulated drive but via static coupling constants
 - **Explanation**: The cross-terms $[\omega J_z^S, \alpha_{zz} J_z^S \otimes J_z^A]$ and $[\omega J_z^A, \alpha_{zx} J_z^S \otimes J_z^A]$ generate effective $J_z^A$ contributions that transfer phase information to the ancilla; this is the same mechanism as the phase-modulated drive protocol (2026-05-19) but realized statically via large coupling constants rather than explicit drive.
 
 ---
 
-### 11. Multi-Particle XX Coupling, Dual MZI (2026-05-22)
+### 11. 🟡🟤 Multi-Particle XX Coupling, Dual MZI (2026-05-22)
 
 - **Configuration**: Symmetric phase encoding; $N \in [1,20]$ particles in both S and A; **dual MZI** (50/50 BS on both S and A before and after hold); $H_{\text{int}} = \alpha_{xx} J_x^S \otimes J_x^A$ only; measurement $J_z^S$ after tracing out ancilla.
 - **Interferometric improvement**: **None** — $\alpha_{xx}^* = 0$ for all $(\omega, N)$. No SQL violation at any $N$.
 - **Unexpected findings**: Even with multi-particle subsystems and both subsystems undergoing MZI sequences, the pure XX coupling cannot produce an advantage when the ancilla is traced out.
+- **Outcome vs SQL**: $=$ SQL ($\alpha_{xx}^*=0$ for all $(\omega,N)$; no SQL violation at any $N$)
+- **Key Physical Mechanism**: Dual MZI creates superposition but $J_z^S$ marginal discards ancilla information; $J_x$ correlations are invisible to $J_z$ readout after the trace
 - **Explanation**: The dual MZI creates initial superposition in both S and A, but the $J_z^S$ marginal measurement discards ancilla information. The $J_x^S \otimes J_x^A$ interaction creates correlations in the $J_x$ basis, which are invisible to $J_z$ readout after the trace.
 
 ---
 
-### 12. Four-Parameter Coupling, Multi-Particle Dual MZI (2026-05-23)
+### 12. 🟢🟤 Four-Parameter Coupling, Multi-Particle Dual MZI (2026-05-23)
 
 - **Configuration**: Symmetric phase encoding; $N \in [1,10]$ particles; **dual MZI**; **full four-parameter interaction** $(\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz})$; measurement $J_z^S$ after tracing out ancilla. L-BFGS-B optimization.
 - **Interferometric improvement**: **Weak SQL violation** — best ratio $\Delta\omega/\text{SQL}_{\text{SQL}} = 0.916$ (SQL $\Delta\omega_{\text{SQL}} = 0.1/\sqrt{N}$).
 - **Unexpected findings**: The improvement is much weaker than the $N=1$ single-MZI case (0.690$\times$SQL). This is anomalous: increasing $N$ and adding a dual MZI should provide more avenues for enhancement. The root cause is that the dual MZI **commutes the beam-splitters** with the coupling, reducing cross-term generation.
+- **Outcome vs SQL**: $0.916\times$ SQL (weak violation; much weaker than $N=1$ single-MZI at $0.690\times$SQL)
+- **Key Physical Mechanism**: Dual MZI symmetrization weakens BCH cross-term generation; effective interaction transformed by $U_{\text{BS}}^\dagger H_{\text{int}} U_{\text{BS}}$ mixes coupling terms
 - **Explanation**: With dual MZI, the effective interaction after the initial BS is transformed by $U_{\text{BS}}^\dagger H_{\text{int}} U_{\text{BS}}$, which mixes the coupling terms. The BCH cross-term mechanism that worked at $N=1$ (single MZI) is weakened because the beam-splitters symmetrically distribute the operators, suppressing the static cross-term generation.
 
 ---
 
-### 13. Multi-Particle XX-Coupling Dual-MZI with Optimized Joint Measurement (2026-05-25)
+### 13. 🟢🟣 Multi-Particle XX-Coupling Dual-MZI with Optimized Joint Measurement (2026-05-25)
 
 - **Configuration**: Same as (11) but **joint measurement** $M = m_s J_z^S + m_a J_z^A$ with $m_s^2 + m_a^2 = 1$, **jointly optimized** $\alpha_{xx}$ and $(m_s, m_a)$ per $(\omega, N)$. Benchmark is $2N$-particle SQL $\Delta\omega_{\text{SQL}} = 1/(\sqrt{2N}\, t_hold)$.
 - **Interferometric improvement**: **Strong SQL violation** — best ratio $\Delta\omega/\text{SQL}_{2N} = 0.509$ (SQL $\Delta\omega_{\text{SQL}} = 1/(\sqrt{2N} \cdot 10)$), achieved at $N=5$, $\omega=0.5$.
 - **Unexpected findings**: The optimal measurement coefficients are always unequal ($m_s \ne m_a$), with the ancilla weight $m_a$ dominating at large $\alpha_{xx}$. The SQL ratio improves with $N$ up to $N\approx5$ then plateaus. The asymptotic scaling is $\Delta\omega \propto 1/N^{0.75}$ (between SQL $\alpha=-0.5$ and HL $\alpha=-1.0$).
+- **Outcome vs SQL**: $0.509\times\text{SQL}_{2N}$ ($N=5$, $\omega=0.5$); scaling $\Delta\omega \propto 1/N^{0.75}$ (between SQL and HL)
+- **Key Physical Mechanism**: Weighted joint measurement extracts correlations created by XX interaction; optimal coefficients are always unequal with ancilla weight dominating at large $\alpha_{xx}$
 - **Explanation**: The joint measurement extracts correlations created by the XX interaction. The weighted sum optimally balances the signal derivative (from both S and A, since both feel $\omega$) against the total variance. Multi-particle subsystems amplify the available variance pool.
 
 ---
 
-### 14. Phase-Diffusion Robustness of the Phase-Modulated Drive Protocol (2026-05-24)
+### 14. 🟢🟤 Phase-Diffusion Robustness of the Phase-Modulated Drive Protocol (2026-05-24)
 
 - **Configuration**: Takes the best-performing configuration from the phase-modulated drive protocol (2026-05-19) and adds phase diffusion noise $\gamma_\phi$ on both qubits, then re-optimizes parameters.
 - **Interferometric improvement**: **Sub-SQL advantage survives finite noise** — the protocol maintains $\Delta\omega < \Delta\omega_{\text{SQL}}$ for $\gamma_\phi < \gamma_\phi^*$, with $\gamma_\phi^* \approx 0.08$ at $\omega=0.2$ and $\gamma_\phi^* \approx 0.12$ at $\omega=1.0$.
 - **Unexpected findings**: The optimal drive amplitudes $(a_x, a_y, a_z)$ decrease with $\gamma_\phi$, while the interaction $\alpha_{zz}$ increases to compensate. The protocol is more fragile at small $\omega$ (where the noise-free advantage is largest) and more robust at larger $\omega$.
+- **Outcome vs SQL**: Sub-SQL survives $\gamma_\phi < 0.08$ at $\omega=0.2$, $\gamma_\phi < 0.12$ at $\omega=1.0$
+- **Key Physical Mechanism**: Static BCH cross-term (via $\alpha_{zz}$) compensates drive reduction as noise increases; optimizer trades off drive strength for noise resilience
 - **Explanation**: Phase diffusion decoheres the ancilla, reducing the effectiveness of the parametric amplification. The optimizer trades off drive strength for noise resilience; the static BCH cross-term (via $\alpha_{zz}$) becomes relatively more important as the drive is turned down.
 
 ---
 
-### 15. Drive-Component Analysis in Ancilla-Enhanced Metrology (2026-05-27)
+### 15. 🟡🟤 Drive-Component Analysis in Ancilla-Enhanced Metrology (2026-05-27)
 
 - **Configuration**: Back to the original driven-ancilla protocol (2026-05-18) with system-only MZI, $N=1$, measurement $J_z^S$. Systematic 2D slice analysis of $(a_z,a_{zz})$, $(a_x,a_{zz})$, $(a_y,a_{zz})$ landscapes with norm-constrained optimization.
 - **Interferometric improvement**: **None confirmed** — all 2D slices achieve at best $\min \Delta\omega/\text{SQL} = 1.0$ (SQL). Non-commuting drives ($a_x$, $a_y$) produce qualitatively more complex landscapes but never dip below SQL.
 - **Unexpected findings**: The commuting $(a_z,a_{zz})$ slice has a simple, structured landscape. The non-commuting $(a_x,a_{zz})$ and $(a_y,a_{zz})$ slices have non-trivial topography (ridges, valleys) but the global minimum is always at zero drive. Larger drive norm $\|\mathbf{a}\|$ does not enable sub-SQL sensitivity.
+- **Outcome vs SQL**: $=$ SQL (all 2D slices achieve at best $\min\Delta\omega/\text{SQL}=1.0$)
+- **Key Physical Mechanism**: Confirms $\omega$ must appear in $H_A$ for sub-SQL sensitivity; BCH cross-term mechanism requires $\omega$ in ancilla Hamiltonian
 - **Explanation**: Without the ancilla also feeling $\omega$ (symmetric encoding or phase modulation), the driven ancilla dynamics are invisible to $J_z^S$ measurement. This confirms that the BCH cross-term mechanism requires $\omega$ in the ancilla Hamiltonian to generate signal information on the ancilla.
 
 ---
 
-### 16. Ancilla-Assisted vs. Two-System-Particle Comparison (2026-05-11)
+### 16. 🟡🟤 Ancilla-Assisted vs. Two-System-Particle Comparison (2026-05-11)
 
 - **Configuration**: Fixed 2 total particles — Configuration A (1 system particle + 1 ancilla) vs. Configuration B (2 system particles). QFI optimization with full 4-parameter interaction $(\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz})$. S-only MZI.
 - **Interferometric improvement**: **Ancilla-assisted cannot beat two-system-particle** — ratio $\mathcal{R} = \Delta\omega_A / \Delta\omega_B = 2.02$.
 - **Unexpected findings**: Non-commuting interactions ($\alpha_{xz}, \alpha_{xx} \neq 0$) provide no QFI enhancement for the ancilla configuration, despite breaking $[J_z, H_{\text{int}}] \neq 0$ and generating additional contributions to the effective generator.
+- **Outcome vs SQL**: $\mathcal{R}=2.02$ (ancilla-assisted is $2\times$ worse than two-system-particle configuration)
+- **Key Physical Mechanism**: $J=1/2$ probe has generator eigenvalue range bounded by $1$; entangling with ancilla cannot make it behave like $J=1$ probe; particle count determines achievable angular momentum
 - **Explanation**: Fundamental limitation — a $J=1/2$ probe has generator eigenvalue range bounded by $1$; entangling with an ancilla cannot make it behave like a $J=1$ probe. The integral $\int_0^1 J_z(s)\,ds$ cannot produce a generator with larger eigenvalue range than bare $J_z$. Particle count determines the achievable angular momentum.
 
 ---
 
-### 17. Non-Markovian Bath with Ancilla Protection (2026-05-09)
+### 17. 🟢🟤 Non-Markovian Bath with Ancilla Protection (2026-05-09)
 
 - **Configuration**: Tripartite system (oscillator $\otimes$ spin ancilla $\otimes$ pseudomode bath); Lorentzian spectral density; pulsed ancilla entanglement; QFI preservation ratio $\mathcal{R}(T) = F_Q(T)/F_Q(0)$. Phase encoding on an oscillator (not an MZI protocol).
 - **Interferometric improvement**: **Ancilla dramatically amplifies non-Markovian QFI enhancement** — $\mathcal{R}_{\text{with}}=4.37$ vs $\mathcal{R}_{\text{without}}=1.35$ ($3.2\times$ no-ancilla baseline) at optimal ancilla rotation $\theta^*=\pi/2$, $T=2.0$, $\lambda=1.0$. Time sweeps reach $\mathcal{R}=12.6$ at $T=5$ ($4.8\times$ no-ancilla). Memory sweep confirms $\Delta\mathcal{R}=3.97$ at $\lambda=0.05$ (strongly non-Markovian) vs $0.86$ at $\lambda=10$ (near-Markovian). 100 unit tests, 6 Parquet files, 3 SVG figures, report fully compiled.
 - **Unexpected findings**: $\mathcal{R}(T) > 1$ for all $\theta$ and $\lambda$ — QFI increases above its initial value, a genuine non-Markovian information backflow effect. The ancilla amplifies this enhancement rather than merely preserving the initial QFI. The no-ancilla baseline also exceeds 1 ($\mathcal{R}_{\text{without}}=2.64$ at $T=5$), demonstrating bath memory alone enhances sensitivity.
+- **Outcome vs SQL**: $\mathcal{R}_{\text{with}}=4.37$ ($3.2\times$ no-ancilla baseline); time sweeps reach $\mathcal{R}=12.6$ at $T=5$; memory sweep $\Delta\mathcal{R}=3.97$ at $\lambda=0.05$ vs $0.86$ at $\lambda=10$
+- **Key Physical Mechanism**: Pulsed ancilla entanglement stores phase information in spin-oscillator correlations robust to bath noise; non-Markovian information backflow amplified by ancilla
 - **Explanation**: The pseudomode representation exactly implements a Lorentzian bath. The ancilla is entangled with the oscillator before decoherence via $H_{\text{sa}} = g_{\text{sa}} (a^\dagger a) \otimes \sigma_x$; the entanglement stores phase information in spin-oscillator correlations that are more robust to bath noise. The single Lindblad dissipator $L_{\text{pm}} = \sqrt{\lambda}\,b$ on the pseudomode generates the exact non-Markovian dynamics. Bath memory ($\lambda \to 0$) is the resource the ancilla leverages: $\Delta\mathcal{R}$ increases $4.6\times$ as $\lambda$ drops from $10$ to $0.05$.
 
 ---
 
-### 18. Scaling Survey: Advanced Architectures (2026-05-11) — *Archived*
+### 18. ⚪🟤 Scaling Survey: Advanced Architectures (2026-05-11) — *Archived*
 
 - **Coverage**: Six models proposed — non-Markovian pseudomode bath, thermal Langevin noise, cavity-enhanced MZI, distributed sensor arrays, dynamical decoupling (CPMG, XY-8), tilt-to-length coupling noise.
 - **Status**: **ARCHIVED** — theoretical framework and numerical pipeline were established but the survey was not completed as a single report. The two most promising models were spun out into dedicated reports: non-Markovian bath (#20260509, completed — see §17) and cavity-enhanced MZI (completed as #20260629). The remaining four models (thermal noise, distributed arrays, dynamical decoupling, tilt-to-length) were never executed.
+- **Outcome vs SQL**: PENDING (ARCHIVED — two models spun out, four never executed)
+- **Key Physical Mechanism**: Six models proposed; two most promising (non-Markovian bath, cavity-enhanced MZI) developed further; pipeline established but survey incomplete
 
 ---
 
-### 19. Free Ancilla Initial State in Driven-Ancilla Metrology (2026-05-28)
+### 19. 🟡🟤 Free Ancilla Initial State in Driven-Ancilla Metrology (2026-05-28)
 
 - **Configuration**: System--ancilla pair ($N=1$ each) with system-only MZI (50/50 BS on S only), **free ancilla initial state** $|\psi_A\rangle = \cos(\omega_A/2)|1,0\rangle + e^{i\phi_A}\sin(\omega_A/2)|0,1\rangle$ (two additional DOF beyond the fixed-ancilla baseline), ancilla drive $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$ (controllable, $\omega$-independent), Ising interaction $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, measurement $J_z^S$ on system. 6-parameter random search (2000 samples + 30 NM refinements per $\omega$) across all four scenarios.
 - **Interferometric improvement**: **None** — no configuration of $(\omega_A, \phi_A, a_x, a_y, a_z, a_{zz})$ beats the SQL. All four scenarios (A: fixed ancilla baseline, B: free ancilla + drive + interaction, C: free ancilla + interaction only, D: free ancilla + drive only) converge to exactly $\Delta\omega = 0.1$ ($\Delta\omega \times t_hold = 1$) for all five $\omega$ values. The 2D slice $(\omega_A, a_{zz})$ with $H_A=0$ is flat at SQL across 40,401 grid points — zero points below SQL at any $\omega$.
 - **Unexpected findings**: Even though the ancilla starts in an arbitrary superposition (not a $J_z^A$ eigenstate), which immediately creates S--A entanglement via $H_{\text{int}}$ at $t=0$, the sensitivity remains exactly at the SQL. The optimal $\omega_A^*$ varies widely across $\omega$ values (from $0.65$ rad to $2.99$ rad), demonstrating that the optimiser explores non-trivial ancilla states — yet none produce sub-SQL sensitivity. The free ancilla does not converge to the fixed-ancilla limit $\omega_A=0$; the $J=1/2$ bound acts as a global floor, not a local optimum.
+- **Outcome vs SQL**: $=$ SQL (all four scenarios, zero points below SQL at any $\omega$ from 40,401 grid points)
+- **Key Physical Mechanism**: $J=1/2$ spectral radius bound is absolute for product initial states; generator $J_z^S$ has fixed eigenvalue range of $1$ that no product-state ancilla configuration can increase
 - **Explanation**: The $J=1/2$ spectral radius bound is absolute for product initial states. The $\omega$-modulated drive mechanism (2026-05-19) remains the only demonstrated route to SQL violation in this architecture because it generates $\partial H_A/\partial\omega$ contributions via parametric amplification. Freeing the ancilla initial state while keeping the drive $\omega$-independent cannot circumvent the fundamental bound — the generator $J_z^S$ has a fixed eigenvalue range of $1$, and no product-state ancilla configuration can increase it. This closes the loop on the question: for the $\omega$-independent ancilla drive protocol, no additional degree of freedom (ancilla state, drive components, interaction strength) enables sub-SQL sensitivity with a $J_z^S$ measurement.
 
 ---
 
-### 20. NOON and Twin-Fock MZI: Classical Fisher Information vs. Error-Propagation (2026-06-01)
+### 20. ⚪🔵 NOON and Twin-Fock MZI: Classical Fisher Information vs. Error-Propagation (2026-06-01)
 
 - **Configuration**: Standard MZI (BS1 → phase → BS2) with $H_t = 10$; **NOON states** $|N,0\rangle + |0,N\rangle$ (skip BS1) and **Twin-Fock states** $|N/2,N/2\rangle$ (after BS1) in two-mode Fock space truncated at $N_{\max}=20$. Sensitivity computed via **Classical Fisher Information** $F_C(\omega) = \sum_m (\partial P(m|\omega)/\partial\omega)^2 / P(m|\omega)$ from the full number-difference distribution $P(m\vert\omega)$, alongside the error-propagation formula $\Delta\omega_{\text{EP}} = \sqrt{\text{Var}(J_z)}/|\partial\langle J_z\rangle/\partial\omega|$ for comparison.
 - **Interferometric improvement**: **Not applicable (noise-free scaling survey)** — both saturate their QFI bounds under number-difference measurement. NOON achieves Heisenberg scaling $\Delta\omega_C = 1/(H_t N)$ (exponent $\alpha = -1.0000$). Twin-Fock achieves near-Heisenberg scaling $\Delta\omega_C = 1/(H_t \sqrt{N(N+2)/2})$ (exponent $\alpha = -0.907$ for $N\in[4,20]$, asymptotically $\alpha\to -1.0$).
@@ -199,155 +274,147 @@ The default baseline is a single-particle ($N=1$) MZI with system-only phase enc
   1. **$\langle J_z\rangle_{\text{out}} = 0$ for NOON $N\ge 2$ but not $N=1$**: Under the codebase's BS convention ($U_{\text{BS}}^\dagger J_z U_{\text{BS}} = J_y$), $\langle J_z\rangle_{\text{out}} = \langle\psi_{\text{in}}|J_y|\psi_{\text{in}}\rangle$ with $|\psi_{\text{in}}\rangle = (|N,0\rangle + e^{i\omega N H_t}|0,N\rangle)/\sqrt{2}$. The ladder operators $J_\pm = a_0^\dagger a_1, a_1^\dagger a_0$ map $|N,0\rangle \leftrightarrow |N-1,1\rangle$ and $|0,N\rangle \leftrightarrow |1,N-1\rangle$. For $N=1$, the mapped states coincide with the original components ($\langle 1,0|1,0\rangle = 1$), producing a non-zero $\langle J_z\rangle_{\text{out}} = -\tfrac12\sin(\omega H_t)$. For $N\ge 2$, the mapped states ($|N-1,1\rangle$ or $|1,N-1\rangle$) are orthogonal to both $|N,0\rangle$ and $|0,N\rangle$, so all inner products vanish and $\langle J_z\rangle_{\text{out}} = 0$ identically.
   2. **CFI is $\omega$-independent for both states**: $F_C(\omega)$ is constant across all $\omega$ (numerical std $<10^{-3}$) for both NOON ($F_C = H_t^2 N^2$) and Twin-Fock ($F_C = H_t^2 N(N+2)/2$), saturating the QFI bound at every operating point. Unlike error-propagation, which diverges at fringe nulls where $\partial\langle J_z\rangle/\partial\omega \approx 0$, the CFI from the full distribution never loses sensitivity — the phase information is encoded in higher moments of $P(m\vert\omega)$ even when the first moment is pinned at zero.
   3. **Number-difference measurement is optimal**: For both states in the balanced MZI, $\Delta\omega_C = \Delta\omega_Q$ identically at all $\omega$. The initial hypothesis that Twin-Fock would require parity measurement to saturate its QFI bound was incorrect — in a balanced MZI with no loss, the Fock-basis measurement at the output captures all available phase information.
+- **Outcome vs SQL**: N/A (scaling survey); NOON achieves Heisenberg scaling ($\alpha=-1.0000$), Twin-Fock near-Heisenberg ($\alpha=-0.907$, asymptotically $\alpha\to -1.0$); CFI saturates QFI for both states
+- **Key Physical Mechanism**: $\langle J_z\rangle=0$ for NOON $N\ge2$ renders error-propagation invalid; CFI resolves degeneracy via full distribution $P(m\vert\omega)$; number-difference measurement is optimal in balanced MZI
 - **Explanation**: The $\langle J_z\rangle = 0$ degeneracy for $N\ge 2$ NOON arises from the mismatch between the ladder-operator image of each NOON component and the original component itself — the intermediate Fock states $|N-1,1\rangle$ and $|1,N-1\rangle$ are orthogonal to both $|N,0\rangle$ and $|0,N\rangle$. This forces $\langle J_z\rangle_{\text{out}} = 0$ identically, rendering the error-propagation formula invalid (the derivative $\partial\langle J_z\rangle/\partial\omega = 0$ at all $\omega$). The CFI approach resolves this by considering the full probability distribution $P(m\vert\omega)$, which carries phase information through the redistribution of probability weights among the $2N+1$ possible number-difference outcomes $m$ — even when $\langle J_z\rangle$ is pinned at zero. The $\omega$-independence of CFI follows from the fact that the output distribution undergoes a rigid translation in $m$-space as $\omega$ varies, maintaining a constant Fisher information at all operating points.
 
 ---
 
-### 21. Free Ancilla with $\omega$-Modulated Drive (2026-06-10)
+### 21. 🟢🟤 Free Ancilla with $\omega$-Modulated Drive (2026-06-10)
 
 - **Configuration**: System--ancilla pair ($N=1$ each) with $\omega$-modulated ancilla drive $H_A = \omega(a_x J_x^A + a_y J_y^A + a_z J_z^A)$, Ising interaction $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, and **free ancilla initial state** $|\psi_A\rangle = \cos(\theta_A/2)|1,0\rangle + e^{i\phi_A}\sin(\theta_A/2)|0,1\rangle$. 6-parameter random search (3000 samples + 40 NM refinements) across 6 $\omega$ values. Measurement: $J_z^S$ (S-only).
 - **Interferometric improvement**: **$7.3\times$ SQL** — best $\Delta\omega = 0.01364$ at $\omega=0.1$, which is $1.49\times$ better than the fixed-ancilla baseline (#20260519, $\Delta\omega=0.02036$). The free-ancilla advantage is largest at low $\omega$ and vanishes at $\omega\ge1.0$.
 - **Unexpected findings**: The optimal ancilla state at $\omega=0.1$ is nearly orthogonal to $|1,0\rangle$ ($\theta_A^*\approx2.04$ rad), maximally different from the fixed-ancilla baseline. The advantage cannot be realised by Stage 1 slices (fixed drive) — full 6D joint optimisation is necessary.
+- **Outcome vs SQL**: $7.3\times$ SQL ($\Delta\omega=0.01364$ at $\omega=0.1$, $1.49\times$ better than fixed-ancilla baseline)
+- **Key Physical Mechanism**: Free ancilla superposition amplifies $H_A^{\text{norm}}$ contribution to $\partial H/\partial\omega$; 6D joint optimisation essential
 - **Explanation**: The $H_A^{\text{norm}}$ contribution to $\partial H/\partial\omega$ is amplified when the ancilla starts in a superposition of $J_z^A$ eigenstates, making it immediately sensitive to transverse drive components ($a_x, a_y$). At low $\omega$, the longer effective rotation time during the hold period allows the ancilla superposition to develop a larger derivative contribution.
 
 ---
 
-### 22. N-Scaling of the Phase-Modulated Ancilla Drive (2026-06-11)
+### 22. 🟢🟤 N-Scaling of the Phase-Modulated Ancilla Drive (2026-06-11)
 
 - **Configuration**: $N$ system particles ($J_S=N/2$, $N=1$ to $20$), single-particle ancilla ($J_A=1/2$, fixed $|1,0\rangle$ state). $\omega$-modulated drive $H_A = \omega(a_x J_x^A + a_y J_y^A + a_z J_z^A)$, Ising interaction $a_{zz} J_z^S \otimes J_z^A$. Measurement: $J_z^S$ (S-only). 4D optimisation (500 random + 50 NM refinements) per $(N,\omega)$ pair.
 - **Interferometric improvement**: **SQL violation persists at all $N$** but decays as $R(1)=4.91\times \to R(20)\approx1.04$–$1.21$ ($O(1/N)$ suppression with exponent $\beta\approx1.0$–$1.2$). Scaling exponent $\alpha\in[-0.24,-0.05]$ (far below SQL $-0.5$). Crossover $N_c\lesssim3$ where $R=2$.
 - **Unexpected findings**: No $N>1$ improves on $N=1$. Optimal $a_{zz}^*$ decays from $\sim4$ at $N=1$ to $\sim0.06$ at $N=20$ — the Ising coupling becomes ineffective at large $N$. Sensitivity is roughly constant with $N$ while the SQL improves as $1/\sqrt{N}$.
+- **Outcome vs SQL**: Decays $4.91\times\to 1.04\times$ SQL ($O(1/N)$ suppression, $\beta\approx1.0$–$1.2$); scaling exponent $\alpha\in[-0.24,-0.05]$
+- **Key Physical Mechanism**: Fixed $J_A=1/2$ ancilla contribution becomes negligible perturbation for $N\gtrsim3$; $\partial H/\partial\omega$ has $O(N)$ system term vs $O(1)$ ancilla term
 - **Explanation**: $\partial H/\partial\omega = J_z^S + H_A^{\text{norm}}$ has an $O(N)$ system term and an $O(1)$ ancilla term (because $J_A=1/2$ is fixed). The ancilla contribution becomes a negligible perturbation for $N\gtrsim3$. The null hypothesis — that a $J_A=1/2$ ancilla cannot sustain improvement at $N>3$ — is quantitatively confirmed.
 
 ---
 
-### 23. Multi-Particle $\omega$-Modulated Ancilla Drive (2026-06-12)
+### 23. 🟢🟤 Multi-Particle $\omega$-Modulated Ancilla Drive (2026-06-12)
 
 - **Configuration**: $N$ system particles ($J_S=N/2$) with $M=N$ ancilla particles ($J_A=N/2$), initial top Dicke state $|J_A,J_A\rangle$. Same Hamiltonian as #20260611 but ancilla operators are $(N+1)\times(N+1)$ Dicke matrices. Measurement: $J_z^S$ (S-only). $N=1$–$8$ completed (of $1$–$20$ planned).
 - **Interferometric improvement**: **Ratio decay arrested** — $R_{\text{multi}}(8)=4.68$ vs $R_{\text{fixed}}(8)\approx1.3$ ($3.6\times$ improvement over fixed-ancilla). However, scaling exponent stays at SQL level ($\alpha\approx-0.5$). $N=9$–$20$ scan pending.
 - **Unexpected findings**: The ratio does **not** decay toward 1 — it remains flat ($\beta\approx0$ in $R(N)=1+cN^\beta$), qualitatively different from the fixed-ancilla case. But the scaling exponent remains at SQL level, not Heisenberg.
+- **Outcome vs SQL**: $R$ stable at $4.68\times$ ($N=8$) but $\alpha\approx-0.5$ (SQL scaling); $3.6\times$ improvement over fixed-ancilla at same $N$
+- **Key Physical Mechanism**: $O(N)$ ancilla contribution arrests ratio decay; S-only measurement limitation persists — $\text{Var}(J_z^S)$ grows proportionally to derivative improvement
 - **Explanation**: The $O(N)$ ancilla contribution to $\partial H/\partial\omega$ successfully maintains strong SQL violation at all completed $N$. However, the S-only measurement limitation persists: $\text{Var}(J_z^S)$ grows proportionally to the derivative improvement, keeping the ratio at SQL level.
 
 ---
 
-### 24. $\omega$-Modulated Drive with Weighted Joint Measurement (2026-06-13)
+### 24. 🟢🟤 $\omega$-Modulated Drive with Weighted Joint Measurement (2026-06-13)
 
 - **Configuration**: $N$ system particles ($J_S=N/2$, $N=1$–$20$), single-particle ancilla ($J_A=1/2$). Same $\omega$-modulated drive + Ising interaction as #20260519, but **weighted joint measurement** $M(\psi) = \cos\psi\,J_z^S + \sin\psi\,J_z^A$ (5D optimisation including $\psi$).
 - **Interferometric improvement**: **$9.7\times$ SQL at $N=1$** (best $\Delta\omega=0.01027$, $2.5\times$ S-only best). At $N=20$, **$1.94\times$ SQL** vs $R\approx1.0$ for S-only. Scaling exponent $\alpha\in[-0.06,-0.02]$, flatter than SQL's $-0.5$. The **$O(1/N)$ analytical bound is refuted**.
 - **Unexpected findings**: The optimal measurement is $\sim98\%$ ancilla readout ($|m_a|\approx0.981$), independent of $N$. $\psi^*$ never trends toward $0$ (S-only) at any $N$ — the ancilla readout remains valuable regardless of system size. The covariance $\text{Cov}(J_z^S, J_z^A)$ reduces total variance below what separate measurements would achieve.
+- **Outcome vs SQL**: $9.7\times$ SQL ($N=1$, $\Delta\omega=0.01027$); $1.94\times$ SQL ($N=20$); $O(1/N)$ bound refuted; scaling exponent $\alpha\in[-0.06,-0.02]$
+- **Key Physical Mechanism**: Joint measurement extracts S--A correlations; $\sim98\%$ ancilla readout optimal independent of $N$; covariance reduces total variance
 - **Explanation**: The $H_{\text{int}}$-mediated back-action creates correlated S--A states where the ancilla's $\omega$-information is an independent, amplified channel. The joint measurement extracts these correlations; the weighted sum optimally balances the signal derivative (from both S and A, since both feel $\omega$) against the total variance.
 
 ---
 
-### 25. Non-Linear Measurement (Parity and CFI) on $\omega$-Modulated Drive (2026-06-15)
+### 25. 🟢🟤 Non-Linear Measurement (Parity and CFI) on $\omega$-Modulated Drive (2026-06-15)
 
 - **Configuration**: Same $\omega$-modulated drive + Ising interaction. Three S-only measurement strategies: linear $J_z^S$ baseline, parity $\Pi_S = \exp(i\pi J_z^S)$ (even $N$ only), and full-distribution Classical Fisher Information $F_C^{(S)}$. Two stages: Stage A (fixed parameters), Stage B (re-optimised per protocol).
 - **Interferometric improvement**: **CFI beats linear $J_z^S$** — $\mathcal{R}_{\text{CFI}}=1.67$ vs $\mathcal{R}_{\text{lin}}=1.24$ at $N=10$, $\omega=0.2$. Parity beats linear when re-optimised (8–34% improvement) but shows no Heisenberg scaling. **S-only CFI captures only 44–47% of total Fisher information** vs joint measurement.
 - **Unexpected findings**: Stage A (joint-opt params) makes all S-only measurements equivalent ($\mathcal{R}_{\text{CFI}}\approx1$) and parity fails catastrophically ($\times10^4$ worse). Stage B advantage grows with $N$, confirming increasing non-Gaussianity. The majority of Fisher information resides in S--A correlations, not the S subsystem alone.
+- **Outcome vs SQL**: CFI $1.67\times$ SQL, parity 8–34% above linear at $N=10$, $\omega=0.2$; S-only CFI captures only 44–47% of total FI vs joint measurement
+- **Key Physical Mechanism**: $\omega$-modulated drive primarily encodes signal into S--A correlations; even optimal S-only measurement misses $>50\%$ of information
 - **Explanation**: The $\omega$-modulated drive primarily encodes the signal into S--A correlations. Even the optimal S-only measurement (full-distribution CFI) misses $>50\%$ of the information. The $J_z^S$ distribution is non-Gaussian but not dramatically so — the non-Gaussianity grows modestly with $N$.
 
 ---
 
-### 26. General 4-Parameter Interaction with $\omega$-Modulated Drive (2026-06-16)
+### 26. 🟢🟤 General 4-Parameter Interaction with $\omega$-Modulated Drive (2026-06-16)
 
 - **Configuration**: Full four-parameter interaction $H_{\text{int}} = \alpha_{xx} J_x^S J_x^A + \alpha_{xz} J_x^S J_z^A + \alpha_{zx} J_z^S J_x^A + \alpha_{zz} J_z^S J_z^A$ combined with $\omega$-modulated drive. 7-parameter optimisation (5000 random + 200 L-BFGS-B refinements). Step 1: $N=1$; Step 2: $J_A=1/2$, $N=1$–$13$; Step 3: $J_A=N/2$, $N=1$–$13$.
 - **Interferometric improvement**: **$5.51\times$ SQL at $N=1$** ($12\%$ better than Ising-only #20260519). However, **scaling exponents are uniformly positive** ($\alpha\approx+0.09$ to $+0.34$) — sensitivity degrades with $N$ relative to SQL.
 - **Unexpected findings**: The 7D optimisation landscape becomes intractable at $N>8$ — the fixed budget (5000 random samples, reduced to 100–200 at large $N$) cannot explore the high-dimensional space. Many optimal parameters saturate against bounds. The three BCH classes predicted to compound to $F_Q\propto N^2$ do not align constructively.
+- **Outcome vs SQL**: $5.51\times$ SQL ($N=1$, $12\%$ better than Ising-only); scaling exponents uniformly positive ($\alpha\approx+0.09$ to $+0.34$) — degrades with $N$
+- **Key Physical Mechanism**: 7D landscape intractable at $N>8$; three BCH classes do not compound constructively; positive exponents suggest optimiser finds worse local minima with growing $N$
 - **Explanation**: The 7D landscape complexity defeats the fixed-budget optimiser at larger $N$. The positive exponents suggest the optimiser finds progressively worse local minima as $N$ grows, rather than a genuine physical limitation. The $N=1$ result is genuine but does not scale.
 
 ---
 
-### 27. Ancilla OAT Pre-Squeezing before $\omega$-Modulated Hold (2026-06-19)
+### 27. 🟢🟣 Ancilla OAT Pre-Squeezing before $\omega$-Modulated Hold (2026-06-19)
 
 - **Configuration**: Adds one-axis twisting $U_{\text{OAT}} = \exp(-i q (J_z^A)^2)$ to the multi-particle ancilla protocol (#20260612) before the hold period. Ancilla initialised to coherent spin state along $-x$ (not top Dicke). Phase 1: $J_S=1/2$, $J_A=1$ ($N_A=2$). Phase 2: $J_A=N/2$. 5D optimisation $(a_x, a_y, a_z, a_{zz}, q)$.
 - **Interferometric improvement**: **$R=1.4$–$6.2$, $\alpha\approx-0.18$** — Phase 1 ($N=1$, $J_A=1$): OAT improves sensitivity at all $\omega$ (best $\Delta\omega=0.0161$, $R=6.21$, $\mathcal{I}=1.0$–$4.1$). Phase 2 ($N=2$–$6$, $J_A=N/2$): all beat SQL ($R=1.4$–$3.8$), OAT active in 97% of cases. However, scaling exponent $\alpha\approx-0.18$ (worse than SQL $-0.5$) — Heisenberg scaling not achieved. 7/10 success criteria PASS, 1 PARTIAL, 1 FAIL. OAT-CSS protocol is intermediate between $\theta$-drive (#20260612) and $\omega$-drive (#20260616).
-- **Key mechanism**: OAT pre-squeezing reduces ancilla variance in the $J_x$-$J_y$ plane, amplifying the ancilla's contribution to $\partial\langle J_z^S\rangle/\partial\omega$ through $H_{\text{int}}$-mediated feedback. However, the improvement does not scale with $N$ as predicted ($\xi_{\text{min}}\propto N^{-2/3}$ expectation vs $\alpha\approx-0.18$ reality), likely because the S-only measurement discards the S--A correlations that the squeezed ancilla generates.
+- **Outcome vs SQL**: $R=1.4$–$6.2$, $\alpha\approx-0.18$ (worse than SQL $-0.5$); OAT improves sensitivity ($\mathcal{I}=1.0$–$4.1$ at $N=1$, $\mathcal{I}$ median $1.72$ at $N=2$–$6$) but scaling exponent worse than SQL
+- **Key Physical Mechanism**: OAT pre-squeezing reduces ancilla variance in the $J_x$-$J_y$ plane, amplifying the ancilla's contribution to $\partial\langle J_z^S\rangle/\partial\omega$ through $H_{\text{int}}$-mediated feedback. Improvement does not scale with $N$ ($\xi_{\text{min}}\propto N^{-2/3}$ expectation vs $\alpha\approx-0.18$ reality), likely because S-only measurement discards S--A correlations
 - **Explanation**: Same $\omega$-modulated drive framework as #20260612, but with the ancilla starting in a CSS along $-x$ and undergoing OAT squeezing before the hold. The squeezing parameter $q$ is jointly optimised with the drive and interaction parameters.
 
 ---
 
-### 28. Multi-Particle Ancilla ($J_A > 1/2$) with Free Initial State and $\omega$-Independent Drive (2026-06-20)
+### 28. 🟡🟤 Multi-Particle Ancilla ($J_A > 1/2$) with Free Initial State and $\omega$-Independent Drive (2026-06-20)
 
 - **Configuration**: System--ancilla pair with $N$ system particles ($J_S=N/2$, $N=1$--$10$), $M$ ancilla particles ($J_A=M/2$, $M \in \{1,2,3,4\}$), system-only MZI (50/50 BS on S only), **$\omega$-independent ancilla drive** $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$, Ising interaction $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, **free ancilla initial state** as a CSS $|\psi_A(\theta_A,\phi_A)\rangle$, measurement $J_z^S$ on system. 6-parameter random search (1000 samples + 30 Nelder--Mead refinements) per $(N,M,\omega)$ triple. Fixed holding time $T_H=10$.
 - **Interferometric improvement**: **None** — all 80 directly-verified $(N,M,\omega)$ triples give exactly $\Delta\omega = 1/(\sqrt{N}\,T_H)$ ($R=1.0$). No configuration of $(N,M,\omega,\theta_A,\phi_A,a_x,a_y,a_z,a_{zz})$ with $M>1$ produces sub-SQL sensitivity. The SQL bound for $\omega$-independent drives is absolute regardless of Hilbert space dimensions of either subsystem.
 - **Unexpected findings**: The 6D optimisation landscape is strictly flat at the SQL level — the optimiser consistently converges to the decoupled limit (zero drive, zero interaction). Larger ancilla sizes ($M=2,3,4$, $J_A=1,3/2,2$) provide no benefit over the $M=1$ baseline ($J_A=1/2$). The free initial state $(\theta_A,\phi_A)$ is irrelevant — the optimum never exploits it.
+- **Outcome vs SQL**: $=$ SQL ($R=1.0$, all 80 directly-verified $(N,M,\omega)$ triples; $M>1$ provides no benefit over $M=1$)
+- **Key Physical Mechanism**: $\partial H/\partial\omega = J_z^S$ contains no ancilla contribution; $\omega$ enters exclusively through system operator; $\omega$-modulation is the essential mechanism for SQL violation
 - **Explanation**: Because $\partial H/\partial\omega = J_z^S$ contains no ancilla contribution, $\omega$ enters the evolution exclusively through the system operator. The ancilla can only acquire $\omega$-sensitivity indirectly via $H_{\text{int}}$, which the optimiser always turns off. This extends the #20260528 result from $N=M=1$ to arbitrary subsystem sizes and confirms that $\omega$-modulation of the ancilla drive (demonstrated in #20260519, #20260610, #20260611, #20260612) is the essential mechanism for SQL violation.
 
 ---
 
-### 29. Bell-State Initial S--A Entanglement in Driven-Ancilla Metrology (2026-06-21)
+### 29. 🟡🟤 Bell-State Initial S--A Entanglement in Driven-Ancilla Metrology (2026-06-21)
 
 - **Configuration**: System--ancilla pair ($N=1$ each, $J=1/2$), system-only MZI (50/50 BS on S only), **Bell-state initial state** $|\Phi^+\rangle = (|00\rangle + |11\rangle)/\sqrt{2}$ (maximally entangled S--A), ancilla drive $H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A$ ($\omega$-independent), Ising interaction $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, measurement $J_z^S$ on system. 4-parameter random search (1000 samples + 15 NM refinements) per $(\text{scenario},\omega)$ pair. 50-point $\omega$ scan from $0.1$ to $5.0$ (step $0.1$). 200 optimisation runs total.
 - **Interferometric improvement**: **None** — all 150 finite-$\Delta\omega$ results (Scenarios A, B, D) give exactly $\Delta\omega = 0.100000 = \text{SQL}$ at every $\omega$. Scenario C (Bell + drive only) produces all fringe ($\Delta\omega \to \infty$), confirming that $H_{\text{int}}$ is essential for any sensitivity. The optimal $t_{\text{hold}}$ always saturates its upper bound (10.0), and optimal drive/interaction parameters vary widely across $\omega$ but all converge to the same SQL-level sensitivity.
 - **Unexpected findings**: None — the result is fully consistent with the null hypothesis: the $J=1/2$ spectral radius bound holds regardless of initial entanglement. The Bell state's maximal S--A covariance ($\text{Cov}(J_z^S, J_z^A) = +1/4$) cannot increase the effective generator's eigenvalue range beyond $T_H/2$ because $\omega$ enters only through $H_S = \omega J_z^S$.
+- **Outcome vs SQL**: $=$ SQL ($R=1.0$, all 150 finite-$\Delta\omega$ results; all scenarios converge to SQL irrespective of initial entanglement)
+- **Key Physical Mechanism**: $J=1/2$ spectral radius bound is absolute regardless of initial entanglement; effective generator variance bounded by $\|J_z^S\|^2 T_H^2 = T_H^2/4$ for any initial state
 - **Explanation**: The bound argument from #20260512 applies to any initial state, not just product states. For $J=1/2$, the generator $J_z^S$ has a fixed eigenvalue range of $1$, and no amount of initial S--A entanglement can increase it. The effective generator $G_{\text{eff}} = \int_0^{T_H} e^{i t H_{\text{rest}}} J_z^S e^{-i t H_{\text{rest}}}\,dt$ has a variance bounded by $\|J_z^S\|^2 T_H^2 = T_H^2/4$, giving $\Delta\omega \geq 1/T_H$ for any initial state. This closes the question: for $\omega$-independent drives, initial entanglement cannot substitute for $\omega$-modulation of the ancilla drive.
 
 ---
 
-### 30. Heisenberg-Limit MZI with Squeezed-Vacuum Input and OAT-Generated Spin-Squeezed States (2026-06-25)
+### 30. 🟢🟣 Heisenberg-Limit MZI with Squeezed-Vacuum Input and OAT-Generated Spin-Squeezed States (2026-06-25)
 
 - **Configuration**: Standard MZI (BS1 → phase → BS2) with $H_t = 10$, $J_z = (n_1 - n_2)/2$ phase generator. Three probe states: (a) **Single-mode squeezed vacuum** $S(r)|0\rangle_1 \otimes |0\rangle_2 = \sum c_n |2n,0\rangle$ with $\langle N\rangle = \sinh^2(r)$, `skip_bs1=True`; (b) **Two-mode squeezed vacuum** $\sum \tanh^n(r)/\cosh(r)\,|n,n\rangle$ with total $\langle N\rangle = 2\sinh^2(r)$, `skip_bs1=False`; (c) **OAT spin-squeezed states** $\exp(-i q J_z^2)|CSS\rangle$ with $q = 0$ (CSS baseline). Sensitivity computed via CFI from full number-difference distribution $P(m\vert\omega)$. Sweeps: SV $\langle N\rangle = 1..20$, TMSV $\langle N\rangle = 2..40$ (even), OAT $N = 2..40$ (even), all at $\omega \in [0.1, 5.0]$ (step 0.1). Hilbert-space truncation $M = \min(5\langle N\rangle, 80)$ for SV/TMSV, $M = N$ for OAT.
 - **Interferometric improvement**: **OAT: SQL only** ($\alpha = -0.5000$). **TMSV: sub-SQL** ($\alpha = -0.76$, $\text{CFI} \approx \text{QFI}$, 4.1× below SQL at $R=40$). **SV: not assessable** (CFI=0 due to skip_bs1=True).
 - **Unexpected findings**: (1) SV with `skip_bs1=True` produces $P(m\vert\omega)$ that is $\omega$-independent — the squeezed vacuum has $\langle J_x\rangle = \langle J_y\rangle = 0$, making the number-difference measurement insensitive to the $J_z$ phase shift. Parity measurement would be required to saturate the QFI. (2) TMSV CFI saturates QFI within 1%, confirming that number-difference measurement is optimal for TMSV — unlike the SV case, the TMSV state after BS1 has full transverse support. (3) Hilbert-space truncation ($M = 5\langle N\rangle$ capped at 80) is insufficient for squeezed states: the geometric/super-Poissonian distributions require $M \gg 5\langle N\rangle$ for accurate representation at large $R$, causing 10-59% QFI loss.
+- **Outcome vs SQL**: OAT: $=$ SQL ($\alpha=-0.5000$). TMSV: sub-SQL ($\alpha=-0.76$, $4.1\times$ below SQL at $R=40$). SV: FAIL (CFI=0, needs parity readout). SV Parity (extension): $=$ SQL ($\alpha=-0.4923$, parity CFI saturates QFI but scaling is SQL)
+- **Key Physical Mechanism**: SV with skip_bs1=True makes $P(m\vert\omega)$ $\omega$-independent (genuine physical effect); BS1 transforms SV to SQL-class $J_z$ variance; TMSV CFI saturates QFI within 1% under number-difference readout; OAT confirms $[\exp(-i q J_z^2), J_z]=0$
 - **Explanation**: The SV result is a genuine physical effect, not a code bug — the $|2n,0\rangle$ components of the squeezed vacuum map to distinct total-photon-number sectors under the beam splitter, with no inter-n interference. Parity readout would collapse this structure. The TMSV result confirms the analytical QFI bound $F_Q = H_t^2 R(R+2)$ under number-difference readout. The OAT result confirms the commutation $[\exp(-i q J_z^2), J_z] = 0$ — OAT does not improve $J_z$-generated phase estimation. 3/9 success criteria PASS, 1 PARTIAL, 3 FAIL, 1 PASS (Cramér-Rao), 1 PASS (distribution norm). Report compiled with 4 SVG figures, 3 Parquet files.
 
-### 31. Free-Ancilla + $\omega$-Modulated Drive + Weighted Joint Measurement (2026-06-28)
+### 31. 🟢🟤 Free-Ancilla + $\omega$-Modulated Drive + Weighted Joint Measurement (2026-06-28)
 
 - **Configuration**: System--ancilla pair combining free-ancilla initial state $(\theta_A,\phi_A)$ (from #20260610), $\omega$-modulated drive $H_A = \omega(a_x J_x^A + a_y J_y^A + a_z J_z^A)$, Ising interaction $H_{\rm int} = a_{zz} J_z^S \otimes J_z^A$, and weighted joint measurement $M(\psi) = \cos\psi\,J_z^S + \sin\psi\,J_z^A$ (from #20260613). Three experiments: (1) N=1 compounding proof with 7D optimisation $(\theta_A,\phi_A,a_x,a_y,a_z,a_{zz},\psi)$ over 6 $\omega$ values. (2) N>1 scaling with $J_A=1/2$ qubit ancilla, $N=1$-$20$, 3 $\omega$ values. (3) N>1 scaling with $J_A=N/2$ multi-particle Dicke ancilla, free CSS initial state, $N=1$-$8$, 3 $\omega$ values.
 - **Interferometric improvement**: **Compounding rejected** — best $R\approx 7.26\times$ SQL at $N=1$, worse than the joint-measurement-only baseline ($9.7\times$ SQL). The free-ancilla DOF is redundant when the joint measurement is active ($\theta_A^*$ converges to fixed limit in 5/6 cases). For $J_A=1/2$, the combined protocol decays faster ($\beta=0.69$-$0.73$) than the joint-measurement-only baseline ($\beta=0.64$). The $J_A=N/2$ multi-particle protocol achieves the highest absolute ratios of the project ($R\approx 7.4$ at $N=6$, $\omega=0.1$) with flat $R$ at $5$-$7\times$ SQL for $N\le 7$, but scaling exponents remain at SQL level ($\alpha\approx -0.33$ to $-0.36$). 3 PASS / 1 PARTIAL / 1 PARTIAL / 5 FAIL success criteria. 9 Parquet files, 12 SVG figures. Report compiled.
 - **Unexpected findings**: (1) The 7D optimisation at $N=1$ cannot match the 5D fixed-ancilla joint-measurement optimum — the extra DOFs create worse local minima. (2) The free-ancilla and joint-measurement mechanisms tap the same finite $J_A=1/2$ information capacity, not independent resources. (3) The $J_A=N/2$ multi-particle ancilla + joint measurement has a high failure rate at $N>5$ due to optimisation budget limits, not physical constraints. (4) The multi-particle ancilla achieves flat $R$ ratios far above the qubit-ancilla case but does not improve scaling exponents.
+- **Outcome vs SQL**: Compounding rejected: $R\approx7.26\times$ SQL ($N=1$, worse than joint-only $9.7\times$). $J_A=1/2$ scaling $\beta=0.69$–$0.73$. $J_A=N/2$ achieves $R\approx7.4$ flat at $N\le7$ but $\alpha\approx-0.33$ to $-0.36$ (SQL level)
+- **Key Physical Mechanism**: Free-ancilla and joint-measurement tap same $J=1/2$ capacity — do not compound. Multi-particle ancilla achieves highest absolute ratios but linear joint measurement cannot extract $F_Q\propto N^2$
 - **Explanation**: Both mechanisms rely on the ancilla's $J=1/2$ Hilbert space to carry $\omega$-information. The joint measurement already extracts the maximal information from this limited space (as demonstrated by the $\sim98\%$ ancilla-weight optimal measurement in #20260613). Freeing the ancilla initial state cannot add information that isn't there. The multi-particle ancilla provides a larger Hilbert space ($J_A=N/2$, dimension $N+1$) which does increase the information capacity, but the joint measurement cannot extract $F_Q \propto N^2$ scaling — the scaling exponent remains at SQL level. This suggests a structural limitation of the linear joint measurement $M = \cos\psi\,J_z^S + \sin\psi\,J_z^A$: it cannot capture the higher-order correlations present in the multi-particle entangled state.
 
 ---
 
-### 32. Cavity-Enhanced TMSV Mach-Zehnder Interferometer (2026-06-29)
+### 32. 🟢🟣 Cavity-Enhanced TMSV Mach-Zehnder Interferometer (2026-06-29)
 
 - **Configuration**: Standard MZI (BS1 → phase → BS2) with **two-mode squeezed vacuum (TMSV)** input $\sum \tanh^n(r)/\cosh(r)\,|n,n\rangle$ and **cavity finesse** $\mathcal{F}$ multiplying the effective holding time $t_{\text{hold}} = \mathcal{F} \cdot H_t$ ($H_t=10$). Phase generator $J_z = (n_1-n_2)/2$. Sensitivity computed via CFI from full number-difference distribution $P(m\vert\omega)$, 50-point $\omega$ grid per $\mathcal{F}$ (first quarter-wave). Sweep: $\langle N\rangle = 2$--$40$ (20 even values), $\mathcal{F} = 1,2,5,10,20,50,100,200,500,1000$ (10 values). Hilbert-space truncation $M = \text{resource\_value\_to\_truncation}(\langle N\rangle, \text{\"tmsv\"}, \text{max\_trunc}=100)$.
 - **Interferometric improvement**: **Dramatic**. Prefactor scaling exponent $\beta = 0.9985 \pm 0.0008$ ($\Delta\omega \propto 1/\mathcal{F}$, $R^2=1.000$). Scaling exponent $\alpha = -0.788 \pm 0.023$ over N=4--28 (truncation-safe range), within $2\sigma$ of TMSV baseline $-0.76$. At $\mathcal{F}=100$, $\langle N\rangle=20$: $\Delta\omega = 0.000061$, **$365\times$ below the SQL** at the same physical photon number — the strongest sub-SQL enhancement in the project.
 - **Unexpected findings**: (1) $\alpha$ is stable across all $\mathcal{F}$ ($|\Delta\alpha|_{\text{max}} = 0.012$ at $\mathcal{F}=1000$), confirming the cavity acts as a uniform multiplicative prefactor without modifying quantum correlations. (2) CFI/QFI ratio degrades from 83% at $\langle N\rangle=4$ to 49% at $\langle N\rangle=40$ due to truncation-limited variance accuracy and coarse $\omega$ grid, but this does not affect scaling exponents. (3) The compound enhancement ($365\times$) exceeds the predicted $65\times$ target because the TMSV improvement factor $\mathcal{R}_{\text{TMSV}} = \sqrt{\langle N\rangle+2}$ is modulated by the SQL benchmark definition.
+- **Outcome vs SQL**: $365\times$ below SQL ($\mathcal{F}=100$, $\langle N\rangle=20$, $\Delta\omega=0.000061$). Prefactor $\beta=0.9985$, $\Delta\omega\propto 1/\mathcal{F}$. Scaling $\alpha=-0.788$ preserved (within $2\sigma$ of TMSV baseline $-0.76$)
+- **Key Physical Mechanism**: Cavity finesse $\mathcal{F}$ multiplies effective interaction time: $F_Q = (\mathcal{F}H_t)^2 R(R+2)$. Compound enhancement: TMSV sub-SQL $\times$ $\mathcal{F}$ prefactor. Cavity acts as uniform multiplicative prefactor without modifying quantum correlations
 - **Explanation**: The cavity multiplies the effective interaction time by $\mathcal{F}$, making $F_Q = (\mathcal{F}\cdot H_t)^2 \cdot \langle N\rangle(\langle N\rangle+2)$. This is a prefactor improvement, not a scaling exponent improvement — $\alpha$ is unchanged from the TMSV baseline. The $\beta \approx 1.0$ result conclusively validates the effective-time-multiplication model. The $365\times$ SQL enhancement at $\mathcal{F}=100$ represents an **order-of-magnitude improvement over previous best results** ($9.7\times$ from #20260628), albeit through a different physical mechanism (cavity time-multiplication vs S--A correlations). 7/9 criteria PASS, 2/9 PARTIAL. Report compiled with 7 SVG figures, 1 Parquet file.
 
-### 33. Pedagogical Noise Comparison: Phase Diffusion vs One-Body Loss in Single-Particle MZI (2026-06-30)
+### 33. 🟡🟤 Pedagogical Noise Comparison: Phase Diffusion vs One-Body Loss in Single-Particle MZI (2026-06-30)
 
 - **Configuration**: Single-particle MZI ($N=1$, $\dim\mathcal{H}=4$) with 50/50 BS, holding period under Lindblad master equation, and error-propagation sensitivity $\Delta\omega = \sqrt{\text{Var}(J_z)}/|\partial\langle J_z\rangle/\partial\omega|$ via central finite differences. Two noise channels: phase diffusion $L_\phi = \sqrt{\gamma_\phi}\,J_z$ and one-body loss $L_1 = \sqrt{\gamma_1}\,a_1$. Three sweeps: (A) holding-time degradation curves ($t_{\text{hold}}\in[0.1,100]$, 4 scenarios at $\gamma=0.1$), (B) noise-rate scaling ($\gamma\in[10^{-3},10^0]$, 3 scenarios at $t_{\text{hold}}=\pi/2$), (C) 2D landscape ($\gamma_\phi\times\gamma_1$, $40\times40$ grid at $t_{\text{hold}}=\pi/2$). 2490 circuit evaluations, 63 tests, 3 Parquet files, 3 SVG figures. Report compiled.
 - **Interferometric improvement**: **N/A (pedagogical comparison)** — both channels degrade sensitivity relative to SQL. Key result: dephasing is $\sim 41\%$ more damaging than loss at large $t_{\text{hold}}$ (mean ratio 46.6 vs 33.0 at $\gamma=0.1$, $t_{\text{hold}}>10$). Super-additivity confirmed at all 30 $\gamma$ values ($29\%$ excess at $\gamma=1.0$). The 2D landscape's ratio=2 contour never reaches the loss axis, confirming dephasing as uniformly more damaging.
 - **Unexpected findings**: Dephasing and loss produce identical optimal holding times at $\gamma=0.1$ ($t_{\text{hold}}^*\approx 20.255$), because for $N=1$ both channels suppress $\rho_{01}$ at the same Lindblad rate $\gamma/2$. The sub-hypothesis that dephasing's optimum would be shorter is refuted.
+- **Outcome vs SQL**: N/A (pedagogical comparison) — dephasing $\sim 41\%$ more damaging than loss at $\gamma=0.1$, $t_{\text{hold}}>10$; super-additivity confirmed ($29\%$ excess at $\gamma=1.0$)
+- **Key Physical Mechanism**: Single-particle $J=1/2$: both channels suppress $\rho_{01}$ at identical rate $\gamma/2$; dephasing destroys fringe contrast directly while loss merely dilutes signal; super-additivity from dephasing destroying residual coherence
 - **Explanation**: For a single particle, $J_z$ has eigenvalues $\pm 1/2$ and spectral radius $1$, so $L_\phi = \sqrt{\gamma_\phi}J_z$ and $L_1 = \sqrt{\gamma_1}a_1$ suppress the off-diagonal element $\rho_{01}$ at identical rates. The channels differ in their large-$t_{\text{hold}}$ asymptotic behaviour but have identical short-time decoherence dynamics in the single-particle subspace. The super-additivity arises because dephasing destroys the residual coherence that would otherwise mitigate the impact of each loss event.
-
----
-
-| Experiment | Outcome vs SQL | Key Physical Mechanism |
-|---|---|---|
-| Single-particle MZI baseline | $=$ SQL | — (baseline reference) |
-| Ancilla-assisted + joint measurement ($N=1$) | $=$ SQL (at best) | Joint readout restores SQL bound |
-| **Weighted joint measurement** ($N,M$) | **$<$ SQL** ($\nu>0.5$, up to $0.509\times$ SQL$_{2N}$) | Optimized weights, multi-particle variance pool |
-| Ancilla drive ($\omega$-independent) | $=$ SQL (no improvement possible) | Drive invisible to S-only readout |
-| **Ancilla drive ($\omega$-modulated)** | **$4.91\times$ below SQL** ($N=1$) | BCH cross-term + parametric amplification |
-| **General 4-param interaction** ($N=1$, S-only) | **$0.690\times$ SQL** | BCH cross-terms via $\alpha_{zx}, \alpha_{zz}$ |
-| 4-param + dual MZI + trace | $0.916\times$ SQL (weak) | Dual MZI symmetrization weakens cross-terms |
-| **XX coupling + joint measurement** ($N$) | **$0.509\times$ SQL$_{2N}$** ($N=5$) | Optimized weighted joint measurement |
-| Ancilla vs. two-system-particle | $\mathcal{R}=2.02$ (fundamental bound) | Generator eigenvalue range limited by $J=1/2$ |
-| Phase-diffusion robustness | Sub-SQL survives $\gamma_\phi < 0.08$ | Static BCH term compensates drive reduction |
-| Drive-component analysis | $=$ SQL (all 2D slices) | Confirms $\omega$ must appear in $H_A$ |
-| **Free ancilla initial state** ($\omega$-independent drive) | **$=$ SQL** (all scenarios) | $J=1/2$ spectral radius bound is absolute for product states |
-| **NOON/Twin-Fock CFI vs error-propagation** | **N/A (scaling survey)** | $\langle J_z\rangle=0$ for NOON $N\ge2$; CFI resolves degeneracy via full distribution $P(m\vert\omega)$ |
-| Non-Markovian bath protection | **$\mathcal{R}_{\text{with}}=4.37$ ($3.2\times$ no-ancilla)** | Pulsed ancilla entanglement amplifies non-Markovian QFI backflow |
-| **Advanced architectures survey** | PENDING | Six models, theoretical framework ready |
-| --- | --- | --- |
-| **21. Free ancilla + $\omega$-modulated drive** ($N=1$) | **$7.3\times$ SQL** ($1.49\times$ vs fixed-ancilla) | Free ancilla superposition amplifies $H_A^{\text{norm}}$ derivative; 6D optimisation essential |
-| **22. N-scaling phase-modulated drive** ($N=1$–$20$, $J_A=1/2$) | Decays $4.91\times \to 1.04\times$ SQL ($O(1/N)$) | Fixed $J_A=1/2$ ancilla negligible for $N\gtrsim3$ |
-| **23. Multi-particle $\omega$-modulated drive** ($N=1$–$8$, $J_A=N/2$) | **$R$ stable at $4.68\times$** but $\alpha\approx-0.5$ | $O(N)$ ancilla arrests ratio decay; S-only measurement limits scaling |
-| **24. $\omega$-modulated + weighted joint measurement** ($N=1$–$20$) | **$9.7\times$ SQL** ($N=1$), **$1.94\times$ SQL** ($N=20$) | Joint measurement extracts S--A correlations; $O(1/N)$ bound refuted |
-| **25. Non-linear measurement** ($N=1$–$20$, S-only) | CFI $1.67\times$ SQL, parity 8–34% above linear | S-only CFI captures only 44–47% of total FI; joint measurement essential |
-| **26. 4-param + $\omega$-modulated drive** ($N=1$–$13$) | $5.51\times$ SQL ($N=1$), degrades $\alpha>0$ | 7D landscape intractable at $N>8$; BCH classes don't compound |
-| **27. OAT pre-squeezing** ($N=1$–$6$, $J_A=N/2$) | **$R=1.4$–$6.2$, $\alpha\approx-0.18$** | OAT improves sensitivity ($\mathcal{I}=1.0$–$4.1$ at $N=1$, $\mathcal{I}$ median $1.72$ at $N=2$–$6$) but scaling exponent worse than SQL. CSS ancilla + OAT intermediate between $\theta$-drive and $\omega$-drive protocols. 7/10 criteria PASS, 1 PARTIAL, 1 FAIL. |
-| **28. Multi-particle ancilla + free init state + $\omega$-independent drive** ($N=1$–$10$, $M=1$–$4$) | **$=$ SQL** ($R=1.0$, all configurations) | $\omega$-independent drive cannot beat SQL regardless of system or ancilla size. $\omega$-modulation is the essential mechanism. 80 directly-verified triples, 200 total. 6/6 criteria PASS (null hypothesis confirmed). |
-| **29. Bell-state initial S--A entanglement** ($N=1$, $J=1/2$) | **$=$ SQL** ($R=1.0$, all 150 finite-Δω results) | $J=1/2$ spectral radius bound is absolute regardless of initial entanglement. $\omega$-modulation is the essential mechanism for SQL violation. 200 optimisation runs, 69 tests pass. 4/5 criteria PASS, 1 N/A (conditional not met). |
-| **30. Heisenberg-Limit MZI: SV, TMSV, OAT** (#20260625) | **OAT: $=$ SQL** ($\alpha=-0.5000$). **TMSV: sub-SQL** ($\alpha=-0.76$, $4.1\times$ below SQL at $R=40$). **SV: FAIL** (CFI=0, needs parity readout). | SV with skip_bs1=True makes $P(m\vert\omega)$ $\omega$-independent (not a bug — genuine physical effect). TMSV CFI saturates QFI within 1%. OAT confirms $[\exp(-i q J_z^2), J_z]=0$. Truncation-limitation at $M=5R$ for large $R$. 3 PASS / 1 PARTIAL / 3 FAIL / 2 PASS. 4 SVG figures, 3 Parquet files. Report compiled. |
-| **— SV Parity Measurement** (#20260625-ext) | **= SQL** ($\alpha=-0.4923$, $C=0.1028\approx 1/H_t$). **Parity CFI saturates QFI** ($\Delta\omega_C/\Delta\omega_Q = 1.0001$-$1.0010$). **Scaling: SQL** ($\alpha=-0.4923$) not Heisenberg ($\alpha=-1.0$). | Parity recovers $10^{23}\times$ more Fisher info than number-diff. BS1 transforms SV to SQL-class $J_z$ variance. The analytical $2\langle N\rangle(\langle N\rangle+1)$ QFI bound applies pre-BS1; post-BS1 QFI is SQL-limited. 5 PASS / 1 PARTIAL / 1 FAIL. 2 SVG figures, 1 Parquet file, 52 tests. Report compiled. |
-| **31. Free-ancilla + $\omega$-modulated drive + joint measurement** (#20260628) | **Compounding rejected**: $R\approx7.26\times$ SQL ($N=1$, worse than joint-only $9.7\times$). $J_A=1/2$ scaling $\beta=0.69$-$0.73$ (faster than joint-only $\beta=0.64$). $J_A=N/2$ achieves $R\approx7.4$ flat at $N\le7$ but $\alpha\approx-0.33$ to $-0.36$ (SQL level). | Free-ancilla and joint-measurement tap same $J=1/2$ capacity — do not compound. Multi-particle ancilla + joint measurement achieves highest absolute ratios but linear joint measurement cannot extract $F_Q\propto N^2$. 3 PASS / 2 PARTIAL / 5 FAIL. 9 Parquet files, 12 SVG figures. Report compiled. |
-| **32. Cavity-Enhanced TMSV MZI** (#20260629) | **$365\times$ below SQL** ($\mathcal{F}=100$, $\langle N\rangle=20$). Prefactor $\beta=0.9985$, $\Delta\omega\propto 1/\mathcal{F}$. Scaling $\alpha=-0.788$ preserved (within $2\sigma$ of TMSV baseline $-0.76$). | Cavity finesse $\mathcal{F}$ multiplies effective interaction time, $F_Q = (\mathcal{F}H_t)^2 R(R+2)$. Compound enhancement: TMSV sub-SQL $\times$ $\mathcal{F}$ prefactor. 7/9 PASS, 2/9 PARTIAL. 7 SVG figures, 1 Parquet file. Report compiled. |
-| **33. Pedagogical noise comparison** (#20260630) | **N/A (pedagogical)** — dephasing $\sim 41\%$ worse than loss at $\gamma=0.1$, $t_{\text{hold}}>10$. Super-additivity ($29\%$ excess at $\gamma=1.0$). 2D landscape confirms dephasing uniformly more damaging. | Single-particle $J=1/2$: both channels suppress $\rho_{01}$ at identical rate $\gamma/2$, but dephasing destroys fringe contrast directly while loss merely dilutes signal. 7/8 PASS, 1/8 FAIL. 3 Parquet files, 3 SVG figures. Report compiled. |
 
 ## Top Enhancement Mechanisms
 
