@@ -453,9 +453,7 @@ class TestDecoupledBaseline:
     def test_decoupled_baseline_independent_of_M(self) -> None:
         """The decoupled baseline should not depend on M (ancilla size)."""
         sql_ref = sql_reference(3, T_HOLD)
-        deltas = [
-            sql_reference(3, T_HOLD) for _ in [1, 2, 3, 4]
-        ]
+        deltas = [sql_reference(3, T_HOLD) for _ in [1, 2, 3, 4]]
         for d in deltas:
             assert np.isclose(d, sql_ref, rtol=1e-10), (
                 f"Decoupled Δω depends on M: {d} vs SQL={sql_ref}"

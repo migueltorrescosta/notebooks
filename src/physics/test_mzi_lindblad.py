@@ -16,6 +16,7 @@ from src.physics.mzi_lindblad import (
     MziNoiseConfig,
     build_mzi_lindblad_operators,
     run_noisy_mzi,
+    run_noisy_mzi_hamiltonian,
 )
 
 
@@ -140,3 +141,173 @@ class TestRunNoisyMzi:
         assert np.allclose(rho_noiseless, rho_unitary, atol=1e-10), (
             "Noiseless noisy MZI should match unitary evolution"
         )
+
+
+class TestRunNoisyMziHamiltonian:
+    """Test the Hamiltonian-based phase-encoding MZI."""
+
+    def test_produces_valid_density_matrix(self) -> None:
+        """Final ρ must be trace-1, Hermitian, and positive."""
+        import qutip
+
+        max_photons = 2
+        dim = max_photons + 1
+        state = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
+
+        config = MziNoiseConfig(gamma_1=0.1, gamma_phi=0.05, T_decay=0.5)
+        rho = run_noisy_mzi_hamiltonian(
+            state,
+            max_photons=max_photons,
+            theta=np.pi / 4,
+            phi_bs=0.0,
+            omega=1.0,
+            noise_config=config,
+        )
+
+        assert np.isclose(np.trace(rho), 1.0, atol=1e-8), "Trace must be 1"
+        assert np.allclose(rho, rho.conj().T, atol=1e-8), "Must be Hermitian"
+        eigenvalues = np.linalg.eigvalsh(rho)
+        assert np.min(eigenvalues) >= -1e-8, "Must be positive semidefinite"
+
+    def test_noiseless_matches_unitary(self) -> None:
+        """At γ=0, must match explicit unitary exp(-i ω t_hold J_z)."""
+        import qutip
+
+        max_photons = 1
+        dim = max_photons + 1
+        theta = np.pi / 4
+        phi_bs = 0.0
+        omega = 0.5
+        t_hold = 2.0
+
+        state_v = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
+
+        config = MziNoiseConfig(T_decay=t_hold)
+        rho_ham = run_noisy_mzi_hamiltonian(
+            state_v,
+            max_photons=max_photons,
+            theta=theta,
+            phi_bs=phi_bs,
+            omega=omega,
+            noise_config=config,
+        )
+
+        # Explicit unitary: BS1 → U_ϕ → BS2
+        a = qutip.destroy(dim)
+        eye = qutip.qeye(dim)
+        a0 = qutip.tensor(a, eye)
+        a1 = qutip.tensor(eye, a)
+        n0 = a0.dag() @ a0
+        n1 = a1.dag() @ a1
+        jz = 0.5 * (n0 - n1)
+
+        H_bs_exp = np.exp(1j * phi_bs) * (a0.dag() @ a1) + np.exp(-1j * phi_bs) * (
+            a1.dag() @ a0
+        )
+        U_bs = (-1j * theta * H_bs_exp).expm()
+        U_phi = (-1j * omega * t_hold * jz).expm()
+
+        psi = qutip.Qobj(state_v.reshape(-1, 1), dims=[[dim, dim], [1, 1]])
+        psi = U_bs @ psi
+        psi = U_phi @ psi
+        psi = U_bs @ psi
+        rho_explicit = (psi @ psi.dag()).full()
+
+        assert np.allclose(rho_ham, rho_explicit, atol=1e-10), (
+            "Noiseless Hamiltonian MZI should match explicit unitary evolution"
+        )
+
+    def test_sql_recovery_at_mid_fringe(self) -> None:
+        """Noiseless must recover ⟨J_z⟩ = -0.5·cos(ω·t_hold)."""
+        import qutip
+
+        max_photons = 1
+        dim = max_photons + 1
+        omega = 1.0
+        t_hold = 1.0
+        state_v = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
+
+        config = MziNoiseConfig(T_decay=t_hold)
+        rho = run_noisy_mzi_hamiltonian(
+            state_v,
+            max_photons=max_photons,
+            theta=np.pi / 4,
+            phi_bs=0.0,
+            omega=omega,
+            noise_config=config,
+        )
+        a = qutip.destroy(dim)
+        eye = qutip.qeye(dim)
+        a0 = qutip.tensor(a, eye)
+        a1 = qutip.tensor(eye, a)
+        n0 = a0.dag() @ a0
+        n1 = a1.dag() @ a1
+        jz = 0.5 * (n0 - n1)
+        jz_mean = float(np.real(np.trace(rho @ jz.full())))
+
+        expected = -0.5 * np.cos(omega * t_hold)
+        assert np.isclose(jz_mean, expected, atol=1e-10), (
+            f"\u27e8J_z\u27e9 = {jz_mean}, expected {expected}"
+        )
+
+    def test_noise_degradation_monotonic_in_rate(self) -> None:
+        """Δω/SQL must increase monotonically with γ_φ."""
+        import qutip
+
+        max_photons = 1
+        dim = max_photons + 1
+        t_hold = 1.0
+        omega = 1.0
+        state_v = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
+
+        a = qutip.destroy(dim)
+        eye = qutip.qeye(dim)
+        a0 = qutip.tensor(a, eye)
+        a1 = qutip.tensor(eye, a)
+        n0 = a0.dag() @ a0
+        n1 = a1.dag() @ a1
+        jz = 0.5 * (n0 - n1)
+
+        prev_ratio = -1.0
+        for gamma in [0.0, 0.1, 0.5]:
+            config = MziNoiseConfig(gamma_phi=gamma, T_decay=t_hold)
+            rho = run_noisy_mzi_hamiltonian(
+                state_v,
+                max_photons=max_photons,
+                theta=np.pi / 4,
+                phi_bs=0.0,
+                omega=omega,
+                noise_config=config,
+            )
+            rho_plus = run_noisy_mzi_hamiltonian(
+                state_v,
+                max_photons=max_photons,
+                theta=np.pi / 4,
+                phi_bs=0.0,
+                omega=omega + 1e-6,
+                noise_config=config,
+            )
+            rho_minus = run_noisy_mzi_hamiltonian(
+                state_v,
+                max_photons=max_photons,
+                theta=np.pi / 4,
+                phi_bs=0.0,
+                omega=omega - 1e-6,
+                noise_config=config,
+            )
+            jz_mean = float(np.real(np.trace(rho @ jz.full())))
+            jz_mean_p = float(np.real(np.trace(rho_plus @ jz.full())))
+            jz_mean_m = float(np.real(np.trace(rho_minus @ jz.full())))
+            d_jz = (jz_mean_p - jz_mean_m) / 2e-6
+            jz_var = float(np.real(np.trace(rho @ (jz @ jz).full()))) - jz_mean**2
+            denom = abs(d_jz)
+            if denom < 1e-12:
+                delta_omega = float("inf")
+            else:
+                delta_omega = np.sqrt(max(jz_var, 0.0)) / denom
+            ratio = delta_omega / (1.0 / t_hold)
+
+            assert ratio >= prev_ratio - 1e-10, (
+                f"\u03b3={gamma}: ratio {ratio:.6f} < previous {prev_ratio:.6f}"
+            )
+            prev_ratio = ratio

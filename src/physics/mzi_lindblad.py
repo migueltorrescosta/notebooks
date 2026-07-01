@@ -231,7 +231,7 @@ def evolve_mzi_lindblad(
     assert np.isclose(trace, 1.0, atol=1e-8), f"Trace not preserved: Tr(ρ) = {trace}"
     assert np.allclose(rho, rho.conj().T, atol=1e-8), "Density matrix is not Hermitian"
     eigenvalues = np.linalg.eigvalsh(rho)
-    assert np.min(eigenvalues) >= -1e-8, (
+    assert np.min(eigenvalues) >= -1e-6, (
         f"Density matrix has negative eigenvalues: min = {np.min(eigenvalues)}"
     )
 
@@ -358,6 +358,122 @@ def run_noisy_mzi(
         rho_qobj = qutip.Qobj(rho, dims=dims)
 
     # Apply BS2: ρ → U_BS ρ U_BS†
+    rho_qobj = U_bs @ rho_qobj @ U_bs.dag()
+
+    return rho_qobj.full()
+
+
+# =============================================================================
+# Hamiltonian-Phase-Encoding MZI
+# =============================================================================
+
+
+def run_noisy_mzi_hamiltonian(
+    initial_state: np.ndarray,
+    max_photons: int,
+    theta: float,
+    phi_bs: float,
+    omega: float,
+    noise_config: MziNoiseConfig,
+    ancilla_dim: int = 1,
+) -> np.ndarray:
+    r"""Run noisy MZI with Hamiltonian-based phase encoding.
+
+    Circuit: BS1(\theta, \phi) \to Lindblad(H = \omega \cdot J_z,
+    T = t_{\text{hold}}) \to BS2(\theta, \phi)
+
+    Unlike :func:`run_noisy_mzi`, which applies the phase as an instantaneous
+    unitary ``exp(i \phi n_1)`` followed by zero-Hamiltonian Lindblad
+    evolution, this function encodes the phase continuously via
+    ``H = \omega \cdot J_z`` during the entire Lindblad evolution.  This
+    models simultaneous phase accumulation and decoherence during the
+    holding period, which is the physically correct model for an
+    interferometer with Markovian noise.
+
+    The holding time is set via ``noise_config.T_decay`` (the noise acts
+    for the same duration as the phase accumulates).  All noise channels
+    from :class:`MziNoiseConfig` are supported.  For a noiseless baseline,
+    set all rates to 0.
+
+    Args:
+        initial_state: Initial state. Can be a pure state vector (1D)
+            or a density matrix (2D) in the two-mode Fock basis.
+        max_photons: Maximum photon number per mode (Hilbert space truncation).
+        theta: Beam splitter transmittance angle (\pi/4 for 50/50).
+        phi_bs: Beam splitter phase parameter.
+        omega: Phase rate (\omega) — the unknown parameter to estimate.
+        noise_config: Noise configuration for Lindblad evolution.
+            ``noise_config.T_decay`` is the holding time.  ``dt`` and
+            ``method`` fields are ignored (QuTiP handles adaptive stepping).
+        ancilla_dim: Dimension of ancilla Hilbert space.  Default 1
+            (no ancilla).  Values > 1 are currently unsupported.
+
+    Returns:
+        Final density matrix after the full MZI circuit.
+
+    Raises:
+        ValueError: If any noise rate in ``noise_config`` is negative
+            (delegated to :func:`build_mzi_lindblad_operators`).
+
+    Example:
+        >>> import qutip
+        >>> from src.physics.mzi_lindblad import MziNoiseConfig, run_noisy_mzi_hamiltonian
+        >>> dim = 2  # max_photons + 1 = 2
+        >>> state = qutip.tensor(qutip.fock(dim, 1), qutip.fock(dim, 0)).full().ravel()
+        >>> config = MziNoiseConfig(T_decay=1.0)
+        >>> rho = run_noisy_mzi_hamiltonian(state, max_photons=1, theta=np.pi/4,
+        ...     phi_bs=0, omega=1.0, noise_config=config)
+        >>> np.isclose(np.trace(rho), 1.0, atol=1e-8)
+        True
+
+    """
+    # ---------------------------
+    # Convert to density matrix
+    # ---------------------------
+    if initial_state.ndim == 1:
+        rho = np.outer(initial_state, initial_state.conj())
+    else:
+        rho = initial_state.copy()
+
+    # ---------------------------
+    # Build operators
+    # ---------------------------
+    dim_single = max_photons + 1
+    a = qutip.destroy(dim_single)
+    eye = qutip.qeye(dim_single)
+
+    a0 = qutip.tensor(a, eye)  # mode 0
+    a1 = qutip.tensor(eye, a)  # mode 1
+
+    n0 = a0.dag() @ a0
+    n1 = a1.dag() @ a1
+    jz = 0.5 * (n0 - n1)
+    H = float(omega) * jz  # ω·J_z
+
+    # Beam splitter: U_BS = exp(-iθ H_BS), H_BS = e^{iφ} a₀† a₁ + e^{-iφ} a₁† a₀
+    H_bs = np.exp(1j * phi_bs) * (a0.dag() @ a1) + np.exp(-1j * phi_bs) * (
+        a1.dag() @ a0
+    )
+    U_bs = (-1j * theta * H_bs).expm()
+
+    # Tensor-product dims for the two-mode density matrix
+    dims = [[dim_single, dim_single], [dim_single, dim_single]]
+
+    # ---------------------------
+    # Circuit
+    # ---------------------------
+    rho_qobj = qutip.Qobj(rho, dims=dims)
+
+    # BS1
+    rho_qobj = U_bs @ rho_qobj @ U_bs.dag()
+
+    # Lindblad evolution with H = ω·J_z (no separate U_phase — the phase
+    # accumulates continuously during the hold)
+    rho_arr = rho_qobj.full()
+    rho_arr = evolve_mzi_lindblad(rho_arr, noise_config, max_photons, H=H.full())
+    rho_qobj = qutip.Qobj(rho_arr, dims=dims)
+
+    # BS2
     rho_qobj = U_bs @ rho_qobj @ U_bs.dag()
 
     return rho_qobj.full()

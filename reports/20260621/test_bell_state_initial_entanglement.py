@@ -18,8 +18,15 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
-from src.analysis.ancilla_drive_metrology import compute_drive_sensitivity, compute_drive_sensitivity_with_details
-from src.analysis.ancilla_optimization import build_hold_hamiltonian, build_two_qubit_operators, hold_unitary_two_qubit
+from src.analysis.ancilla_drive_metrology import (
+    compute_drive_sensitivity,
+    compute_drive_sensitivity_with_details,
+)
+from src.analysis.ancilla_optimization import (
+    build_hold_hamiltonian,
+    build_two_qubit_operators,
+    hold_unitary_two_qubit,
+)
 from src.analysis.sensitivity_metrics import sql_reference
 from src.utils.serialization import assert_roundtrip_fields
 
@@ -68,7 +75,16 @@ def _compute_sensitivity(
     Inserts T_BS and T_HOLD into the call signature.
     """
     return compute_drive_sensitivity_with_details(
-        psi, T_BS, T_HOLD, omega, a_x, a_y, a_z, a_zz, ops, fd_step=fd_step,
+        psi,
+        T_BS,
+        T_HOLD,
+        omega,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
+        fd_step=fd_step,
     )
 
 
@@ -86,7 +102,10 @@ def _hold_unitary(
     Converts individual (a_x, a_y, a_z, a_zz) into the alpha tuple.
     """
     return hold_unitary_two_qubit(
-        t_hold, omega, (a_x, a_y, a_z, a_zz), ops,
+        t_hold,
+        omega,
+        (a_x, a_y, a_z, a_zz),
+        ops,
     )
 
 
@@ -124,7 +143,15 @@ def _compute_decoupled_baseline(
     psi0 = get_initial_state(scenario)
     ops = build_two_qubit_operators()
     return compute_drive_sensitivity(
-        psi0, T_BS, T_HOLD, omega_true, 0.0, 0.0, 0.0, 0.0, ops,
+        psi0,
+        T_BS,
+        T_HOLD,
+        omega_true,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        ops,
     )
 
 
