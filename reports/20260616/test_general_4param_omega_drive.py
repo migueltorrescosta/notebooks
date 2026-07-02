@@ -809,6 +809,7 @@ class TestObjective:
 
 
 class TestBFGSOptimization:
+    @pytest.mark.slow
     def test_given_bfgs_then_converges(self, make_N: int) -> None:
         ops = build_fixed_ancilla_combined_operators(make_N)
         psi0 = combined_initial_state(2 * (make_N + 1))
@@ -824,6 +825,7 @@ class TestBFGSOptimization:
         assert result.delta_omega_opt > 0.0
         assert np.isfinite(result.delta_omega_opt)
 
+    @pytest.mark.slow
     def test_given_bfgs_then_diagnostics_finite(self, make_N: int) -> None:
         ops = build_fixed_ancilla_combined_operators(make_N)
         psi0 = combined_initial_state(2 * (make_N + 1))

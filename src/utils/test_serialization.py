@@ -156,7 +156,8 @@ class TestParquetSerializableNoSubclass:
                     return pd.DataFrame()
 
                 @classmethod
-                def from_parquet(cls, path: str | Path) -> _Bad:  # noqa: ARG003
+                def from_parquet(cls, path: str | Path) -> _Bad:
+                    _ = path
                     return cls()
 
     def test_missing_to_dataframe_raises(self) -> None:
@@ -166,7 +167,8 @@ class TestParquetSerializableNoSubclass:
             _PARQUET_COLUMNS: ClassVar[list[str]] = ["a"]
 
             @classmethod
-            def from_parquet(cls, path: str | Path) -> _Bad2:  # noqa: ARG003
+            def from_parquet(cls, path: str | Path) -> _Bad2:
+                _ = path
                 return cls()
 
         with pytest.raises(TypeError):

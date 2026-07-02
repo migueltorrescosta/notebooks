@@ -125,7 +125,7 @@ def _tensor_from_state_vector(
         )
     state = state / np.linalg.norm(state)
     mat = state.reshape(local_dim**n_sites, local_dim**n_sites)
-    return qtn.Tensor(np.asarray(mat.astype(complex)), inds=("main", "ancilla"))  # type: ignore[arg-type]
+    return qtn.Tensor(np.asarray(mat.astype(complex)), inds=("main", "ancilla"))
 
 
 def _get_state_vector(tensor: qtn.Tensor) -> np.ndarray:

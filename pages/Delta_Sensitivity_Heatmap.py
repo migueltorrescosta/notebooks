@@ -119,7 +119,6 @@ def plot_sensitivity(
     df: pd.DataFrame,
     title: str,
     values: str,
-    height: int = 250,
 ) -> None:
     import matplotlib.pyplot as plt
     import seaborn as sns

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Hashable
@@ -97,7 +97,7 @@ def make_checkpoint_name_fn(checkpoint_dir: Path) -> Callable[[Hashable], Path]:
     """
 
     def _name_fn(key: Hashable) -> Path:
-        return checkpoint_dir / f"N_{int(key):03d}.parquet"  # type: ignore[call-overload]
+        return checkpoint_dir / f"N_{int(cast('int', key)):03d}.parquet"
 
     return _name_fn
 

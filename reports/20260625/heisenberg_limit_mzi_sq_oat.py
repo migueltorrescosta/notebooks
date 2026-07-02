@@ -584,7 +584,6 @@ def _run_worker(
     # The worker script runs inline (-c) to avoid serialising large arrays.
     # Uses short-circuit ``and`` instead of ``if`` because ``-c`` scripts
     # cannot contain keyword statements after semicolons.
-    # pylint: disable=line-too-long
     # Use PYTHONPATH instead of sys.path.insert so the subprocess can
     # find this module via flat import (heisenberg_limit_mzi_sq_oat).
     worker_env = os.environ.copy()

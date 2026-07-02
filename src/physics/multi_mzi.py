@@ -257,3 +257,61 @@ def evolve_circuit(
     psi = U_bs @ psi
     assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
     return psi
+
+
+def compute_multi_particle_sensitivity(
+    N: int,
+    psi0: np.ndarray,
+    omega_true: float,
+    alpha_xx: float,
+    ops: dict[str, np.ndarray],
+    meas_op: np.ndarray | None = None,
+    fd_step: float = 1e-6,
+    T_BS: float = np.pi / 2.0,
+    t_hold: float = 10.0,
+) -> tuple[float, float, float, float]:
+    """Compute the error-propagation sensitivity Δω for multi-particle MZI.
+
+    Δω = √Var(J_z^S) / |∂⟨J_z^S⟩/∂ω|
+
+    Also returns ⟨J_z^S⟩, Var(J_z^S), and ∂⟨J_z^S⟩/∂ω at omega_true.
+
+    Args:
+        N: Particle number per subsystem.
+        psi0: Initial state vector.
+        omega_true: True phase rate.
+        alpha_xx: XX coupling strength.
+        ops: Embedded operators.
+        meas_op: (N+1)×(N+1) measurement operator (default = J_z single).
+        fd_step: Central finite-difference step size.
+        T_BS: Beam-splitter angle.
+        t_hold: Holding time.
+
+    Returns:
+        Tuple (delta_omega, expectation, variance, derivative).
+        Returns (inf, exp, var, 0.0) if derivative is zero.
+    """
+    if meas_op is None:
+        meas_op = jz_operator(N, basis=OperatorBasis.DICKE)
+
+    # Evaluate at omega_true
+    psi = evolve_circuit(N, psi0, omega_true, alpha_xx, ops, T_BS, t_hold)
+    exp_val, var_val = compute_reduced_expectation_and_variance(psi, N, meas_op)
+
+    # Central finite difference for ∂⟨J_z^S⟩/∂ω
+    psi_plus = evolve_circuit(
+        N, psi0, omega_true + fd_step, alpha_xx, ops, T_BS, t_hold
+    )
+    psi_minus = evolve_circuit(
+        N, psi0, omega_true - fd_step, alpha_xx, ops, T_BS, t_hold
+    )
+
+    exp_plus, _ = compute_reduced_expectation_and_variance(psi_plus, N, meas_op)
+    exp_minus, _ = compute_reduced_expectation_and_variance(psi_minus, N, meas_op)
+    d_exp = (exp_plus - exp_minus) / (2.0 * fd_step)
+
+    if abs(d_exp) < 1e-12:
+        return float("inf"), exp_val, var_val, 0.0
+
+    delta_omega = float(np.sqrt(var_val) / abs(d_exp))
+    return delta_omega, exp_val, var_val, d_exp

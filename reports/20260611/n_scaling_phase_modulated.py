@@ -20,9 +20,21 @@ Usage:
 
 from __future__ import annotations
 
+__all__ = [
+    "NScalingResult",
+    "NScalingScanResult",
+    "compute_n_particle_decoupled_baseline",
+    "plot_n_scaling_optimal_params",
+    "plot_n_scaling_ratio",
+    "plot_n_scaling_sensitivity",
+]
+
 import argparse
-from collections.abc import Callable  # noqa: TC003 — used in type annotation only
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -31,7 +43,7 @@ from src.analysis.decoupled_baseline import (
     build_decoupled_baseline_df,
     generate_decoupled_baseline,
 )
-from src.analysis.n_scaling_result import (  # noqa: F401 — re-exported for tests
+from src.analysis.n_scaling_result import (
     NScalingResult,
     NScalingScanResult,
 )
@@ -45,16 +57,16 @@ from src.analysis.optimisation_pipeline import (
 from src.analysis.sensitivity_metrics import sql_reference
 from src.physics.n_particle_drive import (
     build_n_particle_operators,
-    compute_n_particle_decoupled_baseline,  # noqa: F401 — re-exported for tests
+    compute_n_particle_decoupled_baseline,
     compute_n_particle_sensitivity,
     evolve_n_particle_circuit,
     n_particle_initial_state,
 )
 from src.utils.paths import report_path_fn
 from src.visualization.scaling_plots import (
-    plot_n_scaling_optimal_params,  # noqa: F401 — re-exported for tests
-    plot_n_scaling_ratio,  # noqa: F401 — re-exported for tests
-    plot_n_scaling_sensitivity,  # noqa: F401 — re-exported for tests
+    plot_n_scaling_optimal_params,
+    plot_n_scaling_ratio,
+    plot_n_scaling_sensitivity,
 )
 
 # Local copies of shared constants (originally in src/physics/n_particle_drive.py)

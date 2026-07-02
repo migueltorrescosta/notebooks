@@ -522,6 +522,7 @@ class TestDecoupledBaseline:
 
 
 class TestN1Consistency:
+    @pytest.mark.slow
     def test_given_N1_omega02_then_beats_sql(self) -> None:
         """At N=1, ω=0.2, the joint protocol should beat SQL (ratio < 1)."""
         result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
@@ -529,6 +530,7 @@ class TestN1Consistency:
             f"N=1, ω=0.2: ratio = {result.ratio:.4f} (expected < 1, beating SQL)"
         )
 
+    @pytest.mark.slow
     def test_given_N1_omega02_then_nonzero_params(self) -> None:
         """Verify that non-commuting drive amplitudes are non-zero."""
         result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
@@ -536,20 +538,24 @@ class TestN1Consistency:
             f"a_x={result.a_x_opt:.4f}, a_y={result.a_y_opt:.4f}"
         )
 
+    @pytest.mark.slow
     def test_given_N1_omega02_then_variance_positive(self) -> None:
         result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
         assert result.variance_Jz >= -1e-12
         assert result.variance_Jz >= 0.0
 
+    @pytest.mark.slow
     def test_given_N1_omega02_then_variance_M_positive(self) -> None:
         result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
         assert result.variance_M >= -1e-12
         assert result.variance_M >= 0.0
 
+    @pytest.mark.slow
     def test_given_N1_omega02_then_expectation_M_finite(self) -> None:
         result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
         assert np.isfinite(result.expectation_M)
 
+    @pytest.mark.slow
     def test_given_N1_omega02_sonly_then_close_to_20260519(self) -> None:
         """S-only control should be near the 20260519 optimum of 0.02036."""
         result = run_single_sonly_n_omega(N=1, omega=0.2, seed=42)
@@ -589,12 +595,14 @@ class TestJointRandomSearch:
 
 
 class TestJointNelderMead:
+    @pytest.mark.slow
     def test_given_nm_then_converges(self, make_N: int) -> None:
         result = run_joint_nelder_mead(N=make_N, omega_true=0.5, seed=42)
         assert result.delta_omega_opt > 0.0
         assert np.isfinite(result.delta_omega_opt)
         assert result.params_opt.shape == (5,)
 
+    @pytest.mark.slow
     def test_given_nm_then_expectation_finite(self, make_N: int) -> None:
         result = run_joint_nelder_mead(N=make_N, omega_true=0.5, seed=42)
         assert np.isfinite(result.expectation_Jz)

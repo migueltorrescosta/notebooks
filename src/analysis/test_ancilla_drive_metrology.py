@@ -262,17 +262,18 @@ class TestDrive2DSlice:
 # ============================================================================
 
 
-class TestDriveRandomSearch:
-    @pytest.fixture(scope="class")
-    def _random_search_result(self) -> DriveRandomSearchResult:
-        return drive_random_search(omega=1.0, n_samples=50, seed=42)
+@pytest.fixture(scope="module")
+def random_search_result() -> DriveRandomSearchResult:
+    return drive_random_search(omega=1.0, n_samples=50, seed=42)
 
+
+class TestDriveRandomSearch:
     def test_random_search_returns_correct_length(
         self,
-        _random_search_result: DriveRandomSearchResult,  # noqa: PT019
+        random_search_result: DriveRandomSearchResult,
     ) -> None:
-        assert _random_search_result.samples.shape == (50, 4)
-        assert len(_random_search_result.delta_omega_values) == 50
+        assert random_search_result.samples.shape == (50, 4)
+        assert len(random_search_result.delta_omega_values) == 50
 
     def test_random_search_reproducible(self) -> None:
         r1 = drive_random_search(omega=1.0, n_samples=50, seed=42)
@@ -282,24 +283,24 @@ class TestDriveRandomSearch:
 
     def test_random_search_best_is_best(
         self,
-        _random_search_result: DriveRandomSearchResult,  # noqa: PT019
+        random_search_result: DriveRandomSearchResult,
     ) -> None:
-        assert _random_search_result.best_delta_omega == pytest.approx(
-            float(np.min(_random_search_result.delta_omega_values)),
+        assert random_search_result.best_delta_omega == pytest.approx(
+            float(np.min(random_search_result.delta_omega_values)),
         )
 
     def test_random_search_parquet_roundtrip(
         self,
         tmp_path: Path,
-        _random_search_result: DriveRandomSearchResult,  # noqa: PT019
+        random_search_result: DriveRandomSearchResult,
     ) -> None:
         parquet_p = tmp_path / "random.parquet"
-        _random_search_result.save_parquet(parquet_p)
+        random_search_result.save_parquet(parquet_p)
         loaded = DriveRandomSearchResult.from_parquet(parquet_p)
-        assert loaded.samples.shape == _random_search_result.samples.shape
-        assert np.allclose(loaded.best_params, _random_search_result.best_params)
+        assert loaded.samples.shape == random_search_result.samples.shape
+        assert np.allclose(loaded.best_params, random_search_result.best_params)
         assert np.isclose(
-            loaded.best_delta_omega, _random_search_result.best_delta_omega
+            loaded.best_delta_omega, random_search_result.best_delta_omega
         )
 
 

@@ -185,6 +185,6 @@ def _set_or_init(
             data[key][idx] = value
         except (ValueError, TypeError):
             if isinstance(value, str):
-                data[key][idx] = value  # type: ignore[assignment]
+                data[key][idx] = value
             else:
-                data[key][idx] = float(value)  # type: ignore[assignment]
+                data[key][idx] = float(value)

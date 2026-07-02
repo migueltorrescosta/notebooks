@@ -270,7 +270,7 @@ class TestGenerateDecoupledBaseline:
     def test_raises_on_bad_type(self, tmp_path: Path) -> None:
         """Non-dataclass, non-DataFrame result raises TypeError."""
 
-        def _bad_compute() -> str:  # type: ignore[return]
+        def _bad_compute() -> str:
             return "not a valid result"
 
         with pytest.raises(

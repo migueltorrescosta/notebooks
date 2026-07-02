@@ -422,6 +422,91 @@ def plot_drive_nm_expectation_variance(
 
 
 # ──────────────────────────────────────────────
+# 7b. Combined sensitivity — 2D slices, 4D random search, NM refinement
+# ──────────────────────────────────────────────
+
+
+def plot_combined_sensitivity(
+    omega_values: np.ndarray,
+    best_ax_slice: np.ndarray,
+    best_ay_slice: np.ndarray,
+    best_random: np.ndarray,
+    best_nm: np.ndarray,
+    sql_values: np.ndarray,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (8, 5),
+    title: str | None = None,
+) -> Path:
+    """Line plot comparing Δω from 2D slices, 4D random search, NM refinement, and SQL.
+
+    Args:
+        omega_values: Array of ω values.
+        best_ax_slice: Best Δω from (a_x, a_zz) slice at each ω.
+        best_ay_slice: Best Δω from (a_y, a_zz) slice at each ω.
+        best_random: Best Δω from 4D random search at each ω.
+        best_nm: Best Δω from Nelder–Mead refinement at each ω.
+        sql_values: SQL reference at each ω (constant).
+        save_path: Output SVG path.
+        figsize: Figure size (width, height).
+        title: Plot title. If None, a default is used.
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # SQL reference line
+    sql = float(sql_values[0]) if len(sql_values) > 0 else 0.1
+    ax.axhline(
+        y=sql,
+        color="gray",
+        linestyle="--",
+        alpha=0.7,
+        linewidth=1.5,
+        label=rf"SQL = {sql:.4f}",
+    )
+
+    methods: list[tuple[np.ndarray, str, str, str]] = [
+        (best_ax_slice, "o-", "C0", r"2D slice $(a_x, a_{zz})$"),
+        (best_ay_slice, "s-", "C1", r"2D slice $(a_y, a_{zz})$"),
+        (best_random, "^-", "C2", "4D random search"),
+        (best_nm, "D-", "C3", "4D Nelder–Mead"),
+    ]
+
+    for data, fmt, colour, label in methods:
+        valid = np.isfinite(data)
+        if np.any(valid):
+            ax.plot(
+                omega_values[valid],
+                data[valid],
+                fmt,
+                color=colour,
+                label=label,
+                markersize=6,
+                linewidth=1.5,
+                markerfacecolor=colour,
+            )
+
+    ax.set_xlabel(r"$\omega$")
+    ax.set_ylabel(r"$\Delta\omega$")
+    if title is None:
+        title = (
+            "Sensitivity vs $\\omega$: 2D slices, 4D random search, "
+            "Nelder–Mead refinement"
+        )
+    ax.set_title(title)
+    ax.legend(fontsize=9)
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ──────────────────────────────────────────────
 # 8. Cross-experiment comparison (fixed vs modulated drive)
 # ──────────────────────────────────────────────
 

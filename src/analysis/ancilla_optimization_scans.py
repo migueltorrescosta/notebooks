@@ -14,6 +14,8 @@ References:
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import numpy as np
 from scipy.optimize import minimize
 
@@ -352,13 +354,16 @@ def _run_nelder_mead(
         objective,
         x0=x0,
         method="Nelder-Mead",
-        callback=callback if track_history else None,  # type: ignore[arg-type]
-        options={  # type: ignore[call-overload]
-            "maxiter": maxiter,
-            "xatol": xatol,
-            "fatol": fatol,
-            "adaptive": adaptive,
-        },
+        callback=cast("Any", callback if track_history else None),
+        options=cast(
+            "Any",
+            {
+                "maxiter": maxiter,
+                "xatol": xatol,
+                "fatol": fatol,
+                "adaptive": adaptive,
+            },
+        ),
     )
 
     # Compute expectation, variance, and purity at the optimal point

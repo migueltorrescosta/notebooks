@@ -251,7 +251,7 @@ class MziSensitivityData(ParquetSerializable):
 # ============================================================================
 
 
-def generate_omega_scan(
+def compute_mzi_sensitivity_scan(
     state_type: str,
     N: int,
     omega_grid: np.ndarray,
@@ -321,7 +321,7 @@ def _generate_single_N_data(
         MziSensitivityData with one N value, or None if the simulation fails.
     """
     try:
-        return generate_omega_scan(
+        return compute_mzi_sensitivity_scan(
             state_type,
             N,
             omega_grid,

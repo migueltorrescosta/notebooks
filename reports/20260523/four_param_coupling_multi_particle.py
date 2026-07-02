@@ -23,6 +23,11 @@ This module is importable via ``importlib.import_module("reports.20260523.four_p
 
 from __future__ import annotations
 
+__all__ = [
+    "ScalingAnalysisResult",
+    "fit_scaling_exponents",
+]
+
 import argparse
 import os
 import sys
@@ -50,8 +55,8 @@ from src.analysis.decoupled_baseline import (
     plot_decoupled_baseline_heatmap,
 )
 from src.analysis.multi_mzi_scaling import (
-    ScalingAnalysisResult,  # noqa: F401 — re-exported for tests
-    fit_scaling_exponents,  # noqa: F401 — re-exported for tests
+    ScalingAnalysisResult,
+    fit_scaling_exponents,
     generate_scaling_analysis,
 )
 from src.analysis.n_scaling_sweep import (

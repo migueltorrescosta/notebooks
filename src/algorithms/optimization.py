@@ -10,7 +10,7 @@ Units:
 """
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -227,8 +227,7 @@ def create_minimizer(
         def wrap(x: np.ndarray) -> float:
             return func(x[0], x[1])
 
-        result: dict[str, Any] = minimize(wrap, x0=x0, method=method)  # type: ignore[call-overload]
-        return result
+        return cast("dict[str, Any]", minimize(wrap, x0=x0, method=cast("Any", method)))
 
     return minimizer
 

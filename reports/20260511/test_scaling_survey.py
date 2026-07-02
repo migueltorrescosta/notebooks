@@ -236,7 +236,7 @@ class TestCavityEnhancedMzi:
         state = self._make_fock_10(max_photons=5)
         rho = _report_local.cavity_enhanced_mzi_with_noise(
             state,
-            phi=np.pi / 4,
+            phi_phase=np.pi / 4,
             noise_gamma_1=0.1,
             noise_gamma_2=0.0,
             noise_gamma_phi=0.05,

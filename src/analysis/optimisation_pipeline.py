@@ -32,7 +32,7 @@ or with the generic helper functions::
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 from scipy.optimize import minimize
@@ -49,6 +49,61 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Objective factory
+# ---------------------------------------------------------------------------
+
+
+def make_4d_objective(
+    sensitivity_fn: Callable[..., float],
+    *,
+    psi0: np.ndarray,
+    T_BS: float,
+    t_hold: float,
+    omega: float,
+    ops: dict[str, np.ndarray],
+    fd_step: float = 1e-6,
+    meas_op: np.ndarray | None = None,
+) -> Callable[[np.ndarray], float]:
+    """Build a 4D-parameter objective function for Nelder-Mead.
+
+    The returned closure accepts a 4-element array ``p = [ax, ay, az, azz]``
+    and calls ``sensitivity_fn(psi0, T_BS, t_hold, omega, ax, ay, az, azz,
+    ops, fd_step, meas_op)``.
+
+    Args:
+        sensitivity_fn: Function with signature
+            ``(psi0, T_BS, t_hold, omega, ax, ay, az, azz, ops, fd_step, ...)``.
+        psi0: Initial state vector.
+        T_BS: Beam-splitter duration.
+        t_hold: Holding time.
+        omega: Phase rate parameter.
+        ops: Operator dictionary.
+        fd_step: Finite-difference step size (default 1e-6).
+        meas_op: Measurement operator (default None = use ops['Jz_S']).
+
+    Returns:
+        Callable[[np.ndarray], float] — the objective function.
+    """
+
+    def _raw_objective(p: np.ndarray) -> float:
+        return sensitivity_fn(
+            psi0,
+            T_BS,
+            t_hold,
+            omega,
+            float(p[0]),
+            float(p[1]),
+            float(p[2]),
+            float(p[3]),
+            ops,
+            fd_step,
+            meas_op,
+        )
+
+    return _raw_objective
 
 
 @dataclass
@@ -235,13 +290,16 @@ def run_nelder_mead(
         wrapped_obj,
         x0=x0,
         method="Nelder-Mead",
-        callback=_callback if track_history else None,  # type: ignore[arg-type]
-        options={  # type: ignore[call-overload]
-            "maxiter": maxiter,
-            "xatol": xatol,
-            "fatol": fatol,
-            "adaptive": adaptive,
-        },
+        callback=cast("Any", _callback if track_history else None),
+        options=cast(
+            "Any",
+            {
+                "maxiter": maxiter,
+                "xatol": xatol,
+                "fatol": fatol,
+                "adaptive": adaptive,
+            },
+        ),
     )
 
     return {
@@ -325,7 +383,7 @@ def run_two_phase_pipeline(
         nm_results.append(nm)
 
     # Stage 4: Sort by result quality
-    nm_results.sort(key=lambda r: r.delta_omega_opt)  # type: ignore[arg-type, return-value]
+    nm_results.sort(key=lambda r: r.delta_omega_opt)
     return nm_results[0], nm_results
 
 

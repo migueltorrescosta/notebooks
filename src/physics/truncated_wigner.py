@@ -29,6 +29,7 @@ Reference:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -440,7 +441,7 @@ def compute_twa_expectations(
     J_total_mean = np.mean(J_total_samples_arr)
 
     # Return results
-    result_dict = {
+    result_dict: dict[str, Any] = {
         "Jz_mean": Jz_mean,
         "Jz_variance": Jz_variance,
         "Jz_std": Jz_std,
@@ -448,7 +449,7 @@ def compute_twa_expectations(
     }
 
     if store_trajectories:
-        result_dict["trajectories"] = np.array(all_trajectories)  # type: ignore[assignment]
+        result_dict["trajectories"] = np.array(all_trajectories)
 
     return result_dict
 

@@ -139,7 +139,7 @@ log_df = pd.DataFrame(
 
 
 def quick_and_dirty(my_array: np.ndarray, height: int = 200) -> None:
-    fig, ax = plt.subplots(figsize=(3, 2))
+    fig, ax = plt.subplots(figsize=(3, height / 100))
     sns.heatmap(np.asarray(my_array), cmap="viridis", ax=ax)
     st.pyplot(fig, use_container_width=True)
 

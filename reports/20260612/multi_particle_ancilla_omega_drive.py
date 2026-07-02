@@ -22,9 +22,19 @@ Usage:
 
 from __future__ import annotations
 
+__all__ = [
+    "NScalingScanResult",
+    "plot_n_scaling_optimal_params",
+    "plot_n_scaling_ratio",
+    "plot_n_scaling_sensitivity",
+]
+
 import argparse
-from collections.abc import Callable  # noqa: TC003 — used in type annotation only
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -37,13 +47,14 @@ from src.analysis.decoupled_baseline import (
 )
 from src.analysis.n_scaling_result import (
     NScalingResult,
-    NScalingScanResult,  # noqa: F401 — re-exported for tests
+    NScalingScanResult,
 )
 from src.analysis.n_scaling_sweep import run_n_scaling_scan
 from src.analysis.optimisation_pipeline import (
     TwoPhaseConfig,
     build_nm_result,
     build_rs_result,
+    make_4d_objective,
     run_two_phase_pipeline,
 )
 from src.analysis.sensitivity_metrics import sql_reference
@@ -52,9 +63,9 @@ from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.utils.enums import OperatorBasis
 from src.utils.paths import report_path_fn
 from src.visualization.scaling_plots import (
-    plot_n_scaling_optimal_params,  # noqa: F401 — re-exported for tests
-    plot_n_scaling_ratio,  # noqa: F401 — re-exported for tests
-    plot_n_scaling_sensitivity,  # noqa: F401 — re-exported for tests
+    plot_n_scaling_optimal_params,
+    plot_n_scaling_ratio,
+    plot_n_scaling_sensitivity,
 )
 
 # ============================================================================
@@ -603,30 +614,27 @@ def verify_multi_particle_decoupled_baseline(
 # ============================================================================
 
 
-def _make_objective(
+def _make_multi_objective(
     N: int,
     omega: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray,
 ) -> Callable[[np.ndarray], float]:
-    """Build the raw (unpenalised) Δω objective for a given (N, ω) pair."""
+    """Build the raw (unpenalised) Δω objective for a given (N, ω) pair.
 
-    def _raw_objective(p: np.ndarray) -> float:
-        return compute_multi_particle_sensitivity(
-            N,
-            psi0,
-            T_BS,
-            T_HOLD,
-            omega,
-            float(p[0]),
-            float(p[1]),
-            float(p[2]),
-            float(p[3]),
-            ops,
-            FD_STEP,
-        )
+    Uses ``make_4d_objective`` from the shared pipeline module.
+    """
+    from functools import partial
 
-    return _raw_objective
+    return make_4d_objective(
+        partial(compute_multi_particle_sensitivity, N),
+        psi0=psi0,
+        T_BS=T_BS,
+        t_hold=T_HOLD,
+        omega=omega,
+        ops=ops,
+        fd_step=FD_STEP,
+    )
 
 
 def run_single_n_omega(
@@ -651,7 +659,7 @@ def run_single_n_omega(
     base_seed = seed if seed is not None else 42
     ops = build_multi_particle_operators(N)
     psi0 = multi_particle_initial_state(N)
-    raw_obj = _make_objective(N, omega, ops, psi0)
+    raw_obj = _make_multi_objective(N, omega, ops, psi0)
 
     best_nm, _ = run_two_phase_pipeline(
         random_search_fn=lambda n_samples, seed, **kw: build_rs_result(

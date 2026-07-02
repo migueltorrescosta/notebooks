@@ -50,6 +50,7 @@ dependencies = [
     "quimb>=1.14.0",
     "deltalake>=1.6.0",
     "copydetect>=0.5.0",
+    "pytest-timeout>=2.4.0",
 ]
 
 [dependency-groups]
@@ -84,12 +85,12 @@ default-groups = [
 build.targets.wheel.include = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "src"]
+testpaths = ["tests", "src", "reports"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 addopts = "--import-mode=importlib"
-norecursedirs = ["reports", ".hypothesis"]
+norecursedirs = [".hypothesis"]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
@@ -183,7 +184,6 @@ show_error_codes = true
 venvPath = "."
 venv = ".venv"
 exclude = [
-    "reports/**",
     "jupyter/**",
     "mathematica/**",
     "src/algorithms/tensor_tree_network.py",

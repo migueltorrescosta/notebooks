@@ -23,6 +23,15 @@ This module is importable via ``importlib.import_module("reports.20260525.joint_
 
 from __future__ import annotations
 
+__all__ = [
+    "ScalingAnalysisResult",
+    "build_hold_hamiltonian",
+    "dual_bs_unitary",
+    "fit_scaling_exponents",
+    "hold_unitary_dicke",
+    "single_bs_unitary",
+]
+
 import argparse
 import multiprocessing as mp
 import os
@@ -58,20 +67,20 @@ from src.analysis.decoupled_baseline import (
     plot_decoupled_baseline_heatmap,
 )
 from src.analysis.multi_mzi_scaling import (
-    ScalingAnalysisResult,  # noqa: F401 — re-exported for tests
-    fit_scaling_exponents,  # noqa: F401 — re-exported for tests
+    ScalingAnalysisResult,
+    fit_scaling_exponents,
     generate_scaling_analysis,
 )
 from src.analysis.n_scaling_sweep import (
     generate_n_scaling_plots,
 )
 from src.physics.multi_mzi import (
-    build_hold_hamiltonian,  # noqa: F401 — re-exported for tests
-    dual_bs_unitary,  # noqa: F401 — re-exported for tests
+    build_hold_hamiltonian,
+    dual_bs_unitary,
     embed_combined_operators,
     evolve_circuit,
-    hold_unitary_dicke,  # noqa: F401 — re-exported for tests
-    single_bs_unitary,  # noqa: F401 — re-exported for tests
+    hold_unitary_dicke,
+    single_bs_unitary,
 )
 
 # Use spawn start method to avoid fork + BLAS threading deadlock. Must run
@@ -1751,7 +1760,7 @@ def main() -> None:
             ),
             label="decoupled baseline (α_xx = 0, φ=π/4)",
         ),
-        "sweep": lambda **_: generate_sweep(force=args.force, parallel=args.parallel),  # type: ignore[dict-item]
+        "sweep": lambda **_: generate_sweep(force=args.force, parallel=args.parallel),
         "n-scaling": generate_n_scaling,
         "scaling-analysis": partial(
             generate_scaling_analysis,

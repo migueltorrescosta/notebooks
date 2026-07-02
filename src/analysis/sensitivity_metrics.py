@@ -29,7 +29,7 @@ References:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, cast
 
 import numpy as np
 import pandas as pd
@@ -932,5 +932,5 @@ class MziSensitivityDataSV(MziSensitivityData):
     """
 
     @classmethod
-    def from_parquet(cls, path: str | Path) -> MziSensitivityDataSV:  # type: ignore[override]
-        return super().from_parquet(path)  # type: ignore[return-value]
+    def from_parquet(cls, path: str | Path) -> MziSensitivityDataSV:
+        return cast("MziSensitivityDataSV", super().from_parquet(path))

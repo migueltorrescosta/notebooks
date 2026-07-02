@@ -20,6 +20,17 @@ This module is importable via ``importlib.import_module("reports.20260522.multi_
 
 from __future__ import annotations
 
+__all__ = [
+    "ScalingAnalysisResult",
+    "build_hold_hamiltonian",
+    "compute_reduced_expectation_and_variance",
+    "dual_bs_unitary",
+    "evolve_circuit",
+    "fit_scaling_exponents",
+    "hold_unitary_dicke",
+    "single_bs_unitary",
+]
+
 import argparse
 import os
 import sys
@@ -46,30 +57,34 @@ from src.analysis.decoupled_baseline import (
     plot_decoupled_baseline_heatmap,
 )
 from src.analysis.multi_mzi_scaling import (
-    ScalingAnalysisResult,  # noqa: F401 — re-exported for tests
-    fit_scaling_exponents,  # noqa: F401 — re-exported for tests
+    ScalingAnalysisResult,
+    fit_scaling_exponents,
     generate_scaling_analysis,
 )
 from src.analysis.n_scaling_sweep import (
     generate_n_scaling_plots,
 )
-from src.physics.dicke_basis import jz_operator
 from src.physics.multi_mzi import (
-    build_hold_hamiltonian,  # noqa: F401 — re-exported for tests
+    build_hold_hamiltonian,
+    compute_multi_particle_sensitivity,
     compute_reduced_expectation_and_variance,
-    dual_bs_unitary,  # noqa: F401 — re-exported for tests
+    dual_bs_unitary,
     embed_combined_operators,
     evolve_circuit,
-    hold_unitary_dicke,  # noqa: F401 — re-exported for tests
-    single_bs_unitary,  # noqa: F401 — re-exported for tests
+    hold_unitary_dicke,
+    single_bs_unitary,
 )
-from src.utils.enums import OperatorBasis
 from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 from src.visualization.coupling_heatmaps import (
     plot_alpha_opt_heatmap,
     plot_ratio_heatmap,
 )
+
+# Re-export shared compute_sensitivity for backward compatibility with tests.
+# The shared function (compute_multi_particle_sensitivity) takes the same
+# signature: (N, psi0, omega_true, alpha_xx, ops, meas_op, fd_step, T_BS, t_hold).
+compute_sensitivity = compute_multi_particle_sensitivity
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -122,71 +137,6 @@ def initial_state(N: int) -> np.ndarray:
 
 
 # _reduced_expectation replaced by compute_reduced_expectation_and_variance from src
-
-
-# ============================================================================
-# Sensitivity Computation (Error Propagation)
-# ============================================================================
-
-
-def compute_sensitivity(
-    N: int,
-    psi0: np.ndarray,
-    omega_true: float,
-    alpha_xx: float,
-    ops: dict[str, np.ndarray],
-    meas_op: np.ndarray | None = None,
-    fd_step: float = FD_STEP,
-    T_BS: float = DEFAULT_T_BS,
-    t_hold: float = DEFAULT_t_hold,
-) -> tuple[float, float, float, float]:
-    """Compute the error-propagation sensitivity Δω.
-
-    Δω = √Var(J_z^S) / |∂⟨J_z^S⟩/∂ω|
-
-    Also returns ⟨J_z^S⟩, Var(J_z^S), and ∂⟨J_z^S⟩/∂ω at omega_true.
-
-    Args:
-        N: Particle number per subsystem.
-        psi0: Initial state vector.
-        omega_true: True phase rate.
-        alpha_xx: XX coupling strength.
-        ops: Embedded operators.
-        meas_op: (N+1)×(N+1) measurement operator (default = J_z^S single).
-        fd_step: Central finite-difference step size.
-        T_BS: Beam-splitter angle.
-        t_hold: Holding time.
-
-    Returns:
-        Tuple (delta_omega, expectation, variance, derivative).
-        Returns (inf, exp, var, 0.0) if derivative is zero.
-    """
-    if meas_op is None:
-        meas_op = ops["Jz_S"]
-
-    # Evaluate at omega_true
-    psi = evolve_circuit(N, psi0, omega_true, alpha_xx, ops, T_BS, t_hold)
-    # Use single-subsystem J_z for the reduced expectation/variance
-    Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
-    exp_val, var_val = compute_reduced_expectation_and_variance(psi, N, Jz_single)
-
-    # Central finite difference for ∂⟨J_z^S⟩/∂ω
-    psi_plus = evolve_circuit(
-        N, psi0, omega_true + fd_step, alpha_xx, ops, T_BS, t_hold
-    )
-    psi_minus = evolve_circuit(
-        N, psi0, omega_true - fd_step, alpha_xx, ops, T_BS, t_hold
-    )
-
-    exp_plus, _ = compute_reduced_expectation_and_variance(psi_plus, N, Jz_single)
-    exp_minus, _ = compute_reduced_expectation_and_variance(psi_minus, N, Jz_single)
-    d_exp = (exp_plus - exp_minus) / (2.0 * fd_step)
-
-    if abs(d_exp) < 1e-12:
-        return float("inf"), exp_val, var_val, 0.0
-
-    delta_omega = float(np.sqrt(var_val) / abs(d_exp))
-    return delta_omega, exp_val, var_val, d_exp
 
 
 # ============================================================================

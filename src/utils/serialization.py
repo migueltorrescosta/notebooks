@@ -153,7 +153,7 @@ class ParquetSerializable(ABC):
         return
 
     @classmethod
-    def _load_sidecars(cls, path: Path) -> dict:  # noqa: ARG003
+    def _load_sidecars(cls, _path: Path) -> dict:
         """Override to load sidecar data for use in ``from_parquet``.
 
         Args:
@@ -195,8 +195,8 @@ def assert_roundtrip_fields(
             with ``original`` and ``loaded`` values in the message.
     """
     for field, comp_key in field_specs:
-        orig_val = getattr(original, field)  # type: ignore[arg-type]
-        loaded_val = getattr(loaded, field)  # type: ignore[arg-type]
+        orig_val = getattr(original, field)
+        loaded_val = getattr(loaded, field)
         comp = _comparators[comp_key]
         assert comp(loaded_val, orig_val), (
             f"Field '{field}' roundtrip mismatch.\n"

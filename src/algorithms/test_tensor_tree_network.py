@@ -46,18 +46,18 @@ class TestQuimbTensor:
 
     def test_qtn_tensor_created_with_data_and_indices(self) -> None:
         tensor = np.array([[1, 0], [0, 1]], dtype=complex)
-        t = qtn.Tensor(np.asarray(tensor), inds=("main", "ancilla"))  # type: ignore[arg-type]
+        t = qtn.Tensor(np.asarray(tensor), inds=("main", "ancilla"))
         assert t.data is not None
         assert t.shape == (2, 2)
         assert t.ndim == 2
         assert t.inds == ("main", "ancilla")
 
     def test_tensornetwork_supports_connected_tensors(self) -> None:
-        left = qtn.Tensor(  # type: ignore[arg-type]
+        left = qtn.Tensor(
             np.array([[1, 0], [0, 0]], dtype=complex),
             inds=("main", "bond"),
         )
-        right = qtn.Tensor(  # type: ignore[arg-type]
+        right = qtn.Tensor(
             np.array([[0, 0], [0, 1]], dtype=complex),
             inds=("bond", "ancilla"),
         )

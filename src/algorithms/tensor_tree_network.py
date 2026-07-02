@@ -70,7 +70,7 @@ def bipartite_tensor_from_state(
     dim = local_dim**n_sites
     matrix = state.reshape(dim, dim).astype(complex)
 
-    return qtn.Tensor(np.asarray(matrix), inds=("main", "ancilla"))  # type: ignore[arg-type]
+    return qtn.Tensor(np.asarray(matrix), inds=("main", "ancilla"))
 
 
 def get_state_vector(tensor: qtn.Tensor) -> np.ndarray:

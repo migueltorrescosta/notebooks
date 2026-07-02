@@ -82,7 +82,7 @@ class TestNonMarkovianSweepData:
         ("pm_occupancy", "allclose"),
     ]
 
-    def _make_dummy_data(self) -> Any:  # type: ignore[explicit-any]
+    def _make_dummy_data(self) -> Any:
         """Create dummy sweep data for serialization tests."""
         n = 10
         return _report_local.NonMarkovianSweepData(
@@ -232,7 +232,7 @@ class TestSweepFunctions:
 class TestPlotFunctions:
     """Verify plot functions run without errors."""
 
-    def _make_dummy_data(self) -> Any:  # type: ignore[explicit-any]
+    def _make_dummy_data(self) -> Any:
         n = 10
         return _report_local.NonMarkovianSweepData(
             sweep_type="ancilla",

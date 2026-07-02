@@ -32,7 +32,7 @@ _m = importlib.import_module("reports.20260601.heisenberg_limit_noon_twinfock")
 MziSensitivityData = _m.MziSensitivityData
 analyse_best_worst_sensitivity = _m.analyse_best_worst_sensitivity
 compute_mzi_sensitivity_grid = _m.compute_mzi_sensitivity_grid
-generate_omega_scan = _m.generate_omega_scan
+compute_mzi_sensitivity_scan = _m.compute_mzi_sensitivity_scan
 t_hold = _m.t_hold
 
 # ============================================================================
@@ -715,7 +715,7 @@ class TestGenerateOmegaScan:
     def test_generate_noon_scan(self) -> None:
         """Generate a small θ scan for NOON and verify basic properties."""
         omega_grid = np.linspace(0.1, 5.0, 5)
-        result = generate_omega_scan(
+        result = compute_mzi_sensitivity_scan(
             "noon", N=4, omega_grid=omega_grid, max_photons=4, t_hold=t_hold
         )
         assert result.state_type == "noon"
@@ -727,7 +727,7 @@ class TestGenerateOmegaScan:
     def test_generate_twin_fock_scan(self) -> None:
         """Generate a small θ scan for standard Twin-Fock."""
         omega_grid = np.linspace(0.1, 5.0, 5)
-        result = generate_omega_scan(
+        result = compute_mzi_sensitivity_scan(
             "twin_fock_std", N=4, omega_grid=omega_grid, max_photons=4, t_hold=t_hold
         )
         assert result.state_type == "twin_fock_std"

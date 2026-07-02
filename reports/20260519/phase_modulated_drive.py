@@ -62,6 +62,7 @@ from src.analysis.optimisation_pipeline import (
     TwoPhaseConfig,
     build_nm_result,
     build_rs_result,
+    make_4d_objective,
     run_nelder_mead,
     run_omega_scan,
     run_two_phase_pipeline,
@@ -70,6 +71,10 @@ from src.analysis.slice_scan import sequential_grid_scan
 from src.utils.constants import I_4
 from src.utils.parallel import parallel_map
 from src.utils.paths import report_path_fn
+from src.visualization.ancilla_drive_plots import (
+    plot_combined_sensitivity,
+    plot_drive_nm_expectation_variance,
+)
 
 sns.set_theme(style="whitegrid")
 
@@ -441,29 +446,25 @@ def phase_modulated_2d_slice(
 # ============================================================================
 
 
-def _make_objective(
+def _make_phase_objective(
     omega: float,
     ops: dict[str, np.ndarray],
     psi0: np.ndarray,
     t_hold: float = DEFAULT_t_hold,
     T_BS: float = DEFAULT_T_BS,
 ) -> Callable[[np.ndarray], float]:
-    """Build the raw (unpenalised) Δω objective for a given ω."""
+    """Build the raw (unpenalised) Δω objective for a given ω.
 
-    def _raw_objective(p: np.ndarray) -> float:
-        return compute_phase_modulated_sensitivity(
-            psi0,
-            T_BS,
-            t_hold,
-            omega,
-            float(p[0]),
-            float(p[1]),
-            float(p[2]),
-            float(p[3]),
-            ops,
-        )
-
-    return _raw_objective
+    Uses ``make_4d_objective`` from the shared pipeline module.
+    """
+    return make_4d_objective(
+        compute_phase_modulated_sensitivity,
+        psi0=psi0,
+        T_BS=T_BS,
+        t_hold=t_hold,
+        omega=omega,
+        ops=ops,
+    )
 
 
 # ============================================================================
@@ -495,7 +496,7 @@ def phase_modulated_random_search(
         DriveRandomSearchResult with all samples and best found.
     """
     ops = build_two_qubit_operators()
-    raw_obj = _make_objective(omega, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS)
+    raw_obj = _make_phase_objective(omega, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS)
     return build_rs_result(
         raw_obj,
         n_samples,
@@ -552,7 +553,9 @@ def run_phase_modulated_nelder_mead(
         x0 = np.asarray(x0, dtype=float)
         assert x0.shape == (4,), f"x0 must have 4 elements, got {x0.shape}"
 
-    raw_obj = _make_objective(omega_true, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS)
+    raw_obj = _make_phase_objective(
+        omega_true, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS
+    )
     nm = run_nelder_mead(
         raw_obj,
         x0=x0,
@@ -639,7 +642,9 @@ def run_phase_modulated_omega_scan(
 
     def _rs_fn(n_samples: int, seed: int, **kw: Any) -> DriveRandomSearchResult:
         omega = kw["omega"]
-        raw_obj = _make_objective(omega, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS)
+        raw_obj = _make_phase_objective(
+            omega, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS
+        )
         return build_rs_result(
             raw_obj,
             n_samples,
@@ -651,7 +656,9 @@ def run_phase_modulated_omega_scan(
 
     def _nm_fn(x0: np.ndarray, seed: int, **kw: Any) -> DriveNelderMeadResult:
         omega = kw["omega_true"]
-        raw_obj = _make_objective(omega, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS)
+        raw_obj = _make_phase_objective(
+            omega, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS
+        )
         return build_nm_result(
             raw_obj,
             x0,
@@ -702,148 +709,6 @@ def run_phase_modulated_omega_scan(
             for omega, results in zip(omega_arr, all_results, strict=True)
         },
     )
-
-
-# ============================================================================
-# Exclusive Plot Functions
-# (moved from src/visualization/ancilla_drive_plots.py)
-# ============================================================================
-
-
-def plot_drive_combined_sensitivity(
-    omega_values: np.ndarray,
-    best_ax_slice: np.ndarray,
-    best_ay_slice: np.ndarray,
-    best_random: np.ndarray,
-    best_nm: np.ndarray,
-    sql_values: np.ndarray,
-    save_path: str | Path,
-    figsize: tuple[float, float] = (8, 5),
-) -> Path:
-    """Line plot comparing Δω from 2D slices, 4D random search, NM refinement, and SQL.
-
-    Args:
-        omega_values: Array of ω values.
-        best_ax_slice: Best Δω from (a_x, a_zz) slice at each ω.
-        best_ay_slice: Best Δω from (a_y, a_zz) slice at each ω.
-        best_random: Best Δω from 4D random search at each ω.
-        best_nm: Best Δω from Nelder–Mead refinement at each ω.
-        sql_values: SQL reference at each ω (constant).
-        save_path: Output SVG path.
-        figsize: Figure size (width, height).
-
-    Returns:
-        Path to saved SVG.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig, ax = plt.subplots(figsize=figsize)
-
-    # SQL reference line
-    sql = float(sql_values[0]) if len(sql_values) > 0 else 0.1
-    ax.axhline(
-        y=sql,
-        color="gray",
-        linestyle="--",
-        alpha=0.7,
-        linewidth=1.5,
-        label=rf"SQL = {sql:.4f}",
-    )
-
-    methods: list[tuple[np.ndarray, str, str, str]] = [
-        (best_ax_slice, "o-", "C0", r"2D slice $(a_x, a_{zz})$"),
-        (best_ay_slice, "s-", "C1", r"2D slice $(a_y, a_{zz})$"),
-        (best_random, "^-", "C2", "4D random search"),
-        (best_nm, "D-", "C3", "4D Nelder–Mead"),
-    ]
-
-    for data, fmt, colour, label in methods:
-        valid = np.isfinite(data)
-        if np.any(valid):
-            ax.plot(
-                omega_values[valid],
-                data[valid],
-                fmt,
-                color=colour,
-                label=label,
-                markersize=6,
-                linewidth=1.5,
-                markerfacecolor=colour,
-            )
-
-    ax.set_xlabel(r"$\omega$")
-    ax.set_ylabel(r"$\Delta\omega$")
-    ax.set_title(
-        "Sensitivity vs $\\omega$: 2D slices, 4D random search, Nelder–Mead refinement"
-    )
-    ax.legend(fontsize=9)
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
-
-
-def plot_drive_nm_expectation_variance(
-    omega_values: np.ndarray,
-    expectation_Jz: np.ndarray,
-    variance_Jz: np.ndarray,
-    save_path: str | Path,
-    figsize: tuple[float, float] = (8, 4),
-) -> Path:
-    """Side-by-side plot of ⟨J_z^S⟩ and Var(J_z^S) at the NM optimum vs ω.
-
-    Args:
-        omega_values: Array of ω values.
-        expectation_Jz: ⟨J_z^S⟩ at NM optimum for each ω.
-        variance_Jz: Var(J_z^S) at NM optimum for each ω.
-        save_path: Output SVG path.
-        figsize: Figure size (width, height).
-
-    Returns:
-        Path to saved SVG.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
-
-    # Left panel: expectation
-    valid_exp = np.isfinite(expectation_Jz)
-    if np.any(valid_exp):
-        ax1.plot(
-            omega_values[valid_exp],
-            expectation_Jz[valid_exp],
-            "o-",
-            color="C0",
-            markersize=7,
-            linewidth=1.5,
-        )
-    ax1.axhline(y=0, color="gray", linestyle=":", alpha=0.5)
-    ax1.set_xlabel(r"$\omega$")
-    ax1.set_ylabel(r"$\langle J_z^S \rangle$")
-    ax1.set_title(r"Expectation $\langle J_z^S\rangle$ at NM optimum")
-
-    # Right panel: variance
-    valid_var = np.isfinite(variance_Jz)
-    if np.any(valid_var):
-        ax2.plot(
-            omega_values[valid_var],
-            variance_Jz[valid_var],
-            "s-",
-            color="C1",
-            markersize=7,
-            linewidth=1.5,
-        )
-    ax2.set_xlabel(r"$\omega$")
-    ax2.set_ylabel(r"$\mathrm{Var}(J_z^S)$")
-    ax2.set_title(r"Variance $\mathrm{Var}(J_z^S)$ at NM optimum")
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
 
 
 def plot_drive_cross_experiment_comparison(
@@ -1165,7 +1030,7 @@ def _run_phase_omega_scan_single(omega: float) -> dict[str, float | np.ndarray]:
     ``DriveOmegaScanResult``.
     """
     ops = build_two_qubit_operators()
-    raw_obj = _make_objective(omega, ops, DEFAULT_PSI0)
+    raw_obj = _make_phase_objective(omega, ops, DEFAULT_PSI0)
 
     def _rs_fn(n_samples: int, seed: int, **kw: Any) -> DriveRandomSearchResult:
         return build_rs_result(
@@ -1411,8 +1276,8 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
 
     sql_vals = np.full(n_omega, 0.1)
 
-    # Generate combined sensitivity plot (local function)
-    plot_drive_combined_sensitivity(
+    # Generate combined sensitivity plot (from src.visualization.ancilla_drive_plots)
+    plot_combined_sensitivity(
         omega_vals,
         best_ax,
         best_ay,

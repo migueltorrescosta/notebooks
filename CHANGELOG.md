@@ -13,7 +13,7 @@ Priority colours: 🔴🟠🟡🟢
 
 ## Experiments
 
-- 🔴 **High-order squeezing decoherence crossover** (#20260507) — n=3,4 states beat n=2 by $2$-$5\times$ at fixed $\langle n\rangle$ for zero decoherence (confirmed). The critical untested prediction is that Gaussian (n=2) states are more robust above $\gamma_c$. Lindblad solver implemented and validated. Expected: $\gamma_c > 0$, $\gamma_c \approx 0.01$-$0.1$. Below $\gamma_c$: n=4 $>$ n=3 $>$ n=2. Above $\gamma_c$: ordering reverses. Pure sweep task — no new code needed.
+- 🟠 **High-order squeezing decoherence crossover** (#20260507) — n=3,4 states beat n=2 by $2$-$5\times$ at fixed $\langle n\rangle$ for zero decoherence (confirmed). The critical untested prediction is that Gaussian (n=2) states are more robust above $\gamma_c$. Lindblad solver implemented and validated. Expected: $\gamma_c > 0$, $\gamma_c \approx 0.01$-$0.1$. Below $\gamma_c$: n=4 $>$ n=3 $>$ n=2. Above $\gamma_c$: ordering reverses. Pure sweep task — no new code needed.
 
 - 🔴 **Tunable beam-splitter angle for squeezed-vacuum MZI** — #20260625-ext showed SV parity CFI saturates QFI but the bound is SQL ($\alpha=-0.492$) because the 50/50 BS transforms SV into a probe with SQL-class $J_z$ variance. The pre-BS1 state has Heisenberg-class $F_Q = 2\langle N\rangle(\langle N\rangle+1)$. A tunable BS angle $\theta_{\text{BS}}$ (not 50/50) might partially preserve Heisenberg-class variance through the interferometer. Expected: $\alpha$ varies continuously between $-0.5$ (at $\theta_{\text{BS}}=\pi/4$) and potentially approaching $-1.0$ (as $\theta_{\text{BS}}\to 0$, where parity CFI may recover sensitivity).
 
@@ -40,6 +40,8 @@ Priority colours: 🔴🟠🟡🟢
 
 - 🟡 **Higher truncation + finer $\omega$-grid for cavity TMSV** — #20260629 CFI/QFI ratio degrades from 83% at $\langle N\rangle=4$ to 49% at $\langle N\rangle=40$ due to two technical limitations: (a) `resource_value_to_truncation` with `max_trunc=100` undersamples the TMSV variance at $\langle N\rangle>28$, and (b) 50-point $\omega$ grid undersamples the CFI peak at low $\omega$. Fix: increase `max_trunc` to 200 for $\langle N\rangle\ge30$; use 200-point adaptive $\omega$ grid. Rerun the $10\ \mathcal{F} \times 20\ \langle N\rangle$ sweep. Expected: CFI/QFI ratio $>95\%$ for all $\langle N\rangle$, tightening the $365\times$ result. Pure engineering — no new physics. See #20260629.
 
+
+
 ---
 
 ## Week 27 (Jun 29–Jul 5)
@@ -48,15 +50,17 @@ Priority colours: 🔴🟠🟡🟢
 
 - **Cavity-Enhanced TMSV MZI** (#20260629) — Combines cavity finesse $\mathcal{F}$ with TMSV input (#20260625) to achieve prefactor improvement while preserving sub-SQL scaling. Sweeps $\langle N\rangle=2$--$40$, $\mathcal{F}=1$--$1000$. See #20260625.
 
-- **Pedagogical noise comparison in single-particle MZI** (#20260630) — Compares phase diffusion ($\gamma_\phi J_z$) vs one-body loss ($\gamma_1 a_1$) degradation mechanisms in a single-particle MZI. Three sweeps: holding-time degradation curves (4 scenarios × 200 points), noise-rate scaling (3 scenarios × 30 points), and a 2D $\gamma_\phi\times\gamma_1$ landscape (40 × 40 points) at mid-fringe $t_{\text{hold}}=\pi/2$. Results confirmed: dephasing degrades sensitivity ~41% faster than loss at large $t_{\text{hold}}$ (ratio 46.6 vs 33.0 at $\gamma=0.1$, $t_{\text{hold}}>10$); clean baseline recovers $\Delta\omega\cdot t_{\text{hold}}=1$ exactly; super-additivity confirmed at all 30 noise rates ($29\%$ excess at $\gamma=1.0$). Unexpected: optimal $t_{\text{hold}}^*$ is identical for dephasing and loss ($\approx 20.255$ at $\gamma=0.1$) because both channels suppress $\rho_{01}$ at rate $\gamma/2$ for $N=1$. Compiled: 63 tests pass, 7/8 PASS, 1/8 FAIL, 3 Parquet files, 3 SVG figures. See `reports/20260630/`.
+- **Pedagogical noise comparison in single-particle MZI** (#20260630) — Compares phase diffusion ($\gamma_\phi J_z$) vs one-body loss ($\gamma_1 a_1$) degradation in a single-particle MZI. Three sweeps: holding-time degradation, noise-rate scaling, and 2D $\gamma_\phi\times\gamma_1$ landscape. Results: dephasing ~41% faster than loss; optimal $t_{\text{hold}}^*$ identical for both channels (both suppress $\rho_{01}$ at rate $\gamma/2$ for $N=1$). 63 tests pass, 7/8 PASS, 1/8 FAIL. See `reports/20260630/`.
+
+- **Mixed $\omega$-Modulated Drive with EP/CFI/QFI Comparison** (#20260701) — System--ancilla pair ($N=1$) with $\omega$-modulated ancilla drive ($a_z$ only) and Ising interaction. Compares error-propagation, CFI, and QFI sensitivity. Results: EP$=$CFI identity confirmed; sub-SQL at 100\% of $\omega$ values (best $3.492\times$); fully modulated drive (#20260519) reaches $4.91\times$, confirming partial modulation as the limiting factor. 65 tests pass. See `reports/20260701/`.
 
 ### Infrastructure
 
-- **`sys.path` eradication campaign** — Removed every `sys.path.insert` anti-pattern from `conftest.py`, standalone scripts, subprocess workers, and all 29 report test files + 5 runner scripts, replacing them with editable-install `.pth` resolution and `PYTHONPATH` env vars. Added `__init__.py` to `reports/` and all 29 subdirectories for native `importlib` importability.
+- **Code quality, type safety, and test suite hardening** — Fixed or removed 33 type/annotation suppressions across 18 files (17 `call-overload`/`arg-type` in `src/`, 16 dead annotations in reports/tests). Migrated 25 `# noqa: F401` re-exports to canonical `__all__` lists. Fixed 16 lint/type regressions (E402 in 2 reports, PT019/ARG003 in 4 files, alias imports in 2 reports). Marked 14 hanging Nelder--Mead/BFGS tests as `@pytest.mark.slow`. Raised coverage from 83% to 88% (crossing 85% CI threshold). Three project alignment reviews completed (backlog stable at 3🔴/4🟠/3🟡/2🟢). Toolchain clean: ruff 0 errors, mypy 0 errors, pyright 0 errors.
 
-- **Code quality, coverage, and tooling** — Fixed the last mypy warning, resolved all 14 ruff lint errors, installed `vulture` for periodic dead-code scans, raised test coverage from 83% to 88% (crossing the 85% CI threshold), and fixed 13 stale import-binding references across 3 report test files (all 260 tests pass).
+- **`sys.path` eradication and import infrastructure** — Removed every `sys.path.insert` anti-pattern from `conftest.py`, 29 report test files, 5 runner scripts, and subprocess workers, replacing with editable-install `.pth` resolution and `PYTHONPATH` env vars. Added `__init__.py` to `reports/` and all 29 subdirectories for native `importlib` importability.
 
-- **Audit remediation and deduplication** — Remediated 6 findings from the #20260629 code audit (critical formula corrections, test isolation, field naming), promoted 3 duplicated TMSV functions to shared `src/` modules, and fixed Parquet column mismatches across both #20260625 and #20260629.
+- **Audit remediation and cross-report deduplication** — Remediated 14 findings across two code audits (#20260629: 6 findings with formula corrections, test isolation, Parquet column fixes; #20260701: 3 MAJOR + 5 MINOR covering visualisation promotion, edge-case guards, seed handling). Promoted 6 duplicated functions to shared `src/` modules, resolving the last 3 cross-report duplications. Refactored `reports/20260701/` module from 1643 to 1140 lines (CC 11→1) by extracting a 595-line generation submodule. See #20260629, #20260701.
 
 ---
 

@@ -21,10 +21,12 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from collections.abc import Callable  # noqa: TC003 — used in type annotation
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import numpy as np
 import pandas as pd

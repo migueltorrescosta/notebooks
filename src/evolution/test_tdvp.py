@@ -30,7 +30,7 @@ from .tdvp import (
 
 def _make_tensor(state: np.ndarray) -> qtn.Tensor:
     """Shortcut: build a quimb Tensor from a 2-qubit (4-dim) state vector."""
-    return qtn.Tensor(  # type: ignore[arg-type]
+    return qtn.Tensor(
         data=np.asarray(state.reshape(2, 2).astype(complex)),
         inds=("main", "ancilla"),
     )
