@@ -377,15 +377,6 @@ class TestSVQFI:
             f"mean_N={mean_N}: F_Q={fq}, expected {expected_fq}"
         )
 
-    @pytest.mark.parametrize("mean_N", [1])
-    def testverify_sv_qfi_helper(self, mean_N: int) -> None:
-        """Verification helper must return True for SV probe."""
-        M = self._SV_M[mean_N]
-        r = float(np.arcsinh(np.sqrt(float(mean_N))))
-        state = input_state_factory("squeezed_vacuum", mean_N, M, r=r)
-        var = compute_jz_variance(state, M)
-        assert verify_sv_qfi(float(mean_N), var), f"Failed at mean_N={mean_N}"
-
 
 # ============================================================================
 # TMSV QFI Validation

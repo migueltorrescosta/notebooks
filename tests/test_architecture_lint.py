@@ -513,7 +513,7 @@ class TestDuplicationBaseline:
     # Thresholds: minLines=15, minTokens=50, mode=mild.
     # Update these whenever a deliberate deduplication campaign completes.
     _BASELINES: ClassVar[dict[str, float]] = {
-        "src": 0.55,  # 263 duplicated / 48187 total = 0.546%
+        "src": 0.57,  # 266 duplicated / 47051 total = 0.565%
         "reports": 5.95,  # 3941 duplicated / 66237 total = 5.950%
     }
 

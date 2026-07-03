@@ -341,13 +341,6 @@ class DualMZISweepResult(ParquetSerializable):
     def n_points(self) -> int:
         return len(self.omega_values)
 
-    @property
-    def n_omega_unique(self) -> int:
-        return len(np.unique(self.omega_values))
-
-    @property
-    def n_N_unique(self) -> int:
-        return len(np.unique(self.N_values))
 
 
 # ============================================================================

@@ -752,9 +752,6 @@ def run_metrology_protocol(
     }
 
 
-# Re-export for backward compatibility
-validate_pseudomode_density = validate_density_matrix
-
 
 def check_pseudomode_occupancy(
     rho: np.ndarray,

@@ -140,15 +140,6 @@ def heisenberg_field_term(n_sites: int) -> np.ndarray:
 # =============================================================================
 
 
-@dataclass
-class HeisenbergEigenstate:
-    """Eigenstate of the Heisenberg model."""
-
-    energy: float
-    vector: np.ndarray
-    site_expectations: np.ndarray  # Shape (n_sites, 2)
-
-
 def diagonalize_hamiltonian(
     n_sites: int,
     j: float = 1.0,

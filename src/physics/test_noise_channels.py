@@ -42,20 +42,6 @@ def N() -> int:
     return 4
 
 
-@pytest.fixture
-def config_all_channels() -> NoiseConfig:
-    """Configuration with all channels active."""
-    return NoiseConfig(gamma_1=0.1, gamma_2=0.05, gamma_phi=0.02, eta=0.9)
-
-
-@pytest.fixture
-def fock_distribution() -> np.ndarray:
-    """Standard Fock state distribution."""
-    # P(n) = δ_{n, N}
-    probs = np.zeros(11)
-    probs[4] = 1.0
-    return probs
-
 
 # Test Annihilation/Creation Operators
 

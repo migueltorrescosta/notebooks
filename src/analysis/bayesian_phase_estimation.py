@@ -372,28 +372,6 @@ def bayesian_estimator(
     }
 
 
-def bayesian_estimator_batch(
-    outcomes: np.ndarray,
-    state_type: str,
-    max_photons: int,
-    n_phi: int = 360,
-) -> dict:
-    """Batch version of bayesian_estimator with automatic state preparation.
-
-    Args:
-        outcomes: Array of measurement outcomes (0s and 1s).
-        state_type: Type of input state ("single_photon", "noon", "coherent").
-        max_photons: Maximum photons per mode for truncation.
-        n_phi: Number of grid points for phase discretization.
-
-    Returns:
-        Dictionary from bayesian_estimator.
-
-    """
-    initial_state = prepare_input_state(state_type, max_photons=max_photons)
-
-    return bayesian_estimator(outcomes, initial_state, max_photons, n_phi)
-
 
 def compute_crb(
     initial_state: np.ndarray,

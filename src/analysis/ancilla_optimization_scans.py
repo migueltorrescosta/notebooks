@@ -100,23 +100,6 @@ def validate_bs_unitarity(T_BS: float = np.pi / 4) -> bool:
     return True
 
 
-def validate_two_qubit_bs_unitarity(T_BS: float = np.pi / 4) -> bool:
-    """Validate the two-qubit beam-splitter unitary.
-
-    Args:
-        T_BS: Beam-splitter duration.
-
-    Returns:
-        True if unitary.
-
-    """
-    from src.analysis.ancilla_optimization import two_qubit_bs_unitary  # fmt: skip
-
-    U = two_qubit_bs_unitary(T_BS)
-    assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), "2-qubit BS must be unitary"
-    return True
-
-
 def validate_hold_unitarity(
     t_hold: float = 1.0,
     omega: float = 1.0,

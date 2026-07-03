@@ -13,7 +13,6 @@ import pytest
 from numpy.random import Generator
 
 from .truncated_wigner import (
-    TWAConfig,
     _euler_maruyama_step,
     compare_with_lindblad,
     compute_phase_sensitivity,
@@ -26,11 +25,6 @@ from .truncated_wigner import (
 
 # Fixtures
 
-
-@pytest.fixture
-def simple_config() -> TWAConfig:
-    """Simple configuration for testing."""
-    return TWAConfig(N=10)
 
 
 @pytest.fixture

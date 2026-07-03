@@ -178,48 +178,4 @@ def generate_full_data[T: MziSensitivityData](
     return concatenate_scan_results(scan_results, state_type, t_hold)
 
 
-def maybe_generate_full_data(
-    st: str,
-    r_range: list[float] | list[int],
-    label: str,
-    omega_grid: np.ndarray,
-    force: bool,
-    only: str | None,
-    generator_fn: Callable[..., T | None],
-    data_class: type[T],
-    pq_path: Path,
-) -> T | None:
-    r"""Load or generate sensitivity data for one state type.
 
-    If ``only`` is set and does not match ``st``, returns ``None``.
-    Otherwise loads from Parquet (if exists and not forced) or generates
-    fresh data via *generator_fn*.
-
-    Args:
-        st: State type key (e.g. ``"sv"``, ``"oat"``).
-        r_range: List of resource values.
-        label: Human-readable name for logging.
-        omega_grid: :math:`\omega` grid.
-        force: Re-generate even if Parquet exists.
-        only: If set, only load/generate for matching state type.
-        generator_fn: Callable used to generate data for a single
-            resource value. Should accept ``(R, omega_grid, t_hold)``.
-        data_class: Data class with ``from_parquet`` and ``save_parquet``
-            methods (e.g. :class:`MziSensitivityData` or a subclass).
-        pq_path: Path to the Parquet file.
-
-    Returns:
-        Data object or ``None`` if filtered out by ``only``.
-    """
-    if only is not None and st != only:
-        return None
-
-    if pq_path.exists() and not force:
-        print(f"Loading existing data for {label} from {pq_path}")
-        return cast("T", data_class.from_parquet(pq_path))
-
-    print(f"Generating {label} data (R={r_range[0]}..{r_range[-1]})")
-    data = generate_full_data(st, r_range, omega_grid, generator_fn, t_hold=10.0)
-    data.save_parquet(pq_path)
-    print(f"  Saved to {pq_path}")
-    return data

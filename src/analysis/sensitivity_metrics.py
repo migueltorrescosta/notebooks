@@ -59,7 +59,6 @@ if TYPE_CHECKING:
 # =============================================================================
 
 StateType = np.ndarray  # Pure state vector
-SensitivityResult = dict[str, float]  # {"delta_phi": float, ...}
 
 
 def sql_reference(N: int, t_hold: float = 10.0) -> float:
@@ -229,38 +228,33 @@ def error_propagation_sensitivity(
 
 
 def sensitivity_from_error_propagation(
-    O_mean: float,
     O_var: float,
     dO_dphi: float,
     var_tolerance: float = 1e-15,
     deriv_tolerance: float = 1e-12,
 ) -> float:
-    """Error-propagation sensitivity from pre-computed moments.
+    r"""Error-propagation sensitivity from pre-computed moments.
 
-    Computes the error-propagation formula:
+    :math:`\Delta\phi = \sqrt{\mathrm{Var}(O)} / |\partial\langle O\rangle/\partial\phi|`
 
-        Δφ = √(Var(O)) / |∂⟨O⟩/∂φ|
-
-    and returns ``inf`` at fringe extrema where either the variance
+    Returns ``inf`` at fringe extrema where either the variance
     vanishes (the state is an eigenstate of the measurement operator,
     giving a deterministic outcome with zero information) or the
     derivative vanishes (the operating point is at a fringe extremum
     where the signal slope is flat).
 
     Args:
-        O_mean: Expectation value ⟨O⟩ (not used in formula, included
-            for debugging/consistency checks).
-        O_var: Variance Var(O) = ⟨O²⟩ - ⟨O⟩². Must be non-negative;
-            negative values are clamped to zero before the square root.
-        dO_dphi: Derivative ∂⟨O⟩/∂φ (central finite-difference value).
+        O_var: Variance Var(O) = :math:`\langle O^2\rangle - \langle O\rangle^2`.
+            Must be non-negative; negative values are clamped to zero.
+        dO_dphi: Derivative :math:`\partial\langle O\rangle/\partial\phi`
+            (central finite-difference value).
         var_tolerance: Variance below this threshold is treated as
-            zero (default 1e-15, matching the convention in
-            ``ancilla_drive_metrology.py`` and ``n_particle_drive.py``).
+            zero (default ``1e-15``).
         deriv_tolerance: Absolute derivative below this threshold is
-            treated as zero (default 1e-12).
+            treated as zero (default ``1e-12``).
 
     Returns:
-        Sensitivity Δφ (positive float). Returns ``inf`` if
+        Sensitivity :math:`\Delta\phi` (positive float). Returns ``inf`` if
         ``var < var_tolerance`` or ``abs(dO_dphi) < deriv_tolerance``.
 
     """

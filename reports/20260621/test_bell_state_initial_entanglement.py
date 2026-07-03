@@ -172,10 +172,6 @@ def make_bell() -> np.ndarray:
     return bell_state_phi_plus()
 
 
-@pytest.fixture
-def make_product() -> np.ndarray:
-    return product_state_00()
-
 
 # ============================================================================
 # Test: Bell State

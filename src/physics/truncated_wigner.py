@@ -38,25 +38,6 @@ import numpy as np
 # =============================================================================
 
 
-@dataclass
-class TWAConfig:
-    """Configuration for Truncated Wigner Approximation simulation.
-
-    Attributes:
-        N: Total atom number.
-        chi: One-axis twisting (OAT) squeezing strength.
-        gamma_1: One-body loss rate.
-        gamma_2: Two-body loss rate.
-        gamma_phi: Phase diffusion rate.
-
-    """
-
-    N: int
-    chi: float = 0.0  # OAT squeezing strength
-    gamma_1: float = 0.0  # one-body loss rate
-    gamma_2: float = 0.0  # two-body loss rate
-    gamma_phi: float = 0.0  # phase diffusion rate
-
 
 # =============================================================================
 # Wigner Function Sampling

@@ -39,7 +39,6 @@ class ScalingFitResult:
         C_err: Standard error of C from covariance matrix.
         R_squared: Goodness-of-fit (coefficient of determination).
         N_values: N values used in the fit (after filtering).
-        delta_phi_values: Sensitivity values used in the fit.
         valid: Whether the fit succeeded (sufficient points, finite results).
         warnings: Any warnings (e.g., too few points, low R², negative values).
 
@@ -51,7 +50,6 @@ class ScalingFitResult:
     C_err: float
     R_squared: float
     N_values: np.ndarray
-    delta_phi_values: np.ndarray
     valid: bool = True
     warnings: list[str] = field(default_factory=list)
 
@@ -169,7 +167,6 @@ def _perform_loglog_fit(
             C_err=0.0,
             R_squared=0.0,
             N_values=N_fit,
-            delta_phi_values=delta_fit,
             valid=False,
             warnings=[f"Linear fit failed: {e}"],
         )
@@ -201,7 +198,6 @@ def _perform_loglog_fit(
         C_err=float(C_err),
         R_squared=float(R_squared),
         N_values=N_fit,
-        delta_phi_values=delta_fit,
         valid=True,
         warnings=warnings,
     )
@@ -273,7 +269,6 @@ def fit_scaling_exponent(
             C_err=0.0,
             R_squared=0.0,
             N_values=N_arr,
-            delta_phi_values=delta_arr,
             valid=False,
             warnings=["No data points satisfy N >= min_N"],
         )
@@ -288,7 +283,6 @@ def fit_scaling_exponent(
             C_err=0.0,
             R_squared=0.0,
             N_values=N_arr,
-            delta_phi_values=delta_arr,
             valid=False,
             warnings=[
                 "Too few valid points after filtering (need >= 3 for covariance)",
@@ -302,90 +296,6 @@ def fit_scaling_exponent(
 # Quality Validation
 # =============================================================================
 
-
-def validate_fit_quality(result: ScalingFitResult) -> bool:
-    """Check if fit quality is acceptable.
-
-    A fit is considered acceptable if:
-    - result.valid is True (enough points, fit succeeded)
-    - R² >= 0.5 (at least moderate correlation)
-    - α_err / |α| < 1.0 (relative error bounded)
-    - No more than 2 warnings (excessive warnings indicate problems)
-
-    Args:
-        result: The ScalingFitResult to validate.
-
-    Returns:
-        True if the fit quality is acceptable for further analysis.
-
-    """
-    if not result.valid:
-        return False
-
-    if result.R_squared < 0.5:
-        return False
-
-    # Check that relative error is not catastrophic
-    alpha_abs = max(abs(result.alpha), 1e-10)
-    if result.alpha_err / alpha_abs >= 1.0:
-        return False
-
-    # Too many warnings indicate reliability concerns
-    return not len(result.warnings) > 2
-
-
-def compare_exponents(
-    results: dict[str, ScalingFitResult],
-) -> pd.DataFrame:
-    """Compare scaling exponents across different models in a table.
-
-    Constructs a DataFrame comparing α, α_err, C, R², and fit validity
-    for each model in the input dictionary.
-
-    Args:
-        results: Dictionary mapping model names/labels to their
-            ScalingFitResult objects.
-
-    Returns:
-        DataFrame with columns:
-            model, alpha, alpha_err, C, R_squared, valid, n_warnings, n_points
-        Sorted by alpha (most negative first = best scaling).
-
-    Example:
-        >>> N = np.array([4, 8, 16, 32, 64])
-        >>> sql = 1.0 / np.sqrt(N)
-        >>> hl = 1.0 / N
-        >>> r_sql = fit_scaling_exponent(N, sql)
-        >>> r_hl = fit_scaling_exponent(N, hl)
-        >>> df = compare_exponents({"SQL": r_sql, "Heisenberg": r_hl})
-        >>> len(df)
-        2
-        >>> df.loc["Heisenberg", "alpha"]  # Should be -1
-        -1.0
-
-    """
-    rows = []
-    for label, result in results.items():
-        rows.append(
-            {
-                "model": label,
-                "alpha": result.alpha,
-                "alpha_err": result.alpha_err,
-                "C": result.C,
-                "C_err": result.C_err,
-                "R_squared": result.R_squared,
-                "valid": result.valid,
-                "n_warnings": len(result.warnings),
-                "n_points": len(result.N_values),
-                "warnings": "; ".join(result.warnings) if result.warnings else "",
-            },
-        )
-
-    df = pd.DataFrame(rows)
-    if not df.empty:
-        df = df.sort_values("alpha", ascending=True).reset_index(drop=True)
-
-    return df
 
 
 # =============================================================================

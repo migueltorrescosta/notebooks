@@ -64,10 +64,6 @@ OMEGA_RANGE: tuple[float, float] = (0.1, 5.0)
 OMEGA_STEP: float = 0.1
 
 # Scaling fit
-ALPHA_EXPECTED_NOON: float = (
-    -1.0
-)  # α = scaling exponent for NOON Δω ∝ N^α (Heisenberg → α = -1.0)
-ALPHA_TOL: float = 0.02  # Tolerance on fitted α for PASS/FAIL determination
 
 
 # ============================================================================

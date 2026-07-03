@@ -64,8 +64,6 @@ STAGE_A_N_VALS: list[int] = [1, 2, 3, 4, 5, 8, 10, 15, 20]
 # N values for Stage B (reduced range)
 STAGE_B_N_VALS: list[int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-# Even N values for parity (only Hermitian at even N)
-EVEN_N_VALS: list[int] = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
 
 # Random search and NM parameters
 N_RANDOM: int = 1000
@@ -1463,15 +1461,6 @@ class NonLinearScanResult(ParquetSerializable):
             )
         return cls(results=results)
 
-
-# ============================================================================
-# Plotting
-# ============================================================================
-
-
-def _get_df_from_result(result: NonLinearScanResult) -> pd.DataFrame:
-    """Convert scan result to a plottable DataFrame."""
-    return result.to_dataframe()
 
 
 def plot_protocol_comparison(

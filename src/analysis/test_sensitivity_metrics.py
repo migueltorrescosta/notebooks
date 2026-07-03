@@ -268,49 +268,49 @@ class TestSensitivityFromErrorPropagation:
     """sensitivity_from_error_propagation — stateless formula."""
 
     def test_normal_case(self) -> None:
-        result = sensitivity_from_error_propagation(0.5, 0.25, 1.0)
+        result = sensitivity_from_error_propagation(0.25, 1.0)
         assert result == pytest.approx(0.5)
 
     def test_zero_variance_returns_inf(self) -> None:
-        result = sensitivity_from_error_propagation(1.0, 0.0, 1.0)
+        result = sensitivity_from_error_propagation(0.0, 1.0)
         assert not np.isfinite(result)
 
     def test_zero_derivative_returns_inf(self) -> None:
-        result = sensitivity_from_error_propagation(0.5, 0.25, 0.0)
+        result = sensitivity_from_error_propagation(0.25, 0.0)
         assert not np.isfinite(result)
 
     def test_tiny_variance_below_tolerance(self) -> None:
-        result = sensitivity_from_error_propagation(1.0, 1e-16, 1.0)
+        result = sensitivity_from_error_propagation(1e-16, 1.0)
         assert not np.isfinite(result)
 
     def test_variance_at_tolerance_edge(self) -> None:
-        result = sensitivity_from_error_propagation(1.0, 1e-14, 1.0)
+        result = sensitivity_from_error_propagation(1e-14, 1.0)
         assert np.isfinite(result)
 
     def test_negative_variance_clamped(self) -> None:
         """Negative variance from numerical noise is clamped to zero."""
-        result = sensitivity_from_error_propagation(0.5, -1e-10, 1.0)
+        result = sensitivity_from_error_propagation(-1e-10, 1.0)
         assert not np.isfinite(result)
 
     def test_custom_var_tolerance(self) -> None:
         """Custom var_tolerance should be respected."""
         result = sensitivity_from_error_propagation(
-            1.0, 1e-10, 1.0, var_tolerance=1e-11
+            1e-10, 1.0, var_tolerance=1e-11
         )
         assert np.isfinite(result)
         result2 = sensitivity_from_error_propagation(
-            1.0, 1e-10, 1.0, var_tolerance=1e-9
+            1e-10, 1.0, var_tolerance=1e-9
         )
         assert not np.isfinite(result2)
 
     def test_custom_deriv_tolerance(self) -> None:
         """Derivative 1e-11: finite if tolerance < 1e-11, inf if > 1e-11."""
         result = sensitivity_from_error_propagation(
-            0.5, 0.25, 1e-11, deriv_tolerance=1e-12
+            0.25, 1e-11, deriv_tolerance=1e-12
         )
         assert np.isfinite(result)
         result2 = sensitivity_from_error_propagation(
-            0.5, 0.25, 1e-11, deriv_tolerance=1e-10
+            0.25, 1e-11, deriv_tolerance=1e-10
         )
         assert not np.isfinite(result2)
 

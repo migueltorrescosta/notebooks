@@ -114,9 +114,6 @@ class TwoPhaseConfig:
         n_random: Number of random-search samples per pipeline run.
         n_nm_refine: Number of top random points to refine with Nelder-Mead.
         nm_maxiter: Maximum iterations per Nelder-Mead run.
-        nm_xatol: Absolute parameter tolerance for Nelder-Mead.
-        nm_fatol: Absolute function-value tolerance for Nelder-Mead.
-        nm_adaptive: Use adaptive Nelder-Mead parameters.
         seed: Default random seed (overridable per call).
         bounds: Parameter bounds. A single ``(lo, hi)`` tuple applies to all
             dimensions. A list of ``(lo, hi)`` tuples gives per-dimension
@@ -127,9 +124,6 @@ class TwoPhaseConfig:
     n_random: int = 500
     n_nm_refine: int = 50
     nm_maxiter: int = 5000
-    nm_xatol: float = 1e-8
-    nm_fatol: float = 1e-8
-    nm_adaptive: bool = True
     seed: int | None = 42
     bounds: tuple[float, float] | list[tuple[float, float]] = (-5.0, 5.0)
     penalty_scale: float = 1e6

@@ -418,22 +418,6 @@ def evolve_full_np(
     return psi
 
 
-# ============================================================================
-# Torch Circuit (AD-Enabled)
-# ============================================================================
-
-
-def _state_to_torch(state_np: np.ndarray) -> torch.Tensor:
-    """Convert a numpy state vector to a torch tensor.
-
-    Args:
-        state_np: Numpy array (complex).
-
-    Returns:
-        Torch tensor (complex128).
-    """
-    return torch.tensor(state_np, dtype=torch.complex128)
-
 
 def build_hold_hamiltonian_torch(
     omega_true: float | torch.Tensor,

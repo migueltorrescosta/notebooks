@@ -486,33 +486,6 @@ def generate_noon_state(N: int) -> np.ndarray:
     return state
 
 
-def generate_css_state(N: int) -> np.ndarray:
-    """Generate Coherent Superposition State (CSS) for N qubits.
-
-    CSS = (|0⟩^{⊗N} + |1⟩^{⊗N}) / √2 = (|0...0⟩ + |1...1⟩) / √2
-
-    This is the GHZ state, which achieves SQL scaling F_Q = N.
-
-    Args:
-        N: Number of qubits (mode dimension = 2^N full space).
-
-    Returns:
-        GHZ state vector. For practical computation, we return
-        the state in the computational basis representation.
-
-    """
-    if N < 1:
-        raise ValueError(f"N must be >= 1, got {N}")
-
-    # GHZ state in 2^N dimensional space
-    dim = 2**N
-    state = np.zeros(dim, dtype=complex)
-    state[0] = 1.0 / np.sqrt(2)  # |00...0⟩
-    state[-1] = 1.0 / np.sqrt(2)  # |11...1⟩
-
-    return state
-
-
 def generate_phase_generator(N: int, generator_type: str = "Jz") -> np.ndarray:
     """Generate phase generator for interferometry.
 
@@ -577,5 +550,4 @@ def validate_fisher_inputs(
         raise ValueError(f"{name} must be positive, got {F}")
 
 
-# Alias for consistent API with other modules
-validate_fisher = validate_fisher_inputs
+

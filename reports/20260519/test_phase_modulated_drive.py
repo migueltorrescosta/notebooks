@@ -25,6 +25,9 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+from src.analysis.ancilla_drive_metrology import (
+    compute_phase_modulated_sensitivity,
+)
 from src.analysis.ancilla_drive_results import (
     Drive2DSliceResult,
     DriveDecoupledBaselineResult,
@@ -47,7 +50,6 @@ build_phase_modulated_hold_hamiltonian = _m.build_phase_modulated_hold_hamiltoni
 compute_phase_modulated_decoupled_baseline = (
     _m.compute_phase_modulated_decoupled_baseline
 )
-compute_phase_modulated_sensitivity = _m.compute_phase_modulated_sensitivity
 evolve_phase_modulated_circuit = _m.evolve_phase_modulated_circuit
 phase_modulated_2d_slice = _m.phase_modulated_2d_slice
 phase_modulated_hold_unitary = _m.phase_modulated_hold_unitary

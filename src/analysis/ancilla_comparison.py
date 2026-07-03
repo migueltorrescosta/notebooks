@@ -418,51 +418,6 @@ def check_particle_number(
 # =============================================================================
 
 
-def evaluate_qfi_case_B(
-    rho: np.ndarray,
-    t_hold: float,
-    N_max: int,
-) -> float:
-    """Evaluate Quantum Fisher Information for Case B.
-
-    Args:
-        rho: Density matrix of dimension (N_max+1)^2.
-        t_hold: Holding-time strength.
-        N_max: Maximum photon number per mode.
-
-    Returns:
-        QFI value F_Q.
-
-    """
-    G_B = compute_generator_B(t_hold, N_max)
-    F_Q = quantum_fisher_information_dm(rho, G_B)
-    return float(F_Q)
-
-
-def evaluate_qfi_case_A(
-    rho: np.ndarray,
-    t_hold: float,
-    alphas: tuple[float, float, float, float],
-    N_max: int,
-    n_quadrature: int = 50,
-) -> float:
-    """Evaluate Quantum Fisher Information for Case A at theta = 0.
-
-    Args:
-        rho: Density matrix of dimension (N_max+1)^2 * 2.
-        t_hold: Holding-time strength.
-        alphas: (alpha_xx, alpha_xz, alpha_zx, alpha_zz) coupling coefficients.
-        N_max: Maximum photon number per mode for the system.
-        n_quadrature: Quadrature points for integral.
-
-    Returns:
-        QFI value F_Q.
-
-    """
-    G_A = compute_generator_A(t_hold, alphas, N_max, n_quadrature)
-    F_Q = quantum_fisher_information_dm(rho, G_A)
-    return float(F_Q)
-
 
 # =============================================================================
 # Optimisation (Random Search)

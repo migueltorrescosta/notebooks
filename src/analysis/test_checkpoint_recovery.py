@@ -66,14 +66,6 @@ class _FakeResult3Key:
     ]
 
 
-@dataclass
-class _FakeScanResult3Key:
-    results: list[_FakeResult3Key] = field(default_factory=list)
-
-    def save_parquet(self, path: Path) -> None:
-        df = pd.DataFrame([vars(r) for r in self.results])
-        df.to_parquet(path)
-
 
 # ---------------------------------------------------------------------------
 # Helper factories

@@ -43,17 +43,11 @@ class TDVPConfig:
     bond_dim_limit: int = 64
     """Maximum bond dimension allowed."""
 
-    svd_epsilon: float = 1e-8
-    """SVD truncation threshold."""
-
     checkpoint_every: int = 10
     """Save checkpoint every N time steps."""
 
     max_sweeps: int = 100
     """Maximum number of TDVP sweeps per time step."""
-
-    convergence_tol: float = 1e-6
-    """Convergence tolerance for sweeps."""
 
 
 @dataclass
@@ -65,9 +59,6 @@ class TDVPCheckpoint:
 
     time: float
     """Evolution time."""
-
-    state_vector: np.ndarray
-    """Full state vector at checkpoint."""
 
     energy: complex
     """Energy at checkpoint."""
@@ -94,9 +85,6 @@ class TDVPResult:
 
     fidelity_history: list[float] = field(default_factory=list)
     """Fidelity relative to exact evolution (if provided)."""
-
-    final_time: float = 0.0
-    """Final evolution time."""
 
     norm_preserved: bool = True
     """Whether norm was preserved throughout evolution."""
@@ -136,23 +124,6 @@ def _get_state_vector(tensor: qtn.Tensor) -> np.ndarray:
 # =============================================================================
 # Single-Site TDVP Update
 # =============================================================================
-
-
-def compute_environment_tensor(
-    tensor: qtn.Tensor,
-    site_idx: int,
-) -> np.ndarray:
-    """Compute the environment tensor for a given site.
-
-    The environment is the rest of the tensor network contracted with the site
-    removed.  For a single 2-index tensor this is a placeholder.
-    """
-    state = tensor.data
-    if site_idx == 0:
-        # main subspace — identity-on-ancilla projection
-        return state @ state.conj().T
-    # ancilla subspace
-    return state.conj().T @ state
 
 
 def apply_single_site_update(
@@ -206,45 +177,6 @@ def tdvp_single_site(
 
     return apply_single_site_update(tensor, site_idx, dt, H_eff)
 
-
-# =============================================================================
-# Effective Hamiltonian Construction
-# =============================================================================
-
-
-def compute_local_expectation(
-    tensor: qtn.Tensor,
-    site_idx: int,
-    operator: np.ndarray,
-) -> complex:
-    """Compute expectation value of local operator.
-
-    ⟨ψ|O_i|ψ⟩ for site i.
-    """
-    which = "main" if site_idx == 0 else "ancilla"
-    # Apply operator and compute overlap
-    op_tensor = tensor.gate(operator, which)
-    return complex(tensor.overlap(op_tensor))
-
-
-def construct_effective_hamiltonian(
-    tensor: qtn.Tensor,
-    site_idx: int,
-    H_terms: list[np.ndarray],
-    site_operators: list[np.ndarray],
-) -> np.ndarray:
-    """Construct effective Hamiltonian for a site.
-
-    H_eff = Σ_k c_k O_k where c_k are expectation values of commuting terms.
-    """
-    loc_dim = H_terms[0].shape[0] if H_terms else 2
-    H_eff = np.zeros((loc_dim, loc_dim), dtype=complex)
-
-    for H_term, site_op in zip(H_terms, site_operators, strict=False):
-        exp_val = compute_local_expectation(tensor, site_idx, site_op)
-        H_eff = H_eff + exp_val * H_term
-
-    return H_eff
 
 
 # =============================================================================
@@ -445,7 +377,6 @@ def tdvp_evolution(
             checkpoint = TDVPCheckpoint(
                 step=step + 1,
                 time=current_time,
-                state_vector=current_state.copy(),
                 energy=energy,
                 max_bond_dim=current_tensor.max_dim(),
             )
@@ -462,7 +393,6 @@ def tdvp_evolution(
         energies=energies,
         times=times,
         fidelity_history=fidelity_history,
-        final_time=current_time,
         norm_preserved=norm_preserved,
     )
 

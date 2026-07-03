@@ -64,9 +64,6 @@ CFI_EPSILON: float = 1e-6  # Central difference step
 PROB_FLOOR: float = 1e-15  # CFI denominator regularisation
 MAX_TRUNC: int = 100  # Maximum photons per mode (explicit, never defaulted)
 
-# Scaling fit
-ALPHA_EXPECTED: float = -0.76  # TMSV exponent from #20260625
-BETA_EXPECTED: float = 1.0  # Prefactor exponent (Δω ∝ 1/ℱ)
 
 # Figure settings
 COLORMAP = "viridis"

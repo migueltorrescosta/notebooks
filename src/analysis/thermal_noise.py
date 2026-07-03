@@ -9,13 +9,9 @@ Extracted from src/analysis/scaling_survey.py.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 from src.analysis.scaling_fit import ScalingFitResult, fit_scaling_exponent
 
@@ -107,8 +103,6 @@ def combined_sensitivity(
 def thermal_sensitivity_at_N(
     N: float,
     base_config: ThermalLangevinConfig,
-    m_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
-    k_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
 ) -> float:
     """Compute the combined thermal+quantum phase sensitivity at given N.
 
@@ -117,8 +111,6 @@ def thermal_sensitivity_at_N(
     Args:
         N: Particle number.
         base_config: Base thermal noise configuration.
-        m_scaling: Ignored, included for backward compatibility.
-        k_scaling: Ignored, included for backward compatibility.
 
     Returns:
         Combined Δφ = sqrt(Δφ_quantum² + Δφ_thermal²).
@@ -130,16 +122,12 @@ def thermal_sensitivity_at_N(
 def sweep_thermal_scaling(
     N_values: list[int] | npt.NDArray[np.int_],
     base_config: ThermalLangevinConfig,
-    m_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
-    k_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
 ) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """Sweep thermal+quantum sensitivity over a range of N values.
 
     Args:
         N_values: Array of particle numbers to evaluate.
         base_config: Base configuration.
-        m_scaling: Ignored.
-        k_scaling: Ignored.
 
     Returns:
         Tuple of (N_array, delta_phi_array).
@@ -157,8 +145,6 @@ def sweep_thermal_scaling(
 def fit_thermal_scaling_exponent(
     N_values: list[int] | npt.NDArray[np.int_],
     base_config: ThermalLangevinConfig,
-    m_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
-    k_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
     min_N: int = 4,
 ) -> ScalingFitResult:
     """Fit the effective scaling exponent α for thermal+quantum noise.
@@ -168,8 +154,6 @@ def fit_thermal_scaling_exponent(
     Args:
         N_values: Array of particle numbers to evaluate.
         base_config: Base configuration.
-        m_scaling: Ignored.
-        k_scaling: Ignored.
         min_N: Minimum N for the fit.
 
     Returns:
@@ -183,8 +167,6 @@ def fit_thermal_scaling_exponent(
 
 def crossover_N(
     base_config: ThermalLangevinConfig,
-    m_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
-    k_scaling: Callable[[float, ThermalLangevinConfig], float] | None = None,
     tol: float = 1e-3,
     max_iter: int = 100,
 ) -> float:
@@ -201,8 +183,6 @@ def crossover_N(
 
     Args:
         base_config: Thermal configuration.
-        m_scaling: Ignored.
-        k_scaling: Ignored.
         tol: Convergence tolerance.
         max_iter: Maximum iterations.
 

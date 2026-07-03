@@ -184,7 +184,6 @@ def compute_phase_sensitivity(
 def compute_ttn_bond_growth(
     N: int,
     state: np.ndarray,
-    max_epsilon: float = 1e-8,
 ) -> dict:
     """Compute TTN bond dimension estimates from the state's entanglement.
 
@@ -201,9 +200,6 @@ def compute_ttn_bond_growth(
     Args:
         N: Number of atoms.
         state: State vector of dimension (N+1) in the Dicke basis.
-        max_epsilon: SVD truncation threshold (used for naming the
-            epsilon values in the output; the actual analysis uses
-            participation ratio rather than true SVD).
 
     Returns:
         Dictionary with keys:

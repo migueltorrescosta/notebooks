@@ -24,9 +24,6 @@ from src.analysis.optimisation_pipeline import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
-SIMPLE_BOUNDS: tuple[float, float] = (-5.0, 5.0)
-PER_DIM_BOUNDS: list[tuple[float, float]] = [(-5.0, 5.0), (0.0, 10.0), (-1.0, 1.0)]
-
 
 def _make_quadratic(offset: float = 0.0) -> Callable:
     """Simple quadratic centred at the origin (minimum = offset at zero)."""

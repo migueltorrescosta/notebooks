@@ -64,49 +64,6 @@ class LindbladConfig:
 
 
 # =============================================================================
-# Bosonic Operators
-# =============================================================================
-
-
-def create_two_mode_operators(
-    N: int,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Create operators for two-mode bosonic system.
-
-    Args:
-        N: Maximum photon number per mode.
-
-    Returns:
-        Tuple of (a1, a2, a1†, a2†) operators.
-
-    """
-    dim = (N + 1) ** 2
-
-    a1 = np.zeros((dim, dim), dtype=complex)
-    a2 = np.zeros((dim, dim), dtype=complex)
-    a1_dag = np.zeros((dim, dim), dtype=complex)
-    a2_dag = np.zeros((dim, dim), dtype=complex)
-
-    for n1 in range(N + 1):
-        for n2 in range(N + 1):
-            idx = n1 * (N + 1) + n2
-
-            # a1|n1,n2⟩ = √n1|n1-1,n2⟩
-            if n1 > 0:
-                new_idx = (n1 - 1) * (N + 1) + n2
-                a1[idx, new_idx] = np.sqrt(n1)
-                a1_dag[new_idx, idx] = np.sqrt(n1)
-
-            # a2|n1,n2⟩ = √n2|n1,n2-1⟩
-            if n2 > 0:
-                new_idx = n1 * (N + 1) + (n2 - 1)
-                a2[idx, new_idx] = np.sqrt(n2)
-                a2_dag[new_idx, idx] = np.sqrt(n2)
-
-    return a1, a2, a1_dag, a2_dag
-
-
-# =============================================================================
 # Density Matrix Utilities
 # =============================================================================
 
@@ -362,37 +319,6 @@ def compute_photon_number(rho: np.ndarray, N: int) -> float:
     n = qutip.create(N + 1).full() @ qutip.destroy(N + 1).full()
     return np.real(np.trace(rho @ n))
 
-
-def compute_phase_variance(rho: np.ndarray, N: int) -> float:
-    """Compute phase variance Δφ² for single mode.
-
-    Uses the Pegg-Barnett phase convention.
-
-    Args:
-        rho: Density matrix.
-        N: Truncation.
-
-    Returns:
-        Phase variance.
-
-    """
-    # Phase operator in truncated space
-    dim = N + 1
-    theta = 2 * np.pi / dim
-    phase_ops = np.zeros((dim, dim), dtype=complex)
-
-    for m in range(dim):
-        for n in range(dim):
-            if m != n:
-                phase_ops[m, n] = (1.0j / (m - n)) * (
-                    np.exp(1.0j * (m - n) * theta) - 1
-                )
-
-    # Compute expectation
-    phi = np.trace(rho @ phase_ops)
-    phi_sq = np.trace(rho @ phase_ops @ phase_ops)
-
-    return np.real(phi_sq - phi**2)
 
 
 # =============================================================================

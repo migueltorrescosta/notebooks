@@ -85,8 +85,6 @@ OMEGA_RANGE: tuple[float, float] = (0.01, 5.0)
 OMEGA_STEP: float = 0.01
 
 # Scaling fit
-TMSV_ALPHA_EXPECTED: float = -1.0  # TMSV → Heisenberg
-OAT_ALPHA_EXPECTED: float = -0.5  # OAT → SQL (invariant under J_z²)
 
 
 # ============================================================================

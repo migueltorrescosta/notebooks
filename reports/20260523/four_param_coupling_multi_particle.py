@@ -778,59 +778,6 @@ class FourParamSweepResult(ParquetSerializable):
     def n_points(self) -> int:
         return len(self.omega_values)
 
-    @property
-    def n_omega_unique(self) -> int:
-        return len(np.unique(self.omega_values))
-
-    @property
-    def n_N_unique(self) -> int:
-        return len(np.unique(self.N_values))
-
-    def filter_protocol(self, protocol: str) -> FourParamSweepResult:
-        """Return a new result filtered to a single protocol."""
-        mask = [p == protocol for p in self.protocol]
-        return FourParamSweepResult(
-            omega_values=self.omega_values[mask],
-            N_values=self.N_values[mask],
-            protocol=[self.protocol[i] for i in range(len(mask)) if mask[i]],
-            alpha_xx_opt=self.alpha_xx_opt[mask],
-            alpha_xz_opt=self.alpha_xz_opt[mask],
-            alpha_zx_opt=self.alpha_zx_opt[mask],
-            alpha_zz_opt=self.alpha_zz_opt[mask],
-            delta_omega_opt=self.delta_omega_opt[mask],
-            sql_values=self.sql_values[mask],
-            ratio=self.ratio[mask],
-            expectation_Jz=self.expectation_Jz[mask],
-            variance_Jz=self.variance_Jz[mask],
-            d_expectation=self.d_expectation[mask],
-            n_starts=self.n_starts[mask],
-            n_converged=self.n_converged[mask],
-            gradient_norm=self.gradient_norm[mask],
-            t_hold=self.t_hold,
-        )
-
-    def filter_omega(self, omega: float) -> FourParamSweepResult:
-        """Return a new result filtered to a single ω value."""
-        mask = np.isclose(self.omega_values, omega)
-        return FourParamSweepResult(
-            omega_values=self.omega_values[mask],
-            N_values=self.N_values[mask],
-            protocol=[self.protocol[i] for i in range(len(mask)) if mask[i]],
-            alpha_xx_opt=self.alpha_xx_opt[mask],
-            alpha_xz_opt=self.alpha_xz_opt[mask],
-            alpha_zx_opt=self.alpha_zx_opt[mask],
-            alpha_zz_opt=self.alpha_zz_opt[mask],
-            delta_omega_opt=self.delta_omega_opt[mask],
-            sql_values=self.sql_values[mask],
-            ratio=self.ratio[mask],
-            expectation_Jz=self.expectation_Jz[mask],
-            variance_Jz=self.variance_Jz[mask],
-            d_expectation=self.d_expectation[mask],
-            n_starts=self.n_starts[mask],
-            n_converged=self.n_converged[mask],
-            gradient_norm=self.gradient_norm[mask],
-            t_hold=self.t_hold,
-        )
 
     def filter_N(self, N: int) -> FourParamSweepResult:
         """Return a new result filtered to a single N value."""

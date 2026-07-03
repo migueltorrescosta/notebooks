@@ -45,6 +45,7 @@ if "OMP_NUM_THREADS" not in os.environ:
 # Shared primitives (used by all reports)
 from src.analysis.ancilla_drive_metrology import (
     build_iszz_interaction,
+    compute_phase_modulated_sensitivity,
     system_only_bs_unitary,
 )
 from src.analysis.ancilla_drive_results import (
@@ -240,96 +241,6 @@ def evolve_phase_modulated_circuit(
     return psi
 
 
-def compute_phase_modulated_sensitivity(
-    psi0: np.ndarray,
-    T_BS: float,
-    t_hold: float,
-    omega_true: float,
-    a_x: float,
-    a_y: float,
-    a_z: float,
-    a_zz: float,
-    ops: dict[str, np.ndarray],
-    fd_step: float = 1e-6,
-    meas_op: np.ndarray | None = None,
-) -> float:
-    """Compute the error-propagation sensitivity Δω.
-
-    Δω = sqrt(Var(O)) / |∂⟨O⟩/∂ω|
-
-    where O is the measurement operator (default: J_z^S).
-
-    IMPORTANT: Because ω now appears in both H_S (= ω J_z^S) and H_A
-    (= ω (a_x J_x^A + a_y J_y^A + a_z J_z^A)), the central finite-difference
-    step captures the FULL ω-dependence (both channels) automatically —
-    the circuit is re-evaluated at ω ± δ, and both H_S and H_A change.
-
-    Args:
-        psi0: Initial 4-vector (product state).
-        T_BS: Beam-splitter duration.
-        t_hold: Holding-time strength.
-        omega_true: True phase rate parameter.
-        a_x: Ancilla J_x drive coefficient.
-        a_y: Ancilla J_y drive coefficient.
-        a_z: Ancilla J_z drive coefficient.
-        a_zz: Ising interaction coefficient.
-        ops: Two-qubit operators (must contain 'Jz_S').
-        fd_step: Finite-difference step size (default 1e-6).
-        meas_op: Measurement operator. Defaults to ops['Jz_S'] (S-only).
-
-    Returns:
-        Sensitivity Δω (positive float). Returns inf if derivative is zero
-        (fringe extremum).
-    """
-    if meas_op is None:
-        meas_op = ops["Jz_S"]
-
-    # Evaluate at omega_true
-    psi = evolve_phase_modulated_circuit(
-        psi0,
-        T_BS,
-        t_hold,
-        omega_true,
-        a_x,
-        a_y,
-        a_z,
-        a_zz,
-        ops,
-    )
-    _, var = compute_expectation_and_variance(psi, meas_op)
-
-    # Central finite difference for ∂⟨O⟩/∂ω
-    psi_plus = evolve_phase_modulated_circuit(
-        psi0,
-        T_BS,
-        t_hold,
-        omega_true + fd_step,
-        a_x,
-        a_y,
-        a_z,
-        a_zz,
-        ops,
-    )
-    psi_minus = evolve_phase_modulated_circuit(
-        psi0,
-        T_BS,
-        t_hold,
-        omega_true - fd_step,
-        a_x,
-        a_y,
-        a_z,
-        a_zz,
-        ops,
-    )
-    exp_plus = np.real(psi_plus.conj() @ meas_op @ psi_plus)
-    exp_minus = np.real(psi_minus.conj() @ meas_op @ psi_minus)
-    d_exp = (exp_plus - exp_minus) / (2.0 * fd_step)
-
-    if abs(d_exp) < 1e-12:
-        return float("inf")
-
-    return float(np.sqrt(var) / abs(d_exp))
-
 
 # ============================================================================
 # Decoupled Baseline
@@ -506,92 +417,6 @@ def phase_modulated_random_search(
         t_hold=t_hold,
     )
 
-
-# ============================================================================
-# Nelder--Mead Optimisation
-# ============================================================================
-
-
-def run_phase_modulated_nelder_mead(
-    omega_true: float,
-    x0: np.ndarray | None = None,
-    seed: int | None = None,
-    maxiter: int = 5000,
-    xatol: float = 1e-8,
-    fatol: float = 1e-8,
-    adaptive: bool = True,
-    bounds: tuple[float, float] = DRIVE_BOUNDS,
-    t_hold: float = DEFAULT_t_hold,
-    T_BS: float = DEFAULT_T_BS,
-    track_history: bool = False,
-) -> DriveNelderMeadResult:
-    """Run Nelder--Mead optimisation for the ω-modulated ancilla protocol.
-
-    Args:
-        omega_true: True phase rate parameter.
-        x0: Initial 4-parameter vector [ax, ay, az, azz]. Random if None.
-        seed: Random seed (used if x0 is None).
-        maxiter: Maximum Nelder--Mead iterations.
-        xatol: Absolute parameter tolerance.
-        fatol: Absolute function tolerance.
-        adaptive: Use adaptive Nelder--Mead parameters.
-        bounds: (min, max) for all four parameters.
-        t_hold: Holding time.
-        T_BS: Beam-splitter duration.
-        track_history: If True, record objective values per iteration.
-
-    Returns:
-        DriveNelderMeadResult.
-    """
-    ops = build_two_qubit_operators()
-
-    if x0 is None:
-        rng = np.random.default_rng(seed)
-        lo, hi = bounds
-        x0 = rng.uniform(lo, hi, size=4)
-    else:
-        x0 = np.asarray(x0, dtype=float)
-        assert x0.shape == (4,), f"x0 must have 4 elements, got {x0.shape}"
-
-    raw_obj = _make_phase_objective(
-        omega_true, ops, DEFAULT_PSI0, t_hold=t_hold, T_BS=T_BS
-    )
-    nm = run_nelder_mead(
-        raw_obj,
-        x0=x0,
-        bounds=bounds,
-        maxiter=maxiter,
-        xatol=xatol,
-        fatol=fatol,
-        adaptive=adaptive,
-        track_history=track_history,
-    )
-
-    opt_p = nm["x_opt"]
-    psi_final = evolve_phase_modulated_circuit(
-        DEFAULT_PSI0,
-        T_BS,
-        t_hold,
-        omega_true,
-        float(opt_p[0]),
-        float(opt_p[1]),
-        float(opt_p[2]),
-        float(opt_p[3]),
-        ops,
-    )
-    exp_val, var_val = compute_expectation_and_variance(psi_final, ops["Jz_S"])
-
-    return DriveNelderMeadResult(
-        delta_omega_opt=nm["fun_opt"],
-        params_opt=opt_p,
-        omega_true=omega_true,
-        success=nm["success"],
-        nfev=nm["nfev"],
-        message=nm["message"],
-        expectation_Jz=exp_val,
-        variance_Jz=var_val,
-        history=nm["history"],
-    )
 
 
 # ============================================================================

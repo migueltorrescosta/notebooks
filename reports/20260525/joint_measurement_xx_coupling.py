@@ -637,37 +637,7 @@ class DualMZIOptimisedResult(ParquetSerializable):
     def n_points(self) -> int:
         return len(self.omega_values)
 
-    @property
-    def n_omega_unique(self) -> int:
-        return len(np.unique(self.omega_values))
 
-    @property
-    def n_N_unique(self) -> int:
-        return len(np.unique(self.N_values))
-
-
-# ============================================================================
-# Sweep Execution
-# ============================================================================
-
-
-def _unpack_worker_result(r: dict[str, Any]) -> dict[str, float | int]:
-    """Extract typed values from a worker result dict (process-boundary safe)."""
-    return {
-        "omega": float(r["omega"]),
-        "N": int(r["N"]),
-        "alpha_xx_opt": float(r["alpha_xx_opt"]),
-        "psi_opt": float(r["psi_opt"]),
-        "ms_opt": float(r["ms_opt"]),
-        "ma_opt": float(r["ma_opt"]),
-        "delta_omega_opt": float(r["delta_omega_opt"]),
-        "sql_2n": float(r["sql_2n"]),
-        "expectation_M": float(r["expectation_M"]),
-        "variance_M": float(r["variance_M"]),
-        "d_expectation": float(r["d_expectation"]),
-        "n_starts_at_best": int(r["n_starts_at_best"]),
-        "n_starts_converged": int(r["n_starts_converged"]),
-    }
 
 
 def _n_starts_for_n(N: int) -> int:

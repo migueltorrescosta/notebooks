@@ -1028,51 +1028,6 @@ class JointNScalingScanResult(ParquetSerializable):
 # ============================================================================
 
 
-def generate_joint_scaling_data(
-    omega_value: float = 0.2,
-    N_range: list[int] | None = None,
-    seed: int = 42,
-    maxiter: int = NM_MAXITER,
-    progress_callback: Callable[[int, int], None] | None = None,
-) -> JointNScalingScanResult:
-    """Scan N values, running Nelder-Mead at each N for joint protocol only.
-
-    Args:
-        omega_value: True ω for all runs.
-        N_range: List of N values (default [1, 2, 3, 4, 5, 8, 10, 15, 20]).
-        seed: Base RNG seed (incremented per N).
-        maxiter: Max Nelder-Mead iterations per run.
-        progress_callback: Optional fn(current, total) for progress.
-
-    Returns:
-        JointNScalingScanResult with individual results.
-    """
-    if N_range is None:
-        N_range = [1, 2, 3, 4, 5, 8, 10, 15, 20]
-
-    results: list[JointNScalingResult] = []
-
-    for idx, N in enumerate(N_range):
-        if progress_callback:
-            progress_callback(idx + 1, len(N_range))
-
-        ops = build_n_particle_operators(N)
-        psi0 = n_particle_initial_state(N)
-        n_seed = seed + N
-
-        joint_res = run_single_joint_n_omega(
-            N=N,
-            omega=omega_value,
-            ops=ops,
-            psi0=psi0,
-            seed=n_seed,
-            maxiter=maxiter,
-        )
-
-        results.append(joint_res)
-
-    return JointNScalingScanResult(results=results)
-
 
 def generate_joint_and_sonly_scaling_data(
     omega_value: float = 0.2,

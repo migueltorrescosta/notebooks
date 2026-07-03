@@ -57,9 +57,6 @@ class SurveyConfig:
             estimation, the sensitivity is phase-independent for pure states
             (F_Q = 4·Var(J_z)), but noise effects may depend on the phase.
             Default: π/4.
-        measurement: Measurement type for sensitivity estimation.
-            Options: "parity", "Jz", "number_difference".
-            Default: "parity".
         method: Sensitivity estimation method.
             Options: "qfi" (Quantum Fisher Information), "cf" (Classical Fisher),
             "ep" (Error Propagation), "bayesian".
@@ -72,7 +69,6 @@ class SurveyConfig:
     n_points: int = 8
     noise_levels: list[float] = field(default_factory=lambda: [0.0, 1e-3, 1e-2, 1e-1])
     phi_phase: float = np.pi / 4
-    measurement: str = "parity"
     method: str = "qfi"
     seed: int = 42
 
@@ -964,60 +960,4 @@ def fit_all_exponents(
 # Export Utilities
 
 
-def survey_to_parquet(survey_df: pd.DataFrame, path: str) -> None:
-    """Export survey results to Parquet.
 
-    Args:
-        survey_df: DataFrame from run_scaling_survey or fit_all_exponents.
-        path: File path to write the Parquet.
-
-    Raises:
-        ValueError: If survey_df is empty.
-
-    """
-    if survey_df.empty:
-        raise ValueError("Cannot export empty DataFrame")
-
-    survey_df.to_parquet(path, index=False)
-
-
-def survey_to_json(survey_df: pd.DataFrame, path: str) -> None:
-    """Export survey results to JSON (structured, human-readable format).
-
-    The JSON output includes metadata (columns, row count) and the
-    data records as a list of dictionaries.
-
-    Args:
-        survey_df: DataFrame from run_scaling_survey or fit_all_exponents.
-        path: File path to write the JSON.
-
-    Raises:
-        ValueError: If survey_df is empty.
-
-    """
-    if survey_df.empty:
-        raise ValueError("Cannot export empty DataFrame")
-
-    # Convert DataFrame to a structured JSON format
-    output: dict = {
-        "metadata": {
-            "columns": list(survey_df.columns),
-            "rows": len(survey_df),
-        },
-        "data": survey_df.to_dict(orient="records"),
-    }
-
-    # Handle numpy types for JSON serialization
-    class NumpyEncoder(json.JSONEncoder):
-        def default(self, o: object) -> object:
-            if isinstance(o, (np.integer,)):
-                return int(o)
-            if isinstance(o, (np.floating,)):
-                return float(o)
-            if isinstance(o, np.ndarray):
-                return o.tolist()
-            if isinstance(o, (np.bool_,)):
-                return bool(o)
-            return super().default(o)
-
-    Path(path).write_text(json.dumps(output, indent=2, cls=NumpyEncoder))

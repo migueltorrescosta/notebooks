@@ -284,44 +284,6 @@ def generate_surface(
 # =============================================================================
 
 
-def benchmark_optimizers(
-    function_names: list[str],
-    minimizer_names: list[str],
-    x0: np.ndarray | None = None,
-) -> dict[str, list[dict[str, Any]]]:
-    """Run performance benchmark across functions and optimizers.
-
-    Args:
-        function_names: List of test function names.
-        minimizer_names: List of minimizer names.
-        x0: Starting point for optimization.
-
-    Returns:
-        Results dictionary with argmin and minimum values.
-
-    """
-    if x0 is None:
-        x0 = np.array([0.0, 0.0])
-    results = []
-
-    for func_name in function_names:
-        func = TEST_FUNCTIONS[func_name]
-        for min_name in minimizer_names:
-            minimizer = MINIMIZERS[min_name]
-            result = minimizer(func, x0)
-            results.append(
-                {
-                    "function": func_name,
-                    "minimizer": min_name,
-                    "argmin": result["x"],
-                    "minimum": result["fun"],
-                    "success": result["success"],
-                },
-            )
-
-    return {"results": results}
-
-
 def normalize_benchmark_results(
     results: list[dict],
 ) -> np.ndarray:

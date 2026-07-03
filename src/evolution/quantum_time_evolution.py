@@ -238,56 +238,6 @@ def normalize_energy_levels(
     return wave_functions_matrix, components, energies
 
 
-# =============================================================================
-# State Preparation
-# =============================================================================
-
-
-def prepare_initial_state(
-    x_grid: np.ndarray,
-    state_type: str,
-    **kwargs: Any,
-) -> np.ndarray:
-    """Prepare an initial wavefunction.
-
-    Args:
-        x_grid: Spatial grid.
-        state_type: Type of state ('gaussian' or 'step').
-        **kwargs: Parameters specific to state_type.
-            For 'gaussian': d (float), x0 (float), p (float)
-            For 'step': r (float), s (float), p (float)
-
-    Returns:
-        Normalized wavefunction.
-
-    """
-    match state_type.lower():
-        case "gaussian":
-            wf = gaussian_wave_packet(
-                x_grid,
-                d=kwargs.get("d", 1.0),
-                x0=kwargs.get("x0", 0.0),
-                p=kwargs.get("p", 0.0),
-            )
-        case "step":
-            wf = step_wave_packet(
-                x_grid,
-                r=kwargs.get("r", -1.0),
-                s=kwargs.get("s", 1.0),
-                p=kwargs.get("p", 0.0),
-            )
-        case _:
-            raise ValueError(f"Unknown state_type: {state_type}")
-
-    # Normalize
-    norm = np.sqrt(np.sum(np.abs(wf) ** 2))
-    if norm > 0:
-        wf = wf / norm
-    assert np.isclose(np.linalg.norm(wf), 1.0, rtol=1e-5, atol=1e-8), (
-        f"Initial state '{state_type}' not normalized: norm={np.linalg.norm(wf)}"
-    )
-    return wf
-
 
 # =============================================================================
 # Time Evolution
