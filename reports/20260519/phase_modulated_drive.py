@@ -239,7 +239,6 @@ def evolve_phase_modulated_circuit(
     return psi
 
 
-
 # ============================================================================
 # Decoupled Baseline
 # ============================================================================
@@ -300,6 +299,7 @@ def phase_modulated_2d_slice(
 
     For slice_type='ax': varies a_x (with a_y = a_z = 0).
     For slice_type='ay': varies a_y (with a_x = a_z = 0).
+    For slice_type='az': varies a_z (with a_x = a_y = 0).
 
     Args:
         omega: Phase rate value.
@@ -307,15 +307,15 @@ def phase_modulated_2d_slice(
         azz_range: (min, max) for the interaction coefficient.
         n_drive: Number of drive-coefficient points.
         n_azz: Number of a_zz points.
-        slice_type: 'ax' or 'ay'.
+        slice_type: 'ax', 'ay', or 'az'.
         t_hold: Holding time (default 10).
         T_BS: Beam-splitter duration (default π/2).
 
     Returns:
         Drive2DSliceResult with the sensitivity grid.
     """
-    if slice_type not in ("ax", "ay"):
-        raise ValueError(f"slice_type must be 'ax' or 'ay', got {slice_type}")
+    if slice_type not in ("ax", "ay", "az"):
+        raise ValueError(f"slice_type must be 'ax', 'ay', or 'az', got {slice_type}")
 
     ops = build_two_qubit_operators()
     drive_vals = np.linspace(drive_range[0], drive_range[1], n_drive)
@@ -324,8 +324,10 @@ def phase_modulated_2d_slice(
     def _sensitivity(d_val: float, a_val: float) -> float:
         if slice_type == "ax":
             ax, ay, az = d_val, 0.0, 0.0
-        else:
+        elif slice_type == "ay":
             ax, ay, az = 0.0, d_val, 0.0
+        else:  # 'az'
+            ax, ay, az = 0.0, 0.0, d_val
         return compute_phase_modulated_sensitivity(
             DEFAULT_PSI0,
             T_BS,
@@ -414,7 +416,6 @@ def phase_modulated_random_search(
         sql=1.0 / t_hold,
         t_hold=t_hold,
     )
-
 
 
 # ============================================================================
@@ -811,6 +812,20 @@ def generate_phase_2d_slice_ay_azz(force: bool = False) -> None:
     print(f"[run]  (a_y, a_zz) phase slice at {n} ω values (parallel)")
     worker = partial(_run_phase_2d_slice, slice_type="ay", force=force)
     parallel_map(worker, PHASE_OMEGA_VALS, desc="(a_y, a_zz) slices")
+
+
+def generate_phase_2d_slice_az_azz(force: bool = False) -> None:
+    """Phase-modulated 2D slice scans over (a_z, a_zz) at all ω values.
+
+    Unlike the (a_x, a_zz) and (a_y, a_zz) slices, this scan constrains
+    a_x = a_y = 0 (longitudinal-only drive). The analytical result of
+    Sec 8.1 (article) predicts Δω = 1/T_H everywhere — confirmed
+    numerically by the flat grid.
+    """
+    n = len(PHASE_OMEGA_VALS)
+    print(f"[run]  (a_z, a_zz) phase slice at {n} ω values (parallel)")
+    worker = partial(_run_phase_2d_slice, slice_type="az", force=force)
+    parallel_map(worker, PHASE_OMEGA_VALS, desc="(a_z, a_zz) slices")
 
 
 def _run_phase_random_search(omega: float, force: bool) -> None:
@@ -1221,6 +1236,95 @@ def generate_phase_cross_experiment_comparison(force: bool = False) -> None:
 
 
 # ============================================================================
+# Verification Functions
+# ============================================================================
+
+
+def verify_longitudinal_only_sql() -> dict[str, float]:
+    """Verify the longitudinal-only (a_x = a_y = 0) SQL flatness.
+
+    Performs three checks:
+    1. Single-point: (a_z=2.1, a_zz=0.94, a_x=a_y=0) → Δω = 1/T_H (SQL).
+    2. With transverse drives: (a_z=2.1, a_zz=0.94, a_x=5, a_y=-5) →
+       Δω < 1/T_H (sub-SQL) due to transverse drives.
+    3. 50×50 grid over a_z∈[-5,5], a_zz∈[-2,5] with a_x=a_y=0 →
+       every point equals 1/T_H within numerical precision.
+
+    Returns:
+        Dict with verification results (delta_omega for each check).
+    """
+    results: dict[str, float] = {}
+    ops = build_two_qubit_operators()
+
+    # Reference SQL
+    sql = 1.0 / DEFAULT_t_hold  # 0.1
+
+    # --- Check 1: Longitudinal-only (a_x = a_y = 0) ---
+    domega = compute_phase_modulated_sensitivity(
+        DEFAULT_PSI0,
+        DEFAULT_T_BS,
+        DEFAULT_t_hold,
+        0.1,  # omega
+        0.0,  # a_x
+        0.0,  # a_y
+        2.1,  # a_z
+        0.94,  # a_zz
+        ops,
+    )
+    results["longitudinal_only_delta_omega"] = domega
+    assert np.isclose(domega, sql, atol=1e-10), (
+        f"Longitudinal-only Δω = {domega:.15f}, expected SQL = {sql:.15f}"
+    )
+    print(f"  [PASS] Longitudinal-only: Δω = {domega:.15f} (SQL = {sql})")
+
+    # --- Check 2: With transverse drives, same (a_z, a_zz) ---
+    domega_t = compute_phase_modulated_sensitivity(
+        DEFAULT_PSI0,
+        DEFAULT_T_BS,
+        DEFAULT_t_hold,
+        0.1,  # omega
+        5.0,  # a_x
+        -5.0,  # a_y
+        2.1,  # a_z
+        0.94,  # a_zz
+        ops,
+    )
+    results["with_transverse_delta_omega"] = domega_t
+    assert domega_t < sql, f"Transverse Δω = {domega_t:.6f} should be below SQL = {sql}"
+    print(f"  [PASS] With transverse drives: Δω = {domega_t:.6f} (< SQL = {sql})")
+
+    # --- Check 3: 2D grid over (a_z, a_zz) with a_x = a_y = 0 ---
+    az_vals = np.linspace(-5.0, 5.0, 50)
+    azz_vals = np.linspace(-2.0, 5.0, 50)
+    max_deviation = 0.0
+    for az in az_vals:
+        for azz in azz_vals:
+            d = compute_phase_modulated_sensitivity(
+                DEFAULT_PSI0,
+                DEFAULT_T_BS,
+                DEFAULT_t_hold,
+                0.1,
+                0.0,
+                0.0,
+                az,
+                azz,
+                ops,
+            )
+            dev = abs(d - sql)
+            max_deviation = max(max_deviation, dev)
+    results["grid_max_deviation"] = max_deviation
+    # Finite-difference derivative noise introduces ~1e-9 deviations;
+    # < 1e-8 is well within acceptable numerical precision.
+    assert max_deviation < 1e-8, (
+        f"Grid max deviation = {max_deviation:.2e}, expected < 1e-8"
+    )
+    print(f"  [PASS] 50×50 grid: max deviation from SQL = {max_deviation:.2e}")
+
+    print("\n  All longitudinal-only SQL-flatness checks PASSED.")
+    return results
+
+
+# ============================================================================
 # CLI Entry Point
 # ============================================================================
 
@@ -1250,6 +1354,7 @@ def main() -> None:
         "phase-decoupled-baseline": generate_phase_decoupled_baseline,
         "phase-2d-slice-ax-azz": generate_phase_2d_slice_ax_azz,
         "phase-2d-slice-ay-azz": generate_phase_2d_slice_ay_azz,
+        "phase-2d-slice-az-azz": generate_phase_2d_slice_az_azz,
         "phase-random-search": generate_phase_random_search,
         "phase-omega-scan": generate_phase_omega_scan,
         "phase-optimal-params": generate_phase_optimal_params,

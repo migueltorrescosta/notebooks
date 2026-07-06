@@ -778,7 +778,6 @@ class FourParamSweepResult(ParquetSerializable):
     def n_points(self) -> int:
         return len(self.omega_values)
 
-
     def filter_N(self, N: int) -> FourParamSweepResult:
         """Return a new result filtered to a single N value."""
         mask = self.N_values == N

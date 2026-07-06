@@ -26,10 +26,12 @@ The basis ordering follows the project convention: index $= n_S \times 2 + n_A$,
 
 We define the following single-qubit operators, expressed in the $\{|0\rangle, |1\rangle\}$ basis:
 
-- **Number operator**: $\hat{n} = \text{diag}(0, 1)$, acting on each qubit individually.
+- **Mode-0 number operator**: $\hat{n}_0 = \text{diag}(1, 0)$, counting population in $|0\rangle$, acting on each qubit individually.
+- **Mode-1 number operator**: $\hat{n}_1 = \text{diag}(0, 1)$, counting population in $|1\rangle$, acting on each qubit individually (this is the same as $\hat{n}$ defined below).
+- **Number operator** (common shorthand): $\hat{n} \equiv \hat{n}_1 = \text{diag}(0, 1)$.
 - **Pauli matrices**: $\hat{\sigma}^x = \begin{pmatrix}0 & 1 \\ 1 & 0\end{pmatrix}$, $\hat{\sigma}^y = \begin{pmatrix}0 & -i \\ i & 0\end{pmatrix}$, $\hat{\sigma}^z = \begin{pmatrix}1 & 0 \\ 0 & -1\end{pmatrix}$.
 
-The key collective operator is the **phase generator** for each qubit, defined as $J_z = (\hat{n}_0 - \hat{n}_1)/2$. For a qubit with Fock states $|0\rangle$ and $|1\rangle$, this becomes $J_z = -\frac{1}{2} \hat{\sigma}^z = \frac{1}{2} \text{diag}(1, -1)$. We label system operators with a superscript $S$ and ancilla operators with $A$, so $J_z^S = J_z \otimes \mathbb{1}_2$ and $J_z^A = \mathbb{1}_2 \otimes J_z$.
+The key collective operator is the **phase generator** for each qubit, defined as $J_z = (\hat{n}_0 - \hat{n}_1)/2 = \frac{1}{2}\text{diag}(1, -1)$. We label system operators with a superscript $S$ and ancilla operators with $A$, so $J_z^S = J_z \otimes \mathbb{1}_2$ and $J_z^A = \mathbb{1}_2 \otimes J_z$.
 
 ### 2.3 Initial state
 
@@ -43,7 +45,7 @@ The protocol consists of four sequential steps:
 
 ### Step 1: First beam splitter (state preparation)
 
-A $\pi/2$ pulse (50:50 beam splitter) is applied to the system qubit: $U_{\text{BS},1} = \exp(-i \frac{\pi}{4} \hat{\sigma}^y_S) \otimes \mathbb{1}_A$. This transforms the system from $|0\rangle_S$ to $(|0\rangle_S + |1\rangle_S)/\sqrt{2}$, creating a coherent superposition. The ancilla remains in $|0\rangle_A$. The full state after Step 1 is $|\psi_1\rangle = (|00\rangle + |10\rangle)/\sqrt{2}$.
+A $\pi/2$ pulse (50:50 beam splitter) is applied to the system qubit: $U_{\text{BS},1} = \exp(-i \frac{\pi}{4} \hat{\sigma}^x_S) \otimes \mathbb{1}_A$. This transforms the system from $|0\rangle_S$ to $(|0\rangle_S - i|1\rangle_S)/\sqrt{2}$, creating a coherent superposition in the $\sigma^x$ eigenbasis. The ancilla remains in $|0\rangle_A$. The full state after Step 1 is $|\psi_1\rangle = (|00\rangle - i|10\rangle)/\sqrt{2}$.
 
 ### Step 2: ω-modulated evolution (sensing)
 
@@ -51,7 +53,7 @@ The system evolves under the parameter-dependent Hamiltonian for a fixed holding
 
 ### Step 3: Second beam splitter (readout preparation)
 
-A second $\pi/2$ pulse is applied, this time with a phase shift $\pi/2$ relative to the first: $U_{\text{BS},2} = \exp(-i \frac{\pi}{4} \hat{\sigma}^x_S) \otimes \mathbb{1}_A$. This is the standard "recombine and interfere" step. The $\hat{\sigma}^x$ rotation (rather than $\hat{\sigma}^y$) effectively implements a $\pi/2$ phase reference shift between the two arms, yielding $|\psi_3\rangle = U_{\text{BS},2} |\psi_2\rangle$.
+A second $\pi/2$ pulse is applied, identical to the first: $U_{\text{BS},2} = \exp(-i \frac{\pi}{4} \hat{\sigma}^x_S) \otimes \mathbb{1}_A$. This is the standard "recombine and interfere" step, yielding $|\psi_3\rangle = U_{\text{BS},2} |\psi_2\rangle$.
 
 ### Step 4: Measurement
 
@@ -63,19 +65,31 @@ The sensitivity is computed through the standard error-propagation formula: $\De
 
 with $\delta = 10^{-5}$. The SQL reference is $\Delta\omega_{\text{SQL}} = 1/T_H$, corresponding to a standard coherent spin state with $N=1$.
 
+### Practical estimation workflow
+
+In a realistic experiment, one does not have direct access to the expectation value $\langle J_z^S \rangle$ and its derivative — only measurement outcomes. The practical estimation procedure proceeds as follows:
+
+1. **State preparation and evolution**: Prepare $N_{\text{meas}}$ independent copies of the system--ancilla pair, each initialised in $|00\rangle$ and subjected to the full circuit protocol (Steps 1--3) at the *same* unknown $\omega$.
+2. **Binary readout**: Measure $\hat{J}_z^S$ on each copy. Since $J_z^S$ has eigenvalues $\pm 1/2$, each measurement yields a binary outcome $m_k \in \{+1/2, -1/2\}$.
+3. **Sample mean**: Compute the sample average $\overline{J_z^S} = \frac{1}{N_{\text{meas}}} \sum_{k=1}^{N_{\text{meas}}} m_k$. By the law of large numbers, $\overline{J_z^S} \to \langle J_z^S \rangle(\omega)$ as $N_{\text{meas}} \to \infty$.
+4. **Calibration curve inversion**: Compare $\overline{J_z^S}$ to a pre-computed calibration curve $\langle J_z^S \rangle(\omega)$ (obtained from numerical simulation or a separate characterisation experiment). The estimate $\hat{\omega}$ is the value that minimises $|\overline{J_z^S} - \langle J_z^S \rangle(\hat{\omega})|$.
+5. **Uncertainty quantification**: The statistical uncertainty of $\hat{\omega}$ is given by the error-propagation formula $\Delta\omega = \sqrt{\text{Var}(J_z^S)} / |\partial \langle J_z^S \rangle / \partial \omega|$, evaluated at $\hat{\omega}$. The sample variance $\widehat{\text{Var}}(J_z^S) = \frac{1}{N_{\text{meas}}-1} \sum_k (m_k - \overline{J_z^S})^2$ provides an empirical estimate of $\text{Var}(J_z^S)$, while the derivative $\partial \langle J_z^S \rangle / \partial \omega$ is obtained from the calibration curve.
+
+The key point is that the sensitivity $\Delta\omega$ depends only on the *shape* of the calibration curve and the measurement variance — it is independent of $N_{\text{meas}}$ in the asymptotic limit (the $1/\sqrt{N_{\text{meas}}}$ scaling is already factored into the standard error-propagation formula via $\text{Var}(J_z^S)$, which describes the single-shot variance). The protocol therefore achieves a per-copy sensitivity that can beat the SQL, and repeating the experiment $N_{\text{meas}}$ times further reduces the uncertainty by $1/\sqrt{N_{\text{meas}}}$.
+
 ---
 
 ## 4. The ω-Modulated Drive Hamiltonian
 
-The central innovation of this protocol is the ω-dependent Hamiltonian: $\hat{H}(\omega) = \omega \hat{J}_z^S + \omega (a_x \hat{J}_x^A + a_y \hat{J}_y^A + a_z \hat{J}_z^A) + a_{zz} \hat{J}_z^S \otimes \hat{J}_z^A$.
+The central innovation of this protocol is the ω-dependent Hamiltonian. It decomposes into three physically distinct components: a **system term** $H_S = \omega \hat{J}_z^S$, an **ancilla drive** $H_A = \omega (a_x \hat{J}_x^A + a_y \hat{J}_y^A + a_z \hat{J}_z^A)$, and a **system--ancilla interaction** $H_{\text{int}} = a_{zz} \hat{J}_z^S \otimes \hat{J}_z^A$, giving $\hat{H}(\omega) = H_S + H_A + H_{\text{int}}$.
 
 Each term has a specific physical role:
 
-- **System term** $\omega \hat{J}_z^S$: The unknown frequency $\omega$ drives the system qubit's phase evolution. This is the "signal" — without it, there would be nothing to measure. The linear scaling $\propto \omega$ is the defining feature of the ω-modulated protocol, as opposed to the fixed-drive protocol where this term is absent.
+- **System term** $H_S = \omega \hat{J}_z^S$: The unknown frequency $\omega$ drives the system qubit's phase evolution. This is the "signal" — without it, there would be nothing to measure. The linear scaling $\propto \omega$ is the defining feature of the ω-modulated protocol, as opposed to the fixed-drive protocol where this term is absent.
 
-- **Ancilla drive** $\omega (a_x \hat{J}_x^A + a_y \hat{J}_y^A + a_z \hat{J}_z^A)$: The ancilla qubit is driven at the same frequency $\omega$, with optimisable amplitudes $(a_x, a_y, a_z)$. The transverse components $a_x, a_y$ create Rabi oscillations on the ancilla, while $a_z$ provides a longitudinal bias. The key observation is that the drive amplitudes are **dimensionless and ω-independent** — the modulation is purely in the linear scaling with $\omega$.
+- **Ancilla drive** $H_A = \omega (a_x \hat{J}_x^A + a_y \hat{J}_y^A + a_z \hat{J}_z^A)$: The ancilla qubit is driven at the same frequency $\omega$, with optimisable amplitudes $(a_x, a_y, a_z)$. The transverse components $a_x, a_y$ create Rabi oscillations on the ancilla, while $a_z$ provides a longitudinal bias. The key observation is that the drive amplitudes are **dimensionless and ω-independent** — the modulation is purely in the linear scaling with $\omega$.
 
-- **System–ancilla interaction** $a_{zz} \hat{J}_z^S \otimes \hat{J}_z^A$: This entangling Ising coupling is the metrological engine. It correlates the system and ancilla in a way that amplifies the ω-dependent phase. The coupling strength $a_{zz}$ is the single most important parameter — as we will see, setting $a_{zz} = 0$ (the decoupled case) reverts the sensitivity to SQL or worse regardless of the drive parameters.
+- **System–ancilla interaction** $H_{\text{int}} = a_{zz} \hat{J}_z^S \otimes \hat{J}_z^A$: This entangling Ising coupling is the metrological engine. It correlates the system and ancilla in a way that amplifies the ω-dependent phase. The coupling strength $a_{zz}$ is the single most important parameter — as we will see, setting $a_{zz} = 0$ (the decoupled case) reverts the sensitivity to SQL or worse regardless of the drive parameters.
 
 The dimensionless parameters $a_x, a_y, a_z, a_{zz}$ are the optimisable controls, while $\omega$ is the unknown parameter to be estimated. The holding time $T_H = 10$ is fixed throughout.
 
@@ -113,12 +127,11 @@ The four-dimensional Hilbert space is constructed using Kronecker products:
 - $J_y^A = \mathbb{1}_2 \otimes \frac{1}{2} \hat{\sigma}^y$
 - The interaction: $J_z^S \otimes J_z^A$ is built as $\text{kron}(J_z, J_z)$
 
-The beam-splitter unitaries are:
+The beam-splitter unitary is identical for both steps:
 
-- $U_{\text{BS},1} = \exp(-i (\pi/4) \hat{\sigma}^y_S)$ with $\hat{\sigma}^y_S = \hat{\sigma}^y \otimes \mathbb{1}_2$
-- $U_{\text{BS},2} = \exp(-i (\pi/4) \hat{\sigma}^x_S)$ with $\hat{\sigma}^x_S = \hat{\sigma}^x \otimes \mathbb{1}_2$
+- $U_{\text{BS},1} = U_{\text{BS},2} = \exp(-i (\pi/4) \hat{\sigma}^x_S)$ with $\hat{\sigma}^x_S = \hat{\sigma}^x \otimes \mathbb{1}_2$
 
-Both are $4 \times 4$ real matrices built via `scipy.linalg.expm` of the $-i \theta \hat{\sigma}$ generator.
+Both are $4 \times 4$ unitary matrices built as $\exp(-i (\pi/4) \hat{\sigma}^x_S)$ via `scipy.linalg.expm`.
 
 ### 5.3 State evolution
 
@@ -191,6 +204,14 @@ For each $\omega$ value, the best 10 parameter sets from the random search are u
 
 A fine scan over $\omega \in [0.01, 10.0]$ with 50 logarithmically spaced points is performed, repeating Stage 3 at each $\omega$ value. This produces the combined sensitivity curve $\Delta\omega(\omega)$, from which the global optimum is identified.
 
+### 6.1 Parameter bounds
+
+The bounds $a_x, a_y, a_z \in [-5, 5]$ and $a_{zz} \in [-2, 5]$ are chosen based on physical considerations:
+
+- **Drive amplitudes**: The maximum $|a_i| = 5$ corresponds to a drive Rabi frequency $5\omega$, which at $\omega = 0.2$ gives $\Omega_R = 1.0$ — comparable to the holding time $T_H = 10$ (giving $\sim 1.6$ Rabi cycles).
+- **Interaction strength**: The upper bound $a_{zz} = 5$ is generous, while the lower bound $a_{zz} = -2$ allows exploration of negative (anti-ferromagnetic) interactions. The asymmetry reflects the observation that positive $a_{zz}$ consistently outperforms negative $a_{zz}$.
+- **Symmetry constraints**: From the 2D slices, the sensitivity depends primarily on $|a_x|$ and $|a_y|$, so only the absolute values are relevant. However, the full 4D search keeps sign information for completeness.
+
 ### 6.2 Optimiser details
 
 The Nelder-Mead simplex algorithm is chosen for its derivative-free nature — evaluating the gradient of $\Delta\omega$ with respect to the four parameters would require additional finite-difference computations within each iteration, increasing the cost per step by a factor of 5. The algorithm proceeds as follows:
@@ -202,14 +223,6 @@ The Nelder-Mead simplex algorithm is chosen for its derivative-free nature — e
 
 The total computation cost across all stages is approximately $6 \times 50,000 + 50 \times 10 \times 200 \approx 400,000$ matrix exponentials for the random search and Nelder-Mead stages combined, plus $120,000$ for the 2D slices. On a single CPU core, this runs in under 10 seconds using vectorised NumPy operations — the small Hilbert space dimension ($d=4$) makes each matrix exponential essentially instant.
 
-### 6.1 Parameter bounds
-
-The bounds $a_x, a_y, a_z \in [-5, 5]$ and $a_{zz} \in [-2, 5]$ are chosen based on physical considerations:
-
-- **Drive amplitudes**: The maximum $|a_i| = 5$ corresponds to a drive Rabi frequency $5\omega$, which at $\omega = 0.2$ gives $\Omega_R = 1.0$ — comparable to the holding time $T_H = 10$ (giving $\sim 1.6$ Rabi cycles).
-- **Interaction strength**: The upper bound $a_{zz} = 5$ is generous, while the lower bound $a_{zz} = -2$ allows exploration of negative (anti-ferromagnetic) interactions. The asymmetry reflects the observation that positive $a_{zz}$ consistently outperforms negative $a_{zz}$.
-- **Symmetry constraints**: From the 2D slices, the sensitivity depends primarily on $|a_x|$ and $|a_y|$, so only the absolute values are relevant. However, the full 4D search keeps sign information for completeness.
-
 ---
 
 ## 7. Results
@@ -220,45 +233,45 @@ The first result is a null result with important implications. When $a_{zz} = 0$
 
 ### 7.2 2D slice: $(a_x, a_{zz})$ at fixed $\omega$
 
-Figure 2 shows the 2D sensitivity landscape over $(a_x, a_{zz})$ at $\omega = 0.1$ (the region where sub-SQL performance is strongest). The landscape reveals a clear structure: the sensitivity improves with increasing $|a_x|$, saturating at $|a_x| = 5$ (the search bound), with an optimal $a_{zz} \approx 0.75$.
+Figure 1 shows the 2D sensitivity landscape over $(a_x, a_{zz})$ at $\omega = 0.1$ (the region where sub-SQL performance is strongest). The landscape reveals a clear structure: the sensitivity improves with increasing $|a_x|$, saturating at $|a_x| = 5$ (the search bound), with an optimal $a_{zz} \approx 0.75$.
 
 The contours show that the landscape is relatively smooth with a single global minimum. There is no evidence of multiple competing minima at this slice — the dependence on $a_{zz}$ is roughly parabolic, while the dependence on $|a_x|$ is monotonic up to the bound.
 
 The best sensitivity in this slice is $\Delta\omega = 0.0293$ at $|a_x| = 5.00$, $a_{zz} = 0.75$, which is $3.41\times$ below the SQL.
 
-<img src="../reports/20260519/figures/20260519-phase-2d-slice-ax-azz-theta0.1.svg" alt="2D slice for (a_x, a_zz) at ω=0.1" width="100%"/>
+<img src="../reports/20260519/figures/20260519-phase-2d-slice-ax-azz-omega0.1.svg" alt="2D slice for (a_x, a_zz) at ω=0.1" width="100%"/>
 
-*Figure 2: Sensitivity $\Delta\omega$ as a function of $(a_x, a_{zz})$ at $\omega = 0.1$ with $a_y = a_z = 0$. The minimum occurs at the boundary $|a_x| = 5$ (search bound) with $a_{zz} \approx 0.75$.*
+*Figure 1: Sensitivity $\Delta\omega$ as a function of $(a_x, a_{zz})$ at $\omega = 0.1$ with $a_y = a_z = 0$. The minimum occurs at the boundary $|a_x| = 5$ (search bound) with $a_{zz} \approx 0.75$.*
 
 ### 7.3 2D slice: $(a_y, a_{zz})$ at fixed $\omega$
 
-The $(a_y, a_{zz})$ slice at $\omega = 0.1$ is shown in Figure 3. The landscape is virtually identical to the $(a_x, a_{zz})$ slice, confirming the symmetry between $a_x$ and $a_y$ drives. Both transverse ancilla drives are equally effective at producing sub-SQL sensitivity, achieving the same minimum $\Delta\omega = 0.0293$ with $|a_y| = 5.00$, $a_{zz} = 0.75$.
+The $(a_y, a_{zz})$ slice at $\omega = 0.1$ is shown in Figure 2. The landscape is virtually identical to the $(a_x, a_{zz})$ slice, confirming the symmetry between $a_x$ and $a_y$ drives. Both transverse ancilla drives are equally effective at producing sub-SQL sensitivity, achieving the same minimum $\Delta\omega = 0.0293$ with $|a_y| = 5.00$, $a_{zz} = 0.75$.
 
 This symmetry is expected: the $\hat{J}_x^A$ and $\hat{J}_y^A$ operators are related by a rotation about the $z$-axis, and the system Hamiltonian $\hat{J}_z^S$ breaks this symmetry only through the interaction $J_z^S \otimes J_z^A$, which couples both transverse drives identically. In the full 4D optimisation, both $a_x$ and $a_y$ tend to take large values.
 
-<img src="../reports/20260519/figures/20260519-phase-2d-slice-ay-azz-theta0.1.svg" alt="2D slice for (a_y, a_zz) at ω=0.1" width="100%"/>
+<img src="../reports/20260519/figures/20260519-phase-2d-slice-ay-azz-omega0.1.svg" alt="2D slice for (a_y, a_zz) at ω=0.1" width="100%"/>
 
-*Figure 3: Sensitivity $\Delta\omega$ as a function of $(a_y, a_{zz})$ at $\omega = 0.1$ with $a_x = a_z = 0$. The landscape is essentially identical to the $(a_x, a_{zz})$ slice, confirming the drive isotropy.*
+*Figure 2: Sensitivity $\Delta\omega$ as a function of $(a_y, a_{zz})$ at $\omega = 0.1$ with $a_x = a_z = 0$. The landscape is essentially identical to the $(a_x, a_{zz})$ slice, confirming the drive isotropy.*
 
-### 7.4 2D slice: $(a_z, a_{zz})$ from the random search
+### 7.4 2D slice: $(a_z, a_{zz})$ — the longitudinal-only case
 
-The $(a_z, a_{zz})$ plane is not directly scanned as a dedicated 2D slice, but the optimal parameters can be extracted from the 4D random search data by taking the best 1% of random search points at each ω value.
+The $(a_z, a_{zz})$ plane is shown in Figure 3 as a dedicated 2D slice, computed on a $201 \times 201$ grid over $a_z \in [-5, 5]$, $a_{zz} \in [-2, 5]$ at $\omega = 0.1$ with $a_x = a_y = 0$. The landscape is qualitatively different from the transverse-drive slices (Figures 1 and 2). The longitudinal drive $a_z$ does not create Rabi oscillations on the ancilla — instead, it provides a static energy bias that does not generate the coherence needed for entanglement.
 
-The $(a_z, a_{zz})$ landscape differs qualitatively from the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ cases. The longitudinal drive $a_z$ does not create Rabi oscillations on the ancilla — instead, it provides a static energy bias. The optimal $a_z$ shows a strong ω-dependence:
+The optimal parameters can also be extracted from the 4D random search data by taking the best 1% of random search points at each ω value.
 
-- At small $\omega$ ($\omega \lesssim 0.1$), the optimal $a_z$ saturates at the bound $|a_z| = 5$, with positive $a_z$ slightly favoured over negative.
-- At intermediate $\omega$ ($0.1 < \omega < 1.0$), the optimal $a_z$ decreases, settling to $a_z \approx 1.5\text{--}2.0$.
-- At large $\omega$ ($\omega \ge 4.0$), the optimal $a_z$ approaches zero.
+<img src="../reports/20260519/figures/20260519-phase-2d-slice-az-azz-omega0.1.svg" alt="2D slice for (a_z, a_zz) at ω=0.1" width="100%"/>
 
-The optimal $a_{zz}$ from the $(a_z, a_{zz})$ optimisation follows a different trajectory than the transverse-drive case: it peaks at intermediate ω values rather than saturating, with a maximum $a_{zz} \approx 1.42$ at $\omega = 0.1$.
+*Figure 3: Sensitivity $\Delta\omega$ as a function of $(a_z, a_{zz})$ at $\omega = 0.1$ with $a_x = a_y = 0$. The landscape is flat at the SQL value $\Delta\omega = 1/T_H = 0.1$ across the entire grid, confirming that the longitudinal-only configuration cannot produce sub-SQL sensitivity. A singular line at $a_{zz} \approx -0.2$ corresponds to where $\partial\langle J_z^S\rangle/\partial\omega = 0$, a coincidental degeneracy at this specific $\omega$.*
 
-Critically, no combination of $(a_z, a_{zz})$ alone achieves the same performance as optimising all four parameters simultaneously. To extract the best $(a_z, a_{zz})$ pair, we filter the 4D random search data at each $\omega$ value, selecting the point with minimal $\Delta\omega$ and recording its $(a_z, a_{zz})$ coordinates. The best purely-$(a_z, a_{zz})$ sensitivity is $\Delta\omega \approx 0.040$ at $\omega = 0.1$ (with $a_z \approx 2.1$, $a_{zz} \approx 0.94$), about $2.5\times$ SQL — a $2.0\times$ degradation from the full 4D optimum. This confirms that **both transverse and longitudinal drives are needed** for the best sensitivity, though the longitudinal drive alone can still achieve sub-SQL performance.
+The $(a_z, a_{zz})$ landscape differs qualitatively from the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ cases. The longitudinal drive $a_z$ does not create Rabi oscillations on the ancilla — instead, it provides a static energy bias. Because the landscape is flat at SQL when $a_x = a_y = 0$, there is no meaningful $(a_z, a_{zz})$ optimum in the purely longitudinal case — the sensitivity is $\Delta\omega = 1/T_H$ everywhere (confirmed by a $50\times50$ grid scan over $a_z\in[-5,5]$, $a_{zz}\in[-2,5]$ at $\omega=0.1$, where every grid point gives $\Delta\omega = 0.1$ to within $<10^{-8}$). This confirms the analytical result of Sec 8.1: the longitudinal-only case never beats the SQL because the Hamiltonian is diagonal in the computational basis and the system--ancilla state remains separable throughout.
+
+Projecting the optimal 4D point onto the $(a_z, a_{zz})$ plane yields $a_z\approx 2.1$, $a_{zz}\approx 0.94$ at $\omega = 0.1$ — these are the best values *given optimally chosen* $a_x, a_y$. At this point in the 4D space, with $a_x=5, a_y=-5$ providing the transverse drive, the sensitivity is $\Delta\omega \approx 0.076$ ($1.32\times$ SQL), confirming that the $(a_z, a_{zz})$ values from the 4D optimum do not themselves produce sub-SQL sensitivity.
 
 The difference between the transverse-driven and longitudinal-driven optima reveals the physical mechanism: transverse drives $(a_x, a_y)$ create ancilla coherence (superpositions of $|0\rangle_A$ and $|1\rangle_A$), which enables the system and ancilla to become entangled through the $a_{zz}$ interaction. With only a longitudinal drive $a_z$, the ancilla remains in a mixture of energy eigenstates, limiting the entanglement generation and therefore the metrological gain.
 
 ### 7.5 Combined sensitivity: sub-SQL performance
 
-The main result of this study is the combined sensitivity curve shown in Figure 5. This shows $\Delta\omega$ as a function of $\omega$ for four methods:
+The main result of this study is the combined sensitivity curve shown in Figure 4. This shows $\Delta\omega$ as a function of $\omega$ for four methods:
 
 1. **Decoupled** ($a_{zz} = 0$, all $a_i$ optimised): Always at or above the SQL, with a sharp spike at high ω where the sensitivity degrades dramatically.
 2. **Random search** (50k points, 4D): The best sensitivity from the random survey, already detecting the sub-SQL region.
@@ -271,25 +284,25 @@ The random search finds the sub-SQL region but with ~$2\times$ worse sensitivity
 
 <img src="../reports/20260519/figures/20260519-phase-combined-sensitivity.svg" alt="Combined sensitivity comparison" width="100%"/>
 
-*Figure 5: Combined sensitivity $\Delta\omega$ vs $\omega$ for decoupled, random search, Nelder-Mead refinement, and fixed-drive protocols. The global minimum is $\Delta\omega = 0.02036$ at $\omega = 0.2$, $4.91\times$ below the SQL.*
+*Figure 4: Combined sensitivity $\Delta\omega$ vs $\omega$ for decoupled, random search, Nelder-Mead refinement, and fixed-drive protocols. The global minimum is $\Delta\omega = 0.02036$ at $\omega = 0.2$, $4.91\times$ below the SQL.*
 
 ### 7.6 Fraction below SQL
 
-Figure 6 quantifies the sub-SQL performance as a fraction: $R = \Delta\omega_{\text{SQL}} / \Delta\omega$. A value $R > 1$ indicates sub-SQL sensitivity. The Nelder-Mead curve reaches $R_{\max} \approx 4.91$, while the random search peaks at $R \approx 2.8$ and the fixed-drive at $R \approx 2.0$.
+Figure 5 quantifies the sub-SQL performance as a fraction: $R = \Delta\omega_{\text{SQL}} / \Delta\omega$. A value $R > 1$ indicates sub-SQL sensitivity. The Nelder-Mead curve reaches $R_{\max} \approx 4.91$, while the random search peaks at $R \approx 2.8$ and the fixed-drive at $R \approx 2.0$.
 
 The width of the sub-SQL region ($R > 1$) is $\omega \in [0.03, 0.7]$ for Nelder-Mead — nearly a factor of 20 in ω. This broad operating range is significant for practical metrology, where the unknown parameter may span several orders of magnitude.
 
 <img src="../reports/20260519/figures/20260519-phase-fraction-below-sql.svg" alt="Fraction below SQL" width="100%"/>
 
-*Figure 6: Ratio $\Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of $\omega$. Values above 1 indicate sub-SQL performance. The best ratio is $4.91$ at $\omega = 0.2$.*
+*Figure 5: Ratio $\Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of $\omega$. Values above 1 indicate sub-SQL performance. The best ratio is $4.91$ at $\omega = 0.2$.*
 
 ### 7.7 Optimal parameters versus ω
 
-The optimal parameters from the Nelder-Mead refinement (discussed in Section 7.4) show the following trends as functions of ω:
+The optimal parameters from the Nelder-Mead refinement show the following trends as functions of ω:
 
 - **Transverse drives $(a_x, a_y)$**: Both saturate at $\pm 5$ for $\omega \lesssim 1$, then decrease at higher ω. The optimal signs are opposite for $a_x$ and $a_y$, consistent with a circularly polarised drive.
-- **Longitudinal drive $a_z$**: Positive and small ($\approx 1.0$) at low ω, approaching zero at high ω.
-- **Interaction $a_{zz}$**: Approximately constant at $a_{zz} \approx 0.75$ across all ω in the Nelder-Mead results, with some variation. This is strikingly different from the 2D slice optimum ($a_{zz} \approx 1.42$), showing that the presence of transverse drives changes the optimal interaction strength.
+- **Longitudinal drive $a_z$**: The optimal value at the global optimum is $|a_z| \approx 4.0$, with the sign correlated with the relative sign of $a_x$ and $a_y$: same-sign transverse drives require opposite-sign $a_z$, and vice versa.
+- **Interaction $a_{zz}$**: Approximately constant at $a_{zz} \approx 4.0$ across the optimal region. This is larger than the 2D slice optimum ($a_{zz} \approx 0.75$), showing that the presence of transverse drives shifts the optimal interaction strength upward, enabling stronger parametric amplification.
 
 ### 7.8 Nelder-Mead convergence
 
@@ -297,7 +310,7 @@ The Nelder-Mead optimiser typically converges within 50–200 iterations for eac
 
 ### 7.9 Cross-experiment comparison: ω-modulated vs fixed drive
 
-Figure 8 provides a direct comparison between the ω-modulated protocol and the fixed-drive protocol studied previously. The fixed-drive protocol uses a Hamiltonian $H = \Omega (a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_{zz} J_z^S J_z^A$ with a fixed drive frequency $\Omega$ independent of $\omega$, where only $a_{zz}$ is optimised and $a_x = a_y = a_z = 0$.
+Figure 6 provides a direct comparison between the ω-modulated protocol and the fixed-drive protocol studied previously. The fixed-drive protocol uses a Hamiltonian $H = \Omega (a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_{zz} J_z^S J_z^A$ with a fixed drive frequency $\Omega$ independent of $\omega$, where only $a_{zz}$ is optimised and $a_x = a_y = a_z = 0$.
 
 The comparison shows:
 
@@ -309,7 +322,7 @@ This comparison underscores the advantage of making the Hamiltonian itself ω-de
 
 <img src="../reports/20260519/figures/20260519-phase-cross-experiment-comparison.svg" alt="Cross-experiment comparison" width="100%"/>
 
-*Figure 8: Comparison of ω-modulated (Nelder-Mead) vs fixed-drive protocols. The ω-modulated protocol achieves $4.91\times$ SQL at $\omega = 0.2$, while the fixed-drive protocol plateaus at $2.0\times$ SQL.*
+*Figure 6: Comparison of ω-modulated (Nelder-Mead) vs fixed-drive protocols. The ω-modulated protocol achieves $4.91\times$ SQL at $\omega = 0.2$, while the fixed-drive protocol plateaus at $2.0\times$ SQL.*
 
 ---
 
@@ -319,21 +332,19 @@ While the numerical results are clear, it is useful to develop an intuitive unde
 
 ### 8.1 Effective parametric amplification
 
-Consider the limit of small ω, where we can approximate the evolution operator to first order as $U_{\text{evol}}(\omega) \approx \mathbb{1} - i T_H [ \omega \hat{H}_{\text{drive}} + a_{zz} \hat{H}_{\text{int}} ] + \mathcal{O}(\omega^2, a_{zz}^2, \omega a_{zz})$. The expectation $\langle J_z^S \rangle$ after the full protocol can be expanded as $\langle J_z^S \rangle(\omega) \approx C_0 + C_1 \omega + C_2 a_{zz} + C_3 \omega a_{zz}$,
+Consider the limit of small ω. The leading non-vanishing contribution to $\partial\langle J_z^S\rangle/\partial\omega$ comes from the second-order commutator $[A,[A,J_z^S]]/2$ where $A = T_H(\omega \hat{H}_{\text{drive}} + a_{zz} \hat{H}_{\text{int}})$. (First-order terms vanish because $[\hat{H}_{\text{drive}}, J_z^S] = 0$ and $[\hat{H}_{\text{int}}, J_z^S] = 0$.) The expectation $\langle J_z^S \rangle$ after the full protocol can be expanded as $\langle J_z^S \rangle(\omega) \approx C_0 + C_1 \omega + C_2 a_{zz} + C_3 \omega a_{zz}$,
 
 where $C_i$ are constants that depend on the drive parameters $(a_x, a_y, a_z)$. The term $C_3 \omega a_{zz}$ is the crucial one — it represents the **interaction-mediated parametric amplification** of the ω signal. When $a_{zz} \neq 0$, the slope $\partial \langle J_z^S \rangle / \partial \omega = C_1 + C_3 a_{zz}$ is enhanced by the interaction strength.
 
 This is exactly analogous to how a parametric amplifier works: a pump field (here the $a_{zz}$ interaction) amplifies a signal field (the ω modulation). The amplification factor is $1 + (C_3 / C_1) a_{zz}$, which can be large when $a_{zz}$ is optimised.
 
-To make this more concrete, consider the special case where $a_x = a_y = 0$, leaving only the longitudinal drive $a_z$ and the interaction $a_{zz}$. In this case, the Hamiltonian is diagonal in the computational basis: $\hat{H}(\omega) = \omega (J_z^S + a_z J_z^A) + a_{zz} J_z^S \otimes J_z^A$. Since all terms are $\propto J_z$ operators, they commute, and the evolution operator factorises as $U_{\text{evol}} = \exp(-i T_H \omega J_z^S) \exp(-i T_H \omega a_z J_z^A) \exp(-i T_H a_{zz} J_z^S \otimes J_z^A)$. This factorisation allows an analytical expression for the final state. In this longitudinal-only case, the state remains a product of system and ancilla states throughout (albeit with a phase that depends on the occupancy). The sensitivity is $\Delta\omega = (1/T_H) \cdot 1/|\cos(\omega a_z T_H/2)| \cdot 1/|\cos(a_{zz} T_H/4)|$.
-
-The first factor is the SQL, the second factor is the drive enhancement (Rabi oscillations on the ancilla), and the third factor is the interaction enhancement. This analytical expression predicts $\Delta\omega \ge 1/T_H$ for all parameter values, consistent with the numerical result that the longitudinal-only configuration never beats the SQL. It also shows that the interaction term generates a divergent sensitivity when $a_{zz} T_H = 2\pi$ — but this divergence is an artefact of the error-propagation formula at a fringe extremum, not a genuine super-Heisenberg scaling.
+To make this more concrete, consider the special case where $a_x = a_y = 0$, leaving only the longitudinal drive $a_z$ and the interaction $a_{zz}$. In this case, the Hamiltonian is diagonal in the computational basis: $\hat{H}(\omega) = \omega (J_z^S + a_z J_z^A) + a_{zz} J_z^S \otimes J_z^A$. Since all terms are $\propto J_z$ operators, they commute, and the evolution operator factorises as $U_{\text{evol}} = \exp(-i T_H \omega J_z^S) \exp(-i T_H \omega a_z J_z^A) \exp(-i T_H a_{zz} J_z^S \otimes J_z^A)$. However, because $J_z^A$ commutes with the rest of the circuit and the ancilla starts in $|0\rangle_A$, the ancilla remains in $|0\rangle_A$ throughout — the $a_z$ term has no physical effect. The system reduces to a single-qubit Ramsey interferometer with Hamiltonian $H_{\text{eff}} = \omega J_z^S + a_{zz} \langle 0| J_z^A |0\rangle J_z^S = (\omega + a_{zz}/2) J_z^S$. The evolution operator for the system is $\exp(-i T_H (\omega + a_{zz}/2) J_z^S)$, which acts like a simple phase accumulator with total angle $\phi = T_H(\omega + a_{zz}/2)$. A direct calculation of the error-propagation sensitivity gives $\Delta\omega = \sqrt{\text{Var}(J_z^S)} / |\partial \langle J_z^S \rangle / \partial \omega| = (|\cos(2\eta)|/2) / (T_H |\cos(2\eta)|/2) = 1/T_H$, where $\eta = T_H(\omega/2 + a_{zz}/4)$. The $\cos$ factors cancel exactly, yielding $\Delta\omega = 1/T_H$ independent of $a_z$ and $a_{zz}$. This confirms analytically what the numerical simulations show: the longitudinal-only configuration never beats the SQL.
 
 The full problem with $a_x, a_y \neq 0$ is non-commuting and cannot be factorised, which is precisely why it achieves sub-SQL sensitivity. The non-commuting drives create coherence and entanglement between system and ancilla that cannot be captured by the simple product-state analysis above.
 
 ### 8.2 Scaling analysis and the metrological gain
 
-We can quantify the metrological gain $g = \Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of the optimised parameters. At the global optimum $(\omega = 0.2, a_x = 5.0, a_y = 5.0, a_z = 1.0, a_{zz} = 0.75)$, the gain $g = 4.91$. This is equivalent to the sensitivity that would be achieved with $N_{\text{eff}} = g^2 \approx 24$ uncorrelated particles in a conventional interferometer — a remarkable amplification from a single particle.
+We can quantify the metrological gain $g = \Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of the optimised parameters. At the global optimum $(\omega = 0.2, a_x = 5.0, a_y = -5.0, a_z = 4.0, a_{zz} = 4.0)$, the gain $g = 4.91$. This is equivalent to the sensitivity that would be achieved with $N_{\text{eff}} = g^2 \approx 24$ uncorrelated particles in a conventional interferometer — a remarkable amplification from a single particle.
 
 The scaling of $g$ with the interaction strength $a_{zz}$ is approximately linear for small to moderate $a_{zz}$, saturating at large $a_{zz}$ where the interaction dominates the dynamics and the state becomes strongly entangled. This saturation is consistent with the parametric amplifier analogy: the gain of a parametric amplifier scales linearly with the pump amplitude until pump depletion or nonlinearities set in.
 
@@ -346,11 +357,114 @@ The sensitivity $\Delta\omega \propto \sigma / |\partial \langle O \rangle / \pa
 
 The optimal ω occurs where the trade-off is most favourable: where the derivative is large enough to resolve small changes in ω, but the variance is still small. This happens when the total phase accumulated during the hold is $\omega T_H \sim \mathcal{O}(1)$, i.e., $\omega \sim 1/T_H = 0.1$, consistent with the numerical optimum $\omega = 0.2$ (a factor of 2 above the simple estimate, due to the parametric amplification).
 
-### 8.3 Role of transverse vs longitudinal drives
+### 8.4 Role of transverse vs longitudinal drives
 
 The transverse drives $(a_x, a_y)$ create Rabi oscillations on the ancilla, which modulate the effective coupling strength $\langle J_z^A \rangle$ and create a richer dependence of $\langle J_z^S \rangle$ on ω. The longitudinal drive $a_z$ provides a static shift that can optimise the operating point on the oscillation fringe.
 
-The 2D slices show that the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ landscapes are nearly identical — the transverse drives are interchangeable for sensitivity enhancement. However, the optimal $a_z$ from the 4D search is always small and positive, suggesting the longitudinal drive plays a secondary but non-negligible role.
+The 2D slices show that the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ landscapes are nearly identical — the transverse drives are interchangeable for sensitivity enhancement. The optimal $a_z$ from the 4D search has magnitude $|a_z| \approx 4$, with sign correlated to the relative sign of $a_x$ and $a_y$, confirming that the longitudinal drive plays a significant role in the full 4D optimisation.
+
+### 8.5 Classical Fisher Information for the J_z^S Measurement
+
+The error-propagation formula used throughout this study is not merely a convenient computational tool — it is exactly equivalent to the Classical Fisher Information (CFI) for the specific measurement of $J_z^S$. This equivalence follows immediately from the binary nature of the measurement.
+
+**Measurement projectors.** The operator $J_z^S = J_z \otimes \mathbb{1}_2$ has eigenvalues $\pm 1/2$ with projectors
+
+$\Pi_+ = |0\rangle\langle 0|_S \otimes \mathbb{1}_2, \qquad \Pi_- = |1\rangle\langle 1|_S \otimes \mathbb{1}_2,$
+
+where $\Pi_+$ projects onto $\{|00\rangle, |01\rangle\}$ and $\Pi_-$ onto $\{|10\rangle, |11\rangle\}$. The outcome probabilities are
+
+$p_+(\omega) = \langle\psi(\omega)|\,\Pi_+\,|\psi(\omega)\rangle, \quad p_-(\omega) = 1 - p_+(\omega).$
+
+**CFI for a binary POVM.** For any two-outcome measurement, the CFI is
+
+$F_C(\omega) = \frac{(\partial_\omega p_+)^2}{p_+} + \frac{(\partial_\omega p_-)^2}{p_-}
+          = (\partial_\omega p_+)^2\left(\frac{1}{p_+} + \frac{1}{1-p_+}\right)
+          = \frac{(\partial_\omega p_+)^2}{p_+(1-p_+)}.$
+
+**Equivalence to error propagation.** The expectation value of $J_z^S$ and its variance are
+
+$\langle J_z^S \rangle = \tfrac12 p_+ - \tfrac12 p_- = p_+ - \tfrac12,$
+
+$\text{Var}(J_z^S) = \langle (J_z^S)^2 \rangle - \langle J_z^S \rangle^2
+                 = \tfrac14 - (p_+ - \tfrac12)^2
+                 = p_+ - p_+^2 = p_+(1-p_+).$
+
+Since $\partial_\omega \langle J_z^S \rangle = \partial_\omega p_+$, we obtain
+
+$F_C(\omega) = \frac{(\partial_\omega \langle J_z^S \rangle)^2}{\text{Var}(J_z^S)} = \frac{1}{\Delta\omega_{\text{EP}}^2}.$
+
+Thus the error-propagation sensitivity $\Delta\omega_{\text{EP}}$ is the inverse square root of the CFI for the $J_z^S$ measurement:
+
+$\Delta\omega_{\text{EP}} = \frac{1}{\sqrt{F_C}}.$
+
+No approximation or asymptotic limit is involved — the equivalence is exact for any binary-outcome projective measurement on a pure or mixed state.
+
+### 8.6 Quantum Fisher Information and the Ultimate Precision Limit
+
+While $F_C$ quantifies the information extractable from the specific $J_z^S$ measurement, the **Quantum Fisher Information** (QFI) $F_Q$ bounds the precision achievable by *any* measurement, including optimized POVMs that may exploit the full $d=4$ Hilbert space of the system--ancilla system.
+
+**General formula.** For a pure state $|\psi(\omega)\rangle$, the QFI is
+
+$F_Q(\omega) = 4\bigl[\langle\partial_\omega\psi|\partial_\omega\psi\rangle - |\langle\partial_\omega\psi|\psi\rangle|^2\bigr].$
+
+The derivative $|\partial_\omega\psi\rangle$ captures how the state changes with $\omega$ — including both the amplitude and phase response. The second term subtracts the component parallel to $|\psi\rangle$, ensuring that $F_Q$ depends only on the *rate* of state change orthogonal to the state itself.
+
+**State derivative via the Hamiltonian eigendecomposition.** The final state is
+
+$|\psi(\omega)\rangle = U_{\text{BS},2}\; e^{-iT_H H(\omega)}\; U_{\text{BS},1}\; |00\rangle,$
+
+where $U_{\text{BS},1}$ and $U_{\text{BS},2}$ are $\omega$-independent. The derivative therefore acts only on the evolution operator:
+
+$|\partial_\omega\psi\rangle = U_{\text{BS},2}\; \bigl[\partial_\omega e^{-iT_H H(\omega)}\bigr]\; U_{\text{BS},1}\; |00\rangle.$
+
+The derivative of the matrix exponential can be evaluated via the spectral decomposition of $H(\omega)$. Let $H(\omega) = V(\omega)\, D(\omega)\, V(\omega)^\dagger$ with $D = \operatorname{diag}(\lambda_0,\dots,\lambda_3)$ and $V$ unitary. Then
+
+$\partial_\omega e^{-iT_H H} = -iT_H \int_0^1 e^{-iT_H(1-s)H}\, (\partial_\omega H)\, e^{-iT_H s H}\, ds,$
+
+which in the eigenbasis becomes
+
+$\partial_\omega e^{-iT_H H} = -iT_H\, V \bigl[ M \odot G \bigr] V^\dagger,$
+
+where $M_{kl} = (V^\dagger H_{\text{drive}} V)_{kl}$ with $H_{\text{drive}} = \partial_\omega H = J_z^S + a_x J_x^A + a_y J_y^A + a_z J_z^A$, and
+
+$G_{kl} = \begin{cases}
+  e^{-iT_H\lambda_k}, & \lambda_k = \lambda_l,\\[4pt]
+  \displaystyle\frac{e^{-iT_H\lambda_k} - e^{-iT_H\lambda_l}}{iT_H(\lambda_k - \lambda_l)}, & \lambda_k \neq \lambda_l.
+\end{cases}$
+
+This expression involves only the $4\times4$ eigendecomposition of $H(\omega)$, which can be computed exactly for any parameter set.
+
+**Inequality chain.** The QFI and CFI satisfy the fundamental hierarchy
+
+$F_Q(\omega) \ge F_C(\omega) = \frac{1}{\Delta\omega_{\text{EP}}^2},$
+
+so that the ultimate precision limit is
+
+$\Delta\omega_Q = \frac{1}{\sqrt{F_Q}} \le \Delta\omega_{\text{EP}}.$
+
+The gap $F_Q/F_C$ quantifies how much room remains for improvement by choosing a better measurement.
+
+### 8.7 Numerical Comparison at the Global Optimum
+
+Evaluating both information measures at the verified global optimum $(\omega = 0.2,\; a_x = 5,\; a_y = -5,\; a_z = 4,\; a_{zz} = 4,\; T_H = 10)$ gives:
+
+| Quantity | Value | Meaning |
+|----------|-------|---------|
+| $\Delta\omega_{\text{SQL}}$ | $0.1$ | Standard quantum limit, $1/T_H$ |
+| $F_{\text{SQL}} = 1/\Delta\omega_{\text{SQL}}^2$ | $100$[^1] | SQL Fisher information |
+| $\Delta\omega_{\text{EP}}$ | $0.02036$ | Error-propagation sensitivity ($J_z^S$ measurement) |
+| $F_C$ | $2412.48$ | CFI for $J_z^S$ measurement ($24.1\times F_{\text{SQL}}$) |
+| $\Delta\omega_Q$ | $0.01673$ | Ultimate QFI-limited sensitivity |
+| $F_Q$ | $3571.82$ | QFI ($35.7\times F_{\text{SQL}}$) |
+| $F_Q / F_C$ | $1.48$ | Headroom for measurement optimisation |
+
+[^1]: $F_{\text{SQL}} = 1/\Delta\omega_{\text{SQL}}^2 = T_H^2 N = 100$ for frequency estimation with $T_H=10, N=1$. For phase estimation ($T_H=1$) this reduces to $F_{\text{SQL}} = N = 1$.
+
+The QFI at the optimum is $F_Q = 3571.82$, which is $35.7$ times the SQL Fisher information $F_{\text{SQL}} = 100$ and $1.48$ times the CFI $F_C = 2412.48$ achieved by the $J_z^S$ measurement. The corresponding ultimate sensitivity is $\Delta\omega_Q = 1/\sqrt{F_Q} = 0.01673$, compared to $\Delta\omega_{\text{EP}} = 0.02036$ for $J_z^S$.
+
+**Interpretation.** The $J_z^S$ measurement already captures approximately $68\%$ of the available quantum Fisher information ($F_C/F_Q \approx 0.675$). The remaining $32\%$ gap means that an optimised POVM — potentially exploiting correlated measurements across both the system and ancilla — could improve the sensitivity by a factor of $\sqrt{F_Q/F_C} \approx 1.22$, from $\Delta\omega = 0.02036$ down to $\Delta\omega = 0.01673$. This is a modest improvement relative to the factor-of-$4.91$ gain already achieved over the SQL, confirming that $J_z^S$ is a remarkably good measurement choice for this protocol.
+
+The key structural reason for the near-optimality of $J_z^S$ is that the protocol's information about $\omega$ is predominantly encoded in the system qubit's population difference — the ancilla acts primarily as an amplifier rather than as a second information carrier. The small gap $F_Q/F_C = 1.48$ indicates that the ancilla carries a modest amount of additional information that could be extracted through a joint system--ancilla measurement, but the bulk of the metrological gain is already accessible through the simple population readout.
 
 ---
 
@@ -363,9 +477,10 @@ This study demonstrates that an ω-modulated ancilla drive can achieve sub-SQL s
 The optimisation reveals:
 
 1. **Broad sub-SQL region**: Sensitivity below SQL for $\omega \in [0.03, 0.7]$, spanning nearly a factor of 20 in ω.
-2. **Global optimum**: $\omega = 0.2$, $\Delta\omega = 0.02036$, achieved with $|a_x|, |a_y| \approx 5$, $a_z \approx 1.0$, $a_{zz} \approx 0.75$.
-3. **Robustness**: The Nelder-Mead optimiser consistently finds similar optima from different initial guesses, indicating a single dominant basin of attraction.
-4. **Advantage over fixed drive**: The ω-modulated protocol outperforms a fixed-drive protocol by $2.5\times$ in sensitivity.
+2. **Global optimum**: $\omega = 0.2$, $\Delta\omega = 0.02036$ ($4.91\times$ SQL), achieved with $|a_x| = |a_y| = 5.0$ (opposite signs), $|a_z| \approx 4.0$, $a_{zz} \approx 4.0$.
+3. **Information-theoretic limits**: The $J_z^S$ measurement achieves $F_C = 2412.48$ ($24.1\times$ SQL Fisher information), while the QFI is $F_Q = 3571.82$ ($35.7\times$ SQL). The measurement is near-optimal, capturing $68\%$ of the QFI.
+4. **Robustness**: The Nelder-Mead optimiser consistently finds similar optima from different initial guesses, indicating a single dominant basin of attraction.
+5. **Advantage over fixed drive**: The ω-modulated protocol outperforms a fixed-drive protocol by $2.5\times$ in sensitivity.
 
 ### 9.2 Implications
 
@@ -377,7 +492,7 @@ This suggests that **engineered dynamics** can be as powerful as **engineered in
 
 **Open items** remain for future investigation:
 
-1. **QFI bound**: The error-propagation sensitivity $\Delta\omega_{\text{EP}} = 0.02036$ is a lower bound on the achievable precision for the chosen measurement $J_z^S$. However, the quantum Fisher information (QFI) could reveal whether even better sensitivity is possible with an optimised measurement. Computing $F_Q = \max_{\hat{M}} F_C$ for this protocol would establish the ultimate precision limit.
+1. ~~**QFI bound**~~ (addressed in Section 8.6–8.7): The QFI at the global optimum is $F_Q = 3571.82$, establishing an ultimate precision limit $\Delta\omega_Q = 0.01673$. The $J_z^S$ measurement achieves $F_C = 2412.48$, capturing $68\%$ of the QFI. An optimised joint system--ancilla measurement could improve sensitivity by at most $1.22\times$.
 
 2. **Particle scaling**: How does the sensitivity scale with $N$? Can we add more system qubits (or ancilla qubits) and achieve $1/N$ or even $1/N^2$ scaling? The ω-modulated architecture may naturally extend to multi-qubit systems through collective $\hat{J}_z$ operators.
 

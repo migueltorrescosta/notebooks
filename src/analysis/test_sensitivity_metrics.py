@@ -294,24 +294,16 @@ class TestSensitivityFromErrorPropagation:
 
     def test_custom_var_tolerance(self) -> None:
         """Custom var_tolerance should be respected."""
-        result = sensitivity_from_error_propagation(
-            1e-10, 1.0, var_tolerance=1e-11
-        )
+        result = sensitivity_from_error_propagation(1e-10, 1.0, var_tolerance=1e-11)
         assert np.isfinite(result)
-        result2 = sensitivity_from_error_propagation(
-            1e-10, 1.0, var_tolerance=1e-9
-        )
+        result2 = sensitivity_from_error_propagation(1e-10, 1.0, var_tolerance=1e-9)
         assert not np.isfinite(result2)
 
     def test_custom_deriv_tolerance(self) -> None:
         """Derivative 1e-11: finite if tolerance < 1e-11, inf if > 1e-11."""
-        result = sensitivity_from_error_propagation(
-            0.25, 1e-11, deriv_tolerance=1e-12
-        )
+        result = sensitivity_from_error_propagation(0.25, 1e-11, deriv_tolerance=1e-12)
         assert np.isfinite(result)
-        result2 = sensitivity_from_error_propagation(
-            0.25, 1e-11, deriv_tolerance=1e-10
-        )
+        result2 = sensitivity_from_error_propagation(0.25, 1e-11, deriv_tolerance=1e-10)
         assert not np.isfinite(result2)
 
 

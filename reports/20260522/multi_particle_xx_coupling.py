@@ -342,7 +342,6 @@ class DualMZISweepResult(ParquetSerializable):
         return len(self.omega_values)
 
 
-
 # ============================================================================
 # Sweep Execution
 # ============================================================================

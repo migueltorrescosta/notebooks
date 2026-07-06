@@ -371,7 +371,6 @@ def bayesian_estimator(
     }
 
 
-
 def compute_crb(
     initial_state: np.ndarray,
     max_photons: int,

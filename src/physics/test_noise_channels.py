@@ -42,7 +42,6 @@ def N() -> int:
     return 4
 
 
-
 # Test Annihilation/Creation Operators
 
 

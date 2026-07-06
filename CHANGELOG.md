@@ -34,13 +34,13 @@ Priority colours: 🔴🟠🟡🟢
 - 🟢 **Bell-state initial entanglement + $\omega$-modulated drive** — #20260621 tested Bell-state initialisation with $\omega$-independent drive and found $R=1.0$ everywhere. Open item: does $\omega$-modulated drive behave differently? The BCH cross-term $[\omega J_z^S, a_{zz} J_z^S\otimes J_z^A]$ generates effective $\omega J_z^A$ on the ancilla. With initial S--A entanglement, the covariance $\text{Cov}(J_z^S,J_z^A)$ could amplify $\partial\langle J_z^S\rangle/\partial\omega$ beyond what product states achieve. Expected: unknown — genuinely exploratory. Three possible outcomes (enhancement, interference, or no change) are all physically informative.
 
 
+
+
 ## Infrastructure & Tooling
 
 - 🔴 **3D slice visualization** — Heatmap infrastructure currently supports 2D slices only. For studying all three drive components simultaneously, 3D volumetric plots or 2D projections of 3D landscapes are needed.
 
 - 🟠 **Higher truncation + finer $\omega$-grid for cavity TMSV** — #20260629 CFI/QFI ratio degrades at high $\langle N\rangle$ due to insufficient truncation and coarse $\omega$-grid. **Done**: sparse CSR for `bs_fock` at M>50 (avoids OOM); increased `trunc_multiplier=8.0`, `max_trunc=250`, added `min_trunc=20`; confirmed CFI/QFI > 0.95 achievable for all $\langle N\rangle$. **Partial**: sweep started (completed $\mathcal{F}=1,2$; $\mathcal{F}=5$ in progress). **Resume**: `uv run python reports/20260629/cavity_enhanced_tmsv_mzi.py --force`. See #20260629.
-
-
 
 ---
 
@@ -48,9 +48,37 @@ Priority colours: 🔴🟠🟡🟢
 
 ### Infrastructure
 
+- **Reconcile beam-splitter generators: article vs code** — `articles/ancilla-drive-phase-modulated-metrology.md` claimed BS1 uses $\sigma_y$ (Sections 3 and 5.2). Code uses $\exp(-i\pi/4\,\sigma_x)$ for both BS1 and BS2 via `bs_qubit(π/2)`. Fixed article: both beam splitters now correctly described as $\sigma_x$. No code changes needed — all results were generated with $\sigma_x$ for both BS and are internally consistent. 335/335 tests pass. See `articles/ancilla-drive-phase-modulated-metrology.md`.
+
 - **Aggregate 500 per-omega random-search parquets into single file** — Merged 500 `random-search-omega*.parquet` files (250000 rows) from `reports/20260701/raw_data/` into a single `20260701-random-search.parquet` using `pd.read_parquet` + `pd.concat`. Added `_merge_random_search_parquets()` function that runs automatically at the end of `generate_random_search()`. Updated `generate_combined_sensitivity()` to load the aggregated file via `pd.read_parquet` + `groupby("omega_value")["delta_omega"].min()` instead of the per-omega loop. Result: 504 parquet files → 5. 65/65 tests pass, ruff clean. See `reports/20260701/`.
 
 - **Remove unused figures in reports/20260701/** — Deleted 504 unreferenced SVG files (99.4% of 508) from `figures/`: 2D slice heatmaps, decoupled baseline bar chart, NM expectation/variance plot, and 500 per-omega random-search histograms. Guarded regeneration in `_pomd_generation.py` via `_SUPPRESS_EXTRA_FIGURES = True` (default) with opt-in `--include-extra-figures` CLI flag. Parquet data generation unaffected. 65/65 tests pass. See `reports/20260701/`.
+
+- **Section ordering 6.1 and 6.2 reversed** — Swapped "### 6.2 Optimiser details" and "### 6.1 Parameter bounds" subsections in `articles/ancilla-drive-phase-modulated-metrology.md` so 6.1 precedes 6.2. Cosmetic reordering only. Verified by grep.
+
+- **Figure numbering gaps (no Figures 1, 4, 7)** — Renumbered Figures 2,3,5,6,8 → 1–5 in `articles/ancilla-drive-phase-modulated-metrology.md`. Now contiguous with no gaps. Verified by `grep -n "Figure [0-9]"`.
+
+- **Include $(a_z, a_{zz})$ 2D slice figure in article** — Generated 50 dedicated (a_z, a_zz) 2D contour plots via `generate_phase_2d_slice_az_azz()`, confirming the longitudinal-only case is flat at SQL everywhere. Added the ω=0.1 figure as new Figure 3 in `articles/ancilla-drive-phase-modulated-metrology.md` Sec 7.4, with renumbered subsequent figures (3→4, 4→5, 5→6). Completes the visualization triad: (a_x, a_zz), (a_y, a_zz), and (a_z, a_zz). All figures contiguous 1–6. See `articles/ancilla-drive-phase-modulated-metrology.md`.
+
+- **"First-order expansion" framing in Sec 8.1** — Reworded Sec 8.1 of `articles/ancilla-drive-phase-modulated-metrology.md` to clarify the $\omega a_{zz}$ cross-term arises from the second-order BCH commutator, not a first-order expansion. Pedagogical fix only.
+
+- **"SQL Fisher information" term clarity in Sec 8.7** — Added footnote to the table in Sec 8.7 of `articles/ancilla-drive-phase-modulated-metrology.md` explaining $F_{\text{SQL}} = T_H^2 N$ for frequency estimation vs $F_{\text{SQL}} = N$ for phase estimation. Verified mathematically correct.
+
+- **Section 7.4 vs 8.1 contradiction on longitudinal-only sub-SQL** — Reworded Sec 7.4 of `articles/ancilla-drive-phase-modulated-metrology.md` to distinguish between (a) projecting the optimal 4D point onto the $(a_z, a_{zz})$ plane, and (b) the constrained case $a_x=a_y=0$. Removed the phrase "purely-$(a_z, a_{zz})$" and added: "When $a_x=a_y$ are also set to zero, the sensitivity is exactly SQL for all $(a_z, a_{zz})$ — confirming the analytical result of Sec 8.1." Added `verify_longitudinal_only_sql()` function and `slice_type='az'` support to `reports/20260519/phase_modulated_drive.py`. Added 8 new tests covering the az slice, SQL flatness, and verification. 49/49 tests pass. See `reports/20260519/`.
+
+- **Misleading "purely-$(a_z, a_{zz})$" methodology in Sec 7.4** — Added new subsection in `reports/20260519/Ancilla-Drive-Phase-Modulated-Metrology.md` documenting the longitudinal-only $(a_z, a_{zz})$ verification scan. Clarified Sec 7.4 methodology to distinguish projection onto subspace from constraining to subspace. Verification: 50×50 grid scan over $a_z\in[-5,5]$, $a_{zz}\in[-2,5]$ with $a_x=a_y=0$ confirms $\Delta\omega = 0.1$ at every point within $<10^{-8}$ precision.
+
+- **Incorrect analytical sensitivity formula in Sec 8.1 (longitudinal-only case)** — Replaced the wrong formula $\Delta\omega = (1/T_H) \cdot 1/|\cos(\omega a_z T_H/2)| \cdot 1/|\cos(a_{zz} T_H/4)|$ in `articles/ancilla-drive-phase-modulated-metrology.md` with the correct derivation showing $\Delta\omega = 1/T_H$ exactly (SQL), independent of $a_z$ and $a_{zz}$. The $\cos$ factors cancel analytically when computing $\Delta\omega = \sqrt{\text{Var}(J_z^S)}/|\partial\langle J_z^S\rangle/\partial\omega|$. Verified numerically: every $(a_z, a_{zz})$ combination at $\omega=0.1, T_H=10$ gives $\Delta\omega=0.1$ to $10^{-10}$ precision.
+
+- **Define $n_0$ and $n_1$ operators individually in article** — Added explicit matrix forms $\hat{n}_0 = \text{diag}(1,0)$ and $\hat{n}_1 = \text{diag}(0,1)$ to Sec 2.2 of `articles/ancilla-drive-phase-modulated-metrology.md`, with $J_z = (\hat{n}_0 - \hat{n}_1)/2$ now directly computable from the defined matrices.
+
+- **Explicit $H_S + H_A + H_{\text{int}}$ decomposition in article** — Reformatted Sec 4 of `articles/ancilla-drive-phase-modulated-metrology.md` to label the three Hamiltonian components as $H_S = \omega J_z^S$, $H_A = \omega (a_x J_x^A + a_y J_y^A + a_z J_z^A)$, and $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, consistent with the report `reports/20260519/`.
+
+- **Describe the $\omega$ estimation protocol in article** — Added "Practical estimation workflow" subsection to Sec 3 of `articles/ancilla-drive-phase-modulated-metrology.md` covering the five-step procedure: state preparation, binary readout, sample mean, calibration curve inversion, and uncertainty quantification.
+
+- **Annotate minimum on 2D slice heatmaps** — Added minimum marker (white star) and annotation (value + coordinates) to `plot_drive_2d_slice_heatmap` in `src/visualization/ancilla_drive_plots.py`, using `np.nanargmin` to locate the global minimum on the $(a_{\text{drive}}, a_{zz})$ grid. 58/58 tests pass. See `src/visualization/ancilla_drive_plots.py`.
+
+- **Regenerate 2D slice figures with correct $\Delta\omega$ labels** — Fixed two stale `Δθ` docstrings in `src/visualization/ancilla_drive_plots.py` (→ `Δω`). Regenerated `reports/20260519/figures/*-omega0.1.svg` SVGs using current code (labels now correctly show $\Delta\omega$ and $\omega=0.1$). Updated article image refs from `theta0.1.svg` → `omega0.1.svg`. Deleted old stale `*-theta0.1.svg` 2D slice files. 83/83 tests pass. See `src/visualization/ancilla_drive_plots.py`, `reports/20260519/`, `articles/ancilla-drive-phase-modulated-metrology.md`.
 
 ---
 

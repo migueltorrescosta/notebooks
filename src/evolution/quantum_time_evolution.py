@@ -238,7 +238,6 @@ def normalize_energy_levels(
     return wave_functions_matrix, components, energies
 
 
-
 # =============================================================================
 # Time Evolution
 # =============================================================================

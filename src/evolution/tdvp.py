@@ -178,7 +178,6 @@ def tdvp_single_site(
     return apply_single_site_update(tensor, site_idx, dt, H_eff)
 
 
-
 # =============================================================================
 # Suzuki-Trotter Decomposition
 # =============================================================================

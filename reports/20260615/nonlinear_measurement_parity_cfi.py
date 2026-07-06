@@ -1462,7 +1462,6 @@ class NonLinearScanResult(ParquetSerializable):
         return cls(results=results)
 
 
-
 def plot_protocol_comparison(
     result: NonLinearScanResult,
     save_path: str | Path,

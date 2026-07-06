@@ -418,7 +418,6 @@ def evolve_full_np(
     return psi
 
 
-
 def build_hold_hamiltonian_torch(
     omega_true: float | torch.Tensor,
     alpha: tuple[

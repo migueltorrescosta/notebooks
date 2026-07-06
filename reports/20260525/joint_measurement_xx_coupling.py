@@ -638,8 +638,6 @@ class DualMZIOptimisedResult(ParquetSerializable):
         return len(self.omega_values)
 
 
-
-
 def _n_starts_for_n(N: int) -> int:
     """Adaptive number of random starts based on Hilbert space dimension.
 

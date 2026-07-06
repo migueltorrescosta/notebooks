@@ -77,7 +77,7 @@ def plot_drive_2d_slice_heatmap(
     figsize: tuple[float, float] = (8, 6),
     vmax: float | None = None,
 ) -> Path:
-    """Heatmap of Δθ over (a_drive, a_zz) with SQL contour."""
+    """Heatmap of Δω over (a_drive, a_zz) with SQL contour."""
     if isinstance(result, (str, Path)):
         result = Drive2DSliceResult.from_parquet(result)
 
@@ -122,6 +122,46 @@ def plot_drive_2d_slice_heatmap(
         drive_label = r"$a_y$"
     else:
         drive_label = r"$a_z$"
+
+    # Minimum marker and annotation (skip when the grid is essentially flat —
+    # i.e., all finite values equal to within numerical precision, so no
+    # meaningful minimum exists).  We consider only finite values because
+    # non-converged (inf) cells are numerical outliers, not physical structure.
+    grid = result.delta_omega_grid
+    finite_vals = grid[np.isfinite(grid)]
+    grid_ptp = finite_vals.max() - finite_vals.min() if len(finite_vals) > 0 else 0.0
+    if grid_ptp > 1e-9:
+        min_idx = np.unravel_index(
+            np.nanargmin(grid), grid.shape
+        )
+        min_drive = result.drive_values[min_idx[0]]
+        min_azz = result.azz_values[min_idx[1]]
+        min_val = result.delta_omega_grid[min_idx]
+        ax.plot(
+            min_azz,
+            min_drive,
+            marker="*",
+            color="white",
+            markersize=14,
+            markeredgecolor="black",
+            markeredgewidth=0.8,
+            zorder=5,
+        )
+        ax.annotate(
+            f"Min = {min_val:.4f}\n({drive_label}={min_drive:.2f}, $a_{{zz}}$={min_azz:.2f})",
+            xy=(min_azz, min_drive),
+            xytext=(min_azz + 0.8, min_drive + 0.6),
+            arrowprops={"arrowstyle": "->", "color": "white", "lw": 1.2},
+            fontsize=9,
+            color="white",
+            bbox={
+                "boxstyle": "round,pad=0.3",
+                "facecolor": "black",
+                "edgecolor": "white",
+                "alpha": 0.7,
+            },
+            zorder=6,
+        )
     ax.set_xlabel(r"$a_{zz}$ (interaction)")
     ax.set_ylabel(drive_label + " (drive)")
     ax.set_title(
@@ -145,7 +185,7 @@ def plot_drive_random_search_histogram(
     figsize: tuple[float, float] = (8, 5),
     n_bins: int = 50,
 ) -> Path:
-    """Histogram of Δθ values from 4D random search with SQL and best marked."""
+    """Histogram of Δω values from 4D random search with SQL and best marked."""
     if isinstance(result, (str, Path)):
         result = DriveRandomSearchResult.from_parquet(result)
 

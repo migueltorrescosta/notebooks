@@ -175,6 +175,3 @@ def generate_full_data[T: MziSensitivityData](
         raise RuntimeError(f"No valid resource values for state_type={state_type}")
 
     return concatenate_scan_results(scan_results, state_type, t_hold)
-
-
-

@@ -26,7 +26,6 @@ from .truncated_wigner import (
 # Fixtures
 
 
-
 @pytest.fixture
 def rng() -> Generator:
     """Random number generator for testing."""

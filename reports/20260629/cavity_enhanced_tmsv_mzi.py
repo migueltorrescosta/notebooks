@@ -63,7 +63,9 @@ N_OMEGA_POINTS: int = 200  # ω points per F value
 CFI_EPSILON: float = 1e-6  # Central difference step
 PROB_FLOOR: float = 1e-15  # CFI denominator regularisation
 MAX_TRUNC: int = 250  # Maximum photons per mode (explicit, never defaulted)
-TRUNC_MULTIPLIER: float = 8.0  # Multiplier for TMSV truncation; variance convergence needs M ~ 8×⟨N⟩
+TRUNC_MULTIPLIER: float = (
+    8.0  # Multiplier for TMSV truncation; variance convergence needs M ~ 8×⟨N⟩
+)
 MIN_TRUNC: int = 20  # Minimum truncation (N=2 needs M≥20 for CFI/QFI > 0.95)
 
 

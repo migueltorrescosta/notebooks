@@ -548,6 +548,3 @@ def validate_fisher_inputs(
         raise ValueError(f"{name} must not be NaN")
     if F <= 0:
         raise ValueError(f"{name} must be positive, got {F}")
-
-
-

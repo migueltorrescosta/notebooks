@@ -94,7 +94,6 @@ N_AZZ: int = 201
 N_R: int = 100
 
 
-
 # ============================================================================
 # Path Helpers
 # ============================================================================
@@ -980,7 +979,6 @@ def plot_best_ratio_by_slice(
     fig.savefig(save_path, format="svg", bbox_inches="tight")
     plt.close(fig)
     return save_path
-
 
 
 def plot_normball_histogram(

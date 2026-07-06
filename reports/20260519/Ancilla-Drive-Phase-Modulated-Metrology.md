@@ -191,6 +191,15 @@ The symmetry between $a_x$ and $a_y$ slices confirms that any non-commuting driv
 
 ![Fraction of random search points below SQL across $\omega$](figures/20260519-phase-fraction-below-sql.svg)
 
+### Longitudinal-Only $(a_z, a_{zz})$ Verification
+
+The article (Sec 7.4) describes extracting the optimal $(a_z, a_{zz})$ from the 4D random search. To clarify the role of transverse drives, we perform a dedicated verification scan:
+
+- **Constrained scan**: A $50\times50$ grid over $a_z\in[-5,5]$, $a_{zz}\in[-2,5]$ with $a_x=a_y=0$ at $\omega=0.1$ confirms $\Delta\omega = 1/T_H = 0.1$ at every grid point within numerical precision ($<10^{-8}$). The longitudinal-only case never beats SQL.
+- **Projected optimum**: The 4D random search's optimal point projects to $(a_z\approx 2.1, a_{zz}\approx 0.94)$. At this point with $a_x=a_y=0$, $\Delta\omega = 0.100$ (exactly SQL). The same $(a_z, a_{zz})$ with $a_x=5, a_y=-5$ (the transverse drives from the 4D optimum) gives $\Delta\omega = 0.076$, confirming that the sub-SQL performance in Sec 7.4's reported values comes entirely from the transverse drives, not from $(a_z, a_{zz})$ alone.
+
+**Status: PASS** — Longitudinal-only case never beats SQL, consistent with the analytical prediction of Sec 8.1.
+
 ### Nelder--Mead Refinement and $\omega$ Scan
 
 The $\omega$ scan combines 4D random search (500 pts) with Nelder--Mead refinement (top 50 points) at each $\omega$ value. The refined results are the **best achieved across the entire parameter search**.

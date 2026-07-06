@@ -46,11 +46,7 @@ class WeakValueConfig:
     post_select_angle: float = np.pi / 2 - 0.1  # Slightly off π/2
 
 
-
-
 # Internal Helpers
-
-
 
 
 # Analytical Sensitivity for Coherent State Input

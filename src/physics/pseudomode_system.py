@@ -752,7 +752,6 @@ def run_metrology_protocol(
     }
 
 
-
 def check_pseudomode_occupancy(
     rho: np.ndarray,
     N: int,

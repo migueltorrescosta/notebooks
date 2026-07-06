@@ -56,6 +56,7 @@ phase_modulated_hold_unitary = _m.phase_modulated_hold_unitary
 phase_modulated_random_search = _m.phase_modulated_random_search
 run_phase_modulated_omega_scan = _m.run_phase_modulated_omega_scan
 system_only_bs_unitary = _m.system_only_bs_unitary
+verify_longitudinal_only_sql = _m.verify_longitudinal_only_sql
 
 I_4 = np.eye(4, dtype=complex)
 
@@ -418,6 +419,131 @@ class TestPhaseModulatedOmegaScan:
             strict=False,
         ):
             assert np.allclose(got, expected, atol=1e-10)
+
+
+# ============================================================================
+# 2D Slice: (a_z, a_zz) longitudinal-only
+# ============================================================================
+
+
+class TestAzSlice:
+    def test_az_slice_returns_correct_shape(self) -> None:
+        result = phase_modulated_2d_slice(
+            omega=0.1,
+            slice_type="az",
+            drive_range=(-5.0, 5.0),
+            azz_range=(-2.0, 5.0),
+            n_drive=10,
+            n_azz=10,
+        )
+        assert result.delta_omega_grid.shape == (10, 10)
+
+    def test_az_slice_all_at_sql(self) -> None:
+        """Every point in the (a_z, a_zz) longitudinal-only slice should equal
+        the SQL (= 1/T_H) within numerical precision."""
+        result = phase_modulated_2d_slice(
+            omega=0.1,
+            slice_type="az",
+            drive_range=(-5.0, 5.0),
+            azz_range=(-2.0, 5.0),
+            n_drive=10,
+            n_azz=10,
+        )
+        sql = 1.0 / DEFAULT_t_hold
+        max_dev = float(np.max(np.abs(result.delta_omega_grid - sql)))
+        assert max_dev < 1e-8, (
+            f"Max deviation from SQL in (a_z, a_zz) slice = {max_dev:.2e}"
+        )
+
+    def test_az_slice_parquet_roundtrip(self, tmp_path: Path) -> None:
+        result = phase_modulated_2d_slice(
+            omega=0.1,
+            slice_type="az",
+            drive_range=(-5.0, 5.0),
+            azz_range=(-2.0, 5.0),
+            n_drive=5,
+            n_azz=5,
+        )
+        parquet_p = tmp_path / "az-slice.parquet"
+        result.save_parquet(parquet_p)
+        loaded = Drive2DSliceResult.from_parquet(parquet_p)
+        assert loaded.drive_values == pytest.approx(result.drive_values)
+        assert loaded.azz_values == pytest.approx(result.azz_values)
+        assert loaded.delta_omega_grid == pytest.approx(
+            result.delta_omega_grid, nan_ok=True
+        )
+        # Verify metadata survives roundtrip
+        assert loaded.omega_value == pytest.approx(result.omega_value)
+        assert loaded.slice_type == result.slice_type
+        assert loaded.sql == pytest.approx(result.sql)
+
+    def test_given_az_slice_then_slice_type_stored(self) -> None:
+        result = phase_modulated_2d_slice(
+            omega=0.1,
+            slice_type="az",
+            drive_range=(-5.0, 5.0),
+            azz_range=(-2.0, 5.0),
+            n_drive=3,
+            n_azz=3,
+        )
+        assert result.slice_type == "az"
+
+    def test_given_invalid_slice_type_raises(self) -> None:
+        with pytest.raises(ValueError, match="slice_type"):
+            phase_modulated_2d_slice(omega=0.1, slice_type="invalid")
+
+
+class TestLongitudinalOnlyVerification:
+    """Tests reproducing the Section 7.4 verification.
+
+    Confirms that:
+    - With a_x = a_y = 0, the sensitivity is exactly SQL for any (a_z, a_zz).
+    - Adding transverse drives (a_x, a_y) produces sub-SQL sensitivity.
+    """
+
+    def test_given_longitudinal_only_then_exactly_sql(self) -> None:
+        ops = build_two_qubit_operators()
+        domega = compute_phase_modulated_sensitivity(
+            DEFAULT_PSI0,
+            DEFAULT_T_BS,
+            DEFAULT_t_hold,
+            0.1,  # omega
+            0.0,  # a_x
+            0.0,  # a_y
+            2.1,  # a_z
+            0.94,  # a_zz
+            ops,
+        )
+        expected_sql = 1.0 / DEFAULT_t_hold
+        assert np.isclose(domega, expected_sql, atol=1e-10), (
+            f"Longitudinal-only Δω = {domega:.15f}, expected SQL = {expected_sql:.15f}"
+        )
+
+    def test_given_transverse_drives_then_sub_sql(self) -> None:
+        ops = build_two_qubit_operators()
+        domega = compute_phase_modulated_sensitivity(
+            DEFAULT_PSI0,
+            DEFAULT_T_BS,
+            DEFAULT_t_hold,
+            0.1,  # omega
+            5.0,  # a_x
+            -5.0,  # a_y
+            2.1,  # a_z
+            0.94,  # a_zz
+            ops,
+        )
+        sql = 1.0 / DEFAULT_t_hold
+        assert domega < sql, (
+            f"With transverse drives: Δω = {domega:.6f} should be < SQL = {sql}"
+        )
+
+    def test_given_verify_function_runs(self) -> None:
+        """Verify the standalone verification function runs without error."""
+        results = verify_longitudinal_only_sql()
+        assert "longitudinal_only_delta_omega" in results
+        assert "with_transverse_delta_omega" in results
+        assert "grid_max_deviation" in results
+        assert results["grid_max_deviation"] < 1e-8
 
 
 # ============================================================================

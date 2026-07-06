@@ -787,7 +787,6 @@ def prepare_input_state(
     return state
 
 
-
 # =============================================================================
 # Ancilla-Free MZI Evolution (shared by MZI-scaling reports)
 # =============================================================================

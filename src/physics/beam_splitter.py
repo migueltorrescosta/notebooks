@@ -68,7 +68,6 @@ from src.physics.dicke_basis import jx_operator
 from src.utils.constants import I_2, SIGMA_X
 from src.utils.enums import OperatorBasis
 
-
 AUTO_SPARSE_THRESHOLD: int = 50
 r"""``max_photons`` above this threshold use a sparse CSR matrix.
 
@@ -79,7 +78,9 @@ dimensions avoids allocating 1.6+ GiB dense matrices.
 
 
 @cache
-def bs_fock(theta: float, phi_bs: float, max_photons: int) -> np.ndarray | scipy.sparse.spmatrix:
+def bs_fock(
+    theta: float, phi_bs: float, max_photons: int
+) -> np.ndarray | scipy.sparse.spmatrix:
     r"""Two-mode Fock space beam-splitter unitary.
 
     Mode transformation:

@@ -1028,7 +1028,6 @@ class JointNScalingScanResult(ParquetSerializable):
 # ============================================================================
 
 
-
 def generate_joint_and_sonly_scaling_data(
     omega_value: float = 0.2,
     N_range: list[int] | None = None,
