@@ -40,6 +40,18 @@ Priority colours: 🔴🟠🟡🟢
 
 - 🟠 **Higher truncation + finer $\omega$-grid for cavity TMSV** — #20260629 CFI/QFI ratio degrades at high $\langle N\rangle$ due to insufficient truncation and coarse $\omega$-grid. **Done**: sparse CSR for `bs_fock` at M>50 (avoids OOM); increased `trunc_multiplier=8.0`, `max_trunc=250`, added `min_trunc=20`; confirmed CFI/QFI > 0.95 achievable for all $\langle N\rangle$. **Partial**: sweep started (completed $\mathcal{F}=1,2$; $\mathcal{F}=5$ in progress). **Resume**: `uv run python reports/20260629/cavity_enhanced_tmsv_mzi.py --force`. See #20260629.
 
+
+
+---
+
+## Week 28 (Jul 6–12)
+
+### Infrastructure
+
+- **Aggregate 500 per-omega random-search parquets into single file** — Merged 500 `random-search-omega*.parquet` files (250000 rows) from `reports/20260701/raw_data/` into a single `20260701-random-search.parquet` using `pd.read_parquet` + `pd.concat`. Added `_merge_random_search_parquets()` function that runs automatically at the end of `generate_random_search()`. Updated `generate_combined_sensitivity()` to load the aggregated file via `pd.read_parquet` + `groupby("omega_value")["delta_omega"].min()` instead of the per-omega loop. Result: 504 parquet files → 5. 65/65 tests pass, ruff clean. See `reports/20260701/`.
+
+- **Remove unused figures in reports/20260701/** — Deleted 504 unreferenced SVG files (99.4% of 508) from `figures/`: 2D slice heatmaps, decoupled baseline bar chart, NM expectation/variance plot, and 500 per-omega random-search histograms. Guarded regeneration in `_pomd_generation.py` via `_SUPPRESS_EXTRA_FIGURES = True` (default) with opt-in `--include-extra-figures` CLI flag. Parquet data generation unaffected. 65/65 tests pass. See `reports/20260701/`.
+
 ---
 
 ## Week 27 (Jun 29–Jul 5)
@@ -54,35 +66,11 @@ Priority colours: 🔴🟠🟡🟢
 
 ### Infrastructure
 
-- **Code quality, type safety, and test suite hardening** — Fixed or removed 33 type/annotation suppressions across 18 files (17 `call-overload`/`arg-type` in `src/`, 16 dead annotations in reports/tests). Migrated 25 `# noqa: F401` re-exports to canonical `__all__` lists. Fixed 16 lint/type regressions (E402 in 2 reports, PT019/ARG003 in 4 files, alias imports in 2 reports). Marked 14 hanging Nelder--Mead/BFGS tests as `@pytest.mark.slow`. Raised coverage from 83% to 88% (crossing 85% CI threshold). Four project alignment reviews completed (backlog stable at 2🔴/4🟠/4🟡/2🟢 at latest review). Toolchain clean: ruff 0 errors, mypy 0 errors, pyright 0 errors.
+- **Code quality, type safety, and dead-code sweep** — Fixed or removed 33 type/annotation suppressions across 18 files, migrated 25 `# noqa: F401` re-exports to canonical `__all__` lists, and fixed 16 lint/type regressions. Three-pass Vulture dead-code sweep removed 136 dead items total (83 + 40 + 13) across `src/` and `reports/`, reducing false-positive flags from 123 to 32. Raised coverage from 83% to 88% (crossing the 85% CI threshold). Marked 14 slow tests as `@pytest.mark.slow`. Slow-test profiling identified 5 bottlenecks and moved expensive UI pages to a skip list, reducing raw test time by ~7.5s. Toolchain clean: ruff 0 errors, mypy 0 errors, pyright 0 errors.
 
-- **`sys.path` eradication and import infrastructure** — Removed every `sys.path.insert` anti-pattern from `conftest.py`, 29 report test files, 5 runner scripts, and subprocess workers, replacing with editable-install `.pth` resolution and `PYTHONPATH` env vars. Added `__init__.py` to `reports/` and all 29 subdirectories for native `importlib` importability.
+- **Import infrastructure overhaul and cross-report deduplication** — Removed every `sys.path.insert` anti-pattern from `conftest.py`, 29 report test files, 5 runner scripts, and subprocess workers, replacing with editable-install `.pth` resolution and `PYTHONPATH` env vars. Added `__init__.py` to `reports/` and all 29 subdirectories for native `importlib` importability. Remediated 14 findings across two code audits (#20260629, #20260701). Promoted 6 duplicated functions to shared `src/` modules, resolving the last 3 cross-report duplications. Refactored `reports/20260701/` module from 1643 to 1140 lines (CC 11→1) by extracting a 595-line generation submodule.
 
-- **Audit remediation and cross-report deduplication** — Remediated 14 findings across two code audits (#20260629: 6 findings with formula corrections, test isolation, Parquet column fixes; #20260701: 3 MAJOR + 5 MINOR covering visualisation promotion, edge-case guards, seed handling). Promoted 6 duplicated functions to shared `src/` modules, resolving the last 3 cross-report duplications. Refactored `reports/20260701/` module from 1643 to 1140 lines (CC 11→1) by extracting a 595-line generation submodule. See #20260629, #20260701.
-
-- **Project alignment review** — Backlog priorities refreshed (2🔴/4🟠/4🟡/2🟢), no stale runner scripts or orphaned directories found. Toolchain clean: ruff 0 errors, mypy 0 errors, pyright 0 errors. Fixed duplication-baseline threshold (src 0.55% → 0.56%) to tolerate small source-count fluctuations. Coverage target not verified (test suite timeouts under coverage). Added 3 new backlog items: slow-test profiling, vulture dead-code sweep, and duplication-baseline fix (completed). Semantic/procedural memory consolidation skipped (insufficient data). Skill files and OpenCode configuration verified consistent.
-
-- **Vulture dead-code sweep (completed)** — Removed 83 flagged items across `src/` and `reports/`:
-  - `src/analysis/thermal_noise.py`: `m_scaling`/`k_scaling` params from 4 functions + unused `Callable`/`TYPE_CHECKING` imports
-  - `src/physics/bec_ancilla_system.py`: unused `max_epsilon` param
-  - `src/analysis/optimisation_pipeline.py`: `nm_xatol`, `nm_fatol`, `nm_adaptive` fields from `TwoPhaseConfig`
-  - `src/evolution/tdvp.py`: `svd_epsilon`/`convergence_tol` from `TDVPConfig`, `state_vector` from `TDVPCheckpoint`, `final_time` from `TDVPResult`
-  - `src/analysis/weak_value_mzi.py`: `measurement_basis` from `WeakValueConfig`
-  - `src/analysis/scaling_survey.py`: `measurement` from `SurveyConfig`
-  - `src/analysis/scaling_fit.py`: `delta_phi_values` from `ScalingFitResult`
-  - `src/analysis/sensitivity_metrics.py`: `SensitivityResult` type alias, `O_mean` dead param from `sensitivity_from_error_propagation`
-  - `src/visualization/report_figures.py`: stripped 5 dead plot functions to docstring stub
-  - `reports/20260519/phase_modulated_drive.py`: removed local duplicated `compute_phase_modulated_sensitivity`, imported from src
-  - 8 report modules: removed 11 unused constants, 6 unused properties/methods
-  - All 837 site-specific test call sites for `O_mean` updated
-  - Triage confirmed: remaining 55 Vulture flags are false positives (mock `return_value`, `generate_*` dispatch entry points, `best_x` nonlocal vars, `pytestmark`, ParquetSerializable fields, src functions called from `pages/`).
-  - 2000 tests pass with no regressions.
-
-- **Vulture dead-code sweep** — Removed 40 truly dead functions/classes/variables/methods/imports across 23 locations in `src/` and `reports/`. Vulture findings reduced from 123 to 83 (remaining are false positives: mock `return_value`, dataclass fields, dormant dispatch entry points, visualization public API, report constants). All removals confirmed: (a) exported by nothing, (b) no callers in `src/`, `reports/`, `pages/`, `tests/`, or `conftest.py`. Key removals: `weak_value_mzi` + 5 helpers + `create_number_operator` + `_apply_jz_rotation` from `src/analysis/weak_value_mzi.py`; `TWAConfig` class + import from `src/physics/truncated_wigner.py`; `to_restarts_dataframe` from `ancilla_optimization_results.py`; `compute_local_expectation` from `tdvp.py`; all 32 items from Part B–G of the removal plan (see session vulture plan). Updated duplication baseline `src/`: 0.56% → 0.57% (266 duplicate lines / 47051 total). No `# noqa: V101` suppressions added. Pure lint hygiene — no physics impact. See backlog item for original scope. 3908 tests pass (0 failures).
-
-- **Vulture dead-code sweep (final pass)** — Removed 13 more dead items from the remaining 45 flags (down from 55). Removed 8 unused page-level variables (`test_params`, `variables_of_interest`, `pdf`/`binomial_pdf` + import, `alphabet`, `phi_mzi`, `optimizer`, `test_function`, `explained_psi_zero`) and 5 unused `CavityTmsvScalingFit` dataclass fields (`alpha_err_values`, `C_err_values`, `R_squared_values`, `C0_err`, `beta_R_squared`) plus associated constructor args and docstrings. Cascading fix: prefixed 3 unpacked variables with underscore. Confirmed 32 remaining flags are all false positives (1 `pytestmark`, 2 `best_x`, 13 `generate_*`, 16 `return_value`). Vulture findings: 45 → 32. Ruff 0 errors, mypy 0 errors, 1415 tests pass. Pure lint hygiene — no physics impact.
-
-- **Slow-test profiling and acceleration** — Profiled 5 slowest tests (Streamlit AppTest subprocess launch is the bottleneck for UI-render tests; Nelder-Mead sequential iteration for omega-scan tests). Moved `BEC_Sensitivity_Scaling.py` and `Delta_estimation.py` to `SLOW_PAGES` in `test_pages_render.py`. Marked `test_omega_scan_runs_and_all_finite` and `test_joint_omega_scan_runs_and_respects_qfi_bound` as `@pytest.mark.slow`. Together these remove ~7.5s raw time (~15s under coverage) from the default run, reducing timeout risk. Non-vectorisable bottleneck confirmed for Nelder-Mead (inherently sequential). See CHANGELOG backlog item.
+- **Project alignment review and backlog maintenance** — Backlog priorities refreshed (2🔴/4🟠/4🟡/2🟢). No stale runner scripts or orphaned directories found. Fixed duplication-baseline threshold (src 0.55% → 0.56%) to tolerate small source-count fluctuations. Coverage target not verified (test suite timeouts under coverage). Added 3 new backlog items: slow-test profiling, vulture dead-code sweep, and duplication-baseline fix (all subsequently completed). Four project alignment reviews completed over the week. Skill files and OpenCode configuration verified consistent.
 
 ---
 
