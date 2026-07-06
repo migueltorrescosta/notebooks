@@ -27,7 +27,6 @@ import pandas as pd
 import scipy
 import scipy.linalg
 
-from src.analysis.fisher_information import quantum_fisher_information_dm
 from src.evolution.lindblad_solver import (
     evolve_lindblad_rk4,
     evolve_lindblad_scipy,
@@ -35,8 +34,6 @@ from src.evolution.lindblad_solver import (
 )
 from src.physics.hybrid_mzi import (
     compute_wigner_for_state,
-    embed_hybrid_in_mzi,
-    mzi_phase_generator,
     qfi_hybrid_mzi,
     wigner_is_negative,
 )

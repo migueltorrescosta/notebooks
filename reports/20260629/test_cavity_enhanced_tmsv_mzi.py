@@ -141,8 +141,14 @@ class TestCapturedNorm:
 
     def test_tmsv_captured_norm_at_boundary(self) -> None:
         """Captured norm at max truncation for large mean_total."""
-        captured = compute_tmsv_captured_norm(mean_total=40.0, max_photons=100)
-        assert captured > 0.99, f"Captured norm {captured} too low"
+        # With max_trunc=200 for ⟨N⟩≥30, capture >99.9%
+        captured = compute_tmsv_captured_norm(mean_total=40.0, max_photons=200)
+        assert captured > 0.999, f"Captured norm {captured} too low"
+        # Old truncation (100) loses ~0.7% of norm at ⟨N⟩=40
+        captured_old = compute_tmsv_captured_norm(mean_total=40.0, max_photons=100)
+        assert captured_old < captured, (
+            f"Old truncation norm {captured_old} should be less than new {captured}"
+        )
 
 
 class TestTmsvSQL:
@@ -181,15 +187,20 @@ class TestOmegaGrid:
         """ω grid should have N_OMEGA_POINTS points."""
         for Fi in [1, 10, 100]:
             grid = _omega_grid_finesse(Fi)
-            assert len(grid) == 50, f"ℱ={Fi}: len={len(grid)}, expected 50"
+            assert len(grid) == 200, f"ℱ={Fi}: len={len(grid)}, expected 200"
 
-    def test_omega_grid_uniform(self) -> None:
-        """ω grid should be uniformly spaced."""
+    def test_omega_grid_quadratic(self) -> None:
+        """ω grid should be monotonically increasing with quadratic spacing."""
         for Fi in [1, 10, 100]:
             grid = _omega_grid_finesse(Fi)
+            assert grid[0] >= 0
+            assert np.all(np.diff(grid) > 0), (
+                f"ℱ={Fi}: grid is not monotonically increasing"
+            )
+            # Spacing should increase with ω (quadratic → larger gaps at larger ω)
             diffs = np.diff(grid)
-            assert np.allclose(diffs, diffs[0], rtol=1e-10), (
-                f"ℱ={Fi}: non-uniform spacing"
+            assert diffs[-1] > diffs[0], (
+                f"ℱ={Fi}: last spacing {diffs[-1]} not > first spacing {diffs[0]}"
             )
 
     def test_higher_finesse_narrower_grid(self) -> None:
@@ -213,7 +224,7 @@ class TestGenerateSinglePoint:
             max_photons=20,
         )
         assert result is not None
-        assert len(result["mean_total"]) == 50
+        assert len(result["mean_total"]) == 200
         assert np.allclose(result["mean_total"], 4.0)
         assert np.allclose(result["finesse"], 1.0)
         assert np.all(np.isfinite(result["delta_omega_c"]))
@@ -296,7 +307,7 @@ class TestRowDictsToResult:
         rows = [generate_single_cavity_point(4.0, 1.0, max_photons=20)]
         result = _row_dicts_to_result(rows)
         assert isinstance(result, CavityTmsvSensitivityResult)
-        assert len(result.mean_total) == 50
+        assert len(result.mean_total) == 200
         assert np.allclose(result.finesse[:5], 1.0)
 
     def test_multiple_rows(self) -> None:
@@ -304,7 +315,7 @@ class TestRowDictsToResult:
         r1 = generate_single_cavity_point(4.0, 1.0, max_photons=20)
         r2 = generate_single_cavity_point(6.0, 1.0, max_photons=20)
         result = _row_dicts_to_result([r1, r2])
-        assert len(result.mean_total) == 100
+        assert len(result.mean_total) == 400
         assert np.isclose(result.mean_total[0], 4.0)
         assert np.isclose(result.mean_total[-1], 6.0)
 
@@ -313,8 +324,8 @@ class TestRowDictsToResult:
         r1 = generate_single_cavity_point(4.0, 1.0, max_photons=20)
         r2 = generate_single_cavity_point(4.0, 10.0, max_photons=20)
         result = _row_dicts_to_result([r1, r2])
-        assert np.allclose(result.finesse[:50], 1.0)
-        assert np.allclose(result.finesse[50:], 10.0)
+        assert np.allclose(result.finesse[:200], 1.0)
+        assert np.allclose(result.finesse[200:], 10.0)
 
 
 # =============================================================================
@@ -629,7 +640,7 @@ class TestGenerateFullData:
             finesse_range=f_range,
         )
         assert isinstance(data, CavityTmsvSensitivityResult)
-        n_expected = len(n_range) * len(f_range) * 50
+        n_expected = len(n_range) * len(f_range) * 200
         assert len(data.mean_total) == n_expected, (
             f"Expected {n_expected} rows, got {len(data.mean_total)}"
         )

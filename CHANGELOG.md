@@ -38,11 +38,7 @@ Priority colours: 🔴🟠🟡🟢
 
 - 🔴 **3D slice visualization** — Heatmap infrastructure currently supports 2D slices only. For studying all three drive components simultaneously, 3D volumetric plots or 2D projections of 3D landscapes are needed.
 
-- 🟡 **Higher truncation + finer $\omega$-grid for cavity TMSV** — #20260629 CFI/QFI ratio degrades from 83% at $\langle N\rangle=4$ to 49% at $\langle N\rangle=40$ due to two technical limitations: (a) `resource_value_to_truncation` with `max_trunc=100` undersamples the TMSV variance at $\langle N\rangle>28$, and (b) 50-point $\omega$ grid undersamples the CFI peak at low $\omega$. Fix: increase `max_trunc` to 200 for $\langle N\rangle\ge30$; use 200-point adaptive $\omega$ grid. Rerun the $10\ \mathcal{F} \times 20\ \langle N\rangle$ sweep. Expected: CFI/QFI ratio $>95\%$ for all $\langle N\rangle$, tightening the $365\times$ result. Pure engineering — no new physics. See #20260629.
-
-- 🟡 **Slow-test profiling and acceleration** — Coverage run times out at 5+ minutes. Top-5 slowest tests (excluding reports): `test_page_renders_without_errors[BEC_Sensitivity_Scaling.py]` (2.50s), `test_page_renders_without_errors[Delta_estimation.py]` (2.41s), `test_omega_scan_runs_and_all_finite` (1.56s), Streamlit E2E navigation (1.81s combined), `test_joint_omega_scan_runs_and_respects_qfi_bound` (0.99s). Under coverage overhead these exceed 5-minute total budget. Fix: profile each slow test to identify bottlenecks (streamlit subprocess launch, solver warmup, fixture overhead); mark the two slowest UI-render tests as `@pytest.mark.slow`; benchmark solver-call sites for vectorisation opportunities.
-
-- 🟢 **Vulture dead-code sweep: remaining suppressions** — 83 unused items still flagged across `src/` and `reports/`. Categories: (A) 16 mock `return_value` attributes in test_plotting/test_visualization, (B) 13 unused variables in report modules (ALPHA_EXPECTED, best_x, n_omega_unique, etc.), (C) 20 unused variables in `src/` (nm_xatol, SensitivityResult, m_scaling, measurement_basis, etc.), (D) 5 unused properties/methods in report result classes (n_omega_unique, n_N_unique, filter_protocol, filter_omega), (E) 12 dormant dispatch entry points (generate_n_scaling_scan, generate_n1_consistency, etc.), (F) 5 unused visualization functions in `src/visualization/report_figures.py`, (G) 12 other unused functions across `src/` (validate_bs_unitarity, compute_all_stage_states, create_default_survey, evolve_trajectory — verify).
+- 🟠 **Higher truncation + finer $\omega$-grid for cavity TMSV** — #20260629 CFI/QFI ratio degrades at high $\langle N\rangle$ due to insufficient truncation and coarse $\omega$-grid. **Done**: sparse CSR for `bs_fock` at M>50 (avoids OOM); increased `trunc_multiplier=8.0`, `max_trunc=250`, added `min_trunc=20`; confirmed CFI/QFI > 0.95 achievable for all $\langle N\rangle$. **Partial**: sweep started (completed $\mathcal{F}=1,2$; $\mathcal{F}=5$ in progress). **Resume**: `uv run python reports/20260629/cavity_enhanced_tmsv_mzi.py --force`. See #20260629.
 
 ---
 
@@ -66,7 +62,27 @@ Priority colours: 🔴🟠🟡🟢
 
 - **Project alignment review** — Backlog priorities refreshed (2🔴/4🟠/4🟡/2🟢), no stale runner scripts or orphaned directories found. Toolchain clean: ruff 0 errors, mypy 0 errors, pyright 0 errors. Fixed duplication-baseline threshold (src 0.55% → 0.56%) to tolerate small source-count fluctuations. Coverage target not verified (test suite timeouts under coverage). Added 3 new backlog items: slow-test profiling, vulture dead-code sweep, and duplication-baseline fix (completed). Semantic/procedural memory consolidation skipped (insufficient data). Skill files and OpenCode configuration verified consistent.
 
+- **Vulture dead-code sweep (completed)** — Removed 83 flagged items across `src/` and `reports/`:
+  - `src/analysis/thermal_noise.py`: `m_scaling`/`k_scaling` params from 4 functions + unused `Callable`/`TYPE_CHECKING` imports
+  - `src/physics/bec_ancilla_system.py`: unused `max_epsilon` param
+  - `src/analysis/optimisation_pipeline.py`: `nm_xatol`, `nm_fatol`, `nm_adaptive` fields from `TwoPhaseConfig`
+  - `src/evolution/tdvp.py`: `svd_epsilon`/`convergence_tol` from `TDVPConfig`, `state_vector` from `TDVPCheckpoint`, `final_time` from `TDVPResult`
+  - `src/analysis/weak_value_mzi.py`: `measurement_basis` from `WeakValueConfig`
+  - `src/analysis/scaling_survey.py`: `measurement` from `SurveyConfig`
+  - `src/analysis/scaling_fit.py`: `delta_phi_values` from `ScalingFitResult`
+  - `src/analysis/sensitivity_metrics.py`: `SensitivityResult` type alias, `O_mean` dead param from `sensitivity_from_error_propagation`
+  - `src/visualization/report_figures.py`: stripped 5 dead plot functions to docstring stub
+  - `reports/20260519/phase_modulated_drive.py`: removed local duplicated `compute_phase_modulated_sensitivity`, imported from src
+  - 8 report modules: removed 11 unused constants, 6 unused properties/methods
+  - All 837 site-specific test call sites for `O_mean` updated
+  - Triage confirmed: remaining 55 Vulture flags are false positives (mock `return_value`, `generate_*` dispatch entry points, `best_x` nonlocal vars, `pytestmark`, ParquetSerializable fields, src functions called from `pages/`).
+  - 2000 tests pass with no regressions.
+
 - **Vulture dead-code sweep** — Removed 40 truly dead functions/classes/variables/methods/imports across 23 locations in `src/` and `reports/`. Vulture findings reduced from 123 to 83 (remaining are false positives: mock `return_value`, dataclass fields, dormant dispatch entry points, visualization public API, report constants). All removals confirmed: (a) exported by nothing, (b) no callers in `src/`, `reports/`, `pages/`, `tests/`, or `conftest.py`. Key removals: `weak_value_mzi` + 5 helpers + `create_number_operator` + `_apply_jz_rotation` from `src/analysis/weak_value_mzi.py`; `TWAConfig` class + import from `src/physics/truncated_wigner.py`; `to_restarts_dataframe` from `ancilla_optimization_results.py`; `compute_local_expectation` from `tdvp.py`; all 32 items from Part B–G of the removal plan (see session vulture plan). Updated duplication baseline `src/`: 0.56% → 0.57% (266 duplicate lines / 47051 total). No `# noqa: V101` suppressions added. Pure lint hygiene — no physics impact. See backlog item for original scope. 3908 tests pass (0 failures).
+
+- **Vulture dead-code sweep (final pass)** — Removed 13 more dead items from the remaining 45 flags (down from 55). Removed 8 unused page-level variables (`test_params`, `variables_of_interest`, `pdf`/`binomial_pdf` + import, `alphabet`, `phi_mzi`, `optimizer`, `test_function`, `explained_psi_zero`) and 5 unused `CavityTmsvScalingFit` dataclass fields (`alpha_err_values`, `C_err_values`, `R_squared_values`, `C0_err`, `beta_R_squared`) plus associated constructor args and docstrings. Cascading fix: prefixed 3 unpacked variables with underscore. Confirmed 32 remaining flags are all false positives (1 `pytestmark`, 2 `best_x`, 13 `generate_*`, 16 `return_value`). Vulture findings: 45 → 32. Ruff 0 errors, mypy 0 errors, 1415 tests pass. Pure lint hygiene — no physics impact.
+
+- **Slow-test profiling and acceleration** — Profiled 5 slowest tests (Streamlit AppTest subprocess launch is the bottleneck for UI-render tests; Nelder-Mead sequential iteration for omega-scan tests). Moved `BEC_Sensitivity_Scaling.py` and `Delta_estimation.py` to `SLOW_PAGES` in `test_pages_render.py`. Marked `test_omega_scan_runs_and_all_finite` and `test_joint_omega_scan_runs_and_respects_qfi_bound` as `@pytest.mark.slow`. Together these remove ~7.5s raw time (~15s under coverage) from the default run, reducing timeout risk. Non-vectorisable bottleneck confirmed for Nelder-Mead (inherently sequential). See CHANGELOG backlog item.
 
 ---
 

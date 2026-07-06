@@ -28,10 +28,11 @@ References:
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.linalg import expm
 
 # Reuse shared primitives from ancilla_optimization
 from src.analysis.ancilla_optimization import (
@@ -46,11 +47,40 @@ from src.utils.constants import I_4
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+
+@dataclass
+class _DebugConfig:
+    """Gated-debug configuration for operator assertions.
+
+    Set ``verify_operators=True`` in unit tests to verify operator
+    properties on every call.  When ``False`` (optimisation hot path),
+    expensive assertions are skipped.
+    """
+
+    verify_operators: bool = False
+
+
+# Module-level singleton.  Unit tests can set ``_debug.verify_operators = True``
+# to enable cold-path assertion checks without changing call signatures.
+_debug = _DebugConfig()
+
+
+def _expm_hermitian(H: np.ndarray, t: float) -> np.ndarray:
+    """Exponentiate a Hermitian matrix ``exp(-i t H)`` via ``eigh``.
+
+    For a small (4×4) Hermitian matrix this is 2–3× faster than
+    ``scipy.linalg.expm`` because it exploits Hermiticity.
+    """
+    eigvals, eigvecs = np.linalg.eigh(H)
+    return eigvecs @ np.diag(np.exp(-1j * t * eigvals)) @ eigvecs.conj().T
+
+
 # ============================================================================
 # Operator Construction
 # ============================================================================
 
 
+@lru_cache(maxsize=8)
 def system_only_bs_unitary(T_BS: float) -> np.ndarray:
     """Single-qubit beam-splitter on the system, identity on the ancilla.
 
@@ -65,9 +95,10 @@ def system_only_bs_unitary(T_BS: float) -> np.ndarray:
         4×4 unitary matrix.
     """
     U = np.kron(bs_qubit(T_BS), I_2)
-    assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
-        f"System-only BS unitary not unitary for T_BS={T_BS}"
-    )
+    if _debug.verify_operators:
+        assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
+            f"System-only BS unitary not unitary for T_BS={T_BS}"
+        )
     return U
 
 
@@ -219,10 +250,11 @@ def phase_modulated_hold_unitary(
         4×4 unitary matrix.
     """
     H = build_phase_modulated_hold_hamiltonian(omega, a_x, a_y, a_z, a_zz, ops)
-    U = expm(-1j * t_hold * H)
-    assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
-        f"Phase-modulated hold unitary not unitary for t_hold={t_hold}, ω={omega}"
-    )
+    U = _expm_hermitian(H, t_hold)
+    if _debug.verify_operators:
+        assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
+            f"Phase-modulated hold unitary not unitary for t_hold={t_hold}, ω={omega}"
+        )
     return U
 
 
@@ -259,14 +291,16 @@ def evolve_phase_modulated_circuit(
     Returns:
         Final normalised 4-vector state.
     """
-    assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
+    if _debug.verify_operators:
+        assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
 
     U_bs = system_only_bs_unitary(T_BS)
     psi = U_bs @ psi0
     psi = phase_modulated_hold_unitary(t_hold, omega, a_x, a_y, a_z, a_zz, ops) @ psi
     psi = U_bs @ psi
 
-    assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
+    if _debug.verify_operators:
+        assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
     return psi
 
 
@@ -418,10 +452,11 @@ def drive_hold_unitary(
         4×4 unitary matrix.
     """
     H = build_drive_hold_hamiltonian(omega, a_x, a_y, a_z, a_zz, ops)
-    U = expm(-1j * t_hold * H)
-    assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
-        f"Drive hold unitary not unitary for t_hold={t_hold}, ω={omega}"
-    )
+    U = _expm_hermitian(H, t_hold)
+    if _debug.verify_operators:
+        assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
+            f"Drive hold unitary not unitary for t_hold={t_hold}, ω={omega}"
+        )
     return U
 
 
@@ -454,14 +489,16 @@ def evolve_drive_circuit(
     Returns:
         Final normalised 4-vector state.
     """
-    assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
+    if _debug.verify_operators:
+        assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
 
     U_bs = system_only_bs_unitary(T_BS)
     psi = U_bs @ psi0
     psi = drive_hold_unitary(t_hold, omega, a_x, a_y, a_z, a_zz, ops) @ psi
     psi = U_bs @ psi
 
-    assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
+    if _debug.verify_operators:
+        assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
     return psi
 
 

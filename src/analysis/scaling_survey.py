@@ -18,9 +18,7 @@ This module is the promoted reusable core of the 2026-05-11 reports.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

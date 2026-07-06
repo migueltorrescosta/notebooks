@@ -119,12 +119,13 @@ with st.sidebar:
 
     # MZI parameters
     st.subheader("MZI Readout")
-    phi_mzi = st.slider(
+    st.slider(
         "MZI phase φ",
         min_value=0.0,
         max_value=2 * np.pi,
         value=np.pi / 4,
         step=0.01,
+        key="phi_mzi",
     )
 
     st.divider()

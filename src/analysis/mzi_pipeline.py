@@ -13,7 +13,7 @@ All functions operate on :class:`~src.analysis.sensitivity_metrics.MziSensitivit
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import numpy as np
 
@@ -21,7 +21,6 @@ from src.analysis.sensitivity_metrics import MziSensitivityData
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
 T = TypeVar("T", bound=MziSensitivityData)
 

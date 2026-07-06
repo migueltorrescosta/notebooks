@@ -57,14 +57,12 @@ from src.analysis.ancilla_drive_results import (
 )
 from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
-    compute_expectation_and_variance,
 )
 from src.analysis.optimisation_pipeline import (
     TwoPhaseConfig,
     build_nm_result,
     build_rs_result,
     make_4d_objective,
-    run_nelder_mead,
     run_omega_scan,
     run_two_phase_pipeline,
 )

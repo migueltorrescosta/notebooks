@@ -6,7 +6,6 @@ input states and interferometer configurations.
 """
 
 from enum import Enum
-from functools import partial
 
 import numpy as np
 import pandas as pd
@@ -27,13 +26,6 @@ st.set_page_config(
 
 class Distributions(Enum):
     Binomial = "Binomial"
-
-
-# INPUTS
-def binomial_pdf(x: int, p: float, n: int) -> float:
-    return float(
-        scipy.stats.binom.cdf(x, n=n, p=p) - scipy.stats.binom.cdf(x - 1, n=n, p=p),
-    )
 
 
 with st.sidebar:
@@ -61,8 +53,6 @@ with st.sidebar:
         )
     valid_x = range(n + 1)
     valid_theta = np.linspace(0, 1, theta_sample_size + 1)
-    pdf = partial(binomial_pdf, n=n)
-
 st.subheader("Fisher Information")
 fisher_clip = st.number_input(
     "Max absolute fisher information ( plot )",

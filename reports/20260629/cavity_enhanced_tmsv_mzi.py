@@ -59,10 +59,12 @@ MEAN_TOTAL_RANGE: list[float] = [
 ]  # ⟨N⟩ = 2..40 even (20 points)
 FINESSE_RANGE: list[float] = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]
 
-N_OMEGA_POINTS: int = 50  # ω points per F value
+N_OMEGA_POINTS: int = 200  # ω points per F value
 CFI_EPSILON: float = 1e-6  # Central difference step
 PROB_FLOOR: float = 1e-15  # CFI denominator regularisation
-MAX_TRUNC: int = 100  # Maximum photons per mode (explicit, never defaulted)
+MAX_TRUNC: int = 250  # Maximum photons per mode (explicit, never defaulted)
+TRUNC_MULTIPLIER: float = 8.0  # Multiplier for TMSV truncation; variance convergence needs M ~ 8×⟨N⟩
+MIN_TRUNC: int = 20  # Minimum truncation (N=2 needs M≥20 for CFI/QFI > 0.95)
 
 
 # Figure settings
@@ -75,19 +77,24 @@ COLORMAP = "viridis"
 
 
 def _omega_grid_finesse(finesse: float, n_points: int = N_OMEGA_POINTS) -> np.ndarray:
-    r"""Construct the ω grid for a given finesse, covering the first quarter-wave.
+    r"""Construct an adaptive ω grid for a given finesse, covering the first quarter-wave.
+
+    Uses quadratic spacing (:math:`\omega \propto t^2`) to cluster more points near
+    :math:`\omega=0` where the CFI peak is narrow.
 
     :math:`\omega_{\max} = \pi / (2 \cdot \mathcal{F} \cdot H_t)`
 
     Args:
         finesse: Cavity finesse :math:`\mathcal{F}`.
-        n_points: Number of uniform grid points.
+        n_points: Number of grid points (default N_OMEGA_POINTS).
 
     Returns:
-        Array of ω values.
+        Array of ω values with quadratic spacing.
     """
     omega_max = np.pi / (2.0 * finesse * H_t)
-    return np.linspace(0.0, omega_max, n_points)
+    # Quadratic spacing: more points near ω=0 for CFI peak resolution
+    t = np.linspace(0.0, 1.0, n_points)
+    return omega_max * t**2
 
 
 # =============================================================================
@@ -114,10 +121,16 @@ def generate_single_cavity_point(
     """
     try:
         if max_photons is None:
-            max_photons = resource_value_to_truncation(
-                mean_total,
-                "tmsv",
-                max_trunc=MAX_TRUNC,
+            # Variance convergence needs M ~ 8×⟨N⟩; enforce minimum for small N
+            _max_trunc = MAX_TRUNC
+            max_photons = max(
+                resource_value_to_truncation(
+                    mean_total,
+                    "tmsv",
+                    trunc_multiplier=TRUNC_MULTIPLIER,
+                    max_trunc=_max_trunc,
+                ),
+                MIN_TRUNC,
             )
 
         # Effective holding time
@@ -196,35 +209,25 @@ class CavityTmsvScalingFit:
     Attributes:
         finesse_values: Array of finesse values in the fit.
         alpha_values: Fitted :math:`\alpha` per finesse value.
-        alpha_err_values: Standard error of :math:`\alpha`.
         C_values: Fitted prefactor :math:`C` per finesse value.
-        C_err_values: Standard error of :math:`C`.
-        R_squared_values: :math:`R^2` for each per-finesse fit.
         alpha_overall: Fitted :math:`\alpha` from combined data.
         alpha_overall_err: Standard error of combined :math:`\alpha`.
         beta: Prefactor scaling exponent :math:`\beta`
             (:math:`\Delta\omega_{\min} \propto \mathcal{F}^{-\beta}`).
         beta_err: Standard error of :math:`\beta`.
         C0: Prefactor :math:`C_0` in :math:`\Delta\omega_{\min} = C_0 \mathcal{F}^{-\beta}`.
-        C0_err: Standard error of :math:`C_0`.
-        beta_R_squared: :math:`R^2` for the prefactor scaling fit.
         valid: Whether the fits are physically valid.
         warnings_list: Warnings from the fitting process.
     """
 
     finesse_values: np.ndarray
     alpha_values: np.ndarray
-    alpha_err_values: np.ndarray
     C_values: np.ndarray
-    C_err_values: np.ndarray
-    R_squared_values: np.ndarray
     alpha_overall: float = float("nan")
     alpha_overall_err: float = float("nan")
     beta: float = float("nan")
     beta_err: float = float("nan")
     C0: float = float("nan")
-    C0_err: float = float("nan")
-    beta_R_squared: float = float("nan")
     valid: bool = True
     warnings_list: list[str] = field(default_factory=list)
 
@@ -647,7 +650,7 @@ def _fit_scaling_per_finesse(
     finesse_vals = sorted(best_df["finesse"].unique())
 
     # 1. Per-finesse α fits
-    alpha_list, alpha_err_list, C_list, C_err_list, R2_list, fit_warnings = (
+    alpha_list, _alpha_err_list, C_list, _C_err_list, _R2_list, fit_warnings = (
         _fit_alpha_per_finesse(best_df, finesse_vals, min_N)
     )
 
@@ -675,17 +678,12 @@ def _fit_scaling_per_finesse(
     return CavityTmsvScalingFit(
         finesse_values=np.array(finesse_vals, dtype=float),
         alpha_values=np.array(alpha_list, dtype=float),
-        alpha_err_values=np.array(alpha_err_list, dtype=float),
         C_values=np.array(C_list, dtype=float),
-        C_err_values=np.array(C_err_list, dtype=float),
-        R_squared_values=np.array(R2_list, dtype=float),
         alpha_overall=alpha_overall,
         alpha_overall_err=alpha_overall_err,
         beta=beta_result["beta"],
         beta_err=beta_result["beta_err"],
         C0=beta_result["C0"],
-        C0_err=beta_result["C0_err"],
-        beta_R_squared=beta_result["beta_R_squared"],
         valid=len(fit_warnings) == 0,
         warnings_list=fit_warnings,
     )

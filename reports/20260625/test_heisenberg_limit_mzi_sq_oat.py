@@ -31,7 +31,6 @@ from src.physics.sv_qfi import (
     check_truncation_convergence,
     compute_sv_qfi,
     compute_tmsv_qfi,
-    verify_sv_qfi,
 )
 from src.utils.serialization import assert_roundtrip_fields
 

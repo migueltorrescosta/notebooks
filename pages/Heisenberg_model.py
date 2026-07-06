@@ -68,8 +68,6 @@ with info_1:
 with info_2:
     plot_array(hamiltonian - hamiltonian, key="hu")  # placeholder
 
-alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[:n_sites]
-
 energy_levels = pd.DataFrame(eigenvalues, columns=["Energy"])
 
 # Compute expectation values

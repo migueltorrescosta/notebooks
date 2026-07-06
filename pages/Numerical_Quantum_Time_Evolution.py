@@ -301,8 +301,6 @@ with c3:
     st.caption(f"Orthonormality error = {ortho_error:g}")
 assert ortho_error < 1e-8, "Your energy levels are not orthonormal"
 
-explained_psi_zero = np.sum([np.abs(el.component) ** 2 for el in energy_levels])
-
 with c1:
     st.subheader(r"Decomposition")
     st.scatter_chart(

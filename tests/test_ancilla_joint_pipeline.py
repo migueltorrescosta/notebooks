@@ -19,6 +19,7 @@ from src.analysis.ancilla_optimization_scans import run_omega_scan
 class TestJointMeasurementE2E:
     """E2E tests for the joint measurement optimisation pipeline."""
 
+    @pytest.mark.slow
     def test_joint_omega_scan_runs_and_respects_qfi_bound(self) -> None:
         ops = build_two_qubit_operators()
         M_op = build_joint_operator(ops)

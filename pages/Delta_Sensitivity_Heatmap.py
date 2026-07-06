@@ -46,8 +46,6 @@ st.latex(r"""\mathrm{Tr}[\rho_t^{(S)}\sigma_z] = \sum_{k=0}^{N}\braket{k | \rho^
 
 sensitivity_column_1, sensitivity_column_2 = st.columns(2)
 
-variables_of_interest = ["j_s", "delta_s", "alpha_x", "alpha_z", "t"]
-
 # CONTROLS
 with st.sidebar:
     st.subheader("System", divider="gray")

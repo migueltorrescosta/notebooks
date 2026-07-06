@@ -371,6 +371,7 @@ class TestDriveNelderMead:
 
 
 class TestDriveOmegaScan:
+    @pytest.mark.slow
     def test_omega_scan_runs_and_all_finite(self) -> None:
         result = run_drive_omega_scan(
             omega_values=[0.5, 1.0],

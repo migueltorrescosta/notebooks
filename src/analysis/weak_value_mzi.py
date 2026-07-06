@@ -15,8 +15,6 @@ from typing import Any
 import numpy as np
 
 
-
-
 @dataclass
 class WeakValueConfig:
     """Configuration for weak-value amplification MZI.

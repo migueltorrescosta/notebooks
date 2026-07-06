@@ -547,22 +547,6 @@ with tab1:
                 a_zx_test = st.slider("α_zx", -2.0, 2.0, 0.0, 0.01)
                 a_zz_test = st.slider("α_zz", -2.0, 2.0, 0.0, 0.01)
 
-            test_params = np.array(
-                [
-                    theta_S_test,
-                    phi_S_test,
-                    theta_A_test,
-                    phi_A_test,
-                    T_BS1_test,
-                    T_BS2_test,
-                    t_hold_test,
-                    a_xx_test,
-                    a_xz_test,
-                    a_zx_test,
-                    a_zz_test,
-                ],
-            )
-
             if st.button("Compute Sensitivity", key="test_btn"):
                 with st.spinner("Computing..."):
                     ops_test = build_two_qubit_operators()

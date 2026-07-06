@@ -28,7 +28,6 @@ Reference:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -36,7 +35,6 @@ import numpy as np
 # =============================================================================
 # Configuration
 # =============================================================================
-
 
 
 # =============================================================================
@@ -237,6 +235,224 @@ def _euler_maruyama_step(
     return np.array([x_new, y_new, z_new])
 
 
+# =============================================================================
+# Batched (vectorized) TWA propagation
+# =============================================================================
+
+
+def _sample_wigner_sphere_batch(
+    N: int,
+    state_type: str,
+    rng: np.random.Generator,
+    n_traj: int,
+    phi_Bloch: float = 0.0,
+) -> np.ndarray:
+    """Sample ``n_traj`` initial Bloch vectors in a single batched call.
+
+    Vectorized version of :func:`sample_wigner_sphere` for CSS and SSS.
+    Falls back to per-trajectory sampling for NOON (uncommon, deprecated
+    for TWA).
+
+    Args:
+        N: Total atom number.
+        state_type: State type ('CSS', 'SSS', 'NOON').
+        rng: Random number generator.
+        n_traj: Number of trajectories to sample.
+        phi_Bloch: Phase angle for CSS (default 0.0).
+
+    Returns:
+        Array of shape ``(n_traj, 3)`` with Bloch vectors.
+
+    Raises:
+        ValueError: If state_type is not supported.
+
+    """
+    J = N / 2.0
+    sigma = 1.0 / np.sqrt(2 * J)
+
+    if state_type == "CSS":
+        x = np.cos(phi_Bloch) + rng.normal(0, sigma, size=n_traj)
+        y = np.sin(phi_Bloch) + rng.normal(0, sigma, size=n_traj)
+        z = rng.normal(0, sigma, size=n_traj)
+        J_init = np.column_stack([x, y, z])
+        norms = np.linalg.norm(J_init, axis=1, keepdims=True)
+        safe = norms[:, 0] > 1e-10
+        J_init[safe] = J_init[safe] / norms[safe]
+        J_init[~safe] = [np.cos(phi_Bloch), np.sin(phi_Bloch), 0.0]
+        return J_init
+
+    if state_type == "SSS":
+        squeeze_factor = 0.5
+        sigma_x = sigma * squeeze_factor
+        sigma_z = sigma / squeeze_factor
+        x = rng.normal(0, sigma_x, size=n_traj)
+        z = rng.normal(0, sigma_z, size=n_traj)
+        y = np.zeros(n_traj)
+        J_init = np.column_stack([x, y, z])
+        norms = np.linalg.norm(J_init, axis=1, keepdims=True)
+        safe = norms[:, 0] > 1e-10
+        J_init[safe] = J_init[safe] / norms[safe]
+        J_init[~safe, 2] = 1.0
+        return J_init
+
+    if state_type == "NOON":
+        # Batched NOON sampling — vectorized where possible.
+        choices = rng.random(n_traj) < 0.5
+        n_peak1 = int(np.sum(choices))
+        sigma_n = sigma * 0.2
+        x = rng.normal(0, sigma_n, size=n_traj)
+        y = rng.normal(0, sigma_n, size=n_traj)
+        z = np.empty(n_traj)
+        z[choices] = rng.normal(1.0, sigma_n, size=n_peak1)
+        z[~choices] = rng.normal(-1.0, sigma_n, size=n_traj - n_peak1)
+        J_init = np.column_stack([x, y, z])
+        norms = np.linalg.norm(J_init, axis=1, keepdims=True)
+        safe = norms[:, 0] > 1e-10
+        J_init[safe] = J_init[safe] / norms[safe]
+        J_init[~safe, 2] = 1.0
+        return J_init
+
+    raise ValueError(
+        f"Unknown state type: {state_type}. Supported: 'CSS', 'SSS', 'NOON'",
+    )
+
+
+def _batched_euler_maruyama_step(
+    J_batch: np.ndarray,
+    dt: float,
+    J: float,
+    chi: float,
+    gamma_1: float,
+    gamma_2: float,
+    gamma_phi: float,
+    noise: np.ndarray,
+) -> np.ndarray:
+    """Vectorized Euler-Maruyama step for all trajectories.
+
+    Operates on an ``(n_traj, 3)`` array of Bloch vectors.  ``noise`` is a
+    pre-generated ``(n_traj, 3)`` array where columns correspond to the three
+    noise channels (one-body, two-body, phase-diffusion).
+
+    Args:
+        J_batch: ``(n_traj, 3)`` array of Bloch vectors.
+        dt: Timestep.
+        J: Total spin *J = N/2*.
+        chi: OAT squeezing strength.
+        gamma_1: One-body loss rate.
+        gamma_2: Two-body loss rate.
+        gamma_phi: Phase diffusion rate.
+        noise: ``(n_traj, 3)`` pre-generated noise increments.
+
+    Returns:
+        Updated ``(n_traj, 3)`` array of Bloch vectors.
+
+    """
+    x, y, z = J_batch[:, 0], J_batch[:, 1], J_batch[:, 2]
+
+    # Deterministic drift
+    dx = chi * (y * z - y)
+    dy = -chi * x * z
+
+    x_new = x + dt * dx
+    y_new = y + dt * dy
+    z_new = z.copy()
+
+    # One-body loss noise
+    if gamma_1 > 0:
+        mean_n = J * (1 + z)
+        mask = mean_n > 0
+        if np.any(mask):
+            n_scale = np.sqrt(gamma_1 * np.maximum(mean_n[mask], 0) / J)
+            z_new[mask] -= n_scale * noise[mask, 0] * np.sqrt(dt)
+
+    # Two-body loss noise
+    if gamma_2 > 0:
+        mean_n = J * (1 + z)
+        mask = mean_n > 0
+        if np.any(mask):
+            n_scale = np.sqrt(gamma_2 * np.maximum(mean_n[mask], 0) ** 2 / J)
+            z_new[mask] -= n_scale * noise[mask, 1] * np.sqrt(dt)
+
+    # Phase diffusion noise
+    if gamma_phi > 0:
+        y_new += np.sqrt(gamma_phi) * noise[:, 2] * np.sqrt(dt)
+
+    # Normalize
+    norms = np.sqrt(x_new**2 + y_new**2 + z_new**2)
+    result = np.zeros_like(J_batch)
+    safe = norms > 1e-10
+    result[safe, 0] = x_new[safe] / norms[safe]
+    result[safe, 1] = y_new[safe] / norms[safe]
+    result[safe, 2] = z_new[safe] / norms[safe]
+    result[~safe, 2] = 1.0
+    return result
+
+
+def _batched_twa_evolve(
+    J_batch: np.ndarray,
+    params: dict,
+    T_evo: float,
+    dt: float,
+    rng: np.random.Generator,
+    store_trajectories: bool = False,
+) -> dict:
+    """Batch-evolve all trajectories via vectorized Euler-Maruyama.
+
+    Args:
+        J_batch: ``(n_traj, 3)`` initial Bloch vectors.
+        params: Dictionary with keys ``N``, ``chi``, ``gamma_1``,
+            ``gamma_2``, ``gamma_phi``.
+        T_evo: Evolution time.
+        dt: Timestep.
+        rng: Random number generator.
+        store_trajectories: Whether to store full trajectories.
+
+    Returns:
+        Dict with ``J_final`` ``(n_traj, 3)`` and optionally
+        ``trajectories`` ``(n_traj, num_steps+1, 3)``.
+
+    """
+    N = params.get("N", 10)
+    chi = params.get("chi", 0.0)
+    gamma_1 = params.get("gamma_1", 0.0)
+    gamma_2 = params.get("gamma_2", 0.0)
+    gamma_phi = params.get("gamma_phi", 0.0)
+    J = N / 2.0
+    n_traj = J_batch.shape[0]
+
+    num_steps = max(1, int(np.ceil(T_evo / dt)))
+    dt = T_evo / num_steps
+
+    # Pre-generate all noise: (num_steps, n_traj, 3) for the three channels
+    sqrt_dt = np.sqrt(dt)
+    noise = rng.normal(0, sqrt_dt, size=(num_steps, n_traj, 3))
+
+    traj: np.ndarray | None = None
+    if store_trajectories:
+        traj = np.zeros((n_traj, num_steps + 1, 3))
+        traj[:, 0, :] = J_batch
+
+    for step in range(num_steps):
+        J_batch = _batched_euler_maruyama_step(
+            J_batch,
+            dt,
+            J,
+            chi,
+            gamma_1,
+            gamma_2,
+            gamma_phi,
+            noise[step],
+        )
+        if store_trajectories and traj is not None:
+            traj[:, step + 1, :] = J_batch
+
+    result: dict[str, np.ndarray] = {"J_final": J_batch}
+    if store_trajectories and traj is not None:
+        result["trajectory"] = traj
+        result["trajectories"] = traj
+    return result
+
+
 def wigner_sde_trajectory(
     J_init: np.ndarray,
     params: dict,
@@ -385,41 +601,33 @@ def compute_twa_expectations(
     # Build params with N
     full_params = {"N": N, **params}
 
-    # Sample initial conditions and propagate trajectories
-    Jz_samples = []
-    J_total_samples = []
-    all_trajectories = []
+    # Batch-sample initial conditions (vectorized)
+    J_batch = _sample_wigner_sphere_batch(N, state_type, rng, n_traj)
 
-    for _traj_idx in range(n_traj):
-        # Sample initial Bloch vector
-        J_init = sample_wigner_sphere(N, state_type, rng)
+    # Batch-evolve all trajectories (vectorized Euler-Maruyama)
+    batch_result = _batched_twa_evolve(
+        J_batch,
+        full_params,
+        T_evo,
+        dt,
+        rng,
+        store_trajectories=store_trajectories,
+    )
 
-        # Propagate trajectory
-        result = wigner_sde_trajectory(J_init, full_params, T_evo, dt, rng)
+    # Extract final states
+    J_final_batch = batch_result["J_final"]
+    x, y, z = J_final_batch[:, 0], J_final_batch[:, 1], J_final_batch[:, 2]
 
-        J_final = result["J_final"]
-        x, y, z = J_final
-
-        # Scale: J_z = J * z where J = N/2
-        J = N / 2.0
-        Jz_samples.append(J * z)
-
-        # Total spin magnitude
-        J_total = np.sqrt(x**2 + y**2 + z**2) * J
-        J_total_samples.append(J_total)
-
-        if store_trajectories and result["trajectory"] is not None:
-            all_trajectories.append(result["trajectory"])
-
-    # Convert to arrays
-    Jz_samples_arr = np.array(Jz_samples)
-    J_total_samples_arr = np.array(J_total_samples)
+    # Scale: J_z = J * z where J = N/2
+    J = N / 2.0
+    Jz_samples = J * z
+    J_total_samples = J * np.sqrt(x**2 + y**2 + z**2)
 
     # Compute statistics
-    Jz_mean = np.mean(Jz_samples_arr)
-    Jz_variance = np.var(Jz_samples_arr)
-    Jz_std = np.std(Jz_samples_arr)
-    J_total_mean = np.mean(J_total_samples_arr)
+    Jz_mean = float(np.mean(Jz_samples))
+    Jz_variance = float(np.var(Jz_samples))
+    Jz_std = float(np.std(Jz_samples))
+    J_total_mean = float(np.mean(J_total_samples))
 
     # Return results
     result_dict: dict[str, Any] = {
@@ -429,8 +637,8 @@ def compute_twa_expectations(
         "J_total_mean": J_total_mean,
     }
 
-    if store_trajectories:
-        result_dict["trajectories"] = np.array(all_trajectories)
+    if store_trajectories and "trajectories" in batch_result:
+        result_dict["trajectories"] = batch_result["trajectories"]
 
     return result_dict
 

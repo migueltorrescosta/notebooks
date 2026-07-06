@@ -35,11 +35,9 @@ with st.sidebar:
     st.header("Comparing minimizers", divider="gray")
     c1, c2 = st.columns(2)
     with c1:
-        selected_optimizer = st.selectbox("Minimizer", list(MINIMIZERS.keys()))
-        optimizer = MINIMIZERS[selected_optimizer]
+        st.selectbox("Minimizer", list(MINIMIZERS.keys()), key="minimizer_select")
     with c2:
         selected_function = st.selectbox("Test function", list(TEST_FUNCTIONS.keys()))
-        test_function = TEST_FUNCTIONS[selected_function]
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
