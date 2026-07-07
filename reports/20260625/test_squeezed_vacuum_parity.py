@@ -7,11 +7,13 @@ Run with:
 
 from __future__ import annotations
 
+import argparse
 import importlib
 import subprocess
 import sys as _sys
 from pathlib import Path
 from typing import ClassVar
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -49,6 +51,7 @@ generate_all = _m.generate_all
 generate_full_data = _m.generate_full_data
 generate_single_omega_scan = _m.generate_single_omega_scan
 main = _m.main
+parse_args = _m.parse_args
 plot_delta_omega_overlay = _m.plot_delta_omega_overlay
 plot_scaling = _m.plot_scaling
 t_hold = _m.t_hold
@@ -772,6 +775,75 @@ class TestFitScalingExponent:
 
 
 class TestCLI:
+    # ------------------------------------------------------------------
+    # parse_args unit tests (fast – no computation, no subprocess)
+    # ------------------------------------------------------------------
+
+    def test_parse_args_defaults(self) -> None:
+        """parse_args with no arguments returns force=False."""
+        args = parse_args([])
+        assert not args.force
+
+    def test_parse_args_force(self) -> None:
+        """parse_args with --force returns force=True."""
+        args = parse_args(["--force"])
+        assert args.force
+
+    def test_parse_args_help_exits(self) -> None:
+        """parse_args with --help raises SystemExit(0)."""
+        with pytest.raises(SystemExit) as exc_info:
+            parse_args(["--help"])
+        assert exc_info.value.code == 0
+
+    # ------------------------------------------------------------------
+    # CLI integration tests (mock computation path)
+    # ------------------------------------------------------------------
+
+    def test_main_force_mocked(self) -> None:
+        """main() with --force calls generate_all(force=True).
+
+        Uses mock to avoid triggering the full computation pipeline.
+        """
+        with patch.object(_m, "generate_all") as mock_generate:
+            with patch.object(
+                _m, "parse_args", return_value=argparse.Namespace(force=True)
+            ):
+                main()
+        mock_generate.assert_called_once_with(force=True)
+
+    def test_main_default_mocked(self) -> None:
+        """main() without --force calls generate_all(force=False)."""
+        with patch.object(_m, "generate_all") as mock_generate:
+            with patch.object(
+                _m, "parse_args", return_value=argparse.Namespace(force=False)
+            ):
+                main()
+        mock_generate.assert_called_once_with(force=False)
+
+    # ------------------------------------------------------------------
+    # End-to-end CLI smoke test (slow – triggers full pipeline)
+    # ------------------------------------------------------------------
+
+    @pytest.mark.slow
+    def test_main_end_to_end(self, tmp_path: Path) -> None:
+        """main() runs end-to-end with minimal parameters (slow)."""
+        orig_sv = _m.SV_N_RANGE
+        orig_omega_range = _m.OMEGA_RANGE
+        orig_omega_step = _m.OMEGA_STEP
+        try:
+            _m.SV_N_RANGE = [2.0]
+            _m.OMEGA_RANGE = (0.1, 0.5)
+            _m.OMEGA_STEP = 0.4
+            main(argv=[])
+        finally:
+            _m.SV_N_RANGE = orig_sv
+            _m.OMEGA_RANGE = orig_omega_range
+            _m.OMEGA_STEP = orig_omega_step
+
+    # ------------------------------------------------------------------
+    # Subprocess smoke tests
+    # ------------------------------------------------------------------
+
     def test_main_help(self) -> None:
         """CLI help must display."""
         result = subprocess.run(
@@ -786,26 +858,6 @@ class TestCLI:
         )
         assert result.returncode == 0
         assert "Squeezed-Vacuum MZI with Parity Measurement" in result.stdout
-
-    def test_main_direct_force(self, tmp_path: Path) -> None:
-        """Call main() directly with --force via sys.argv patching."""
-        import sys as _sys
-
-        old_argv = _sys.argv[:]
-        orig_sv = _m.SV_N_RANGE
-        orig_omega_range = _m.OMEGA_RANGE
-        orig_omega_step = _m.OMEGA_STEP
-        try:
-            _m.SV_N_RANGE = [2.0]
-            _m.OMEGA_RANGE = (0.1, 0.5)
-            _m.OMEGA_STEP = 0.4
-            _sys.argv = ["script", "--force"]
-            main()
-        finally:
-            _sys.argv = old_argv
-            _m.SV_N_RANGE = orig_sv
-            _m.OMEGA_RANGE = orig_omega_range
-            _m.OMEGA_STEP = orig_omega_step
 
     def test_mpbackend_not_set(self) -> None:
         """When MPLBACKEND is unset, the module sets it to Agg."""

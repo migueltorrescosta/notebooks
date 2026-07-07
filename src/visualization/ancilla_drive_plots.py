@@ -76,6 +76,7 @@ def plot_drive_2d_slice_heatmap(
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 6),
     vmax: float | None = None,
+    sql_value: float | None = None,
 ) -> Path:
     """Heatmap of Δω over (a_drive, a_zz) with SQL contour."""
     if isinstance(result, (str, Path)):
@@ -84,7 +85,7 @@ def plot_drive_2d_slice_heatmap(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    sql = result.sql
+    sql = sql_value if sql_value is not None else result.sql
     if vmax is None:
         # Clip to 3x SQL for colour scale
         vmax = min(3.0 * sql, np.nanmax(result.delta_omega_grid))
@@ -131,9 +132,7 @@ def plot_drive_2d_slice_heatmap(
     finite_vals = grid[np.isfinite(grid)]
     grid_ptp = finite_vals.max() - finite_vals.min() if len(finite_vals) > 0 else 0.0
     if grid_ptp > 1e-9:
-        min_idx = np.unravel_index(
-            np.nanargmin(grid), grid.shape
-        )
+        min_idx = np.unravel_index(np.nanargmin(grid), grid.shape)
         min_drive = result.drive_values[min_idx[0]]
         min_azz = result.azz_values[min_idx[1]]
         min_val = result.delta_omega_grid[min_idx]
@@ -476,6 +475,8 @@ def plot_combined_sensitivity(
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
     title: str | None = None,
+    sql_value: float | None = None,
+    best_az_slice: np.ndarray | None = None,
 ) -> Path:
     """Line plot comparing Δω from 2D slices, 4D random search, NM refinement, and SQL.
 
@@ -489,6 +490,7 @@ def plot_combined_sensitivity(
         save_path: Output SVG path.
         figsize: Figure size (width, height).
         title: Plot title. If None, a default is used.
+        best_az_slice: Optional best Δω from (a_z, a_zz) slice at each ω.
 
     Returns:
         Path to saved SVG.
@@ -499,7 +501,11 @@ def plot_combined_sensitivity(
     fig, ax = plt.subplots(figsize=figsize)
 
     # SQL reference line
-    sql = float(sql_values[0]) if len(sql_values) > 0 else 0.1
+    sql = (
+        sql_value
+        if sql_value is not None
+        else (float(sql_values[0]) if len(sql_values) > 0 else 0.1)
+    )
     ax.axhline(
         y=sql,
         color="gray",
@@ -515,6 +521,10 @@ def plot_combined_sensitivity(
         (best_random, "^-", "C2", "4D random search"),
         (best_nm, "D-", "C3", "4D Nelder–Mead"),
     ]
+    if best_az_slice is not None:
+        methods.append(
+            (best_az_slice, "v-", "C4", r"2D slice $(a_z, a_{zz})$"),
+        )
 
     for data, fmt, colour, label in methods:
         valid = np.isfinite(data)
@@ -683,6 +693,7 @@ def plot_drive_fraction_below_sql(
     omega_values: np.ndarray,
     fractions_2d_ax: np.ndarray,
     fractions_2d_ay: np.ndarray,
+    fractions_2d_az: np.ndarray,
     fractions_random: np.ndarray,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
@@ -693,6 +704,7 @@ def plot_drive_fraction_below_sql(
         omega_values: Array of ω values.
         fractions_2d_ax: Fraction below SQL from (a_x, a_zz) slices at each ω.
         fractions_2d_ay: Fraction below SQL from (a_y, a_zz) slices at each ω.
+        fractions_2d_az: Fraction below SQL from (a_z, a_zz) slices at each ω.
         fractions_random: Fraction below SQL from 4D random search at each ω.
         save_path: Output SVG path.
         figsize: Figure size (width, height).
@@ -720,6 +732,15 @@ def plot_drive_fraction_below_sql(
         "s-",
         color="C1",
         label=r"2D slice $(a_y, a_{zz})$",
+        markersize=6,
+        linewidth=1.5,
+    )
+    ax.plot(
+        omega_values,
+        fractions_2d_az,
+        "v-",
+        color="C4",
+        label=r"2D slice $(a_z, a_{zz})$",
         markersize=6,
         linewidth=1.5,
     )

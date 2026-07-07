@@ -21,7 +21,7 @@ description: Reference for consistent physics symbol usage across the codebase. 
 - **Δω** — Sensitivity (standard deviation of estimate) via error propagation. SQL comparison: `Δω_SQL = 1/t_hold`.
 - **F_Q** — Quantum Fisher Information.
 - **F_C** — Classical Fisher Information (from full probability distribution).
-- **SQL** — Standard Quantum Limit: `1/√N` (particle scaling) or `1/t_hold` (time scaling). Document which definition applies.
+- **SQL** — Standard Quantum Limit: `1/√N` (particle scaling) or `1/t_hold` (time scaling). Document which definition applies. For ancilla-assisted protocols, the project uses two conventions: (i) **Report convention**: N counts system particles only (ancilla is a measurement resource, not a probe). (ii) **Article convention**: N counts total particles (system + ancilla), conservative benchmark. Always specify which applies.
 - **HL** — Heisenberg Limit: `1/N`.
 
 ## Particle Number and Angular Momentum

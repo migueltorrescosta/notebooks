@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from scipy.linalg import expm
 
@@ -57,6 +58,7 @@ from src.analysis.ancilla_drive_results import (
 )
 from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
+    compute_expectation_and_variance,
 )
 from src.analysis.optimisation_pipeline import (
     TwoPhaseConfig,
@@ -84,7 +86,10 @@ sns.set_theme(style="whitegrid")
 DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
 DEFAULT_t_hold: float = 10.0  # Holding time (SQL = 0.1)
 DEFAULT_PSI0: np.ndarray = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)  # |00⟩
-SQL_REFERENCE: float = 1.0 / DEFAULT_t_hold  # Δω_SQL = 0.1
+SQL_REFERENCE: float = 1.0 / DEFAULT_t_hold  # Δω_SQL = 0.1 (N=1, system only)
+SQL_REFERENCE_N2: float = 1.0 / (
+    np.sqrt(2) * DEFAULT_t_hold
+)  # Δω_SQL = 0.07071 (N=2, system+ancilla)
 DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Range for all coefficients
 
 # ============================================================================
@@ -542,6 +547,7 @@ def plot_drive_cross_experiment_comparison(
     sql_values: np.ndarray,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
+    sql_value: float | None = None,
 ) -> Path:
     """Compare Δω from the fixed-drive (2026-05-18) and modulated-drive
     (2026-05-19) experiments in a 2×1 vertically stacked figure.
@@ -571,7 +577,11 @@ def plot_drive_cross_experiment_comparison(
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
 
     # ── Upper panel: Δω vs ω ──────────────────────────────────────────
-    sql_ref = float(sql_values[0]) if len(sql_values) > 0 else 0.1
+    sql_ref = (
+        sql_value
+        if sql_value is not None
+        else (float(sql_values[0]) if len(sql_values) > 0 else 0.1)
+    )
 
     ax1.axhline(
         y=sql_ref,
@@ -661,6 +671,7 @@ def plot_drive_fraction_below_sql(
     omega_values: np.ndarray,
     fractions_2d_ax: np.ndarray,
     fractions_2d_ay: np.ndarray,
+    fractions_2d_az: np.ndarray,
     fractions_random: np.ndarray,
     save_path: str | Path,
     figsize: tuple[float, float] = (8, 5),
@@ -671,6 +682,7 @@ def plot_drive_fraction_below_sql(
         omega_values: Array of ω values.
         fractions_2d_ax: Fraction below SQL from (a_x, a_zz) slices at each ω.
         fractions_2d_ay: Fraction below SQL from (a_y, a_zz) slices at each ω.
+        fractions_2d_az: Fraction below SQL from (a_z, a_zz) slices at each ω.
         fractions_random: Fraction below SQL from 4D random search at each ω.
         save_path: Output SVG path.
         figsize: Figure size (width, height).
@@ -703,6 +715,15 @@ def plot_drive_fraction_below_sql(
     )
     ax.plot(
         omega_values,
+        fractions_2d_az,
+        "v-",
+        color="C4",
+        label=r"2D slice $(a_z, a_{zz})$",
+        markersize=6,
+        linewidth=1.5,
+    )
+    ax.plot(
+        omega_values,
         fractions_random,
         "^-",
         color="C2",
@@ -720,6 +741,341 @@ def plot_drive_fraction_below_sql(
     ax.set_title("Robustness of SQL violation: fraction of parameter space below SQL")
     ax.set_ylim(0, 1)
     ax.legend()
+
+    fig.tight_layout()
+    fig.savefig(save_path, format="svg", bbox_inches="tight")
+    plt.close(fig)
+    return save_path
+
+
+# ============================================================================
+# Numerical ω Estimation Simulation
+# ============================================================================
+
+
+def _compute_calibration_curve(
+    omega_grid: np.ndarray,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    ops: dict[str, np.ndarray],
+) -> np.ndarray:
+    r"""Compute :math:`\langle J_z^S \rangle(\omega)` over a grid of ω values.
+
+    Uses the shared module's ``evolve_phase_modulated_circuit`` for consistency
+    with the sensitivity computation in ``compute_phase_modulated_sensitivity``.
+
+    Args:
+        omega_grid: Array of ω values.
+        a_x, a_y, a_z, a_zz: Drive and interaction parameters.
+        ops: Two-qubit operators from ``build_two_qubit_operators``.
+
+    Returns:
+        Array of :math:`\langle J_z^S \rangle(\omega)` values, same length as
+        *omega_grid*.
+    """
+    meas_op = ops["Jz_S"]
+    calibration = np.zeros(len(omega_grid))
+    for i, omega_val in enumerate(omega_grid):
+        psi = evolve_phase_modulated_circuit(
+            DEFAULT_PSI0,
+            DEFAULT_T_BS,
+            DEFAULT_t_hold,
+            omega_val,
+            a_x,
+            a_y,
+            a_z,
+            a_zz,
+            ops,
+        )
+        exp_val, _ = compute_expectation_and_variance(psi, meas_op)
+        calibration[i] = exp_val
+    return calibration
+
+
+def simulate_omega_estimation(
+    omega_true: float,
+    a_x: float,
+    a_y: float,
+    a_z: float,
+    a_zz: float,
+    n_meas: int = 1000,
+    n_trials: int = 500,
+    seed: int | None = 42,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, float, float, float]:
+    r"""Simulate finite-sample ω estimation via log-likelihood MLE.
+
+    Draws *n_meas* binary measurement samples from the :math:`P(m|\omega)`
+    distribution at the true *omega_true*, computes the MLE :math:`\hat{\omega}`
+    by maximising the log-likelihood over a fine calibration grid restricted
+    to a narrow window around *omega_true*, and repeats for *n_trials*
+    independent repetitions.
+
+    The search window is set to
+    :math:`[\omega_{\text{true}} - 3\sigma, \omega_{\text{true}} + 3\sigma]`
+    where :math:`\sigma = \Delta\omega / \sqrt{N_{\text{meas}}}` is the
+    error-propagation sensitivity divided by :math:`\sqrt{N_{\text{meas}}}`,
+    but with a minimum half-width of 0.01 to ensure monotonicity of the
+    calibration curve within the window.  The window is adaptively widened
+    if necessary to guarantee a monotonic calibration curve.
+
+    The log-likelihood for a binary outcome with :math:`n_+` counts of
+    :math:`+1/2` out of :math:`N_{\text{meas}}` measurements is:
+
+    .. math::
+
+        \log L(\omega) = n_+ \log p(\omega) + (N_{\text{meas}} - n_+) \log(1 - p(\omega))
+
+    where :math:`p(\omega) = \langle J_z^S \rangle(\omega) + 1/2`.  Quadratic
+    interpolation around the grid maximum gives sub-grid resolution.
+
+    Args:
+        omega_true: True ω value to estimate.
+        a_x, a_y, a_z, a_zz: Optimal drive and interaction parameters.
+        n_meas: Number of measurements per trial.
+        n_trials: Number of independent simulation trials.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        Tuple ``(omega_grid, calibration_values, omega_estimates,
+        var_true, delta_omega, f_c``:
+            - **omega_grid**: ω values of the calibration curve.
+            - **calibration_values**: :math:`\langle J_z^S \rangle` on *omega_grid*.
+            - **omega_estimates**: Array of *n_trials* MLE estimates.
+            - **var_true**: :math:`\text{Var}(J_z^S)` at *omega_true*.
+            - **delta_omega**: Error-propagation sensitivity at *omega_true*.
+            - **f_c**: Classical Fisher Information at *omega_true*.
+    """
+    rng = np.random.default_rng(seed)
+    ops = build_two_qubit_operators()
+    meas_op = ops["Jz_S"]
+
+    # True state at omega_true
+    psi_true = evolve_phase_modulated_circuit(
+        DEFAULT_PSI0,
+        DEFAULT_T_BS,
+        DEFAULT_t_hold,
+        omega_true,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
+    )
+    exp_true, var_true = compute_expectation_and_variance(psi_true, meas_op)
+    p_plus_true = float(np.clip(exp_true + 0.5, 1e-12, 1.0 - 1e-12))
+
+    # Compute error-propagation sensitivity and CFI at omega_true
+    delta = 1e-6
+    psi_plus = evolve_phase_modulated_circuit(
+        DEFAULT_PSI0,
+        DEFAULT_T_BS,
+        DEFAULT_t_hold,
+        omega_true + delta,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
+    )
+    psi_minus = evolve_phase_modulated_circuit(
+        DEFAULT_PSI0,
+        DEFAULT_T_BS,
+        DEFAULT_t_hold,
+        omega_true - delta,
+        a_x,
+        a_y,
+        a_z,
+        a_zz,
+        ops,
+    )
+    exp_plus, _ = compute_expectation_and_variance(psi_plus, meas_op)
+    exp_minus, _ = compute_expectation_and_variance(psi_minus, meas_op)
+    d_exp_domega = (exp_plus - exp_minus) / (2.0 * delta)
+    delta_omega = float(np.sqrt(var_true) / abs(d_exp_domega))
+    f_c = float((d_exp_domega**2) / var_true)
+
+    # Build a narrow search window around omega_true that is guaranteed
+    # monotonic.  Start with a tight window based on the CR bound and widen
+    # until the calibration curve is monotonic.
+    half_width = max(3.0 * delta_omega / np.sqrt(n_meas), 0.01)
+    # Ensure these are always defined (fallback after the loop)
+    omega_grid = np.linspace(0.01, 1.0, 500)
+    calibration = _compute_calibration_curve(omega_grid, a_x, a_y, a_z, a_zz, ops)
+    n_cal = len(omega_grid)
+    for _attempt in range(10):
+        lo = max(0.005, omega_true - half_width)
+        hi = min(1.5, omega_true + half_width)
+        n_cal = max(200, int(2 * half_width / 1e-4))  # ensure ~1e-4 spacing
+        omega_grid = np.linspace(lo, hi, n_cal)
+        calibration = _compute_calibration_curve(omega_grid, a_x, a_y, a_z, a_zz, ops)
+        n_osc = int(np.sum(np.diff(np.sign(np.diff(calibration))) != 0))
+        if n_osc == 0:
+            break
+        half_width *= 1.5
+
+    p_grid = np.clip(calibration + 0.5, 1e-12, 1.0 - 1e-12)
+    log_p = np.log(p_grid)
+    log_1m_p = np.log(1.0 - p_grid)
+
+    def _refine_mle(idx: int, log_lik: np.ndarray) -> float:
+        """Quadratic interpolation around the grid-maximum index."""
+        if idx <= 0 or idx >= n_cal - 1:
+            return omega_grid[idx]
+        x0, x1, x2 = omega_grid[idx - 1], omega_grid[idx], omega_grid[idx + 1]
+        y0, y1, y2 = log_lik[idx - 1], log_lik[idx], log_lik[idx + 1]
+        denom = 2.0 * (
+            (x0 - x1) * (y0 - y2) - (x0 - x2) * (y0 - y1) + (x1 - x2) * (y1 - y0)
+        )
+        if abs(denom) < 1e-15:
+            return omega_grid[idx]
+        x_v = (x0**2 * (y1 - y2) + x1**2 * (y2 - y0) + x2**2 * (y0 - y1)) / denom
+        return float(np.clip(x_v, omega_grid[idx - 1], omega_grid[idx + 1]))
+
+    # Run n_trials of the MLE procedure
+    omega_estimates = np.zeros(n_trials)
+    for trial in range(n_trials):
+        outcomes = rng.binomial(1, p_plus_true, n_meas)
+        n_plus = int(np.sum(outcomes))
+        log_lik = n_plus * log_p + (n_meas - n_plus) * log_1m_p
+        best_idx = int(np.argmax(log_lik))
+        omega_estimates[trial] = _refine_mle(best_idx, log_lik)
+
+    return omega_grid, calibration, omega_estimates, var_true, delta_omega, f_c
+
+
+def plot_omega_estimation_histogram(
+    omega_estimates: np.ndarray,
+    omega_true: float,
+    var_true: float,
+    omega_scan_result: DriveOmegaScanResult,
+    n_meas: int,
+    n_trials: int,
+    save_path: str | Path,
+    figsize: tuple[float, float] = (10, 5),
+) -> Path:
+    r"""2-panel figure: sensitivity curve (left) + estimation histogram (right).
+
+    Left panel shows the :math:`\Delta\omega(\omega)` sensitivity curve from
+    the Nelder-Mead refinement with the SQL reference and a marker at the
+    true ω.  Right panel shows a histogram of MLE estimates :math:`\hat{\omega}`
+    from the simulation, with the true ω and expected :math:`\pm` standard
+    deviation overlaid.
+
+    Args:
+        omega_estimates: Array of MLE estimates from simulation trials.
+        omega_true: True ω value.
+        var_true: Variance of :math:`J_z^S` at the true ω.
+        omega_scan_result: Nelder-Mead ω-scan result for the sensitivity curve.
+        n_meas: Number of measurements per trial (for expected-std overlay).
+        n_trials: Number of simulation trials (for title).
+        save_path: Output SVG path.
+        figsize: Figure size (width, height).
+
+    Returns:
+        Path to saved SVG.
+    """
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Locate the true ω in the NM scan data
+    idx_true = int(np.argmin(np.abs(omega_scan_result.omega_values - omega_true)))
+    delta_omega_true = float(omega_scan_result.best_delta_omega_per_omega[idx_true])
+
+    # Expected MLE std from error propagation: Δω / sqrt(N_meas)
+    expected_std = delta_omega_true / np.sqrt(n_meas)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
+
+    # ── Left panel: Sensitivity curve ──────────────────────────────────
+    sql_n2 = SQL_REFERENCE_N2
+    ax1.axhline(
+        y=sql_n2,
+        color="gray",
+        linestyle="--",
+        linewidth=1.2,
+        alpha=0.7,
+        label=rf"SQL ($N=2$) = {sql_n2:.4f}",
+    )
+
+    valid = np.isfinite(omega_scan_result.best_delta_omega_per_omega)
+    ax1.semilogy(
+        omega_scan_result.omega_values[valid],
+        omega_scan_result.best_delta_omega_per_omega[valid],
+        "b-",
+        linewidth=1.8,
+        label=r"NM $\Delta\omega(\omega)$",
+    )
+
+    ax1.axvline(x=omega_true, color="red", linestyle=":", linewidth=1.5, alpha=0.8)
+    ax1.plot(omega_true, delta_omega_true, "r*", markersize=12, zorder=5)
+
+    ax1.set_xlabel(r"$\omega$")
+    ax1.set_ylabel(r"$\Delta\omega$")
+    ax1.set_title("Sensitivity curve")
+    ax1.legend(fontsize=8)
+    ax1.set_xlim(0, 1.0)
+
+    # ── Right panel: Histogram of ω̂ estimates ──────────────────────────
+    ax2.hist(
+        omega_estimates,
+        bins=30,
+        color="steelblue",
+        edgecolor="white",
+        alpha=0.8,
+        density=True,
+    )
+
+    ax2.axvline(
+        x=omega_true,
+        color="red",
+        linestyle=":",
+        linewidth=1.5,
+        label=rf"$\omega_{{\mathrm{{true}}}} = {omega_true}$",
+    )
+    ax2.axvline(
+        x=omega_true - expected_std,
+        color="orange",
+        linestyle="--",
+        linewidth=1.0,
+        alpha=0.7,
+        label=r"$\pm \Delta\omega/\sqrt{N_{\mathrm{meas}}}$",
+    )
+    ax2.axvline(
+        x=omega_true + expected_std,
+        color="orange",
+        linestyle="--",
+        linewidth=1.0,
+        alpha=0.7,
+    )
+
+    mean_est = float(np.mean(omega_estimates))
+    std_est = float(np.std(omega_estimates))
+    ax2.set_xlabel(r"$\hat{\omega}$ (MLE estimate)")
+    ax2.set_ylabel("Probability density")
+    ax2.set_title(
+        rf"$\hat{{\omega}}$ distribution ($N_{{\mathrm{{meas}}}}={n_meas}$, "
+        rf"{n_trials} trials)"
+    )
+    ax2.legend(fontsize=8)
+
+    # Annotation with statistics
+    ax2.text(
+        0.95,
+        0.95,
+        f"Mean = {mean_est:.4f}\nStd = {std_est:.4f}\nExpected std = {expected_std:.4f}",
+        transform=ax2.transAxes,
+        ha="right",
+        va="top",
+        bbox={
+            "boxstyle": "round",
+            "facecolor": "white",
+            "edgecolor": "gray",
+            "alpha": 0.9,
+        },
+        fontsize=9,
+    )
 
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
@@ -1045,7 +1401,11 @@ def generate_phase_optimal_params(force: bool = False) -> None:
     print(f"[fig]  {fig_p}")
 
 
-def generate_phase_combined_sensitivity(force: bool = False) -> None:
+def generate_phase_combined_sensitivity(
+    force: bool = False,
+    sql_value: float | None = None,
+    output_dir: Path | None = None,
+) -> None:
     """Combined sensitivity plot + NM expectation/variance plot.
 
     Reads existing per-ω Parquets (2D slices, random search) and the omega-scan
@@ -1056,8 +1416,12 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
     This must be run AFTER the data-generation steps
     (phase-2d-slice-*, phase-random-search, phase-omega-scan).
     """
-    fig_p1 = _fig_path("phase-combined-sensitivity")
-    fig_p2 = _fig_path("phase-nm-expectation-variance")
+    if output_dir is not None:
+        fig_p1 = Path(output_dir) / "20260519-phase-combined-sensitivity.svg"
+        fig_p2 = Path(output_dir) / "20260519-phase-nm-expectation-variance.svg"
+    else:
+        fig_p1 = _fig_path("phase-combined-sensitivity")
+        fig_p2 = _fig_path("phase-nm-expectation-variance")
 
     # Load NM result
     omega_scan_pq = _parquet_path("phase-omega-scan")
@@ -1085,6 +1449,7 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
     # Collect per-ω minima from 2D slice and random search Parquets
     best_ax = np.full(n_omega, np.nan)
     best_ay = np.full(n_omega, np.nan)
+    best_az = np.full(n_omega, np.nan)
     best_rs = np.full(n_omega, np.nan)
 
     def _safe_grid_min(grid: np.ndarray) -> float:
@@ -1094,7 +1459,7 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
         return float(np.min(finite_vals))
 
     for i, omega in enumerate(omega_vals):
-        for slice_type, best_arr in [("ax", best_ax), ("ay", best_ay)]:
+        for slice_type, best_arr in [("ax", best_ax), ("ay", best_ay), ("az", best_az)]:
             tag = f"phase-2d-slice-{slice_type}-azz-omega{omega}"
             csv_p = _parquet_path(tag)
             if csv_p.exists():
@@ -1109,10 +1474,14 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
 
     print(f"  [debug] best_ax finite: {np.sum(np.isfinite(best_ax))} / {n_omega}")
     print(f"  [debug] best_ay finite: {np.sum(np.isfinite(best_ay))} / {n_omega}")
+    print(f"  [debug] best_az finite: {np.sum(np.isfinite(best_az))} / {n_omega}")
     print(f"  [debug] best_rs finite: {np.sum(np.isfinite(best_rs))} / {n_omega}")
     print(f"  [debug] best_nm finite: {np.sum(np.isfinite(best_nm))} / {n_omega}")
 
-    sql_vals = np.full(n_omega, 0.1)
+    if sql_value is not None:
+        sql_vals = np.full(n_omega, sql_value)
+    else:
+        sql_vals = np.full(n_omega, 0.1)
 
     # Generate combined sensitivity plot (from src.visualization.ancilla_drive_plots)
     plot_combined_sensitivity(
@@ -1123,6 +1492,8 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
         best_nm,
         sql_vals,
         fig_p1,
+        sql_value=sql_value,
+        best_az_slice=best_az,
     )
     print(f"[fig]  {fig_p1}")
 
@@ -1136,45 +1507,58 @@ def generate_phase_combined_sensitivity(force: bool = False) -> None:
     print(f"[fig]  {fig_p2}")
 
 
-def generate_phase_fraction_below_sql(force: bool = False) -> None:
+def generate_phase_fraction_below_sql(
+    force: bool = False,
+    sql_value: float | None = None,
+    output_dir: Path | None = None,
+) -> None:
     """Fraction of parameter space below SQL vs ω for all methods.
 
     Reads existing per-ω Parquets (2D slices, random search) and computes
     the fraction of points whose Δω falls below the SQL for each ω.
+
+    Args:
+        force: Re-run computations even if cached.
+        sql_value: Override SQL reference value. If None, uses the value
+            stored in each result's Parquet file (0.1).
+        output_dir: Override output directory for figures. If None, uses
+            the default report figures directory.
     """
-    fig_p = _fig_path("phase-fraction-below-sql")
+    if output_dir is not None:
+        fig_p = Path(output_dir) / "20260519-phase-fraction-below-sql.svg"
+    else:
+        fig_p = _fig_path("phase-fraction-below-sql")
 
     omega_vals = np.array(PHASE_OMEGA_VALS, dtype=float)
     n_omega = len(omega_vals)
 
     fractions_ax = np.full(n_omega, np.nan)
     fractions_ay = np.full(n_omega, np.nan)
+    fractions_az = np.full(n_omega, np.nan)
     fractions_rs = np.full(n_omega, np.nan)
 
     for i, omega in enumerate(omega_vals):
-        tag_ax = f"phase-2d-slice-ax-azz-omega{omega}"
-        csv_ax = _parquet_path(tag_ax)
-        if csv_ax.exists():
-            result = Drive2DSliceResult.from_parquet(csv_ax)
-            fractions_ax[i] = (
-                np.sum(result.delta_omega_grid < result.sql)
-                / result.delta_omega_grid.size
-            )
-
-        tag_ay = f"phase-2d-slice-ay-azz-omega{omega}"
-        csv_ay = _parquet_path(tag_ay)
-        if csv_ay.exists():
-            result = Drive2DSliceResult.from_parquet(csv_ay)
-            fractions_ay[i] = (
-                np.sum(result.delta_omega_grid < result.sql)
-                / result.delta_omega_grid.size
-            )
+        for slice_type, fractions_arr in [
+            ("ax", fractions_ax),
+            ("ay", fractions_ay),
+            ("az", fractions_az),
+        ]:
+            tag = f"phase-2d-slice-{slice_type}-azz-omega{omega}"
+            csv_p = _parquet_path(tag)
+            if csv_p.exists():
+                result = Drive2DSliceResult.from_parquet(csv_p)
+                threshold = sql_value if sql_value is not None else result.sql
+                fractions_arr[i] = (
+                    np.sum(result.delta_omega_grid < threshold)
+                    / result.delta_omega_grid.size
+                )
 
         tag_rs = f"phase-random-search-omega{omega}"
         csv_rs = _parquet_path(tag_rs)
         if csv_rs.exists():
             result = DriveRandomSearchResult.from_parquet(csv_rs)
-            fractions_rs[i] = np.sum(result.delta_omega_values < result.sql) / len(
+            threshold = sql_value if sql_value is not None else result.sql
+            fractions_rs[i] = np.sum(result.delta_omega_values < threshold) / len(
                 result.delta_omega_values
             )
 
@@ -1182,21 +1566,36 @@ def generate_phase_fraction_below_sql(force: bool = False) -> None:
         omega_vals,
         fractions_ax,
         fractions_ay,
+        fractions_az,
         fractions_rs,
         fig_p,
     )
     print(f"[fig]  {fig_p}")
 
 
-def generate_phase_cross_experiment_comparison(force: bool = False) -> None:
+def generate_phase_cross_experiment_comparison(
+    force: bool = False,
+    sql_value: float | None = None,
+    output_dir: Path | None = None,
+) -> None:
     """Comparison of fixed-drive (2026-05-18) vs modulated-drive (2026-05-19)
     ω-scan results.
 
     Loads both Parquets, interpolates the sparse 2026-05-18 data to the fine
     50-point ω grid of the 2026-05-19 scan, and produces a 2×1 figure
     showing Δω vs ω (upper) and the ratio Δω_19/Δω_18 (lower).
+
+    Args:
+        force: Re-run computations even if cached.
+        sql_value: Override SQL reference value. If None, uses the value
+            stored in the result's Parquet file (0.1).
+        output_dir: Override output directory for figures. If None, uses
+            the default report figures directory.
     """
-    fig_p = _fig_path("phase-cross-experiment-comparison")
+    if output_dir is not None:
+        fig_p = Path(output_dir) / "20260519-phase-cross-experiment-comparison.svg"
+    else:
+        fig_p = _fig_path("phase-cross-experiment-comparison")
 
     # Load modulated-drive result (2026-05-19, 50 points)
     pq_19 = _parquet_path("phase-omega-scan")
@@ -1209,21 +1608,24 @@ def generate_phase_cross_experiment_comparison(force: bool = False) -> None:
     result_19 = DriveOmegaScanResult.from_parquet(pq_19)
 
     # Load fixed-drive result (2026-05-18, 5 points)
-    csv_18 = REPORTS_DIR / "20260518" / "raw_data" / "20260518-drive-omega-scan.csv"
-    if not csv_18.exists():
+    parquet_18 = REPORTS_DIR / "20260518" / "raw_data" / "20260518-drive-omega-scan.parquet"
+    if not parquet_18.exists():
         print(
-            "[skip] 20260518-drive-omega-scan.csv does not exist; "
+            "[skip] 20260518-drive-omega-scan.parquet does not exist; "
             "run 'drive-omega-scan' first"
         )
         return
-    result_18 = DriveOmegaScanResult.from_parquet(csv_18)
+    result_18 = DriveOmegaScanResult.from_parquet(parquet_18)
 
     omega_fine = result_19.omega_values
     omega_coarse = result_18.omega_values
     delta_18_coarse = result_18.best_delta_omega_per_omega
     delta_18_fine = np.interp(omega_fine, omega_coarse, delta_18_coarse)
 
-    sql_fine = result_19.sql_values
+    if sql_value is not None:
+        sql_fine = np.full(len(omega_fine), sql_value)
+    else:
+        sql_fine = result_19.sql_values
 
     plot_drive_cross_experiment_comparison(
         omega_values=omega_fine,
@@ -1231,8 +1633,212 @@ def generate_phase_cross_experiment_comparison(force: bool = False) -> None:
         best_delta_18=delta_18_fine,
         sql_values=sql_fine,
         save_path=fig_p,
+        sql_value=sql_value,
     )
     print(f"[fig]  {fig_p}")
+
+
+# ============================================================================
+# Supplementary Visualizations (Article Review)
+# ============================================================================
+
+
+def generate_phase_estimation_simulation(
+    force: bool = False,
+    n_meas: int = 1000,
+    n_trials: int = 500,
+) -> None:
+    r"""Numerical ω estimation simulation at the global optimum.
+
+    Loads the Nelder-Mead ω-scan result, extracts the optimal parameters
+    at the global optimum (ω ≈ 0.2), runs a finite-sample estimation
+    simulation (calibration-curve inversion), and produces a 2-panel
+    figure: sensitivity curve (left) + histogram of MLE estimates (right).
+
+    The simulation draws *n_meas* binary measurement samples per trial,
+    computes the MLE :math:`\hat{\omega}` via calibration-curve inversion,
+    and repeats for *n_trials* independent repetitions.  The resulting
+    histogram should have standard deviation approximately
+    :math:`\Delta\omega / \sqrt{N_{\text{meas}}}`.
+
+    Args:
+        force: Re-run simulation even if cached Parquet exists.
+        n_meas: Number of measurements per trial.
+        n_trials: Number of independent simulation trials.
+    """
+    csv_p = _parquet_path("phase-estimation-simulation")
+    fig_p = _fig_path("phase-estimation-simulation")
+
+    # Load NM ω-scan to get optimal params and sensitivity curve
+    omega_scan_pq = _parquet_path("phase-omega-scan")
+    if not omega_scan_pq.exists():
+        print(
+            "[skip] phase-omega-scan.parquet does not exist; "
+            "run 'phase-omega-scan' first"
+        )
+        return
+    scan_result = DriveOmegaScanResult.from_parquet(omega_scan_pq)
+
+    # Find the global optimum (use integer indexing for both array and list)
+    delta_arr = scan_result.best_delta_omega_per_omega
+    valid_mask = np.isfinite(delta_arr)
+    if not np.any(valid_mask):
+        print("[skip] No finite Δω values in omega-scan result")
+        return
+
+    valid_indices = np.where(valid_mask)[0]
+    best_idx = valid_indices[int(np.argmin(delta_arr[valid_indices]))]
+    omega_true_val = float(scan_result.omega_values[best_idx])
+    params = scan_result.best_params_per_omega[best_idx]
+
+    # Check cache
+    if csv_p.exists() and not force:
+        print(f"[skip] {csv_p.name} exists (use --force to overwrite)")
+        df_cache = pd.read_parquet(csv_p)
+        omega_estimates = np.asarray(df_cache["omega_estimate"], dtype=float)
+        var_true = float(df_cache["var_true"].iloc[0])
+    else:
+        print(
+            f"[run]  Estimation simulation at ω={omega_true_val:.2f} "
+            f"with a_x={params[0]:.2f}, a_y={params[1]:.2f}, "
+            f"a_z={params[2]:.2f}, a_zz={params[3]:.2f}, "
+            f"N_meas={n_meas}, trials={n_trials}"
+        )
+
+        _, _, omega_estimates, var_true, delta_omega, f_c = simulate_omega_estimation(
+            omega_true=omega_true_val,
+            a_x=float(params[0]),
+            a_y=float(params[1]),
+            a_z=float(params[2]),
+            a_zz=float(params[3]),
+            n_meas=n_meas,
+            n_trials=n_trials,
+        )
+
+        # Cache the raw estimates
+        n_actual = len(omega_estimates)
+        df_cache = pd.DataFrame(
+            {
+                "omega_estimate": omega_estimates,
+                "omega_true": np.full(n_actual, omega_true_val),
+                "n_meas": np.full(n_actual, n_meas, dtype=np.int32),
+                "var_true": np.full(n_actual, var_true),
+                "delta_omega_error": np.full(n_actual, delta_omega),
+                "classical_fisher": np.full(n_actual, f_c),
+            },
+        )
+        df_cache.to_parquet(csv_p)
+        print(f"  [save] {csv_p}")
+
+    # Generate figure
+    plot_omega_estimation_histogram(
+        omega_estimates=omega_estimates,
+        omega_true=omega_true_val,
+        var_true=var_true,
+        omega_scan_result=scan_result,
+        n_meas=n_meas,
+        n_trials=len(omega_estimates),
+        save_path=fig_p,
+    )
+    print(f"[fig]  {fig_p}")
+
+
+def generate_phase_supplementary_slices(force: bool = False) -> None:
+    """Generate 2D slice figures at additional ω values (supplementary).
+
+    Produces (a_x, a_zz) and (a_y, a_zz) sensitivity heatmaps at
+    ω ∈ {0.2, 0.5, 1.0, 2.0} — the four additional ω values requested
+    by reviewers, supplementing the existing ω=0.1 figures.
+
+    Each slice is saved as a Parquet data file and an SVG heatmap
+    under ``reports/20260519/figures/``.
+
+    Args:
+        force: Re-run slices even if cached Parquets exist.
+    """
+    supplementary_omegas = [0.2, 0.5, 1.0, 2.0]
+    total = len(supplementary_omegas) * 2
+    count = 0
+
+    for omega in supplementary_omegas:
+        for slice_type in ("ax", "ay"):
+            count += 1
+            print(f"\n  [{count}/{total}] ({slice_type}, a_zz) slice at ω={omega}")
+            _run_phase_2d_slice(omega=omega, slice_type=slice_type, force=force)
+
+    print(f"\n  [done] Generated {count} supplementary slice figures.")
+
+
+# ============================================================================
+# Article Figure Generation (N=2 SQL convention)
+# ============================================================================
+
+
+def generate_article_figures(n_particles: int = 2) -> None:
+    """Regenerate all article figures with N-particle SQL reference.
+
+    The article uses N_total = system + ancilla particles as the resource count
+    for the SQL baseline (Δω_SQL = 1/(√N × t_hold)), rather than N=1 (system only)
+    used in the report. This function generates article-specific figure copies
+    saved under ``reports/20260519/figures/article-n2/``.
+
+    Args:
+        n_particles: Total particle count for SQL definition. Default 2.
+    """
+    sql_value = 1.0 / (np.sqrt(n_particles) * DEFAULT_t_hold)
+    output_dir = Path(__file__).parent / "figures" / "article-n2"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Generating article figures with N={n_particles} SQL = {sql_value:.6f}")
+    print(f"Output directory: {output_dir}")
+
+    # Store original working directory
+    original_dir = Path.cwd()
+    os.chdir(str(Path(__file__).parent))
+
+    try:
+        # Figure 4: Combined sensitivity
+        print("\n=== Article Figure 4: Combined sensitivity ===")
+        generate_phase_combined_sensitivity(
+            force=False, sql_value=sql_value, output_dir=output_dir
+        )
+
+        # Figure 5: Fraction below SQL
+        print("\n=== Article Figure 5: Fraction below SQL ===")
+        generate_phase_fraction_below_sql(
+            force=False, sql_value=sql_value, output_dir=output_dir
+        )
+
+        # Figure 6: Cross-experiment comparison
+        print("\n=== Article Figure 6: Cross-experiment comparison ===")
+        generate_phase_cross_experiment_comparison(
+            force=False, sql_value=sql_value, output_dir=output_dir
+        )
+
+        # Figures 1-3: 2D slices at ω=0.1 with N=2 SQL contour
+        from src.visualization.ancilla_drive_plots import plot_drive_2d_slice_heatmap
+
+        for slice_type in ["ax", "ay", "az"]:
+            fig_name = f"20260519-phase-2d-slice-{slice_type}-azz-omega0.1.svg"
+            tag = f"phase-2d-slice-{slice_type}-azz-omega0.1"
+            csv_p = _parquet_path(tag)
+
+            if not csv_p.exists():
+                print(
+                    f"  [skip] {tag} parquet not found; run 2D slice generation first"
+                )
+                continue
+
+            result = Drive2DSliceResult.from_parquet(csv_p)
+            fig_p = output_dir / fig_name
+            plot_drive_2d_slice_heatmap(result, fig_p, sql_value=sql_value)
+            print(f"  [fig]  {fig_p}")
+
+        print(f"\nAll article figures saved to {output_dir}")
+        print(f"Files: {sorted(output_dir.glob('*.svg'))}")
+
+    finally:
+        os.chdir(str(original_dir))
 
 
 # ============================================================================
@@ -1344,7 +1950,16 @@ def main() -> None:
         default=None,
         help="Generate only one dataset, e.g. 'phase-decoupled-baseline'",
     )
+    parser.add_argument(
+        "--article-figures",
+        action="store_true",
+        help="Regenerate article-specific figures with N=2 SQL",
+    )
     args = parser.parse_args()
+
+    if args.article_figures:
+        generate_article_figures()
+        return
 
     # Ensure directories exist
     (REPORTS_DIR / PHASE_DATE / "raw_data").mkdir(parents=True, exist_ok=True)
@@ -1361,6 +1976,8 @@ def main() -> None:
         "phase-combined-sensitivity": generate_phase_combined_sensitivity,
         "phase-fraction-below-sql": generate_phase_fraction_below_sql,
         "phase-cross-experiment-comparison": generate_phase_cross_experiment_comparison,
+        "phase-estimation-simulation": generate_phase_estimation_simulation,
+        "phase-supplementary-slices": generate_phase_supplementary_slices,
     }
 
     if args.only:

@@ -382,18 +382,18 @@ class TestBFGSOptimisation:
         """L-BFGS-B should complete without error."""
         result = run_general_bfgs_optimization(
             omega_true=0.5,
-            n_starts=5,
+            n_starts=3,
             maxiter=100,
         )
         assert np.isfinite(result.delta_omega_opt)
-        assert result.n_starts == 5
+        assert result.n_starts == 3
         assert result.n_converged >= 0
 
     def test_optimisation_returns_valid_alpha(self) -> None:
         """Optimal α should be within bounds."""
         result = run_general_bfgs_optimization(
             omega_true=1.0,
-            n_starts=10,
+            n_starts=3,
             maxiter=200,
         )
         lo, hi = ALPHA_BOUNDS
@@ -403,7 +403,7 @@ class TestBFGSOptimisation:
     def test_optimisation_omega_recorded(self) -> None:
         result = run_general_bfgs_optimization(
             omega_true=0.7,
-            n_starts=5,
+            n_starts=3,
             maxiter=100,
         )
         assert result.omega_value == pytest.approx(0.7)
@@ -411,7 +411,7 @@ class TestBFGSOptimisation:
     def test_optimisation_diagnostics_recorded(self) -> None:
         result = run_general_bfgs_optimization(
             omega_true=1.0,
-            n_starts=5,
+            n_starts=3,
             maxiter=100,
         )
         assert np.isfinite(result.expectation_Jz)
@@ -423,13 +423,25 @@ class TestBFGSOptimisation:
         """At least some starts should converge at each ω."""
         result = run_general_bfgs_optimization(
             omega_true=omega_true,
-            n_starts=10,
+            n_starts=3,
             maxiter=200,
         )
         assert result.n_converged >= 0
         # At least one converged start is expected (but don't assert)
         # Just verify the count is in range
         assert result.n_converged <= result.n_starts
+
+    @pytest.mark.slow
+    def test_full_starts_reference(self) -> None:
+        """Full-start reference: verify convergence with N_BFGS_STARTS."""
+        result = run_general_bfgs_optimization(
+            omega_true=1.0,
+            n_starts=N_BFGS_STARTS,
+            maxiter=200,
+        )
+        assert result.n_converged >= 0
+        assert result.n_converged <= result.n_starts
+        assert result.n_starts == N_BFGS_STARTS
 
 
 # ============================================================================
@@ -441,7 +453,7 @@ class TestOmegaScan:
     def test_omega_scan_runs(self) -> None:
         result = run_general_omega_scan(
             omega_values=[0.1, 0.5, 1.0],
-            n_starts=5,
+            n_starts=3,
             maxiter=100,
         )
         assert len(result.omega_values) == 3
@@ -450,7 +462,7 @@ class TestOmegaScan:
     def test_omega_scan_all_alphas_recorded(self) -> None:
         result = run_general_omega_scan(
             omega_values=[0.1, 0.5, 1.0, 2.0, 5.0],
-            n_starts=5,
+            n_starts=3,
             maxiter=100,
         )
         assert len(result.alpha_xx_opt_per_omega) == 5
@@ -466,7 +478,7 @@ class TestOmegaScan:
         """All ω values should produce finite optimal Δω."""
         result = run_general_omega_scan(
             omega_values=[0.1, 0.5, 1.0, 2.0, 5.0],
-            n_starts=5,
+            n_starts=3,
             maxiter=100,
         )
         for i, omega in enumerate(result.omega_values):
@@ -476,7 +488,7 @@ class TestOmegaScan:
     def test_omega_scan_expectation_variance(self) -> None:
         result = run_general_omega_scan(
             omega_values=[0.1, 1.0],
-            n_starts=5,
+            n_starts=3,
             maxiter=100,
         )
         assert len(result.expectation_Jz_per_omega) == 2
@@ -486,12 +498,12 @@ class TestOmegaScan:
     def test_omega_scan_converged_recorded(self) -> None:
         result = run_general_omega_scan(
             omega_values=[0.1, 1.0],
-            n_starts=5,
+            n_starts=3,
             maxiter=100,
         )
         assert len(result.n_converged_per_omega) == 2
         for i in range(2):
-            assert 0 <= result.n_converged_per_omega[i] <= 5
+            assert 0 <= result.n_converged_per_omega[i] <= 3
 
 
 # ============================================================================
@@ -509,8 +521,8 @@ class TestParquetRoundtrip:
             expectation_Jz=0.25,
             variance_Jz=0.05,
             d_exp_d_omega=-0.5,
-            n_starts=100,
-            n_converged=95,
+            n_starts=3,
+            n_converged=2,
         )
         parquet_path = tmp_path / "test_bfgs.parquet"
         original.save_parquet(parquet_path)
@@ -530,8 +542,8 @@ class TestParquetRoundtrip:
             expectation_Jz=-0.2,
             variance_Jz=0.15,
             d_exp_d_omega=2.5,
-            n_starts=50,
-            n_converged=48,
+            n_starts=3,
+            n_converged=2,
         )
         parquet_path = tmp_path / "test_bfgs_meta.parquet"
         original.save_parquet(parquet_path)
@@ -540,8 +552,8 @@ class TestParquetRoundtrip:
         assert np.allclose(loaded.alpha_opt, (10.0, -5.0, 0.0, -10.0))
         assert loaded.delta_omega_opt == pytest.approx(0.03)
         assert loaded.sql == pytest.approx(0.1)
-        assert loaded.n_starts == 50
-        assert loaded.n_converged == 48
+        assert loaded.n_starts == 3
+        assert loaded.n_converged == 2
 
     def test_omega_scan_roundtrip(self, tmp_path: Path) -> None:
         original = GeneralOmegaScanResult(
@@ -791,8 +803,8 @@ class TestDeltaLake:
             expectation_Jz=0.25,
             variance_Jz=0.0625,
             d_exp_d_omega=-0.5,
-            n_starts=100,
-            n_converged=90,
+            n_starts=3,
+            n_converged=2,
         )
         with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
             _upsert_bfgs_result(result)
@@ -804,7 +816,7 @@ class TestDeltaLake:
         assert df["alpha_xx_opt"].iloc[0] == pytest.approx(1.0)
         assert df["alpha_zz_opt"].iloc[0] == pytest.approx(4.0)
         assert df["delta_omega_opt"].iloc[0] == pytest.approx(0.05)
-        assert df["n_converged"].iloc[0] == 90
+        assert df["n_converged"].iloc[0] == 2
 
     def test_delta_concurrent_append(
         self, tmp_path_factory: pytest.TempPathFactory
@@ -823,8 +835,8 @@ class TestDeltaLake:
                 expectation_Jz=0.0,
                 variance_Jz=0.0625,
                 d_exp_d_omega=0.0,
-                n_starts=10,
-                n_converged=10,
+                n_starts=3,
+                n_converged=2,
             )
             with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
                 _upsert_bfgs_result(result)
@@ -856,8 +868,8 @@ class TestDeltaLake:
                     expectation_Jz=0.0,
                     variance_Jz=0.0,
                     d_exp_d_omega=0.0,
-                    n_starts=10,
-                    n_converged=10,
+                    n_starts=3,
+                    n_converged=2,
                 )
                 with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
                     _upsert_bfgs_result(result)
@@ -894,8 +906,8 @@ class TestDeltaLake:
                 expectation_Jz=0.25 / omega if omega > 0 else 0.0,
                 variance_Jz=0.0625,
                 d_exp_d_omega=-0.5 * omega,
-                n_starts=100,
-                n_converged=int(100 - omega * 10),
+                n_starts=3,
+                n_converged=2,
             )
             with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
                 _upsert_bfgs_result(result)
@@ -932,5 +944,5 @@ class TestDeltaLake:
         assert np.allclose(scan_result.sql_values, [0.1] * 5)
         assert np.allclose(
             scan_result.n_converged_per_omega,
-            [100.0 - t * 10 for t in sorted(omega_vals)],
+            [2.0, 2.0, 2.0, 2.0, 2.0],
         )

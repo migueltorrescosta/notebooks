@@ -578,7 +578,15 @@ def generate_all(
     return data
 
 
-def main() -> None:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments for the SV parity measurement pipeline.
+
+    Args:
+        argv: Argument list (defaults to ``sys.argv[1:]``).
+
+    Returns:
+        Parsed namespace with fields ``force``.
+    """
     parser = argparse.ArgumentParser(
         description="Squeezed-Vacuum MZI with Parity Measurement",
     )
@@ -587,10 +595,20 @@ def main() -> None:
         action="store_true",
         help="Re-generate data and figures even if files exist",
     )
-    args = parser.parse_args()
+    return parser.parse_args(argv)
 
+
+def main(argv: list[str] | None = None) -> None:
+    """Run the full SV parity measurement pipeline.
+
+    Args:
+        argv: Command-line argument list (defaults to ``sys.argv[1:]``).
+    """
+    args = parse_args(argv)
     generate_all(force=args.force)
 
 
 if __name__ == "__main__":  # pragma: no cover — CLI entry point
-    main()
+    import sys as _sys
+
+    main(_sys.argv[1:])
