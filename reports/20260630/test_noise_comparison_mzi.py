@@ -219,6 +219,7 @@ class TestNumericalDerivative:
 # ============================================================================
 
 
+@pytest.mark.slow
 class TestSweepA:
     @pytest.fixture(scope="class")
     def result_a(self) -> NoiseSweepResult:
@@ -278,6 +279,7 @@ class TestSweepA:
 # ============================================================================
 
 
+@pytest.mark.slow
 class TestSweepB:
     @pytest.fixture(scope="class")
     def result_b(self) -> NoiseSweepResult:
@@ -311,6 +313,7 @@ class TestSweepB:
 # ============================================================================
 
 
+@pytest.mark.slow
 class TestSweepC:
     @pytest.fixture(scope="class")
     def result_c(self) -> NoiseSweepResult:
@@ -442,6 +445,7 @@ class TestNoiseSweepResultParquet:
 # ============================================================================
 
 
+@pytest.mark.slow
 class TestPlots:
     @pytest.fixture(scope="class")
     def result_a(self) -> NoiseSweepResult:

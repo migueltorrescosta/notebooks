@@ -9,8 +9,12 @@ from __future__ import annotations
 
 import importlib
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 import numpy as np
 import pandas as pd
@@ -216,6 +220,7 @@ class TestOmegaGrid:
 
 
 class TestGenerateSinglePoint:
+    @pytest.mark.slow
     def test_single_point_basic(self) -> None:
         """Generate a single (⟨N⟩, ℱ) point and verify structure."""
         result = generate_single_cavity_point(
@@ -272,6 +277,7 @@ class TestGenerateSinglePoint:
         assert np.all(result["captured_norm"] > 0)
         assert np.all(result["captured_norm"] <= 1.0)
 
+    @pytest.mark.slow
     def test_single_point_auto_truncation(self) -> None:
         """Generate with auto-computed truncation."""
         result = generate_single_cavity_point(
@@ -310,6 +316,7 @@ class TestRowDictsToResult:
         assert len(result.mean_total) == 200
         assert np.allclose(result.finesse[:5], 1.0)
 
+    @pytest.mark.slow
     def test_multiple_rows(self) -> None:
         """Multiple rows are concatenated correctly."""
         r1 = generate_single_cavity_point(4.0, 1.0, max_photons=20)
@@ -319,6 +326,7 @@ class TestRowDictsToResult:
         assert np.isclose(result.mean_total[0], 4.0)
         assert np.isclose(result.mean_total[-1], 6.0)
 
+    @pytest.mark.slow
     def test_mixed_finesse(self) -> None:
         """Rows with different finesse are concatenated."""
         r1 = generate_single_cavity_point(4.0, 1.0, max_photons=20)
@@ -695,8 +703,28 @@ class TestCLI:
         finally:
             _sys.argv = old_argv
 
-    def test_main_direct_run_small(self, tmp_path: Path) -> None:
-        """Call main() with --force and --only F=1 to test generation pipeline."""
+    @pytest.mark.slow
+    def test_main_direct_run_small(
+        self, request: pytest.FixtureRequest, tmp_path: Path
+    ) -> None:
+        """Call main() with --force and --only F=1 to test generation pipeline.
+
+        Default: load from pre-computed fixture.
+        Pass ``--regenerate-fixtures`` to regenerate from scratch.
+        """
+        regenerate = bool(
+            request.config.getoption("--regenerate-fixtures", default=False)
+        )
+        fixture_dir = Path(__file__).resolve().parent / "tests" / "fixtures"
+        fixture_pq = fixture_dir / "test_cavity_tmsv_fixture.parquet"
+
+        if fixture_pq.exists() and not regenerate:
+            data = CavityTmsvSensitivityResult.from_parquet(fixture_pq)
+            assert isinstance(data, CavityTmsvSensitivityResult)
+            assert len(data.mean_total) > 0
+            assert np.all(np.isfinite(data.delta_omega_c))
+            return
+
         import sys as _sys_mod
 
         old_argv = _sys_mod.argv[:]
@@ -724,32 +752,67 @@ class TestCLI:
 
 
 # =============================================================================
+# Helpers
+# =============================================================================
+
+
+@contextmanager
+def _override_config(
+    mean_total_range: list[float],
+    finesse_range: list[float],
+    n_omega_points: int,
+) -> Iterator[None]:
+    """Save and restore module-level config for cavity TMSV generation."""
+    orig_N = _m.MEAN_TOTAL_RANGE
+    orig_F = _m.FINESSE_RANGE
+    orig_npts = _m.N_OMEGA_POINTS
+    try:
+        _m.MEAN_TOTAL_RANGE = mean_total_range
+        _m.FINESSE_RANGE = finesse_range
+        _m.N_OMEGA_POINTS = n_omega_points
+        yield
+    finally:
+        _m.MEAN_TOTAL_RANGE = orig_N
+        _m.FINESSE_RANGE = orig_F
+        _m.N_OMEGA_POINTS = orig_npts
+
+
+# =============================================================================
 # Generate All (Pipeline)
 # =============================================================================
 
 
 class TestGenerateAll:
-    def test_generate_all_small(self, tmp_path: Path) -> None:
-        """generate_all runs end-to-end with small ranges (isolated Parquet)."""
-        orig_N = _m.MEAN_TOTAL_RANGE
-        orig_F = _m.FINESSE_RANGE
-        orig_npts = _m.N_OMEGA_POINTS
+    @pytest.mark.slow
+    def test_generate_all_loads_from_fixture(self) -> None:
+        """Load pre-computed fixture and validate structure."""
+        fixture_pq = (
+            Path(__file__).resolve().parent
+            / "tests"
+            / "fixtures"
+            / "test_cavity_tmsv_fixture.parquet"
+        )
+        if not fixture_pq.exists():
+            pytest.skip("Fixture not found; run with --regenerate-fixtures")
+        data = CavityTmsvSensitivityResult.from_parquet(fixture_pq)
+        assert isinstance(data, CavityTmsvSensitivityResult)
+        assert len(data.mean_total) > 0
+        assert np.all(np.isfinite(data.delta_omega_c))
+
+    @pytest.mark.slow
+    def test_generate_all_runs_pipeline(self, tmp_path: Path) -> None:
+        """Generate fresh data with small ranges and validate."""
         pq_path = tmp_path / "test_cavity_tmsv.parquet"
-        try:
-            _m.MEAN_TOTAL_RANGE = [4.0]
-            _m.FINESSE_RANGE = [1.0]
-            _m.N_OMEGA_POINTS = 3
+        with _override_config(
+            mean_total_range=[4.0],
+            finesse_range=[1.0],
+            n_omega_points=3,
+        ):
             data, scaling_fit = _m.generate_all(
                 force=True,
                 only="F=1",
                 override_pq_path=pq_path,
             )
-        finally:
-            _m.MEAN_TOTAL_RANGE = orig_N
-            _m.FINESSE_RANGE = orig_F
-            _m.N_OMEGA_POINTS = orig_npts
-
-        assert data is not None
         assert isinstance(data, CavityTmsvSensitivityResult)
         assert scaling_fit is not None
         assert isinstance(scaling_fit, CavityTmsvScalingFit)

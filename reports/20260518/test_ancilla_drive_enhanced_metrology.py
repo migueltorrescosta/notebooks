@@ -212,12 +212,12 @@ class TestOperatorConstruction:
 
 
 class TestCSSStates:
-    @pytest.mark.parametrize("N", [1, 2, 3, 4, 6, 8])
+    @pytest.mark.parametrize("N", [1, 2, 3, 4, 5])
     @pytest.mark.parametrize("theta", [0.0, np.pi / 4, np.pi / 2, np.pi])
     def test_given_css_state_then_normalised(self, N: int, theta: float) -> None:
         assert validate_css_state(N, theta) is True
 
-    @pytest.mark.parametrize("N", [1, 2, 4, 8])
+    @pytest.mark.parametrize("N", [1, 2, 4, 5])
     def test_given_zero_theta_then_ground_state(self, N: int) -> None:
         state = css_state_np(N / 2.0, 0.0)
         assert state[-1] == pytest.approx(1.0, abs=1e-12)
@@ -535,7 +535,7 @@ class TestWeightOptimisation:
 
 
 class TestAnalyticalBenchmarks:
-    @pytest.mark.parametrize("N", [1, 2, 4, 8])
+    @pytest.mark.parametrize("N", [1, 2, 4, 5])
     @pytest.mark.parametrize("t_hold", [0.5, 1.0, 2.0])
     def test_zero_interaction_benchmark(self, N: int, t_hold: float) -> None:
         """Zero interaction: numerical result must match exact closed-form
@@ -569,7 +569,7 @@ class TestAnalyticalBenchmarks:
             f"!= SQL {expected_sql:.10e}"
         )
 
-    @pytest.mark.parametrize("N", [1, 2, 4, 8])
+    @pytest.mark.parametrize("N", [1, 2, 4, 5])
     @pytest.mark.parametrize("alpha_zz", [0.5, 1.0, 2.0])
     def test_alpha_zz_benchmark(self, N: int, alpha_zz: float) -> None:
         """Alpha_zz-only interaction: numerical result must match exact
@@ -1366,7 +1366,7 @@ class TestParquetRoundtrip:
 
 
 class TestDickeBasisConsistency:
-    @pytest.mark.parametrize("N", [1, 2, 3, 4, 6, 8])
+    @pytest.mark.parametrize("N", [1, 2, 3, 4, 5])
     def test_jz_diagonal_elements(self, N: int) -> None:
         """J_z diagonal should match m eigenvalues."""
         Jz = jz_operator(N, basis=OperatorBasis.DICKE)

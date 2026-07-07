@@ -450,6 +450,7 @@ class TestBFGSOptimisation:
 
 
 class TestOmegaScan:
+    @pytest.mark.slow
     def test_omega_scan_runs(self) -> None:
         result = run_general_omega_scan(
             omega_values=[0.1, 0.5, 1.0],
@@ -459,6 +460,7 @@ class TestOmegaScan:
         assert len(result.omega_values) == 3
         assert len(result.delta_omega_opt_per_omega) == 3
 
+    @pytest.mark.slow
     def test_omega_scan_all_alphas_recorded(self) -> None:
         result = run_general_omega_scan(
             omega_values=[0.1, 0.5, 1.0, 2.0, 5.0],
@@ -474,6 +476,7 @@ class TestOmegaScan:
                 result.alpha_xx_opt_per_omega[i]
             )
 
+    @pytest.mark.slow
     def test_omega_scan_finite_results(self) -> None:
         """All ω values should produce finite optimal Δω."""
         result = run_general_omega_scan(

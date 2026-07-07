@@ -20,6 +20,7 @@ PAGE_FILES = sorted(p for p in PAGES_DIR.glob("*.py") if p.name != "__init__.py"
 
 # Pages that are computationally expensive and may timeout
 SLOW_PAGES = {
+    "BEC_Ancilla.py",
     "BEC_Sensitivity_Scaling.py",
     "Delta_estimation.py",
     "Energy_Level_Calculator.py",

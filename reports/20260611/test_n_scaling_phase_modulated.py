@@ -416,31 +416,34 @@ class TestDecoupledBaseline:
 
 
 class TestN1Consistency:
+    @pytest.mark.slow
     def test_given_N1_omega02_then_beats_sql(self) -> None:
         """At N=1, ω=0.2, the protocol should beat SQL (R > 1)."""
-        result = run_single_n_omega(N=1, omega=0.2, seed=42)
+        result = run_single_n_omega(N=1, omega=0.2, n_random=50, n_nm_refine=5, seed=42)
         assert result.ratio > 1.0, (
             f"N=1, ω=0.2: ratio = {result.ratio:.4f} (expected > 1)"
         )
 
+    @pytest.mark.slow
     def test_given_N1_omega02_then_reasonable_params(self) -> None:
         """Verify that non-commuting drive amplitudes are non-zero."""
-        result = run_single_n_omega(N=1, omega=0.2, seed=42)
+        result = run_single_n_omega(N=1, omega=0.2, n_random=50, n_nm_refine=5, seed=42)
         # At least one of a_x or a_y should be non-zero (non-commuting drive)
         assert abs(result.a_x_opt) > 0.1 or abs(result.a_y_opt) > 0.1, (
             f"a_x={result.a_x_opt:.4f}, a_y={result.a_y_opt:.4f} — "
             "need non-commuting drive"
         )
 
+    @pytest.mark.slow
     def test_given_N1_omega02_then_variance_positive(self) -> None:
-        result = run_single_n_omega(N=1, omega=0.2, seed=42)
+        result = run_single_n_omega(N=1, omega=0.2, n_random=50, n_nm_refine=5, seed=42)
         assert result.variance_Jz >= -1e-12
         assert result.variance_Jz >= 0.0  # after clamping
 
     @pytest.mark.slow
     def test_given_N1_omega02_then_close_to_20260519(self) -> None:
         """Slow test: verify Δω is near the 20260519 optimum of 0.02036."""
-        result = run_single_n_omega(N=1, omega=0.2, seed=42)
+        result = run_single_n_omega(N=1, omega=0.2, n_random=50, n_nm_refine=5, seed=42)
         # Should be within 20% of the 20260519 result
         expected = 0.02036
         assert np.isclose(result.delta_omega_opt, expected, rtol=0.2), (

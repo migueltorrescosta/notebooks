@@ -623,6 +623,7 @@ class TestRunModulatedNelderMead:
 
 
 class TestRunModulatedOmegaScan:
+    @pytest.mark.slow
     def test_small_scan_produces_correct_shape(self) -> None:
         result = run_modulated_omega_scan(
             omega_values=[1.0],

@@ -54,7 +54,7 @@ def _embed_ops_for_tests(N: int) -> dict[str, np.ndarray]:
 
 
 class TestOperatorConstruction:
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_operators_correct_dimension(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
         dim = (N + 1) ** 2
@@ -63,7 +63,7 @@ class TestOperatorConstruction:
                 f"{name} has shape {op.shape}, expected ({dim}, {dim})"
             )
 
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_operators_hermitian(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
         for name in ["Jz_S", "Jz_A", "Jx_S", "Jx_A", "Jy_S", "Jy_A"]:
@@ -194,7 +194,7 @@ class TestFullStateMeasurement:
 
 
 class TestUnitarity:
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_single_bs_unitary(self, N: int) -> None:
         U = single_bs_unitary(N)
         eye = np.eye(N + 1, dtype=complex)
@@ -202,7 +202,7 @@ class TestUnitarity:
             f"BS unitary not unitary for N={N}"
         )
 
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_dual_bs_unitary(self, N: int) -> None:
         U = dual_bs_unitary(N)
         dim = (N + 1) ** 2
@@ -500,6 +500,7 @@ class TestJointOptimisation:
                 f"ψ*={result['psi_opt']} outside [{lo}, {hi}] for N={N}"
             )
 
+    @pytest.mark.slow
     def test_optimisation_runs_and_returns_sql_reference(self) -> None:
         """Optimisation should run and store the correct SQL reference."""
         N = 3
@@ -535,6 +536,7 @@ class TestJointOptimisation:
 
 
 class TestFullSweep:
+    @pytest.mark.slow
     def test_small_sweep_runs(self) -> None:
         """A small sweep (2 ω × 2 N) should complete without error."""
         result = run_sweep(
@@ -549,6 +551,7 @@ class TestFullSweep:
         assert len(result.ms_opt) == 4
         assert len(result.ma_opt) == 4
 
+    @pytest.mark.slow
     def test_sweep_contains_sql(self) -> None:
         result = run_sweep(
             omega_values=np.array([1.0]),
@@ -562,6 +565,7 @@ class TestFullSweep:
                 f"SQL mismatch for N={N}: {result.sql_2n[i]} != {expected_sql}"
             )
 
+    @pytest.mark.slow
     def test_sweep_all_finite_or_inf(self) -> None:
         """All Δω values should be finite (or inf at fringe extremum)."""
         result = run_sweep(

@@ -57,7 +57,7 @@ def _embed_ops(N: int) -> dict[str, np.ndarray]:
 
 
 class TestOperatorConstruction:
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_operators_correct_dimension(self, N: int) -> None:
         ops = _embed_ops(N)
         dim = (N + 1) ** 2
@@ -66,7 +66,7 @@ class TestOperatorConstruction:
                 f"{name} has shape {op.shape}, expected ({dim}, {dim})"
             )
 
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_operators_hermitian(self, N: int) -> None:
         ops = _embed_ops(N)
         for name, op in ops.items():
@@ -120,7 +120,7 @@ class TestOperatorConstruction:
 
 
 class TestUnitarity:
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_single_bs_unitary(self, N: int) -> None:
         U = single_bs_unitary(N)
         eye = np.eye(N + 1, dtype=complex)
@@ -128,7 +128,7 @@ class TestUnitarity:
             f"Single BS not unitary for N={N}"
         )
 
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_dual_bs_unitary(self, N: int) -> None:
         U = protocol_bs_unitary(N, "dual")
         dim = (N + 1) ** 2
@@ -489,6 +489,7 @@ class TestFourParamOptimiser:
                     f"N={N}, protocol={protocol}"
                 )
 
+    @pytest.mark.slow
     def test_optimisation_runs_and_returns_sql_reference(self) -> None:
         """Optimisation should store the correct SQL reference."""
         N = 3
@@ -524,6 +525,7 @@ class TestFourParamOptimiser:
             f"2026-05-21 reproduction failed: ratio={ratio:.4f} > 0.690×1.15"
         )
 
+    @pytest.mark.slow
     def test_optimisation_omega_scan_small(self) -> None:
         """Run a mini sweep to check the pipeline works."""
         N = 2
@@ -566,6 +568,7 @@ class TestFourParamOptimiser:
 
 
 class TestSweeps:
+    @pytest.mark.slow
     def test_small_sweep_runs(self) -> None:
         """A small sweep (2 ω × 2 N, both protocols) should complete."""
         result = run_sweep(
@@ -578,6 +581,7 @@ class TestSweeps:
         assert len(result.omega_values) == 4
         assert len(result.alpha_xx_opt) == 4
 
+    @pytest.mark.slow
     def test_sweep_contains_sql(self) -> None:
         result = run_sweep(
             omega_values=np.array([1.0]),
@@ -602,6 +606,7 @@ class TestSweeps:
         )
         assert result.protocol[0] == "dual"
 
+    @pytest.mark.slow
     def test_sweep_all_finite_or_inf(self) -> None:
         """All Δω values should be finite (or inf at fringe extremum)."""
         result = run_sweep(

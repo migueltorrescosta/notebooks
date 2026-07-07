@@ -175,9 +175,10 @@ class TestPlotDriveFractionBelowSQL:
         omega = np.array([0.5, 1.0, 1.5])
         frac_ax = np.array([0.3, 0.5, 0.2])
         frac_ay = np.array([0.4, 0.6, 0.3])
+        frac_az = np.array([0.35, 0.55, 0.25])
         frac_random = np.array([0.1, 0.2, 0.05])
         out = plot_drive_fraction_below_sql(
-            omega, frac_ax, frac_ay, frac_random, tmp_svg
+            omega, frac_ax, frac_ay, frac_az, frac_random, tmp_svg
         )
         assert out.exists()
         assert out.suffix == ".svg"

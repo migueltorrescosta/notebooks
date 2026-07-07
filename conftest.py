@@ -1,4 +1,4 @@
-"""Root conftest — slow-test enforcement.
+"""Root conftest — slow-test enforcement and shared CLI options.
 
 ``src`` is importable via the editable install (``uv sync`` / ``uv pip install -e .``).
 """
@@ -8,6 +8,17 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    """Register shared CLI flags."""
+    parser.addoption(
+        "--regenerate-fixtures",
+        action="store_true",
+        default=False,
+        help="Regenerate reference Parquet fixtures (slow — runs full simulation).",
+    )
+
 
 # ---------------------------------------------------------------------------
 # Slow-test enforcement: warn on any test exceeding 5 s without

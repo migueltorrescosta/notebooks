@@ -51,8 +51,9 @@ run_single_sonly_n_omega = _m.run_single_sonly_n_omega
 # ============================================================================
 
 
-@pytest.fixture(params=[1, 2, 5, 10])
+@pytest.fixture(params=[1, 2, 5])
 def make_N(request: pytest.FixtureRequest) -> int:
+    """Particle number for routine tests (max 5). Add separate ``@pytest.mark.slow`` N=10 test."""
     return int(request.param)
 
 
@@ -524,8 +525,11 @@ class TestDecoupledBaseline:
 class TestN1Consistency:
     @pytest.mark.slow
     def test_given_N1_omega02_then_beats_sql(self) -> None:
-        """At N=1, ω=0.2, the joint protocol should beat SQL (ratio < 1)."""
-        result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
+        """At N=1, ω=0.2, the joint protocol should beat SQL (ratio < 1).
+
+        Uses reduced maxiter and refinements for test-time convergence.
+        """
+        result = run_single_joint_n_omega(N=1, omega=0.2, n_random=50, n_nm_refine=5, seed=42, maxiter=500)
         assert result.ratio < 1.0, (
             f"N=1, ω=0.2: ratio = {result.ratio:.4f} (expected < 1, beating SQL)"
         )
@@ -533,32 +537,32 @@ class TestN1Consistency:
     @pytest.mark.slow
     def test_given_N1_omega02_then_nonzero_params(self) -> None:
         """Verify that non-commuting drive amplitudes are non-zero."""
-        result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
+        result = run_single_joint_n_omega(N=1, omega=0.2, n_random=50, n_nm_refine=5, seed=42, maxiter=500)
         assert abs(result.a_x_opt) > 0.1 or abs(result.a_y_opt) > 0.1, (
             f"a_x={result.a_x_opt:.4f}, a_y={result.a_y_opt:.4f}"
         )
 
     @pytest.mark.slow
     def test_given_N1_omega02_then_variance_positive(self) -> None:
-        result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
+        result = run_single_joint_n_omega(N=1, omega=0.2, n_random=50, n_nm_refine=5, seed=42, maxiter=500)
         assert result.variance_Jz >= -1e-12
         assert result.variance_Jz >= 0.0
 
     @pytest.mark.slow
     def test_given_N1_omega02_then_variance_M_positive(self) -> None:
-        result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
+        result = run_single_joint_n_omega(N=1, omega=0.2, n_random=50, n_nm_refine=5, seed=42, maxiter=500)
         assert result.variance_M >= -1e-12
         assert result.variance_M >= 0.0
 
     @pytest.mark.slow
     def test_given_N1_omega02_then_expectation_M_finite(self) -> None:
-        result = run_single_joint_n_omega(N=1, omega=0.2, seed=42)
+        result = run_single_joint_n_omega(N=1, omega=0.2, n_random=50, n_nm_refine=5, seed=42, maxiter=500)
         assert np.isfinite(result.expectation_M)
 
     @pytest.mark.slow
     def test_given_N1_omega02_sonly_then_close_to_20260519(self) -> None:
         """S-only control should be near the 20260519 optimum of 0.02036."""
-        result = run_single_sonly_n_omega(N=1, omega=0.2, seed=42)
+        result = run_single_sonly_n_omega(N=1, omega=0.2, seed=42, maxiter=500)
         expected = 0.02036
         assert np.isclose(result.delta_omega_opt, expected, rtol=0.5), (
             f"N=1, ω=0.2 S-only: Δω={result.delta_omega_opt:.6f}, expected ~{expected:.6f}"

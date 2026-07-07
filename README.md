@@ -41,6 +41,33 @@ st.header("Summary", divider="red")
 st.header("Density Matrix", divider="violet")
 ```
 
+## Testing Conventions
+
+### Slow Tests
+
+Tests that take longer than 5 seconds MUST be decorated with `@pytest.mark.slow`.
+By default, slow tests are excluded via `addopts = "-m 'not slow'"` in `pyproject.toml`.
+To run all tests including slow ones:
+
+```bash
+uv run pytest . -m "not slow"          # default: fast tests only
+uv run pytest . -m slow                # slow tests only
+uv run pytest . -m ""                  # ALL tests (slow and fast)
+```
+
+### Parquet Test Fixtures
+
+Tests that generate full-size Parquet datasets (e.g., `reports/20260625/`) use
+pre-computed reference fixtures under `reports/*/tests/fixtures/` instead of
+regenerating data from scratch. To regenerate fixtures when data schemas change:
+
+```bash
+uv run pytest . --regenerate-fixtures   # re-generates all fixtures
+```
+
+Fixture files are committed to the repository. They become stale if data schemas
+change — run with `--regenerate-fixtures` in CI or locally when schemas are updated.
+
 ## Setup
 
 ```bash
@@ -57,7 +84,10 @@ python -m ipykernel install --user --name=playground
 | Command | Description |
 |---------|-------------|
 | `uv run streamlit run Home.py` | Start Streamlit app |
-| `uv run pytest . --quiet --tb=short` | Run tests |
+| `uv run pytest . --quiet --tb=short` | Run tests (fast subset, excludes slow) |
+| `uv run pytest . --quiet --tb=short -m "not slow"` | Run only non-slow tests (default) |
+| `uv run pytest . -m slow` | Run only slow tests (CI nightly) |
+| `uv run pytest . --regenerate-fixtures` | Re-generate parquet test fixtures from scratch |
 | `uv run mypy .` | Type check |
 | `uv run ruff check . --fix` | Lint |
 | `uv run ruff format .` | Format |

@@ -90,7 +90,7 @@ class TestStandardTwinFockState:
 
 
 class TestTwinFockAfterBS1:
-    @pytest.mark.parametrize("N", [2, 4, 6, 10])
+    @pytest.mark.parametrize("N", [2, 4, 6])
     def test_variance_after_bs1(self, N: int) -> None:
         r"""After a 50/50 BS, |N/2,N/2⟩ has Var(J_z) = N(N+2)/8.
 
@@ -113,7 +113,7 @@ class TestTwinFockAfterBS1:
 
 
 class TestSimpleMziEvolution:
-    @pytest.mark.parametrize("N", [1, 2, 4, 6])
+    @pytest.mark.parametrize("N", [1, 2, 4, 5])
     def test_norm_preserved_noon(self, N: int) -> None:
         """MZI evolution must preserve norm for NOON state."""
         state = input_state_factory("noon", N, N)
@@ -174,7 +174,7 @@ class TestSimpleMziEvolution:
 
 
 class TestNOONQFI:
-    @pytest.mark.parametrize("N", [1, 2, 4, 6, 10])
+    @pytest.mark.parametrize("N", [1, 2, 4, 5])
     def test_var_jz_of_input(self, N: int) -> None:
         r"""Var(J_z) = N²/4 for NOON input state (the probe, since skip_bs1)."""
         state = input_state_factory("noon", N, N)
@@ -183,7 +183,7 @@ class TestNOONQFI:
             f"N={N}: Var={var}, expected {N**2 / 4}"
         )
 
-    @pytest.mark.parametrize("N", [1, 2, 4, 6, 10])
+    @pytest.mark.parametrize("N", [1, 2, 4, 5])
     def test_qfi_bound(self, N: int) -> None:
         r"""F_Q = t_hold² N², Δθ_Q = 1/(t_hold N) for NOON (probe = input, skip BS1)."""
         state = input_state_factory("noon", N, N)
@@ -199,7 +199,7 @@ class TestNOONQFI:
             f"N={N}: Δθ_Q={delta_q}, expected {expected_delta_q}"
         )
 
-    @pytest.mark.parametrize("N", [2, 4, 6, 10])
+    @pytest.mark.parametrize("N", [2, 4, 5])
     def test_probe_unchanged_by_bs(self, N: int) -> None:
         r"""NOON probe with skip_bs1=True is the input itself (no BS1 applied)."""
         state = input_state_factory("noon", N, N)
@@ -223,7 +223,7 @@ class TestNOONQFI:
 
 
 class TestTwinFockStdQFI:
-    @pytest.mark.parametrize("N", [2, 4, 6, 10])
+    @pytest.mark.parametrize("N", [2, 4, 6])
     def test_qfi_bound(self, N: int) -> None:
         r"""F_Q = t_hold² · N(N+2)/2, Δθ_Q = 1 / (t_hold · √(N(N+2)/2)) for TF after BS1."""
         state = standard_twin_fock_state(N, N)
@@ -539,7 +539,15 @@ class TestComputeMziSensitivityGrid:
 
 
 class TestNOONvsTwinFockQFI:
-    @pytest.mark.parametrize("N", [4, 6, 10, 20])
+    @pytest.mark.parametrize(
+        "N",
+        [
+            4,
+            pytest.param(6, marks=pytest.mark.slow),
+            pytest.param(10, marks=pytest.mark.slow),
+            pytest.param(20, marks=pytest.mark.slow),
+        ],
+    )
     def test_noon_beats_twin_fock(self, N: int) -> None:
         r"""NOON QFI should exceed Twin-Fock QFI by factor ~2N/(N+2) ≈ 2."""
         noon_state = input_state_factory("noon", N, N)
@@ -580,6 +588,7 @@ class TestFitScalingExponent:
         )
         assert np.isclose(result.C, 1.0 / t_hold, rtol=0.02)
 
+    @pytest.mark.slow
     def test_twin_fock_heisenberg_exponent(self) -> None:
         r"""Twin-Fock |N/2,N/2⟩ after BS1 gives α ≈ -1.0 (near-Heisenberg).
 

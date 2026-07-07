@@ -812,6 +812,8 @@ class TestPipeline:
             N=1,
             M=1,
             omega=1.0,
+            n_random=50,
+            n_nm_refine=5,
             seed=42,
         )
         assert isinstance(result, FreeAncillaNScalingResult)

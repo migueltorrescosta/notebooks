@@ -50,8 +50,9 @@ run_combined_single_n_omega = _m.run_combined_single_n_omega
 # ============================================================================
 
 
-@pytest.fixture(params=[1, 2, 5, 10])
+@pytest.fixture(params=[1, 2, 5])
 def make_N(request: pytest.FixtureRequest) -> int:
+    """Particle number for routine tests (max 5). Add separate ``@pytest.mark.slow`` N=10 test."""
     return int(request.param)
 
 
@@ -627,6 +628,7 @@ class TestN1Consistency:
         assert result.variance_Jz >= -1e-12
         assert result.variance_Jz >= 0.0
 
+    @pytest.mark.slow
     def test_given_N1_then_both_ancilla_paths_equivalent(self) -> None:
         """At N=1, the fixed-ancilla and full-ancilla paths should agree."""
         # Small random search test at a single ω

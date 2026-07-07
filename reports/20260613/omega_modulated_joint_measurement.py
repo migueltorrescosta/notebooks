@@ -601,6 +601,8 @@ def run_joint_nelder_mead(
 def run_single_joint_n_omega(
     N: int,
     omega: float,
+    n_random: int = N_RANDOM,
+    n_nm_refine: int = N_NM_REFINE,
     ops: dict[str, np.ndarray] | None = None,
     psi0: np.ndarray | None = None,
     seed: int | None = None,
@@ -613,6 +615,8 @@ def run_single_joint_n_omega(
     Args:
         N: Number of system particles.
         omega: True phase rate.
+        n_random: Number of random search samples.
+        n_nm_refine: Number of Nelder-Mead refinements.
         ops: Pre-built operators (built if None).
         psi0: Initial state (built if None).
         seed: Random seed for initial guess.
@@ -643,7 +647,7 @@ def run_single_joint_n_omega(
     best_nm, _ = run_two_phase_pipeline(
         rs_fn,
         nm_fn,
-        config=TwoPhaseConfig(n_random=N_RANDOM, n_nm_refine=N_NM_REFINE, seed=seed),
+        config=TwoPhaseConfig(n_random=n_random, n_nm_refine=n_nm_refine, seed=seed),
     )
 
     sql = 1.0 / (np.sqrt(N) * T_HOLD)

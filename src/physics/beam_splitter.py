@@ -68,18 +68,13 @@ from src.physics.dicke_basis import jx_operator
 from src.utils.constants import I_2, SIGMA_X
 from src.utils.enums import OperatorBasis
 
-AUTO_SPARSE_THRESHOLD: int = 50
-r"""``max_photons`` above this threshold use a sparse CSR matrix.
-
-Block-diagonal BS unitaries are inherently sparse: only O(dim³ᐟ²) non-zeros
-vs O(dim²) for the full dense matrix.  Using sparse storage for large
-dimensions avoids allocating 1.6+ GiB dense matrices.
-"""
-
 
 @cache
 def bs_fock(
-    theta: float, phi_bs: float, max_photons: int
+    theta: float,
+    phi_bs: float,
+    max_photons: int,
+    auto_sparse_threshold: int = 50,
 ) -> np.ndarray | scipy.sparse.spmatrix:
     r"""Two-mode Fock space beam-splitter unitary.
 
@@ -96,7 +91,7 @@ def bs_fock(
     which avoids a full (M+1)²× (M+1)² matrix exponential by computing
     expm on each (N+1)×(N+1) subspace independently.
 
-    For ``max_photons > AUTO_SPARSE_THRESHOLD`` (default 50), the unitary is
+    For ``max_photons > auto_sparse_threshold`` (default 50), the unitary is
     stored as a ``scipy.sparse.csr_matrix`` to avoid allocating O(dim²) memory.
     The sparse format is fully compatible with ``@`` (matvec and matmul),
     ``.shape``, ``.conj().T``, and ``np.kron``.
@@ -106,6 +101,7 @@ def bs_fock(
             θ = π/4 gives 50/50.
         phi_bs: Phase shift applied to reflected photons.
         max_photons: Maximum photon number per mode for truncation.
+        auto_sparse_threshold: ``max_photons`` above this value uses sparse CSR.
 
     Returns:
         Unitary (dense ndarray or sparse CSR matrix) of dimension
@@ -113,12 +109,8 @@ def bs_fock(
 
     """
     dim = (max_photons + 1) ** 2
-    use_sparse = max_photons > AUTO_SPARSE_THRESHOLD
-
-    if use_sparse:
-        U = scipy.sparse.lil_matrix((dim, dim), dtype=complex)
-    else:
-        U = np.zeros((dim, dim), dtype=complex)
+    use_sparse = max_photons > auto_sparse_threshold
+    U = _allocate_bs_matrix(dim, use_sparse)
 
     for n_total in range(2 * max_photons + 1):
         k_min = max(0, n_total - max_photons)
@@ -126,38 +118,72 @@ def bs_fock(
         n_sub = k_max - k_min + 1
         if n_sub <= 0:
             continue
+        U_sub = _build_bs_subspace_block(n_total, k_min, k_max, phi_bs, theta)
+        _place_subspace_block(U, U_sub, n_total, k_min, k_max, max_photons)
 
-        # Build H_sub = e^{iφ}·a†b + e^{-iφ}·b†a within this subspace.
-        # In the |k, n-k⟩ basis, matrix elements are:
-        #   ⟨k+1, n-k-1|H|k, n-k⟩ = e^{iφ}·√((k+1)(n-k))
-        #   ⟨k, n-k|H|k+1, n-k-1⟩ = e^{-iφ}·√((k+1)(n-k))
-        H_sub = np.zeros((n_sub, n_sub), dtype=complex)
-        for idx, k in enumerate(range(k_min, k_max)):
-            val = np.sqrt((k + 1) * (n_total - k))
-            H_sub[idx, idx + 1] = val * np.exp(1j * phi_bs)
-            H_sub[idx + 1, idx] = val * np.exp(-1j * phi_bs)
-
-        U_sub = scipy.linalg.expm(-1.0j * theta * H_sub)
-
-        # Place block into the full matrix
-        for idx_k, k in enumerate(range(k_min, k_max + 1)):
-            i_out = k * (max_photons + 1) + (n_total - k)
-            for idx_l, lp in enumerate(range(k_min, k_max + 1)):
-                j_out = lp * (max_photons + 1) + (n_total - lp)
-                U[i_out, j_out] = U_sub[idx_k, idx_l]
-
-    # Each subspace block is constructed via expm (unitary by construction),
-    # so the full block-diagonal matrix is unitary.  Skip the O(dim³) full
-    # check for large dims and verify via column-norm sampling.
     if use_sparse:
-        # Narrow type for pyright: U is definitely lil_matrix here
         U_lil: scipy.sparse.lil_matrix = U  # type: ignore[assignment]
         U_csr = U_lil.tocsr()
         _verify_sparse_bs_unitarity(U_csr, max_photons)
         return U_csr
 
-    # Dense path: U is np.ndarray
     U_dense: np.ndarray = U  # type: ignore[assignment]
+    _verify_dense_bs_unitarity(U_dense, max_photons)
+    return U_dense
+
+
+def _allocate_bs_matrix(
+    dim: int,
+    use_sparse: bool,
+) -> scipy.sparse.lil_matrix | np.ndarray:
+    """Allocate a dim×dim matrix for the beam-splitter unitary."""
+    if use_sparse:
+        return scipy.sparse.lil_matrix((dim, dim), dtype=complex)
+    return np.zeros((dim, dim), dtype=complex)
+
+
+def _build_bs_subspace_block(
+    n_total: int,
+    k_min: int,
+    k_max: int,
+    phi_bs: float,
+    theta: float,
+) -> np.ndarray:
+    """Build H_sub and return expm(-i·θ·H_sub) for the subspace.
+
+    In the |k, n-k⟩ basis, H_sub has matrix elements:
+        ⟨k+1, n-k-1|H|k, n-k⟩ = e^{iφ}·√((k+1)(n-k))
+    """
+    n_sub = k_max - k_min + 1
+    H_sub = np.zeros((n_sub, n_sub), dtype=complex)
+    for idx, k in enumerate(range(k_min, k_max)):
+        val = np.sqrt((k + 1) * (n_total - k))
+        H_sub[idx, idx + 1] = val * np.exp(1j * phi_bs)
+        H_sub[idx + 1, idx] = val * np.exp(-1j * phi_bs)
+    return scipy.linalg.expm(-1.0j * theta * H_sub)
+
+
+def _place_subspace_block(
+    U: np.ndarray | scipy.sparse.lil_matrix,
+    U_sub: np.ndarray,
+    n_total: int,
+    k_min: int,
+    k_max: int,
+    max_photons: int,
+) -> None:
+    """Place a subspace block U_sub into the full beam-splitter matrix U."""
+    for idx_k, k in enumerate(range(k_min, k_max + 1)):
+        i_out = k * (max_photons + 1) + (n_total - k)
+        for idx_l, lp in enumerate(range(k_min, k_max + 1)):
+            j_out = lp * (max_photons + 1) + (n_total - lp)
+            U[i_out, j_out] = U_sub[idx_k, idx_l]
+
+
+def _verify_dense_bs_unitarity(
+    U_dense: np.ndarray,
+    max_photons: int,
+) -> None:
+    """Verify unitarity of a dense BS matrix via full check or column-norm sampling."""
     dim_check = U_dense.shape[0]
     if dim_check <= 400:
         _eye = np.eye(dim_check, dtype=complex)
@@ -165,12 +191,11 @@ def bs_fock(
             f"Beam splitter not unitary for max_photons={max_photons}"
         )
     else:
-        # Spot-check: verify first 10 columns have unit norm
         norms = np.sum(np.abs(U_dense[:, :10]) ** 2, axis=0)
         assert np.allclose(norms, 1.0, atol=1e-10), (
-            f"Beam splitter column norms deviate from 1: max_dev={np.max(np.abs(norms - 1.0))}"
+            f"Beam splitter column norms deviate from 1: "
+            f"max_dev={np.max(np.abs(norms - 1.0))}"
         )
-    return U_dense
 
 
 def _verify_sparse_bs_unitarity(

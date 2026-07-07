@@ -469,6 +469,95 @@ def generate_omega_scan(force: bool = False) -> None:
         print(f"[fig]  {fig_p}")
 
 
+def _safe_grid_min(grid: np.ndarray) -> float:
+    """Return the minimum finite value in *grid*, or NaN if none are finite."""
+    finite_vals = grid[np.isfinite(grid)]
+    if finite_vals.size == 0:
+        return np.nan
+    return float(np.min(finite_vals))
+
+
+def _extract_nm_data(
+    nm_result: DriveOmegaScanResult,
+    n_omega: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Extract NM-optimised sensitivity, expectation, and variance arrays.
+
+    Args:
+        nm_result: Omega-scan result with per-omega NM data.
+        n_omega: Number of omega values.
+
+    Returns:
+        Tuple of (best_nm, exp_vals, var_vals) arrays, each of length *n_omega*.
+    """
+    best_nm = np.full(n_omega, np.nan)
+    exp_vals = np.full(n_omega, np.nan)
+    var_vals = np.full(n_omega, np.nan)
+
+    nm_omega = nm_result.omega_values
+    if len(nm_omega) >= n_omega:
+        for i in range(n_omega):
+            best_nm[i] = float(nm_result.best_delta_omega_per_omega[i])
+            exp_vals[i] = float(nm_result.expectation_Jz_per_omega[i])
+            var_vals[i] = float(nm_result.variance_Jz_per_omega[i])
+
+    return best_nm, exp_vals, var_vals
+
+
+def _load_2d_slice_best(omega_vals: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Load best sensitivity from 2D slice scans for a_x and a_y.
+
+    Reads existing ``2d-slice-ax-azz-omega*`` and ``2d-slice-ay-azz-omega*``
+    parquet files and extracts the minimum finite sensitivity per omega.
+
+    Args:
+        omega_vals: Omega values whose slice data to load.
+
+    Returns:
+        Tuple of (best_ax, best_ay) arrays, each of length ``len(omega_vals)``.
+    """
+    n_omega = len(omega_vals)
+    best_ax = np.full(n_omega, np.nan)
+    best_ay = np.full(n_omega, np.nan)
+
+    for i, omega in enumerate(omega_vals):
+        for slice_type, best_arr in [("ax", best_ax), ("ay", best_ay)]:
+            tag = f"2d-slice-{slice_type}-azz-omega{omega}"
+            csv_p = _parquet_path(tag)
+            if csv_p.exists():
+                result_slice = Drive2DSliceResult.from_parquet(csv_p)
+                best_arr[i] = _safe_grid_min(result_slice.delta_omega_grid)
+
+    return best_ax, best_ay
+
+
+def _load_random_search_best(omega_vals: np.ndarray) -> np.ndarray:
+    """Load the best (minimum) random-search sensitivity per omega.
+
+    Reads the aggregated ``random-search`` parquet file and groups by
+    ``omega_value`` to obtain the minimum ``delta_omega`` per omega.
+
+    Args:
+        omega_vals: Omega values whose RS data to load.
+
+    Returns:
+        Array of best RS sensitivity values, length ``len(omega_vals)``.
+        Entries for which no RS data exists remain NaN.
+    """
+    n_omega = len(omega_vals)
+    best_rs = np.full(n_omega, np.nan)
+
+    rs_agg_path = _parquet_path("random-search")
+    if rs_agg_path.exists():
+        rs_df = pd.read_parquet(rs_agg_path)
+        best_per_omega = rs_df.groupby("omega_value", sort=True)["delta_omega"].min()
+        for i, omega in enumerate(omega_vals):
+            if omega in best_per_omega.index:
+                best_rs[i] = best_per_omega.loc[omega]
+
+    return best_rs
+
+
 def generate_combined_sensitivity(force: bool = False) -> None:
     """Combined sensitivity plot + NM expectation/variance plot."""
     fig_p1 = _fig_path("combined-sensitivity")
@@ -483,43 +572,9 @@ def generate_combined_sensitivity(force: bool = False) -> None:
     omega_vals = np.array(PARTIAL_OMEGA_VALS, dtype=float)
     n_omega = len(omega_vals)
 
-    best_nm = np.full(n_omega, np.nan)
-    exp_vals = np.full(n_omega, np.nan)
-    var_vals = np.full(n_omega, np.nan)
-
-    nm_omega = nm_result.omega_values
-    if len(nm_omega) >= n_omega:
-        for i in range(n_omega):
-            best_nm[i] = float(nm_result.best_delta_omega_per_omega[i])
-            exp_vals[i] = float(nm_result.expectation_Jz_per_omega[i])
-            var_vals[i] = float(nm_result.variance_Jz_per_omega[i])
-
-    best_ax = np.full(n_omega, np.nan)
-    best_ay = np.full(n_omega, np.nan)
-    best_rs = np.full(n_omega, np.nan)
-
-    def _safe_grid_min(grid: np.ndarray) -> float:
-        finite_vals = grid[np.isfinite(grid)]
-        if finite_vals.size == 0:
-            return np.nan
-        return float(np.min(finite_vals))
-
-    for i, omega in enumerate(omega_vals):
-        for slice_type, best_arr in [("ax", best_ax), ("ay", best_ay)]:
-            tag = f"2d-slice-{slice_type}-azz-omega{omega}"
-            csv_p = _parquet_path(tag)
-            if csv_p.exists():
-                result_slice = Drive2DSliceResult.from_parquet(csv_p)
-                best_arr[i] = _safe_grid_min(result_slice.delta_omega_grid)
-
-    # Load aggregated random-search parquet (one file) instead of per-omega loop
-    rs_agg_path = _parquet_path("random-search")
-    if rs_agg_path.exists():
-        rs_df = pd.read_parquet(rs_agg_path)
-        best_per_omega = rs_df.groupby("omega_value", sort=True)["delta_omega"].min()
-        for i, omega in enumerate(omega_vals):
-            if omega in best_per_omega.index:
-                best_rs[i] = best_per_omega.loc[omega]
+    best_nm, exp_vals, var_vals = _extract_nm_data(nm_result, n_omega)
+    best_ax, best_ay = _load_2d_slice_best(omega_vals)
+    best_rs = _load_random_search_best(omega_vals)
 
     print(f"  [debug] best_ax finite: {np.sum(np.isfinite(best_ax))} / {n_omega}")
     print(f"  [debug] best_ay finite: {np.sum(np.isfinite(best_ay))} / {n_omega}")

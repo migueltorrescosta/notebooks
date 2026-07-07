@@ -538,6 +538,7 @@ class TestNumericalStabilityDM:
         assert np.isfinite(fq)
         assert fq >= 0.0
 
+    @pytest.mark.slow
     def test_handles_dim_100(self) -> None:
         rng = np.random.default_rng(42)
         dim = 100

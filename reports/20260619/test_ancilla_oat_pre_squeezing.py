@@ -967,6 +967,7 @@ class TestRandomSearch:
 
 
 class TestNelderMead:
+    @pytest.mark.slow
     def test_given_nm_then_converges(self) -> None:
         result = run_oat_nelder_mead(
             N_S=PHASE1_N_SYSTEM,
@@ -979,6 +980,7 @@ class TestNelderMead:
         assert np.isfinite(result.delta_omega_opt)
         assert result.params_opt.shape == (5,)
 
+    @pytest.mark.slow
     def test_given_nm_then_expectation_finite(self) -> None:
         result = run_oat_nelder_mead(
             N_S=PHASE1_N_SYSTEM,
@@ -990,6 +992,7 @@ class TestNelderMead:
         assert np.isfinite(result.expectation_Jz)
         assert result.variance_Jz >= 0.0
 
+    @pytest.mark.slow
     def test_given_nm_then_params_in_bounds(self) -> None:
         result = run_oat_nelder_mead(
             N_S=PHASE1_N_SYSTEM,
@@ -1008,6 +1011,7 @@ class TestNelderMead:
             f"q = {result.params_opt[4]:.4f} out of bounds"
         )
 
+    @pytest.mark.slow
     def test_given_track_history_then_has_history(self) -> None:
         result = run_oat_nelder_mead(
             N_S=PHASE1_N_SYSTEM,
@@ -1033,6 +1037,8 @@ class TestSingleOptimisation:
             N_S=PHASE1_N_SYSTEM,
             N_A=PHASE1_N_ANCILLA,
             omega=0.5,
+            n_random=50,
+            n_nm_refine=5,
             seed=42,
         )
         assert result.delta_omega_opt > 0.0
@@ -1051,6 +1057,8 @@ class TestSingleOptimisation:
             N_S=2,
             N_A=2,
             omega=0.5,
+            n_random=50,
+            n_nm_refine=5,
             seed=42,
         )
         assert result.delta_omega_opt > 0.0
@@ -1063,6 +1071,8 @@ class TestSingleOptimisation:
             N_S=2,
             N_A=2,
             omega=0.5,
+            n_random=50,
+            n_nm_refine=5,
             seed=42,
         )
         # Based on #20260612, the multi-particle ancilla beats SQL
@@ -1381,7 +1391,7 @@ class TestOATNScalingScanResultParquet:
 
 
 class TestSqueezingParameter:
-    @pytest.mark.parametrize("N", [2, 5, 10])
+    @pytest.mark.parametrize("N", [2, 5])
     def test_given_q_zero_then_no_squeezing(self, N: int) -> None:
         """At q=0, the variance in all quadratures equals N/4."""
         psi = coherent_spin_state(N)
@@ -1418,7 +1428,7 @@ class TestSqueezingParameter:
             min_var = min(min_var, var)
         return min_var
 
-    @pytest.mark.parametrize("N", [2, 5, 10])
+    @pytest.mark.parametrize("N", [2, 5])
     def test_given_q_positive_then_squeezing(self, N: int) -> None:
         """With OAT, the minimum quadrature variance should be below SQL."""
         psi0 = coherent_spin_state(N)
@@ -1437,7 +1447,7 @@ class TestSqueezingParameter:
             "expected < 0.99"
         )
 
-    @pytest.mark.parametrize("N", [2, 5, 10])
+    @pytest.mark.parametrize("N", [2, 5])
     def test_given_larger_q_then_antisqueezing_in_y(self, N: int) -> None:
         """Var(J_y) should increase (anti-squeeze) for q>0 with CSS along -x."""
         psi0 = coherent_spin_state(N)

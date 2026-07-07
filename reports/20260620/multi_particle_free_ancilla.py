@@ -1208,6 +1208,8 @@ def run_single_n_m_omega(
     N: int,
     M: int,
     omega: float,
+    n_random: int = N_RANDOM,
+    n_nm_refine: int = N_NM_REFINE,
     seed: int | None = 42,
 ) -> FreeAncillaNScalingResult:
     """Run the full optimisation pipeline for a single :math:`(N, M, \\omega)` triple.
@@ -1220,6 +1222,8 @@ def run_single_n_m_omega(
         N: Number of system particles.
         M: Number of ancilla particles.
         omega: Phase rate value.
+        n_random: Number of random search samples.
+        n_nm_refine: Number of Nelder-Mead refinements.
         seed: Base random seed (incremented per call).
 
     Returns:
@@ -1237,7 +1241,7 @@ def run_single_n_m_omega(
     best_nm, _ = run_two_phase_pipeline(
         rs_fn,
         nm_fn,
-        TwoPhaseConfig(n_random=N_RANDOM, n_nm_refine=N_NM_REFINE, seed=base_seed),
+        TwoPhaseConfig(n_random=n_random, n_nm_refine=n_nm_refine, seed=base_seed),
     )
 
     sql_val = sql_reference(N, T_HOLD)

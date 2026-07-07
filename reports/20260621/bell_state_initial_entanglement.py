@@ -938,6 +938,8 @@ class BellScanResult(ParquetSerializable):
 def run_single_scenario_omega(
     scenario: Scenario,
     omega: float,
+    n_random: int = N_RANDOM,
+    n_nm_refine: int = N_NM_REFINE,
     seed: int | None = 42,
 ) -> BellOptimisationResult:
     """Run the full optimisation pipeline for a single (scenario, omega) pair.
@@ -945,14 +947,16 @@ def run_single_scenario_omega(
     Uses the shared two-phase pipeline (:func:`run_two_phase_pipeline`) for
     random search + Nelder--Mead refinement.
 
-    1. Random search (1000 samples).
-    2. Nelder--Mead refinement from top 15 points.
+    1. Random search (n_random samples).
+    2. Nelder--Mead refinement from top n_nm_refine points.
        - Skipped when all random-search samples are fringe (Scenario C),
          since the landscape is flat (no a_zz interaction → no sensitivity).
 
     Args:
         scenario: Experiment scenario.
         omega: Phase rate value.
+        n_random: Number of random search samples.
+        n_nm_refine: Number of Nelder-Mead refinements.
         seed: Base random seed (incremented per call).
 
     Returns:
@@ -962,7 +966,7 @@ def run_single_scenario_omega(
     ops = build_two_qubit_operators()
 
     # Stage 1: Random search (also used for fringe detection)
-    rs_result = run_random_search(scenario, omega, n_samples=N_RANDOM, seed=base_seed)
+    rs_result = run_random_search(scenario, omega, n_samples=n_random, seed=base_seed)
 
     # If all random samples are fringe (Δω > 1e6), skip NM refinement.
     # This happens for Scenario C (no interaction, a_zz=0), where
@@ -991,7 +995,7 @@ def run_single_scenario_omega(
             d_exp=0.0,
             is_fringe=True,
             success=True,
-            nfev=N_RANDOM,
+            nfev=n_random,
         )
 
     # Wrapper callables for the shared pipeline
@@ -1002,8 +1006,8 @@ def run_single_scenario_omega(
         return run_nelder_mead(scenario, omega_true=omega, ops=ops, x0=x0, seed=seed)
 
     config = TwoPhaseConfig(
-        n_random=N_RANDOM,
-        n_nm_refine=N_NM_REFINE,
+        n_random=n_random,
+        n_nm_refine=n_nm_refine,
         nm_maxiter=NM_MAXITER,
     )
 

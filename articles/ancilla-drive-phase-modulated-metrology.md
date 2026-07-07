@@ -285,6 +285,8 @@ The Nelder-Mead curve reveals a clear global minimum at $\omega = 0.2$ with $\De
 
 The random search finds the sub-SQL region but with ~$2\times$ worse sensitivity than Nelder-Mead, underscoring the importance of local refinement. The fixed-drive protocol achieves at most $1.41\times$ SQL, confirming that the ω-modulated ancilla drive provides additional metrological gain beyond a static interaction.
 
+Note that the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ 2D slice curves overlap exactly in Figure 4: the optimal minima from these two slices are identical at every $\omega$ because the transverse drives $a_x$ and $a_y$ play symmetric roles in the Hamiltonian. Only one trace is independently visible in the figure, but both are plotted.
+
 <img src="../reports/20260519/figures/article-n2/20260519-phase-combined-sensitivity.svg" alt="Combined sensitivity comparison" width="100%"/>
 
 *Figure 4: Combined sensitivity $\Delta\omega$ vs $\omega$ for decoupled, random search, Nelder-Mead refinement, and fixed-drive protocols. The global minimum is $\Delta\omega = 0.02036$ at $\omega = 0.2$, $3.47\times$ below the SQL.*
@@ -297,7 +299,7 @@ The width of the sub-SQL region ($R > 1$) is $\omega \in [0.03, 0.7]$ for Nelder
 
 <img src="../reports/20260519/figures/article-n2/20260519-phase-fraction-below-sql.svg" alt="Fraction below SQL" width="100%"/>
 
-*Figure 5: Ratio $\Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of $\omega$. Values above 1 indicate sub-SQL performance. The best ratio is $3.47$ at $\omega = 0.2$.*
+*Figure 5: Ratio $\Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of $\omega$. Values above 1 indicate sub-SQL performance. The best ratio is $3.47$ at $\omega = 0.2$. The $(a_x, a_{zz})$ and $(a_y, a_{zz})$ curves overlap because they provide the same sensitivity minima at every $\omega$, reflecting the Hamiltonian's symmetry between the transverse drive axes.*
 
 ### 7.7 Optimal parameters versus ω
 

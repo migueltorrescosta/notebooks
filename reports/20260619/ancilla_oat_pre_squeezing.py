@@ -1366,11 +1366,13 @@ def run_single_oat_optimisation(
     N_S: int,
     N_A: int,
     omega: float,
+    n_random: int = N_RANDOM,
+    n_nm_refine: int | None = None,
     seed: int | None = 42,
 ) -> OATNScalingResult:
     """Run the full optimisation pipeline for a single (N_S, N_A, ω) triple.
 
-    1. 5D random search (1000 samples).
+    1. 5D random search (n_random samples).
     2. Nelder-Mead refinement from top points.
     3. No-OAT baseline at the optimal drive parameters.
     4. Return the best result.
@@ -1379,6 +1381,8 @@ def run_single_oat_optimisation(
         N_S: Number of system particles.
         N_A: Number of ancilla particles.
         omega: Phase rate value.
+        n_random: Number of random search samples.
+        n_nm_refine: Number of Nelder-Mead refinements (None = auto based on dim).
         seed: Base random seed (incremented per call).
 
     Returns:
@@ -1389,7 +1393,8 @@ def run_single_oat_optimisation(
     psi0 = oat_initial_state(N_S, N_A)
 
     dim = (N_S + 1) * (N_A + 1)
-    n_nm_refine, nm_maxiter = _get_oat_optimisation_budget(dim)
+    default_nm_refine, nm_maxiter = _get_oat_optimisation_budget(dim)
+    actual_nm_refine = n_nm_refine if n_nm_refine is not None else default_nm_refine
 
     def rs_fn(n_samples: int, seed: int, **kw: object) -> OATRandomSearchResult:
         return oat_random_search(N_S, N_A, omega, n_samples=n_samples, seed=seed)
@@ -1409,7 +1414,7 @@ def run_single_oat_optimisation(
     best_nm, _ = run_two_phase_pipeline(
         rs_fn,
         nm_fn,
-        TwoPhaseConfig(n_random=N_RANDOM, n_nm_refine=n_nm_refine, seed=base_seed),
+        TwoPhaseConfig(n_random=n_random, n_nm_refine=actual_nm_refine, seed=base_seed),
     )
 
     # No-OAT baseline: recompute with q=0 at optimal drive parameters

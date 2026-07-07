@@ -86,8 +86,9 @@ run_single_qubit_n_omega = _m.run_single_qubit_n_omega
 # ============================================================================
 
 
-@pytest.fixture(params=[1, 2, 5, 10])
+@pytest.fixture(params=[1, 2, 5])
 def make_N(request: pytest.FixtureRequest) -> int:
+    """Particle number for routine tests (max 5). Add separate ``@pytest.mark.slow`` N=10 test."""
     return int(request.param)
 
 

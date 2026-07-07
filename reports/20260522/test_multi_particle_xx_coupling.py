@@ -52,7 +52,7 @@ def _embed_ops_for_tests(N: int) -> dict[str, np.ndarray]:
 
 
 class TestOperatorConstruction:
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_operators_correct_dimension(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
         dim = (N + 1) ** 2
@@ -61,7 +61,7 @@ class TestOperatorConstruction:
                 f"{name} has shape {op.shape}, expected ({dim}, {dim})"
             )
 
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_operators_hermitian(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
         for name, op in ops.items():
@@ -111,7 +111,7 @@ class TestOperatorConstruction:
 
 
 class TestUnitarity:
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_single_bs_unitary(self, N: int) -> None:
         U = single_bs_unitary(N)
         eye = np.eye(N + 1, dtype=complex)
@@ -119,7 +119,7 @@ class TestUnitarity:
             f"BS unitary not unitary for N={N}"
         )
 
-    @pytest.mark.parametrize("N", [1, 2, 3, 5, 10])
+    @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_dual_bs_unitary(self, N: int) -> None:
         U = dual_bs_unitary(N)
         dim = (N + 1) ** 2

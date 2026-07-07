@@ -640,17 +640,21 @@ def _make_multi_objective(
 def run_single_n_omega(
     N: int,
     omega: float,
+    n_random: int = N_RANDOM,
+    n_nm_refine: int = N_NM_REFINE,
     seed: int | None = 42,
 ) -> NScalingResult:
     """Run the full optimisation pipeline for a single (N, omega) pair.
 
-    1. 4D random search (500 samples).
-    2. Nelder-Mead refinement from top 50 points.
+    1. 4D random search (n_random samples).
+    2. Nelder-Mead refinement from top n_nm_refine points.
     3. Return the best result.
 
     Args:
         N: Number of particles per subsystem.
         omega: Phase rate value.
+        n_random: Number of random search samples.
+        n_nm_refine: Number of Nelder-Mead refinements.
         seed: Base random seed (incremented per call).
 
     Returns:
@@ -692,7 +696,7 @@ def run_single_n_omega(
             maxiter=NM_MAXITER,
         ),
         config=TwoPhaseConfig(
-            n_random=N_RANDOM, n_nm_refine=N_NM_REFINE, seed=base_seed
+            n_random=n_random, n_nm_refine=n_nm_refine, seed=base_seed
         ),
     )
 

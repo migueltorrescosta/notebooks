@@ -1608,7 +1608,9 @@ def generate_phase_cross_experiment_comparison(
     result_19 = DriveOmegaScanResult.from_parquet(pq_19)
 
     # Load fixed-drive result (2026-05-18, 5 points)
-    parquet_18 = REPORTS_DIR / "20260518" / "raw_data" / "20260518-drive-omega-scan.parquet"
+    parquet_18 = (
+        REPORTS_DIR / "20260518" / "raw_data" / "20260518-drive-omega-scan.parquet"
+    )
     if not parquet_18.exists():
         print(
             "[skip] 20260518-drive-omega-scan.parquet does not exist; "

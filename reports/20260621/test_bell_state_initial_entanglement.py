@@ -979,7 +979,7 @@ class TestPipeline:
     @pytest.mark.slow
     def test_run_single_scenario_a(self) -> None:
         """Run scenario A pipeline (uses defaults from local)."""
-        result = run_single_scenario_omega(Scenario.A, 1.0, seed=42)
+        result = run_single_scenario_omega(Scenario.A, 1.0, n_random=50, n_nm_refine=5, seed=42)
         assert isinstance(result, BellOptimisationResult)
         assert result.scenario == "A"
         assert np.isclose(result.omega, 1.0)
@@ -988,13 +988,13 @@ class TestPipeline:
 
     @pytest.mark.slow
     def test_run_single_scenario_b(self) -> None:
-        result = run_single_scenario_omega(Scenario.B, 1.0, seed=42)
+        result = run_single_scenario_omega(Scenario.B, 1.0, n_random=50, n_nm_refine=5, seed=42)
         assert isinstance(result, BellOptimisationResult)
         assert result.scenario == "B"
 
     @pytest.mark.slow
     def test_run_single_scenario_c(self) -> None:
-        result = run_single_scenario_omega(Scenario.C, 1.0, seed=42)
+        result = run_single_scenario_omega(Scenario.C, 1.0, n_random=50, n_nm_refine=5, seed=42)
         assert isinstance(result, BellOptimisationResult)
         assert result.scenario == "C"
 
