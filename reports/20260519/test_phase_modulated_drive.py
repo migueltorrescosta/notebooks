@@ -26,7 +26,13 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from src.analysis.ancilla_drive_metrology import (
+    build_iszz_interaction,
+    build_phase_modulated_drive_hamiltonian,
+    build_phase_modulated_hold_hamiltonian,
     compute_phase_modulated_sensitivity,
+    evolve_phase_modulated_circuit,
+    phase_modulated_hold_unitary,
+    system_only_bs_unitary,
 )
 from src.analysis.ancilla_drive_results import (
     Drive2DSliceResult,
@@ -39,23 +45,18 @@ from src.analysis.ancilla_optimization import (
     bs_unitary,
     build_two_qubit_operators,
 )
+from src.visualization.ancilla_drive_plots import _markevery
 
 _m = importlib.import_module("reports.20260519.phase_modulated_drive")
 DEFAULT_PSI0 = _m.DEFAULT_PSI0
 DEFAULT_T_BS = _m.DEFAULT_T_BS
 DEFAULT_t_hold = _m.DEFAULT_t_hold
-build_iszz_interaction = _m.build_iszz_interaction
-build_phase_modulated_drive_hamiltonian = _m.build_phase_modulated_drive_hamiltonian
-build_phase_modulated_hold_hamiltonian = _m.build_phase_modulated_hold_hamiltonian
 compute_phase_modulated_decoupled_baseline = (
     _m.compute_phase_modulated_decoupled_baseline
 )
-evolve_phase_modulated_circuit = _m.evolve_phase_modulated_circuit
 phase_modulated_2d_slice = _m.phase_modulated_2d_slice
-phase_modulated_hold_unitary = _m.phase_modulated_hold_unitary
 phase_modulated_random_search = _m.phase_modulated_random_search
 run_phase_modulated_omega_scan = _m.run_phase_modulated_omega_scan
-system_only_bs_unitary = _m.system_only_bs_unitary
 verify_longitudinal_only_sql = _m.verify_longitudinal_only_sql
 
 I_4 = np.eye(4, dtype=complex)
@@ -656,3 +657,96 @@ class TestPhaseModulatedValidation:
             f"Fixed and phase-modulated protocols give same sensitivity: "
             f"{dt_fixed:.10f} vs {dt_phase:.10f} at ω={omega_val}"
         )
+
+
+# ============================================================================
+# Markevery helper
+# ============================================================================
+
+
+class TestMarkevery:
+    def test_given_50_points_then_returns_1(self) -> None:
+        """50 points: 50 // 30 = 1, every point gets a marker."""
+        assert _markevery(50) == 1
+
+    def test_given_500_points_then_returns_16(self) -> None:
+        """500 points: 500 // 30 = 16, every 16th point gets a marker."""
+        assert _markevery(500) == 16
+
+    def test_given_1_point_then_returns_1(self) -> None:
+        assert _markevery(1) == 1
+
+    def test_given_30_points_then_returns_1(self) -> None:
+        """30 points: 30 // 30 = 1."""
+        assert _markevery(30) == 1
+
+    def test_given_60_points_then_returns_2(self) -> None:
+        """60 points: 60 // 30 = 2."""
+        assert _markevery(60) == 2
+
+    def test_custom_target(self) -> None:
+        """With target=10, 500 points → 500 // 10 = 50."""
+        assert _markevery(500, target=10) == 50
+
+
+# ============================================================================
+# Default ω Grid
+# ============================================================================
+
+
+class TestDefaultOmegaGrid:
+    def test_default_grid_has_500_points(self) -> None:
+        assert len(_m.PHASE_OMEGA_VALS) == 500
+
+    def test_default_grid_starts_at_0_01(self) -> None:
+        assert _m.PHASE_OMEGA_VALS[0] == 0.01
+
+    def test_default_grid_ends_at_5_00(self) -> None:
+        assert _m.PHASE_OMEGA_VALS[-1] == 5.0
+
+    def test_default_grid_step_is_0_01(self) -> None:
+        """Adjacent values should differ by 0.01."""
+        diffs = np.diff(_m.PHASE_OMEGA_VALS)
+        assert np.allclose(diffs, 0.01, atol=1e-10)
+
+    def test_default_grid_monotonically_increasing(self) -> None:
+        diffs = np.diff(_m.PHASE_OMEGA_VALS)
+        assert np.all(diffs > 0)
+
+    def test_omega_min_max_constants(self) -> None:
+        assert _m.OMEGA_MIN == 0.01
+        assert _m.OMEGA_MAX == 5.0
+        assert _m.DEFAULT_N_OMEGA == 500
+
+
+# ============================================================================
+# Pipeline omega_values Threading
+# ============================================================================
+
+
+class TestPipelineOmegaThreading:
+    def test_omega_scan_accepts_custom_grid(self) -> None:
+        """The omega scan function should accept a custom ω grid."""
+        result = run_phase_modulated_omega_scan(
+            omega_values=[0.3, 0.6],
+            n_random=20,
+            n_nm_refine=3,
+            seed=42,
+            maxiter=50,
+        )
+        assert len(result.omega_values) == 2
+        assert np.isclose(result.omega_values[0], 0.3)
+        assert np.isclose(result.omega_values[1], 0.6)
+
+    def test_omega_scan_small_grid_finer_than_default(self) -> None:
+        """A 3-point grid at fine spacing should work correctly."""
+        result = run_phase_modulated_omega_scan(
+            omega_values=[0.01, 0.02, 0.03],
+            n_random=20,
+            n_nm_refine=3,
+            seed=42,
+            maxiter=50,
+        )
+        assert len(result.omega_values) == 3
+        for dt in result.best_delta_omega_per_omega:
+            assert np.isfinite(dt), f"Non-finite Δω: {dt}"

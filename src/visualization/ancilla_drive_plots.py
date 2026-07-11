@@ -24,6 +24,15 @@ from src.analysis.ancilla_drive_results import (
 sns.set_theme(style="whitegrid")
 
 
+def _markevery(n_pts: int, target: int = 30) -> int:
+    """Compute marker interval to show roughly *target* markers on a line plot.
+
+    For 500 points this returns 16 (≈31 visible markers); for 50 points
+    it returns 1 (every point gets a marker).
+    """
+    return max(1, n_pts // target)
+
+
 # ──────────────────────────────────────────────
 # 1. Decoupled baseline
 # ──────────────────────────────────────────────
@@ -254,6 +263,9 @@ def plot_drive_omega_scan(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
+    n_omega = len(result.omega_values)
+    me = _markevery(n_omega)
+
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
 
     # ── Upper panel: Δω vs ω ──────────────────────────────────────────
@@ -277,6 +289,7 @@ def plot_drive_omega_scan(
         result.omega_values,
         result.best_delta_omega_per_omega,
         marker="o",
+        markevery=me,
         linestyle="-",
         color="C0",
         markersize=8,
@@ -308,6 +321,7 @@ def plot_drive_omega_scan(
         result.omega_values,
         ratio,
         marker="o",
+        markevery=me,
         linestyle="-",
         color="C0",
         markersize=8,
@@ -322,8 +336,9 @@ def plot_drive_omega_scan(
     min_idx = np.argmin(ratio)
     min_ratio = ratio[min_idx]
     min_omega = result.omega_values[min_idx]
+    omega_fmt = ".2f" if n_omega > 100 else ".1f"
     ax2.annotate(
-        f"Best = {min_ratio:.3f}$\\times$ at $\\omega$={min_omega:.1f}",
+        f"Best = {min_ratio:.3f}$\\times$ at $\\omega$={min_omega:{omega_fmt}}",
         xy=(min_omega, min_ratio),
         xytext=(min_omega + 0.6, min_ratio + 0.15),
         arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
@@ -356,6 +371,9 @@ def plot_drive_optimal_params(
 
     fig, ax = plt.subplots(figsize=figsize)
 
+    n_omega = len(result.omega_values)
+    me = _markevery(n_omega)
+
     params_names = [r"$a_x^*$", r"$a_y^*$", r"$a_z^*$", r"$a_{zz}^*$"]
     colours = ["C0", "C1", "C2", "C3"]
     markers = ["o", "s", "^", "D"]
@@ -369,6 +387,7 @@ def plot_drive_optimal_params(
             result.omega_values,
             values,
             marker=markers[idx],
+            markevery=me,
             linestyle="-",
             color=colours[idx],
             label=params_names[idx],
@@ -423,6 +442,9 @@ def plot_drive_nm_expectation_variance(
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
+    n_omega = len(omega_values)
+    me = _markevery(n_omega)
+
     # Left panel: expectation
     valid_exp = np.isfinite(expectation_Jz)
     if np.any(valid_exp):
@@ -430,6 +452,7 @@ def plot_drive_nm_expectation_variance(
             omega_values[valid_exp],
             expectation_Jz[valid_exp],
             "o-",
+            markevery=me,
             color="C0",
             markersize=7,
             linewidth=1.5,
@@ -446,6 +469,7 @@ def plot_drive_nm_expectation_variance(
             omega_values[valid_var],
             variance_Jz[valid_var],
             "s-",
+            markevery=me,
             color="C1",
             markersize=7,
             linewidth=1.5,
@@ -500,6 +524,9 @@ def plot_combined_sensitivity(
 
     fig, ax = plt.subplots(figsize=figsize)
 
+    n_omega = len(omega_values)
+    me = _markevery(n_omega)
+
     # SQL reference line
     sql = (
         sql_value
@@ -535,6 +562,7 @@ def plot_combined_sensitivity(
                 fmt,
                 color=colour,
                 label=label,
+                markevery=me,
                 markersize=6,
                 linewidth=1.5,
                 markerfacecolor=colour,
@@ -594,6 +622,9 @@ def plot_drive_cross_experiment_comparison(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
+    n_omega = len(omega_values)
+    me = _markevery(n_omega)
+
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
 
     # ── Upper panel: Δω vs ω ──────────────────────────────────────────
@@ -612,6 +643,7 @@ def plot_drive_cross_experiment_comparison(
         omega_values,
         best_delta_18,
         marker="s",
+        markevery=me,
         linestyle="-",
         color="C0",
         markersize=5,
@@ -622,6 +654,7 @@ def plot_drive_cross_experiment_comparison(
         omega_values,
         best_delta_19,
         marker="o",
+        markevery=me,
         linestyle="-",
         color="C3",
         markersize=5,
@@ -646,6 +679,7 @@ def plot_drive_cross_experiment_comparison(
         omega_values,
         ratio,
         marker="o",
+        markevery=me,
         linestyle="-",
         color="C3",
         markersize=4,
@@ -661,8 +695,9 @@ def plot_drive_cross_experiment_comparison(
         min_idx = np.argmin(ratio[valid])
         min_ratio = float(ratio[valid][min_idx])
         min_omega = float(omega_values[valid][min_idx])
+        omega_fmt = ".2f" if n_omega > 100 else ".1f"
         ax2.annotate(
-            f"Best = {min_ratio:.3f}$\\times$ at $\\omega$={min_omega:.1f}",
+            f"Best = {min_ratio:.3f}$\\times$ at $\\omega$={min_omega:{omega_fmt}}",
             xy=(min_omega, min_ratio),
             xytext=(min_omega + 0.6, min_ratio + 0.15),
             arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
@@ -717,12 +752,16 @@ def plot_drive_fraction_below_sql(
 
     fig, ax = plt.subplots(figsize=figsize)
 
+    n_omega = len(omega_values)
+    me = _markevery(n_omega)
+
     ax.plot(
         omega_values,
         fractions_2d_ax,
         "o-",
         color="C0",
         label=r"2D slice $(a_x, a_{zz})$",
+        markevery=me,
         markersize=6,
         linewidth=1.5,
     )
@@ -732,6 +771,7 @@ def plot_drive_fraction_below_sql(
         "s-",
         color="C1",
         label=r"2D slice $(a_y, a_{zz})$",
+        markevery=me,
         markersize=6,
         linewidth=1.5,
     )
@@ -741,6 +781,7 @@ def plot_drive_fraction_below_sql(
         "v-",
         color="C4",
         label=r"2D slice $(a_z, a_{zz})$",
+        markevery=me,
         markersize=6,
         linewidth=1.5,
     )
@@ -750,6 +791,7 @@ def plot_drive_fraction_below_sql(
         "^-",
         color="C2",
         label="4D random search",
+        markevery=me,
         markersize=6,
         linewidth=1.5,
     )

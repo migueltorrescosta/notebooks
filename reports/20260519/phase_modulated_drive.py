@@ -12,9 +12,11 @@ Contains all code exclusive to this report:
 
 Usage:
     uv run python reports/20260519/phase_modulated_drive.py --force
-    uv run python reports/20260519/phase_modulated_drive.py --only phase-decoupled-baseline
+    uv run python reports/20260519/phase_modulated_drive.py \
+        --only phase-decoupled-baseline
 
-This module is importable via ``importlib.import_module("reports.20260519.phase_modulated_drive")``.
+This module is importable via
+``importlib.import_module("reports.20260519.phase_modulated_drive")``.
 """
 
 from __future__ import annotations
@@ -35,7 +37,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from scipy.linalg import expm
 
 # Force non-interactive matplotlib backend before any plotting.
 if "MPLBACKEND" not in os.environ:
@@ -45,9 +46,8 @@ if "OMP_NUM_THREADS" not in os.environ:
 
 # Shared primitives (used by all reports)
 from src.analysis.ancilla_drive_metrology import (
-    build_iszz_interaction,
     compute_phase_modulated_sensitivity,
-    system_only_bs_unitary,
+    evolve_phase_modulated_circuit,
 )
 from src.analysis.ancilla_drive_results import (
     Drive2DSliceResult,
@@ -69,10 +69,10 @@ from src.analysis.optimisation_pipeline import (
     run_two_phase_pipeline,
 )
 from src.analysis.slice_scan import sequential_grid_scan
-from src.utils.constants import I_4
 from src.utils.parallel import parallel_map
 from src.utils.paths import report_path_fn
 from src.visualization.ancilla_drive_plots import (
+    _markevery,
     plot_combined_sensitivity,
     plot_drive_nm_expectation_variance,
 )
@@ -91,158 +91,6 @@ SQL_REFERENCE_N2: float = 1.0 / (
     np.sqrt(2) * DEFAULT_t_hold
 )  # Δω_SQL = 0.07071 (N=2, system+ancilla)
 DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Range for all coefficients
-
-# ============================================================================
-# Operator Construction  (from ancilla_drive_phase_modulated.py)
-# ============================================================================
-
-
-def build_phase_modulated_drive_hamiltonian(
-    omega: float,
-    a_x: float,
-    a_y: float,
-    a_z: float,
-    ops: dict[str, np.ndarray],
-) -> np.ndarray:
-    """Build the ω-modulated ancilla drive Hamiltonian.
-
-    H_A = ω (a_x J_x^A + a_y J_y^A + a_z J_z^A)
-
-    The critical difference from the fixed-drive protocol is the leading ω
-    factor: the ancilla drive scales with the unknown phase, creating a
-    parametric amplification effect in ∂⟨J_z^S⟩/∂ω.
-
-    Args:
-        omega: Unknown phase rate parameter (scales the whole drive).
-        a_x: Coefficient for J_x^A.
-        a_y: Coefficient for J_y^A.
-        a_z: Coefficient for J_z^A.
-        ops: Two-qubit operators from build_two_qubit_operators().
-
-    Returns:
-        4×4 Hermitian matrix representing the ω-modulated ancilla drive.
-    """
-    H = np.zeros((4, 4), dtype=complex)
-    if a_x != 0.0:
-        H += a_x * ops["Jx_A"]
-    if a_y != 0.0:
-        H += a_y * ops["Jy_A"]
-    if a_z != 0.0:
-        H += a_z * ops["Jz_A"]
-    H = omega * H  # ω-modulation: entire drive scales with the unknown phase
-    return 0.5 * (H + H.conj().T)
-
-
-def build_phase_modulated_hold_hamiltonian(
-    omega: float,
-    a_x: float,
-    a_y: float,
-    a_z: float,
-    a_zz: float,
-    ops: dict[str, np.ndarray],
-) -> np.ndarray:
-    """Build the total holding Hamiltonian with ω-modulated ancilla drive.
-
-    H = ω J_z^S + H_A + H_int
-      = ω J_z^S + ω (a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_zz J_z^S ⊗ J_z^A
-      = ω [J_z^S + a_x J_x^A + a_y J_y^A + a_z J_z^A] + a_zz J_z^S ⊗ J_z^A
-
-    The ω factor on the drive terms means ∂H/∂ω = J_z^S + a_x J_x^A + a_y J_y^A
-    + a_z J_z^A, which includes ancilla operators. This extra contribution to
-    the derivative is the key mechanism for potential SQL violation.
-
-    Args:
-        omega: Unknown phase rate parameter.
-        a_x: Ancilla J_x drive coefficient.
-        a_y: Ancilla J_y drive coefficient.
-        a_z: Ancilla J_z drive coefficient.
-        a_zz: Ising interaction coefficient.
-        ops: Two-qubit operators from build_two_qubit_operators().
-
-    Returns:
-        4×4 Hermitian Hamiltonian matrix.
-    """
-    H = omega * ops["Jz_S"]
-    H += build_phase_modulated_drive_hamiltonian(omega, a_x, a_y, a_z, ops)
-    H += build_iszz_interaction(a_zz, ops)
-    return 0.5 * (H + H.conj().T)
-
-
-def phase_modulated_hold_unitary(
-    t_hold: float,
-    omega: float,
-    a_x: float,
-    a_y: float,
-    a_z: float,
-    a_zz: float,
-    ops: dict[str, np.ndarray],
-) -> np.ndarray:
-    """Holding-time unitary for the ω-modulated ancilla protocol.
-
-    U_hold(t_hold) = exp(-i t_hold H)
-    where H = ω J_z^S + ω(a_x J_x^A + a_y J_y^A + a_z J_z^A) + a_zz J_z^S ⊗ J_z^A.
-
-    Args:
-        t_hold: Holding-time strength.
-        omega: True phase rate parameter.
-        a_x: Ancilla J_x drive coefficient.
-        a_y: Ancilla J_y drive coefficient.
-        a_z: Ancilla J_z drive coefficient.
-        a_zz: Ising interaction coefficient.
-        ops: Two-qubit operators from build_two_qubit_operators().
-
-    Returns:
-        4×4 unitary matrix.
-    """
-    H = build_phase_modulated_hold_hamiltonian(omega, a_x, a_y, a_z, a_zz, ops)
-    U = expm(-1j * t_hold * H)
-    assert np.allclose(U @ U.conj().T, I_4, atol=1e-12), (
-        f"Phase-modulated hold unitary not unitary for t_hold={t_hold}, ω={omega}"
-    )
-    return U
-
-
-def evolve_phase_modulated_circuit(
-    psi0: np.ndarray,
-    T_BS: float,
-    t_hold: float,
-    omega: float,
-    a_x: float,
-    a_y: float,
-    a_z: float,
-    a_zz: float,
-    ops: dict[str, np.ndarray],
-) -> np.ndarray:
-    """Run the full ω-modulated ancilla MZI circuit.
-
-    |ψ_final⟩ = U_BS_S · U_hold(t_hold) · U_BS_S · |ψ₀⟩
-
-    The hold unitary uses the ω-modulated H_A = ω (a_x J_x^A + ...).
-
-    Args:
-        psi0: Initial 4-vector (must be normalised).
-        T_BS: Beam-splitter duration (both BS identical).
-        t_hold: Holding-time strength.
-        omega: Phase rate parameter.
-        a_x: Ancilla J_x drive coefficient.
-        a_y: Ancilla J_y drive coefficient.
-        a_z: Ancilla J_z drive coefficient.
-        a_zz: Ising interaction coefficient.
-        ops: Two-qubit operators.
-
-    Returns:
-        Final normalised 4-vector state.
-    """
-    assert np.isclose(np.linalg.norm(psi0), 1.0), "Initial state must be normalised"
-
-    U_bs = system_only_bs_unitary(T_BS)
-    psi = U_bs @ psi0
-    psi = phase_modulated_hold_unitary(t_hold, omega, a_x, a_y, a_z, a_zz, ops) @ psi
-    psi = U_bs @ psi
-
-    assert np.isclose(np.linalg.norm(psi), 1.0), "Final state must be normalised"
-    return psi
-
 
 # ============================================================================
 # Decoupled Baseline
@@ -574,6 +422,9 @@ def plot_drive_cross_experiment_comparison(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
+    n_omega = len(omega_values)
+    me = _markevery(n_omega)
+
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
 
     # ── Upper panel: Δω vs ω ──────────────────────────────────────────
@@ -596,6 +447,7 @@ def plot_drive_cross_experiment_comparison(
         omega_values,
         best_delta_18,
         marker="s",
+        markevery=me,
         linestyle="-",
         color="C0",
         markersize=5,
@@ -606,6 +458,7 @@ def plot_drive_cross_experiment_comparison(
         omega_values,
         best_delta_19,
         marker="o",
+        markevery=me,
         linestyle="-",
         color="C3",
         markersize=5,
@@ -629,6 +482,7 @@ def plot_drive_cross_experiment_comparison(
         omega_values,
         ratio,
         marker="o",
+        markevery=me,
         linestyle="-",
         color="C3",
         markersize=4,
@@ -644,8 +498,9 @@ def plot_drive_cross_experiment_comparison(
         min_idx = np.argmin(ratio[valid])
         min_ratio = float(ratio[valid][min_idx])
         min_omega = float(omega_values[valid][min_idx])
+        omega_fmt = ".2f" if n_omega > 100 else ".1f"
         ax2.annotate(
-            f"Best = {min_ratio:.3f}$\\times$ at $\\omega$={min_omega:.1f}",
+            f"Best = {min_ratio:.3f}$\\times$ at $\\omega$={min_omega:{omega_fmt}}",
             xy=(min_omega, min_ratio),
             xytext=(min_omega + 0.6, min_ratio + 0.15),
             arrowprops={"arrowstyle": "->", "color": "black", "lw": 1.2},
@@ -693,6 +548,9 @@ def plot_drive_fraction_below_sql(
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
+    n_omega = len(omega_values)
+    me = _markevery(n_omega)
+
     fig, ax = plt.subplots(figsize=figsize)
 
     ax.plot(
@@ -701,6 +559,7 @@ def plot_drive_fraction_below_sql(
         "o-",
         color="C0",
         label=r"2D slice $(a_x, a_{zz})$",
+        markevery=me,
         markersize=6,
         linewidth=1.5,
     )
@@ -710,6 +569,7 @@ def plot_drive_fraction_below_sql(
         "s-",
         color="C1",
         label=r"2D slice $(a_y, a_{zz})$",
+        markevery=me,
         markersize=6,
         linewidth=1.5,
     )
@@ -719,6 +579,7 @@ def plot_drive_fraction_below_sql(
         "v-",
         color="C4",
         label=r"2D slice $(a_z, a_{zz})$",
+        markevery=me,
         markersize=6,
         linewidth=1.5,
     )
@@ -728,6 +589,7 @@ def plot_drive_fraction_below_sql(
         "^-",
         color="C2",
         label="4D random search",
+        markevery=me,
         markersize=6,
         linewidth=1.5,
     )
@@ -825,7 +687,8 @@ def simulate_omega_estimation(
 
     .. math::
 
-        \log L(\omega) = n_+ \log p(\omega) + (N_{\text{meas}} - n_+) \log(1 - p(\omega))
+        \log L(\omega) = n_+ \log p(\omega)
+            + (N_{\text{meas}} - n_+) \log(1 - p(\omega))
 
     where :math:`p(\omega) = \langle J_z^S \rangle(\omega) + 1/2`.  Quadratic
     interpolation around the grid maximum gives sub-grid resolution.
@@ -988,6 +851,9 @@ def plot_omega_estimation_histogram(
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
 
+    n_omega = len(omega_scan_result.omega_values)
+    me = _markevery(n_omega)
+
     # ── Left panel: Sensitivity curve ──────────────────────────────────
     sql_n2 = SQL_REFERENCE_N2
     ax1.axhline(
@@ -1004,6 +870,7 @@ def plot_omega_estimation_histogram(
         omega_scan_result.omega_values[valid],
         omega_scan_result.best_delta_omega_per_omega[valid],
         "b-",
+        markevery=me,
         linewidth=1.8,
         label=r"NM $\Delta\omega(\omega)$",
     )
@@ -1064,7 +931,9 @@ def plot_omega_estimation_histogram(
     ax2.text(
         0.95,
         0.95,
-        f"Mean = {mean_est:.4f}\nStd = {std_est:.4f}\nExpected std = {expected_std:.4f}",
+        f"Mean = {mean_est:.4f}\n"
+        f"Std = {std_est:.4f}\n"
+        f"Expected std = {expected_std:.4f}",
         transform=ax2.transAxes,
         ha="right",
         va="top",
@@ -1090,8 +959,19 @@ def plot_omega_estimation_histogram(
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent
 PHASE_DATE = "20260519"
-PHASE_OMEGA_VALS = [round(v, 1) for v in np.linspace(0.1, 5.0, 50).tolist()]
+OMEGA_MIN: float = 0.01
+OMEGA_MAX: float = 5.0
+DEFAULT_N_OMEGA: int = 500
+
+PHASE_OMEGA_VALS: list[float] = [
+    round(v, 2) for v in np.linspace(OMEGA_MIN, OMEGA_MAX, DEFAULT_N_OMEGA)
+]
 PHASE_N_GRID = 201
+
+
+def _resolve_omega_grid(omega_values: list[float] | None) -> list[float]:
+    """Return *omega_values* if provided, else the default grid."""
+    return omega_values if omega_values is not None else PHASE_OMEGA_VALS
 
 
 _parquet_path, _fig_path = report_path_fn(REPORTS_DIR, PHASE_DATE)
@@ -1154,23 +1034,34 @@ def _run_phase_2d_slice(
     print(f"  [fig]  {fig_p}")
 
 
-def generate_phase_2d_slice_ax_azz(force: bool = False) -> None:
+def generate_phase_2d_slice_ax_azz(
+    force: bool = False,
+    omega_values: list[float] | None = None,
+) -> None:
     """Phase-modulated 2D slice scans over (a_x, a_zz) at all ω values."""
-    n = len(PHASE_OMEGA_VALS)
+    omegas = _resolve_omega_grid(omega_values)
+    n = len(omegas)
     print(f"[run]  (a_x, a_zz) phase slice at {n} ω values (parallel)")
     worker = partial(_run_phase_2d_slice, slice_type="ax", force=force)
-    parallel_map(worker, PHASE_OMEGA_VALS, desc="(a_x, a_zz) slices")
+    parallel_map(worker, omegas, desc="(a_x, a_zz) slices")
 
 
-def generate_phase_2d_slice_ay_azz(force: bool = False) -> None:
+def generate_phase_2d_slice_ay_azz(
+    force: bool = False,
+    omega_values: list[float] | None = None,
+) -> None:
     """Phase-modulated 2D slice scans over (a_y, a_zz) at all ω values."""
-    n = len(PHASE_OMEGA_VALS)
+    omegas = _resolve_omega_grid(omega_values)
+    n = len(omegas)
     print(f"[run]  (a_y, a_zz) phase slice at {n} ω values (parallel)")
     worker = partial(_run_phase_2d_slice, slice_type="ay", force=force)
-    parallel_map(worker, PHASE_OMEGA_VALS, desc="(a_y, a_zz) slices")
+    parallel_map(worker, omegas, desc="(a_y, a_zz) slices")
 
 
-def generate_phase_2d_slice_az_azz(force: bool = False) -> None:
+def generate_phase_2d_slice_az_azz(
+    force: bool = False,
+    omega_values: list[float] | None = None,
+) -> None:
     """Phase-modulated 2D slice scans over (a_z, a_zz) at all ω values.
 
     Unlike the (a_x, a_zz) and (a_y, a_zz) slices, this scan constrains
@@ -1178,10 +1069,11 @@ def generate_phase_2d_slice_az_azz(force: bool = False) -> None:
     Sec 8.1 (article) predicts Δω = 1/T_H everywhere — confirmed
     numerically by the flat grid.
     """
-    n = len(PHASE_OMEGA_VALS)
+    omegas = _resolve_omega_grid(omega_values)
+    n = len(omegas)
     print(f"[run]  (a_z, a_zz) phase slice at {n} ω values (parallel)")
     worker = partial(_run_phase_2d_slice, slice_type="az", force=force)
-    parallel_map(worker, PHASE_OMEGA_VALS, desc="(a_z, a_zz) slices")
+    parallel_map(worker, omegas, desc="(a_z, a_zz) slices")
 
 
 def _run_phase_random_search(omega: float, force: bool) -> None:
@@ -1209,12 +1101,16 @@ def _run_phase_random_search(omega: float, force: bool) -> None:
     print(f"  [fig]  {fig_p}")
 
 
-def generate_phase_random_search(force: bool = False) -> None:
+def generate_phase_random_search(
+    force: bool = False,
+    omega_values: list[float] | None = None,
+) -> None:
     """Phase-modulated 4D random search at all ω values (parallel)."""
-    n = len(PHASE_OMEGA_VALS)
+    omegas = _resolve_omega_grid(omega_values)
+    n = len(omegas)
     print(f"[run]  4D phase random search at {n} ω values (parallel)")
     worker = partial(_run_phase_random_search, force=force)
-    parallel_map(worker, PHASE_OMEGA_VALS, desc="random search")
+    parallel_map(worker, omegas, desc="random search")
 
 
 def _run_phase_omega_scan_single(omega: float) -> dict[str, float | np.ndarray]:
@@ -1302,9 +1198,12 @@ def _check_omega_scan_cache(
     return DriveOmegaScanResult.from_parquet(parquet_path)
 
 
-def _compute_omega_scan_core() -> DriveOmegaScanResult:
+def _compute_omega_scan_core(
+    omega_values: list[float] | None = None,
+) -> DriveOmegaScanResult:
     """Run the parallel ω-scan computation (random search + NM refinement)."""
-    n = len(PHASE_OMEGA_VALS)
+    omegas = _resolve_omega_grid(omega_values)
+    n = len(omegas)
     print(f"[run]  Computing phase ω-scan for {n} ω values (parallel)...")
 
     max_workers = min(32, os.cpu_count() or 1)
@@ -1318,7 +1217,7 @@ def _compute_omega_scan_core() -> DriveOmegaScanResult:
     ) as executor:
         fut_to_omega = {
             executor.submit(_run_phase_omega_scan_single, omega): omega
-            for omega in PHASE_OMEGA_VALS
+            for omega in omegas
         }
         for future in concurrent.futures.as_completed(fut_to_omega):
             omega = fut_to_omega[future]
@@ -1370,7 +1269,10 @@ def _save_and_plot_omega_scan(
     print(f"[fig]  {fig_path}")
 
 
-def generate_phase_omega_scan(force: bool = False) -> None:
+def generate_phase_omega_scan(
+    force: bool = False,
+    omega_values: list[float] | None = None,
+) -> None:
     """Phase-modulated ω-scan with Nelder-Mead refinement (parallel).
 
     Check cache → compute (if needed) → save and plot.
@@ -1382,7 +1284,7 @@ def generate_phase_omega_scan(force: bool = False) -> None:
 
     result = _check_omega_scan_cache(csv_p, force)
     if result is None:
-        result = _compute_omega_scan_core()
+        result = _compute_omega_scan_core(omega_values=omega_values)
         _save_and_plot_omega_scan(result, csv_p, fig_p)
     else:
         plot_drive_omega_scan(result, fig_p)
@@ -1405,6 +1307,7 @@ def generate_phase_combined_sensitivity(
     force: bool = False,
     sql_value: float | None = None,
     output_dir: Path | None = None,
+    omega_values: list[float] | None = None,
 ) -> None:
     """Combined sensitivity plot + NM expectation/variance plot.
 
@@ -1427,12 +1330,14 @@ def generate_phase_combined_sensitivity(
     omega_scan_pq = _parquet_path("phase-omega-scan")
     if not omega_scan_pq.exists():
         print(
-            "[skip] phase-omega-scan.parquet does not exist; run 'phase-omega-scan' first"
+            "[skip] phase-omega-scan.parquet does not exist; "
+            "run 'phase-omega-scan' first"
         )
         return
     nm_result = DriveOmegaScanResult.from_parquet(omega_scan_pq)
 
-    omega_vals = np.array(PHASE_OMEGA_VALS, dtype=float)
+    omegas = _resolve_omega_grid(omega_values)
+    omega_vals = np.array(omegas, dtype=float)
     n_omega = len(omega_vals)
 
     best_nm = np.full(n_omega, np.nan)
@@ -1511,6 +1416,7 @@ def generate_phase_fraction_below_sql(
     force: bool = False,
     sql_value: float | None = None,
     output_dir: Path | None = None,
+    omega_values: list[float] | None = None,
 ) -> None:
     """Fraction of parameter space below SQL vs ω for all methods.
 
@@ -1523,13 +1429,15 @@ def generate_phase_fraction_below_sql(
             stored in each result's Parquet file (0.1).
         output_dir: Override output directory for figures. If None, uses
             the default report figures directory.
+        omega_values: Override ω grid. If None, uses PHASE_OMEGA_VALS.
     """
     if output_dir is not None:
         fig_p = Path(output_dir) / "20260519-phase-fraction-below-sql.svg"
     else:
         fig_p = _fig_path("phase-fraction-below-sql")
 
-    omega_vals = np.array(PHASE_OMEGA_VALS, dtype=float)
+    omegas = _resolve_omega_grid(omega_values)
+    omega_vals = np.array(omegas, dtype=float)
     n_omega = len(omega_vals)
 
     fractions_ax = np.full(n_omega, np.nan)
@@ -1577,12 +1485,13 @@ def generate_phase_cross_experiment_comparison(
     force: bool = False,
     sql_value: float | None = None,
     output_dir: Path | None = None,
+    omega_values: list[float] | None = None,
 ) -> None:
     """Comparison of fixed-drive (2026-05-18) vs modulated-drive (2026-05-19)
     ω-scan results.
 
     Loads both Parquets, interpolates the sparse 2026-05-18 data to the fine
-    50-point ω grid of the 2026-05-19 scan, and produces a 2×1 figure
+    ω grid of the 2026-05-19 scan, and produces a 2×1 figure
     showing Δω vs ω (upper) and the ratio Δω_19/Δω_18 (lower).
 
     Args:
@@ -1591,6 +1500,7 @@ def generate_phase_cross_experiment_comparison(
             stored in the result's Parquet file (0.1).
         output_dir: Override output directory for figures. If None, uses
             the default report figures directory.
+        omega_values: Override ω grid. If None, uses PHASE_OMEGA_VALS.
     """
     if output_dir is not None:
         fig_p = Path(output_dir) / "20260519-phase-cross-experiment-comparison.svg"
@@ -1957,17 +1867,41 @@ def main() -> None:
         action="store_true",
         help="Regenerate article-specific figures with N=2 SQL",
     )
+    parser.add_argument(
+        "--n-omega",
+        type=int,
+        default=DEFAULT_N_OMEGA,
+        help=f"Number of ω points (default {DEFAULT_N_OMEGA})",
+    )
+    parser.add_argument(
+        "--omega-min",
+        type=float,
+        default=OMEGA_MIN,
+        help=f"Minimum ω value (default {OMEGA_MIN})",
+    )
+    parser.add_argument(
+        "--omega-max",
+        type=float,
+        default=OMEGA_MAX,
+        help=f"Maximum ω value (default {OMEGA_MAX})",
+    )
     args = parser.parse_args()
 
     if args.article_figures:
         generate_article_figures()
         return
 
+    # Build ω grid from CLI args
+    omega_vals: list[float] = [
+        round(v, 2) for v in np.linspace(args.omega_min, args.omega_max, args.n_omega)
+    ]
+    print(f"ω grid: {len(omega_vals)} points from {omega_vals[0]} to {omega_vals[-1]}")
+
     # Ensure directories exist
     (REPORTS_DIR / PHASE_DATE / "raw_data").mkdir(parents=True, exist_ok=True)
     (REPORTS_DIR / PHASE_DATE / "figures").mkdir(parents=True, exist_ok=True)
 
-    tasks = {
+    tasks: dict[str, Any] = {
         "phase-decoupled-baseline": generate_phase_decoupled_baseline,
         "phase-2d-slice-ax-azz": generate_phase_2d_slice_ax_azz,
         "phase-2d-slice-ay-azz": generate_phase_2d_slice_ay_azz,
@@ -1982,15 +1916,34 @@ def main() -> None:
         "phase-supplementary-slices": generate_phase_supplementary_slices,
     }
 
+    # Functions that accept omega_values kwarg
+    _omega_aware = {
+        "phase-2d-slice-ax-azz",
+        "phase-2d-slice-ay-azz",
+        "phase-2d-slice-az-azz",
+        "phase-random-search",
+        "phase-omega-scan",
+        "phase-combined-sensitivity",
+        "phase-fraction-below-sql",
+        "phase-cross-experiment-comparison",
+    }
+
     if args.only:
         if args.only not in tasks:
             print(f"Unknown dataset '{args.only}'. Options: {list(tasks.keys())}")
             sys.exit(1)
-        tasks[args.only](force=args.force)
+        fn = tasks[args.only]
+        if args.only in _omega_aware:
+            fn(force=args.force, omega_values=omega_vals)
+        else:
+            fn(force=args.force)
     else:
         for name, func in tasks.items():
             print(f"\n=== {name} ===")
-            func(force=args.force)
+            if name in _omega_aware:
+                func(force=args.force, omega_values=omega_vals)
+            else:
+                func(force=args.force)
 
     print("\nDone.")
 
