@@ -10,35 +10,35 @@ from src.utils.paths import fig_path, parquet_path, report_path_fn
 def test_parquet_path_standard() -> None:
     """parquet_path constructs the expected path from (reports_dir, date, name)."""
     result = parquet_path(Path("/home/reports"), "20260616", "n-scaling-scan")
-    expected = Path("/home/reports/20260616/raw_data/20260616-n-scaling-scan.parquet")
+    expected = Path("/home/reports/r20260616/raw_data/20260616-n-scaling-scan.parquet")
     assert result == expected
 
 
 def test_parquet_path_without_dashes() -> None:
     """Works with compact date format (no dashes)."""
     result = parquet_path(Path("reports"), "20260519", "omega-scan")
-    expected = Path("reports/20260519/raw_data/20260519-omega-scan.parquet")
+    expected = Path("reports/r20260519/raw_data/20260519-omega-scan.parquet")
     assert result == expected
 
 
 def test_parquet_path_with_dashes() -> None:
     """Works with dash-separated date prefix."""
     result = parquet_path(Path("reports"), "2026-05-25", "random-search")
-    expected = Path("reports/2026-05-25/raw_data/2026-05-25-random-search.parquet")
+    expected = Path("reports/r2026-05-25/raw_data/2026-05-25-random-search.parquet")
     assert result == expected
 
 
 def test_fig_path_standard() -> None:
     """fig_path constructs the expected path from (reports_dir, date, name)."""
     result = fig_path(Path("/home/reports"), "20260616", "ratio-vs-n")
-    expected = Path("/home/reports/20260616/figures/20260616-ratio-vs-n.svg")
+    expected = Path("/home/reports/r20260616/figures/20260616-ratio-vs-n.svg")
     assert result == expected
 
 
 def test_fig_path_with_dashes() -> None:
     """Works with dash-separated date prefix."""
     result = fig_path(Path("reports"), "2026-05-25", "2d-slice")
-    expected = Path("reports/2026-05-25/figures/2026-05-25-2d-slice.svg")
+    expected = Path("reports/r2026-05-25/figures/2026-05-25-2d-slice.svg")
     assert result == expected
 
 

@@ -109,7 +109,7 @@ The derivative $\partial U_{\text{evol}} / \partial \omega$ captures information
 
 ### 5.1 Architecture overview
 
-The simulation is implemented in a modular Python pipeline. The core computation lives in `src/analysis/ancilla_drive_metrology.py`, which provides a shared function `compute_phase_modulated_sensitivity` that is imported by both the report-specific experiment module (`reports/20260519/phase_modulated_drive.py`) and the Streamlit page. All report-specific logic — CLI argument parsing, parameter sweeps, optimisation routines, and plotting — is contained in the experiment module.
+The simulation is implemented in a modular Python pipeline. The core computation lives in `src/analysis/ancilla_drive_metrology.py`, which provides a shared function `compute_phase_modulated_sensitivity` that is imported by both the report-specific experiment module (`reports/r20260519/phase_modulated_drive.py`) and the Streamlit page. All report-specific logic — CLI argument parsing, parameter sweeps, optimisation routines, and plotting — is contained in the experiment module.
 
 The pipeline follows a functional, composable design:
 
@@ -242,7 +242,7 @@ The contours show that the landscape is relatively smooth and mirror-symmetric a
 
 The best sensitivity in this slice is $\Delta\omega = 0.0293$ at $|a_x| = 5.00$, $a_{zz} = 0.75$, which is $2.41\times$ below the SQL.
 
-<img src="../reports/20260519/figures/article-n2/20260519-phase-2d-slice-ax-azz-omega0.1.svg" alt="2D slice for (a_x, a_zz) at ω=0.1" width="100%"/>
+<img src="../reports/r20260519/figures/article-n2/20260519-phase-2d-slice-ax-azz-omega0.1.svg" alt="2D slice for (a_x, a_zz) at ω=0.1" width="100%"/>
 
 *Figure 1: Sensitivity $\Delta\omega$ as a function of $(a_x, a_{zz})$ at $\omega = 0.1$ with $a_y = a_z = 0$. The minimum occurs at the boundary $|a_x| = 5$ (search bound) with $a_{zz} \approx 0.75$.*
 
@@ -252,7 +252,7 @@ The $(a_y, a_{zz})$ slice at $\omega = 0.1$ is shown in Figure 2. The landscape 
 
 This symmetry is expected: the $\hat{J}_x^A$ and $\hat{J}_y^A$ operators are related by a rotation about the $z$-axis, and the system Hamiltonian $\hat{J}_z^S$ breaks this symmetry only through the interaction $J_z^S \otimes J_z^A$, which couples both transverse drives identically. As with the $(a_x, a_{zz})$ slice, the landscape is mirror-symmetric about $a_y=0$, so the minimum at $a_y = +5$ has an equivalent partner at $a_y = -5$. In the full 4D optimisation, both $a_x$ and $a_y$ tend to take large values with opposite signs.
 
-<img src="../reports/20260519/figures/article-n2/20260519-phase-2d-slice-ay-azz-omega0.1.svg" alt="2D slice for (a_y, a_zz) at ω=0.1" width="100%"/>
+<img src="../reports/r20260519/figures/article-n2/20260519-phase-2d-slice-ay-azz-omega0.1.svg" alt="2D slice for (a_y, a_zz) at ω=0.1" width="100%"/>
 
 *Figure 2: Sensitivity $\Delta\omega$ as a function of $(a_y, a_{zz})$ at $\omega = 0.1$ with $a_x = a_z = 0$. The landscape is essentially identical to the $(a_x, a_{zz})$ slice, confirming the drive isotropy.*
 
@@ -262,7 +262,7 @@ The $(a_z, a_{zz})$ plane is shown in Figure 3 as a dedicated 2D slice, computed
 
 The optimal parameters can also be extracted from the 4D random search data by taking the best 1% of random search points at each ω value.
 
-<img src="../reports/20260519/figures/article-n2/20260519-phase-2d-slice-az-azz-omega0.1.svg" alt="2D slice for (a_z, a_zz) at ω=0.1" width="100%"/>
+<img src="../reports/r20260519/figures/article-n2/20260519-phase-2d-slice-az-azz-omega0.1.svg" alt="2D slice for (a_z, a_zz) at ω=0.1" width="100%"/>
 
 *Figure 3: Sensitivity $\Delta\omega$ as a function of $(a_z, a_{zz})$ at $\omega = 0.1$ with $a_x = a_y = 0$. The landscape is flat at the SQL value $\Delta\omega = 1/T_H = 0.1$ across the entire grid, confirming that the longitudinal-only configuration cannot produce sub-SQL sensitivity. A singular line at $a_{zz} \approx -0.2$ corresponds to where $\partial\langle J_z^S\rangle/\partial\omega = 0$, a coincidental degeneracy at this specific $\omega$.*
 
@@ -287,7 +287,7 @@ The random search finds the sub-SQL region but with ~$2\times$ worse sensitivity
 
 Note that the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ 2D slice curves overlap exactly in Figure 4: the optimal minima from these two slices are identical at every $\omega$ because the transverse drives $a_x$ and $a_y$ play symmetric roles in the Hamiltonian. Only one trace is independently visible in the figure, but both are plotted.
 
-<img src="../reports/20260519/figures/article-n2/20260519-phase-combined-sensitivity.svg" alt="Combined sensitivity comparison" width="100%"/>
+<img src="../reports/r20260519/figures/article-n2/20260519-phase-combined-sensitivity.svg" alt="Combined sensitivity comparison" width="100%"/>
 
 *Figure 4: Combined sensitivity $\Delta\omega$ vs $\omega$ for decoupled, random search, Nelder-Mead refinement, and fixed-drive protocols. The global minimum is $\Delta\omega = 0.01739$ at $\omega = 0.06$, $4.07\times$ below the SQL.*
 
@@ -297,7 +297,7 @@ Figure 5 quantifies the sub-SQL performance as a fraction: $R = \Delta\omega_{\t
 
 The entire tested range $\omega \in [0.01, 5.0]$ lies below the SQL for Nelder-Mead — a factor of 500 in $\omega$. The sweet spot where $\Delta\omega < 0.02$ (ratio $> 5$) spans $\omega \in [0.03, 0.17]$, a factor of approximately 6 in $\omega$. This broad operating range is significant for practical metrology, where the unknown parameter may span several orders of magnitude.
 
-<img src="../reports/20260519/figures/article-n2/20260519-phase-fraction-below-sql.svg" alt="Fraction below SQL" width="100%"/>
+<img src="../reports/r20260519/figures/article-n2/20260519-phase-fraction-below-sql.svg" alt="Fraction below SQL" width="100%"/>
 
 *Figure 5: Ratio $\Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of $\omega$. Values above 1 indicate sub-SQL performance. The best ratio is $4.07$ at $\omega = 0.06$. The $(a_x, a_{zz})$ and $(a_y, a_{zz})$ curves overlap because they provide the same sensitivity minima at every $\omega$, reflecting the Hamiltonian's symmetry between the transverse drive axes.*
 
@@ -325,7 +325,7 @@ The comparison shows:
 
 This comparison underscores the advantage of making the Hamiltonian itself ω-dependent: it creates a parametric resonance that amplifies sensitivity well beyond what a static drive can achieve.
 
-<img src="../reports/20260519/figures/article-n2/20260519-phase-cross-experiment-comparison.svg" alt="Cross-experiment comparison" width="100%"/>
+<img src="../reports/r20260519/figures/article-n2/20260519-phase-cross-experiment-comparison.svg" alt="Cross-experiment comparison" width="100%"/>
 
 *Figure 6: Comparison of ω-modulated (Nelder-Mead) vs fixed-drive protocols. The ω-modulated protocol achieves $4.07\times$ SQL at $\omega = 0.06$, while the fixed-drive protocol plateaus at $1.41\times$ SQL.*
 
@@ -448,7 +448,7 @@ This suggests that **engineered dynamics** can amplify the metrological informat
 
 ## References
 
-1. *Ancilla-Drive Phase-Modulated Metrology* — Simulation report, 2026-05-19. `reports/20260519/Ancilla-Drive-Phase-Modulated-Metrology.md`
-2. *Phase Modulated Drive* — Implementation module. `reports/20260519/phase_modulated_drive.py`
+1. *Ancilla-Drive Phase-Modulated Metrology* — Simulation report, 2026-05-19. `reports/r20260519/Ancilla-Drive-Phase-Modulated-Metrology.md`
+2. *Phase Modulated Drive* — Implementation module. `reports/r20260519/phase_modulated_drive.py`
 3. *Ancilla Drive Metrology* — Shared sensitivity computation. `src/analysis/ancilla_drive_metrology.py`
-4. *Fixed-Drive Ancilla Metrology* — Companion report, 2026-05-18. `reports/20260518/Ancilla-Drive-Metrology.md`
+4. *Fixed-Drive Ancilla Metrology* — Companion report, 2026-05-18. `reports/r20260518/Ancilla-Drive-Metrology.md`

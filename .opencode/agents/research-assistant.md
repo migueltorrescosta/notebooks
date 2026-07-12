@@ -46,7 +46,7 @@ These apply to every task, regardless of which skills are loaded:
 2. **Package management**: Use `uv` only.
 3. **Simplicity**: When in doubt, prefer **simplicity, explicitness, and reuse**.
 4. **Project root**: The root `conftest.py` inserts the project root into `sys.path`, enabling absolute imports like `from src.physics.mzi_states import ...` in both `pages/` and `tests/`.
-5. **New code in experiment module**: All new report-specific simulation code must be added to a descriptive-name Python file in the report's `reports/YYYYMMDD/` directory (e.g., `phase_modulated_drive.py`). Only promote code to `src/` when it is demonstrably reusable across multiple reports.
+5. **New code in experiment module**: All new report-specific simulation code must be added to a descriptive-name Python file in the report's `reports/rYYYYMMDD/` directory (e.g., `phase_modulated_drive.py`). Only promote code to `src/` when it is demonstrably reusable across multiple reports.
 6. **No module-level constants in `src/`**: Shared modules under `src/` must not define module-level constants for default parameters, bounds, or reference values. Use function-level defaults or `@dataclass` config objects instead.
 7. **No imports from report experiment modules**: Code inside a report's experiment module must never be imported by modules outside its own report directory — including `src/`, `tests/`, and `pages/`. If a function in a report module is needed externally, promote it to a `src/` module first.
 8. **Keep the CHANGELOG current.** Every completed experiment or infrastructure task from the `# Backlog` in `CHANGELOG.md` must be moved into the appropriate weekly release section as part of the work. Never leave finished work unrecorded.
@@ -76,7 +76,7 @@ Load skills based on the current stage of work:
 ├── .streamlit/             # Streamlit configuration directory
 ├── pages/                  # Streamlit UI (one page per simulation)
 ├── reports/                # Report directories: markdown + <slug>.py + test_<slug>.py
-│   └── YYYYMMDD/           # Dated report directory (no dashes)
+│   └── rYYYYMMDD/           # Dated report directory (no dashes)
 │       ├── {title}.md          # Report write-up (10-section template)
 │       ├── {slug}.py           # All report-specific simulation code
 │       └── test_{slug}.py      # Tests for the experiment code
@@ -311,7 +311,7 @@ All reports MUST include sections in the following order:
 
 ### Formatting Rules
 
-1. Every report filename MUST follow `YYYYMMDD/{title}.md`.
+1. Every report filename MUST follow `rYYYYMMDD/{title}.md`.
 2. Inline annotations use **bold text** instead of emojis. Use only: **Key Finding**, **Open items**, **See**, **Validation**.
 3. Status columns in tables use only text: `PASS`, `FAIL`, `PENDING`, `PARTIAL`.
 4. Section header emoji goes after `## ` and before the title text: `## 🧪 Hypothesis` (not `## Hypothesis 🧪`).

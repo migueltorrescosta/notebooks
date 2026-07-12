@@ -18,8 +18,9 @@ def parquet_path(reports_dir: Path, date: str, name: str) -> Path:
     reports_dir : Path
         Parent directory containing report date directories (e.g., ``reports/``).
     date : str
-        Report date string used as the subdirectory and filename prefix
-        (e.g., ``"20260616"``).
+        Report date string used as the filename prefix
+        (e.g., ``"20260616"``).  The subdirectory is ``r``-prefixed
+        (e.g., ``reports_dir / "r20260616" / ...``).
     name : str
         Uniquely identifies the result within this report
         (e.g., ``"n-scaling-scan"``).
@@ -27,9 +28,9 @@ def parquet_path(reports_dir: Path, date: str, name: str) -> Path:
     Returns
     -------
     Path
-        ``reports_dir / date / "raw_data" / "{date}-{name}.parquet"``
+        ``reports_dir / "r{date}" / "raw_data" / "{date}-{name}.parquet"``
     """
-    return reports_dir / date / "raw_data" / f"{date}-{name}.parquet"
+    return reports_dir / f"r{date}" / "raw_data" / f"{date}-{name}.parquet"
 
 
 def fig_path(reports_dir: Path, date: str, name: str) -> Path:
@@ -40,8 +41,9 @@ def fig_path(reports_dir: Path, date: str, name: str) -> Path:
     reports_dir : Path
         Parent directory containing report date directories (e.g., ``reports/``).
     date : str
-        Report date string used as the subdirectory and filename prefix
-        (e.g., ``"20260616"``).
+        Report date string used as the filename prefix
+        (e.g., ``"20260616"``).  The subdirectory is ``r``-prefixed
+        (e.g., ``reports_dir / "r20260616" / ...``).
     name : str
         Uniquely identifies the figure within this report
         (e.g., ``"ratio-vs-n"``).
@@ -49,9 +51,9 @@ def fig_path(reports_dir: Path, date: str, name: str) -> Path:
     Returns
     -------
     Path
-        ``reports_dir / date / "figures" / "{date}-{name}.svg"``
+        ``reports_dir / "r{date}" / "figures" / "{date}-{name}.svg"``
     """
-    return reports_dir / date / "figures" / f"{date}-{name}.svg"
+    return reports_dir / f"r{date}" / "figures" / f"{date}-{name}.svg"
 
 
 def report_path_fn(

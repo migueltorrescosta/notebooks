@@ -2,14 +2,14 @@
 Streamlit page: Ancilla-Drive-Enhanced Metrology.
 
 Implements the driven-ancilla metrology protocol from
-``reports/20260518/Ancilla-Drive-Enhanced-Metrology.md``:
+``reports/r20260518/Ancilla-Drive-Enhanced-Metrology.md``:
 - System-only 50/50 BS, unknown θ on system
 - Ancilla drive H_A = a_x J_x^A + a_y J_y^A + a_z J_z^A
 - Ising interaction H_int = a_zz J_z^S ⊗ J_z^A
 - Error propagation sensitivity via J_z^S measurement
 
 References:
-- ``reports/20260518/Ancilla-Drive-Enhanced-Metrology.md``
+- ``reports/r20260518/Ancilla-Drive-Enhanced-Metrology.md``
 """
 
 from __future__ import annotations
@@ -585,7 +585,7 @@ with tab_about:
         ## About This Simulation
 
         This page implements the protocol described in
-        `reports/20260518/Ancilla-Drive-Enhanced-Metrology.md`.
+        `reports/r20260518/Ancilla-Drive-Enhanced-Metrology.md`.
 
         **Circuit**:
         $$
@@ -608,8 +608,8 @@ with tab_about:
         3. Purely commuting drive ($a_x = a_y = 0$, $a_z \neq 0$) provides no benefit.
 
         **References**:
-        - Report `reports/20260512/2026-05-12-Ancilla-Assisted-Metrology-Optimization` (passive ancilla)
-        - Report `reports/20260515/2026-05-15-Ancilla-Assisted-Metrology-Joint-Measurement`
+        - Report `reports/r20260512/2026-05-12-Ancilla-Assisted-Metrology-Optimization` (passive ancilla)
+        - Report `reports/r20260515/2026-05-15-Ancilla-Assisted-Metrology-Joint-Measurement`
         - Giovannetti, Lloyd, Maccone, *Nat. Photonics* **5**, 222 (2011)
 
         **Numerical methods**:

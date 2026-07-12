@@ -20,11 +20,11 @@ _CHANGELOG = _PROJECT_ROOT / "CHANGELOG.md"
 # All markdown files under reports/
 _REPORT_MD_FILES: list[Path] = sorted(_REPORTS_DIR.rglob("*.md"))
 
-# YYYYMMDD-prefixed report directories only (excludes reports/findings/ etc.)
+# rYYYYMMDD-prefixed report directories only (excludes reports/findings/ etc.)
 _REPORT_DIRS: list[Path] = sorted(
     d
     for d in _REPORTS_DIR.iterdir()
-    if d.is_dir() and d.name.isdigit() and len(d.name) == 8
+    if d.is_dir() and d.name.startswith("r") and len(d.name) == 9
 )
 
 # Section emojis in prescribed order with mandatory flag
@@ -48,11 +48,11 @@ _KNOWN_SECTION_ORDER_ISSUES: set[str] = set()
 
 
 def _report_md_files() -> list[Path]:
-    """Return all report markdown files in YYYYMMDD directories (excludes findings/)."""
+    """Return all report markdown files in rYYYYMMDD directories (excludes findings/)."""
     return sorted(
         p
         for p in _REPORT_MD_FILES
-        if p.parent.name.isdigit() and len(p.parent.name) == 8
+        if p.parent.name.startswith("r") and len(p.parent.name) == 9
     )
 
 
@@ -223,7 +223,7 @@ class TestReportContent:
             )
 
 
-# ── Structure checks (YYYYMMDD report dirs only) ────────────────────────────
+# ── Structure checks (rYYYYMMDD report dirs only) ────────────────────────────
 
 
 class TestReportStructure:

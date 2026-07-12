@@ -10,7 +10,7 @@ Usage::
     from src.utils.parquet import consolidate_raw_parquet
 
     consolidate_raw_parquet(
-        raw_data_dir=Path("reports/20260519/raw_data"),
+        raw_data_dir=Path("reports/r20260519/raw_data"),
         glob_pattern="20260519-phase-2d-slice-*-azz-omega*.parquet",
         output_name="20260519-phase-2d-slice-ax-azz.parquet",
         delete_shards=True,
@@ -63,9 +63,7 @@ def consolidate_raw_parquet(
     shard_paths = sorted(raw_data_dir.glob(glob_pattern))
 
     if not shard_paths:
-        raise FileNotFoundError(
-            f"No files matching '{glob_pattern}' in {raw_data_dir}"
-        )
+        raise FileNotFoundError(f"No files matching '{glob_pattern}' in {raw_data_dir}")
 
     # Group by column schema to avoid merging incompatible files
     schema_groups: dict[frozenset[str], list[Path]] = {}
@@ -89,19 +87,14 @@ def consolidate_raw_parquet(
             for p in paths:
                 p.unlink()
 
-        print(
-            f"[merge] {len(paths)} files -> {out_path.name} "
-            f"({total_rows} rows)"
-        )
+        print(f"[merge] {len(paths)} files -> {out_path.name} ({total_rows} rows)")
     else:
         # Multiple schemas — write one file per schema group
         print(
             f"[merge] {len(schema_groups)} schema groups detected; "
             f"writing one file per group"
         )
-        for cols, paths in sorted(
-            schema_groups.items(), key=lambda x: -len(x[1])
-        ):
+        for cols, paths in sorted(schema_groups.items(), key=lambda x: -len(x[1])):
             tables = [pq.read_table(p) for p in paths]
             merged = pa.concat_tables(tables, promote_options="default")
 
@@ -117,8 +110,7 @@ def consolidate_raw_parquet(
                     p.unlink()
 
             print(
-                f"  [merge] {len(paths)} files -> {out_path.name} "
-                f"({len(merged)} rows)"
+                f"  [merge] {len(paths)} files -> {out_path.name} ({len(merged)} rows)"
             )
 
     return total_rows

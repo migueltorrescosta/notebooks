@@ -409,7 +409,7 @@ def plot_drive_optimal_params(
 #       cross-experiment comparison, fraction below SQL
 # ──────────────────────────────────────────────
 #
-# These plot functions have been moved to ``reports/20260519/phase_modulated_drive.py``
+# These plot functions have been moved to ``reports/r20260519/phase_modulated_drive.py``
 # as they are used exclusively by the 20260519 report.
 
 

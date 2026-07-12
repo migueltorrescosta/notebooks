@@ -15,7 +15,7 @@ Define a disciplined, repeatable process for implementing physics simulations fr
 4. Plan the physical model — document Hilbert space, basis, and operators before coding.
 5. Add tests first (TDD) — unit tests co-located in `src/` subdirectories, integration/E2E tests in `tests/`, report-specific tests in the report's `test_{slug}.py`.
 6. Check `src/` for available code. Do not reimplement already existing functionality.
-6. **New code goes to experiment module** — New code should be added to a descriptive-name Python file in `reports/YYYYMMDD/` (e.g., `phase_modulated_drive.py`). Only promote code to `src/` when it is demonstrably reusable across multiple reports.
+6. **New code goes to experiment module** — New code should be added to a descriptive-name Python file in `reports/rYYYYMMDD/` (e.g., `phase_modulated_drive.py`). Only promote code to `src/` when it is demonstrably reusable across multiple reports.
 
 # Workflow
 
@@ -34,7 +34,7 @@ Define a disciplined, repeatable process for implementing physics simulations fr
    - Unit tests co-located with modules in `src/` subdirectories.
    - Integration/E2E tests in `tests/`.
    - Report-specific tests for the experiment module in the report's own `test_{slug}.py`.
-2. **Add new code to experiment module** — write all new report-specific simulation functions in a descriptive-name Python file in `reports/YYYYMMDD/` (e.g., `phase_modulated_drive.py`). Do not add them to `src/` modules unless they are needed by multiple reports.
+2. **Add new code to experiment module** — write all new report-specific simulation functions in a descriptive-name Python file in `reports/rYYYYMMDD/` (e.g., `phase_modulated_drive.py`). Do not add them to `src/` modules unless they are needed by multiple reports.
 
 ## 3. At the end
 

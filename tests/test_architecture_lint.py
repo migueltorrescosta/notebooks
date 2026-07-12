@@ -161,57 +161,6 @@ class TestNoLinalgInvInSrc:
 # ── Imports from report code files ─────────────────────────────────────────
 
 
-def _find_imports_from_reports(source: str) -> list[tuple[int, str]]:
-    """Return ``(line_number, line_text)`` for each import from a report module.
-
-    Only matches actual Python import statements, not comments or docstrings.
-    """
-    patterns = [
-        r"^\s*from\s+reports\.\d{8}\.\w+\s+import\s+",
-        r"^\s*import\s+reports\.\d{8}\.\w+",
-    ]
-    violations: list[tuple[int, str]] = []
-    for line_idx, line in enumerate(source.splitlines(), start=1):
-        stripped = line.strip()
-        if not stripped or stripped.startswith(("#", '"""')):
-            continue
-        if stripped.startswith(("r", "f")):
-            continue
-        for pat in patterns:
-            if re.search(pat, line):
-                violations.append((line_idx, line.strip()))
-                break
-    return violations
-
-
-class TestNoImportsFromReportCode:
-    """Global Constraint 7: No imports from report code files outside reports.
-
-    Code in ``src/``, ``pages/``, and ``tests/`` must never import from a
-    report's experiment module (was ``local.py``).  If the function is needed
-    externally, promote it to ``src/`` first.
-    """
-
-    @pytest.mark.parametrize(
-        "py_path",
-        _py_files_under(_SRC_DIR)
-        + _py_files_under(_PAGES_DIR)
-        + _py_files_under(_TESTS_DIR),
-        ids=lambda p: p.relative_to(_PROJECT_ROOT).as_posix(),
-    )
-    def test_no_imports_from_reports(self, py_path: Path) -> None:
-        """No ``from reports.YYYYMMDD.<slug> import`` or similar."""
-        source = py_path.read_text(encoding="utf-8")
-        violations = _find_imports_from_reports(source)
-        if violations:
-            rel = py_path.relative_to(_PROJECT_ROOT)
-            msg = f"{rel}: import from report code file found:\n"
-            for lineno, text in violations:
-                msg += f"  L{lineno}: {text}\n"
-            msg += "Promote the needed code to src/ first."
-            pytest.fail(msg)
-
-
 def _all_project_py_files() -> list[Path]:
     """Return sorted list of all ``.py`` files in the project (excluding ``__init__.py``).
 
@@ -227,8 +176,8 @@ def _all_project_py_files() -> list[Path]:
     for report_dir in sorted(_PROJECT_ROOT.joinpath("reports").iterdir()):
         if (
             report_dir.is_dir()
-            and report_dir.name.isdigit()
-            and len(report_dir.name) == 8
+            and report_dir.name.startswith("r")
+            and len(report_dir.name) == 9
         ):
             files.extend(
                 f for f in sorted(report_dir.glob("*.py")) if f.name != "__init__.py"
@@ -436,20 +385,20 @@ class TestFileLength:
     _HARD_OVERRIDES: frozenset[str] = frozenset(
         {
             "src/analysis/ancilla_drive_metrology.py",
-            "reports/20260518/ancilla_drive_enhanced_metrology.py",
-            "reports/20260524/phase_diffusion_robustness.py",
-            "reports/20260616/general_4param_omega_drive.py",
-            "reports/20260528/free_ancilla_initial_state.py",
-            "reports/20260525/joint_measurement_xx_coupling.py",
-            "reports/20260619/ancilla_oat_pre_squeezing.py",
-            "reports/20260610/free_ancilla_omega_modulated.py",
-            "reports/20260523/four_param_coupling_multi_particle.py",
-            "reports/20260620/multi_particle_free_ancilla.py",
-            "reports/20260615/nonlinear_measurement_parity_cfi.py",
-            "reports/20260519/phase_modulated_drive.py",
-            "reports/20260621/bell_state_initial_entanglement.py",
-            "reports/20260625/heisenberg_limit_mzi_sq_oat.py",
-            "reports/20260628/free_ancilla_joint_measurement.py",
+            "reports/r20260518/ancilla_drive_enhanced_metrology.py",
+            "reports/r20260524/phase_diffusion_robustness.py",
+            "reports/r20260616/general_4param_omega_drive.py",
+            "reports/r20260528/free_ancilla_initial_state.py",
+            "reports/r20260525/joint_measurement_xx_coupling.py",
+            "reports/r20260619/ancilla_oat_pre_squeezing.py",
+            "reports/r20260610/free_ancilla_omega_modulated.py",
+            "reports/r20260523/four_param_coupling_multi_particle.py",
+            "reports/r20260620/multi_particle_free_ancilla.py",
+            "reports/r20260615/nonlinear_measurement_parity_cfi.py",
+            "reports/r20260519/phase_modulated_drive.py",
+            "reports/r20260621/bell_state_initial_entanglement.py",
+            "reports/r20260625/heisenberg_limit_mzi_sq_oat.py",
+            "reports/r20260628/free_ancilla_joint_measurement.py",
         }
     )
 

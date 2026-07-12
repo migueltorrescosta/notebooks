@@ -57,7 +57,7 @@ uv run pytest . -m ""                  # ALL tests (slow and fast)
 
 ### Parquet Test Fixtures
 
-Tests that generate full-size Parquet datasets (e.g., `reports/20260625/`) use
+Tests that generate full-size Parquet datasets (e.g., `reports/r20260625/`) use
 pre-computed reference fixtures under `reports/*/tests/fixtures/` instead of
 regenerating data from scratch. To regenerate fixtures when data schemas change:
 

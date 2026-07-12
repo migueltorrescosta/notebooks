@@ -25,7 +25,7 @@ Audit the codebase implementation related to a specific report against all proje
    - The simulation functions and dataclasses used
    - The expected outputs and success criteria
 2. **Read the relevant code** — Open all source files related to this report:
-   - The report's own experiment module (e.g., `phase_modulated_drive.py`) and its test file (`test_*.py`) in `reports/YYYYMMDD/`
+   - The report's own experiment module (e.g., `phase_modulated_drive.py`) and its test file (`test_*.py`) in `reports/rYYYYMMDD/`
    - Physics modules (`src/physics/`)
    - Evolution modules (`src/evolution/`)
    - Analysis modules (`src/analysis/`)

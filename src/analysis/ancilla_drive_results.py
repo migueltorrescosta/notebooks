@@ -5,7 +5,7 @@ Each dataclass implements ParquetSerializable for self-describing
 save/load roundtrips.
 
 References:
-- Report ``reports/20260518/Ancilla-Drive-Enhanced-Metrology.md``
+- Report ``reports/r20260518/Ancilla-Drive-Enhanced-Metrology.md``
 """
 
 from __future__ import annotations

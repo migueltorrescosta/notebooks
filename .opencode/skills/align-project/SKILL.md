@@ -71,7 +71,7 @@ This skill inspects, reports, and auto-fixes only purely mechanical issues (form
    - If yes, delete it (the runner's core functionality lives in the experiment module; git history preserves the original).
    - If no, note the gap.
 2. **Unreferenced Parquet files** — List all `reports/*/raw_data/*.parquet` files. Cross-reference against their report's `.md` file (grep for the filename stem). Flag any Parquet files not referenced by any report as potentially orphaned.
-3. **Orphaned report directories** — Check if any `reports/YYYYMMDD/` directory lacks both a `.md` file and a `.py` experiment module. Flag as possibly stale scaffolding.
+3. **Orphaned report directories** — Check if any `reports/rYYYYMMDD/` directory lacks both a `.md` file and a `.py` experiment module. Flag as possibly stale scaffolding.
 4. **Dead code detection** — Run `vulture . --exclude '.venv,.opencode,.git,__pycache__' --sort-by-size` to identify unused functions, methods, and imports. Review findings manually (expect ~75% noise — mock `return_value`, pytest hooks, argparse-dispatch, and public API functions are common false positives).
 
 ### 3b. Shared-infrastructure cross-report analysis
@@ -161,12 +161,12 @@ Save this summary to agentmemory via `agentmemory_memory_save()` with type `"pat
 - **CHANGELOG structural audit (§2b)**:
   - [ ] Verified each weekly section follows `## Week NN (Mon DD–Sun DD)` with sub-sections in order (`### New Report` before `### Infrastructure`)
   - [ ] Verified entries use the format `- **Title** (#YYYYMMDD) — description`
-  - [ ] Cross-referenced all `reports/YYYYMMDD/` directories against CHANGELOG entries — no completed reports missing
+  - [ ] Cross-referenced all `reports/rYYYYMMDD/` directories against CHANGELOG entries — no completed reports missing
   - [ ] Verified no completed items remain in the Backlog (cross-referenced against weekly entries)
 - **Stale file scan (§3a)**:
   - [ ] Scanned for stale runner scripts (`reports/*/run_parallel.py`, `reports/*/sweep_runner.py`) — coverage judged against the experiment module
   - [ ] Scanned for unreferenced Parquet files (`reports/*/raw_data/*.parquet`) — cross-referenced against report `.md` files
-  - [ ] Checked for orphaned report directories (any `reports/YYYYMMDD/` lacking both `.md` and an experiment module)
+  - [ ] Checked for orphaned report directories (any `reports/rYYYYMMDD/` lacking both `.md` and an experiment module)
 - **Shared-infrastructure analysis (§3b)**:
   - [ ] Cross-referenced each candidate against existing `src/` modules (to avoid re-promoting already-promoted code)
   - [ ] Categorised each duplicate as exact-match, near-match, or superficial-match

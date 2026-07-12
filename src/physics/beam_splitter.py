@@ -52,7 +52,7 @@ Post-BS Variance Reference:
 
     For states already constructed in the post-BS1 form (e.g. as probe
     states after an effective BS1), the variance is simply the variance
-    of the input state itself.  See reports/20260601/ for CFI-based
+    of the input state itself.  See reports/r20260601/ for CFI-based
     verification and the effect of skipping BS1 for NOON states.
 """
 

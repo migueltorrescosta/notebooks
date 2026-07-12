@@ -7,7 +7,7 @@ in ``ancilla_drive_metrology`` and result dataclasses in
 ``ancilla_drive_results``.
 
 References:
-- Report ``reports/20260518/Ancilla-Drive-Enhanced-Metrology.md``
+- Report ``reports/r20260518/Ancilla-Drive-Enhanced-Metrology.md``
 """
 
 from __future__ import annotations
