@@ -8,7 +8,7 @@
 
 Quantum metrology promises measurement precision beyond the reach of classical interferometry. The textbook path to Heisenberg-limited sensitivity requires exploiting entanglement among many particles — NOON states, squeezed states, or cat states — with the Standard Quantum Limit (SQL) scaling as $\Delta\phi \propto 1/\sqrt{N}$ for $N$ uncorrelated probes. A more radical question, however, is whether one can beat even the single-particle SQL ($N=1$) by engineering the *dynamics* rather than the *initial state*.
 
-This report explores a metrological protocol that couples a single system qubit to an ancilla qubit through an engineered, $\omega$-modulated Hamiltonian. The central idea is to replace the usual passive phase accumulation $\exp(i \phi \hat{n})$ with an active evolution $U(T_H) = \exp(-i T_H \hat{H}(\omega))$, where the Hamiltonian depends parametrically on the unknown parameter $\omega$ itself. By carefully designing the system–ancilla interaction, the protocol achieves a sensitivity $\Delta\omega = 0.02036$ at $\omega = 0.2$ — a factor of $3.47\times$ below the SQL reference $\Delta\omega_{\text{SQL}} = 1/(\sqrt{2}\,T_H) \approx 0.07071$, using $N = 2$ particles (one system qubit + one ancilla qubit).
+This report explores a metrological protocol that couples a single system qubit to an ancilla qubit through an engineered, $\omega$-modulated Hamiltonian. The central idea is to replace the usual passive phase accumulation $\exp(i \phi \hat{n})$ with an active evolution $U(T_H) = \exp(-i T_H \hat{H}(\omega))$, where the Hamiltonian depends parametrically on the unknown parameter $\omega$ itself. By carefully designing the system–ancilla interaction, the protocol achieves a sensitivity $\Delta\omega = 0.01739$ at $\omega = 0.06$ — a factor of $4.07\times$ below the SQL reference $\Delta\omega_{\text{SQL}} = 1/(\sqrt{2}\,T_H) \approx 0.07071$, using $N = 2$ particles (one system qubit + one ancilla qubit).
 
 The key insight is **parametric amplification via ω-modulated driving**: when the Hamiltonian scales with $\omega$, the evolution operator acquires a nonlinear dependence that mimics the effect of entanglement in conventional protocols. The ancilla serves as a second information carrier and a resource for parametric amplification, analogous to a quantum transducer that converts phase information into population differences with enhanced gain.
 
@@ -65,7 +65,7 @@ The sensitivity is computed through the standard error-propagation formula: $\De
 
 with $\delta = 10^{-5}$. The SQL reference is $\Delta\omega_{\text{SQL}} = 1/(\sqrt{2}\,T_H) \approx 0.07071$, corresponding to two uncorrelated qubits in a standard Ramsey interferometer (the conventional SQL for $N=2$ particles).
 
-The choice $N=2$ counts both the system and ancilla qubits as metrological resources. This is the conservative convention: the SQL for $N$ uncorrelated particles under independent phase accumulation is $\Delta\omega_{\text{SQL}} = 1/(\sqrt{N}\,T_H)$. Since our protocol uses two qubits, $N=2$ is the fair benchmark. If one instead treats the ancilla purely as a measurement amplifier (not a conventional phase-accumulating probe), the SQL would be $1/T_H$ ($N=1$), and the advantage would appear larger ($4.91\times$). We adopt the conservative $N_\text{total}=2$ convention throughout to avoid overstating the metrological gain.
+The choice $N=2$ counts both the system and ancilla qubits as metrological resources. This is the conservative convention: the SQL for $N$ uncorrelated particles under independent phase accumulation is $\Delta\omega_{\text{SQL}} = 1/(\sqrt{N}\,T_H)$. Since our protocol uses two qubits, $N=2$ is the fair benchmark. If one instead treats the ancilla purely as a measurement amplifier (not a conventional phase-accumulating probe), the SQL would be $1/T_H$ ($N=1$), and the advantage would appear larger ($5.75\times$). We adopt the conservative $N_\text{total}=2$ convention throughout to avoid overstating the metrological gain.
 
 ### Practical estimation workflow
 
@@ -236,7 +236,7 @@ The first result is a null result with important implications. When $a_{zz} = 0$
 
 ### 7.2 2D slice: $(a_x, a_{zz})$ at fixed $\omega$
 
-Figure 1 shows the 2D sensitivity landscape over $(a_x, a_{zz})$ at $\omega = 0.1$ (the region where sub-SQL performance is strongest). The landscape reveals a clear structure: the sensitivity improves with increasing $|a_x|$, saturating at $|a_x| = 5$ (the search bound), with an optimal $a_{zz} \approx 0.75$.
+Figure 1 shows the 2D sensitivity landscape over $(a_x, a_{zz})$ at $\omega = 0.1$ (a region of strong sub-SQL performance). The landscape reveals a clear structure: the sensitivity improves with increasing $|a_x|$, saturating at $|a_x| = 5$ (the search bound), with an optimal $a_{zz} \approx 0.75$.
 
 The contours show that the landscape is relatively smooth and mirror-symmetric about $a_x=0$, as expected: the sensitivity depends on $|a_x|$ because the Hamiltonian is linear in $a_x \hat{J}_x^A$ and the measurement operator $\hat{J}_z^S$ is invariant under $a_x \to -a_x$ (a $\pi$ rotation of the ancilla about its $z$-axis). Consequently, minima occur in symmetric pairs $(\pm|a_x^*|, a_{zz}^*)$ rather than as a single isolated point. At the boundary $|a_x| = 5$, both $a_x = +5$ and $a_x = -5$ achieve the same optimum sensitivity $\Delta\omega = 0.0293$. The Nelder-Mead optimiser in the full 4D search selects one sign depending on the initial guess, but both are physically equivalent.
 
@@ -281,7 +281,7 @@ The main result of this study is the combined sensitivity curve shown in Figure 
 3. **Nelder–Mead refinement** (from best 10 random seeds): The refined optimum, showing significant improvement over the raw random search.
 4. **Fixed drive** ($a_x = a_y = a_z = 0$, $a_{zz}$ optimised): A comparison with a simpler protocol where only the interaction is tunable.
 
-The Nelder-Mead curve reveals a clear global minimum at $\omega = 0.2$ with $\Delta\omega = 0.02036$ — a factor of $3.47\times$ below the SQL ($\Delta\omega_{\text{SQL}} = 0.07071$). The sub-SQL region spans approximately $\omega \in [0.05, 0.5]$, a factor of 10 in ω. Outside this window, the sensitivity degrades, approaching SQL at very low ω and becoming worse than SQL at high ω.
+The Nelder-Mead curve reveals a clear global minimum at $\omega = 0.06$ with $\Delta\omega = 0.01739$ — a factor of $4.07\times$ below the SQL ($\Delta\omega_{\text{SQL}} = 0.07071$). The sub-SQL region spans the entire tested range $\omega \in [0.01, 5.0]$, with the best performance concentrated in $\omega \in [0.03, 0.17]$ where $\Delta\omega < 0.02$ (ratio $> 5$). Outside this sweet spot, the sensitivity gradually degrades but remains below SQL across the full range.
 
 The random search finds the sub-SQL region but with ~$2\times$ worse sensitivity than Nelder-Mead, underscoring the importance of local refinement. The fixed-drive protocol achieves at most $1.41\times$ SQL, confirming that the ω-modulated ancilla drive provides additional metrological gain beyond a static interaction.
 
@@ -289,25 +289,25 @@ Note that the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ 2D slice curves overlap exactl
 
 <img src="../reports/20260519/figures/article-n2/20260519-phase-combined-sensitivity.svg" alt="Combined sensitivity comparison" width="100%"/>
 
-*Figure 4: Combined sensitivity $\Delta\omega$ vs $\omega$ for decoupled, random search, Nelder-Mead refinement, and fixed-drive protocols. The global minimum is $\Delta\omega = 0.02036$ at $\omega = 0.2$, $3.47\times$ below the SQL.*
+*Figure 4: Combined sensitivity $\Delta\omega$ vs $\omega$ for decoupled, random search, Nelder-Mead refinement, and fixed-drive protocols. The global minimum is $\Delta\omega = 0.01739$ at $\omega = 0.06$, $4.07\times$ below the SQL.*
 
 ### 7.6 Fraction below SQL
 
-Figure 5 quantifies the sub-SQL performance as a fraction: $R = \Delta\omega_{\text{SQL}} / \Delta\omega$. A value $R > 1$ indicates sub-SQL sensitivity. The Nelder-Mead curve reaches $R_{\max} \approx 3.47$, while the random search peaks at $R \approx 2.0$ and the fixed-drive at $R \approx 1.4$.
+Figure 5 quantifies the sub-SQL performance as a fraction: $R = \Delta\omega_{\text{SQL}} / \Delta\omega$. A value $R > 1$ indicates sub-SQL sensitivity. The Nelder-Mead curve reaches $R_{\max} \approx 4.07$, while the random search peaks at $R \approx 2.0$ and the fixed-drive at $R \approx 1.4$.
 
-The width of the sub-SQL region ($R > 1$) is $\omega \in [0.03, 0.7]$ for Nelder-Mead — nearly a factor of 20 in ω. These endpoints are determined numerically: $\omega = 0.03$ is where the Nelder-Mead $\Delta\omega(\omega)$ curve first drops below the SQL line, and $\omega = 0.7$ is where it crosses back above. This broad operating range is significant for practical metrology, where the unknown parameter may span several orders of magnitude.
+The entire tested range $\omega \in [0.01, 5.0]$ lies below the SQL for Nelder-Mead — a factor of 500 in $\omega$. The sweet spot where $\Delta\omega < 0.02$ (ratio $> 5$) spans $\omega \in [0.03, 0.17]$, a factor of approximately 6 in $\omega$. This broad operating range is significant for practical metrology, where the unknown parameter may span several orders of magnitude.
 
 <img src="../reports/20260519/figures/article-n2/20260519-phase-fraction-below-sql.svg" alt="Fraction below SQL" width="100%"/>
 
-*Figure 5: Ratio $\Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of $\omega$. Values above 1 indicate sub-SQL performance. The best ratio is $3.47$ at $\omega = 0.2$. The $(a_x, a_{zz})$ and $(a_y, a_{zz})$ curves overlap because they provide the same sensitivity minima at every $\omega$, reflecting the Hamiltonian's symmetry between the transverse drive axes.*
+*Figure 5: Ratio $\Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of $\omega$. Values above 1 indicate sub-SQL performance. The best ratio is $4.07$ at $\omega = 0.06$. The $(a_x, a_{zz})$ and $(a_y, a_{zz})$ curves overlap because they provide the same sensitivity minima at every $\omega$, reflecting the Hamiltonian's symmetry between the transverse drive axes.*
 
 ### 7.7 Optimal parameters versus ω
 
 The optimal parameters from the Nelder-Mead refinement show the following trends as functions of ω:
 
 - **Transverse drives $(a_x, a_y)$**: Both saturate at $\pm 5$ for $\omega \lesssim 1$, then decrease at higher ω. The optimal signs are opposite for $a_x$ and $a_y$, consistent with a circularly polarised drive.
-- **Longitudinal drive $a_z$**: The optimal value at the global optimum is $|a_z| \approx 4.0$, with the sign correlated with the relative sign of $a_x$ and $a_y$: same-sign transverse drives require opposite-sign $a_z$, and vice versa. The physical origin of this correlation is the effective magnetic field experienced by the ancilla: the transverse components $(a_x, a_y)$ generate a circularly polarised drive when $a_x$ and $a_y$ have opposite signs, and the sign of $a_z$ determines the tilt direction of the total effective field vector $(a_x, a_y, a_z)$. The opposite-sign constraint ensures that the resulting precession axis aligns with the system--ancilla interaction axis, maximising the cross-term generation that produces sub-SQL sensitivity.
-- **Interaction $a_{zz}$**: Approximately constant at $a_{zz} \approx 4.0$ across the optimal region. This is larger than the 2D slice optimum ($a_{zz} \approx 0.75$), showing that the presence of transverse drives shifts the optimal interaction strength upward, enabling stronger parametric amplification.
+- **Longitudinal drive $a_z$**: The optimal value at the global optimum is $|a_z| = 5.0$ (saturating the search bound), with the sign correlated with the relative sign of $a_x$ and $a_y$: same-sign transverse drives require opposite-sign $a_z$, and vice versa. The physical origin of this correlation is the effective magnetic field experienced by the ancilla: the transverse components $(a_x, a_y)$ generate a circularly polarised drive when $a_x$ and $a_y$ have opposite signs, and the sign of $a_z$ determines the tilt direction of the total effective field vector $(a_x, a_y, a_z)$. The opposite-sign constraint ensures that the resulting precession axis aligns with the system--ancilla interaction axis, maximising the cross-term generation that produces sub-SQL sensitivity.
+- **Interaction $a_{zz}$**: At the global optimum ($\omega = 0.06$), $a_{zz} \approx 1.14$ — substantially weaker than the 2D slice optimum ($a_{zz} \approx 0.75$) but non-zero, confirming that the interaction is essential. For $\omega \geq 0.5$, $a_{zz}$ saturates the upper bound of 5.0, showing that the presence of transverse drives shifts the optimal interaction strength upward at larger $\omega$, enabling stronger parametric amplification. The optimal $a_{zz}$ shows a smooth transition: modest (0.6–0.7) at very small $\omega$, jumping to 1.1–1.4 around the optimum, then saturating at 5.0 for $\omega \geq 0.5$.
 
 ### 7.8 Nelder-Mead convergence
 
@@ -319,15 +319,15 @@ Figure 6 provides a direct comparison between the ω-modulated protocol and the 
 
 The comparison shows:
 
-- The ω-modulated protocol achieves $3.47\times$ SQL vs $1.41\times$ SQL for the fixed-drive protocol — a **$2.5\times$ improvement** (the relative improvement factor is unchanged because both ratios are scaled by the same SQL reference).
-- The optimal ω for the ω-modulated protocol ($\omega = 0.2$) is two orders of magnitude smaller than the optimal drive frequency for the fixed-drive protocol ($\Omega \approx 20$), suggesting different physical mechanisms.
-- The ω-modulated protocol has a broader sub-SQL region (factor 20 in ω) compared to the fixed-drive protocol (factor 5 in Ω).
+- The ω-modulated protocol achieves $4.07\times$ SQL vs $1.41\times$ SQL for the fixed-drive protocol — a **$2.9\times$ improvement** (the relative improvement factor is unchanged because both ratios are scaled by the same SQL reference).
+- The optimal ω for the ω-modulated protocol ($\omega = 0.06$) is two orders of magnitude smaller than the optimal drive frequency for the fixed-drive protocol ($\Omega \approx 20$), suggesting different physical mechanisms.
+- The ω-modulated protocol has a broader sub-SQL region (factor 500 in ω) compared to the fixed-drive protocol (factor 5 in Ω).
 
 This comparison underscores the advantage of making the Hamiltonian itself ω-dependent: it creates a parametric resonance that amplifies sensitivity well beyond what a static drive can achieve.
 
 <img src="../reports/20260519/figures/article-n2/20260519-phase-cross-experiment-comparison.svg" alt="Cross-experiment comparison" width="100%"/>
 
-*Figure 6: Comparison of ω-modulated (Nelder-Mead) vs fixed-drive protocols. The ω-modulated protocol achieves $3.47\times$ SQL at $\omega = 0.2$, while the fixed-drive protocol plateaus at $1.41\times$ SQL.*
+*Figure 6: Comparison of ω-modulated (Nelder-Mead) vs fixed-drive protocols. The ω-modulated protocol achieves $4.07\times$ SQL at $\omega = 0.06$, while the fixed-drive protocol plateaus at $1.41\times$ SQL.*
 
 ---
 
@@ -349,7 +349,7 @@ The full problem with $a_x, a_y \neq 0$ is non-commuting and cannot be factorise
 
 ### 8.2 Scaling analysis and the metrological gain
 
-We can quantify the metrological gain $g = \Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of the optimised parameters. At the global optimum $(\omega = 0.2, a_x = 5.0, a_y = -5.0, a_z = 4.0, a_{zz} = 4.0)$, the gain $g = 3.47$. This is equivalent to the sensitivity that would be achieved with $N_{\text{eff}} = g^2 \approx 12$ uncorrelated particles in a conventional interferometer — a remarkable amplification from two particles, giving an effective $6\times$ advantage over the $N=2$ resource count.
+We can quantify the metrological gain $g = \Delta\omega_{\text{SQL}} / \Delta\omega$ as a function of the optimised parameters. At the global optimum $(\omega = 0.06, a_x = -5.0, a_y = 5.0, a_z = -5.0, a_{zz} = 1.14)$, the gain $g = 4.07$. This is equivalent to the sensitivity that would be achieved with $N_{\text{eff}} = g^2 \approx 16.6$ uncorrelated particles in a conventional interferometer — a remarkable amplification from two particles, giving an effective $8.3\times$ advantage over the $N=2$ resource count.
 
 The scaling of $g$ with the interaction strength $a_{zz}$ is approximately linear for small to moderate $a_{zz}$, saturating at large $a_{zz}$ where the interaction dominates the dynamics and the state becomes strongly entangled. This saturation is consistent with the parametric amplifier analogy: the gain of a parametric amplifier scales linearly with the pump amplitude until pump depletion or nonlinearities set in.
 
@@ -392,25 +392,23 @@ The derivative of the matrix exponential can be evaluated via the spectral decom
 
 ### 8.7 Numerical Comparison at the Global Optimum
 
-Evaluating both information measures at the verified global optimum $(\omega = 0.2,\; a_x = 5,\; a_y = -5,\; a_z = 4,\; a_{zz} = 4,\; T_H = 10)$ gives:
+Evaluating both information measures at the verified global optimum $(\omega = 0.06,\; a_x = -5,\; a_y = 5,\; a_z = -5,\; a_{zz} = 1.14,\; T_H = 10)$ gives:
 
 | Quantity | Value | Meaning |
 |----------|-------|---------|
 | $\Delta\omega_{\text{SQL}}$ | $0.07071$ | Standard quantum limit, $1/(\sqrt{2}\,T_H)$ |
 | $F_{\text{SQL}} = 1/\Delta\omega_{\text{SQL}}^2$ | $200$[^1] | SQL Fisher information |
-| $\Delta\omega_{\text{EP}}$ | $0.02036$ | Error-propagation sensitivity ($J_z^S$ measurement) |
-| $F_C$ | $2412.48$ | CFI for $J_z^S$ measurement ($12.1\times F_{\text{SQL}}$) |
-| $\Delta\omega_Q$ | $0.01673$ | Ultimate QFI-limited sensitivity |
-| $F_Q$ | $3571.82$ | QFI ($17.9\times F_{\text{SQL}}$) |
-| $F_Q / F_C$ | $1.48$ | Headroom for measurement optimisation |
+| $\Delta\omega_{\text{EP}}$ | $0.01739$ | Error-propagation sensitivity ($J_z^S$ measurement) |
+| $F_C$ | $3307.69$ | CFI for $J_z^S$ measurement ($16.5\times F_{\text{SQL}}$) |
+| $\Delta\omega_Q$ | $0.01511$ | Ultimate QFI-limited sensitivity |
+| $F_Q$ | $4377.11$ | QFI ($21.9\times F_{\text{SQL}}$) |
+| $F_Q / F_C$ | $1.32$ | Headroom for measurement optimisation |
 
 [^1]: $F_{\text{SQL}} = 1/\Delta\omega_{\text{SQL}}^2 = T_H^2 N = 200$ for frequency estimation with $T_H=10, N=2$. For phase estimation ($T_H=1$) this reduces to $F_{\text{SQL}} = N = 2$.
 
-The QFI at the optimum is $F_Q = 3571.82$, which is $17.9$ times the SQL Fisher information $F_{\text{SQL}} = 200$ and $1.48$ times the CFI $F_C = 2412.48$ achieved by the $J_z^S$ measurement. The corresponding ultimate sensitivity is $\Delta\omega_Q = 1/\sqrt{F_Q} = 0.01673$, compared to $\Delta\omega_{\text{EP}} = 0.02036$ for $J_z^S$.
+**Interpretation.** The $J_z^S$ measurement already captures approximately $76\%$ of the available quantum Fisher information ($F_C/F_Q \approx 0.756$). The remaining $24\%$ gap means that an optimised POVM — potentially exploiting correlated measurements across both the system and ancilla — could improve the sensitivity by a factor of $\sqrt{F_Q/F_C} \approx 1.15$, from $\Delta\omega = 0.01739$ down to $\Delta\omega = 0.01511$. This is a modest improvement relative to the factor-of-$4.07$ gain already achieved over the SQL, confirming that $J_z^S$ is a remarkably good measurement choice for this protocol.
 
-**Interpretation.** The $J_z^S$ measurement already captures approximately $68\%$ of the available quantum Fisher information ($F_C/F_Q \approx 0.675$). The remaining $32\%$ gap means that an optimised POVM — potentially exploiting correlated measurements across both the system and ancilla — could improve the sensitivity by a factor of $\sqrt{F_Q/F_C} \approx 1.22$, from $\Delta\omega = 0.02036$ down to $\Delta\omega = 0.01673$. This is a modest improvement relative to the factor-of-$3.47$ gain already achieved over the SQL, confirming that $J_z^S$ is a remarkably good measurement choice for this protocol.
-
-The key structural reason for the near-optimality of $J_z^S$ is that the protocol's information about $\omega$ is predominantly encoded in the system qubit's population difference — the ancilla acts primarily as an amplifier rather than as a second information carrier. The small gap $F_Q/F_C = 1.48$ indicates that the ancilla carries a modest amount of additional information that could be extracted through a joint system--ancilla measurement, but the bulk of the metrological gain is already accessible through the simple population readout.
+The key structural reason for the near-optimality of $J_z^S$ is that the protocol's information about $\omega$ is predominantly encoded in the system qubit's population difference — the ancilla acts primarily as an amplifier rather than as a second information carrier. The small gap $F_Q/F_C = 1.32$ indicates that the ancilla carries a modest amount of additional information that could be extracted through a joint system--ancilla measurement, but the bulk of the metrological gain is already accessible through the simple population readout.
 
 ---
 
@@ -418,19 +416,19 @@ The key structural reason for the near-optimality of $J_z^S$ is that the protoco
 
 ### 9.1 Summary of findings
 
-This study demonstrates that an ω-modulated ancilla drive can achieve sub-SQL sensitivity with two particles ($N=2$: one system qubit + one ancilla qubit), reaching $3.47\times$ below the SQL at $\omega = 0.2$ with holding time $T_H = 10$. The key enabler is the system–ancilla interaction $a_{zz} \neq 0$, without which no sub-SQL performance is possible.
+This study demonstrates that an ω-modulated ancilla drive can achieve sub-SQL sensitivity with two particles ($N=2$: one system qubit + one ancilla qubit), reaching $4.07\times$ below the SQL at $\omega = 0.06$ with holding time $T_H = 10$. The key enabler is the system–ancilla interaction $a_{zz} \neq 0$, without which no sub-SQL performance is possible.
 
 The optimisation reveals:
 
-1. **Broad sub-SQL region**: Sensitivity below SQL for $\omega \in [0.03, 0.7]$, spanning nearly a factor of 20 in ω.
-2. **Global optimum**: $\omega = 0.2$, $\Delta\omega = 0.02036$ ($3.47\times$ SQL), achieved with $|a_x| = |a_y| = 5.0$ (opposite signs), $|a_z| \approx 4.0$, $a_{zz} \approx 4.0$.
-3. **Information-theoretic limits**: The $J_z^S$ measurement achieves $F_C = 2412.48$ ($12.1\times$ SQL Fisher information), while the QFI is $F_Q = 3571.82$ ($17.9\times$ SQL). The measurement is near-optimal, capturing $68\%$ of the QFI.
+1. **Broad sub-SQL region**: Sensitivity below SQL across the entire tested range $\omega \in [0.01, 5.0]$, spanning a factor of 500 in ω. The sweet spot where $\Delta\omega < 0.02$ (ratio $> 5$) spans $\omega \in [0.03, 0.17]$.
+2. **Global optimum**: $\omega = 0.06$, $\Delta\omega = 0.01739$ ($4.07\times$ SQL), achieved with $|a_x| = |a_y| = 5.0$ (opposite signs), $|a_z| = 5.0$, $a_{zz} \approx 1.14$.
+3. **Information-theoretic limits**: The $J_z^S$ measurement achieves $F_C = 3307.69$ ($16.5\times$ SQL Fisher information), while the QFI is $F_Q = 4377.11$ ($21.9\times$ SQL). The measurement captures $76\%$ of the QFI.
 4. **Robustness**: The Nelder-Mead optimiser consistently finds similar optima from different initial guesses, indicating a single dominant basin of attraction.
-5. **Advantage over fixed drive**: The ω-modulated protocol outperforms a fixed-drive protocol by $2.5\times$ in sensitivity.
+5. **Advantage over fixed drive**: The ω-modulated protocol outperforms a fixed-drive protocol by $2.9\times$ in sensitivity.
 
 ### 9.2 Implications
 
-The result challenges the intuition that entanglement is necessary for sub-SQL metrology. Here, entanglement (created dynamically via $a_{zz}$) is necessary — the ancilla and system become entangled during the evolution — but only at the level of two qubits. Even with $N = 2$ total particles, the protocol achieves $3.47\times$ below the SQL — surpassing the classical limit for two uncorrelated qubits.
+The result challenges the intuition that entanglement is necessary for sub-SQL metrology. Here, entanglement (created dynamically via $a_{zz}$) is necessary — the ancilla and system become entangled during the evolution — but only at the level of two qubits. Even with $N = 2$ total particles, the protocol achieves $4.07\times$ below the SQL — surpassing the classical limit for two uncorrelated qubits.
 
 This suggests that **engineered dynamics** can amplify the metrological information carried by a small number of particles beyond what classical interferometry with the same particle count can achieve. The ω-modulated protocol achieves what would conventionally require a NOON state or squeezed state — but using only product initial states and Hamiltonian engineering. This has practical implications for noisy intermediate-scale quantum devices, where preparing complex entangled states is difficult, but Hamiltonian engineering is feasible via microwave or optical drives.
 
@@ -438,7 +436,7 @@ This suggests that **engineered dynamics** can amplify the metrological informat
 
 **Open items** remain for future investigation:
 
-1. ~~**QFI bound**~~ (addressed in Section 8.6–8.7): The QFI at the global optimum is $F_Q = 3571.82$, establishing an ultimate precision limit $\Delta\omega_Q = 0.01673$. The $J_z^S$ measurement achieves $F_C = 2412.48$, capturing $68\%$ of the QFI. An optimised joint system--ancilla measurement could improve sensitivity by at most $1.22\times$.
+1. ~~**QFI bound**~~ (addressed in Section 8.6–8.7): The QFI at the global optimum is $F_Q = 4377.11$, establishing an ultimate precision limit $\Delta\omega_Q = 0.01511$. The $J_z^S$ measurement achieves $F_C = 3307.69$, capturing $76\%$ of the QFI. An optimised joint system--ancilla measurement could improve sensitivity by at most $1.15\times$.
 
 2. **Particle scaling**: How does the sensitivity scale with $N$? Can we add more system qubits (or ancilla qubits) and achieve $1/N$ or even $1/N^2$ scaling? The ω-modulated architecture may naturally extend to multi-qubit systems through collective $\hat{J}_z$ operators.
 

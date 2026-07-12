@@ -84,7 +84,7 @@ In the interaction picture, the $\omega$-dependence of $H_A$ means the time-depe
 
 | Parameter | Range | Purpose |
 |-----------|-------|---------|
-| $\omega$ (phase rate) | $0.1$ to $5.0$ in steps of $0.1$ (50 points) | Test $\omega$-dependence of any SQL violation |
+| $\omega$ (phase rate) | $0.01$ to $5.00$ in steps of $0.01$ (500 points) | Test $\omega$-dependence of any SQL violation |
 | $T_H$ (holding time) | **10 (fixed)** | SQL reference $\Delta\omega_{\text{SQL}} = 0.1$ |
 | $a_x$ (ancilla $J_x$ coeff.) | $[-5, 5]$ (grid: 201 pts per slice axis) | Primary drive component; generates non-commuting dynamics |
 | $a_y$ (ancilla $J_y$ coeff.) | $[-5, 5]$ (grid: 201 pts per slice axis) | Secondary drive component |
@@ -97,8 +97,8 @@ In the interaction picture, the $\omega$-dependence of $H_A$ means the time-depe
 
 The primary scan strategy uses:
 - **2D slices**: Vary $(a_x, a_{zz})$ and $(a_y, a_{zz})$ on 201×201 grids with $\omega$ fixed at each of the 50 values (100 × 40,401 = 4,040,100 sensitivity evaluations). Per-$\omega$ CSV/SVG pairs are generated.
-- **Random search in 4D**: 500 random points in $[-5, 5]^4$ for each of the 50 $\omega$ values (25,000 evaluations). Per-$\omega$ histograms are generated.
-- **Local refinement**: Nelder--Mead from the best 50 random-search points per $\omega$ value (2,500 refinement runs total).
+- **Random search in 4D**: 500 random points in $[-5, 5]^4$ for each of the 500 $\omega$ values (250,000 evaluations). Per-$\omega$ histograms are generated.
+- **Local refinement**: Nelder--Mead from the best 50 random-search points per $\omega$ value (25,000 refinement runs total).
 - **Record keeping**: For each $\omega$, the optimal parameters $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$ and resulting $\Delta\omega$ are stored to characterise the $\omega$-dependence of the optimal drive.
 
 All data CSVs are stored in `raw_data/{date}-{tag}.csv` and figures in `figures/{date}-{tag}.svg` (relative to this report's date folder).
@@ -130,7 +130,7 @@ The following physical invariants are verified throughout every simulation run:
 - **Nelder--Mead refinement** — Local optimisation from best grid/random points (50 refinements per $\omega$).
 - **Optimal params storage** — Per-$\omega$ recording of $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$ and $\Delta\omega$.
 - **Validation helpers** — Hermiticity, unitarity, SQL baseline recovery, derivative stability.
-- **Data generation** — 152 CSV files (1 decoupled baseline, 1 ω-scan, 50 per-ω random search, 50 per-ω $(a_x,a_{zz})$ slices, 50 per-ω $(a_y,a_{zz})$ slices) in `raw_data/20260519-*`. The ω-scan results are now presented as figures rather than inline tables.
+- **Data generation** — 152 CSV files (1 decoupled baseline, 1 ω-scan, 50 per-ω random search, 50 per-ω $(a_x,a_{zz})$ slices, 50 per-ω $(a_y,a_{zz})$ slices) in `raw_data/20260519-*`. The ω-scan uses 500 $\omega$ values (0.01 to 5.00, step 0.01) with 500 random-search points plus Nelder--Mead refinement per $\omega$.
 - **Figure generation** — 158 SVG figures in `figures/20260519-*` (including combined-sensitivity, fraction-below-SQL, optimal-params, NM-expectation-variance, and cross-experiment-comparison figures).
 
 **Tests**: The companion test module `tests/test_ancilla_drive_phase_modulated.py` contains **51 tests** covering all functionality. All tests pass.
@@ -149,7 +149,7 @@ The following physical invariants are verified throughout every simulation run:
 
 ## 🔬 Results
 
-All experiments used a holding time $T_H = 10$, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$. The 2D slices were computed on 201×201 grids (40,401 points per slice, 100 slices × 40,401 = 4,040,100 evaluations). The 4D random search used 500 points per $\omega$ value (50 × 500 = 25,000 total), and the Nelder--Mead refinement refined the best 50 random-search points per $\omega$ value (50 × 50 = 2,500 refinement runs total).
+All experiments used a holding time $T_H = 10$, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$. The 2D slices were computed on 201×201 grids (40,401 points per slice, 100 slices × 40,401 = 4,040,100 evaluations). The 4D random search used 500 points per $\omega$ value (50 × 500 = 25,000 total), and the Nelder--Mead refinement refined the best 50 random-search points per $\omega$ value (50 × 50 = 2,500 refinement runs total). The fine $\omega$ scan used 500 $\omega$ values from 0.01 to 5.00 (step 0.01), each with 4D random search (500 pts) plus Nelder--Mead refinement.
 
 ### Decoupled Baseline
 
@@ -202,25 +202,25 @@ The article (Sec 7.4) describes extracting the optimal $(a_z, a_{zz})$ from the 
 
 ### Nelder--Mead Refinement and $\omega$ Scan
 
-The $\omega$ scan combines 4D random search (500 pts) with Nelder--Mead refinement (top 50 points) at each $\omega$ value. The refined results are the **best achieved across the entire parameter search**.
+The $\omega$ scan combines 4D random search (500 pts) with Nelder--Mead refinement (top 50 points) at each of the 500 $\omega$ values from $\omega = 0.01$ to $\omega = 5.00$ (step 0.01). The refined results are the **best achieved across the entire parameter search**.
 
 ![Optimal parameters $a_x^*, a_y^*, a_z^*, a_{zz}^*$ across $\omega$](figures/20260519-phase-optimal-params.svg)
 
 ![Expectation $\langle J_z^S \rangle$ and variance $\text{Var}(J_z^S)$ across $\omega$](figures/20260519-phase-nm-expectation-variance.svg)
 
-The best overall sensitivity is $\Delta\omega = 0.02036$ at $\omega = 0.2$, which is **4.91× below the SQL**. All 50 $\omega$ values from $\omega = 0.1$ to $\omega = 5.0$ beat the SQL, and Nelder--Mead refinement consistently improves the random-search best by 10–20%.
+The best overall sensitivity is $\Delta\omega = 0.017388$ at $\omega = 0.06$, which is **5.75× below the SQL**. All 500 $\omega$ values from $\omega = 0.01$ to $\omega = 5.00$ beat the SQL (100%), and Nelder--Mead refinement consistently improves the random-search best by 10–20%.
 
 ### Optimal Parameter Dependence on $\omega$
 
 The optimal parameters show clear systematic trends:
 
-1. **$a_{zz}^*$ saturates the upper bound (5.0)** for $\omega \geq 0.5$. For $\omega = 0.1$, $a_{zz}^* = 1.422$ is weaker but still non-zero. The 50-$\omega$ scan reveals that $a_{zz}^*$ makes a sharp transition from $\sim$1.4 to 5.0 around $\omega = 0.2$--0.3, and remains at 5.0 for all $\omega \geq 0.5$. This suggests the optimal interaction strength depends on $\omega$: weaker interaction suffices when the effective drive is small, while maximum coupling is beneficial once $\omega$ (and hence the effective drive) is large enough.
+1. **$a_{zz}^*$ shows a clear transition**: At very small $\omega$ (0.01–0.04), $a_{zz}^*$ is modest (0.63–0.65). Around $\omega \approx 0.05$–$0.07$, it jumps to $\sim 1.1$–$1.4$. For $\omega \geq 0.5$, $a_{zz}^*$ saturates the upper bound (5.0). The 500-$\omega$ scan reveals a smooth but non-monotonic transition, with a notable bump around $\omega \approx 0.1$–$0.3$. This suggests the optimal interaction strength depends on $\omega$: weaker interaction suffices when the effective drive is small, while maximum coupling is beneficial once $\omega$ (and hence the effective drive) is large enough.
 
-2. **Non-commuting drive is essential**: In all 50 optimal configurations, both $a_x^*$ and $a_y^*$ are non-zero (magnitudes 0.6–5.0), confirming that $[H_A, J_z^A] \neq 0$ is required for the SQL violation. No optimal solution converged to $a_x = a_y = 0$.
+2. **Non-commuting drive is essential**: In all 500 optimal configurations, both $a_x^*$ and $a_y^*$ are non-zero (magnitudes 2.6–5.0), confirming that $[H_A, J_z^A] \neq 0$ is required for the SQL violation. No optimal solution converged to $a_x = a_y = 0$.
 
-3. **$a_z^*$ is not essential**: At $\omega \geq 4.0$, $a_z^*$ is vanishing (within numerical precision $< 10^{-5}$). At $\omega=0.1$, $a_z^* = 5.0$ (the upper bound). The commuting $J_z^A$ drive plays a supporting role at small $\omega$ but is not the primary mechanism — consistent with the 2D slice results where $a_z = 0$ still produced clear SQL violation.
+3. **$a_z^*$ plays a supporting role**: At $\omega \geq 2.0$, $a_z^*$ is vanishing (within numerical precision $< 10^{-5}$). At $\omega = 0.06$ (the global optimum), $a_z^* = -5.0$ (the lower bound). At $\omega = 0.1$, $a_z^* = 5.0$ (the upper bound). The commuting $J_z^A$ drive provides a bias that optimises the operating point at small $\omega$ but is not the primary mechanism — consistent with the 2D slice results where $a_z = 0$ still produced clear SQL violation.
 
-4. **The enhancement is strongest at small $\omega$**: This is a surprising but clear result. At $\omega = 0.2$, the effective drive $\omega a_k$ is weak ($0.2 \times 5 = 1.0$), yet the sensitivity improvement is maximal (4.91× below SQL). This contradicts the pre-experiment expectation that small $\omega$ would give minimal enhancement. The 50-$\omega$ scan shows the $\Delta\omega$ increases monotonically with $\omega$, confirming this is a robust trend (not a sampling artifact). Possible explanation: at small $\omega$, the system operates in a regime where the derivative $\partial\langle J_z^S\rangle/\partial\omega$ benefits maximally from the $\omega$-modulated ancilla channel without the variance growing proportionally.
+4. **The enhancement is strongest at small $\omega$**: This is a clear result. At $\omega = 0.06$, the effective drive $\omega a_k$ is weak ($0.06 \times 5 = 0.3$), yet the sensitivity improvement is maximal (5.75× below SQL). This contradicts the pre-experiment expectation that small $\omega$ would give minimal enhancement. The 500-$\omega$ scan (0.01 to 5.00 in steps of 0.01) reveals a **non-monotonic** trend: $\Delta\omega$ decreases from $\omega = 0.01$ to a minimum at $\omega \approx 0.06$, then increases with secondary structure (local minima near $\omega \approx 0.15$ and $\omega \approx 0.23$) before monotonically increasing toward $\omega = 5.0$. The best $\omega$ values cluster in the range $\omega \in [0.03, 0.17]$ where $\Delta\omega < 0.02$ (ratio $< 0.20$). Possible explanation: at small $\omega$, the system operates in a regime where the derivative $\partial\langle J_z^S\rangle/\partial\omega$ benefits maximally from the $\omega$-modulated ancilla channel without the variance growing proportionally.
 
 5. **Comparison with fixed-drive (2026-05-18)**: See the dedicated subsection below.
 
@@ -228,7 +228,7 @@ The optimal parameters show clear systematic trends:
 
 ![Comparison between $\omega$-modulated and fixed-drive protocols](figures/20260519-phase-cross-experiment-comparison.svg)
 
-The fixed-drive protocol achieves $\Delta\omega = 0.1$ (exactly SQL) for all $\omega$ values. The $\omega$-modulated protocol achieves $\Delta\omega < 0.1$ for all 50 $\omega$ values tested, with a maximum improvement of 4.91$\times$ at $\omega=0.2$. The ratio $\Delta\omega_{2026-05-19} / \Delta\omega_{2026-05-18}$ is well below 1 for all $\omega$ values, confirming that the $\omega$-modulation is the essential ingredient.
+The fixed-drive protocol achieves $\Delta\omega = 0.1$ (exactly SQL) for all $\omega$ values. The $\omega$-modulated protocol achieves $\Delta\omega < 0.1$ for all 500 $\omega$ values tested, with a maximum improvement of 5.75$\times$ at $\omega=0.06$. The ratio $\Delta\omega_{2026-05-19} / \Delta\omega_{2026-05-18}$ is well below 1 for all $\omega$ values, confirming that the $\omega$-modulation is the essential ingredient.
 
 ### Summary
 
@@ -239,20 +239,20 @@ The fixed-drive protocol achieves $\Delta\omega = 0.1$ (exactly SQL) for all $\o
 | 2D slice: $(a_y, a_{zz})$ | **Completed** (50 $\omega$ values) | Best $\Delta\omega = 0.0293$ ($\omega=0.1$), 0.293× SQL |
 | 4D random search (25,000 pts) | **Completed** (50 $\omega$ values) | Best $\Delta\omega = 0.0236$ ($\omega=0.1$), 0.236× SQL |
 | Nelder--Mead refinement (2,500 runs) | **Completed** (50 $\omega$ values) | Best $\Delta\omega = 0.02036$ ($\omega=0.2$), 0.204× SQL |
-| $\omega$ scan (50 values) | **Completed** | All 50 $\omega$ values beat SQL; best at $\omega=0.2$ |
+| $\omega$ scan (500 values) | **Completed** | All 500 $\omega$ values beat SQL; best at $\omega=0.06$ ($\Delta\omega=0.017388$, 5.75× SQL) |
 
 ## ✅ Success Criteria — Actual Outcomes
 
 | Criterion | Expected | Actual | Verdict |
 |-----------|----------|--------|---------|
 | **Decoupled baseline** | $\Delta\omega = 1/T_H = 0.1$ | $\Delta\omega = 0.1000000000$ | **PASS** |
-| **SQL violation** | $\exists$ params with $\Delta\omega < 0.1$ | $\Delta\omega = 0.02036$ at $\omega=0.2$ (ratio 0.204) | **PASS** — **4.91× below SQL** |
+| **SQL violation** | $\exists$ params with $\Delta\omega < 0.1$ | $\Delta\omega = 0.017388$ at $\omega=0.06$ (ratio 0.174) | **PASS** — **5.75× below SQL** |
 | **Drive essential** | $\Delta\omega \geq 1/T_H$ at $a_k=0$ | Trivially holds ($H_A = 0$) | **PASS** |
 | **Non-commuting benefit** | $a_x \neq 0$ or $a_y \neq 0$ required | All optimal points have $a_x, a_y \neq 0$; $a_z$ alone insufficient | **PASS** |
 | **Reproducibility** | NM refines random-search best | NM improves 10–20% over RS best | **PASS** |
 | **Numerical validity** | Unitarity, Hermiticity, normalisation | All automated checks pass | **PASS** |
 | **Finite derivative** | $\vert\partial\langle J_z^S\rangle/\partial\omega\vert > 10^{-12}$ | All reported $\Delta\omega$ finite | **PASS** |
-| **Optimal params recorded** | Full tuple per $\omega$ | 5 optimal tuples recorded in CSV | **PASS** |
+| **Optimal params recorded** | Full tuple per $\omega$ | 500 optimal tuples recorded in Parquet | **PASS** |
 
 ## ⚖️ Analytical Bounds
 
@@ -279,7 +279,7 @@ A rough dimensional analysis: the sensitivity improvement (if any) should scale 
 
 However, this is a crude estimate — the actual sensitivity depends on how $H_{\text{int}}$ mediates the ancilla dynamics back onto the $J_z^S$ measurement, the interplay of time-ordering, and whether the variance $\text{Var}(J_z^S)$ grows alongside the derivative.
 
-**Numerical prediction vs. actual outcome**: We predicted $\Delta\omega < 0.1$ for some region of the $(a_x, a_y, a_z, a_{zz})$ parameter space — **confirmed**. The prediction of strongest enhancement at large $\vert a_{zz}\vert$ and large $\vert a_x\vert, \vert a_y\vert$ — **confirmed**. The $\omega$-dependence prediction was **partially incorrect**: we expected minimal enhancement at small $\omega$ and maximal at large $\omega$, but the actual result is the **opposite** — the best enhancement (ratio 0.209) occurs at the smallest $\omega = 0.1$, and the weakest enhancement (ratio 0.668) at the largest $\omega = 5.0$. The predicted optimal $\omega$ range $\omega \sim 1\text{--}5$ was too high; the true optimum is at $\omega \lesssim 0.1$ (and may be even better at smaller $\omega$ not yet tested). The predicted $\Delta\omega$ value of $\sim 0.02$ at optimal parameters was **remarkably accurate**: the actual best is $0.0209$.
+**Numerical prediction vs. actual outcome**: We predicted $\Delta\omega < 0.1$ for some region of the $(a_x, a_y, a_z, a_{zz})$ parameter space — **confirmed**. The prediction of strongest enhancement at large $\vert a_{zz}\vert$ and large $\vert a_x\vert, \vert a_y\vert$ — **confirmed**. The $\omega$-dependence prediction was **partially incorrect**: we expected minimal enhancement at small $\omega$ and maximal at large $\omega$, but the actual result shows the best enhancement at $\omega = 0.06$ (ratio 0.174), with a non-monotonic trend including local minima near $\omega \approx 0.15$ and $\omega \approx 0.23$. The predicted optimal $\omega$ range $\omega \sim 1\text{--}5$ was too high; the true optimum is at $\omega \approx 0.06$. The predicted $\Delta\omega$ value of $\sim 0.02$ at optimal parameters was **remarkably accurate**: the actual best is $0.0174$.
 
 ## 🏁 Conclusions
 
@@ -287,7 +287,7 @@ The $\omega$-modulated ancilla drive protocol **unequivocally beats the standard
 
 ### Key findings
 
-1. **SQL violation confirmed**: The best achieved sensitivity is $\Delta\omega = 0.02036$ at $\omega = 0.2$, which is **4.91× better** than the SQL ($\Delta\omega_{\text{SQL}} = 0.1$). SQL violation is observed across all 50 $\omega$ values tested ($\omega = 0.1$ to $5.0$), and across large fractions of the 4D parameter space (up to 50% of random points at $\omega=0.1$).
+1. **SQL violation confirmed**: The best achieved sensitivity is $\Delta\omega = 0.017388$ at $\omega = 0.06$, which is **5.75× better** than the SQL ($\Delta\omega_{\text{SQL}} = 0.1$). SQL violation is observed across all 500 $\omega$ values tested ($\omega = 0.01$ to $5.00$), and across large fractions of the 4D parameter space (up to 50% of random points at small $\omega$).
 
 2. **$\omega$-modulation is the essential ingredient**: The fixed-drive protocol (2026-05-18) achieved exactly $\Delta\omega = \text{SQL}$ for all parameters. The $\omega$-modulated drive ($H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)$) unlocks the SQL violation by providing an additional channel for $\omega$-dependence in the time-evolution operator ($\partial H/\partial\omega = J_z^S + H_A^{\text{norm}}$).
 
@@ -295,11 +295,11 @@ The $\omega$-modulated ancilla drive protocol **unequivocally beats the standard
 
 4. **Strong interaction $a_{zz}$ is beneficial**: The optimal $a_{zz}$ saturates the upper bound ($\approx 5$) for most $\omega$ values, confirming that the system--ancilla interaction mediates the parametric feedback from the ancilla drive onto the $J_z^S$ measurement.
 
-5. **Surprising $\omega$-dependence**: The enhancement is **strongest at small $\omega$** ($\omega = 0.2$), contrary to the pre-experiment expectation that large $\omega$ (strong effective drive) would be optimal. The 50-$\omega$ scan (0.1 to 5.0 in steps of 0.1) confirms this is a **monotonic** trend: $\Delta\omega$ increases smoothly with $\omega$, with no local minima at intermediate $\omega$. This suggests the phase-modulated mechanism operates most efficiently when the effective drive $\omega a_k$ is comparable to or smaller than the interaction strength $a_{zz}$, allowing the derivative $\partial\langle J_z^S\rangle/\partial\omega$ to benefit maximally from the $\omega$-modulated channel.
+5. **Surprising $\omega$-dependence**: The enhancement is **strongest at small $\omega$** ($\omega = 0.06$), contrary to the pre-experiment expectation that large $\omega$ (strong effective drive) would be optimal. The 500-$\omega$ scan (0.01 to 5.00 in steps of 0.01) reveals a **non-monotonic** trend: $\Delta\omega$ decreases from $\omega = 0.01$ to a global minimum at $\omega \approx 0.06$, then increases with secondary structure (local minima near $\omega \approx 0.15$ and $\omega \approx 0.23$) before monotonically increasing toward $\omega = 5.0$. The best $\omega$ values cluster in the range $\omega \in [0.03, 0.17]$ where $\Delta\omega < 0.02$ (ratio $< 0.20$). This suggests the phase-modulated mechanism operates most efficiently when the effective drive $\omega a_k$ is comparable to or smaller than the interaction strength $a_{zz}$, allowing the derivative $\partial\langle J_z^S\rangle/\partial\omega$ to benefit maximally from the $\omega$-modulated channel.
 
 ### Comparison with theoretical prediction
 
-The analytical bound predicted a maximum improvement of $\sim 5\times$ (based on the eigenvalue magnitude $\sqrt{a_x^2 + a_y^2 + a_z^2}$). The observed best improvement of $4.91\times$ at $\omega=0.2$ is remarkably close to this bound, suggesting the system nearly achieves the theoretical maximum for the $\vert a_k\vert \leq 5$ constraint.
+The analytical bound predicted a maximum improvement of $\sim 5\times$ (based on the eigenvalue magnitude $\sqrt{a_x^2 + a_y^2 + a_z^2}$). The observed best improvement of $5.75\times$ at $\omega=0.06$ actually exceeds this rough bound, suggesting the parametric amplification mechanism is even more effective than the simple eigenvalue estimate — likely because the interaction $a_{zz}$ provides additional gain beyond the drive amplitude alone.
 
 ### Open items
 
@@ -307,6 +307,6 @@ The analytical bound predicted a maximum improvement of $\sim 5\times$ (based on
 
 (b) **Joint measurement $J_z^S + J_z^A$**: The current protocol measures only $J_z^S$ on the system. Since the ancilla carries $\omega$-information through the modulated drive, a joint measurement could potentially improve the sensitivity further by accessing the ancilla's $\omega$-dependent state.
 
-(c) **Multiple ancilla particles**: The $N=1$ system SQL is $\Delta\omega = 1/T_H$. Exploring scaling with multiple ancilla qubits could reveal whether the $4.78\times$ enhancement at $N=1$ extends to larger systems.
+(c) **Multiple ancilla particles**: The $N=1$ system SQL is $\Delta\omega = 1/T_H$. Exploring scaling with multiple ancilla qubits could reveal whether the $5.75\times$ enhancement at $N=1$ extends to larger systems.
 
 (d) **$\omega$-modulation with passive ancilla**: A control experiment setting $a_x = a_y = a_z = 0$ (no ancilla drive) but keeping $a_{zz} \neq 0$ should recover the SQL, confirming that the $\omega$ in $H_A$ — not just the interaction — is the source of enhancement. This follows from the analytical argument in the decoupled case and should be verified numerically.
