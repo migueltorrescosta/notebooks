@@ -37,8 +37,8 @@ from src.evolution.lindblad_solver import (
     LindbladConfig,
     evolve_lindblad,
 )
-from src.physics.dicke_basis import jz_operator
 from src.utils.enums import OperatorBasis
+from src.utils.operators import jz_operator
 
 
 def generate_system_state(

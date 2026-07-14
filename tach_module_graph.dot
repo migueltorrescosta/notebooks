@@ -1,0 +1,13 @@
+strict digraph {
+reports;
+"src.**";
+pages;
+tests;
+"reports.**";
+"pages.**";
+reports -> "src.**";
+pages -> "src.**";
+tests -> "src.**";
+tests -> "reports.**";
+tests -> "pages.**";
+}

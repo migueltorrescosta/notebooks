@@ -90,8 +90,8 @@ def compute_sensitivity_df(
         (n, k, j_s, delta_s, ax, az, t)
         for (ax, az) in itertools.product(resolution, repeat=2)
     ]
-    pool = multiprocessing.Pool(processes=cpus)
-    results = pool.starmap(sensitivity, star_generator)
+    with multiprocessing.Pool(processes=cpus) as pool:
+        results = pool.starmap(sensitivity, star_generator)
     return pd.DataFrame(
         data=results,
         columns=[

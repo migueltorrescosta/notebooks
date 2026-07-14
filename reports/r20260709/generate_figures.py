@@ -2,7 +2,7 @@
 Figure generation for report 20260709 (Symmetric ω-Modulated Drive:
 Bounded-Compound Comparison).
 
-Reads existing Parquet data files and generates the 6 SVG figures with
+Reads existing Parquet data files and generates SVG figures with
 correct LaTeX rendering in titles and legends.  Uses raw strings for all
 mathtext to prevent the matplotlib backslash/mathtext corruption issue
 observed in the originally generated SVGs.
@@ -177,65 +177,39 @@ def plot_scenario_a_omega_scan(
 
 
 # ──────────────────────────────────────────────
-# Figure 2: Scenario A optimal parameters
+# Figure 2: Scenario A optimal parameters (3D scatter)
 # ──────────────────────────────────────────────
 
 
-def plot_scenario_a_optimal_params(
+def plot_scenario_a_optimal_params_3d(
     result: ScenarioACompoundResult,
     save_path: str | Path,
-    figsize: tuple[float, float] = (8, 5),
+    figsize: tuple[float, float] = (10, 8),
 ) -> Path:
-    """Optimal (a_x, a_y, a_z) vs ω.
-
-    Title: "Scenario A: Optimal drive parameters vs ω"
-    """
+    """3D scatter of optimal (a_x, a_y, a_z) coloured by sensitivity."""
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111, projection="3d")
 
-    omega = result.omega_values
     a_x = np.array([p[0] for p in result.best_params_per_omega])
     a_y = np.array([p[1] for p in result.best_params_per_omega])
     a_z = np.array([p[2] for p in result.best_params_per_omega])
-    me = _markevery(len(omega))
+    delta = result.best_delta_omega_per_omega
 
-    ax.plot(
-        omega,
-        a_x,
-        "o-",
-        markevery=me,
-        color="C0",
-        markersize=4,
-        linewidth=1.5,
-        label=r"$a_x^*$",
+    scatter = ax.scatter(
+        a_x, a_y, a_z,
+        c=delta, cmap="viridis", s=40, alpha=0.8,
+        edgecolors="none",
     )
-    ax.plot(
-        omega,
-        a_y,
-        "s-",
-        markevery=me,
-        color="C1",
-        markersize=4,
-        linewidth=1.5,
-        label=r"$a_y^*$",
-    )
-    ax.plot(
-        omega,
-        a_z,
-        "^-",
-        markevery=me,
-        color="C2",
-        markersize=4,
-        linewidth=1.5,
-        label=r"$a_z^*$",
-    )
+    cbar = fig.colorbar(scatter, ax=ax, shrink=0.6, pad=0.1)
+    cbar.set_label(r"$\Delta\omega$")
 
-    ax.set_xlabel(r"$\omega$")
-    ax.set_ylabel("Optimal parameter value")
-    ax.set_title(r"Scenario A: Optimal drive parameters vs $\omega$")
-    ax.legend()
+    ax.set_xlabel(r"$a_x^*$")
+    ax.set_ylabel(r"$a_y^*$")
+    ax.set_zlabel(r"$a_z^*$")
+    ax.set_title(r"Scenario A: Optimal $(a_x, a_y, a_z)$ coloured by $\Delta\omega$")
 
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
@@ -333,76 +307,45 @@ def plot_scenario_b_omega_scan(
 
 
 # ──────────────────────────────────────────────
-# Figure 4: Scenario B optimal parameters
+# Figure 4: Scenario B optimal parameters (3D scatter)
 # ──────────────────────────────────────────────
 
 
-def plot_scenario_b_optimal_params(
+def plot_scenario_b_optimal_params_3d(
     result: DriveOmegaScanResult,
     save_path: str | Path,
-    figsize: tuple[float, float] = (8, 5),
+    figsize: tuple[float, float] = (10, 8),
 ) -> Path:
-    """Optimal (a_x, a_y, a_z, a_zz) vs ω.
+    """3D scatter of optimal (a_x, a_z, a_zz) coloured by sensitivity.
 
-    Title: "Scenario B: Optimal drive and interaction parameters vs ω"
+    a_y is omitted from the visualisation — it does not contribute to the
+    signal (see Analytical Bounds section).
     """
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
-    fig, ax = plt.subplots(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111, projection="3d")
 
-    omega = result.omega_values
     a_x = np.array([p[0] for p in result.best_params_per_omega])
-    a_y = np.array([p[1] for p in result.best_params_per_omega])
     a_z = np.array([p[2] for p in result.best_params_per_omega])
     a_zz = np.array([p[3] for p in result.best_params_per_omega])
-    me = _markevery(len(omega))
+    delta = result.best_delta_omega_per_omega
 
-    ax.plot(
-        omega,
-        a_x,
-        "o-",
-        markevery=me,
-        color="C0",
-        markersize=4,
-        linewidth=1.5,
-        label=r"$a_x^*$",
+    scatter = ax.scatter(
+        a_x, a_z, a_zz,
+        c=delta, cmap="viridis", s=40, alpha=0.8,
+        edgecolors="none",
     )
-    ax.plot(
-        omega,
-        a_y,
-        "s-",
-        markevery=me,
-        color="C1",
-        markersize=4,
-        linewidth=1.5,
-        label=r"$a_y^*$",
-    )
-    ax.plot(
-        omega,
-        a_z,
-        "^-",
-        markevery=me,
-        color="C2",
-        markersize=4,
-        linewidth=1.5,
-        label=r"$a_z^*$",
-    )
-    ax.plot(
-        omega,
-        a_zz,
-        "D-",
-        markevery=me,
-        color="C3",
-        markersize=4,
-        linewidth=1.5,
-        label=r"$a_{zz}^*$",
-    )
+    cbar = fig.colorbar(scatter, ax=ax, shrink=0.6, pad=0.1)
+    cbar.set_label(r"$\Delta\omega$")
 
-    ax.set_xlabel(r"$\omega$")
-    ax.set_ylabel("Optimal parameter value")
-    ax.set_title(r"Scenario B: Optimal drive and interaction parameters vs $\omega$")
-    ax.legend()
+    ax.set_xlabel(r"$a_x^*$")
+    ax.set_ylabel(r"$a_z^*$")
+    ax.set_zlabel(r"$a_{zz}^*$")
+    ax.set_title(
+        r"Scenario B: Optimal $(a_x, a_z, a_{zz})$ coloured by $\Delta\omega$"
+    )
 
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")
@@ -568,178 +511,12 @@ def plot_sql_violation_ratio(
 
 
 # ──────────────────────────────────────────────
-# Figure 7+: Individual parameter plots
-# ──────────────────────────────────────────────
-
-# Scenario A parameter definitions: (index, label, display name, color)
-_SCENARIO_A_PARAMS = [
-    (0, "a_x", r"$a_x^*$", "C0"),
-    (1, "a_y", r"$a_y^*$", "C1"),
-    (2, "a_z", r"$a_z^*$", "C2"),
-]
-
-# Scenario B parameter definitions: (index, label, display name, color)
-_SCENARIO_B_PARAMS = [
-    (0, "a_x", r"$a_x^*$", "C0"),
-    (1, "a_y", r"$a_y^*$", "C1"),
-    (2, "a_z", r"$a_z^*$", "C2"),
-    (3, "a_zz", r"$a_{zz}^*$", "C3"),
-]
-
-# Marker styles per parameter (cycles if more params than markers)
-_MARKERS = ["o", "s", "^", "D"]
-
-
-def _plot_single_param(
-    omega: np.ndarray,
-    values: np.ndarray,
-    param_label: str,
-    param_display: str,
-    color: str,
-    marker: str,
-    scenario_label: str,
-    save_path: str | Path,
-    bounds: tuple[float, float] = (-5.0, 5.0),
-    figsize: tuple[float, float] = (8, 4),
-) -> Path:
-    """Plot a single optimal parameter value vs ω.
-
-    Includes shaded saturation bands at the optimisation bounds and
-    horizontal reference lines at ±5.
-    """
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-
-    fig, ax = plt.subplots(figsize=figsize)
-    me = _markevery(len(omega))
-
-    ax.plot(
-        omega,
-        values,
-        f"{marker}-",
-        markevery=me,
-        color=color,
-        markersize=4,
-        linewidth=1.8,
-        label=param_display,
-    )
-
-    # Reference lines at bounds
-    ax.axhline(
-        y=bounds[0],
-        color="gray",
-        linestyle=":",
-        alpha=0.5,
-        linewidth=1.0,
-        label=f"Bound = {bounds[0]:.0f}",
-    )
-    ax.axhline(
-        y=bounds[1],
-        color="gray",
-        linestyle=":",
-        alpha=0.5,
-        linewidth=1.0,
-        label=f"Bound = {bounds[1]:.0f}",
-    )
-
-    # Shaded saturation bands (10% of range from each bound)
-    band_width = 0.1 * (bounds[1] - bounds[0])
-    ax.axhspan(bounds[0], bounds[0] + band_width, alpha=0.08, color="red")
-    ax.axhspan(bounds[1] - band_width, bounds[1], alpha=0.08, color="red")
-
-    # Count saturation points
-    at_lower = np.isclose(values, bounds[0], atol=0.05)
-    at_upper = np.isclose(values, bounds[1], atol=0.05)
-    n_saturated = int(np.sum(at_lower | at_upper))
-    n_total = len(values)
-
-    ax.set_xlabel(r"$\omega$")
-    ax.set_ylabel("Optimal parameter value")
-    ax.set_title(
-        rf"{scenario_label}: Optimal {param_display} vs $\omega$"
-        rf"  ({n_saturated}/{n_total} bound-saturated)"
-    )
-    ax.legend(fontsize=9, loc="best")
-
-    fig.tight_layout()
-    fig.savefig(save_path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    return save_path
-
-
-def _generate_individual_param_figures(
-    result_a: ScenarioACompoundResult,
-    result_b: DriveOmegaScanResult,
-    force: bool = False,
-) -> None:
-    """Generate one SVG per optimised parameter for both scenarios.
-
-    Scenario A: 3 figures (a_x, a_y, a_z).
-    Scenario B: 4 figures (a_x, a_y, a_z, a_zz).
-    """
-    omega_a = result_a.omega_values
-    omega_b = result_b.omega_values
-
-    # --- Scenario A ---
-    params_a = [
-        np.array([p[i] for p in result_a.best_params_per_omega])
-        for i, _, _, _ in _SCENARIO_A_PARAMS
-    ]
-    for (idx, label, display, color), values in zip(
-        _SCENARIO_A_PARAMS, params_a, strict=True
-    ):
-        tag = f"scenario-a-{label}"
-        svg_path = _fig_path(tag)
-        if svg_path.exists() and not force:
-            print(f"  [skip] {svg_path.name} exists")
-            continue
-        print(f"  [plot] {svg_path.name} ...", end=" ", flush=True)
-        _plot_single_param(
-            omega_a,
-            values,
-            label,
-            display,
-            color,
-            _MARKERS[idx],
-            "Scenario A",
-            svg_path,
-        )
-        print("done")
-
-    # --- Scenario B ---
-    params_b = [
-        np.array([p[i] for p in result_b.best_params_per_omega])
-        for i, _, _, _ in _SCENARIO_B_PARAMS
-    ]
-    for (idx, label, display, color), values in zip(
-        _SCENARIO_B_PARAMS, params_b, strict=True
-    ):
-        tag = f"scenario-b-{label}"
-        svg_path = _fig_path(tag)
-        if svg_path.exists() and not force:
-            print(f"  [skip] {svg_path.name} exists")
-            continue
-        print(f"  [plot] {svg_path.name} ...", end=" ", flush=True)
-        _plot_single_param(
-            omega_b,
-            values,
-            label,
-            display,
-            color,
-            _MARKERS[idx],
-            "Scenario B",
-            svg_path,
-        )
-        print("done")
-
-
-# ──────────────────────────────────────────────
 # CLI entry point
 # ──────────────────────────────────────────────
 
 
 def generate_all_figures(force: bool = False) -> None:
-    """Generate all 6 SVG figures from existing Parquet data.
+    """Generate all SVG figures from existing Parquet data.
 
     Args:
         force: If True, overwrite existing SVG files.
@@ -751,9 +528,9 @@ def generate_all_figures(force: bool = False) -> None:
 
     figures = [
         ("scenario-a-omega-scan", plot_scenario_a_omega_scan, [result_a]),
-        ("scenario-a-optimal-params", plot_scenario_a_optimal_params, [result_a]),
+        ("scenario-a-optimal-params", plot_scenario_a_optimal_params_3d, [result_a]),
         ("scenario-b-omega-scan", plot_scenario_b_omega_scan, [result_b]),
-        ("scenario-b-optimal-params", plot_scenario_b_optimal_params, [result_b]),
+        ("scenario-b-optimal-params", plot_scenario_b_optimal_params_3d, [result_b]),
         ("compound-ratio", plot_compound_ratio, [cr]),
         ("sql-violation-ratio", plot_sql_violation_ratio, [cr]),
     ]
@@ -766,10 +543,6 @@ def generate_all_figures(force: bool = False) -> None:
         print(f"  [plot] {svg_path.name} ...", end=" ", flush=True)
         plot_fn(*args, svg_path)
         print("done")
-
-    # Individual per-parameter figures (Scenario A: 3, Scenario B: 4)
-    print("\nGenerating individual parameter figures...")
-    _generate_individual_param_figures(result_a, result_b, force=force)
 
     print("All figures generated.")
 

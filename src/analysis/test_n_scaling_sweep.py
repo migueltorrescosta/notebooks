@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import numpy as np
 import pandas as pd
@@ -76,6 +76,12 @@ def mock_sweep(tmp_path: Path) -> Path:
     return p
 
 
+def _mock_plot_fn(df: Any, omega_fixed: float, save_path: Path, **_kwargs: Any) -> None:
+    """Minimal plot stub that creates an empty file."""
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    save_path.write_text(f"plot:{omega_fixed}")
+
+
 def test_generate_n_scaling_plots_creates_figures(
     mock_sweep: Path, tmp_path: Path
 ) -> None:
@@ -87,6 +93,7 @@ def test_generate_n_scaling_plots_creates_figures(
         parquet_path=mock_sweep,
         result_cls=_MockSweepResult,
         omega_fig_pairs=fig_pairs,
+        plot_fn=_mock_plot_fn,
     )
     assert fig_pairs[0][1].exists()
     assert fig_pairs[1][1].exists()
@@ -103,6 +110,7 @@ def test_generate_n_scaling_plots_skip_no_sweep(
         parquet_path=missing,
         result_cls=_MockSweepResult,
         omega_fig_pairs=fig_pairs,
+        plot_fn=_mock_plot_fn,
     )
     assert not fig_pairs[0][1].exists()
 
@@ -119,6 +127,7 @@ def test_generate_n_scaling_plots_force_overwrites(
         parquet_path=mock_sweep,
         result_cls=_MockSweepResult,
         omega_fig_pairs=[(0.1, fig_p)],
+        plot_fn=_mock_plot_fn,
     )
     content = fig_p.read_text()
     assert "old" not in content
@@ -137,6 +146,7 @@ def test_generate_n_scaling_plots_skip_existing(
         parquet_path=mock_sweep,
         result_cls=_MockSweepResult,
         omega_fig_pairs=[(0.1, fig_p1), (1.0, fig_p2)],
+        plot_fn=_mock_plot_fn,
     )
     assert fig_p1.read_text() == "keep"
     assert fig_p2.exists()
@@ -148,6 +158,7 @@ def test_generate_n_scaling_plots_with_2n_sql(mock_sweep: Path, tmp_path: Path) 
         parquet_path=mock_sweep,
         result_cls=_MockSweepResult,
         omega_fig_pairs=[(0.1, fig_p)],
+        plot_fn=_mock_plot_fn,
         include_2n_sql=True,
     )
     assert fig_p.exists()

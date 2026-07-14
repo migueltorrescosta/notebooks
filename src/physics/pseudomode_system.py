@@ -28,7 +28,6 @@ import scipy.integrate
 import scipy.linalg
 import scipy.special
 
-from src.analysis.fisher_information import quantum_fisher_information_dm
 from src.evolution.lindblad_solver import (
     evolve_lindblad_rk4,
     evolve_lindblad_scipy,
@@ -40,6 +39,7 @@ from src.physics.hybrid_system import (
     oscillator_number,
     spin_operator_x,
 )
+from src.utils.linear_algebra import quantum_fisher_information_dm
 
 # =============================================================================
 # Configuration

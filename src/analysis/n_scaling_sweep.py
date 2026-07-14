@@ -7,7 +7,7 @@ Provides two orchestrators:
 * :func:`generate_n_scaling_plots` — single-omega log-log N-scaling
   figures from an existing sweep-result Parquet (promoted from
   20260522/20260523/20260525).
-* :func:`run_n_scaling_scan` — full (N, ω) grid scan with checkpoint
+* :func:`run_n_scaling_scan` — full (N, omega) grid scan with checkpoint
   recovery and figure generation (promoted from 20260611/20260612).
 
 Also exports helper functions used by the checkpoint-recovery pipeline
@@ -26,12 +26,6 @@ if TYPE_CHECKING:
 
 from src.analysis.checkpoint_recovery import load_checkpoints, run_pending_groups
 from src.analysis.n_scaling_result import NScalingResult, NScalingScanResult
-from src.visualization.scaling_plots import (
-    plot_n_scaling_optimal_params,
-    plot_n_scaling_ratio,
-    plot_n_scaling_sensitivity,
-    plot_n_scaling_single_omega,
-)
 
 # ============================================================================
 # Checkpoint-recovery helpers (used by run_n_scaling_scan)
@@ -107,6 +101,27 @@ def make_checkpoint_name_fn(checkpoint_dir: Path) -> Callable[[Hashable], Path]:
 # ============================================================================
 
 
+def _cleanup_before_rerun(parquet_path: Path, checkpoint_dir: Path) -> None:
+    """Delete existing parquet and checkpoint dir for a force re-run."""
+    parquet_path.unlink(missing_ok=True)
+    if checkpoint_dir.exists():
+        import shutil
+
+        shutil.rmtree(checkpoint_dir)
+
+
+def _maybe_plot_figures(
+    summary: NScalingScanResult,
+    plot_fns: list[tuple[Callable[..., Any] | None, Path, dict[str, Any]]],
+) -> None:
+    """Generate figures via caller-supplied callbacks (skips None entries)."""
+    df = summary.to_dataframe()
+    for plot_fn, fig_path, kwargs in plot_fns:
+        if plot_fn is not None:
+            plot_fn(df, fig_path, **kwargs)
+            print(f"[fig]  {fig_path}")
+
+
 def run_n_scaling_scan(
     *,
     force: bool = False,
@@ -119,24 +134,27 @@ def run_n_scaling_scan(
     fig_sensitivity_path: Path,
     fig_params_path: Path,
     t_hold: float = 10.0,
-) -> None:
-    """Full (N, ω) grid scan with checkpoint recovery and figures.
+    plot_ratio_fn: Callable[..., Any] | None = None,
+    plot_sensitivity_fn: Callable[..., Any] | None = None,
+    plot_params_fn: Callable[..., Any] | None = None,
+) -> NScalingScanResult:
+    """Full (N, omega) grid scan with checkpoint recovery and figures.
 
-    Each ``(N, ω)`` pair is passed to *run_single_n_omega*, which should
-    run the two-phase random-search → Nelder-Mead pipeline and return an
+    Each ``(N, omega)`` pair is passed to *run_single_n_omega*, which should
+    run the two-phase random-search -> Nelder-Mead pipeline and return an
     ``NScalingResult``.  Results are batched by N (via
     :func:`n_group_key`) and checkpointed per-N-value to allow resumption
     if the run is interrupted.
 
     After all pairs are processed (or loaded from checkpoints), three
-    summary figures are generated: ratio, sensitivity, and optimal
-    parameters.
+    summary figures are generated if the corresponding plot callbacks are
+    provided.
 
     Args:
         force: If True, delete existing results and re-run everything.
         run_single_n_omega: Callable ``(N, omega) -> NScalingResult``.
         n_values: List of N values to scan.
-        omega_values: List of ω values to scan.
+        omega_values: List of omega values to scan.
         parquet_path: Path for the merged result Parquet file.
         checkpoint_dir: Directory for per-N checkpoint Parquet files.
         fig_ratio_path: Output path for the ratio-vs-N figure.
@@ -144,6 +162,17 @@ def run_n_scaling_scan(
         fig_params_path: Output path for the optimal-parameters figure.
         t_hold: Holding time used by *run_single_n_omega* (for reference
             lines in figures).
+        plot_ratio_fn: Optional callable ``(df, save_path) -> None`` for
+            the ratio figure.  When ``None``, no ratio figure is generated.
+        plot_sensitivity_fn: Optional callable
+            ``(df, save_path, t_hold=...) -> None`` for the sensitivity
+            figure.  When ``None``, no sensitivity figure is generated.
+        plot_params_fn: Optional callable ``(df, save_path) -> None`` for
+            the optimal-parameters figure.  When ``None``, no params
+            figure is generated.
+
+    Returns:
+        The merged ``NScalingScanResult``.
     """
 
     def _worker_fn(args: tuple[int, float]) -> dict[str, Any]:
@@ -171,11 +200,7 @@ def run_n_scaling_scan(
         summary = NScalingScanResult.from_parquet(parquet_path)
     else:
         if force:
-            parquet_path.unlink(missing_ok=True)
-            if checkpoint_dir.exists():
-                import shutil
-
-                shutil.rmtree(checkpoint_dir)
+            _cleanup_before_rerun(parquet_path, checkpoint_dir)
 
         completed, checkpoint_results = load_checkpoints(
             checkpoint_dir,
@@ -210,14 +235,17 @@ def run_n_scaling_scan(
         summary.save_parquet(parquet_path)
         print(f"[save] {parquet_path}")
 
-    # Generate figures
-    df = summary.to_dataframe()
-    plot_n_scaling_ratio(df, fig_ratio_path)
-    print(f"[fig]  {fig_ratio_path}")
-    plot_n_scaling_sensitivity(df, fig_sensitivity_path, t_hold=t_hold)
-    print(f"[fig]  {fig_sensitivity_path}")
-    plot_n_scaling_optimal_params(df, fig_params_path)
-    print(f"[fig]  {fig_params_path}")
+    # Generate figures via caller-supplied callbacks
+    _maybe_plot_figures(
+        summary,
+        [
+            (plot_ratio_fn, fig_ratio_path, {}),
+            (plot_sensitivity_fn, fig_sensitivity_path, {"t_hold": t_hold}),
+            (plot_params_fn, fig_params_path, {}),
+        ],
+    )
+
+    return summary
 
 
 # ============================================================================
@@ -231,16 +259,16 @@ def generate_n_scaling_plots(
     parquet_path: Path,
     result_cls: type[Any],
     omega_fig_pairs: list[tuple[float, Path]],
+    plot_fn: Callable[..., Any],
     include_2n_sql: bool = False,
     t_hold: float | None = None,
     label: str = "n-scaling plots",
-    plot_fn: Callable[..., Any] | None = None,
 ) -> None:
     """Generate N-scaling log-log figures from a sweep result.
 
     Loads the sweep Parquet, converts it to a DataFrame, and for each
     ``(omega, fig_path)`` in *omega_fig_pairs* produces a single-omega
-    Δθ-vs-N figure.
+    delta-theta-vs-N figure.
 
     Args:
         force: If True, overwrite existing figure files.
@@ -249,14 +277,12 @@ def generate_n_scaling_plots(
             ``to_dataframe``.
         omega_fig_pairs: List of ``(omega_value, fig_save_path)`` tuples.
             One figure is produced per tuple.
+        plot_fn: Callable ``(df, omega_fixed, save_path, t_hold=...,
+            include_2n_sql=...) -> None`` used to produce each figure.
         include_2n_sql: If True, also draw the 2N-SQL reference line.
         t_hold: Holding time for reference lines.  Inferred from the
             DataFrame if ``None``.
         label: Human-readable label for console output.
-        plot_fn: Optional custom plot function.  When provided, called
-            as ``plot_fn(df, omega_fixed, save_path, t_hold=t_hold)``
-            instead of the default
-            :func:`~src.visualization.scaling_plots.plot_n_scaling_single_omega`.
     """
     if not parquet_path.exists():
         print(f"[skip] Sweep data not found at {parquet_path}; run sweep first")
@@ -265,7 +291,6 @@ def generate_n_scaling_plots(
     result = result_cls.from_parquet(parquet_path)
     df = result.to_dataframe()
 
-    plot_func = plot_fn or _default_plot_fn
     n_skipped = 0
     n_plotted = 0
 
@@ -278,7 +303,7 @@ def generate_n_scaling_plots(
             n_skipped += 1
             continue
 
-        plot_func(
+        plot_fn(
             df,
             omega_fixed=omega_val,
             save_path=fig_p,
@@ -289,20 +314,3 @@ def generate_n_scaling_plots(
         n_plotted += 1
 
     print(f"[done] {label}: {n_plotted} plotted, {n_skipped} skipped")
-
-
-def _default_plot_fn(
-    df: Any,
-    omega_fixed: float,
-    save_path: Path,
-    t_hold: float | None = None,
-    include_2n_sql: bool = False,
-) -> None:
-    """Default plot function wrapping ``plot_n_scaling_single_omega``."""
-    plot_n_scaling_single_omega(
-        df,
-        omega_fixed=omega_fixed,
-        save_path=save_path,
-        t_hold=t_hold,
-        include_2n_sql=include_2n_sql,
-    )

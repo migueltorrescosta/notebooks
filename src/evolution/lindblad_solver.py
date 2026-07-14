@@ -35,8 +35,8 @@ import qutip
 import scipy
 import scipy.special
 
-from src.physics.dicke_basis import jz_operator
 from src.utils.enums import OperatorBasis
+from src.utils.operators import jz_operator
 
 # =============================================================================
 # Configuration

@@ -25,6 +25,29 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 
+def _merge_group(
+    paths: list[Path],
+    output_path: Path,
+    delete_shards: bool,
+) -> int:
+    """Read, concatenate, and write a group of Parquet shards.
+
+    Optionally deletes the shard files after writing.
+
+    Returns:
+        Number of rows written.
+    """
+    tables = [pq.read_table(p) for p in paths]
+    merged = pa.concat_tables(tables, promote_options="default")
+    pq.write_table(merged, output_path)
+
+    if delete_shards:
+        for p in paths:
+            p.unlink()
+
+    return len(merged)
+
+
 def consolidate_raw_parquet(
     raw_data_dir: Path,
     glob_pattern: str,
@@ -77,16 +100,8 @@ def consolidate_raw_parquet(
     if len(schema_groups) == 1:
         # Single schema — write directly to the requested output name
         cols, paths = next(iter(schema_groups.items()))
-        tables = [pq.read_table(p) for p in paths]
-        merged = pa.concat_tables(tables, promote_options="default")
         out_path = raw_data_dir / output_name
-        pq.write_table(merged, out_path)
-        total_rows = len(merged)
-
-        if delete_shards:
-            for p in paths:
-                p.unlink()
-
+        total_rows = _merge_group(paths, out_path, delete_shards)
         print(f"[merge] {len(paths)} files -> {out_path.name} ({total_rows} rows)")
     else:
         # Multiple schemas — write one file per schema group
@@ -95,22 +110,12 @@ def consolidate_raw_parquet(
             f"writing one file per group"
         )
         for cols, paths in sorted(schema_groups.items(), key=lambda x: -len(x[1])):
-            tables = [pq.read_table(p) for p in paths]
-            merged = pa.concat_tables(tables, promote_options="default")
-
             # Derive output name from the first three column names
             col_slug = "-".join(sorted(cols)[:3])
             stem = Path(output_name).stem
             out_path = raw_data_dir / f"{stem}-{col_slug}.parquet"
-            pq.write_table(merged, out_path)
-            total_rows += len(merged)
-
-            if delete_shards:
-                for p in paths:
-                    p.unlink()
-
-            print(
-                f"  [merge] {len(paths)} files -> {out_path.name} ({len(merged)} rows)"
-            )
+            n_rows = _merge_group(paths, out_path, delete_shards)
+            total_rows += n_rows
+            print(f"  [merge] {len(paths)} files -> {out_path.name} ({n_rows} rows)")
 
     return total_rows

@@ -403,7 +403,11 @@ def compute_expectation_and_variance(
     psi: np.ndarray,
     operator: np.ndarray,
 ) -> tuple[float, float]:
-    """Compute ⟨ψ|O|ψ⟩ and Var(O) = ⟨O²⟩ - ⟨O⟩² for a pure state.
+    """Compute <psi|O|psi> and Var(O) = <O^2> - <O>^2 for a pure state.
+
+    .. deprecated::
+        Canonical implementation is now in :func:`src.utils.linear_algebra.compute_expectation_and_variance`.
+        This wrapper is kept for backward compatibility.
 
     Args:
         psi: Normalised state vector.
@@ -413,19 +417,11 @@ def compute_expectation_and_variance(
         Tuple (expectation, variance).
 
     """
-    exp_val = np.real(psi.conj() @ operator @ psi)
-    op_sq = operator @ operator
-    exp_sq = np.real(psi.conj() @ op_sq @ psi)
-    raw_var = exp_sq - exp_val**2
-    # Numerical rounding can produce tiny negative variances (~1e-16).
-    # Assert that variance is not significantly negative (physics error).
-    if _debug.verify_operators:
-        assert raw_var >= -1e-12, (
-            f"Unphysical negative variance: Var = {raw_var:.2e} (expectation = {exp_val:.6f})"
-        )
-    # Clamp residual round-off noise (typically O(1e-16)) to zero.
-    var_val = max(0.0, raw_var)
-    return float(exp_val), float(var_val)
+    from src.utils.linear_algebra import (
+        compute_expectation_and_variance as _canonical,
+    )
+
+    return _canonical(psi, operator)
 
 
 def compute_reduced_purity(psi: np.ndarray) -> float:

@@ -211,8 +211,8 @@ def squeezing_parameter(state: np.ndarray, N: int) -> float:
     rho = Qobj(np.outer(state, state.conj()))
 
     # Import J operators from dicke_basis
-    from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
     from src.utils.enums import OperatorBasis
+    from src.utils.operators import jx_operator, jy_operator, jz_operator
 
     J_x = Qobj(jx_operator(N, basis=OperatorBasis.DICKE))
     J_y = Qobj(jy_operator(N, basis=OperatorBasis.DICKE))

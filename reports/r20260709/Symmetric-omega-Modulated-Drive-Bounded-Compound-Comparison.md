@@ -57,11 +57,9 @@ The **derivative** $\partial H/\partial\omega$ for each scenario is:
 - **Scenario B**: $\partial H/\partial\omega = a_x J_x^S + a_y J_y^S + a_z J_z^S + a_x J_x^A + a_y J_y^A + a_z J_z^A$.
   Spectral radius: $\frac12\left[\sqrt{a_x^2 + a_y^2 + a_z^2} + \sqrt{a_x^2 + a_y^2 + a_z^2}\right] = \sqrt{a_x^2 + a_y^2 + a_z^2}$.
 
-The **sensitivity** for both scenarios uses the error-propagation formula:
-$\Delta\omega = \frac{\sqrt{\text{Var}(J_z^S)}}{\big\vert\partial\langle J_z^S\rangle/\partial\omega\big\vert},$
-with central finite differences $\delta = 10^{-6}$. The SQL reference is $\Delta\omega_{\text{SQL}} = 1/t_{\text{hold}} = 0.1$ for both scenarios (single-qubit system measurement).
+The **sensitivity** for both scenarios uses the error-propagation formula $\Delta\omega = \sqrt{\text{Var}(J_z^S)} \big/ \bigl\vert\partial\langle J_z^S\rangle/\partial\omega\big\vert$, computed with central finite differences $\delta = 10^{-6}$. The SQL reference is $\Delta\omega_{\text{SQL}} = 1/t_{\text{hold}} = 0.1$ for both scenarios (single-qubit system measurement).
 
-The **physical mechanism** for compounding is the tensor-sum structure of the derivative. In Scenario B, the spectral radius of $\partial H/\partial\omega$ is the **sum** of the system and ancilla contributions (since they act on different tensor factors), not the maximum of either alone. This means the QFI bound $F_Q \leq 4\,t_{\text{hold}}^2\,\|\partial H/\partial\omega\|^2$ is larger for Scenario B than Scenario A. Moreover, since the system and ancilla Hamiltonians are identical, the spectral radii of the two tensor factors are equal, giving $\|\partial H/\partial\omega\|_B = 2 \|\partial H_S/\partial\omega\|_A$ and thus $F_Q^{(B)} \leq 4 F_Q^{(A)}$ — a clean factor-of-four QFI bound advantage. However, whether this QFI bound is accessible through the $J_z^S$ measurement after dual MZI is the open question — the $J_z^S$ measurement on a single-qubit system may not resolve the full QFI of the two-qubit state.
+The **physical mechanism** for compounding is the tensor-sum structure of the derivative. In Scenario B, the spectral radius of $\partial H/\partial\omega$ is the **sum** of the system and ancilla contributions (since they act on different tensor factors), not the maximum of either alone. This means the QFI bound $F_Q \leq 4\,t_{\text{hold}}^2\,\|\partial H/\partial\omega\|^2$ is larger for Scenario B than Scenario A. Moreover, since the system and ancilla Hamiltonians are identical, the spectral radii of the two tensor factors are equal, giving $\|\partial H/\partial\omega\|_B = 2 \|\partial H_S/\partial\omega\|_A$ and thus $F_Q^{(B)} \leq 4 F_Q^{(A)}$ — a factor-of-four spectral-radius bound advantage. However, this bound is loose: the actual QFI (accounting for the BS-constrained initial state) is $F_Q^{(B)} = 2 F_Q^{(A)}$, giving a tight compound ratio bound of $\sqrt{2}$ (see Analytical Bounds).
 
 ## 📊 Models Survey
 
@@ -148,9 +146,8 @@ Scenario A achieves sub-SQL sensitivity at **every** one of the 500 $\omega$ val
 
 ![Scenario A $\omega$ scan](figures/20260709-scenario-a-omega-scan.svg)
 ![Scenario A optimal parameters](figures/20260709-scenario-a-optimal-params.svg)
-![Scenario A optimal $a_x$](figures/20260709-scenario-a-a_x.svg)
-![Scenario A optimal $a_y$](figures/20260709-scenario-a-a_y.svg)
-![Scenario A optimal $a_z$](figures/20260709-scenario-a-a_z.svg)
+
+We do not show the $a_y$ axis since it varies greatly, not contributing to the sensitivity. We apply the colour gradient according to the sensitivity: the optimal parameters oscillate a lot with $\omega$ and as such showing the value of $\omega$ in these plots is not particularly informative.
 
 ### Scenario B: Ancilla-Assisted Identical Drive — **PASS**
 
@@ -160,10 +157,8 @@ Scenario B (dual MZI on both qubits, identical drive parameters, Ising interacti
 
 ![Scenario B $\omega$ scan](figures/20260709-scenario-b-omega-scan.svg)
 ![Scenario B optimal parameters](figures/20260709-scenario-b-optimal-params.svg)
-![Scenario B optimal $a_x$](figures/20260709-scenario-b-a_x.svg)
-![Scenario B optimal $a_y$](figures/20260709-scenario-b-a_y.svg)
-![Scenario B optimal $a_z$](figures/20260709-scenario-b-a_z.svg)
-![Scenario B optimal $a_{zz}$](figures/20260709-scenario-b-a_zz.svg)
+
+We do not show the $a_y$ axis since it varies greatly, not contributing to the sensitivity. We apply the colour gradient according to the sensitivity: the optimal parameters oscillate a lot with $\omega$ and as such showing the value of $\omega$ in these plots is not particularly informative.
 
 ### Decoupled Baseline — **PASS**
 
@@ -188,7 +183,7 @@ The compound ratio quantifies the marginal advantage of Scenario B over Scenario
 | Fraction B beats A at high $\omega > 1.0$ | 46/400 ($11.5\%$) |
 | Min $\mathcal{R}_{\text{compound}}$ | $0.8581$ at $\omega = 2.72$ |
 
-**Key Finding**: The compound ratio is **moderate** (max $1.3492\times$, well below the analytical QFI bound of $2\times$) and **strongly $\omega$-dependent**. The finer 500-point sweep reveals that the peak compound advantage occurs at the lowest $\omega$ value ($\omega = 0.01$) rather than at $\omega = 0.20$ as identified by the coarser grid. The compound ratio is genuinely beneficial at low $\omega$ ($77\%$ of cases for $\omega \leq 1.0$), where the longer effective rotation time during the hold period allows the Ising interaction $a_{zz} J_z^S \otimes J_z^A$ to channel ancilla information back into the $J_z^S$ measurement. At high $\omega$, the dual MZI and Ising interaction interfere with the system's own drive dynamics, making Scenario B worse than Scenario A alone.
+**Key Finding**: The compound ratio is **moderate** (max $1.3492\times$, below the tight QFI bound of $\sqrt{2}\approx 1.414$) and **strongly $\omega$-dependent**. The finer 500-point sweep reveals that the peak compound advantage occurs at the lowest $\omega$ value ($\omega = 0.01$) rather than at $\omega = 0.20$ as identified by the coarser grid. The compound ratio is genuinely beneficial at low $\omega$ ($77\%$ of cases for $\omega \leq 1.0$), where the longer effective rotation time during the hold period allows the Ising interaction $a_{zz} J_z^S \otimes J_z^A$ to channel ancilla information back into the $J_z^S$ measurement. At high $\omega$, the dual MZI and Ising interaction interfere with the system's own drive dynamics, making Scenario B worse than Scenario A alone.
 
 ![Compound ratio vs $\omega$](figures/20260709-compound-ratio.svg)
 
@@ -217,27 +212,81 @@ Both scenarios in this experiment significantly outperform the ancilla-only #202
 - **Numerical invariants** — All validation checks pass: normalisation, unitarity, variance positivity, sensitivity positivity, Hermiticity. — **PASS** (verified via test suite, 62 tests pass)
 - **Parquet serialisation** — All result dataclasses store input parameters alongside computed results; `from_parquet()` fails fast on missing columns. — **PASS** (all Parquet files are self-describing; roundtrip tests pass)
 
-**Summary**: All 8 success criteria **PASS**. The experiment demonstrates that: (1) Scenario A (system-only $\omega$-modulated drive) achieves $8.32\times$ SQL, already surpassing the ancilla-only #20260519 baseline by $1.69\times$. (2) Scenario B compounds this gain by up to $34.9\%$ ($\mathcal{R}_{\text{compound}} = 1.3492\times$), confirming that the ancilla Hilbert space and Ising interaction provide marginal benefit even when the system carries its own drive. (3) The compound ratio is well below the analytical QFI bound of $2\times$ and is strongly $\omega$-dependent (beneficial at $77\%$ of low $\omega$ values, detrimental at $88.5\%$ of high $\omega$ values). A significant surprise is that Scenario A alone outperforms the ancilla-only protocol at **all** 500 $\omega$ values, establishing the system-direct drive as a substantially stronger baseline than anticipated. Parameter saturation ($96\%$ for $a_x$ and $a_z$ at $\pm 5$ bounds) suggests the true optimum may lie beyond the search range. The finer 500-point sweep revealed that the optimal $\omega$ for Scenario B is at the minimum ($\omega = 0.01$) rather than the intermediate value ($\omega = 0.20$) identified by the coarser grid, and the peak compound ratio improved from $1.2367\times$ to $1.3492\times$.
+**Summary**: All 8 success criteria **PASS**. The experiment demonstrates that: (1) Scenario A (system-only $\omega$-modulated drive) achieves $8.32\times$ SQL, already surpassing the ancilla-only #20260519 baseline by $1.69\times$. (2) Scenario B compounds this gain by up to $34.9\%$ ($\mathcal{R}_{\text{compound}} = 1.3492\times$), confirming that the ancilla Hilbert space and Ising interaction provide marginal benefit even when the system carries its own drive. (3) The compound ratio is well below the analytical QFI bound of $\sqrt{2}\approx 1.414\times$ (corrected from the spectral-radius bound of $2\times$) and is strongly $\omega$-dependent (beneficial at $77\%$ of low $\omega$ values, detrimental at $88.5\%$ of high $\omega$ values). A significant surprise is that Scenario A alone outperforms the ancilla-only protocol at **all** 500 $\omega$ values, establishing the system-direct drive as a substantially stronger baseline than anticipated. Parameter saturation ($96\%$ for $a_x$ and $a_z$ at $\pm 5$ bounds) suggests the true optimum may lie beyond the search range. The finer 500-point sweep revealed that the optimal $\omega$ for Scenario B is at the minimum ($\omega = 0.01$) rather than the intermediate value ($\omega = 0.20$) identified by the coarser grid, and the peak compound ratio improved from $1.2367\times$ to $1.3492\times$.
 
 ## ⚖️ Analytical Bounds
 
-**Scenario A QFI bound**: For a pure state under unitary evolution with Hamiltonian $H_S = \omega(a_x J_x^S + a_y J_y^S + a_z J_z^S)$, the derivative is:
-$\frac{\partial U_{\text{hold}}}{\partial\omega} = -i t_{\text{hold}} G_S e^{-i\omega t_{\text{hold}} G_S}$
-where $G_S = a_x J_x^S + a_y J_y^S + a_z J_z^S$. Since the state after the first BS is $U_{\text{BS}}\vert0\rangle$, the QFI for the full circuit is:
-$F_Q^{(A)} = 4 t_{\text{hold}}^2 \text{Var}_{U_{\text{BS}}\vert0\rangle}(G_S) \leq t_{\text{hold}}^2 [a_x^2 + a_y^2 + a_z^2].$
-The maximum at $|a_k| \leq 5$ is $F_Q^{(A)} \leq 75\, t_{\text{hold}}^2$ (from $a_x^2 + a_y^2 + a_z^2 = 75$ at $a_x=a_y=a_z=5$), giving $\Delta\omega_Q^{(A)} \geq 1/(\sqrt{75}\, t_{\text{hold}}) \approx 0.115/t_{\text{hold}}$, or about $8.7\times$ below SQL. However, the EP sensitivity using $J_z$ measurement after the second BS may be significantly worse if the rotated $J_z$ observable does not align with $G_S$.
+### Scenario A: Exact Closed-Form Probability
 
-**Scenario B QFI bound**: For the full two-qubit evolution with $H = \omega G_{\text{tot}} + a_{zz} J_z^S \otimes J_z^A$ where $G_{\text{tot}} = a_x J_x^S + a_y J_y^S + a_z J_z^S + a_x J_x^A + a_y J_y^A + a_z J_z^A$, the dynamics are more complex because $[G_{\text{tot}}, a_{zz} J_z^S \otimes J_z^A] \neq 0$ in general. However, a conservative bound on the QFI follows from the norm of $\partial H/\partial\omega = G_{\text{tot}}$:
-$\|\partial H/\partial\omega\| \leq \frac12\left[\sqrt{a_x^2 + a_y^2 + a_z^2} + \sqrt{a_x^2 + a_y^2 + a_z^2}\right] = \sqrt{a_x^2 + a_y^2 + a_z^2}.$
-At $a_x = a_y = a_z = 5$: $\|\partial H/\partial\omega\| \leq \sqrt{75} \approx 8.66$, giving $F_Q^{(B)} \leq 4 \times 75 \times t_{\text{hold}}^2 = 300\, t_{\text{hold}}^2$ and $\Delta\omega_Q^{(B)} \geq 1/(\sqrt{300}\, t_{\text{hold}}) \approx 0.058/t_{\text{hold}}$, or about $17.3\times$ below SQL.
+Define $r = \sqrt{a_x^2 + a_y^2 + a_z^2}$, $\hat{n} = (a_x, a_y, a_z)/r$, and rotation angle $\theta = \omega\,t_{\text{hold}}\,r$. The hold unitary is $U_{\text{hold}} = e^{-i\theta\,\hat{n}\cdot\vec{\sigma}/2}$. The Bloch vector after BS1 is $(0, -1, 0)$ (pointing in $-y$), which makes $\sigma_y$ the only relevant Pauli component. Using the rotation identity $U_{\text{hold}}^\dagger\,\sigma_y\,U_{\text{hold}} = R_{yy}\,\sigma_y + \text{orthogonal terms}$ with $R_{yy} = \cos\theta + (1-\cos\theta)\,n_y^2$, the final expectation collapses to $\langle\sigma_z\rangle_{\text{final}} = -R_{yy}$. Therefore the positive-outcome probability simplifies to $P_A(+) = \frac{1}{2}(1 - \cos\theta)(n_x^2 + n_z^2)$, which equals $\frac{a_x^2 + a_z^2}{r^2}\,\sin^2\!\left(\frac{\omega\,t_{\text{hold}}\,r}{2}\right)$.
 
-**Compound ratio bound**: The maximum possible ratio $\mathcal{R}_{\text{compound}} = \Delta\omega_A^{\text{(opt)}} / \Delta\omega_B^{\text{(opt)}}$ is bounded by the QFI ratio:
-$\mathcal{R}_{\text{compound}}^{\text{(max)}} \leq \sqrt{F_Q^{(B)} / F_Q^{(A)}} \leq \frac{(1/2)[\sqrt{a_x^2 + a_y^2 + a_z^2} + \sqrt{a_x^2 + a_y^2 + a_z^2}]}{(1/2)\sqrt{a_x^2 + a_y^2 + a_z^2}} = 2.$
-The bound is exact — at any parameter values the ratio is exactly $2$, because the two spectral radii are identical. The theoretical maximum compound ratio is a clean **$2\times$** — Scenario B can at most double the sensitivity advantage of Scenario A in the QFI bound, assuming optimal measurements. The actual ratio under $J_z^S$ measurement will be lower.
+**Key structural insight**: The $a_y$ component is invisible — drive along $y$ rotates the Bloch vector around the same axis as the BS1-induced state, producing no phase modulation. Only $a_x$ and $a_z$ contribute to the signal. The effective optimisation space is $(a_x, a_z)$ for the signal, with $a_{zz}$ as the interaction knob.
 
-**Decoupled limit ($a_{zz} = 0$)**: When the Ising interaction is zero, Scenario B separates into independent S and A subsystems:
-$U_{\text{hold}} = e^{-i t_{\text{hold}} \omega (a_x J_x^S + a_y J_y^S + a_z J_z^S)} \otimes e^{-i t_{\text{hold}} \omega (a_x J_x^A + a_y J_y^A + a_z J_z^A)}.$
-The ancilla factor acts purely on the ancilla and does not affect $\langle J_z^S\rangle$ after the trace. The sensitivity $\Delta\omega_B$ at $a_{zz}=0$ is therefore **identical** to $\Delta\omega_A$ for the same $(a_x, a_y, a_z, \omega)$, because the $J_z^S$ measurement sees only the system factor. This provides an important consistency check: $\Delta\omega_B(a_{zz}=0) = \Delta\omega_A$ to machine precision.
+The expectation evaluates to $\langle J_z^S\rangle_A = \frac{1}{2}\bigl(-\cos\theta\,(n_x^2 + n_z^2) - n_y^2\bigr)$ and the variance is $\operatorname{Var}(J_z^S)_A = P_A(+)(1-P_A(+))$. Defining $\rho = (a_x^2+a_z^2)/r^2$ for brevity, the EP sensitivity evaluates to $\Delta\omega_A = \sqrt{1 - \rho\,\sin^2(\theta/2)} \big/ \bigl(\sqrt{\rho}\,t_{\text{hold}}\,r\,\lvert\cos(\theta/2)\rvert\bigr)$.
+
+**Verification**: At baseline $(a_z=1, a_x=a_y=0)$: $P_A(+) = \sin^2(\omega t/2) = \frac{1}{2}(1-\cos(\omega t))$ — the standard single-qubit MZI fringe. Numerical verification against the circuit simulation yields agreement to $< 10^{-15}$ across all test points.
+
+### Scenario A: QFI and CFI
+
+For a pure state evolving under $H_S = \omega\,G_S$ with $G_S = \frac{r}{2}\,\hat{n}\cdot\vec{\sigma}$, the QFI is $F_Q^{(A)} = 4\,t_{\text{hold}}^2\,\operatorname{Var}_{\vert\psi_1\rangle}(G_S)$. Since $\langle G_S^2\rangle = r^2/4$ and $\langle G_S\rangle = -r\,n_y/2$ (Bloch vector in $-y$ after BS1), the variance evaluates to $\operatorname{Var}(G_S) = r^2(1-n_y^2)/4 = (a_x^2+a_z^2)/4$, giving $F_Q^{(A)} = t_{\text{hold}}^2\,(a_x^2 + a_z^2)$ and the corresponding quantum-limited sensitivity $\Delta\omega_Q^{(A)} = 1/\bigl(t_{\text{hold}}\,\sqrt{a_x^2 + a_z^2}\bigr)$.
+
+Note $a_y$ does not appear — the QFI is determined solely by the drive components orthogonal to the Bloch vector direction ($y$). The spectral-radius bound $F_Q \leq t_{\text{hold}}^2\,r^2$ is loose by the factor $\rho = (a_x^2+a_z^2)/r^2$.
+
+For the binary $J_z$ measurement, the EP and CFI are analytically identical, with the classical Fisher information given by $F_C^{(A)} = (\partial\langle J_z\rangle/\partial\omega)^2 / \operatorname{Var}(J_z) = \rho\,r^2\,t_{\text{hold}}^2\,\cos^2(\theta/2) \big/ \bigl(1 - \rho\,\sin^2(\theta/2)\bigr)$, and the corresponding EP and CFI sensitivities both equal $\Delta\omega_{\text{EP}}^{(A)} = \Delta\omega_{\text{CFI}}^{(A)} = 1/\sqrt{F_C^{(A)}}$.
+
+Numerical verification confirms $F_C^{(A)}$ matches the finite-difference CFI to $< 6.4\times 10^{-4}$ (limited by oscillation frequency at large $\omega\,t_{\text{hold}}\,r$).
+
+### Scenario B: Block Diagonalisation
+
+In the Bell-like basis $\{|00\rangle, |{+}\rangle_m, |{-}\rangle_m, |11\rangle\}$ where $|{\pm}\rangle_m = \frac{1}{\sqrt{2}}(|01\rangle \pm |10\rangle)$, the Hamiltonian $H = \omega(a_x J_x^S + \cdots) + a_{zz} J_z^S J_z^A$ has off-diagonal elements $\alpha = \frac{\omega}{2}(a_x - ia_y)$ coupling all pairs connected by single-qubit transitions. Since both $|01\rangle$ and $|10\rangle$ have identical coupling strengths to $|00\rangle$ and $|11\rangle$, the antisymmetric state $|{-}\rangle_m$ **decouples entirely** ($\langle{-}_m\vert H\vert 00\rangle = \langle{-}_m\vert H\vert 11\rangle = 0$). The Hamiltonian reduces to a $3\times 3$ block $H_3$ in the $\{|00\rangle, |{+}\rangle_m, |11\rangle\}$ subspace, with diagonal elements $\omega a_z + a_{zz}/4$, $-a_{zz}/4$, and $-\omega a_z + a_{zz}/4$, and off-diagonal elements $\frac{\omega}{\sqrt{2}}(a_x \mp i a_y)$ coupling adjacent levels, plus an inert state $|{-}\rangle_m$ with eigenvalue $-a_{zz}/4$.
+
+Shifting by $a_{zz}/4$ (global phase): $H_3 = \frac{a_{zz}}{4}\mathbb{1}_3 + \omega\,H_0$ where $H_0$ depends only on $(a_x, a_y, a_z)$. **Critical property**: since $\omega$ enters as a single multiplicative factor, the eigenvectors $V_3$ of $H_0$ are **independent of $\omega$**. Only the eigenvalues $\lambda_k = \frac{a_{zz}}{4} + \omega\,\mu_k$ depend on $\omega$, linearly.
+
+### Scenario B: Eigenvalues via Cubic Formula
+
+The eigenvalues $\mu_k$ of $H_0$ satisfy the depressed cubic $\mu^3 - a_z^2\,\mu + a_z\,r_\perp^2 = 0$, where $r_\perp^2 = a_x^2 + a_y^2$.
+
+This is **independent of $\omega$** — the entire $\omega$-dependence of the spectrum is $\lambda_k = \frac{a_{zz}}{4} + \omega\,\mu_k$.
+
+The discriminant $\Delta_c = a_z^2(4a_z^4 - 27\,a_z^2\,r_\perp^4)$ determines the root structure. When $\Delta_c > 0$ (three real roots), the trigonometric solution gives $\mu_k = \frac{2\lvert a_z\rvert}{\sqrt{3}}\cos\!\left(\frac{1}{3}\arccos\!\left(-\frac{3\sqrt{3}\,a_z\,r_\perp^2}{2\lvert a_z\rvert^3}\right) - \frac{2\pi k}{3}\right)$ for $k=0,1,2$. When $\Delta_c \leq 0$ (one real root), Cardano's formula applies.
+
+### Scenario B: Probability and Sensitivity
+
+The post-BS state $|\Psi_1\rangle = (U_{\text{BS}}\otimes U_{\text{BS}})|00\rangle$ lies entirely in the $\{|00\rangle, |{+}\rangle_m, |11\rangle\}$ subspace, evaluating to $|\Psi_1\rangle = \tfrac{1}{2}|00\rangle - \tfrac{i\sqrt{2}}{2}|{+}\rangle_m - \tfrac{1}{2}|11\rangle$.
+
+Using $U_{\text{dual}}^\dagger(J_z^S\otimes\mathbb{1})U_{\text{dual}} = J_y^S\otimes\mathbb{1}$ (same BS rotation trick as Scenario A), the measurement operator restricted to the 3D subspace is the tridiagonal matrix $M_3$ with entries $(M_3)_{01} = -i/(2\sqrt{2})$, $(M_3)_{10} = i/(2\sqrt{2})$, $(M_3)_{12} = -i/(2\sqrt{2})$, and $(M_3)_{21} = i/(2\sqrt{2})$. Expanding in the eigenbasis of $H_0$, the expectation value becomes $\langle J_z^S\rangle_B = \sum_{j,k=0}^{2} c_j^*\,c_k\,(V_3^\dagger M_3 V_3)_{jk}\,e^{-i\omega(\mu_k - \mu_j)\,t_{\text{hold}}}$, where $c_k = \langle v_k\vert\Psi_3\rangle$ with $|\Psi_3\rangle = \frac{1}{2}(1, -i\sqrt{2}, -1)^T$, and $V_3$ is the eigenvector matrix of $H_0$. Since $V_3$ is $\omega$-independent, the derivative simplifies to $\partial\langle J_z^S\rangle/\partial\omega = 2\,t_{\text{hold}}\sum_{j<k}(\mu_k-\mu_j)\,\operatorname{Im}\!\bigl[A_{jk}\,e^{-i\omega(\mu_k-\mu_j)t_{\text{hold}}}\bigr]$, where $A_{jk} = c_j^* c_k (V_3^\dagger M_3 V_3)_{jk}$.
+
+The CFI and EP sensitivity follow as $F_C^{(B)} = (\partial\langle J_z^S\rangle/\partial\omega)^2 / (\frac{1}{4} - \langle J_z^S\rangle_B^2)$.
+
+### Closed-Form Subspace ($a_x = a_y = 0$)
+
+When $a_x = a_y = 0$: $\beta_0 = 0$, $H_0$ becomes diagonal with eigenvalues $\mu_0 = a_z$, $\mu_1 = 0$, $\mu_2 = -a_z$. The probability reduces to the clean closed form $P_B(+)\big\vert_{a_x=a_y=0} = \frac{1}{2}\!\left(1 - \cos(\omega\,a_z\,t_{\text{hold}})\,\cos\!\left(\frac{a_{zz}\,t_{\text{hold}}}{2}\right)\right)$.
+
+**Verification**: At $a_{zz}=0$: $P_B(+) = \frac{1}{2}(1-\cos(\omega a_z t)) = P_A(+)$ with $a_x=a_y=0$. Numerical verification against the circuit simulation yields agreement to $< 10^{-16}$ across all test points.
+
+### QFI for Both Scenarios
+
+For Scenario B, the generator is $G_{\text{tot}} = G_S + G_A$ where $G_S$ and $G_A$ act on different tensor factors. Since the post-BS state $|\Psi_1\rangle = |\psi_1\rangle_S\otimes|\psi_1\rangle_A$ is a product state with Bloch vectors $(0,-1,0)$ on each subsystem, the cross-covariance vanishes and $\operatorname{Var}(G_{\text{tot}}) = \operatorname{Var}(G_S) + \operatorname{Var}(G_A) = (a_x^2+a_z^2)/2$. Therefore $F_Q^{(B)} = 2\,t_{\text{hold}}^2\,(a_x^2 + a_z^2) = 2\,F_Q^{(A)}$, which yields the quantum-limited sensitivity $\Delta\omega_Q^{(B)} = \Delta\omega_Q^{(A)}/\sqrt{2}$.
+
+### Corrected Compound Ratio Bound
+
+The QFI compound ratio evaluates to $\Delta\omega_Q^{(A)}/\Delta\omega_Q^{(B)} = \sqrt{F_Q^{(B)}/F_Q^{(A)}} = \sqrt{2} \approx 1.414$.
+
+**Important correction**: The spectral-radius bound of $2\times$ (from the spectral radius of $\partial H/\partial\omega$) overcounts because the initial BS-constrained state has Bloch vectors in the $-y$ direction on each qubit, making the $a_y$ drive component invisible to both QFI and measurement. The achievable QFI improvement from adding the ancilla is exactly $\sqrt{2}$, not $2$. The observed best EP compound ratio of $1.3492$ is $95\%$ of this tight $\sqrt{2}$ bound, leaving little room for further improvement under the same measurement.
+
+### Decoupled Limit ($a_{zz} = 0$)
+
+When the Ising interaction is zero, Scenario B separates into independent S and A subsystems, with the hold unitary factorising as $U_{\text{hold}} = e^{-i t_{\text{hold}} \omega (a_x J_x^S + a_y J_y^S + a_z J_z^S)} \otimes e^{-i t_{\text{hold}} \omega (a_x J_x^A + a_y J_y^A + a_z J_z^A)}$. The ancilla factor acts purely on the ancilla and does not affect $\langle J_z^S\rangle$ after the trace. The sensitivity $\Delta\omega_B$ at $a_{zz}=0$ is therefore **identical** to $\Delta\omega_A$ for the same $(a_x, a_y, a_z, \omega)$, because the $J_z^S$ measurement sees only the system factor. This provides an important consistency check: $\Delta\omega_B(a_{zz}=0) = \Delta\omega_A$ to machine precision.
+
+### Summary Table
+
+| Quantity | Scenario A | Scenario B |
+|----------|-----------|-----------|
+| $P(+)$ | $\frac{a_x^2+a_z^2}{r^2}\sin^2\!\left(\frac{\omega t r}{2}\right)$ | Semi-analytical (cubic eigenvalues, $\omega$-independent eigenvectors) |
+| $F_Q$ | $t^2(a_x^2+a_z^2)$ | $2t^2(a_x^2+a_z^2)$ |
+| $F_C = F_{\text{EP}}$ | $\frac{\rho\,r^2\,t^2\cos^2(\theta/2)}{1-\rho\sin^2(\theta/2)}$ | $\frac{(\partial\langle J_z^S\rangle/\partial\omega)^2}{\frac{1}{4}-\langle J_z^S\rangle^2}$ |
+| QFI compound ratio | — | $\sqrt{2} \approx 1.414$ (exact bound) |
+| Best observed EP ratio | — | $1.3492$ ($95\%$ of QFI bound) |
 
 ## 🏁 Conclusions
 
@@ -247,7 +296,7 @@ The ancilla factor acts purely on the ancilla and does not affect $\langle J_z^S
 
 1. **Scenario A (system-only drive) achieves $8.32\times$ SQL**, already $1.69\times$ better than the ancilla-only #20260519 baseline. This is the most significant result: the system's own $\omega$-modulated drive is substantially more effective than the ancilla-only protocol because the derivative $\partial H_S/\partial\omega$ acts directly on the measured subsystem, providing a direct parametric amplification channel that the $J_z$ measurement can access without relying on BCH cross-terms. The finer sweep reveals the optimal $\omega$ is at $\omega = 4.51$ (high end), not the intermediate $\omega = 1.50$ identified by the coarser grid.
 
-2. **Scenario B compounds by up to $34.9\%$** ($\mathcal{R}_{\text{compound}} = 1.3492\times$ at $\omega = 0.01$), confirming the alternative hypothesis: the ancilla Hilbert space and Ising interaction provide marginal benefit even when the system carries its own drive. This is a meaningful improvement over the $23.7\%$ compound ratio identified with the coarser 50-point grid, indicating that the peak advantage occurs at the lowest $\omega$ values not resolved by the previous sweep.
+2. **Scenario B compounds by up to $34.9\%$** ($\mathcal{R}_{\text{compound}} = 1.3492\times$ at $\omega = 0.01$), confirming the alternative hypothesis: the ancilla Hilbert space and Ising interaction provide marginal benefit even when the system carries its own drive. This is a meaningful improvement over the $23.7\%$ compound ratio identified with the coarser 50-point grid, indicating that the peak advantage occurs at the lowest $\omega$ values not resolved by the previous sweep. The observed ratio is $95\%$ of the tight QFI bound of $\sqrt{2}\approx 1.414$ (corrected from the spectral-radius bound of $2$), leaving little room for further improvement under the same measurement.
 
 3. **The compound ratio is strongly $\omega$-dependent**: Scenario B beats Scenario A at 77% of low $\omega$ values ($\omega \leq 1.0$, 77/100 cases) but at only 11.5% of higher $\omega$ values (46/400 cases). At high $\omega$, the dual MZI and Ising interaction appear to interfere with the system's own parametric amplification, consistent with the pattern observed in prior dual-MZI experiments (#20260522, #20260523) where symmetric beam-splitting weakens BCH cross-term generation.
 

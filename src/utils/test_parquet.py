@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    from pathlib import Path
 import pytest
 
 from src.utils.parquet import consolidate_raw_parquet

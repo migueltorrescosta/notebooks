@@ -178,14 +178,14 @@ def validate_sensitivity(
 
     Agent Notes:
         Imports compute_observable and sensitivity from
-        src.analysis.sensitivity_analysis inside the function body
-        to avoid circular imports (sensitivity_analysis imports
-        validators). If sensitivity_analysis is refactored, update
-        these local imports accordingly.
+        src.utils.sensitivity inside the function body to avoid
+        circular imports (sensitivity_analysis imports validators).
+        If sensitivity_analysis is refactored, update these local
+        imports accordingly.
 
     """
     # Import here to avoid circular imports
-    from src.analysis.sensitivity_analysis import compute_observable, sensitivity
+    from src.utils.sensitivity import compute_observable, sensitivity
 
     eps = 1e-5
 

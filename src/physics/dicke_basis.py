@@ -40,7 +40,14 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.utils.enums import OperatorBasis
+# Re-exported from src.utils/operators (canonical home) for backward
+# compatibility.  The operator implementations live in utils so that
+# evolution and algorithms can import them without upward dependencies.
+from src.utils.operators import (
+    jx_operator,  # noqa: F401
+    jy_operator,  # noqa: F401
+    jz_operator,  # noqa: F401
+)
 
 
 def dicke_states(N: int) -> dict[float, int]:
@@ -165,147 +172,6 @@ def from_dicke_basis(dicke_state: np.ndarray, N: int) -> np.ndarray:
                 fock_vec[fock_idx] = dicke_state[m_idx]
 
     return fock_vec
-
-
-def jz_operator(N: int, *, basis: OperatorBasis) -> np.ndarray:
-    """Construct the dense J_z operator.
-
-    This is the single authoritative implementation of J_z for the project.
-
-    Basis Conventions:
-        DICKE: |J, m⟩ with J = N/2.
-            Eigenvalues: m = N/2, N/2-1, ..., -N/2 (descending).
-            Example N=4: diag([2., 1., 0., -1., -2.])
-        FOCK: Bosonic Fock basis |n⟩ with n = 0, 1, ..., N.
-            Eigenvalues: n - N/2 = -N/2, -N/2+1, ..., N/2 (ascending).
-            Example N=4: diag([-2., -1.,  0.,  1.,  2.])
-
-    Both conventions yield the same eigenvalue range but with opposite
-    ordering. The choice of basis must be consistent across all operators
-    (Hamiltonian, Lindblad, observables) used together.
-
-    Matrix elements:
-        DICKE: :math:`\\langle J, m'|J_z|J, m\\rangle = m \\delta_{m',m}`
-        FOCK:  :math:`\\langle n'|J_z|n\\rangle = (n - N/2) \\delta_{n',n}`
-
-    Args:
-        N: Total number of two-level atoms. Must be non-negative.
-        basis: Basis convention (``OperatorBasis.DICKE`` or ``OperatorBasis.FOCK``).
-
-    Returns:
-        Diagonal (N+1) × (N+1) matrix representing J_z.
-
-    Raises:
-        ValueError: If N is negative.
-
-    Example:
-        >>> J_z = jz_operator(N=4, basis=OperatorBasis.DICKE)
-        >>> J_z.diagonal()
-        array([ 2.,  1.,  0., -1., -2.])
-        >>> J_z_fock = jz_operator(N=4, basis=OperatorBasis.FOCK)
-        >>> J_z_fock.diagonal()
-        array([-2., -1.,  0.,  1.,  2.])
-        >>> np.allclose(J_z, J_z.T.conj())  # Hermitian check
-        True
-
-    """
-    if N < 0:
-        raise ValueError(f"Number of atoms N must be non-negative, got {N}")
-
-    if basis == OperatorBasis.DICKE:
-        eigenvalues = np.arange(N / 2.0, -N / 2.0 - 1, -1)
-    elif basis == OperatorBasis.FOCK:
-        # Ascending: n - N/2 for n = 0, 1, ..., N
-        eigenvalues = np.arange(N + 1) - N / 2.0
-    else:
-        raise ValueError(f"Unknown basis: {basis!r}. Use OperatorBasis.DICKE or FOCK.")
-
-    return np.diag(eigenvalues)
-
-
-def jx_operator(N: int, *, basis: OperatorBasis) -> np.ndarray:
-    """Construct the dense J_x operator in the Dicke basis.
-
-    The J_x operator is the collective spin x-component, obtained
-    from QuTiP's jmat.  Returns a real symmetric matrix.
-    Only the DICKE basis is supported; FOCK will raise ``ValueError``.
-
-    Args:
-        N: Total number of two-level atoms. Must be non-negative.
-        basis: Basis convention. Only ``OperatorBasis.DICKE`` is supported.
-
-    Returns:
-        Real symmetric (N+1) × (N+1) matrix representing J_x in
-        the Dicke basis.
-
-    Raises:
-        ValueError: If N is negative.
-        ValueError: If ``basis`` is ``OperatorBasis.FOCK`` (not supported).
-
-    Example:
-        >>> J_x = jx_operator(N=2, basis=OperatorBasis.DICKE)
-        >>> J_x  # For J=1, diag entries are 0, super/sub-diagonal are 1/√2
-        array([[0.        , 0.70710678, 0.        ],
-               [0.70710678, 0.        , 0.70710678],
-               [0.        , 0.70710678, 0.        ]])
-
-    """
-    if N < 0:
-        raise ValueError(f"Number of atoms N must be non-negative, got {N}")
-
-    if basis == OperatorBasis.FOCK:
-        raise ValueError(
-            "J_x only supports the DICKE basis. Use basis=OperatorBasis.DICKE.",
-        )
-
-    if N == 0:
-        return np.zeros((1, 1), dtype=float)
-
-    from qutip import jmat
-
-    return np.real(jmat(N / 2.0, "x").full()).astype(float)
-
-
-def jy_operator(N: int, *, basis: OperatorBasis) -> np.ndarray:
-    r"""Construct the dense J_y operator in the Dicke basis.
-
-    The J_y operator is the collective spin y-component, obtained
-    from QuTiP's jmat.  J_y is Hermitian with purely imaginary
-    off-diagonal elements.
-    Only the DICKE basis is supported; FOCK will raise ``ValueError``.
-
-    Args:
-        N: Total number of two-level atoms. Must be non-negative.
-        basis: Basis convention. Only ``OperatorBasis.DICKE`` is supported.
-
-    Returns:
-        Hermitian (N+1) × (N+1) matrix with purely imaginary
-        off-diagonal elements representing J_y in the Dicke basis.
-
-    Raises:
-        ValueError: If N is negative.
-        ValueError: If ``basis`` is ``OperatorBasis.FOCK`` (not supported).
-
-    Example:
-        >>> J_y = jy_operator(N=1, basis=OperatorBasis.DICKE)
-        >>> np.allclose(J_y, J_y.T.conj())  # Hermitian check
-        True
-
-    """
-    if N < 0:
-        raise ValueError(f"Number of atoms N must be non-negative, got {N}")
-
-    if basis == OperatorBasis.FOCK:
-        raise ValueError(
-            "J_y only supports the DICKE basis. Use basis=OperatorBasis.DICKE.",
-        )
-
-    if N == 0:
-        return np.zeros((1, 1), dtype=complex)
-
-    from qutip import jmat
-
-    return jmat(N / 2.0, "y").full()
 
 
 def basis_transformation_matrix(N: int) -> np.ndarray:

@@ -80,6 +80,7 @@ from src.visualization.coupling_heatmaps import (
     plot_alpha_opt_heatmap,
     plot_ratio_heatmap,
 )
+from src.visualization.scaling_plots import plot_n_scaling_single_omega
 
 # Re-export shared compute_sensitivity for backward compatibility with tests.
 # The shared function (compute_multi_particle_sensitivity) takes the same
@@ -618,6 +619,7 @@ def generate_n_scaling(force: bool = False) -> None:
         parquet_path=_parquet_path("dual-mzi-sweep"),
         result_cls=DualMZISweepResult,
         omega_fig_pairs=omega_fig_pairs,
+        plot_fn=plot_n_scaling_single_omega,
         label="dual-mzi n-scaling",
     )
 

@@ -196,6 +196,8 @@ class TestOperatorConstruction:
         assert np.allclose(M, expected, atol=1e-12)
 
     def test_operators_to_torch(self, make_ops_nm: dict) -> None:
+        pytest.importorskip("torch", exc_type=ImportError)
+
         import torch
 
         ops_torch = operators_to_torch(make_ops_nm)
@@ -974,6 +976,7 @@ class TestGradientAD:
     )
     def test_ad_gradients_match_fd(self, N: int, M: int) -> None:
         """AD gradients match FD with mean rel error < 2e-5, max < 2e-4."""
+        pytest.importorskip("torch", exc_type=ImportError)
         ops_np = build_collective_operators(N, M)
 
         rel_errs: list[float] = []
@@ -1018,6 +1021,7 @@ class TestGradientAD:
 
     def test_ad_method_option_validates(self) -> None:
         """run_lbfgsb_optimisation should accept method='ad'."""
+        pytest.importorskip("torch", exc_type=ImportError)
         result = run_lbfgsb_optimisation(
             N=1,
             M=1,

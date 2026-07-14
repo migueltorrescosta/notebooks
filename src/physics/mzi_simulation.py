@@ -1110,7 +1110,7 @@ def compute_mzi_sensitivity_grid(
         derivative_values[i] = (exp_plus - exp_minus) / (2.0 * cfi_epsilon)
 
         # CFI from distributions
-        from src.analysis.fisher_information import (
+        from src.utils.linear_algebra import (
             classical_fisher_information_single,
         )
 

@@ -243,6 +243,9 @@ def generate_n_scaling_scan(force: bool = False) -> None:
         fig_sensitivity_path=_fig_path("n-scaling-sensitivity"),
         fig_params_path=_fig_path("n-scaling-optimal-params"),
         t_hold=T_HOLD,
+        plot_ratio_fn=plot_n_scaling_ratio,
+        plot_sensitivity_fn=plot_n_scaling_sensitivity,
+        plot_params_fn=plot_n_scaling_optimal_params,
     )
 
 

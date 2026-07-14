@@ -1,0 +1,122 @@
+# Tach configuration for module dependency guardrails
+# Enforces project conventions:
+# 1. reports/ experiment modules must never be imported by src/, pages/, or other reports
+# 2. src/ modules obey a strict layer ordering (lower layers may not import from higher)
+# 3. pages/ may only import from src.*
+#
+# Layer ordering (bottom → top):
+#   utils → algorithms → evolution → physics → analysis → visualization
+#
+# A module in layer N may only import from layers 0..N.
+
+source_roots = ["."]
+
+exclude = [
+    "**/*__pycache__",
+    "build/",
+    "dist/",
+    "docs/",
+    ".venv/",
+    ".git/",
+    # Test files within src/ may import from higher layers for testing
+    "src/**/test_*.py",
+]
+
+root_module = "ignore"
+
+# ── Strict layer ordering for src/ ─────────────────────────────────────
+# Each layer can only import from itself or layers listed before it.
+# Modules are assigned to layers via the layer key below.
+
+# First item = highest layer (top), last item = lowest layer (bottom).
+# Higher layers may import from lower layers; lower may NOT import from higher.
+layers = [
+    "visualization",
+    "analysis",
+    "physics",
+    "evolution",
+    "algorithms",
+    "utils",
+]
+
+# ── src/ subpackages (layered) ────────────────────────────────────────
+# Each src subpackage is assigned to a layer. Modules in a layer may
+# freely import from lower layers without declaring dependencies.
+
+[[modules]]
+path = "src.utils"
+layer = "utils"
+
+[[modules]]
+path = "src.algorithms"
+layer = "algorithms"
+
+[[modules]]
+path = "src.evolution"
+layer = "evolution"
+
+[[modules]]
+path = "src.physics"
+layer = "physics"
+
+[[modules]]
+path = "src.analysis"
+layer = "analysis"
+
+[[modules]]
+path = "src.visualization"
+layer = "visualization"
+
+# ── Non-layer modules (explicit depends_on) ────────────────────────────
+
+[[modules]]
+path = "reports"
+depends_on = ["src.**"]  # Reports can import from any src subpackage
+# Reports cannot import from other reports, pages, or tests
+
+[[modules]]
+path = "pages"
+depends_on = ["src.**"]  # Pages can only import from src
+# Pages cannot import from reports or tests
+
+[[modules]]
+path = "tests"
+depends_on = ["src.**", "reports.**", "pages.**"]  # Tests can import from anything
+
+# ── Public interfaces ──────────────────────────────────────────────────
+# All src subpackages expose everything by default
+
+[[interfaces]]
+expose = ["*"]
+from = ["src.utils"]
+
+[[interfaces]]
+expose = ["*"]
+from = ["src.physics"]
+
+[[interfaces]]
+expose = ["*"]
+from = ["src.evolution"]
+
+[[interfaces]]
+expose = ["*"]
+from = ["src.analysis"]
+
+[[interfaces]]
+expose = ["*"]
+from = ["src.algorithms"]
+
+[[interfaces]]
+expose = ["*"]
+from = ["src.visualization"]
+
+# ── Rules ──────────────────────────────────────────────────────────────
+
+[rules]
+unused_ignore_directives = "warn"
+require_ignore_directive_reasons = "off"
+
+# ── External dependencies ──────────────────────────────────────────────
+
+[external]
+exclude = ["pytest"]

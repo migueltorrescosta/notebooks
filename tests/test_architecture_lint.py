@@ -570,3 +570,72 @@ class TestDuplicationBaseline:
             "Either refactor the new duplication or update the baseline in "
             "TestDuplicationBaseline._BASELINES if the increase is justified."
         )
+
+
+# ── Tach module boundary enforcement ────────────────────────────────────
+
+
+class TestTachCheck:
+    """Module dependency boundaries must be respected.
+
+    Runs ``tach check`` to enforce three project conventions:
+
+    1. ``reports/`` experiment modules cannot be imported by ``src/``,
+       ``pages/``, or other ``reports/``.
+    2. ``src/`` subpackages obey a strict layer ordering (lower layers
+       may not import from higher layers).
+    3. ``pages/`` may only import from ``src.*``.
+
+    Skipped if ``tach`` is not installed.
+    """
+
+    _TACH_CMD = "tach"
+
+    @staticmethod
+    def _tach_available() -> bool:
+        """Check whether ``tach`` is installed and reachable."""
+        try:
+            subprocess.run(
+                [TestTachCheck._TACH_CMD, "--version"],
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+            return True
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+
+    def test_tach_check_passes(self) -> None:
+        """``tach check`` must report zero violations."""
+        if not self._tach_available():
+            pytest.skip("tach not installed — install via `uv sync`")
+
+        result = subprocess.run(
+            [self._TACH_CMD, "check", "--output", "json"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+
+        try:
+            violations = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            pytest.fail(
+                "tach check produced non-JSON output.\n"
+                f"stdout: {result.stdout[:500]}\n"
+                f"stderr: {result.stderr[:500]}"
+            )
+
+        if violations:
+            details = "\n".join(
+                f"  {v.get('file', '?')}:{v.get('line', '?')}: "
+                f"{v.get('message', str(v))}"
+                for v in violations[:20]
+            )
+            count = len(violations)
+            suffix = f"\n  ... and {count - 20} more" if count > 20 else ""
+            pytest.fail(
+                f"tach check found {count} violation(s):\n{details}{suffix}\n"
+                "Fix the import or add a tach-ignore comment with justification."
+            )

@@ -19,11 +19,11 @@ from __future__ import annotations
 import numpy as np
 from scipy.linalg import expm
 
-from src.analysis.ancilla_optimization import compute_expectation_and_variance
 from src.physics.beam_splitter import bs_dicke
 from src.physics.dicke_basis import jx_operator, jy_operator, jz_operator
 from src.utils.constants import I_2, J_X, J_Y, J_Z
 from src.utils.enums import OperatorBasis
+from src.utils.linear_algebra import compute_expectation_and_variance
 
 # ============================================================================
 # Operator Construction

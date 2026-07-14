@@ -26,6 +26,7 @@ import concurrent.futures
 import multiprocessing as _mp
 import os
 import sys
+from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -1328,6 +1329,85 @@ def generate_phase_optimal_params(force: bool = False) -> None:
     print(f"[fig]  {fig_p}")
 
 
+def _safe_grid_min(grid: np.ndarray) -> float:
+    """Return the minimum of finite values in *grid*, or NaN if empty."""
+    finite_vals = grid[np.isfinite(grid)]
+    if finite_vals.size == 0:
+        return np.nan
+    return float(np.min(finite_vals))
+
+
+def _load_2d_slice_grids(
+    omega_vals: np.ndarray,
+    slice_type: str,
+    raw_dir: Path,
+) -> dict[int, np.ndarray]:
+    """Load 2D slice sensitivity grids, preferring consolidated parquet.
+
+    Falls back to per-omega shard files when the consolidated file does not
+    exist.  Returns a dict mapping omega index to the sensitivity grid array,
+    omitting entries where data is missing.
+    """
+    consolidated_pq = raw_dir / f"{PHASE_DATE}-phase-2d-slice-{slice_type}-azz.parquet"
+    grids: dict[int, np.ndarray] = {}
+    if consolidated_pq.exists():
+        df = pd.read_parquet(consolidated_pq)
+        for i, omega in enumerate(omega_vals):
+            match = df[df["omega_value"] == omega]
+            if not match.empty:
+                grids[i] = np.asarray(match.iloc[0]["delta_omega_grid"])
+    else:
+        for i, omega in enumerate(omega_vals):
+            tag = f"phase-2d-slice-{slice_type}-azz-omega{omega}"
+            csv_p = _parquet_path(tag)
+            if csv_p.exists():
+                result = Drive2DSliceResult.from_parquet(csv_p)
+                grids[i] = result.delta_omega_grid
+    return grids
+
+
+@dataclass
+class _RandomSearchOmegaData:
+    """Per-omega random search data loaded from parquet."""
+
+    best_delta_omega: float
+    delta_omega_values: np.ndarray
+
+
+def _load_random_search_data(
+    omega_vals: np.ndarray,
+    raw_dir: Path,
+) -> dict[int, _RandomSearchOmegaData]:
+    """Load random search results, preferring consolidated parquet.
+
+    Falls back to per-omega shard files when the consolidated file does not
+    exist.  Returns a dict mapping omega index to per-omega random search data.
+    """
+    consolidated_rs = raw_dir / f"{PHASE_DATE}-phase-random-search.parquet"
+    data: dict[int, _RandomSearchOmegaData] = {}
+    if consolidated_rs.exists():
+        df_rs = pd.read_parquet(consolidated_rs)
+        for i, omega in enumerate(omega_vals):
+            match = df_rs[df_rs["omega_value"] == omega]
+            if not match.empty:
+                row = match.iloc[0]
+                data[i] = _RandomSearchOmegaData(
+                    best_delta_omega=float(row["best_delta_omega"]),
+                    delta_omega_values=np.asarray(row["delta_omega_values"]),
+                )
+    else:
+        for i, omega in enumerate(omega_vals):
+            tag_rs = f"phase-random-search-omega{omega}"
+            csv_p_rs = _parquet_path(tag_rs)
+            if csv_p_rs.exists():
+                result = DriveRandomSearchResult.from_parquet(csv_p_rs)
+                data[i] = _RandomSearchOmegaData(
+                    best_delta_omega=result.best_delta_omega,
+                    delta_omega_values=result.delta_omega_values,
+                )
+    return data
+
+
 def generate_phase_combined_sensitivity(
     force: bool = False,
     sql_value: float | None = None,
@@ -1382,50 +1462,16 @@ def generate_phase_combined_sensitivity(
     best_az = np.full(n_omega, np.nan)
     best_rs = np.full(n_omega, np.nan)
 
-    def _safe_grid_min(grid: np.ndarray) -> float:
-        finite_vals = grid[np.isfinite(grid)]
-        if finite_vals.size == 0:
-            return np.nan
-        return float(np.min(finite_vals))
-
     raw_dir = REPORTS_DIR / f"r{PHASE_DATE}" / "raw_data"
 
-    # --- 2D slices: prefer consolidated file, fall back to per-ω shards ---
     for slice_type, best_arr in [("ax", best_ax), ("ay", best_ay), ("az", best_az)]:
-        consolidated_pq = (
-            raw_dir / f"{PHASE_DATE}-phase-2d-slice-{slice_type}-azz.parquet"
-        )
-        if consolidated_pq.exists():
-            df = pd.read_parquet(consolidated_pq)
-            for i, omega in enumerate(omega_vals):
-                match = df[df["omega_value"] == omega]
-                if not match.empty:
-                    grid = np.asarray(match.iloc[0]["delta_omega_grid"])
-                    best_arr[i] = _safe_grid_min(grid)
-        else:
-            for i, omega in enumerate(omega_vals):
-                tag = f"phase-2d-slice-{slice_type}-azz-omega{omega}"
-                csv_p = _parquet_path(tag)
-                if csv_p.exists():
-                    result_slice = Drive2DSliceResult.from_parquet(csv_p)
-                    best_arr[i] = _safe_grid_min(result_slice.delta_omega_grid)
+        grids = _load_2d_slice_grids(omega_vals, slice_type, raw_dir)
+        for idx, grid in grids.items():
+            best_arr[idx] = _safe_grid_min(grid)
 
-    # --- Random search: prefer consolidated file, fall back to per-ω shards ---
-    consolidated_rs = raw_dir / f"{PHASE_DATE}-phase-random-search.parquet"
-    if consolidated_rs.exists():
-        df_rs = pd.read_parquet(consolidated_rs)
-        for i, omega in enumerate(omega_vals):
-            match = df_rs[df_rs["omega_value"] == omega]
-            if not match.empty:
-                row = match.iloc[0]
-                best_rs[i] = float(row["best_delta_omega"])
-    else:
-        for i, omega in enumerate(omega_vals):
-            tag_rs = f"phase-random-search-omega{omega}"
-            csv_p_rs = _parquet_path(tag_rs)
-            if csv_p_rs.exists():
-                result_rs = DriveRandomSearchResult.from_parquet(csv_p_rs)
-                best_rs[i] = result_rs.best_delta_omega
+    rs_data = _load_random_search_data(omega_vals, raw_dir)
+    for idx, data in rs_data.items():
+        best_rs[idx] = data.best_delta_omega
 
     print(f"  [debug] best_ax finite: {np.sum(np.isfinite(best_ax))} / {n_omega}")
     print(f"  [debug] best_ay finite: {np.sum(np.isfinite(best_ay))} / {n_omega}")
@@ -1496,58 +1542,24 @@ def generate_phase_fraction_below_sql(
     fractions_rs = np.full(n_omega, np.nan)
 
     raw_dir = REPORTS_DIR / f"r{PHASE_DATE}" / "raw_data"
+    threshold = sql_value if sql_value is not None else SQL_REFERENCE
 
-    # --- 2D slices: prefer consolidated file, fall back to per-ω shards ---
+    # --- 2D slices ---
     for slice_type, fractions_arr in [
         ("ax", fractions_ax),
         ("ay", fractions_ay),
         ("az", fractions_az),
     ]:
-        consolidated_pq = (
-            raw_dir / f"{PHASE_DATE}-phase-2d-slice-{slice_type}-azz.parquet"
-        )
-        if consolidated_pq.exists():
-            df = pd.read_parquet(consolidated_pq)
-            for i, omega in enumerate(omega_vals):
-                match = df[df["omega_value"] == omega]
-                if not match.empty:
-                    row = match.iloc[0]
-                    grid = np.asarray(row["delta_omega_grid"])
-                    threshold = sql_value if sql_value is not None else row["sql"]
-                    fractions_arr[i] = np.sum(grid < threshold) / grid.size
-        else:
-            for i, omega in enumerate(omega_vals):
-                tag = f"phase-2d-slice-{slice_type}-azz-omega{omega}"
-                csv_p = _parquet_path(tag)
-                if csv_p.exists():
-                    result = Drive2DSliceResult.from_parquet(csv_p)
-                    threshold = sql_value if sql_value is not None else result.sql
-                    fractions_arr[i] = (
-                        np.sum(result.delta_omega_grid < threshold)
-                        / result.delta_omega_grid.size
-                    )
+        grids = _load_2d_slice_grids(omega_vals, slice_type, raw_dir)
+        for idx, grid in grids.items():
+            fractions_arr[idx] = np.sum(grid < threshold) / grid.size
 
-    # --- Random search: prefer consolidated file, fall back to per-ω shards ---
-    consolidated_rs = raw_dir / f"{PHASE_DATE}-phase-random-search.parquet"
-    if consolidated_rs.exists():
-        df_rs = pd.read_parquet(consolidated_rs)
-        for i, omega in enumerate(omega_vals):
-            match = df_rs[df_rs["omega_value"] == omega]
-            if not match.empty:
-                row = match.iloc[0]
-                vals = np.asarray(row["delta_omega_values"])
-                threshold = sql_value if sql_value is not None else row["sql"]
-                fractions_rs[i] = np.sum(vals < threshold) / len(vals)
-    else:
-        for i, omega in enumerate(omega_vals):
-            tag_rs = f"phase-random-search-omega{omega}"
-            csv_rs = _parquet_path(tag_rs)
-            if csv_rs.exists():
-                result = DriveRandomSearchResult.from_parquet(csv_rs)
-                threshold = sql_value if sql_value is not None else result.sql
-                fractions_rs[i] = np.sum(result.delta_omega_values < threshold) / len(
-                    result.delta_omega_values
-                )
+    # --- Random search ---
+    rs_data = _load_random_search_data(omega_vals, raw_dir)
+    for idx, data in rs_data.items():
+        fractions_rs[idx] = np.sum(data.delta_omega_values < threshold) / len(
+            data.delta_omega_values
+        )
 
     plot_drive_fraction_below_sql(
         omega_vals,
