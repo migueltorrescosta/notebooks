@@ -199,8 +199,13 @@ def plot_scenario_a_optimal_params_3d(
     delta = result.best_delta_omega_per_omega
 
     scatter = ax.scatter(
-        a_x, a_y, a_z,
-        c=delta, cmap="viridis", s=40, alpha=0.8,
+        a_x,
+        a_y,
+        a_z,
+        c=delta,
+        cmap="viridis",
+        s=40,
+        alpha=0.8,
         edgecolors="none",
     )
     cbar = fig.colorbar(scatter, ax=ax, shrink=0.6, pad=0.1)
@@ -333,8 +338,13 @@ def plot_scenario_b_optimal_params_3d(
     delta = result.best_delta_omega_per_omega
 
     scatter = ax.scatter(
-        a_x, a_z, a_zz,
-        c=delta, cmap="viridis", s=40, alpha=0.8,
+        a_x,
+        a_z,
+        a_zz,
+        c=delta,
+        cmap="viridis",
+        s=40,
+        alpha=0.8,
         edgecolors="none",
     )
     cbar = fig.colorbar(scatter, ax=ax, shrink=0.6, pad=0.1)
@@ -343,9 +353,7 @@ def plot_scenario_b_optimal_params_3d(
     ax.set_xlabel(r"$a_x^*$")
     ax.set_ylabel(r"$a_z^*$")
     ax.set_zlabel(r"$a_{zz}^*$")
-    ax.set_title(
-        r"Scenario B: Optimal $(a_x, a_z, a_{zz})$ coloured by $\Delta\omega$"
-    )
+    ax.set_title(r"Scenario B: Optimal $(a_x, a_z, a_{zz})$ coloured by $\Delta\omega$")
 
     fig.tight_layout()
     fig.savefig(save_path, format="svg", bbox_inches="tight")

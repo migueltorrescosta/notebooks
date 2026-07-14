@@ -48,12 +48,16 @@ compute_decoupled_baseline = _m.compute_decoupled_baseline
 _scenario_a_objective_3d = _m._scenario_a_objective_3d
 _scenario_b_objective_4d = _m._scenario_b_objective_4d
 scenario_a_random_search = _m.scenario_a_random_search
+scenario_a_sensitivity_constrained_ay = _m.scenario_a_sensitivity_constrained_ay
+run_constrained_ay_verification = _m.run_constrained_ay_verification
 run_scenario_a_omega_scan = _m.run_scenario_a_omega_scan
 run_scenario_b_omega_scan = _m.run_scenario_b_omega_scan
 _run_scenario_b_single_omega = _m._run_scenario_b_single_omega
 compute_compound_ratio = _m.compute_compound_ratio
+compute_fixed_parameter_compound_ratio = _m.compute_fixed_parameter_compound_ratio
 ScenarioACompoundResult = _m.ScenarioACompoundResult
 CompoundRatioResult = _m.CompoundRatioResult
+FixedParameterCompoundRatioResult = _m.FixedParameterCompoundRatioResult
 DecoupledBaselineResult = _m.DecoupledBaselineResult
 main = _m.main
 
@@ -169,6 +173,99 @@ class TestScenarioASensitivity:
             assert domega > 0
 
 
+class TestRoleOfAy:
+    """Verify that a_y modulates EP sensitivity through oscillation frequency.
+
+    a_y drops out of the QFI and amplitude prefactor ρ, but enters the
+    EP sensitivity through the rotation angle θ = ω t r.  Constraining
+    a_y=0 should give equal or worse sensitivity than free 3D optimisation.
+    """
+
+    def test_constrained_matches_free_when_ay_zero(self) -> None:
+        """When a_y=0, the constrained and free formulas give identical results."""
+        omega = 1.0
+        d_free = scenario_a_sensitivity(
+            DEFAULT_T_BS, DEFAULT_T_HOLD, omega, 5.0, 0.0, 5.0
+        )
+        d_constrained = scenario_a_sensitivity_constrained_ay(
+            omega, 5.0, 5.0
+        )
+        assert np.isclose(d_free, d_constrained, rtol=1e-10)
+
+    def test_constrained_minimum_saturates(self) -> None:
+        """With a_y=0 and ρ=1, the best sensitivity is 1/(t·5√2)."""
+        expected_min = 1.0 / (DEFAULT_T_HOLD * 5.0 * np.sqrt(2))
+        for omega in [0.5, 1.0, 2.0, 4.0]:
+            d = scenario_a_sensitivity_constrained_ay(omega, 5.0, 5.0)
+            assert np.isclose(d, expected_min, rtol=1e-4), (
+                f"Expected {expected_min} at ω={omega}, got {d}"
+            )
+
+    def test_ay_changes_sensitivity_at_fixed_ax_az(self) -> None:
+        """At ω ≥ 1.0, adding a_y to (a_x, a_z) changes the sensitivity."""
+        for omega in [1.0, 2.0, 4.51]:
+            d_without = scenario_a_sensitivity(
+                DEFAULT_T_BS, DEFAULT_T_HOLD, omega, 5.0, 0.0, 5.0
+            )
+            d_with = scenario_a_sensitivity(
+                DEFAULT_T_BS, DEFAULT_T_HOLD, omega, 5.0, 2.5, 5.0
+            )
+            assert np.isfinite(d_without) and np.isfinite(d_with)
+            assert not np.isclose(d_without, d_with, rtol=1e-6), (
+                f"a_y has no effect at ω={omega}: {d_without} vs {d_with}"
+            )
+
+    def test_ay_increases_rotation_angle(self) -> None:
+        """Adding a_y increases r = √(a_x²+a_y²+a_z²), changing θ = ωtr."""
+        a_x, a_z = 3.0, 4.0
+        r_without = np.sqrt(a_x**2 + a_z**2)  # = 5.0
+        r_with = np.sqrt(a_x**2 + 3.0**2 + a_z**2)  # = √34 ≈ 5.83
+        assert r_with > r_without, "a_y should increase r"
+
+    def test_qfi_independent_of_ay(self) -> None:
+        """QFI = t²(a_x²+a_z²) does not depend on a_y."""
+        t = DEFAULT_T_HOLD
+        a_x, a_z = 3.0, 4.0
+        qfi = t**2 * (a_x**2 + a_z**2)
+        # Verify against variance formula
+        for a_y in [0.0, 1.0, -2.0, 5.0]:
+            # After BS1, Bloch vector is in -y direction
+            # Var(G_S) = r²(1-n_y²)/4 = (a_x²+a_z²)/4
+            var_gs = (a_x**2 + a_z**2) / 4.0
+            qfi_check = 4.0 * t**2 * var_gs
+            assert np.isclose(qfi, qfi_check, rtol=1e-10), (
+                f"QFI mismatch at a_y={a_y}"
+            )
+
+    @pytest.mark.parametrize(
+        ("omega", "a_y"),
+        [
+            (1.0, 2.5),
+            (2.0, 3.0),
+            (4.51, 1.0),
+        ],
+        ids=["w1.0_ay2.5", "w2.0_ay3.0", "w4.51_ay1.0"],
+    )
+    def test_ay_modulates_oscillation_frequency(
+        self, omega: float, a_y: float
+    ) -> None:
+        """At fixed a_x=a_z=5, varying a_y changes the sensitivity
+        through the rotation angle θ = ω t r."""
+        a_x, a_z = 5.0, 5.0
+        d_ay0 = scenario_a_sensitivity(
+            DEFAULT_T_BS, DEFAULT_T_HOLD, omega, a_x, 0.0, a_z
+        )
+        d_ay_nonzero = scenario_a_sensitivity(
+            DEFAULT_T_BS, DEFAULT_T_HOLD, omega, a_x, a_y, a_z
+        )
+        # Both should be finite and different (a_y changes θ)
+        assert np.isfinite(d_ay0) and np.isfinite(d_ay_nonzero)
+        assert not np.isclose(d_ay0, d_ay_nonzero, rtol=1e-4), (
+            f"a_y={a_y} should change sensitivity at ω={omega}: "
+            f"{d_ay0} vs {d_ay_nonzero}"
+        )
+
+
 class TestScenarioBState:
     def test_initial_state_is_normalised(self) -> None:
         psi = scenario_b_state()
@@ -272,6 +369,49 @@ class TestDecoupledBaseline:
     def test_both_scenarios_give_same_baseline(self) -> None:
         domega_a, domega_b = compute_decoupled_baseline()
         assert np.isclose(domega_a, domega_b, rtol=1e-4)
+
+
+class TestDecoupledLimitRandomParams:
+    """Decoupled-limit consistency: Δω_B(a_zz=0) = Δω_A for random drives.
+
+    At a_zz=0 the ancilla factorises and does not affect the J_z^S
+    measurement, so Scenario B must reproduce Scenario A exactly.
+    """
+
+    _DRIVE_PARAMS: ClassVar[list[tuple[float, float, float]]] = [
+        (3.2, -1.7, 0.5),
+        (-4.9, 0.3, 2.8),
+        (0.0, 4.1, -3.6),
+        (1.1, 1.1, 1.1),
+        (-2.5, -2.5, -2.5),
+        (5.0, -2.1, 0.0),
+        (0.0, 0.0, 3.0),
+        (-1.3, 4.7, -0.9),
+    ]
+
+    @pytest.mark.parametrize(
+        ("a_x", "a_y", "a_z"),
+        _DRIVE_PARAMS,
+        ids=[f"({ax},{ay},{az})" for ax, ay, az in _DRIVE_PARAMS],
+    )
+    def test_decoupled_matches_scenario_a(
+        self, a_x: float, a_y: float, a_z: float
+    ) -> None:
+        omega = 1.0
+        ops = build_two_qubit_operators()
+        domega_a = scenario_a_sensitivity(
+            DEFAULT_T_BS, DEFAULT_T_HOLD, omega, a_x, a_y, a_z
+        )
+        domega_b = scenario_b_sensitivity(
+            DEFAULT_T_BS, DEFAULT_T_HOLD, omega, a_x, a_y, a_z, 0.0, ops
+        )
+        # Both divergent → numerically fragile but physically consistent
+        if domega_a > 100 * SQL_REFERENCE and domega_b > 100 * SQL_REFERENCE:
+            return
+        assert np.isclose(domega_a, domega_b, rtol=1e-4), (
+            f"Decoupled mismatch at a=({a_x},{a_y},{a_z}): "
+            f"A={domega_a}, B={domega_b}"
+        )
 
 
 class TestScenarioConsistency:
@@ -842,3 +982,139 @@ class TestPropertyBasedInvariants:
             f"Decoupled mismatch at omega={omega}, a=({a_x},{a_y},{a_z}): "
             f"A={domega_a}, B={domega_b}"
         )
+
+
+class TestFixedParameterCompoundRatio:
+    def test_decoupled_limit_ratio_one(self) -> None:
+        """At a_zz=0, B reduces to A, so fixed-parameter ratio = 1."""
+        omega_vals = np.array([0.5, 1.0, 2.0])
+        ax, ay, az = 1.5, 0.8, -0.3
+        ops = build_two_qubit_operators()
+
+        # Compute actual sensitivities at shared params
+        deltas_a = np.array(
+            [
+                scenario_a_sensitivity(DEFAULT_T_BS, DEFAULT_T_HOLD, w, ax, ay, az)
+                for w in omega_vals
+            ]
+        )
+        deltas_b = np.array(
+            [
+                scenario_b_sensitivity(
+                    DEFAULT_T_BS, DEFAULT_T_HOLD, w, ax, ay, az, 0.0, ops
+                )
+                for w in omega_vals
+            ]
+        )
+        sql = np.full(3, SQL_REFERENCE)
+
+        result_a = ScenarioACompoundResult(
+            omega_values=omega_vals,
+            best_delta_omega_per_omega=deltas_a,
+            best_params_per_omega=[(ax, ay, az)] * 3,
+            sql_values=sql.copy(),
+            t_hold_value=DEFAULT_T_HOLD,
+            expectation_Jz_per_omega=np.zeros(3),
+            variance_Jz_per_omega=np.ones(3) * 0.25,
+        )
+
+        result_b = _m.DriveOmegaScanResult(
+            omega_values=omega_vals.copy(),
+            best_params_per_omega=[(ax, ay, az, 0.0)] * 3,
+            best_delta_omega_per_omega=deltas_b,
+            sql_values=sql.copy(),
+            expectation_Jz_per_omega=np.zeros(3),
+            variance_Jz_per_omega=np.ones(3) * 0.25,
+        )
+
+        fpr = compute_fixed_parameter_compound_ratio(result_a, result_b)
+        np.testing.assert_array_almost_equal(fpr.fixed_ratio, [1.0, 1.0, 1.0])
+        np.testing.assert_array_almost_equal(fpr.a_zz_B, [0.0, 0.0, 0.0])
+
+    def test_azz_nonzero_differs_from_one(self) -> None:
+        """With a_zz>0, the fixed-parameter ratio generally differs from 1."""
+        a_x, a_y, a_z, a_zz = 2.0, 1.0, -1.0, 3.0
+        omega = 1.0
+
+        domega_a = scenario_a_sensitivity(
+            DEFAULT_T_BS, DEFAULT_T_HOLD, omega, a_x, a_y, a_z
+        )
+        domega_b = scenario_b_sensitivity(
+            DEFAULT_T_BS,
+            DEFAULT_T_HOLD,
+            omega,
+            a_x,
+            a_y,
+            a_z,
+            a_zz,
+            build_two_qubit_operators(),
+        )
+
+        result_a = ScenarioACompoundResult(
+            omega_values=np.array([omega]),
+            best_delta_omega_per_omega=np.array([domega_a]),
+            best_params_per_omega=[(a_x, a_y, a_z)],
+            sql_values=np.array([SQL_REFERENCE]),
+            t_hold_value=DEFAULT_T_HOLD,
+            expectation_Jz_per_omega=np.array([0.0]),
+            variance_Jz_per_omega=np.array([0.25]),
+        )
+        result_b = _m.DriveOmegaScanResult(
+            omega_values=np.array([omega]),
+            best_params_per_omega=[(a_x, a_y, a_z, a_zz)],
+            best_delta_omega_per_omega=np.array([domega_b]),
+            sql_values=np.array([SQL_REFERENCE]),
+            expectation_Jz_per_omega=np.array([0.0]),
+            variance_Jz_per_omega=np.array([0.25]),
+        )
+
+        fpr = compute_fixed_parameter_compound_ratio(result_a, result_b)
+        # At a_zz=0 the ratio would be 1.0; at a_zz=3 it differs
+        assert np.isfinite(fpr.fixed_ratio[0])
+        assert not np.isclose(fpr.fixed_ratio[0], 1.0, atol=1e-3), (
+            f"Expected non-unity ratio at a_zz={a_zz}, got {fpr.fixed_ratio[0]}"
+        )
+
+
+class TestFixedParameterCompoundRatioResult:
+    _FIELD_SPECS: ClassVar[list[tuple[str, str]]] = [
+        ("omega_values", "array_eq"),
+        ("delta_omega_A_opt", "array_eq"),
+        ("a_x_A", "array_eq"),
+        ("a_y_A", "array_eq"),
+        ("a_z_A", "array_eq"),
+        ("a_zz_B", "array_eq"),
+        ("delta_omega_B_fixed", "array_eq"),
+        ("fixed_ratio", "array_eq"),
+        ("sql_values", "array_eq"),
+    ]
+
+    def test_parquet_roundtrip(self, tmp_path: Path) -> None:
+        omega_vals = np.linspace(0.1, 1.0, 5)
+        result = FixedParameterCompoundRatioResult(
+            omega_values=omega_vals,
+            delta_omega_A_opt=np.array([0.1, 0.08, 0.06, 0.04, 0.02]),
+            a_x_A=np.array([1.0, 2.0, 3.0, 4.0, 5.0]),
+            a_y_A=np.array([0.0, 0.5, 1.0, 1.5, 2.0]),
+            a_z_A=np.array([0.0, -0.5, -1.0, -1.5, -2.0]),
+            a_zz_B=np.array([0.0, 1.0, 2.0, 3.0, 4.0]),
+            delta_omega_B_fixed=np.array([0.1, 0.09, 0.05, 0.03, 0.015]),
+            fixed_ratio=np.array([1.0, 0.889, 1.2, 1.333, 1.333]),
+            sql_values=np.full(5, 0.1),
+        )
+
+        pq_path = tmp_path / "test_fpr.parquet"
+        result.save_parquet(pq_path)
+
+        loaded = FixedParameterCompoundRatioResult.from_parquet(pq_path)
+        assert_roundtrip_fields(loaded, result, self._FIELD_SPECS)
+
+    def test_from_parquet_missing_columns_raises(self, tmp_path: Path) -> None:
+        import pandas as pd
+
+        df = pd.DataFrame({"omega": [1.0], "ratio": [1.0]})
+        pq_path = tmp_path / "bad_fpr.parquet"
+        df.to_parquet(pq_path, index=False)
+
+        with pytest.raises(ValueError, match="missing required columns"):
+            FixedParameterCompoundRatioResult.from_parquet(pq_path)

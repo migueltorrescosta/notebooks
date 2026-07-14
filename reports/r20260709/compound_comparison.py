@@ -591,6 +591,75 @@ class CompoundRatioResult(ParquetSerializable):
         )
 
 
+@dataclass
+class FixedParameterCompoundRatioResult(ParquetSerializable):
+    """Fixed-parameter compound ratio between Scenario A and Scenario B.
+
+    At each ω, evaluates Scenario B at Scenario A's optimal (a_x, a_y, a_z)
+    with Scenario B's optimal a_zz.  This isolates the interaction-only
+    contribution: how much does a_zz improve B when the drive parameters
+    are held at A's optimum?
+
+    The free-optimisation ratio (CompoundRatioResult) compares independently
+    optimised results and measures total compound advantage.  This fixed-
+    parameter ratio measures the marginal gain from the Ising interaction
+    alone, at A's optimal drive parameters.
+    """
+
+    _PARQUET_COLUMNS: ClassVar[list[str]] = [
+        "omega",
+        "delta_omega_A_opt",
+        "a_x_A",
+        "a_y_A",
+        "a_z_A",
+        "a_zz_B",
+        "delta_omega_B_fixed",
+        "fixed_ratio",
+        "sql",
+    ]
+
+    omega_values: np.ndarray
+    delta_omega_A_opt: np.ndarray
+    a_x_A: np.ndarray
+    a_y_A: np.ndarray
+    a_z_A: np.ndarray
+    a_zz_B: np.ndarray
+    delta_omega_B_fixed: np.ndarray
+    fixed_ratio: np.ndarray  # R_fixed = Δω_A^opt / Δω_B(at A's params, B's a_zz)
+    sql_values: np.ndarray
+
+    def to_dataframe(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "omega": self.omega_values,
+                "delta_omega_A_opt": self.delta_omega_A_opt,
+                "a_x_A": self.a_x_A,
+                "a_y_A": self.a_y_A,
+                "a_z_A": self.a_z_A,
+                "a_zz_B": self.a_zz_B,
+                "delta_omega_B_fixed": self.delta_omega_B_fixed,
+                "fixed_ratio": self.fixed_ratio,
+                "sql": self.sql_values,
+            }
+        )
+
+    @classmethod
+    def from_parquet(cls, path: str | Path) -> FixedParameterCompoundRatioResult:
+        df = pd.read_parquet(path)
+        cls._validate_columns(df)
+        return cls(
+            omega_values=df["omega"].to_numpy(dtype=float),
+            delta_omega_A_opt=df["delta_omega_A_opt"].to_numpy(dtype=float),
+            a_x_A=df["a_x_A"].to_numpy(dtype=float),
+            a_y_A=df["a_y_A"].to_numpy(dtype=float),
+            a_z_A=df["a_z_A"].to_numpy(dtype=float),
+            a_zz_B=df["a_zz_B"].to_numpy(dtype=float),
+            delta_omega_B_fixed=df["delta_omega_B_fixed"].to_numpy(dtype=float),
+            fixed_ratio=df["fixed_ratio"].to_numpy(dtype=float),
+            sql_values=df["sql"].to_numpy(dtype=float),
+        )
+
+
 # ============================================================================
 # Decoupled Baseline
 # ============================================================================
@@ -682,6 +751,182 @@ def scenario_a_random_search(
         sql=1.0 / t_hold,
         t_hold=t_hold,
     )
+
+
+# ============================================================================
+# 2D Constrained Optimisation (a_y = 0) for Role-of-a_y Verification
+# ============================================================================
+
+
+def scenario_a_sensitivity_constrained_ay(
+    omega: float,
+    a_x: float,
+    a_z: float,
+    t_hold: float = DEFAULT_T_HOLD,
+    T_BS: float = DEFAULT_T_BS,
+) -> float:
+    """Scenario A sensitivity with a_y fixed at zero.
+
+    This allows direct comparison with the free 3D optimisation to
+    quantify how much the oscillation-frequency modulation by a_y
+    contributes to the EP sensitivity.
+
+    Args:
+        omega: Phase rate parameter.
+        a_x: J_x drive coefficient.
+        a_z: J_z drive coefficient.
+        t_hold: Holding time.
+        T_BS: Beam-splitter duration.
+
+    Returns:
+        Sensitivity Δω (positive float, or inf at fringe extremum).
+    """
+    return scenario_a_sensitivity(T_BS, t_hold, omega, a_x, 0.0, a_z)
+
+
+def run_constrained_ay_verification(
+    omega_values: list[float] | np.ndarray,
+    n_random: int = 500,
+    n_nm_refine: int = 50,
+    seed: int | None = 42,
+    t_hold: float = DEFAULT_T_HOLD,
+    T_BS: float = DEFAULT_T_BS,
+) -> dict[str, Any]:
+    """Run 2D (a_y=0) vs 3D (free a_y) optimisation for Scenario A.
+
+    At each ω, independently optimises over (a_x, a_z) with a_y=0 and
+    compares with the full 3D result.  The difference isolates the
+    contribution of a_y through the oscillation-frequency modulation
+    θ = ω t r (with r = √(a_x² + a_y² + a_z²)).
+
+    Args:
+        omega_values: ω values to scan.
+        n_random: Number of random search samples per ω.
+        n_nm_refine: Number of Nelder-Mead refinements per ω.
+        seed: Base random seed.
+        t_hold: Holding time.
+        T_BS: Beam-splitter duration.
+
+    Returns:
+        Dict with omega_values, delta_free, delta_constrained, ratio,
+        and optimal parameters for both.
+    """
+    omega_arr = np.asarray(omega_values, dtype=float)
+    n_omega = len(omega_arr)
+    base_seed = seed if seed is not None else 42
+
+    delta_free = np.full(n_omega, np.inf)
+    delta_constrained = np.full(n_omega, np.inf)
+    params_free: list[tuple[float, float, float]] = [(0.0, 0.0, 0.0)] * n_omega
+    params_constrained: list[tuple[float, float]] = [(0.0, 0.0)] * n_omega
+
+    for i, omega_val in enumerate(omega_arr):
+        omega_seed = base_seed + int(omega_val * 1000)
+
+        # --- Free 3D (a_x, a_y, a_z) — reuse existing pipeline ---
+        rs_free = scenario_a_random_search(
+            omega=omega_val,
+            n_samples=n_random,
+            t_hold=t_hold,
+            T_BS=T_BS,
+            seed=omega_seed,
+        )
+        sorted_idx = np.argsort(rs_free.delta_omega_values)
+        top_idx = sorted_idx[:n_nm_refine]
+
+        best_free_delta = np.inf
+        best_free_params = (0.0, 0.0, 0.0)
+
+        def _make_obj_free(ov: float) -> Any:
+            def _obj(p: np.ndarray) -> float:
+                return _scenario_a_objective_3d(p, ov, t_hold, T_BS)
+            return _obj
+
+        _obj_free = _make_obj_free(omega_val)
+        for idx in top_idx:
+            x0 = rs_free.samples[idx, :3].copy()
+            nm = run_nelder_mead(_obj_free, x0=x0, bounds=(-5.0, 5.0), maxiter=5000)
+            if nm["fun_opt"] < best_free_delta:
+                best_free_delta = nm["fun_opt"]
+                x_opt = nm["x_opt"]
+                best_free_params = (
+                    float(x_opt[0]),
+                    float(x_opt[1]),
+                    float(x_opt[2]),
+                )
+
+        delta_free[i] = best_free_delta
+        params_free[i] = best_free_params
+
+        # --- Constrained 2D (a_x, a_z) with a_y = 0 ---
+        rng = np.random.default_rng(omega_seed)
+        samples_2d = rng.uniform(-5.0, 5.0, size=(n_random, 2))
+        deltas_2d = np.array(
+            [
+                scenario_a_sensitivity_constrained_ay(
+                    omega_val, float(s[0]), float(s[1]), t_hold, T_BS
+                )
+                for s in samples_2d
+            ]
+        )
+
+        sorted_idx_2d = np.argsort(deltas_2d)
+        top_idx_2d = sorted_idx_2d[:n_nm_refine]
+
+        best_con_delta = np.inf
+        best_con_params = (0.0, 0.0)
+
+        def _make_obj_constrained(ov: float) -> Any:
+            def _obj(p2: np.ndarray) -> float:
+                return scenario_a_sensitivity_constrained_ay(
+                    ov, float(p2[0]), float(p2[1]), t_hold, T_BS
+                )
+            return _obj
+
+        _obj_constrained = _make_obj_constrained(omega_val)
+
+        for idx in top_idx_2d:
+            x0_2d = samples_2d[idx].copy()
+            nm = run_nelder_mead(
+                _obj_constrained, x0=x0_2d, bounds=(-5.0, 5.0), maxiter=5000
+            )
+            if nm["fun_opt"] < best_con_delta:
+                best_con_delta = nm["fun_opt"]
+                x_opt_2d = nm["x_opt"]
+                best_con_params = (float(x_opt_2d[0]), float(x_opt_2d[1]))
+
+        delta_constrained[i] = best_con_delta
+        params_constrained[i] = best_con_params
+
+        if (i + 1) % max(1, n_omega // 10) == 0:
+            pct = 100.0 * (i + 1) / n_omega
+            ratio = (
+                delta_free[i] / delta_constrained[i]
+                if np.isfinite(delta_constrained[i]) and delta_constrained[i] > 0
+                else np.nan
+            )
+            print(
+                f"  a_y verification: {i + 1}/{n_omega} ({pct:.0f}%), "
+                f"ratio = {ratio:.4f}"
+            )
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio_ay = np.where(
+            np.isfinite(delta_free)
+            & np.isfinite(delta_constrained)
+            & (delta_constrained > 0),
+            delta_free / delta_constrained,
+            np.nan,
+        )
+
+    return {
+        "omega_values": omega_arr,
+        "delta_free_3d": delta_free,
+        "delta_constrained_2d": delta_constrained,
+        "ratio_free_over_constrained": ratio_ay,
+        "params_free": params_free,
+        "params_constrained": params_constrained,
+    }
 
 
 # ============================================================================
@@ -1031,6 +1276,97 @@ def compute_compound_ratio(
 
 
 # ============================================================================
+# Fixed-Parameter Compound Ratio
+# ============================================================================
+
+
+def compute_fixed_parameter_compound_ratio(
+    result_a: ScenarioACompoundResult,
+    result_b: DriveOmegaScanResult,
+    t_hold: float = DEFAULT_T_HOLD,
+    T_BS: float = DEFAULT_T_BS,
+) -> FixedParameterCompoundRatioResult:
+    """Compute fixed-parameter compound ratio: B evaluated at A's optimal drive params.
+
+    At each ω, takes Scenario A's optimal (a_x^A, a_y^A, a_z^A) and evaluates
+    Scenario B at those same drive parameters with B's optimal a_zz^B.  This
+    isolates the interaction-only contribution: how much does a_zz improve B
+    when the drive parameters are held at A's optimum?
+
+    The QFI ratio for identical (a_x, a_y, a_z) is exactly √2 (resource-
+    counting bound: 2 particles vs 1), regardless of a_zz.  The EP ratio at
+    fixed parameters measures how efficiently the J_z^S measurement extracts
+    this available advantage.
+
+    Args:
+        result_a: Scenario A omega-scan result (independently optimised).
+        result_b: Scenario B omega-scan result (independently optimised).
+        t_hold: Holding time.
+        T_BS: Beam-splitter duration.
+
+    Returns:
+        FixedParameterCompoundRatioResult with per-ω ratios.
+    """
+    ops = build_two_qubit_operators()
+    omega_a = result_a.omega_values
+    n_omega = len(omega_a)
+
+    delta_b_fixed = np.full(n_omega, np.inf)
+    a_x_arr = np.zeros(n_omega)
+    a_y_arr = np.zeros(n_omega)
+    a_z_arr = np.zeros(n_omega)
+    a_zz_arr = np.zeros(n_omega)
+
+    # Build lookup for B's optimal a_zz per ω
+    omega_b = result_b.omega_values
+    b_a_zz = np.array([p[3] for p in result_b.best_params_per_omega])
+
+    for i in range(n_omega):
+        omega_val = omega_a[i]
+        # A's optimal drive parameters
+        ax_a = result_a.best_params_per_omega[i][0]
+        ay_a = result_a.best_params_per_omega[i][1]
+        az_a = result_a.best_params_per_omega[i][2]
+        a_x_arr[i] = ax_a
+        a_y_arr[i] = ay_a
+        a_z_arr[i] = az_a
+
+        # B's optimal a_zz at this ω (interpolate if grids differ)
+        if len(omega_b) == n_omega and np.allclose(omega_a, omega_b):
+            azz_b = float(b_a_zz[i])
+        else:
+            azz_b = float(np.interp(omega_val, omega_b, b_a_zz))
+        a_zz_arr[i] = azz_b
+
+        # Evaluate B at A's drive params + B's optimal a_zz
+        delta_b_fixed[i] = scenario_b_sensitivity(
+            T_BS, t_hold, omega_val, ax_a, ay_a, az_a, azz_b, ops
+        )
+
+    delta_a = result_a.best_delta_omega_per_omega
+    sql = result_a.sql_values
+
+    with np.errstate(divide="ignore", invalid="ignore"):
+        fixed_ratio = np.where(
+            np.isfinite(delta_a) & np.isfinite(delta_b_fixed) & (delta_b_fixed > 0),
+            delta_a / delta_b_fixed,
+            np.nan,
+        )
+
+    return FixedParameterCompoundRatioResult(
+        omega_values=omega_a,
+        delta_omega_A_opt=delta_a,
+        a_x_A=a_x_arr,
+        a_y_A=a_y_arr,
+        a_z_A=a_z_arr,
+        a_zz_B=a_zz_arr,
+        delta_omega_B_fixed=delta_b_fixed,
+        fixed_ratio=fixed_ratio,
+        sql_values=sql,
+    )
+
+
+# ============================================================================
 # CLI / Data Generation Pipeline
 # ============================================================================
 
@@ -1176,6 +1512,56 @@ def generate_compound_ratio(force: bool = False) -> None:
             print(f"  Best R_B = {cr.ratio_B_to_sql[best_cr_idx]:.4f}× SQL")
 
 
+def generate_fixed_parameter_ratio(force: bool = False) -> None:
+    """Compute fixed-parameter compound ratio from existing Scenario A and B results."""
+    tag_fpr = "fixed-parameter-ratio"
+    pq_path_fpr = _parquet_path(tag_fpr)
+
+    tag_a = "scenario-a-omega-scan"
+    tag_b = "scenario-b-omega-scan"
+    pq_path_a = _parquet_path(tag_a)
+    pq_path_b = _parquet_path(tag_b)
+
+    if not pq_path_a.exists():
+        print(f"[skip] {tag_a} not found — run generate_scenario_a_scan first")
+        return
+    if not pq_path_b.exists():
+        print(f"[skip] {tag_b} not found — run generate_scenario_b_scan first")
+        return
+
+    if pq_path_fpr.exists() and not force:
+        print(f"[skip] {pq_path_fpr.name} exists")
+    else:
+        result_a = ScenarioACompoundResult.from_parquet(pq_path_a)
+        result_b = DriveOmegaScanResult.from_parquet(pq_path_b)
+        fpr = compute_fixed_parameter_compound_ratio(result_a, result_b)
+        pq_path_fpr.parent.mkdir(parents=True, exist_ok=True)
+        fpr.save_parquet(pq_path_fpr)
+        print(f"[save] {pq_path_fpr}")
+
+        # Print summary
+        valid = np.isfinite(fpr.fixed_ratio)
+        if np.any(valid):
+            best_idx = int(np.nanargmax(np.where(valid, fpr.fixed_ratio, 0.0)))
+            best_r = fpr.fixed_ratio[best_idx]
+            best_w = fpr.omega_values[best_idx]
+            print(f"  Best fixed-param ratio = {best_r:.4f}× at ω = {best_w:.2f}")
+            print(
+                f"  A's params: ({fpr.a_x_A[best_idx]:.2f}, "
+                f"{fpr.a_y_A[best_idx]:.2f}, {fpr.a_z_A[best_idx]:.2f})"
+            )
+            print(f"  B's a_zz: {fpr.a_zz_B[best_idx]:.2f}")
+
+        # Verify azz=0 decoupled limit
+        decoupled_mask = np.abs(fpr.a_zz_B) < 1e-10
+        if np.any(decoupled_mask):
+            decoupled_ratios = fpr.fixed_ratio[decoupled_mask]
+            print(
+                f"  Decoupled limit (a_zz=0): ratios = "
+                f"{np.unique(decoupled_ratios)} (expect 1.0)"
+            )
+
+
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point for data generation."""
     _configure_environment()
@@ -1189,7 +1575,7 @@ def main(argv: list[str] | None = None) -> None:
         "--only",
         type=str,
         default=None,
-        help="Run only a specific step: decoupled-baseline, scenario-a, scenario-b, compound-ratio",
+        help="Run only a specific step: decoupled-baseline, scenario-a, scenario-b, compound-ratio, fixed-parameter-ratio",
     )
     parser.add_argument(
         "--n-omega",
@@ -1231,6 +1617,10 @@ def main(argv: list[str] | None = None) -> None:
         "scenario-a": (_run_scenario_a, {}),
         "scenario-b": (_run_scenario_b, {}),
         "compound-ratio": (generate_compound_ratio, {"force": args.force}),
+        "fixed-parameter-ratio": (
+            generate_fixed_parameter_ratio,
+            {"force": args.force},
+        ),
     }
 
     def _run_step(name: str, fn: Any, kwargs: dict[str, Any]) -> None:
