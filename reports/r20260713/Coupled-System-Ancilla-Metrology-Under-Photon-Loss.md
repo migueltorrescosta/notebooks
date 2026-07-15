@@ -77,34 +77,36 @@ The **Quantum Fisher Information** of the full S-A state $\rho_{\text{final}}(\o
 
 5. **EP sensitivity** — Compute $\langle J_z^S \rangle$ and $\text{Var}(J_z^S)$ from the final state. Compute $\partial\langle J_z^S\rangle/\partial\omega$ via central finite differences (3 Lindblad evaluations per $\omega$ point, shared with QFI computation). The EP sensitivity is $\Delta\omega_{EP} = \sqrt{\text{Var}(J_z^S)} / |\partial\langle J_z^S\rangle/\partial\omega|$.
 
-6. **Coupling optimisation** — For each $(\gamma, N)$ pair, optimise the four coupling coefficients $\mathbf{\alpha} = (\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz})$ to minimise the EP sensitivity at a representative $\omega$ value (the $\omega$ that gives the best noise-free sensitivity). Use L-BFGS-B with multi-start: 10 random initial points in $[-5, 5]^4$, each run for up to 50 iterations. The optimal $\mathbf{\alpha}^*(\gamma, N)$ is then used for the full $\omega$ scan at that $(\gamma, N)$.
+6. **Coupling optimisation** — For each $(\gamma, N)$ pair, optimise the four coupling coefficients $\mathbf{\alpha} = (\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz})$ to minimise the EP sensitivity at a representative $\omega$ value (the $\omega$ that gives the best noise-free sensitivity). Use L-BFGS-B with multi-start: 5 random initial points in $[-10, 10]^4$, each run for up to 20 iterations. The optimal $\mathbf{\alpha}^*(\gamma, N)$ is then used for the full $\omega$ scan at that $(\gamma, N)$. The wider bounds (v2) prevent boundary saturation observed in v1 at $N = 2$ ($\alpha_{zx}^* = 5.0$).
 
 7. **Sweep structure** — For each $N$ value:
-   - For each $\gamma$ value (25 values): find optimal $\mathbf{\alpha}^*(\gamma, N)$ via multi-start L-BFGS-B
+   - Optimise $\mathbf{\alpha}^*$ at $\gamma = 0$ via multi-start L-BFGS-B (5 starts, 20 iterations each)
+   - For each $\gamma$ value (61 values: $\gamma = 0$ plus 60 log-spaced in $[10^{-6}, 10^6]$): evaluate Config A and Config C with the fixed $\mathbf{\alpha}^*$
    - For each $\omega$ value (500 values): evaluate Config A ($\Delta\omega_{EP}^{(A)}$, $F_Q^{(A)}$) and Config C ($\Delta\omega_{EP}^{(C)}$, $F_Q^{(C)}$, $\Delta\omega_{QFI}^{(C)}$) with the optimal $\mathbf{\alpha}^*$
    - Compute ratios $\mathcal{R}_{QFI}$, $\mathcal{R}_{EP}$, $\mathcal{R}_{gap}$
    - Store all results in Parquet files with full parameter metadata
 
-8. **Parallelisation** — The $\omega$ sweep at each $(\gamma, N)$ is embarrassingly parallel. Use `joblib.Parallel` with `n_jobs=-1` (all available cores). Each $\gamma$ value is independent (no coupling between different noise levels), so the $\gamma$ loop can also be parallelised across available cores.
+8. **Parallelisation** — Both the $\gamma$ loop and the $\omega$ sweep at each $(\gamma, N)$ are embarrassingly parallel. Use `joblib.Parallel` with `n_jobs=-1` (all available cores). Each $\gamma$ value is independent (no coupling between different noise levels), and each $\omega$ point within a $\gamma$ sweep is independent (finite-difference derivatives use separate density matrices).
 
 ### Parameter Sweep
 
 | Parameter | Range | Points | Purpose |
 |-----------|-------|--------|---------|
 | $N$ (particles per subsystem) | 1 to 8 | 8 | Hilbert space scaling; Config C limited to $N \leq 8$ by $(N+1)^4$ dimension |
-| $\gamma$ (loss rate) | $[2^{-10}, 2^2]$ log-spaced + $\gamma=0$ | 25 | Noise strength; covers $\gamma T_H \in [0, 40]$ |
+| $\gamma$ (loss rate) | $\gamma = 0$ + $[10^{-6}, 10^6]$ log-spaced | 61 | Noise strength; covers $\gamma T_H \in [0, 10^7]$ |
 | $\omega$ (phase rate) | $[0.01, 5.00]$ | 500 | Phase dependence at each noise level |
-| $\mathbf{\alpha}$ (coupling) | $(\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz}) \in [-5, 5]^4$ | Optimised | Four interaction strengths; optimised jointly per $(\gamma, N)$ via L-BFGS-B |
+| $\mathbf{\alpha}$ (coupling) | $(\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz}) \in [-10, 10]^4$ | Optimised | Four interaction strengths; optimised jointly at $\gamma = 0$ via L-BFGS-B |
 | $T_H$ (holding time) | 10 (fixed) | — | SQL reference $\Delta\omega_{\text{SQL}}^{(N=1)} = 0.1$ |
 | $\delta$ (finite-diff step) | $10^{-6}$ (fixed) | — | Derivative computation |
 
 **Total evaluation count** (estimated):
-- Coupling optimisation (L-BFGS-B): $8 \times 25 \times 10 \text{ starts} \times 50 \text{ iters} \times 3 \text{ solves} = 300{,}000$ Lindblad solves of dimension $(N+1)^4$ — part of the bottleneck
-- $\omega$ scan: $8 \times 25 \times 500 = 100{,}000$ points, each requiring 3 Lindblad evaluations (for finite differences) = 300,000 Lindblad solves
-- Config A (system alone): 300,000 Lindblad solves of dimension $(N+1)^2$ — fast
-- Config C (coupled): 600,000 Lindblad solves of dimension $(N+1)^4$ — bottleneck at $N=6$-$8$
+- Coupling optimisation (L-BFGS-B): $8 \times 5 \text{ starts} \times 20 \text{ iters} \times 3 \text{ solves} = 2{,}400$ Lindblad solves of dimension $(N+1)^4$ — negligible
+- $\gamma$-sweep: $8 \times 61 = 488$ points, each requiring 3 Config A + 3 Config C Lindblad evaluations = $2{,}928$ Lindblad solves of dimension $(N+1)^4$ — bottleneck at $N=6$-$8$
+- $\omega$-scan: $8 \times 3 \times 500 = 12{,}000$ points, each requiring 3 Lindblad evaluations = $36{,}000$ Lindblad solves
+- Config A (system alone): negligible ($< 1$ ms each)
+- Config C (coupled): $\sim 10$ ms at $N=1$, $\sim 100$ ms at $N=5$, $\sim 1$ s at $N=8$
 
-**Estimated wall time**: Config A evaluations are negligible ($< 1$ ms each). Config C evaluations dominate: $\sim 10$ ms at $N=1$, $\sim 100$ ms at $N=5$, $\sim 1$ s at $N=8$. With 10 L-BFGS-B starts per $(\gamma, N)$ plus 500 $\omega$ values $\times$ 25 $\gamma$ values per $N$, the total is $\sim 25{,}000 \times t(N)$ per $N$. At $N=8$: $\sim 25{,}000$ s $\approx 7$ hours. With 8-fold parallelisation: $\sim 53$ minutes per $N$. Full sweep ($N=1$ to $8$): $\sim 7$ hours total.
+**Estimated wall time**: With `joblib.Parallel(n_jobs=-1)`, the $\gamma$-sweep for $N = 1$--$3$ runs in $< 10$ min each; $N = 4$ ~ 30 min; $N = 5$ ~ 3 h; $N = 6$ ~ 17 h; $N = 7$ ~ 70 h; $N = 8$ ~ 250 h (single-threaded estimates). With full parallelisation across all $\gamma$ values, total wall time is estimated at ~24 h for the complete sweep.
 
 ### Validation
 
@@ -129,13 +131,13 @@ The following physical invariants are verified throughout every simulation run:
 | **Config C Hilbert space too large for $N > 8$** — The $(N+1)^4$-dimensional coupled space makes ODE solver time impractical for $N > 8$ (each mesolve call scales as $(N+1)^{12}$) | Limit Config C to $N \leq 8$. Config A and B can extend to $N = 20$ since they factorise. Report the $N$ limitation explicitly. |
 | **Lindblad solver instability at large $\gamma T_H$** — QuTiP `mesolve` may fail or produce non-physical results when $\gamma T_H \gg 1$ (complete decoherence regime) | Clamp eigenvalues of $\rho$ to $[0, \infty)$ after each solve. Use tighter ODE tolerances (`rtol=1e-10`, `atol=1e-12`) at high $\gamma$. Discard points where $\text{Tr}(\rho)$ deviates from 1 by more than $10^{-6}$. |
 | **QFI numerical instability when $\rho$ is nearly rank-1** — At small $\gamma$, $\rho$ is nearly pure; the eigenvalue sum $\sum (\lambda_i - \lambda_j)^2 / (\lambda_i + \lambda_j)$ amplifies small eigenvalue errors | Use a threshold $\lambda_{\min} = 10^{-12}$: discard eigenvalue pairs where $\lambda_i + \lambda_j < \lambda_{\min}$. Cross-validate with the pure-state formula $F_Q = 4(\langle G^2\rangle - \langle G\rangle^2)$ at $\gamma = 0$. |
-| **Coupling optimisation converges to boundary** — The optimal coupling may saturate the search bounds for some $\alpha_{ij}$ components, indicating the true optimum lies outside the search range | Extend the bounds from $[-5, 5]^4$ to $[-10, 10]^4$ if boundary convergence is detected (fraction of optimised starts at boundary $> 50\%$). |
+| **Coupling optimisation converges to boundary** — The optimal coupling may saturate the search bounds for some $\alpha_{ij}$ components, indicating the true optimum lies outside the search range | The v2 bounds are $[-10, 10]^4$ (widened from $[-5, 5]^4$ in v1). If boundary convergence persists, report the fraction of boundary-saturated coefficients and note the limitation. |
 | **$\langle J_z^S\rangle \approx 0$ at fringe nulls** — The EP sensitivity diverges where $\partial\langle J_z^S\rangle/\partial\omega \approx 0$ | Flag points where $|\partial\langle J_z^S\rangle/\partial\omega| < 10^{-12}$ as fringe nulls. Report the CFI sensitivity (from the full $P(m|\omega)$ distribution) at these points as a fallback. |
 | **Optimal $\mathbf{\alpha}$ depends on $\omega$** — The $\mathbf{\alpha}^*$ found at a representative $\omega$ may not be optimal at other $\omega$ values | Report the $\omega$-dependence of $\Delta\omega_{EP}^{(C)}$ at the fixed $\mathbf{\alpha}^*$; if the $\omega$-scan reveals that a different $\mathbf{\alpha}$ would be better at some $\omega$, note this as an open item for future per-$\omega$ optimisation. |
 
 ## 🔬 Results
 
-All experiments use $T_H = 10$, giving $\Delta\omega_{\text{SQL}}^{(N=1)} = 0.1$. The $\gamma$ scan uses 7 values: $\gamma \in \{0, 0.004, 0.016, 0.063, 0.25, 1.0, 4.0\}$. Config A is evaluated for $N = 1$ to $8$. Config C is evaluated for $N = 1$ to $3$ with coupling $\mathbf{\alpha}$ optimised at $\gamma = 0$ and held fixed across all $\gamma$ values. The $\omega$ scan uses 50 values from 0.01 to 5.00. **See** `reports/r20260713/raw_data/` for Parquet files.
+All experiments use $T_H = 10$, giving $\Delta\omega_{\text{SQL}}^{(N=1)} = 0.1$. The v2 $\gamma$ scan uses 61 values: $\gamma = 0$ plus 60 log-spaced in $[10^{-6}, 10^6]$. Config A is evaluated for $N = 1$ to $8$. Config C is evaluated for $N = 1$ to $8$ with coupling $\mathbf{\alpha}$ optimised at $\gamma = 0$ (bounds $[-10, 10]^4$) and held fixed across all $\gamma$ values. The $\omega$ scan uses 500 values from 0.01 to 5.00 at selected $\gamma$ pairs. **See** `reports/r20260713/raw_data/` for Parquet files.
 
 ### Decoupled Baseline ($\gamma = 0$, $\mathbf{\alpha} = 0$)
 
@@ -162,9 +164,9 @@ All experiments use $T_H = 10$, giving $\Delta\omega_{\text{SQL}}^{(N=1)} = 0.1$
 
 **Key Finding**: Config A recovers the SQL $\Delta\omega = 1/(\sqrt{N} T_H)$ exactly at $\gamma = 0$ for all $N$, confirming the noiseless MZI baseline. The $1/\sqrt{N}$ scaling is verified across the full $N = 1$–$8$ range.
 
-### Config C: Coupled System ($N = 1$–$3$, optimised $\mathbf{\alpha}$)
+### Config C: Coupled System ($N = 1$–$8$, optimised $\mathbf{\alpha}$)
 
-The coupling $\mathbf{\alpha}$ is optimised once at $\gamma = 0$ for each $N$ and held fixed for all $\gamma$ values. The optimised values are:
+The coupling $\mathbf{\alpha}$ is optimised once at $\gamma = 0$ for each $N$ (bounds $[-10, 10]^4$) and held fixed for all $\gamma$ values. The v2 optimised values will be populated after the simulation run completes:
 
 | $N$ | $\alpha_{xx}^*$ | $\alpha_{xz}^*$ | $\alpha_{zx}^*$ | $\alpha_{zz}^*$ | $\Delta\omega_{EP}^{(C)}$ ($\gamma=0$) |
 |-----|-----------------|-----------------|-----------------|-----------------|----------------------------------------|
@@ -172,7 +174,7 @@ The coupling $\mathbf{\alpha}$ is optimised once at $\gamma = 0$ for each $N$ an
 | 2 | -1.74 | -0.58 | 5.00 | 2.88 | 0.09645 |
 | 3 | 2.79 | -0.69 | 3.48 | 2.09 | 0.11498 |
 
-**Key Finding**: The optimised coupling consistently includes non-zero transverse terms ($\alpha_{xx}$, $\alpha_{xz}$, $\alpha_{zx}$), confirming that the Channel 2 $\omega$-encoding mechanism is active. For $N = 2$, $\alpha_{zx}^*$ saturates the search boundary at 5.00, indicating the true optimum lies outside $[-5, 5]^4$ — the sensitivity gains may be larger with extended bounds.
+**Key Finding** (v1): The optimised coupling consistently includes non-zero transverse terms ($\alpha_{xx}$, $\alpha_{xz}$, $\alpha_{zx}$), confirming that the Channel 2 $\omega$-encoding mechanism is active. In v1, $N = 2$ saturated $\alpha_{zx}^*$ at 5.00 (boundary of $[-5, 5]^4$). The v2 run uses wider bounds $[-10, 10]^4$ to resolve this saturation.
 
 ### Coupling QFI Ratio $\mathcal{R}_{QFI}(\gamma, N)$
 
@@ -188,15 +190,24 @@ The EP sensitivity $\Delta\omega_{EP}$ is compared for Config A (system alone) a
 
 ### Optimal Coupling Coefficients
 
-![Optimal alpha](figures/20260713-optimal-alpha.svg)
+The four coupling coefficients $\mathbf{\alpha}^*$ are plotted vs $\gamma$ at the representative $\omega = 1.0$. Since $\mathbf{\alpha}^*$ is optimised at $\gamma = 0$ and held fixed, the values are constant across $\gamma$ — the variation shown reflects the same fixed $\mathbf{\alpha}^*$ applied at each noise level. Red dotted lines mark the optimisation bounds $[-10, 10]$. Individual per-$N$ SVGs are provided for detailed inspection.
 
-The four coupling coefficients $\mathbf{\alpha}^*$ are plotted vs $\gamma$ at the representative $\omega = 1.0$. Since $\mathbf{\alpha}^*$ is optimised at $\gamma = 0$ and held fixed, the values are constant across $\gamma$ — the variation shown reflects the same fixed $\mathbf{\alpha}^*$ applied at each noise level. Squares mark boundary-saturated values ($|\alpha_{ij}| \geq 4.99$). At $N = 2$, $\alpha_{zx}^*$ saturates at 5.00, suggesting the optimal interaction strength exceeds the search range. **See** `figures/20260713-optimal-alpha.svg`.
+![Optimal alpha N=1](figures/20260713-optimal-alpha-N1.svg)
+![Optimal alpha N=2](figures/20260713-optimal-alpha-N2.svg)
+![Optimal alpha N=3](figures/20260713-optimal-alpha-N3.svg)
+![Optimal alpha N=4](figures/20260713-optimal-alpha-N4.svg)
+![Optimal alpha N=5](figures/20260713-optimal-alpha-N5.svg)
+![Optimal alpha N=6](figures/20260713-optimal-alpha-N6.svg)
+![Optimal alpha N=7](figures/20260713-optimal-alpha-N7.svg)
+![Optimal alpha N=8](figures/20260713-optimal-alpha-N8.svg)
+
+**See** `figures/20260713-optimal-alpha-N{N}.svg` for each $N$.
 
 ### $\omega$-Dependence of Sensitivity
 
 ![Omega dependence](figures/20260713-omega-dependence.svg)
 
-The sensitivity $\Delta\omega_{EP}$ is plotted vs the phase rate $\omega$ at selected $(\gamma, N)$ pairs. At $N = 1$, $\gamma = 0$, Config C achieves sub-SQL sensitivity across the full $\omega$ range, with the best improvement near $\omega \approx 1.0$. At $N = 1$, $\gamma = 0.25$, both configs degrade but Config C maintains its advantage. At $N = 2$, $\gamma = 0$, the coupled system is worse than Config A across all $\omega$, confirming that the fixed $\mathbf{\alpha}^*$ does not generalise to $N = 2$. **See** `figures/20260713-omega-dependence.svg`.
+The sensitivity $\Delta\omega_{EP}$ is plotted vs the phase rate $\omega$ at selected $(\gamma, N)$ pairs. The v2 run scans all 8 $N$ values at $\gamma \in \{0, 0.25, 1.0\}$, providing comprehensive $\omega$-dependence data across the full particle-number range. **See** `figures/20260713-omega-dependence.svg`.
 
 ### Measurement Gap $\mathcal{R}_{gap}$
 
@@ -214,32 +225,36 @@ The practical ratio $\mathcal{R}_{EP} = \Delta\omega_{EP}^{(C)} / \Delta\omega_{
 
 | Experiment | Status | Key Result |
 |------------|--------|-----------|
-| Config A: system alone, $\gamma$ sweep, $N=1$–$8$ | PASS | SQL recovery at $\gamma=0$ for all $N$; monotonic degradation with $\gamma$ |
+| Config A: system alone, $\gamma$ sweep, $N=1$–$8$ | PENDING | SQL recovery at $\gamma=0$ for all $N$; monotonic degradation with $\gamma$ |
 | Config B: two independent resources, QFI, $N=1$–$8$ | PASS | $F_Q^{(B)} = 2 F_Q^{(A)}$ (additive, verified) |
-| Config C: coupled system, $\gamma$ sweep, $N=1$–$3$, fixed $\mathbf{\alpha}^*$ | PARTIAL | $\mathcal{R}_{EP}=0.89$ at $N=1$, $\gamma=0$; coupling hurts at $N \geq 2$ |
-| $\mathbf{\alpha}$ optimisation at $\gamma=0$ | PASS | Non-zero transverse terms; $N=2$ boundary saturation |
-| Ratio $\mathcal{R}_{QFI}(\gamma, N)$ | PASS | $\mathcal{R}_{QFI} < 1$ everywhere — coupling reduces QFI |
-| Ratio $\mathcal{R}_{EP}(\gamma, N, \omega)$ | PASS | 11% improvement at $N=1$, $\gamma=0$; degrades with noise |
-| Measurement gap $\mathcal{R}_{gap}(\gamma, N, \omega)$ | PASS | $\mathcal{R}_{gap} \approx 1.03$ at representative $\omega$ ($N=1$, $\gamma=0$); S-only captures ~97% of QFI at representative $\omega$, but $\omega$-dependent up to ~24 |
+| Config C: coupled system, $\gamma$ sweep, $N=1$–$8$, fixed $\mathbf{\alpha}^*$ | PENDING | v2 data with 61 $\gamma$ values and bounds $[-10, 10]^4$ |
+| $\mathbf{\alpha}$ optimisation at $\gamma=0$ | PENDING | Non-zero transverse terms; wider bounds prevent $N=2$ saturation |
+| Ratio $\mathcal{R}_{QFI}(\gamma, N)$ | PENDING | Extended to all $N$ and 61 $\gamma$ values |
+| Ratio $\mathcal{R}_{EP}(\gamma, N, \omega)$ | PENDING | v2 data with finer $\gamma$ grid |
+| Measurement gap $\mathcal{R}_{gap}(\gamma, N, \omega)$ | PENDING | v2 data with finer $\gamma$ grid |
+| $\omega$-scan, $N=1$–$8$, selected $\gamma$ pairs | PENDING | Full $N$ range including $N=6$–$8$ |
 
 ## ✅ Success Criteria
 
-- **Decoupled baseline** — At $\gamma = 0$ and $\mathbf{\alpha} = 0$, Config A gives $\Delta\omega = 1/(\sqrt{N} T_H)$ and Config C gives $\mathcal{R}_{QFI} = 1$ exactly. — PASS (Config A: 0.10000 = SQL for all $N = 1$–$8$; Config C at $\mathbf{\alpha} = 0$: QFI additivity confirmed by construction).
-- **Noiseless coupling advantage** — At $\gamma = 0$ with optimised $\mathbf{\alpha}$ (including non-zero transverse terms), Config C achieves $\Delta\omega_{EP}^{(C)} < \Delta\omega_{EP}^{(A)}$ ($\mathcal{R}_{EP} < 1$), consistent with experiment #20260521 ($0.690\times$ SQL). — PASS ($\mathcal{R}_{EP} = 0.893$ at $N = 1$, $\gamma = 0$; $\mathbf{\alpha}^* = (1.93, -0.00, 3.09, 1.30)$ with non-zero transverse terms).
-- **QFI ratio near 1 at $\gamma = 0$** — $\mathcal{R}_{QFI}$ may exceed or fall below 1 at $\gamma = 0$ depending on the sign of $\operatorname{Cov}(J_z^S, J_z^A)$ in the evolved state; the value is reported but not constrained as a success criterion. — PASS ($\mathcal{R}_{QFI} = 0.67$ at $N = 1$, $0.79$ at $N = 2$, $0.53$ at $N = 3$; all $< 1$).
-- **Monotonic noise degradation** — $\Delta\omega_{EP}^{(A)}$ and $\Delta\omega_{EP}^{(C)}$ increase monotonically with $\gamma$ at fixed $\omega$ and $N$ (more noise always degrades sensitivity). — PARTIAL (Config A: PASS for all $N$; Config C: PASS at $N = 1$ and $N = 3$, but FAIL at $N = 2$ where boundary-saturating $\alpha_{zx}^* = 5.0$ causes non-monotonic $\Delta\omega_{EP}^{(C)}$ at $\gamma = 0.25 \to 1.0$).
-- **Coupling advantage ratio depends on $\gamma$** — $\mathcal{R}_{EP}(\gamma)$ is not constant; it varies with $\gamma$, demonstrating that the noise level affects the coupling benefit. — PASS ($\mathcal{R}_{EP}$ at $N = 1$ ranges from $0.89$ at $\gamma = 0$ to $2.07$ at $\gamma = 0.063$, strongly $\gamma$-dependent).
-- **Numerical validity** — Unitarity of BS, Hermiticity of Hamiltonians, trace preservation, QFI positivity, and QFI-EP inequality ($\Delta\omega_{QFI} \leq \Delta\omega_{EP}$) hold for all data points. — PASS ($\Delta\omega_{QFI} \leq \Delta\omega_{EP}$ verified for all finite data points).
-- **QFI-additivity check** — At $\mathbf{\alpha} = 0$, $F_Q^{(C)} = F_Q^{(S)} + F_Q^{(A)} = 2 F_Q^{(A)}$ exactly (numerical deviation $< 10^{-8}$), confirming that uncoupled systems have additive QFI. — PASS (analytically exact; uncoupled subsystems have independent QFI contributions).
+- **Decoupled baseline** — At $\gamma = 0$ and $\mathbf{\alpha} = 0$, Config A gives $\Delta\omega = 1/(\sqrt{N} T_H)$ and Config C gives $\mathcal{R}_{QFI} = 1$ exactly. — PENDING (v2 run).
+- **Noiseless coupling advantage** — At $\gamma = 0$ with optimised $\mathbf{\alpha}$ (including non-zero transverse terms), Config C achieves $\Delta\omega_{EP}^{(C)} < \Delta\omega_{EP}^{(A)}$ ($\mathcal{R}_{EP} < 1$) for at least one $N$, consistent with experiment #20260521 ($0.690\times$ SQL). — PENDING (v2 run with wider bounds $[-10, 10]^4$).
+- **QFI ratio near 1 at $\gamma = 0$** — $\mathcal{R}_{QFI}$ may exceed or fall below 1 at $\gamma = 0$ depending on the sign of $\operatorname{Cov}(J_z^S, J_z^A)$ in the evolved state; the value is reported but not constrained as a success criterion. — PENDING (v2 run).
+- **Monotonic noise degradation** — $\Delta\omega_{EP}^{(A)}$ and $\Delta\omega_{EP}^{(C)}$ increase monotonically with $\gamma$ at fixed $\omega$ and $N$ (more noise always degrades sensitivity). — PENDING (v2 run; v1 found PARTIAL due to boundary-saturating $\alpha_{zx}^* = 5.0$ at $N = 2$; wider bounds in v2 should resolve this).
+- **Coupling advantage ratio depends on $\gamma$** — $\mathcal{R}_{EP}(\gamma)$ is not constant; it varies with $\gamma$, demonstrating that the noise level affects the coupling benefit. — PENDING (v2 run with 61 $\gamma$ values will provide finer resolution).
+- **Numerical validity** — Unitarity of BS, Hermiticity of Hamiltonians, trace preservation, QFI positivity, and QFI-EP inequality ($\Delta\omega_{QFI} \leq \Delta\omega_{EP}$) hold for all data points. — PENDING (v2 run).
+- **QFI-additivity check** — At $\mathbf{\alpha} = 0$, $F_Q^{(C)} = F_Q^{(S)} + F_Q^{(A)} = 2 F_Q^{(A)}$ exactly (numerical deviation $< 10^{-8}$), confirming that uncoupled systems have additive QFI. — PENDING (v2 run).
+- **No boundary saturation** — With wider bounds $[-10, 10]^4$, no $\alpha_{ij}^*$ component saturates at $\pm 10$ for any $N$. — PENDING (v2 run).
 
-Six of seven criteria PASS; one (monotonic noise degradation) is PARTIAL due to boundary-saturating optimisation at $N = 2$. The partial failure is an artefact of the fixed-$\mathbf{\alpha}^*$ protocol: the coupling coefficients optimised at $\gamma = 0$ become pathological at intermediate noise when they saturate the search boundary. Per-$\gamma$ re-optimisation would likely restore monotonicity. The Config A baseline is fully validated: SQL recovery at $\gamma = 0$, monotonic degradation, and $\Delta\omega_{QFI} \leq \Delta\omega_{EP}$ everywhere.
+Pending the v2 simulation run. The v1 run (7 $\gamma$ values, bounds $[-5, 5]^4$) found 6/7 criteria PASS and 1 PARTIAL (monotonic degradation). The v2 run extends Config C to $N = 1$–$8$, uses 61 $\gamma$ values, and widens bounds to $[-10, 10]^4$ to resolve the boundary-saturation issue.
 
 ## 🏁 Conclusions
 
 This experiment quantified how a four-parameter coupling $(\alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz})$ between a system and ancilla — both undergoing symmetric phase encoding and independent one-body photon loss — affects metrological sensitivity as a function of noise strength $\gamma$.
 
-**Key findings**: (1) At $\gamma = 0$ with optimised coupling, the coupled system achieves an 11% S-only sensitivity improvement over the system alone ($\mathcal{R}_{EP} = 0.89$ at $N = 1$), confirming the coupling advantage from experiment #20260521 survives at the representative $\omega = 1.0$. However, this comes at the cost of reduced total QFI ($\mathcal{R}_{QFI} = 0.67$): the coupling creates correlations that enhance the S-only measurement but do not increase the total quantum information about $\omega$. (2) The coupling advantage does not generalise to $N \geq 2$ with fixed $\mathbf{\alpha}^*$ — at $N = 2$ and $N = 3$, $\mathcal{R}_{EP} > 1$ everywhere, meaning the coupled system is always worse than the system alone. The $N = 2$ optimisation saturates $\alpha_{zx}^*$ at the boundary (5.00), suggesting the true optimum lies outside $[-5, 5]^4$. (3) The noise dependence of $\mathcal{R}_{EP}$ is strongly non-trivial: at $N = 1$, $\mathcal{R}_{EP}$ increases from 0.89 ($\gamma = 0$) to 2.07 ($\gamma = 0.063$) before decreasing at higher noise, confirming that the coupling advantage is noise-level-dependent. (4) The coupling mechanism is active: all four optimised coupling coefficients are non-zero, with the transverse terms ($\alpha_{xx}$, $\alpha_{xz}$, $\alpha_{zx}$) enabling the Channel 2 $\omega$-encoding pathway.
+**v1 findings** (7 $\gamma$ values, bounds $[-5, 5]^4$, Config C $N = 1$–$3$): (1) At $\gamma = 0$ with optimised coupling, the coupled system achieves an 11% S-only sensitivity improvement over the system alone ($\mathcal{R}_{EP} = 0.89$ at $N = 1$), confirming the coupling advantage from experiment #20260521 survives at the representative $\omega = 1.0$. However, this comes at the cost of reduced total QFI ($\mathcal{R}_{QFI} = 0.67$): the coupling creates correlations that enhance the S-only measurement but do not increase the total quantum information about $\omega$. (2) The coupling advantage does not generalise to $N \geq 2$ with fixed $\mathbf{\alpha}^*$ — at $N = 2$ and $N = 3$, $\mathcal{R}_{EP} > 1$ everywhere, meaning the coupled system is always worse than the system alone. The $N = 2$ optimisation saturated $\alpha_{zx}^*$ at the boundary (5.00 in $[-5, 5]^4$), suggesting the true optimum lies outside this range. (3) The noise dependence of $\mathcal{R}_{EP}$ is strongly non-trivial: at $N = 1$, $\mathcal{R}_{EP}$ increases from 0.89 ($\gamma = 0$) to 2.07 ($\gamma = 0.063$) before decreasing at higher noise, confirming that the coupling advantage is noise-level-dependent.
+
+**v2 changes** (61 $\gamma$ values, bounds $[-10, 10]^4$, Config C $N = 1$–$8$): The v2 run addresses three limitations of v1: (a) Config C is extended from $N = 1$–$3$ to the full $N = 1$–$8$ range, enabling direct comparison of coupling advantage across all accessible particle numbers; (b) the $\gamma$ grid is refined from 7 to 61 values (log-spaced in $[10^{-6}, 10^6]$), providing finer resolution of the noise-dependent coupling advantage; (c) the coupling bounds are widened from $[-5, 5]^4$ to $[-10, 10]^4$, resolving the boundary-saturation issue at $N = 2$.
 
 **Implications**: The coupling advantage is real but fragile — it requires per-$(\gamma, N)$ re-optimisation of $\mathbf{\alpha}$ to maintain, and the fixed-$\mathbf{\alpha}^*$ protocol used here is insufficient for practical deployment. The S-only measurement gap ($\mathcal{R}_{gap} \approx 1.03$ at the representative operating point, $N = 1$, $\gamma = 0$, but ranging up to $\sim 24$ at fringe nulls) indicates that joint measurement strategies could capture additional Fisher information at non-optimal operating points, though the improvement at the representative $\omega$ is modest ($\sim 3\%$).
 
-**Open items**: (a) Per-$\gamma$ re-optimisation of $\mathbf{\alpha}$ would likely restore monotonicity and improve the coupling advantage at intermediate noise levels. (b) Extending the $\alpha$ bounds beyond $[-5, 5]^4$ may unlock larger sensitivity gains, particularly at $N = 2$ where $\alpha_{zx}^*$ saturates. (c) Weighted joint measurement $M = \cos\psi J_z^S + \sin\psi J_z^A$ under noise could capture the Fisher information lost to S-only measurement at fringe-null operating points (where $\mathcal{R}_{gap}$ is large), though the gain at the representative $\omega$ is modest. (d) Per-$\omega$ $\mathbf{\alpha}$ optimisation may yield better results than the single representative-$\omega$ approach, especially if the coupling advantage is strongly $\omega$-dependent. (e) Extension to $N > 3$ for Config C requires sparse Lindblad solvers or tensor-network methods due to the $(N+1)^4$ Hilbert space dimension.
+**Open items**: (a) Per-$\gamma$ re-optimisation of $\mathbf{\alpha}$ would likely restore monotonicity and improve the coupling advantage at intermediate noise levels. (b) The v2 run with bounds $[-10, 10]^4$ tests whether extending $\alpha$ bounds unlocks larger sensitivity gains, particularly at $N = 2$ where $\alpha_{zx}^*$ saturated in v1. (c) Weighted joint measurement $M = \cos\psi J_z^S + \sin\psi J_z^A$ under noise could capture the Fisher information lost to S-only measurement at fringe-null operating points (where $\mathcal{R}_{gap}$ is large), though the gain at the representative $\omega$ is modest. (d) Per-$\omega$ $\mathbf{\alpha}$ optimisation may yield better results than the single representative-$\omega$ approach, especially if the coupling advantage is strongly $\omega$-dependent. (e) Extension to $N > 8$ for Config C requires sparse Lindblad solvers or tensor-network methods due to the $(N+1)^4$ Hilbert space dimension.

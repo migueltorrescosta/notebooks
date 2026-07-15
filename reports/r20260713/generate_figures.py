@@ -1,16 +1,16 @@
 """
 Generate all results and SVG figures for
-Coupled-System-Ancilla Metrology Under Photon Loss.
+Coupled-System-Ancilla Metrology Under Photon Loss (v2).
 
 Run with:
     uv run python reports/r20260713/generate_figures.py [--force]
 
 Produces:
-    raw_data/20260713-config-a-sweep.parquet
-    raw_data/20260713-config-c-optima.parquet
-    raw_data/20260713-omega-scan.parquet
-    figures/20260713-{rqfi-heatmap,sensitivity-vs-gamma,optimal-alpha,
-                     omega-dependence,measurement-gap,ep-ratio}.svg
+    raw_data/20260713-gamma-sweep.parquet
+    raw_data/20260713-omega-scan-N{N}-g{gamma}.parquet
+    figures/20260713-{rqfi-heatmap,sensitivity-vs-gamma,
+                     optimal-alpha-N{N},omega-dependence,
+                     measurement-gap,ep-ratio}.svg
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from joblib import Parallel, delayed
 
 # ── Report-local imports ──────────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -53,21 +54,21 @@ DATE = "20260713"
 RAW_DIR = Path(__file__).parent / "raw_data"
 FIG_DIR = Path(__file__).parent / "figures"
 
-# Parameter ranges (practical subset of the full report sweep)
+# Parameter ranges
 N_VALUES_CONFIG_A = [1, 2, 3, 4, 5, 6, 7, 8]
 N_VALUES_CONFIG_C = [1, 2, 3, 4, 5, 6, 7, 8]
-GAMMA_VALUES = [1e-06, 1.58e-06, 2.51e-06, 3.98e-06, 6.31e-06, 1e-05, 1.58e-05, 2.51e-05, 3.98e-05, 6.31e-05, 0.0001, 0.000158, 0.000251, 0.000398, 0.000631, 0.001, 0.00158, 0.00251, 0.00398, 0.00631, 0.01, 0.0158, 0.0251, 0.0398, 0.0631, 0.1, 0.158, 0.251, 0.398, 0.631, 1.0, 1.58, 2.51, 3.98, 6.31, 10.0, 15.8, 25.1, 39.8, 63.1, 100.0, 158.0, 251.0, 398.0, 631.0, 1000.0, 1580.0, 2510.0, 3980.0, 6310.0, 10000.0, 15800.0, 25100.0, 39800.0, 63100.0, 100000.0, 158000.0, 251000.0, 398000.0, 631000.0, 1000000.0]
+GAMMA_VALUES = [0.0, *list(np.logspace(-6, 6, 60))]  # 61 values: γ=0 + 60 log-spaced
 OMEGA_REP = 1.0  # representative ω for coupling optimisation
 OMEGA_SCAN_COUNT = 500
 OMEGA_SCAN_MIN = 0.01
 OMEGA_SCAN_MAX = 5.0
 
-# Optimisation settings (tuned for practical runtime)
-N_STARTS = 2
-MAX_ITER = 10
-OPT_BOUNDS = (-5.0, 5.0)
+# Optimisation settings
+N_STARTS = 5
+MAX_ITER = 20
+OPT_BOUNDS = (-10.0, 10.0)
 OPT_SEED = 42
-N_JOBS = 1  # sequential to avoid memory pressure from QuTiP
+N_JOBS = -1  # use all available cores
 
 sns.set_theme(style="whitegrid", font_scale=1.1)
 
@@ -145,20 +146,45 @@ def _run_config_c_point(
     return delta_ep, fq, delta_qfi
 
 
+def _eval_gamma_point_a_only(
+    N: int, omega_rep: float, gamma: float
+) -> tuple[float, float, float]:
+    """Evaluate Config A at a single γ point. Parallelisation-safe."""
+    return _run_config_a_point(N, omega_rep, gamma)
+
+
+def _eval_gamma_point_both(
+    N: int, omega_rep: float, gamma: float, alpha: dict[str, float]
+) -> tuple[float, float, float, float, float, float]:
+    """Evaluate Config A + C at a single γ point. Parallelisation-safe."""
+    da, fa, dqa = _run_config_a_point(N, omega_rep, gamma)
+    dc, fc, dqc = _run_config_c_point(N, omega_rep, gamma, alpha)
+    return da, fa, dqa, dc, fc, dqc
+
+
 def sweep_gamma_for_N(
     N: int,
     gamma_values: list[float],
     omega_rep: float = OMEGA_REP,
     n_starts: int = N_STARTS,
     max_iter: int = MAX_ITER,
+    run_config_c: bool = True,
+    n_jobs: int = N_JOBS,
 ) -> GammaSweepResult:
     """Run γ-sweep: optimise α at γ=0, then evaluate Config A and C at all γ.
 
     The coupling is optimised once at γ=0 (noiseless) and the same α is
-    reused for all γ values. This keeps runtime manageable while still
-    showing how noise degrades the coupling advantage.
+    reused for all γ values. The γ loop is parallelised via joblib.
+
+    Args:
+        run_config_c: If True, run Config C (coupled) evaluations.
+                      If False, run Config A only (for large N where C is too slow).
+        n_jobs: Number of parallel jobs (-1 = all cores).
     """
-    print(f"  N={N}: starting γ-sweep ({len(gamma_values)} points)...")
+    print(
+        f"  N={N}: starting γ-sweep ({len(gamma_values)} points, "
+        f"{'A+C' if run_config_c else 'A only'})..."
+    )
     t0 = time.time()
 
     n_g = len(gamma_values)
@@ -174,38 +200,52 @@ def sweep_gamma_for_N(
     alpha_zz = np.zeros(n_g)
 
     # Step 1: Optimise α at γ=0 (noiseless — fast)
-    print("    Optimising α at γ=0...", end="", flush=True)
-    opt = optimise_coupling(
-        N,
-        0.0,
-        omega_rep,
-        T_HOLD,
-        n_starts=n_starts,
-        max_iter=max_iter,
-        bounds=OPT_BOUNDS,
-        seed=OPT_SEED,
-    )
-    a_fixed = opt["alpha_opt"]
-    print(f" done (Δω={opt['delta_ep_opt']:.6f}, α=({a_fixed['xx']:.2f}, {a_fixed['xz']:.2f}, {a_fixed['zx']:.2f}, {a_fixed['zz']:.2f}))")
+    a_fixed: dict[str, float] = {"xx": 0.0, "xz": 0.0, "zx": 0.0, "zz": 0.0}
+    if run_config_c:
+        print("    Optimising α at γ=0...", end="", flush=True)
+        opt = optimise_coupling(
+            N,
+            0.0,
+            omega_rep,
+            T_HOLD,
+            n_starts=n_starts,
+            max_iter=max_iter,
+            bounds=OPT_BOUNDS,
+            seed=OPT_SEED,
+        )
+        a_fixed = opt["alpha_opt"]
+        print(
+            f" done (Δω={opt['delta_ep_opt']:.6f}, "
+            f"α=({a_fixed['xx']:.2f}, {a_fixed['xz']:.2f}, "
+            f"{a_fixed['zx']:.2f}, {a_fixed['zz']:.2f}))"
+        )
 
-    # Step 2: Evaluate at all γ values using the fixed α
-    for ig, gamma in enumerate(gamma_values):
-        # Config A (fast — single subsystem)
-        da, fa, dqa = _run_config_a_point(N, omega_rep, gamma)
-        ep_a[ig] = da
-        fq_a[ig] = fa
-        dqfi_a[ig] = dqa
-
-        # Config C with fixed α from γ=0 optimisation
-        alpha_xx[ig] = a_fixed["xx"]
-        alpha_xz[ig] = a_fixed["xz"]
-        alpha_zx[ig] = a_fixed["zx"]
-        alpha_zz[ig] = a_fixed["zz"]
-
-        dc, fc, dqc = _run_config_c_point(N, omega_rep, gamma, a_fixed)
-        ep_c[ig] = dc
-        fq_c[ig] = fc
-        dqfi_c[ig] = dqc
+    # Step 2: Evaluate at all γ values using the fixed α (parallelised)
+    if run_config_c:
+        results_list = Parallel(n_jobs=n_jobs, verbose=0)(
+            delayed(_eval_gamma_point_both)(N, omega_rep, gamma, a_fixed)
+            for gamma in gamma_values
+        )
+        for ig, (da, fa, dqa, dc, fc, dqc) in enumerate(results_list):
+            ep_a[ig] = da
+            fq_a[ig] = fa
+            dqfi_a[ig] = dqa
+            alpha_xx[ig] = a_fixed["xx"]
+            alpha_xz[ig] = a_fixed["xz"]
+            alpha_zx[ig] = a_fixed["zx"]
+            alpha_zz[ig] = a_fixed["zz"]
+            ep_c[ig] = dc
+            fq_c[ig] = fc
+            dqfi_c[ig] = dqc
+    else:
+        results_list = Parallel(n_jobs=n_jobs, verbose=0)(
+            delayed(_eval_gamma_point_a_only)(N, omega_rep, gamma)
+            for gamma in gamma_values
+        )
+        for ig, (da, fa, dqa) in enumerate(results_list):
+            ep_a[ig] = da
+            fq_a[ig] = fa
+            dqfi_a[ig] = dqa
 
     # Compute ratios
     r_qfi = np.where(fq_a > 0, fq_c / (2.0 * fq_a), np.nan)
@@ -221,10 +261,14 @@ def sweep_gamma_for_N(
     )
 
     elapsed = time.time() - t0
+    r_qfi_min = np.nanmin(r_qfi) if np.any(np.isfinite(r_qfi)) else float("nan")
+    r_qfi_max = np.nanmax(r_qfi) if np.any(np.isfinite(r_qfi)) else float("nan")
+    r_ep_min = np.nanmin(r_ep) if np.any(np.isfinite(r_ep)) else float("nan")
+    r_ep_max = np.nanmax(r_ep) if np.any(np.isfinite(r_ep)) else float("nan")
     print(
         f"  N={N}: done in {elapsed:.1f}s "
-        f"(R_QFI range: [{np.nanmin(r_qfi):.4f}, {np.nanmax(r_qfi):.4f}], "
-        f"R_EP range: [{np.nanmin(r_ep):.4f}, {np.nanmax(r_ep):.4f}])"
+        f"(R_QFI range: [{r_qfi_min:.4f}, {r_qfi_max:.4f}], "
+        f"R_EP range: [{r_ep_min:.4f}, {r_ep_max:.4f}])"
     )
 
     return GammaSweepResult(
@@ -273,6 +317,22 @@ def omega_scan_single_point(
     }
 
 
+def _omega_scan_one_point(
+    N: int, omega: float, gamma: float, alpha: dict[str, float]
+) -> dict[str, float]:
+    """Evaluate Config A only at one ω point (for large N)."""
+    da, fa, dqa = _run_config_a_point(N, omega, gamma)
+    return {
+        "omega": omega,
+        "delta_omega_ep_a": da,
+        "fq_a": fa,
+        "delta_omega_qfi_a": dqa,
+        "delta_omega_ep_c": float("nan"),
+        "fq_c": float("nan"),
+        "delta_omega_qfi_c": float("nan"),
+    }
+
+
 # ============================================================================
 # Parquet saving
 # ============================================================================
@@ -281,29 +341,30 @@ def omega_scan_single_point(
 def save_gamma_sweep_parquet(results: list[GammaSweepResult]) -> Path:
     """Save all γ-sweep results as a single Parquet file."""
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    rows = []
+    rows: list[dict[str, object]] = []
     for res in results:
-        for ig in range(len(res.gamma_values)):
-            rows.append(
-                {
-                    "N": res.N,
-                    "gamma": res.gamma_values[ig],
-                    "delta_omega_ep_a": res.delta_omega_ep_a[ig],
-                    "fq_a": res.fq_a[ig],
-                    "delta_omega_qfi_a": res.delta_omega_qfi_a[ig],
-                    "delta_omega_ep_c": res.delta_omega_ep_c[ig],
-                    "fq_c": res.fq_c[ig],
-                    "delta_omega_qfi_c": res.delta_omega_qfi_c[ig],
-                    "alpha_xx": res.alpha_opt["xx"][ig],
-                    "alpha_xz": res.alpha_opt["xz"][ig],
-                    "alpha_zx": res.alpha_opt["zx"][ig],
-                    "alpha_zz": res.alpha_opt["zz"][ig],
-                    "r_qfi": res.r_qfi[ig],
-                    "r_ep": res.r_ep[ig],
-                    "r_gap": res.r_gap[ig],
-                    "t_hold": T_HOLD,
-                }
-            )
+        n_g = len(res.gamma_values)
+        rows.extend(
+            {
+                "N": res.N,
+                "gamma": res.gamma_values[ig],
+                "delta_omega_ep_a": res.delta_omega_ep_a[ig],
+                "fq_a": res.fq_a[ig],
+                "delta_omega_qfi_a": res.delta_omega_qfi_a[ig],
+                "delta_omega_ep_c": res.delta_omega_ep_c[ig],
+                "fq_c": res.fq_c[ig],
+                "delta_omega_qfi_c": res.delta_omega_qfi_c[ig],
+                "alpha_xx": res.alpha_opt["xx"][ig],
+                "alpha_xz": res.alpha_opt["xz"][ig],
+                "alpha_zx": res.alpha_opt["zx"][ig],
+                "alpha_zz": res.alpha_opt["zz"][ig],
+                "r_qfi": res.r_qfi[ig],
+                "r_ep": res.r_ep[ig],
+                "r_gap": res.r_gap[ig],
+                "t_hold": T_HOLD,
+            }
+            for ig in range(n_g)
+        )
     df = pd.DataFrame(rows)
     path = RAW_DIR / f"{DATE}-gamma-sweep.parquet"
     df.to_parquet(path, index=False)
@@ -348,7 +409,7 @@ def fig_rqfi_heatmap(results: list[GammaSweepResult]) -> Path:
         vmin=0.5,
         vmax=1.5,
     )
-    cbar = fig.colorbar(im, ax=ax, label=r"$\mathcal{R}_{QFI} = F_Q^{(C)} / (2 F_Q^{(A)})$")
+    fig.colorbar(im, ax=ax, label=r"$\mathcal{R}_{QFI} = F_Q^{(C)} / (2 F_Q^{(A)})$")
 
     # Contour at R_QFI = 1
     try:
@@ -388,9 +449,10 @@ def fig_sensitivity_vs_gamma(results: list[GammaSweepResult]) -> Path:
     """Δω_EP vs γ for Config A and C at selected N values."""
     FIG_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Select N values to plot
     plot_N = [1, 3, 5] if len(results) >= 5 else [r.N for r in results[:3]]
-    fig, axes = plt.subplots(1, len(plot_N), figsize=(5 * len(plot_N), 4.5), sharey=True)
+    fig, axes = plt.subplots(
+        1, len(plot_N), figsize=(5 * len(plot_N), 4.5), sharey=True
+    )
     if len(plot_N) == 1:
         axes = [axes]
 
@@ -399,7 +461,9 @@ def fig_sensitivity_vs_gamma(results: list[GammaSweepResult]) -> Path:
         if res is None:
             continue
         g = res.gamma_values
-        ax.plot(g, res.delta_omega_ep_a, "o-", color="C0", label="Config A", linewidth=1.5)
+        ax.plot(
+            g, res.delta_omega_ep_a, "o-", color="C0", label="Config A", linewidth=1.5
+        )
         ax.plot(
             g,
             res.delta_omega_ep_c,
@@ -408,7 +472,9 @@ def fig_sensitivity_vs_gamma(results: list[GammaSweepResult]) -> Path:
             label="Config C (opt)",
             linewidth=1.5,
         )
-        ax.axhline(y=SQL_N1 / np.sqrt(N), color="gray", linestyle="--", alpha=0.5, label="SQL")
+        ax.axhline(
+            y=SQL_N1 / np.sqrt(N), color="gray", linestyle="--", alpha=0.5, label="SQL"
+        )
         ax.set_xscale("symlog", linthresh=0.01)
         ax.set_xlabel(r"$\gamma$ (loss rate)")
         ax.set_title(f"$N = {N}$")
@@ -429,44 +495,46 @@ def fig_sensitivity_vs_gamma(results: list[GammaSweepResult]) -> Path:
     return path
 
 
-def fig_optimal_alpha(results: list[GammaSweepResult]) -> Path:
-    """Optimal α components vs γ at selected N values."""
+def fig_optimal_alpha_per_N(results: list[GammaSweepResult]) -> list[Path]:
+    """Optimal α components vs γ — one SVG per N value."""
     FIG_DIR.mkdir(parents=True, exist_ok=True)
-
-    plot_N = [1, 3, 5] if len(results) >= 5 else [r.N for r in results[:3]]
-    fig, axes = plt.subplots(len(plot_N), 1, figsize=(6, 4 * len(plot_N)), sharex=True)
-    if len(plot_N) == 1:
-        axes = [axes]
-
     labels = [r"$\alpha_{xx}$", r"$\alpha_{xz}$", r"$\alpha_{zx}$", r"$\alpha_{zz}$"]
     colours = ["C0", "C1", "C2", "C3"]
     keys = ["xx", "xz", "zx", "zz"]
+    paths: list[Path] = []
 
-    for ax, N in zip(axes, plot_N, strict=False):
-        res = next((r for r in results if r.N == N), None)
-        if res is None:
-            continue
+    for res in results:
+        N = res.N
+        fig, ax = plt.subplots(figsize=(7, 4))
         g = res.gamma_values
         for key, label, colour in zip(keys, labels, colours, strict=False):
-            ax.plot(g, res.alpha_opt[key], "o-", color=colour, label=label, linewidth=1.5, markersize=5)
+            ax.plot(
+                g,
+                res.alpha_opt[key],
+                "o-",
+                color=colour,
+                label=label,
+                linewidth=1.5,
+                markersize=4,
+                markevery=_markevery(len(g)),
+            )
         ax.axhline(y=0, color="gray", linestyle=":", alpha=0.5)
+        ax.axhline(
+            y=OPT_BOUNDS[0], color="red", linestyle=":", alpha=0.3, label="Bounds"
+        )
+        ax.axhline(y=OPT_BOUNDS[1], color="red", linestyle=":", alpha=0.3)
         ax.set_xscale("symlog", linthresh=0.01)
-        ax.set_ylabel(r"$\alpha^*$")
-        ax.set_title(f"$N = {N}$")
-        ax.legend(fontsize=7, ncol=2)
-    axes[-1].set_xlabel(r"$\gamma$ (loss rate)")
-
-    axes[0].set_ylabel(r"Optimal coupling coefficient $\alpha^*$")
-    fig.suptitle(
-        r"Optimal $\mathbf{\alpha}^*(\gamma)$ for Minimum EP Sensitivity",
-        fontsize=12,
-    )
-    fig.tight_layout()
-    path = FIG_DIR / f"{DATE}-optimal-alpha.svg"
-    fig.savefig(path, format="svg", bbox_inches="tight")
-    plt.close(fig)
-    print(f"  Saved: {path}")
-    return path
+        ax.set_xlabel(r"$\gamma$ (loss rate)")
+        ax.set_ylabel(r"Optimal coupling coefficient $\alpha^*$")
+        ax.set_title(f"Optimal $\\alpha^*(\\gamma)$ — $N = {N}$")
+        ax.legend(fontsize=8, ncol=2)
+        fig.tight_layout()
+        path = FIG_DIR / f"{DATE}-optimal-alpha-N{N}.svg"
+        fig.savefig(path, format="svg", bbox_inches="tight")
+        plt.close(fig)
+        paths.append(path)
+    print(f"  Saved: {len(paths)} per-N optimal-alpha SVGs")
+    return paths
 
 
 def fig_omega_dependence(
@@ -477,7 +545,7 @@ def fig_omega_dependence(
 
     # Select a few representative (γ, N) pairs
     keys = sorted(omega_data.keys())
-    n_panels = min(len(keys), 4)
+    n_panels = min(len(keys), 6)
     selected = keys[:n_panels]
 
     fig, axes = plt.subplots(n_panels, 1, figsize=(8, 3.5 * n_panels), sharex=True)
@@ -487,27 +555,45 @@ def fig_omega_dependence(
     for ax, key in zip(axes, selected, strict=False):
         N, gamma = key
         df = omega_data[key]
-        omega = df["omega"].values
+        omega = df["omega"].to_numpy()
         me = _markevery(len(omega))
 
         ax.plot(
-            omega, df["delta_omega_ep_a"], "-", color="C0",
-            linewidth=1.5, label="Config A (EP)", markevery=me, markersize=4,
+            omega,
+            df["delta_omega_ep_a"],
+            "-",
+            color="C0",
+            linewidth=1.5,
+            label="Config A (EP)",
+            markevery=me,
+            markersize=4,
         )
         ax.plot(
-            omega, df["delta_omega_ep_c"], "-", color="C3",
-            linewidth=1.5, label="Config C (EP, opt)", markevery=me, markersize=4,
+            omega,
+            df["delta_omega_ep_c"],
+            "-",
+            color="C3",
+            linewidth=1.5,
+            label="Config C (EP, opt)",
+            markevery=me,
+            markersize=4,
         )
         if "delta_omega_qfi_c" in df.columns:
-            valid_qfi = np.isfinite(df["delta_omega_qfi_c"].values)
+            valid_qfi = np.isfinite(df["delta_omega_qfi_c"].to_numpy())
             if np.any(valid_qfi):
                 ax.plot(
-                    omega[valid_qfi], df["delta_omega_qfi_c"].values[valid_qfi],
-                    ":", color="C2", linewidth=1.2, label=r"Config C ($\Delta\omega_{QFI}$)",
+                    omega[valid_qfi],
+                    df["delta_omega_qfi_c"].to_numpy()[valid_qfi],
+                    ":",
+                    color="C2",
+                    linewidth=1.2,
+                    label=r"Config C ($\Delta\omega_{QFI}$)",
                 )
 
         sql_n = SQL_N1 / np.sqrt(N)
-        ax.axhline(y=sql_n, color="gray", linestyle="--", alpha=0.5, label=f"SQL ($N={N}$)")
+        ax.axhline(
+            y=sql_n, color="gray", linestyle="--", alpha=0.5, label=f"SQL ($N={N}$)"
+        )
         ax.set_ylabel(r"$\Delta\omega$")
         gamma_str = f"{gamma:.4f}" if gamma < 0.01 else f"{gamma:.2f}"
         ax.set_title(f"$N={N}$, $\\gamma={gamma_str}$")
@@ -515,7 +601,11 @@ def fig_omega_dependence(
         ax.set_ylim(bottom=0)
 
     axes[-1].set_xlabel(r"$\omega$ (phase rate)")
-    fig.suptitle(r"$\omega$-Dependence of Sensitivity at Selected $(\gamma, N)$", fontsize=12, y=1.01)
+    fig.suptitle(
+        r"$\omega$-Dependence of Sensitivity at Selected $(\gamma, N)$",
+        fontsize=12,
+        y=1.01,
+    )
     fig.tight_layout()
     path = FIG_DIR / f"{DATE}-omega-dependence.svg"
     fig.savefig(path, format="svg", bbox_inches="tight")
@@ -537,12 +627,27 @@ def fig_measurement_gap(results: list[GammaSweepResult]) -> Path:
             continue
         g = res.gamma_values
         valid = np.isfinite(res.r_gap)
-        ax.plot(g[valid], res.r_gap[valid], "o-", label=f"$N={N}$", linewidth=1.5, markersize=5)
+        ax.plot(
+            g[valid],
+            res.r_gap[valid],
+            "o-",
+            label=f"$N={N}$",
+            linewidth=1.5,
+            markersize=5,
+        )
 
-    ax.axhline(y=1.0, color="gray", linestyle="--", alpha=0.6, label=r"$\mathcal{R}_{gap}=1$ (S-only optimal)")
+    ax.axhline(
+        y=1.0,
+        color="gray",
+        linestyle="--",
+        alpha=0.6,
+        label=r"$\mathcal{R}_{gap}=1$ (S-only optimal)",
+    )
     ax.set_xscale("symlog", linthresh=0.01)
     ax.set_xlabel(r"$\gamma$ (loss rate)")
-    ax.set_ylabel(r"$\mathcal{R}_{gap} = \Delta\omega_{EP}^{(C)} / \Delta\omega_{QFI}^{(C)}$")
+    ax.set_ylabel(
+        r"$\mathcal{R}_{gap} = \Delta\omega_{EP}^{(C)} / \Delta\omega_{QFI}^{(C)}$"
+    )
     ax.set_title("Measurement Gap: S-only vs Optimal Joint Measurement")
     ax.legend(fontsize=9)
     ax.set_ylim(bottom=0.5)
@@ -568,12 +673,27 @@ def fig_ep_ratio(results: list[GammaSweepResult]) -> Path:
             continue
         g = res.gamma_values
         valid = np.isfinite(res.r_ep)
-        ax.plot(g[valid], res.r_ep[valid], "o-", label=f"$N={N}$", linewidth=1.5, markersize=5)
+        ax.plot(
+            g[valid],
+            res.r_ep[valid],
+            "o-",
+            label=f"$N={N}$",
+            linewidth=1.5,
+            markersize=5,
+        )
 
-    ax.axhline(y=1.0, color="gray", linestyle="--", alpha=0.6, label=r"$\mathcal{R}_{EP}=1$ (no coupling advantage)")
+    ax.axhline(
+        y=1.0,
+        color="gray",
+        linestyle="--",
+        alpha=0.6,
+        label=r"$\mathcal{R}_{EP}=1$ (no coupling advantage)",
+    )
     ax.set_xscale("symlog", linthresh=0.01)
     ax.set_xlabel(r"$\gamma$ (loss rate)")
-    ax.set_ylabel(r"$\mathcal{R}_{EP} = \Delta\omega_{EP}^{(C)} / \Delta\omega_{EP}^{(A)}$")
+    ax.set_ylabel(
+        r"$\mathcal{R}_{EP} = \Delta\omega_{EP}^{(C)} / \Delta\omega_{EP}^{(A)}$"
+    )
     ax.set_title("Practical Sensitivity Ratio: Coupled Ancilla vs System Alone")
     ax.legend(fontsize=9)
     ax.set_ylim(bottom=0)
@@ -594,10 +714,12 @@ def fig_ep_ratio(results: list[GammaSweepResult]) -> Path:
 def main(force: bool = False) -> None:
     """Run all simulations and generate all figures."""
     print("=" * 65)
-    print("Coupled System-Ancilla Metrology Under Photon Loss")
+    print("Coupled System-Ancilla Metrology Under Photon Loss (v2)")
     print(f"T_H={T_HOLD}, ω_rep={OMEGA_REP}, γ values={len(GAMMA_VALUES)}")
     print(f"Config A: N ∈ {N_VALUES_CONFIG_A}")
     print(f"Config C: N ∈ {N_VALUES_CONFIG_C} (optimised α at γ=0)")
+    print(f"α bounds: [{OPT_BOUNDS[0]}, {OPT_BOUNDS[1]}]^4, N_starts={N_STARTS}")
+    print(f"Parallelisation: n_jobs={N_JOBS}")
     print("=" * 65)
 
     t_total = time.time()
@@ -606,79 +728,58 @@ def main(force: bool = False) -> None:
     print("\n[Phase 1] Running γ-sweep for Config A + Config C...")
     results: list[GammaSweepResult] = []
     for N in N_VALUES_CONFIG_C:
-        res = sweep_gamma_for_N(N, GAMMA_VALUES)
+        res = sweep_gamma_for_N(N, GAMMA_VALUES, run_config_c=True, n_jobs=N_JOBS)
         results.append(res)
 
-    # For N=4-8: Config A only (no Config C — too slow)
-    for N in [4, 5, 6, 7, 8]:
-        print(f"  N={N}: running Config A only (γ-sweep)...")
-        t0 = time.time()
-        n_g = len(GAMMA_VALUES)
-        ep_a = np.full(n_g, np.nan)
-        fq_a = np.full(n_g, np.nan)
-        dqfi_a = np.full(n_g, np.nan)
-        for ig, gamma in enumerate(GAMMA_VALUES):
-            da, fa, dqa = _run_config_a_point(N, OMEGA_REP, gamma)
-            ep_a[ig] = da
-            fq_a[ig] = fa
-            dqfi_a[ig] = dqa
-        results.append(
-            GammaSweepResult(
-                N=N,
-                gamma_values=np.array(GAMMA_VALUES),
-                delta_omega_ep_a=ep_a,
-                fq_a=fq_a,
-                delta_omega_qfi_a=dqfi_a,
-                delta_omega_ep_c=np.full(n_g, np.nan),
-                fq_c=np.full(n_g, np.nan),
-                delta_omega_qfi_c=np.full(n_g, np.nan),
-                alpha_opt={
-                    "xx": np.zeros(n_g),
-                    "xz": np.zeros(n_g),
-                    "zx": np.zeros(n_g),
-                    "zz": np.zeros(n_g),
-                },
-                r_qfi=np.full(n_g, np.nan),
-                r_ep=np.full(n_g, np.nan),
-                r_gap=np.full(n_g, np.nan),
-            )
-        )
-        print(f"  N={N}: done in {time.time() - t0:.1f}s")
-
     # Save γ-sweep Parquet
-    parquet_path = save_gamma_sweep_parquet(results)
+    save_gamma_sweep_parquet(results)
 
     # ── Phase 2: ω-scans at selected (γ, N) pairs ─────────────────────
     print("\n[Phase 2] Running ω-scans at selected (γ, N) pairs...")
     omega_grid = np.linspace(OMEGA_SCAN_MIN, OMEGA_SCAN_MAX, OMEGA_SCAN_COUNT)
 
-    scan_pairs: list[tuple[int, float]] = []
-    for N in N_VALUES_CONFIG_C:
-        for gamma in [0.0, 0.25, 1.0]:
-            scan_pairs.append((N, gamma))
+    scan_pairs: list[tuple[int, float]] = [
+        (N, gamma) for N in N_VALUES_CONFIG_A for gamma in [0.0, 0.25, 1.0]
+    ]
 
-    omega_results: dict[tuple[int, float], pd.DataFrame] = {}
-    for N, gamma in scan_pairs:
-        print(f"  ω-scan: N={N}, γ={gamma:.4f}...", end="", flush=True)
-        t0 = time.time()
-
-        res = next((r for r in results if r.N == N), None)
-        if res is None:
-            print(" SKIPPED (no results)")
-            continue
-        alpha = {k: float(res.alpha_opt[k][0]) for k in ["xx", "xz", "zx", "zz"]}
-
+    def _run_omega_scan(
+        N: int, gamma: float, omega_grid: np.ndarray, alpha: dict[str, float]
+    ) -> tuple[int, float, list[dict]]:
+        """Run ω-scan for one (N, γ) pair. Parallelisation-safe."""
+        use_config_c = N in N_VALUES_CONFIG_C
         rows = []
         for omega in omega_grid:
-            row = omega_scan_single_point(N, omega, gamma, alpha)
+            if use_config_c:
+                row = omega_scan_single_point(N, omega, gamma, alpha)
+            else:
+                row = _omega_scan_one_point(N, omega, gamma, alpha)
             row["gamma"] = gamma
             row["N"] = N
             rows.append(row)
+        return N, gamma, rows
 
+    # Build alpha lookup from results
+    alpha_lookup: dict[int, dict[str, float]] = {}
+    for res in results:
+        alpha_lookup[res.N] = {
+            k: float(res.alpha_opt[k][0]) for k in ["xx", "xz", "zx", "zz"]
+        }
+
+    omega_results: dict[tuple[int, float], pd.DataFrame] = {}
+    scan_results = Parallel(n_jobs=N_JOBS, verbose=0)(
+        delayed(_run_omega_scan)(
+            N,
+            gamma,
+            omega_grid,
+            alpha_lookup.get(N, {"xx": 0.0, "xz": 0.0, "zx": 0.0, "zz": 0.0}),
+        )
+        for N, gamma in scan_pairs
+    )
+    for N, gamma, rows in scan_results:
         tag = f"N{N}-g{gamma:.4f}".replace(".", "p")
         save_omega_scan_parquet(rows, tag)
         omega_results[(N, gamma)] = pd.DataFrame(rows)
-        print(f" {time.time() - t0:.1f}s ({len(rows)} ω points)")
+    print(f"  Completed {len(scan_results)} ω-scans")
 
     # ── Phase 3: Generate figures ──────────────────────────────────────
     print("\n[Phase 3] Generating figures...")
@@ -686,7 +787,7 @@ def main(force: bool = False) -> None:
 
     fig_rqfi_heatmap(cc_results)
     fig_sensitivity_vs_gamma(cc_results)
-    fig_optimal_alpha(cc_results)
+    fig_optimal_alpha_per_N(cc_results)
     fig_omega_dependence(omega_results)
     fig_measurement_gap(cc_results)
     fig_ep_ratio(cc_results)
