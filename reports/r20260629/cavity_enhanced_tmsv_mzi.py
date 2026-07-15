@@ -381,6 +381,36 @@ def _resolve_finesse_range(
     return finesse_range
 
 
+def _partial_dir() -> Path:
+    """Return the partial-checkpoint directory under raw_data."""
+    return _parquet_path("x").parent / "partial"
+
+
+def _load_partial(finesse: float) -> list[dict] | None:
+    """Load a previously saved per-finesse partial, or ``None``."""
+    pq = _partial_dir() / f"F{int(finesse)}.parquet"
+    if not pq.exists():
+        return None
+    df = pd.read_parquet(pq)
+    # Convert DataFrame back to the dict-of-arrays format expected by
+    # _row_dicts_to_result (one dict per omega point is NOT the format;
+    # generate_single_cavity_point returns one dict of arrays for the
+    # entire (N, F) block).  We store one row per F, so reconstruct a
+    # single dict of arrays from the DataFrame.
+    if df.empty:
+        return None
+    return [{col: df[col].to_numpy(dtype=float) for col in df.columns}]
+
+
+def _save_partial(finesse: float, rows: list[dict]) -> None:
+    """Persist a per-finesse checkpoint as a Parquet file."""
+    d = _partial_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    pq = d / f"F{int(finesse)}.parquet"
+    combined = _row_dicts_to_result(rows)
+    combined.to_dataframe().to_parquet(pq, index=False)
+
+
 def generate_full_data(
     mean_total_range: list[float] | None = None,
     finesse_range: list[float] | None = None,
@@ -389,10 +419,14 @@ def generate_full_data(
 ) -> CavityTmsvSensitivityResult:
     """Generate full cavity-enhanced TMSV sensitivity data.
 
+    Each finesse value is checkpointed to ``raw_data/partial/F{F}.parquet``
+    upon completion.  On re-runs (without *force*), already-completed
+    finesse values are loaded from checkpoints instead of re-computed.
+
     Args:
         mean_total_range: List of ⟨N⟩ values (default: MEAN_TOTAL_RANGE).
         finesse_range: List of ℱ values (default: FINESSE_RANGE).
-        force: If True, re-generate even if Parquet exists.
+        force: If True, re-generate even if checkpoints exist.
         only: If set (e.g. ``"F=10"``), only run for matching finesse.
 
     Returns:
@@ -404,21 +438,58 @@ def generate_full_data(
         finesse_range = FINESSE_RANGE
     finesse_range = _resolve_finesse_range(finesse_range, only)
 
-    rows: list[dict] = []
+    all_rows: list[dict] = []
+    t_start_all = __import__("time").monotonic()
 
     for idx, Fi in enumerate(finesse_range, start=1):
+        # --- checkpoint recovery ---
+        partial = _load_partial(Fi)
+        if partial is not None and not force:
+            print(
+                f"  ℱ={Fi} ({idx}/{len(finesse_range)}) — loaded from checkpoint",
+                flush=True,
+            )
+            all_rows.extend(partial)
+            continue
+
         print(f"  Sweeping ℱ={Fi} ({idx}/{len(finesse_range)})", flush=True)
-        for Ni in mean_total_range:
+        fi_rows: list[dict] = []
+        t_start_fi = __import__("time").monotonic()
+
+        for n_idx, Ni in enumerate(mean_total_range, start=1):
             row_data = generate_single_cavity_point(Ni, Fi)
             if row_data is not None:
-                rows.append(row_data)
+                fi_rows.append(row_data)
             beam_splitter_unitary.cache_clear()
             _malloc_trim()
 
-    if not rows:
+            if row_data is not None:
+                dt_min = float(np.min(row_data["delta_omega_c"]))
+            else:
+                dt_min = 0.0
+            elapsed = __import__("time").monotonic() - t_start_fi
+            print(
+                f"    N={int(Ni)} ({n_idx}/{len(mean_total_range)}) "
+                f"[{elapsed:.1f}s] dt_min={dt_min:.7g}",
+                flush=True,
+            )
+
+        # --- checkpoint save ---
+        if fi_rows:
+            _save_partial(Fi, fi_rows)
+            all_rows.extend(fi_rows)
+
+        fi_elapsed = __import__("time").monotonic() - t_start_fi
+        print(f"  ℱ={Fi} total: {fi_elapsed:.1f}s ({fi_elapsed / 60:.1f}m)")
+
+    total_elapsed = __import__("time").monotonic() - t_start_all
+    print(f"\nCombining {len(finesse_range)} results")
+    print(f"Total: {total_elapsed:.1f}s ({total_elapsed / 60:.1f}m)")
+
+    if not all_rows:
         raise RuntimeError("No valid data generated")
 
-    return _row_dicts_to_result(rows)
+    return _row_dicts_to_result(all_rows)
 
 
 def _malloc_trim() -> None:
