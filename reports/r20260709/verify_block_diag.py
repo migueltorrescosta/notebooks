@@ -53,12 +53,14 @@ def bell_transformation() -> sp.Matrix:
     Columns are {|00⟩, |+⟩_m, |−⟩_m, |11⟩} expressed in computational basis.
     """
     # |+⟩_m = (|01⟩ + |10⟩)/√2,  |−⟩_m = (|01⟩ − |10⟩)/√2
-    return sp.Matrix([
-        [1, 0, 0, 0],
-        [0, 1 / sp.sqrt(2), 1 / sp.sqrt(2), 0],
-        [0, 1 / sp.sqrt(2), -1 / sp.sqrt(2), 0],
-        [0, 0, 0, 1],
-    ])
+    return sp.Matrix(
+        [
+            [1, 0, 0, 0],
+            [0, 1 / sp.sqrt(2), 1 / sp.sqrt(2), 0],
+            [0, 1 / sp.sqrt(2), -1 / sp.sqrt(2), 0],
+            [0, 0, 0, 1],
+        ]
+    )
 
 
 def verify_antisymmetric_decoupling(H_bell: sp.Matrix) -> None:
@@ -98,11 +100,11 @@ def verify_H3_elements(H_bell: sp.Matrix) -> tuple[sp.Matrix, dict]:
     exp_12 = omega / sp.sqrt(2) * (ax - sp.I * ay)
     exp_21 = omega / sp.sqrt(2) * (ax + sp.I * ay)
 
-    assert sp.simplify(H3[0, 1] - exp_01) == 0, f"H3[0,1]: {H3[0,1]}"
-    assert sp.simplify(H3[1, 0] - exp_10) == 0, f"H3[1,0]: {H3[1,0]}"
-    assert sp.simplify(H3[0, 2]) == 0, f"H3[0,2] should be 0, got {H3[0,2]}"
-    assert sp.simplify(H3[1, 2] - exp_12) == 0, f"H3[1,2]: {H3[1,2]}"
-    assert sp.simplify(H3[2, 1] - exp_21) == 0, f"H3[2,1]: {H3[2,1]}"
+    assert sp.simplify(H3[0, 1] - exp_01) == 0, f"H3[0,1]: {H3[0, 1]}"
+    assert sp.simplify(H3[1, 0] - exp_10) == 0, f"H3[1,0]: {H3[1, 0]}"
+    assert sp.simplify(H3[0, 2]) == 0, f"H3[0,2] should be 0, got {H3[0, 2]}"
+    assert sp.simplify(H3[1, 2] - exp_12) == 0, f"H3[1,2]: {H3[1, 2]}"
+    assert sp.simplify(H3[2, 1] - exp_21) == 0, f"H3[2,1]: {H3[2, 1]}"
 
     print("  [PASS] H_3 matrix elements correct.")
     return H3, {"ax": ax, "ay": ay, "az": az, "azz": azz, "omega": omega}
@@ -121,9 +123,7 @@ def verify_shift_middle_element(H3: sp.Matrix, symbols: dict) -> None:
 
     # Verify it is NOT zero (the error in the original report)
     assert middle != 0, "Middle element should NOT be zero after shift"
-    print(
-        f"  [PASS] After shift by a_zz/4: middle element = {middle} (NOT zero)."
-    )
+    print(f"  [PASS] After shift by a_zz/4: middle element = {middle} (NOT zero).")
 
 
 def verify_not_proportional_to_omega(H3: sp.Matrix, symbols: dict) -> None:
@@ -143,9 +143,7 @@ def verify_not_proportional_to_omega(H3: sp.Matrix, symbols: dict) -> None:
 
     # Off-diagonal (0,1) IS proportional to ω
     offdiag = H3_prime[0, 1]
-    assert offdiag.coeff(omega) != 0, (
-        f"Off-diagonal should depend on ω, got {offdiag}"
-    )
+    assert offdiag.coeff(omega) != 0, f"Off-diagonal should depend on ω, got {offdiag}"
 
     print(
         "  [PASS] H_3' has ω-dependent off-diagonals but ω-independent "
@@ -164,23 +162,25 @@ def verify_eigenvectors_depend_on_omega(symbols: dict) -> None:
     ax_val, ay_val = 2, 3
     az_val, azz_val, omega_val1, omega_val2 = 1, 5, 1, 2
 
-    H3_num = sp.Matrix([
+    H3_num = sp.Matrix(
         [
-            omega * az + azz / 4,
-            omega / sp.sqrt(2) * (ax_val + sp.I * ay_val),
-            0,
-        ],
-        [
-            omega / sp.sqrt(2) * (ax_val - sp.I * ay_val),
-            -azz / 4,
-            omega / sp.sqrt(2) * (ax_val + sp.I * ay_val),
-        ],
-        [
-            0,
-            omega / sp.sqrt(2) * (ax_val - sp.I * ay_val),
-            -omega * az + azz / 4,
-        ],
-    ])
+            [
+                omega * az + azz / 4,
+                omega / sp.sqrt(2) * (ax_val + sp.I * ay_val),
+                0,
+            ],
+            [
+                omega / sp.sqrt(2) * (ax_val - sp.I * ay_val),
+                -azz / 4,
+                omega / sp.sqrt(2) * (ax_val + sp.I * ay_val),
+            ],
+            [
+                0,
+                omega / sp.sqrt(2) * (ax_val - sp.I * ay_val),
+                -omega * az + azz / 4,
+            ],
+        ]
+    )
 
     H3p1 = np.array(
         H3_num.subs([(az, az_val), (azz, azz_val), (omega, omega_val1)]),
@@ -204,9 +204,7 @@ def verify_eigenvectors_depend_on_omega(symbols: dict) -> None:
     v2_sorted = v2[:, order2]
 
     # Check if any eigenvector pair has changed
-    max_overlap = max(
-        abs(np.vdot(v1_sorted[:, k], v2_sorted[:, k])) for k in range(3)
-    )
+    max_overlap = max(abs(np.vdot(v1_sorted[:, k], v2_sorted[:, k])) for k in range(3))
     assert max_overlap < 0.999, (
         f"Eigenvectors appear ω-independent (max overlap = {max_overlap:.6f}) "
         f"for a_zz = {azz_val} ≠ 0 — this should NOT happen"
@@ -231,10 +229,7 @@ def verify_characteristic_polynomial(H3: sp.Matrix, symbols: dict) -> None:
     # Expected: μ³ − (a_zz/2)μ² − ω²r²μ − ω²a_z²a_zz/2
     r_sq = symbols["ax"] ** 2 + symbols["ay"] ** 2 + az**2
     p_expected = (
-        mu**3
-        + (azz / 2) * mu**2
-        - omega**2 * r_sq * mu
-        - omega**2 * az**2 * azz / 2
+        mu**3 + (azz / 2) * mu**2 - omega**2 * r_sq * mu - omega**2 * az**2 * azz / 2
     )
 
     diff = sp.simplify(p_correct - p_expected)
@@ -248,7 +243,9 @@ def verify_characteristic_polynomial(H3: sp.Matrix, symbols: dict) -> None:
     print("         μ³ + (a_zz/2)μ² − ω²r²μ − ω²a_z²a_zz/2 = 0")
 
     # Now verify the REPORT'S claimed polynomial is WRONG
-    p_report_claimed = mu**3 - az**2 * mu + az * (symbols["ax"] ** 2 + symbols["ay"] ** 2)
+    p_report_claimed = (
+        mu**3 - az**2 * mu + az * (symbols["ax"] ** 2 + symbols["ay"] ** 2)
+    )
     diff_report = sp.simplify(p_correct - p_report_claimed)
     assert diff_report != 0, (
         "Report's claimed polynomial should NOT match the correct one!"
@@ -268,11 +265,26 @@ def verify_special_case_az_zero(symbols: dict) -> None:
     r = np.sqrt(ax_val**2 + ay_val**2 + az_val**2)
 
     for omega_val in [0.5, 1.0, 2.0, 5.0]:
-        H3p = np.array([
-            [omega_val * az_val, omega_val / np.sqrt(2) * (ax_val + 1j * ay_val), 0],
-            [omega_val / np.sqrt(2) * (ax_val - 1j * ay_val), 0, omega_val / np.sqrt(2) * (ax_val + 1j * ay_val)],
-            [0, omega_val / np.sqrt(2) * (ax_val - 1j * ay_val), -omega_val * az_val],
-        ], dtype=complex)
+        H3p = np.array(
+            [
+                [
+                    omega_val * az_val,
+                    omega_val / np.sqrt(2) * (ax_val + 1j * ay_val),
+                    0,
+                ],
+                [
+                    omega_val / np.sqrt(2) * (ax_val - 1j * ay_val),
+                    0,
+                    omega_val / np.sqrt(2) * (ax_val + 1j * ay_val),
+                ],
+                [
+                    0,
+                    omega_val / np.sqrt(2) * (ax_val - 1j * ay_val),
+                    -omega_val * az_val,
+                ],
+            ],
+            dtype=complex,
+        )
 
         eigenvalues = sorted(np.linalg.eigvalsh(H3p).real, key=abs)
         expected = sorted([-omega_val * r, 0, omega_val * r], key=abs)
@@ -283,16 +295,30 @@ def verify_special_case_az_zero(symbols: dict) -> None:
             )
 
     # Eigenvectors should be ω-independent when a_zz = 0
-    H3p_1 = np.array([
-        [1 * az_val, 1 / np.sqrt(2) * (ax_val + 1j * ay_val), 0],
-        [1 / np.sqrt(2) * (ax_val - 1j * ay_val), 0, 1 / np.sqrt(2) * (ax_val + 1j * ay_val)],
-        [0, 1 / np.sqrt(2) * (ax_val - 1j * ay_val), -1 * az_val],
-    ], dtype=complex)
-    H3p_2 = np.array([
-        [2 * az_val, 2 / np.sqrt(2) * (ax_val + 1j * ay_val), 0],
-        [2 / np.sqrt(2) * (ax_val - 1j * ay_val), 0, 2 / np.sqrt(2) * (ax_val + 1j * ay_val)],
-        [0, 2 / np.sqrt(2) * (ax_val - 1j * ay_val), -2 * az_val],
-    ], dtype=complex)
+    H3p_1 = np.array(
+        [
+            [1 * az_val, 1 / np.sqrt(2) * (ax_val + 1j * ay_val), 0],
+            [
+                1 / np.sqrt(2) * (ax_val - 1j * ay_val),
+                0,
+                1 / np.sqrt(2) * (ax_val + 1j * ay_val),
+            ],
+            [0, 1 / np.sqrt(2) * (ax_val - 1j * ay_val), -1 * az_val],
+        ],
+        dtype=complex,
+    )
+    H3p_2 = np.array(
+        [
+            [2 * az_val, 2 / np.sqrt(2) * (ax_val + 1j * ay_val), 0],
+            [
+                2 / np.sqrt(2) * (ax_val - 1j * ay_val),
+                0,
+                2 / np.sqrt(2) * (ax_val + 1j * ay_val),
+            ],
+            [0, 2 / np.sqrt(2) * (ax_val - 1j * ay_val), -2 * az_val],
+        ],
+        dtype=complex,
+    )
 
     _, v1 = np.linalg.eigh(H3p_1)
     _, v2 = np.linalg.eigh(H3p_2)
@@ -302,9 +328,7 @@ def verify_special_case_az_zero(symbols: dict) -> None:
     v1_sorted = v1[:, order1]
     v2_sorted = v2[:, order2]
 
-    max_overlap = max(
-        abs(np.vdot(v1_sorted[:, k], v2_sorted[:, k])) for k in range(3)
-    )
+    max_overlap = max(abs(np.vdot(v1_sorted[:, k], v2_sorted[:, k])) for k in range(3))
     assert max_overlap > 0.999, (
         f"a_zz=0: eigenvectors should be ω-independent, "
         f"but max overlap = {max_overlap:.6f}"
@@ -320,11 +344,17 @@ def verify_H3_det() -> None:
 
     ax, ay, az, azz, omega = sp.symbols("a_x a_y a_z a_zz omega", real=True)
 
-    H3 = sp.Matrix([
-        [omega * az + azz / 4, omega / sp.sqrt(2) * (ax + sp.I * ay), 0],
-        [omega / sp.sqrt(2) * (ax - sp.I * ay), -azz / 4, omega / sp.sqrt(2) * (ax + sp.I * ay)],
-        [0, omega / sp.sqrt(2) * (ax - sp.I * ay), -omega * az + azz / 4],
-    ])
+    H3 = sp.Matrix(
+        [
+            [omega * az + azz / 4, omega / sp.sqrt(2) * (ax + sp.I * ay), 0],
+            [
+                omega / sp.sqrt(2) * (ax - sp.I * ay),
+                -azz / 4,
+                omega / sp.sqrt(2) * (ax + sp.I * ay),
+            ],
+            [0, omega / sp.sqrt(2) * (ax - sp.I * ay), -omega * az + azz / 4],
+        ]
+    )
 
     I3 = sp.eye(3)
     H3p = H3 - sp.Rational(1, 4) * azz * I3
@@ -332,9 +362,7 @@ def verify_H3_det() -> None:
 
     expected_det = omega**2 * az**2 * azz / 2
     diff = sp.simplify(det_val - expected_det)
-    assert diff == 0, (
-        f"det(H_3') = {det_val}, expected {expected_det}, diff = {diff}"
-    )
+    assert diff == 0, f"det(H_3') = {det_val}, expected {expected_det}, diff = {diff}"
     print("  [PASS] det(H_3') = ω² a_z² a_zz / 2.")
 
 

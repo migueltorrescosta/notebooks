@@ -268,8 +268,9 @@ def _evolve_lindblad(
                 c_ops_qobj,
                 e_ops=[],
                 options={
-                    "rtol": 1e-8,
-                    "atol": 1e-10,
+                    "method": "bdf",
+                    "rtol": 1e-6,
+                    "atol": 1e-8,
                     "store_final_state": True,
                     "store_states": False,
                 },

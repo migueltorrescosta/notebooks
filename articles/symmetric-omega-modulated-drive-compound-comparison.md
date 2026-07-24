@@ -10,15 +10,15 @@ In an $\omega$-modulated system--ancilla metrology protocol, does the ancilla ma
 
 The preceding report (#20260519) established that an ancilla-only $\omega$-modulated drive achieves $4.07\times$ below the Standard Quantum Limit with $N=2$ particles. The Ising interaction $a_{zz} J_z^S \otimes J_z^A$ was identified as the metrological engine: without it, no sub-SQL performance is possible. The ancilla qubit, driven at the unknown frequency $\omega$ and coupled to the system through $a_{zz}$, converts the $\omega$ signal into measurable population differences via BCH cross-terms.
 
-The natural follow-up is: what happens if the system qubit carries its own $\omega$-modulated drive? Does it improve sensitivity, or does the ancilla already capture the available gain?
+The natural follow-up is: what happens if the system qubit carries its own $\omega$-modulated drive? /newDoes it improve sensitivity, or does the ancilla already capture the available gain?
 
 This article answers that question through three acts:
 
-- **Act 1** (Scenario A): The system-only surprise. A single-qubit Mach--Zehnder interferometer with the system Hamiltonian $H_S = \omega(a_x J_x + a_y J_y + a_z J_z)$ achieves $8.32\times$ below the single-particle SQL with $N=1$, already $2.04\times$ better than the ancilla-only baseline's $4.07\times$ with $N=2$.
+- **Act 1** (Scenario A): The system-only surprise. A single-qubit Mach--Zehnder interferometer with the system Hamiltonian $H_S = \omega(a_x J_x + a_y J_y + a_z J_z)$ achieves exactly $5\times$ below the single-particle SQL with $N=1$ — the theoretical optimum $1/(t_{\text{hold}} R)$ when the parameter vector has fixed norm $R=5$.
 
-- **Act 2** (Scenario B): The compound extension. Adding the ancilla with identical drive parameters and an Ising interaction compounds the gain by up to $34.9\%$ ($\mathcal{R}_{\text{compound}} = 1.3492$), achieving $95.4\%$ of the QFI resource-counting bound of $\sqrt{2}$.
+- **Act 2** (Scenario B): The compound extension. Adding the ancilla with identical drive parameters and an Ising interaction compounds the gain by up to $26.1\%$ ($\mathcal{R}_{\text{compound}} = 1.2605$), achieving $89\%$ of the QFI resource-counting bound of $\sqrt{2}$. On the sphere, the ancilla helps in $82.4\%$ of $\omega$ values — a qualitatively different conclusion from hypercube sampling where the ancilla was detrimental at high $\omega$.
 
-- **Act 3**: Context and synthesis. Both results are placed in the full series arc, revealing why the system's own drive is fundamentally more efficient than the ancilla-mediated mechanism.
+- **Act 3**: Context and synthesis. Both results are placed in the full series arc, revealing the trade-off between drive and interaction at fixed total parameter magnitude.
 
 The key insight in one sentence: the system's own drive is substantially more effective than the ancilla's because the derivative $\partial H_S/\partial\omega$ acts directly on the measured subsystem, providing a parametric amplification channel that the $J_z$ measurement can access without relying on BCH cross-terms.
 
@@ -93,9 +93,11 @@ The Hamiltonian for Scenario B decomposes as $H = H_S + H_A + H_{\text{int}}$ wh
 
 ## 6. Parameter Space and Optimisation Strategy
 
-**Stage 1 — Random search**: 500 points per $\omega$ in the parameter space. Scenario A: 3D $(a_x, a_y, a_z) \in [-5, 5]^3$. Scenario B: 4D $(a_x, a_y, a_z, a_{zz}) \in [-5, 5]^4$.
+Parameter vectors are sampled uniformly on the sphere $S^{d-1}(R=5)$ using the **Marsaglia method**: draw $d$ i.i.d. standard normal components per point, normalise to unit length, then scale by $R=5$. This guarantees every candidate has fixed total magnitude $R=5$, ensuring the comparison depends only on direction, not magnitude. Nelder--Mead refinement projects candidates back onto the sphere after each simplex step.
 
-**Stage 2 — Nelder-Mead refinement**: 50 starts per $\omega$ from best random-search candidates. Derivative-free simplex optimisation minimises $\Delta\omega$ directly.
+**Stage 1 — Random search**: 500 points per $\omega$ on the sphere. Scenario A: $S^2(R=5)$ — all $(a_x, a_y, a_z)$ with $\sqrt{a_x^2 + a_y^2 + a_z^2} = 5$. Scenario B: $S^3(R=5)$ — all $(a_x, a_y, a_z, a_{zz})$ with $\sqrt{a_x^2 + a_y^2 + a_z^2 + a_{zz}^2} = 5$.
+
+**Stage 2 — Nelder-Mead refinement**: 50 starts per $\omega$ from best random-search candidates. Derivative-free simplex optimisation minimises $\Delta\omega$ directly, with sphere projection after each step.
 
 **$\omega$-scan**: 500 points, $\omega \in [0.01, 5.00]$ with spacing $0.01$. Both scenarios swept independently at each $\omega$.
 
@@ -109,75 +111,75 @@ The Hamiltonian for Scenario B decomposes as $H = H_S + H_A + H_{\text{int}}$ wh
 
 ### 7.1 Scenario A: The System-Only Surprise
 
-Scenario A achieves sub-SQL sensitivity at **all 500 $\omega$ values** (using $N=1$ SQL of $1/t_{\text{hold}} = 0.1$). The best sensitivity is $\Delta\omega = 0.012018$ at $\omega = 4.51$, giving a ratio of $8.32\times$ below the single-particle SQL. The mean ratio across all $\omega$ is $7.68\times$.
+Scenario A achieves sub-SQL sensitivity at **all 500 $\omega$ values** (using $N=1$ SQL of $1/t_{\text{hold}} = 0.1$). On the sphere $S^2(R=5)$, the QFI bound $\Delta\omega_Q = 1/(t_{\text{hold}} R) = 0.02$ is the theoretical optimum when all budget is allocated to the $x$-$z$ plane ($\rho = 1$). The optimiser achieves this optimum uniformly: $\Delta\omega = 0.020000$ at every $\omega$, giving a ratio of $5\times$ below the single-particle SQL.
 
-The mechanism is direct: the derivative $\partial H_S/\partial\omega = a_x J_x + a_y J_y + a_z J_z$ acts on the measured subsystem, providing parametric amplification without needing BCH cross-terms. Parameter saturation is observed: $a_x$ and $a_z$ hit the $\pm 5$ bounds at $96\%$ of $\omega$ values — framed as a feature, the mechanism is so effective it saturates any bound you impose.
+The mechanism is direct: the derivative $\partial H_S/\partial\omega = a_x J_x + a_y J_y + a_z J_z$ acts on the measured subsystem, providing parametric amplification without needing BCH cross-terms. On the sphere, the question shifts from "how large can the parameters be?" to "which direction is optimal?" — and the optimal direction is consistently in the $a_x$-$a_z$ plane ($a_y = 0$), where $\rho = 1$.
 
-The $a_y$ axis is omitted from parameter plots (though it is optimised in the 3D search) because $a_y$ drops out of the amplitude prefactor $\rho = (a_x^2+a_z^2)/r^2$ but enters through the oscillation angle $\theta = \omega\,t_{\text{hold}}\,r$. Constraining $a_y = 0$ worsens sensitivity by $7$--$13\%$ at $\omega \geq 0.5$.
+The $a_y$ axis is omitted from parameter plots because $a_y$ drops out of the amplitude prefactor $\rho = (a_x^2+a_z^2)/r^2$ but enters through the oscillation angle $\theta = \omega\,t_{\text{hold}}\,r$. On the sphere, $r = R = 5$ is fixed, so the QFI-active budget is $a_x^2 + a_z^2$, maximised when $a_y = 0$.
 
-**Key Finding**: Scenario A already exceeds the #20260519 baseline by $2.04\times$ ($8.32\times$ vs $4.07\times$, both using appropriate SQL for their particle count). The system's own drive is substantially more effective than the ancilla's because the derivative acts directly on the measured subsystem.
+**Key Finding**: Scenario A achieves exactly the theoretical optimum $1/(t_{\text{hold}} R) = 0.02$ at every $\omega$ — a clean, $\omega$-independent result that confirms the QFI bound is saturated everywhere on the sphere.
 
 <img src="../reports/r20260709/figures/20260709-scenario-a-omega-scan.svg" alt="Scenario A omega scan" width="100%"/>
 
-*Figure 1: Scenario A sensitivity $\Delta\omega$ vs $\omega$ (top) and $\Delta\omega/\text{SQL}$ ratio (bottom). The global minimum is $\Delta\omega = 0.012018$ at $\omega = 4.51$, $8.32\times$ below the single-particle SQL.*
+*Figure 1: Scenario A sensitivity $\Delta\omega$ vs $\omega$ (top) and $\Delta\omega/\text{SQL}$ ratio (bottom). The sensitivity is uniformly $\Delta\omega = 0.020000$ at every $\omega$, exactly $5\times$ below the single-particle SQL — the theoretical optimum on $S^2(R=5)$.*
 
 <img src="../reports/r20260709/figures/20260709-scenario-a-optimal-params.svg" alt="Scenario A optimal parameters" width="100%"/>
 
-*Figure 2: Optimal $(a_x, a_y, a_z)$ coloured by $\Delta\omega$. The $a_y$ axis is omitted from the visualisation (though it is optimised in the 3D search) because $a_y$ drops out of the signal amplitude but modulates the oscillation frequency.*
+*Figure 2: Optimal $(a_x, a_y, a_z)$ coloured by $\Delta\omega$, all on $S^2(R=5)$. All parameter norms are exactly $R=5$. The optimiser consistently finds $a_y = 0$ (budget in the $x$-$z$ plane), maximising the QFI-active fraction $\rho = (a_x^2+a_z^2)/R^2 = 1$.*
 
 ### 7.2 Scenario B: The Compound Extension
 
-Scenario B achieves sub-SQL sensitivity at all 500 $\omega$ values (using $N=2$ SQL of $1/(\sqrt{2}\,t_{\text{hold}}) \approx 0.07071$). The best sensitivity is $\Delta\omega = 0.010482$ at $\omega = 0.01$, giving a ratio of $6.75\times$ below the two-particle SQL. The mean ratio across all $\omega$ is $5.23\times$.
+Scenario B achieves sub-SQL sensitivity at all 500 $\omega$ values. On the sphere $S^3(R=5)$, the drive components and Ising coupling share a fixed budget: when $a_{zz} \neq 0$, the effective drive norm is $\sqrt{R^2 - a_{zz}^2} < R$. The best sensitivity is $\Delta\omega = 0.015866$ at $\omega = 0.01$, giving a ratio of $6.30\times$ below the single-particle SQL. The mean ratio across all $\omega$ is $5.07\times$.
 
-The compound advantage at $\omega = 0.01$ is $\mathcal{R}_{\text{compound}} = 1.3492\times$ — a $34.9\%$ improvement over Scenario A at the same $\omega$.
+The compound advantage at $\omega = 0.01$ is $\mathcal{R}_{\text{compound}} = 1.2605\times$ — a $26.1\%$ improvement over Scenario A at the same $\omega$.
 
-**Key Finding**: Scenario B achieves the best absolute sensitivity ($0.010482$), and the compound ratio at $\omega = 0.01$ is $1.3492\times$ — a $34.9\%$ improvement over Scenario A at the same $\omega$. The compound advantage is strongest at the lowest $\omega$ values.
+**Key Finding**: Scenario B achieves the best absolute sensitivity ($0.015866$), and the compound ratio at $\omega = 0.01$ is $1.2605\times$ — a $26.1\%$ improvement over Scenario A. On the sphere, the ancilla provides marginal benefit in $82.4\%$ of $\omega$ values (412/500), with the advantage concentrated at low $\omega$ ($98\%$ of $\omega \leq 1.0$).
 
 <img src="../reports/r20260709/figures/20260709-scenario-b-omega-scan.svg" alt="Scenario B omega scan" width="100%"/>
 
-*Figure 3: Scenario B sensitivity $\Delta\omega$ vs $\omega$ (top) and $\Delta\omega/\text{SQL}$ ratio (bottom). The global minimum is $\Delta\omega = 0.010482$ at $\omega = 0.01$, $6.75\times$ below the two-particle SQL.*
+*Figure 3: Scenario B sensitivity $\Delta\omega$ vs $\omega$ (top) and $\Delta\omega/\text{SQL}$ ratio (bottom). The global minimum is $\Delta\omega = 0.015866$ at $\omega = 0.01$, $6.30\times$ below the single-particle SQL.*
 
 <img src="../reports/r20260709/figures/20260709-scenario-b-optimal-params.svg" alt="Scenario B optimal parameters" width="100%"/>
 
-*Figure 4: Optimal $(a_x, a_z, a_{zz})$ coloured by $\Delta\omega$. The $a_y$ axis is omitted for the same reason as in Scenario A.*
+*Figure 4: Optimal $(a_x, a_z, a_{zz})$ coloured by $\Delta\omega$, all on $S^3(R=5)$. The $a_y$ axis is omitted for the same reason as in Scenario A. All parameter norms are exactly $R=5$.*
 
 ### 7.3 Compound Ratio
 
-The compound ratio $\mathcal{R}_{\text{compound}} = \Delta\omega_A^{\text{opt}} / \Delta\omega_B^{\text{opt}}$ at each $\omega$ compares each scenario's independently optimised sensitivity:
+The compound ratio $\mathcal{R}_{\text{compound}} = \Delta\omega_A^{\text{opt}} / \Delta\omega_B^{\text{opt}}$ at each $\omega$ compares each scenario's independently optimised sensitivity. On the sphere, $\Delta\omega_A = 0.02$ uniformly, so $\mathcal{R}_{\text{compound}} = 0.02 / \Delta\omega_B^{\text{opt}}$:
 
 | Metric | Value |
 |--------|-------|
-| Best $\mathcal{R}_{\text{compound}}$ | $1.3492\times$ at $\omega = 0.01$ |
-| Mean $\mathcal{R}_{\text{compound}}$ | $0.965$ |
-| Median $\mathcal{R}_{\text{compound}}$ | $0.942$ |
-| Fraction B beats A | $24.6\%$ overall ($123/500$) |
-| Fraction B beats A at low $\omega \leq 1.0$ | $77\%$ ($77/100$) |
-| Fraction B beats A at high $\omega > 1.0$ | $11.5\%$ ($46/400$) |
-| Min $\mathcal{R}_{\text{compound}}$ | $0.8581$ at $\omega = 2.72$ |
+| Best $\mathcal{R}_{\text{compound}}$ | $1.2605\times$ at $\omega = 0.01$ |
+| Mean $\mathcal{R}_{\text{compound}}$ | $1.0145$ |
+| Median $\mathcal{R}_{\text{compound}}$ | $1.0020$ |
+| Fraction B beats A | $82.4\%$ overall ($412/500$) |
+| Fraction B beats A at low $\omega \leq 1.0$ | $98\%$ ($98/100$) |
+| Fraction B beats A at high $\omega > 1.0$ | $78.5\%$ ($314/400$) |
+| Min $\mathcal{R}_{\text{compound}}$ | $0.9508$ at $\omega = 0.06$ |
 
-**Key Finding**: The compound ratio is moderate and strongly $\omega$-dependent. At low $\omega$ ($\leq 1.0$), Scenario B beats Scenario A in $77\%$ of cases — the longer effective rotation time allows $a_{zz}$ to channel ancilla information back into the $J_z^S$ measurement. At high $\omega$ ($> 1.0$), the dual MZI and Ising interaction interfere with the system's own parametric amplification, making Scenario B worse than Scenario A alone in $88.5\%$ of cases.
+**Key Finding**: On the sphere, the ancilla provides marginal benefit in the **vast majority** of $\omega$ values ($82.4\%$), a qualitatively different conclusion from hypercube sampling where B beat A in only $24.6\%$ of cases. The cube artefact arose because parameter saturation inflated Scenario A's sensitivity by allowing norms up to $\sqrt{75} \approx 8.66$. On the sphere (fixed norm $R=5$), the comparison is purely about direction — and the direction that includes a modest Ising interaction ($|a_{zz}| \approx 0.6$) is optimal in most of parameter space. The best compound ratio achieves $89\%$ of the QFI resource-counting bound of $\sqrt{2}$.
 
 <img src="../reports/r20260709/figures/20260709-compound-ratio.svg" alt="Compound ratio" width="100%"/>
 
-*Figure 5: Compound ratio $\mathcal{R}_{\text{compound}} = \Delta\omega_A / \Delta\omega_B$ vs $\omega$. Values above 1 indicate Scenario B outperforms Scenario A at the same $\omega$. The best ratio is $1.3492\times$ at $\omega = 0.01$.*
+*Figure 5: Compound ratio $\mathcal{R}_{\text{compound}} = \Delta\omega_A / \Delta\omega_B$ vs $\omega$. Values above 1 indicate Scenario B outperforms Scenario A at the same $\omega$. The best ratio is $1.2605\times$ at $\omega = 0.01$. B beats A in $82.4\%$ of $\omega$ values.*
 
 ### 7.4 Cross-Protocol Comparison
 
 | Protocol | Sensitivity | Mechanism |
 |----------|-------------|-----------|
-| #20260519 (ancilla-only, $N=2$) | $\Delta\omega = 0.01739$; $4.07\times$ SQL ($\text{SQL} = 1/(\sqrt{2}\,t_{\text{hold}})$) | BCH cross-term via $a_{zz}$ |
-| Scenario A (system-only, $N=1$) | $\Delta\omega = 0.012018$; $8.32\times$ SQL ($\text{SQL} = 1/t_{\text{hold}}$) | Direct derivative on measured subsystem |
-| Scenario B (identical drive + Ising, $N=2$) | $\Delta\omega = 0.010482$; $6.75\times$ SQL ($\text{SQL} = 1/(\sqrt{2}\,t_{\text{hold}})$) | Tensor-sum generator + $a_{zz}$ channel |
+| #20260519 (ancilla-only, $N=2$) | $\Delta\omega = 0.01739$; $5.75\times$ SQL ($\text{SQL} = 1/t_{\text{hold}}$) | BCH cross-term via $a_{zz}$ |
+| Scenario A (system-only, $N=1$) | $\Delta\omega = 0.020000$; $5.00\times$ SQL ($\text{SQL} = 1/t_{\text{hold}}$) | Direct derivative on measured subsystem |
+| Scenario B (identical drive + Ising, $N=2$) | $\Delta\omega = 0.015866$; $6.30\times$ SQL ($\text{SQL} = 1/t_{\text{hold}}$) | Tensor-sum generator + $a_{zz}$ channel |
 
-Note: Scenario A's $8.32\times$ ($N=1$) and Scenario B's $6.75\times$ ($N=2$) use different SQL references. The absolute sensitivity comparison shows B is better ($0.010482 < 0.012018$), but A is more efficient per particle. Both scenarios beat #20260519: B by $1.66\times$ (same $N=2$, directly comparable), A by $2.04\times$ (different $N$, but striking).
+Note: The #20260519 baseline ($5.75\times$) sampled on the hypercube $[-5,5]^4$, where corner points have norm $\sqrt{75} \approx 8.66 > 5$. The sphere-sampled Scenario A ($5.00\times$) achieves exactly the theoretical optimum $1/(t_{\text{hold}} R) = 0.02$ at $R=5$ — the bound cannot be exceeded at fixed norm. Scenario B ($6.30\times$) exceeds both because the interaction $a_{zz}$ enables ancilla information transfer that more than compensates for the reduced drive norm.
 
 The mechanism difference is fundamental: #20260519 relies on BCH cross-terms $[\omega J_z^S, a_{zz} J_z^S \otimes J_z^A]$ to generate an effective $\omega J_z^A$ contribution. Scenario A bypasses this entirely — the drive acts directly on the system.
 
-**Key Finding**: The system-direct drive establishes a substantially stronger baseline than anticipated. The $\sqrt{2}$ QFI bound is nearly saturated ($95.4\%$), suggesting the $J_z^S$ measurement efficiently extracts the available gain from the doubled particle number.
+**Key Finding**: On the sphere, the fair comparison at fixed total parameter magnitude shows Scenario B ($6.30\times$) beating Scenario A ($5.00\times$) by $26\%$. The $\sqrt{2}$ QFI bound is $89\%$ saturated, confirming that the $J_z^S$ measurement efficiently extracts most of the available gain from the doubled particle number.
 
 <img src="../reports/r20260709/figures/20260709-sql-violation-ratio.svg" alt="SQL violation ratio comparison" width="100%"/>
 
-*Figure 6: SQL-violation ratio $\Delta\omega_{\text{SQL}} / \Delta\omega$ for Scenario A ($N=1$ SQL) and Scenario B ($N=2$ SQL). Both protocols beat their respective SQL references across the full $\omega$ range.*
+*Figure 6: SQL-violation ratio $\Delta\omega_{\text{SQL}} / \Delta\omega$ for Scenario A ($5\times$ SQL, uniform) and Scenario B (variable, up to $6.30\times$). Both protocols beat the single-particle SQL across the full $\omega$ range.*
 
 ---
 
@@ -237,7 +239,7 @@ The QFI is $F_Q^{(B)} = 2\,t_{\text{hold}}^2\,(a_x^2 + a_z^2) = 2\,F_Q^{(A)}$.
 
 The spectral-radius bound of $2\times$ overcounts because the BS-constrained state has Bloch vectors in the $-y$ direction, making $a_y$ invisible to the QFI (though not to the EP sensitivity).
 
-The free-optimisation compound ratio $1.3492$ achieves $95.4\%$ of the $\sqrt{2}$ QFI bound, indicating efficient extraction of the available improvement from the doubled particle number.
+The free-optimisation compound ratio $1.2605$ achieves $89\%$ of the $\sqrt{2}$ QFI bound, indicating that the $J_z^S$ measurement efficiently extracts most of the available improvement from the doubled particle number.
 
 ### 8.5 Decoupled Limit and Consistency
 
@@ -253,13 +255,13 @@ The three-protocol arc:
 
 | Report | Protocol | Key Insight |
 |--------|----------|-------------|
-| #20260519 (2026-05-19) | Ancilla-only $\omega$-drive, system BS, $J_z^S$; $4.07\times$ SQL ($N=2$) | $a_{zz}$ is the metrological engine; BCH cross-terms |
-| #20260709 Scenario A (2026-07-09) | System-only $\omega$-drive, single-qubit MZI, $J_z$; $8.32\times$ SQL ($N=1$) | Direct derivative outperforms ancilla-mediated mechanism |
-| #20260709 Scenario B (2026-07-09) | Identical $\omega$-drive on both + Ising, dual MZI, $J_z^S$; $6.75\times$ SQL ($N=2$) | Compounding is genuine ($1.3492\times$) but $\omega$-dependent |
+| #20260519 (2026-05-19) | Ancilla-only $\omega$-drive, system BS, $J_z^S$; $5.75\times$ SQL ($N=1$) | $a_{zz}$ is the metrological engine; BCH cross-terms |
+| #20260709 Scenario A (2026-07-09) | System-only $\omega$-drive, single-qubit MZI, $J_z$; $5.00\times$ SQL ($N=1$) | Saturates QFI bound $1/(t_{\text{hold}} R)$ on $S^2(R=5)$ |
+| #20260709 Scenario B (2026-07-09) | Identical $\omega$-drive on both + Ising, dual MZI, $J_z^S$; $6.30\times$ SQL ($N=1$) | Compounding is genuine ($1.2605\times$) and benefits $82.4\%$ of $\omega$ |
 
-The narrative arc: #20260519 asked whether the ancilla matters — the answer was yes, with $a_{zz}$ as the engine. This experiment asks whether the ancilla matters *when the system already has its own drive* — the answer is yes, but modestly ($1.3492\times$ at best), and only at low $\omega$.
+The narrative arc: #20260519 asked whether the ancilla matters — the answer was yes, with $a_{zz}$ as the engine. This experiment asks whether the ancilla matters *when the system already has its own drive at fixed total parameter magnitude* — the answer is yes, modestly ($1.2605\times$ at best), and in the majority of parameter space ($82.4\%$ of $\omega$ values).
 
-**Related dual-MZI experiments**: Reports #20260522 and #20260523 tested symmetric beam-splitting and found it weakens BCH cross-term generation — consistent with the high-$\omega$ detrimental effect observed here (Scenario B worse than A at $88.5\%$ of high $\omega$ values).
+**Related dual-MZI experiments**: Reports #20260522 and #20260523 tested symmetric beam-splitting and found it weakens BCH cross-term generation. On the sphere, this effect is less pronounced: Scenario B beats A at $78.5\%$ of high $\omega$ values, suggesting the interaction channel compensates for the dual-MZI suppression when the parameter magnitude is fixed.
 
 **Multi-particle extension**: Report #20260612 tested whether the compound ratio scales with $N$ using larger particle numbers, providing initial evidence for $\sqrt{N}$ scaling.
 
@@ -269,20 +271,20 @@ The narrative arc: #20260519 asked whether the ancilla matters — the answer wa
 
 ### 10.1 Summary
 
-- The system's own $\omega$-modulated drive achieves $8.32\times$ SQL with $N=1$ — a standalone result that already surpasses the ancilla-only protocol ($4.07\times$ with $N=2$) by $2.04\times$.
-- Adding the ancilla compounds by up to $34.9\%$ ($\mathcal{R}_{\text{compound}} = 1.3492$), achieving $95.4\%$ of the $\sqrt{2}$ QFI resource-counting bound.
-- The compound ratio is strongly $\omega$-dependent: beneficial at $77\%$ of low $\omega$ values ($\omega \leq 1.0$), detrimental at $88.5\%$ of high $\omega$ values ($\omega > 1.0$).
+- The system's own $\omega$-modulated drive achieves exactly $5\times$ SQL with $N=1$ — uniformly $\Delta\omega = 0.020000$ at every $\omega$, saturating the QFI bound $1/(t_{\text{hold}} R)$ on $S^2(R=5)$. This is the theoretical optimum for fixed total parameter magnitude $R=5$.
+- Adding the ancilla compounds by up to $26.1\%$ ($\mathcal{R}_{\text{compound}} = 1.2605$), achieving $89\%$ of the $\sqrt{2}$ QFI resource-counting bound.
+- On the sphere, the ancilla provides marginal benefit in $82.4\%$ of $\omega$ values — a qualitatively different conclusion from hypercube sampling where the ancilla was detrimental at high $\omega$. The previous cube artefact arose because parameter saturation inflated Scenario A's sensitivity by allowing norms up to $\sqrt{75} \approx 8.66$.
 - Both scenarios beat SQL at every $\omega$ value ($500/500$ each).
 
-### 10.2 Parameter Saturation as a Feature
+### 10.2 Direction Optimality on the Sphere
 
-$a_x$ and $a_z$ hit the $\pm 5$ bounds at $96\%$ of $\omega$ values in Scenario A and $76\%$/$38\%$ in Scenario B. Framed as a feature: the $\omega$-modulated drive mechanism is so effective that it saturates any bound you impose. The parametric amplification channel is not subtle — it demands the maximum available drive amplitude. This is a signature of a robust mechanism, not a fragile optimisation edge case.
+On the sphere $S^{d-1}(R=5)$, all parameter vectors have fixed total magnitude $R=5$. The question shifts from "how large can the parameters be?" to "which direction is optimal?" In Scenario A, the optimiser consistently finds $a_y = 0$ (budget in the $x$-$z$ plane), maximising the QFI-active fraction $\rho = (a_x^2+a_z^2)/R^2 = 1$. In Scenario B, the optimal direction includes a modest Ising coupling ($|a_{zz}| \approx 0.6$), trading off drive norm for interaction strength.
 
-Implication: the true optimum likely lies beyond $\vert a_k \vert = 5$. The mechanism's strength is bounded by the search range, not by the physics.
+The fixed-parameter ratio (fixed $a_x, a_z$ from Scenario A, swept $a_{zz}$) confirms this picture: the mean ratio is $0.601$ and only $3.6\%$ of $\omega$ values benefit. The interaction alone cannot outperform the jointly optimised direction — the improvement in Scenario B comes from the freedom to choose a different point on the sphere where the interaction complements the drive.
 
 ### 10.3 Open Questions
 
-1. **$\omega$-dependence of the compound ratio**: Why does the ancilla become detrimental at high $\omega$? The dual MZI and Ising interaction appear to interfere with the system's own parametric amplification — is this a general limitation of symmetric dual-MZI protocols?
-2. **Expanded bounds**: Could Scenario A exceed $10\times$ SQL with $\vert a_k \vert \leq 10$? The $96\%$ saturation rate suggests significant headroom.
-3. **Multi-particle scaling**: Does the compound ratio scale with $N$? The $\sqrt{2}$ bound for $N=2$ suggests a $\sqrt{N}$ scaling, but this needs verification.
-4. **Noise robustness**: How do decoherence channels (one-body loss, dephasing, detection inefficiency) affect the protocol? The system-direct drive mechanism may be more noise-resistant than the ancilla-mediated BCH mechanism.
+1. **Sphere-radius sweep**: How do the results depend on $R \in [1, 10]$? The QFI bound $1/(t_{\text{hold}} R)$ predicts sensitivity improves with $R$, but the compound ratio may saturate or reverse at different radii.
+2. **Multi-particle scaling**: Does the compound ratio scale with $N$? The $\sqrt{2}$ bound for $N=2$ suggests a $\sqrt{N}$ scaling, but this needs verification.
+3. **Noise robustness**: How do decoherence channels (one-body loss, dephasing, detection inefficiency) affect the protocol? The system-direct drive mechanism may be more noise-resistant than the ancilla-mediated BCH mechanism.
+4. **Interplay of $a_{zz}$ and $\rho$**: The optimal $|a_{zz}| \approx 0.6$ in Scenario B reduces $\rho$ by $1.4\%$ while providing $26\%$ gain. Can this trade-off be understood analytically?

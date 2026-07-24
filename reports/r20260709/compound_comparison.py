@@ -6,18 +6,24 @@ Implements two scenarios for comparing system-only vs ancilla-assisted
 
 Scenario A (system-only baseline):
   Single-qubit MZI with H_S = ω(a_x J_x + a_y J_y + a_z J_z).
-  3D optimisation over (a_x, a_y, a_z) ∈ [-5,5]³.
+  3D optimisation over unit-direction on S^2(R=5).
 
 Scenario B (ancilla-assisted, identical drive):
   Dual MZI on both qubits with identical ω-modulated drive on system
   and ancilla, plus Ising interaction a_zz J_z^S ⊗ J_z^A.
-  4D optimisation over (a_x, a_y, a_z, a_zz) ∈ [-5,5]⁴.
+  4D optimisation over unit-direction on S^3(R=5).
 
 Both scenarios measure J_z^S after the second beam splitter.
 Sensitivity: error propagation Δω = sqrt(Var(J_z^S)) / |∂⟨J_z^S⟩/∂ω|.
 
+Sampling modes:
+  - "sphere" (default): Marsaglia method on S^{d-1}(R), with NM
+    projection back onto sphere. Separates direction from magnitude.
+  - "cube" (legacy): uniform sampling on [-R, R]^d with bound penalty.
+
 Usage:
     uv run python reports/r20260709/compound_comparison.py --force
+    uv run python reports/r20260709/compound_comparison.py --force --sampling-mode sphere --radius 5
 """
 
 from __future__ import annotations
@@ -29,7 +35,10 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import numpy as np
 import pandas as pd
@@ -45,7 +54,6 @@ from src.analysis.ancilla_optimization import (
 )
 from src.analysis.optimisation_pipeline import (
     run_nelder_mead,
-    run_random_search,
 )
 from src.physics.beam_splitter import bs_qubit
 from src.utils.constants import J_X, J_Y, J_Z
@@ -60,9 +68,11 @@ DEFAULT_T_BS: float = np.pi / 2.0  # 50/50 beam splitter
 DEFAULT_T_HOLD: float = 10.0  # Holding time
 SQL_REFERENCE: float = 1.0 / DEFAULT_T_HOLD  # Δω_SQL = 0.1
 DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)
+DEFAULT_SPHERE_RADIUS: float = 5.0  # Radius R for sphere sampling
+DEFAULT_SAMPLING_MODE: str = "sphere"  # "cube" (legacy) or "sphere" (default)
 OMEGA_MIN: float = 0.01  # Minimum ω for scan
 OMEGA_MAX: float = 5.0  # Maximum ω for scan
-DEFAULT_N_OMEGA: int = 50  # Default number of ω points
+DEFAULT_N_OMEGA: int = 500  # Default number of ω points
 OMEGA_VALS: list[float] = [
     round(v, 2) for v in np.linspace(OMEGA_MIN, OMEGA_MAX, DEFAULT_N_OMEGA)
 ]
@@ -81,6 +91,62 @@ def _configure_environment() -> None:
     """
     if "MPLBACKEND" not in os.environ:
         os.environ["MPLBACKEND"] = "Agg"
+
+
+# ============================================================================
+# Sphere Sampling (Marsaglia Method)
+# ============================================================================
+
+
+def sample_uniform_sphere(
+    d: int,
+    R: float,
+    n: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Sample *n* uniform random points on S^{d-1}(R).
+
+    Uses the Marsaglia method: draw *d* i.i.d. N(0,1) components per
+    point, normalise to unit length, then scale by *R*.
+
+    Args:
+        d: Dimensionality of the parameter space.
+        R: Radius of the sphere.
+        n: Number of samples.
+        rng: NumPy random generator.
+
+    Returns:
+        Array of shape ``(n, d)`` with each row on S^{d-1}(R).
+    """
+    raw = rng.standard_normal(size=(n, d))
+    norms = np.linalg.norm(raw, axis=1, keepdims=True)
+    # Guard against the astronomically unlikely zero-norm sample
+    norms = np.where(norms < 1e-15, 1.0, norms)
+    return (raw / norms) * R
+
+
+def _project_to_sphere(p: np.ndarray, R: float) -> np.ndarray:
+    """Project a vector onto S^{d-1}(R): normalise and scale by *R*."""
+    norm = np.linalg.norm(p)
+    if norm < 1e-15:
+        # Zero vector has no preferred direction; return the first basis
+        # vector scaled by R to ensure a well-defined projection.
+        result = np.zeros_like(p)
+        result[0] = R
+        return result
+    return (p / norm) * R
+
+
+def _sphere_objective_wrapper(
+    raw_objective: Callable[[np.ndarray], float],
+    R: float,
+) -> Callable[[np.ndarray], float]:
+    """Wrap an objective so that candidates are projected onto S^{d-1}(R) before evaluation."""
+
+    def _wrapped(p: np.ndarray) -> float:
+        return raw_objective(_project_to_sphere(p, R))
+
+    return _wrapped
 
 
 # ============================================================================
@@ -706,30 +772,41 @@ def scenario_a_random_search(
     t_hold: float = DEFAULT_T_HOLD,
     T_BS: float = DEFAULT_T_BS,
     seed: int | None = 42,
+    sampling_mode: str = DEFAULT_SAMPLING_MODE,
+    radius: float = DEFAULT_SPHERE_RADIUS,
 ) -> DriveRandomSearchResult:
     """Random search over the 3D parameter space (a_x, a_y, a_z) for Scenario A.
 
-    Uses run_random_search from optimisation_pipeline with n_params=3.
-    Wraps the result as DriveRandomSearchResult (with a_zz=0.0 for all samples).
+    When ``sampling_mode="sphere"`` (default), samples are drawn uniformly
+    from S^2(R) via the Marsaglia method.  When ``sampling_mode="cube"``,
+    samples are drawn uniformly from [-R, R]^3 (legacy behaviour).
 
     Args:
         omega: Phase rate value.
         n_samples: Number of random points.
-        bounds: (min, max) for drive coefficients.
+        bounds: (min, max) for drive coefficients (cube mode only).
         t_hold: Holding time.
         T_BS: Beam-splitter duration.
         seed: Random seed.
+        sampling_mode: ``"sphere"`` or ``"cube"``.
+        radius: Sphere radius (or half-side-length for cube mode).
 
     Returns:
         DriveRandomSearchResult with all samples and best found.
     """
+    rng = np.random.default_rng(seed)
     raw_obj = _scenario_a_objective_3d
-    samples3d, deltas = run_random_search(
-        lambda p: raw_obj(p, omega, t_hold, T_BS),
-        n_params=3,
-        n_samples=n_samples,
-        bounds=bounds,
-        seed=seed,
+
+    if sampling_mode == "sphere":
+        samples3d = sample_uniform_sphere(3, radius, n_samples, rng)
+    else:
+        lo, hi = -radius, radius
+        samples3d = np.column_stack(
+            [rng.uniform(lo, hi, size=n_samples) for _ in range(3)]
+        )
+
+    deltas = np.array(
+        [raw_obj(samples3d[i], omega, t_hold, T_BS) for i in range(n_samples)]
     )
     best_idx = int(np.argmin(deltas))
     # Pad 3D samples to 4D with a_zz=0.0 for DriveRandomSearchResult API
@@ -840,6 +917,7 @@ def run_constrained_ay_verification(
         def _make_obj_free(ov: float) -> Any:
             def _obj(p: np.ndarray) -> float:
                 return _scenario_a_objective_3d(p, ov, t_hold, T_BS)
+
             return _obj
 
         _obj_free = _make_obj_free(omega_val)
@@ -881,6 +959,7 @@ def run_constrained_ay_verification(
                 return scenario_a_sensitivity_constrained_ay(
                     ov, float(p2[0]), float(p2[1]), t_hold, T_BS
                 )
+
             return _obj
 
         _obj_constrained = _make_obj_constrained(omega_val)
@@ -940,8 +1019,14 @@ def _refine_nm_scenario_a(
     omega_val: float,
     t_hold: float,
     T_BS: float,
+    sampling_mode: str = DEFAULT_SAMPLING_MODE,
+    radius: float = DEFAULT_SPHERE_RADIUS,
 ) -> tuple[float, tuple[float, float, float]]:
     """Nelder-Mead refinement from top random-search candidates for Scenario A.
+
+    In sphere mode, each NM candidate is projected onto S^2(R) before
+    evaluation (no bound penalty needed).  In cube mode, the bound-penalty
+    wrapper from ``run_nelder_mead`` is used.
 
     Args:
         rs_result: Random search result with samples and delta_omega values.
@@ -949,6 +1034,8 @@ def _refine_nm_scenario_a(
         omega_val: omega at which to evaluate.
         t_hold: Holding-time strength.
         T_BS: Beam-splitter duration.
+        sampling_mode: ``"sphere"`` or ``"cube"``.
+        radius: Sphere radius.
 
     Returns:
         Tuple (best_delta_omega, (a_x, a_y, a_z)) from refinement.
@@ -961,18 +1048,40 @@ def _refine_nm_scenario_a(
     def _obj_a(p: np.ndarray) -> float:
         return _scenario_a_objective_3d(p, omega_val, t_hold, T_BS)
 
+    if sampling_mode == "sphere":
+        wrapped_obj = _sphere_objective_wrapper(_obj_a, radius)
+    else:
+        wrapped_obj = _obj_a
+
     for idx in top_idx:
         x0_3d = rs_result.samples[idx, :3].copy()
-        nm = run_nelder_mead(
-            _obj_a,
-            x0=x0_3d,
-            bounds=(-5.0, 5.0),
-            maxiter=5000,
-        )
+        if sampling_mode == "sphere":
+            # Project initial point onto sphere; use bounds=(-R, R) so
+            # NM stays within the bounding box of the sphere.
+            x0_3d = _project_to_sphere(x0_3d, radius)
+            nm = run_nelder_mead(
+                wrapped_obj,
+                x0=x0_3d,
+                bounds=(-radius, radius),
+                maxiter=5000,
+            )
+            # Project the NM result back onto the sphere
+            x_opt_3d = _project_to_sphere(nm["x_opt"], radius)
+        else:
+            nm = run_nelder_mead(
+                wrapped_obj,
+                x0=x0_3d,
+                bounds=(-5.0, 5.0),
+                maxiter=5000,
+            )
+            x_opt_3d = nm["x_opt"]
         if nm["fun_opt"] < best_nm_delta:
             best_nm_delta = nm["fun_opt"]
-            x_opt = nm["x_opt"]
-            best_nm_params = (float(x_opt[0]), float(x_opt[1]), float(x_opt[2]))
+            best_nm_params = (
+                float(x_opt_3d[0]),
+                float(x_opt_3d[1]),
+                float(x_opt_3d[2]),
+            )
     return best_nm_delta, best_nm_params
 
 
@@ -983,13 +1092,15 @@ def run_scenario_a_omega_scan(
     seed: int | None = 42,
     t_hold: float = DEFAULT_T_HOLD,
     T_BS: float = DEFAULT_T_BS,
+    sampling_mode: str = DEFAULT_SAMPLING_MODE,
+    radius: float = DEFAULT_SPHERE_RADIUS,
 ) -> ScenarioACompoundResult:
     """Scan ω for Scenario A: random search + Nelder-Mead refinement.
 
     For each ω:
-    1. Run 3D random search.
+    1. Run 3D random search (cube or sphere sampling).
     2. Take top n_nm_refine candidates.
-    3. Refine with Nelder-Mead (3D).
+    3. Refine with Nelder-Mead (sphere-projected or bound-penalised).
 
     Args:
         omega_values: ω values to scan.
@@ -998,6 +1109,8 @@ def run_scenario_a_omega_scan(
         seed: Base random seed.
         t_hold: Holding time.
         T_BS: Beam-splitter duration.
+        sampling_mode: ``"sphere"`` or ``"cube"``.
+        radius: Sphere radius.
 
     Returns:
         ScenarioACompoundResult with optimal parameters per ω.
@@ -1023,11 +1136,19 @@ def run_scenario_a_omega_scan(
             t_hold=t_hold,
             T_BS=T_BS,
             seed=omega_seed,
+            sampling_mode=sampling_mode,
+            radius=radius,
         )
 
         # Stage 2 & 3: Select top candidates + Nelder-Mead refinement
         best_nm_delta, best_nm_params = _refine_nm_scenario_a(
-            rs_result, n_nm_refine, omega_val, t_hold, T_BS
+            rs_result,
+            n_nm_refine,
+            omega_val,
+            t_hold,
+            T_BS,
+            sampling_mode=sampling_mode,
+            radius=radius,
         )
 
         best_deltas[i] = best_nm_delta
@@ -1076,16 +1197,25 @@ def _run_scenario_b_single_omega(
     seed: int,
     t_hold: float,
     T_BS: float,
+    sampling_mode: str = DEFAULT_SAMPLING_MODE,
+    radius: float = DEFAULT_SPHERE_RADIUS,
 ) -> dict[str, Any]:
     """Run random search + NM refinement for Scenario B at a single ω."""
     ops = build_two_qubit_operators()
+    rng = np.random.default_rng(seed)
 
     def _raw_obj(p: np.ndarray) -> float:
         return _scenario_b_objective_4d(p, omega, ops, t_hold, T_BS)
 
-    samples, deltas = run_random_search(
-        _raw_obj, n_params=4, n_samples=n_random, bounds=(-5.0, 5.0), seed=seed
-    )
+    if sampling_mode == "sphere":
+        samples = sample_uniform_sphere(4, radius, n_random, rng)
+    else:
+        lo, hi = -radius, radius
+        samples = np.column_stack(
+            [rng.uniform(lo, hi, size=n_random) for _ in range(4)]
+        )
+
+    deltas = np.array([_raw_obj(samples[i]) for i in range(n_random)])
 
     # Stage 2: Select top candidates
     sorted_idx = np.argsort(deltas)
@@ -1097,12 +1227,25 @@ def _run_scenario_b_single_omega(
     exp_val_best = 0.0
     var_val_best = 0.0
 
+    if sampling_mode == "sphere":
+        wrapped_obj = _sphere_objective_wrapper(_raw_obj, radius)
+    else:
+        wrapped_obj = _raw_obj
+
     for idx in top_idx:
         x0 = samples[idx].copy()
-        nm = run_nelder_mead(_raw_obj, x0=x0, bounds=(-5.0, 5.0), maxiter=5000)
+        if sampling_mode == "sphere":
+            x0 = _project_to_sphere(x0, radius)
+            nm = run_nelder_mead(
+                wrapped_obj, x0=x0, bounds=(-radius, radius), maxiter=5000
+            )
+            # Project the NM result back onto the sphere
+            x_opt = _project_to_sphere(nm["x_opt"], radius)
+        else:
+            nm = run_nelder_mead(wrapped_obj, x0=x0, bounds=(-5.0, 5.0), maxiter=5000)
+            x_opt = nm["x_opt"]
         if nm["fun_opt"] < best_nm_delta:
             best_nm_delta = nm["fun_opt"]
-            x_opt = nm["x_opt"]
             best_nm_params = (
                 float(x_opt[0]),
                 float(x_opt[1]),
@@ -1142,6 +1285,8 @@ def _scenario_b_worker(
     seed: int | None,
     t_hold: float,
     T_BS: float,
+    sampling_mode: str,
+    radius: float,
 ) -> dict[str, Any]:
     """Module-level worker for parallel Scenario B ω scan.
 
@@ -1150,7 +1295,14 @@ def _scenario_b_worker(
     """
     omega_seed = (seed if seed is not None else 42) + int(omega * 1000)
     return _run_scenario_b_single_omega(
-        omega, n_random, n_nm_refine, omega_seed, t_hold, T_BS
+        omega,
+        n_random,
+        n_nm_refine,
+        omega_seed,
+        t_hold,
+        T_BS,
+        sampling_mode=sampling_mode,
+        radius=radius,
     )
 
 
@@ -1161,6 +1313,8 @@ def run_scenario_b_omega_scan(
     seed: int | None = 42,
     t_hold: float = DEFAULT_T_HOLD,
     T_BS: float = DEFAULT_T_BS,
+    sampling_mode: str = DEFAULT_SAMPLING_MODE,
+    radius: float = DEFAULT_SPHERE_RADIUS,
 ) -> DriveOmegaScanResult:
     """Scan ω for Scenario B: random search + Nelder-Mead refinement (parallel).
 
@@ -1171,6 +1325,8 @@ def run_scenario_b_omega_scan(
         seed: Base random seed.
         t_hold: Holding time.
         T_BS: Beam-splitter duration.
+        sampling_mode: ``"sphere"`` or ``"cube"``.
+        radius: Sphere radius.
 
     Returns:
         DriveOmegaScanResult with optimal parameters per ω.
@@ -1188,7 +1344,15 @@ def run_scenario_b_omega_scan(
     ) as executor:
         fut_to_omega = {
             executor.submit(
-                _scenario_b_worker, o, n_random, n_nm_refine, seed, t_hold, T_BS
+                _scenario_b_worker,
+                o,
+                n_random,
+                n_nm_refine,
+                seed,
+                t_hold,
+                T_BS,
+                sampling_mode,
+                radius,
             ): o
             for o in omega_arr
         }
@@ -1403,12 +1567,20 @@ def generate_decoupled_baseline(force: bool = False) -> DecoupledBaselineResult 
 def generate_scenario_a_scan(
     omega_vals: list[float] | None = None,
     force: bool = False,
+    sampling_mode: str = DEFAULT_SAMPLING_MODE,
+    radius: float = DEFAULT_SPHERE_RADIUS,
+    n_random: int = 500,
+    n_refine: int = 50,
 ) -> None:
     """Run Scenario A ω-scan and save results.
 
     Args:
         omega_vals: ω values to scan (default: OMEGA_VALS).
         force: Re-run even if output exists.
+        sampling_mode: ``"sphere"`` or ``"cube"``.
+        radius: Sphere radius.
+        n_random: Number of random search samples per omega.
+        n_refine: Number of Nelder-Mead refinements per omega.
     """
     if omega_vals is None:
         omega_vals = OMEGA_VALS
@@ -1418,7 +1590,13 @@ def generate_scenario_a_scan(
     if pq_path_a.exists() and not force:
         print(f"[skip] {pq_path_a.name} exists")
     else:
-        result_a = run_scenario_a_omega_scan(omega_vals)
+        result_a = run_scenario_a_omega_scan(
+            omega_vals,
+            n_random=n_random,
+            n_nm_refine=n_refine,
+            sampling_mode=sampling_mode,
+            radius=radius,
+        )
         pq_path_a.parent.mkdir(parents=True, exist_ok=True)
         result_a.save_parquet(pq_path_a)
         print(f"[save] {pq_path_a}")
@@ -1440,12 +1618,20 @@ def generate_scenario_a_scan(
 def generate_scenario_b_scan(
     omega_vals: list[float] | None = None,
     force: bool = False,
+    sampling_mode: str = DEFAULT_SAMPLING_MODE,
+    radius: float = DEFAULT_SPHERE_RADIUS,
+    n_random: int = 500,
+    n_refine: int = 50,
 ) -> None:
     """Run Scenario B ω-scan and save results.
 
     Args:
         omega_vals: ω values to scan (default: OMEGA_VALS).
         force: Re-run even if output exists.
+        sampling_mode: ``"sphere"`` or ``"cube"``.
+        radius: Sphere radius.
+        n_random: Number of random search samples per omega.
+        n_refine: Number of Nelder-Mead refinements per omega.
     """
     if omega_vals is None:
         omega_vals = OMEGA_VALS
@@ -1455,7 +1641,13 @@ def generate_scenario_b_scan(
     if pq_path_b.exists() and not force:
         print(f"[skip] {pq_path_b.name} exists")
     else:
-        result_b = run_scenario_b_omega_scan(omega_vals)
+        result_b = run_scenario_b_omega_scan(
+            omega_vals,
+            n_random=n_random,
+            n_nm_refine=n_refine,
+            sampling_mode=sampling_mode,
+            radius=radius,
+        )
         pq_path_b.parent.mkdir(parents=True, exist_ok=True)
         result_b.save_parquet(pq_path_b)
         print(f"[save] {pq_path_b}")
@@ -1595,6 +1787,31 @@ def main(argv: list[str] | None = None) -> None:
         default=OMEGA_MAX,
         help=f"Maximum ω value (default {OMEGA_MAX})",
     )
+    parser.add_argument(
+        "--sampling-mode",
+        type=str,
+        default=DEFAULT_SAMPLING_MODE,
+        choices=["sphere", "cube"],
+        help=f"Sampling mode: sphere (Marsaglia) or cube (legacy) (default {DEFAULT_SAMPLING_MODE})",
+    )
+    parser.add_argument(
+        "--radius",
+        type=float,
+        default=DEFAULT_SPHERE_RADIUS,
+        help=f"Sphere radius R (default {DEFAULT_SPHERE_RADIUS})",
+    )
+    parser.add_argument(
+        "--n-random",
+        type=int,
+        default=500,
+        help="Number of random search samples per omega (default 500)",
+    )
+    parser.add_argument(
+        "--n-refine",
+        type=int,
+        default=50,
+        help="Number of Nelder-Mead refinements per omega (default 50)",
+    )
     args = parser.parse_args(argv)
 
     # Build ω grid from CLI args
@@ -1604,13 +1821,28 @@ def main(argv: list[str] | None = None) -> None:
     print(
         f"  ω grid: {len(omega_vals)} points from {omega_vals[0]} to {omega_vals[-1]}"
     )
+    print(f"  Sampling: mode={args.sampling_mode}, R={args.radius}")
 
-    # Wrap generate functions to pass omega_vals where needed
+    # Wrap generate functions to pass omega_vals and sphere params where needed
     def _run_scenario_a() -> None:
-        generate_scenario_a_scan(omega_vals=omega_vals, force=args.force)
+        generate_scenario_a_scan(
+            omega_vals=omega_vals,
+            force=args.force,
+            sampling_mode=args.sampling_mode,
+            radius=args.radius,
+            n_random=args.n_random,
+            n_refine=args.n_refine,
+        )
 
     def _run_scenario_b() -> None:
-        generate_scenario_b_scan(omega_vals=omega_vals, force=args.force)
+        generate_scenario_b_scan(
+            omega_vals=omega_vals,
+            force=args.force,
+            sampling_mode=args.sampling_mode,
+            radius=args.radius,
+            n_random=args.n_random,
+            n_refine=args.n_refine,
+        )
 
     steps: dict[str, tuple[Any, dict[str, Any]]] = {
         "decoupled-baseline": (generate_decoupled_baseline, {"force": args.force}),

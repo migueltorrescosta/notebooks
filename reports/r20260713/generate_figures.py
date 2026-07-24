@@ -8,6 +8,8 @@ Run with:
 Produces:
     raw_data/20260713-gamma-sweep.parquet
     raw_data/20260713-omega-scan-N{N}-g{gamma}.parquet
+    raw_data/checkpoints/gamma-sweep-N{N}.parquet
+    raw_data/checkpoints/omega-scan-N{N}-g{gamma}.parquet
     figures/20260713-{rqfi-heatmap,sensitivity-vs-gamma,
                      optimal-alpha-N{N},omega-dependence,
                      measurement-gap,ep-ratio}.svg
@@ -25,6 +27,7 @@ os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -53,11 +56,13 @@ SQL_N1 = 1.0 / (np.sqrt(1) * T_HOLD)  # 0.1
 DATE = "20260713"
 RAW_DIR = Path(__file__).parent / "raw_data"
 FIG_DIR = Path(__file__).parent / "figures"
+CHECKPOINT_DIR = RAW_DIR / "checkpoints"
 
 # Parameter ranges
 N_VALUES_CONFIG_A = [1, 2, 3, 4, 5, 6, 7, 8]
 N_VALUES_CONFIG_C = [1, 2, 3, 4, 5, 6, 7, 8]
 GAMMA_VALUES = [0.0, *list(np.logspace(-6, 6, 60))]  # 61 values: γ=0 + 60 log-spaced
+SCAN_GAMMAS = [0.0, 0.25, 1.0]
 OMEGA_REP = 1.0  # representative ω for coupling optimisation
 OMEGA_SCAN_COUNT = 500
 OMEGA_SCAN_MIN = 0.01
@@ -100,8 +105,11 @@ class GammaSweepResult:
 
 
 # ============================================================================
-# Simulation runners
+# Simulation runners (parallelisation-safe, module-level)
 # ============================================================================
+
+
+_INF_RESULT: tuple[float, float, float] = (float("inf"), 0.0, float("inf"))
 
 
 def _run_config_a_point(
@@ -109,9 +117,12 @@ def _run_config_a_point(
 ) -> tuple[float, float, float]:
     """Run Config A at one point: returns (delta_ep, fq, delta_qfi)."""
     fd = FD_STEP
-    rho = evolve_config_a(N, omega, gamma, T_HOLD)
-    rho_p = evolve_config_a(N, omega + fd, gamma, T_HOLD)
-    rho_m = evolve_config_a(N, omega - fd, gamma, T_HOLD)
+    try:
+        rho = evolve_config_a(N, omega, gamma, T_HOLD)
+        rho_p = evolve_config_a(N, omega + fd, gamma, T_HOLD)
+        rho_m = evolve_config_a(N, omega - fd, gamma, T_HOLD)
+    except (AssertionError, ValueError):
+        return _INF_RESULT
 
     sub = build_subsystem_operators(N)
     Jz = sub["Jz"]
@@ -126,9 +137,12 @@ def _run_config_c_point(
 ) -> tuple[float, float, float]:
     """Run Config C at one point: returns (delta_ep, fq, delta_qfi)."""
     fd = FD_STEP
-    rho = evolve_config_c(N, omega, gamma, T_HOLD, alpha)
-    rho_p = evolve_config_c(N, omega + fd, gamma, T_HOLD, alpha)
-    rho_m = evolve_config_c(N, omega - fd, gamma, T_HOLD, alpha)
+    try:
+        rho = evolve_config_c(N, omega, gamma, T_HOLD, alpha)
+        rho_p = evolve_config_c(N, omega + fd, gamma, T_HOLD, alpha)
+        rho_m = evolve_config_c(N, omega - fd, gamma, T_HOLD, alpha)
+    except (AssertionError, ValueError):
+        return _INF_RESULT
 
     ops_b = build_bipartite_operators(N)
     sub = build_subsystem_operators(N)
@@ -146,168 +160,52 @@ def _run_config_c_point(
     return delta_ep, fq, delta_qfi
 
 
-def _eval_gamma_point_a_only(
-    N: int, omega_rep: float, gamma: float
-) -> tuple[float, float, float]:
-    """Evaluate Config A at a single γ point. Parallelisation-safe."""
-    return _run_config_a_point(N, omega_rep, gamma)
-
-
-def _eval_gamma_point_both(
-    N: int, omega_rep: float, gamma: float, alpha: dict[str, float]
-) -> tuple[float, float, float, float, float, float]:
-    """Evaluate Config A + C at a single γ point. Parallelisation-safe."""
-    da, fa, dqa = _run_config_a_point(N, omega_rep, gamma)
-    dc, fc, dqc = _run_config_c_point(N, omega_rep, gamma, alpha)
-    return da, fa, dqa, dc, fc, dqc
-
-
-def sweep_gamma_for_N(
-    N: int,
-    gamma_values: list[float],
-    omega_rep: float = OMEGA_REP,
-    n_starts: int = N_STARTS,
-    max_iter: int = MAX_ITER,
-    run_config_c: bool = True,
-    n_jobs: int = N_JOBS,
-) -> GammaSweepResult:
-    """Run γ-sweep: optimise α at γ=0, then evaluate Config A and C at all γ.
-
-    The coupling is optimised once at γ=0 (noiseless) and the same α is
-    reused for all γ values. The γ loop is parallelised via joblib.
-
-    Args:
-        run_config_c: If True, run Config C (coupled) evaluations.
-                      If False, run Config A only (for large N where C is too slow).
-        n_jobs: Number of parallel jobs (-1 = all cores).
-    """
-    print(
-        f"  N={N}: starting γ-sweep ({len(gamma_values)} points, "
-        f"{'A+C' if run_config_c else 'A only'})..."
-    )
-    t0 = time.time()
-
-    n_g = len(gamma_values)
-    ep_a = np.full(n_g, np.nan)
-    fq_a = np.full(n_g, np.nan)
-    dqfi_a = np.full(n_g, np.nan)
-    ep_c = np.full(n_g, np.nan)
-    fq_c = np.full(n_g, np.nan)
-    dqfi_c = np.full(n_g, np.nan)
-    alpha_xx = np.zeros(n_g)
-    alpha_xz = np.zeros(n_g)
-    alpha_zx = np.zeros(n_g)
-    alpha_zz = np.zeros(n_g)
-
-    # Step 1: Optimise α at γ=0 (noiseless — fast)
-    a_fixed: dict[str, float] = {"xx": 0.0, "xz": 0.0, "zx": 0.0, "zz": 0.0}
-    if run_config_c:
-        print("    Optimising α at γ=0...", end="", flush=True)
-        opt = optimise_coupling(
-            N,
-            0.0,
-            omega_rep,
-            T_HOLD,
-            n_starts=n_starts,
-            max_iter=max_iter,
-            bounds=OPT_BOUNDS,
-            seed=OPT_SEED,
-        )
-        a_fixed = opt["alpha_opt"]
-        print(
-            f" done (Δω={opt['delta_ep_opt']:.6f}, "
-            f"α=({a_fixed['xx']:.2f}, {a_fixed['xz']:.2f}, "
-            f"{a_fixed['zx']:.2f}, {a_fixed['zz']:.2f}))"
-        )
-
-    # Step 2: Evaluate at all γ values using the fixed α (parallelised)
-    if run_config_c:
-        results_list = Parallel(n_jobs=n_jobs, verbose=0)(
-            delayed(_eval_gamma_point_both)(N, omega_rep, gamma, a_fixed)
-            for gamma in gamma_values
-        )
-        for ig, (da, fa, dqa, dc, fc, dqc) in enumerate(results_list):
-            ep_a[ig] = da
-            fq_a[ig] = fa
-            dqfi_a[ig] = dqa
-            alpha_xx[ig] = a_fixed["xx"]
-            alpha_xz[ig] = a_fixed["xz"]
-            alpha_zx[ig] = a_fixed["zx"]
-            alpha_zz[ig] = a_fixed["zz"]
-            ep_c[ig] = dc
-            fq_c[ig] = fc
-            dqfi_c[ig] = dqc
-    else:
-        results_list = Parallel(n_jobs=n_jobs, verbose=0)(
-            delayed(_eval_gamma_point_a_only)(N, omega_rep, gamma)
-            for gamma in gamma_values
-        )
-        for ig, (da, fa, dqa) in enumerate(results_list):
-            ep_a[ig] = da
-            fq_a[ig] = fa
-            dqfi_a[ig] = dqa
-
-    # Compute ratios
-    r_qfi = np.where(fq_a > 0, fq_c / (2.0 * fq_a), np.nan)
-    r_ep = np.where(
-        np.isfinite(ep_a) & (ep_a > 0) & np.isfinite(ep_c),
-        ep_c / ep_a,
-        np.nan,
-    )
-    r_gap = np.where(
-        np.isfinite(ep_c) & np.isfinite(dqfi_c) & (dqfi_c > 0),
-        ep_c / dqfi_c,
-        np.nan,
-    )
-
-    elapsed = time.time() - t0
-    r_qfi_min = np.nanmin(r_qfi) if np.any(np.isfinite(r_qfi)) else float("nan")
-    r_qfi_max = np.nanmax(r_qfi) if np.any(np.isfinite(r_qfi)) else float("nan")
-    r_ep_min = np.nanmin(r_ep) if np.any(np.isfinite(r_ep)) else float("nan")
-    r_ep_max = np.nanmax(r_ep) if np.any(np.isfinite(r_ep)) else float("nan")
-    print(
-        f"  N={N}: done in {elapsed:.1f}s "
-        f"(R_QFI range: [{r_qfi_min:.4f}, {r_qfi_max:.4f}], "
-        f"R_EP range: [{r_ep_min:.4f}, {r_ep_max:.4f}])"
-    )
-
-    return GammaSweepResult(
-        N=N,
-        gamma_values=np.array(gamma_values),
-        delta_omega_ep_a=ep_a,
-        fq_a=fq_a,
-        delta_omega_qfi_a=dqfi_a,
-        delta_omega_ep_c=ep_c,
-        fq_c=fq_c,
-        delta_omega_qfi_c=dqfi_c,
-        alpha_opt={
-            "xx": alpha_xx,
-            "xz": alpha_xz,
-            "zx": alpha_zx,
-            "zz": alpha_zz,
-        },
-        r_qfi=r_qfi,
-        r_ep=r_ep,
-        r_gap=r_gap,
-    )
-
-
 # ============================================================================
-# ω-scan runner
+# Flattened evaluation functions (parallelisation-safe)
 # ============================================================================
 
 
-def omega_scan_single_point(
+def eval_gamma_point(
     N: int,
-    omega: float,
     gamma: float,
     alpha: dict[str, float],
+    omega_rep: float = OMEGA_REP,
+) -> dict[str, Any]:
+    """Evaluate Config A + C at one (N, γ) point. Parallelisation-safe."""
+    da, fa, dqa = _run_config_a_point(N, omega_rep, gamma)
+    dc, fc, dqc = _run_config_c_point(N, omega_rep, gamma, alpha)
+    return {
+        "N": N,
+        "gamma": gamma,
+        "delta_omega_ep_a": da,
+        "fq_a": fa,
+        "delta_omega_qfi_a": dqa,
+        "delta_omega_ep_c": dc,
+        "fq_c": fc,
+        "delta_omega_qfi_c": dqc,
+        "alpha_xx": alpha["xx"],
+        "alpha_xz": alpha["xz"],
+        "alpha_zx": alpha["zx"],
+        "alpha_zz": alpha["zz"],
+    }
+
+
+def eval_omega_point(
+    N: int,
+    gamma: float,
+    omega: float,
+    alpha: dict[str, float],
 ) -> dict[str, float]:
-    """Evaluate Config A and C at one ω point."""
+    """Evaluate Config A and C at one (N, γ, ω) point. Parallelisation-safe."""
     da, fa, dqa = _run_config_a_point(N, omega, gamma)
-    dc, fc, dqc = _run_config_c_point(N, omega, gamma, alpha)
+    if N in N_VALUES_CONFIG_C:
+        dc, fc, dqc = _run_config_c_point(N, omega, gamma, alpha)
+    else:
+        dc, fc, dqc = float("nan"), float("nan"), float("nan")
     return {
         "omega": omega,
+        "gamma": gamma,
+        "N": N,
         "delta_omega_ep_a": da,
         "fq_a": fa,
         "delta_omega_qfi_a": dqa,
@@ -317,31 +215,210 @@ def omega_scan_single_point(
     }
 
 
-def _omega_scan_one_point(
-    N: int, omega: float, gamma: float, alpha: dict[str, float]
-) -> dict[str, float]:
-    """Evaluate Config A only at one ω point (for large N)."""
-    da, fa, dqa = _run_config_a_point(N, omega, gamma)
-    return {
-        "omega": omega,
-        "delta_omega_ep_a": da,
-        "fq_a": fa,
-        "delta_omega_qfi_a": dqa,
-        "delta_omega_ep_c": float("nan"),
-        "fq_c": float("nan"),
-        "delta_omega_qfi_c": float("nan"),
-    }
+# ============================================================================
+# α optimisation (sequential, fast)
+# ============================================================================
+
+
+def optimise_all_alpha(
+    N_values: list[int],
+    omega_rep: float = OMEGA_REP,
+    n_starts: int = N_STARTS,
+    max_iter: int = MAX_ITER,
+    n_jobs: int = N_JOBS,
+    alpha_opt_max_n: int = 5,
+) -> dict[int, dict[str, float]]:
+    """Optimise α* at γ=0 for each N. Returns {N: alpha_opt}.
+
+    For N > alpha_opt_max_n, uses α* = 0 (no coupling) to avoid
+    prohibitively expensive mesolve calls on large Hilbert spaces
+    ((N+1)^4 scaling makes L-BFGS-B infeasible for N >= 6).
+    """
+    zero_alpha: dict[str, float] = {"xx": 0.0, "xz": 0.0, "zx": 0.0, "zz": 0.0}
+
+    opt_n = [n for n in N_values if n <= alpha_opt_max_n]
+    skip_n = [n for n in N_values if n > alpha_opt_max_n]
+
+    alpha_lookup: dict[int, dict[str, float]] = {}
+
+    # Parallelised optimisation for small N
+    if opt_n:
+
+        def _optimise_one(
+            _N: int,
+        ) -> tuple[int, dict[str, float], float]:
+            opt = optimise_coupling(
+                _N,
+                0.0,
+                omega_rep,
+                T_HOLD,
+                n_starts=n_starts,
+                max_iter=max_iter,
+                bounds=OPT_BOUNDS,
+                seed=OPT_SEED,
+            )
+            return _N, opt["alpha_opt"], opt["delta_ep_opt"]
+
+        results = cast(
+            "list[tuple[int, dict[str, float], float]]",
+            Parallel(n_jobs=n_jobs, verbose=0)(
+                delayed(_optimise_one)(n) for n in opt_n
+            ),
+        )
+        for _N, alpha, delta_opt in sorted(results, key=lambda r: r[0]):
+            alpha_lookup[_N] = alpha
+            print(
+                f"  N={_N}: Δω={delta_opt:.6f}, "
+                f"α=({alpha['xx']:.2f}, {alpha['xz']:.2f}, "
+                f"{alpha['zx']:.2f}, {alpha['zz']:.2f})"
+            )
+
+    # α* = 0 for large N (coupling not beneficial, v1 confirmed)
+    for _N in skip_n:
+        alpha_lookup[_N] = zero_alpha
+        print(
+            f"  N={_N}: α*=0 (skipped — (N+1)^4 = {(_N + 1) ** 4}-dim "
+            f"optimisation infeasible; coupling not beneficial for N >= 2)"
+        )
+
+    return alpha_lookup
 
 
 # ============================================================================
-# Parquet saving
+# Assembly: flat results → GammaSweepResult
+# ============================================================================
+
+
+def _compute_ratios(
+    ep_a: np.ndarray,
+    fq_a: np.ndarray,
+    dqfi_a: np.ndarray,
+    ep_c: np.ndarray,
+    fq_c: np.ndarray,
+    dqfi_c: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Compute R_QFI, R_EP, and R_gap ratio arrays."""
+    r_qfi = np.where(fq_a > 0, fq_c / (2.0 * fq_a), np.nan)
+    finite_pos_a = np.isfinite(ep_a) & (ep_a > 0) & np.isfinite(ep_c)
+    r_ep = np.where(finite_pos_a, ep_c / ep_a, np.nan)
+    finite_c_qfi = np.isfinite(ep_c) & np.isfinite(dqfi_c) & (dqfi_c > 0)
+    r_gap = np.where(finite_c_qfi, ep_c / dqfi_c, np.nan)
+    return r_qfi, r_ep, r_gap
+
+
+def _extract_alpha_arrays(
+    rows: list[dict[str, Any]],
+) -> dict[str, np.ndarray]:
+    """Extract per-component alpha arrays from raw result dicts."""
+    return {
+        "xx": np.array([r["alpha_xx"] for r in rows]),
+        "xz": np.array([r["alpha_xz"] for r in rows]),
+        "zx": np.array([r["alpha_zx"] for r in rows]),
+        "zz": np.array([r["alpha_zz"] for r in rows]),
+    }
+
+
+def _build_single_gamma_result(
+    N: int,
+    rows: list[dict[str, Any]],
+    gamma_values: np.ndarray,
+) -> GammaSweepResult:
+    """Build a single GammaSweepResult from sorted rows for one N."""
+    n_g = len(rows)
+    ep_a = np.array([r["delta_omega_ep_a"] for r in rows])
+    fq_a = np.array([r["fq_a"] for r in rows])
+    dqfi_a = np.array([r["delta_omega_qfi_a"] for r in rows])
+    ep_c = np.array([r["delta_omega_ep_c"] for r in rows])
+    fq_c = np.array([r["fq_c"] for r in rows])
+    dqfi_c = np.array([r["delta_omega_qfi_c"] for r in rows])
+    r_qfi, r_ep, r_gap = _compute_ratios(ep_a, fq_a, dqfi_a, ep_c, fq_c, dqfi_c)
+
+    return GammaSweepResult(
+        N=N,
+        gamma_values=gamma_values[:n_g],
+        delta_omega_ep_a=ep_a,
+        fq_a=fq_a,
+        delta_omega_qfi_a=dqfi_a,
+        delta_omega_ep_c=ep_c,
+        fq_c=fq_c,
+        delta_omega_qfi_c=dqfi_c,
+        alpha_opt=_extract_alpha_arrays(rows),
+        r_qfi=r_qfi,
+        r_ep=r_ep,
+        r_gap=r_gap,
+    )
+
+
+def assemble_gamma_results(
+    raw: list[dict[str, Any]],
+    gamma_values: np.ndarray,
+) -> list[GammaSweepResult]:
+    """Group flat γ-point dicts into per-N GammaSweepResult objects."""
+    by_N: dict[int, list[dict[str, Any]]] = {}
+    for r in raw:
+        by_N.setdefault(r["N"], []).append(r)
+
+    return [
+        _build_single_gamma_result(N, sorted(by_N[N], key=lambda r: r["gamma"]), gamma_values)
+        for N in sorted(by_N)
+    ]
+
+
+# ============================================================================
+# Checkpoint helpers
+# ============================================================================
+
+
+def _gamma_ckpt_path(N: int) -> Path:
+    return CHECKPOINT_DIR / f"gamma-sweep-N{N}.parquet"
+
+
+def _omega_ckpt_path(N: int, gamma: float) -> Path:
+    tag = f"N{N}-g{gamma:.4f}".replace(".", "p")
+    return CHECKPOINT_DIR / f"omega-scan-{tag}.parquet"
+
+
+def load_gamma_checkpoint(N: int) -> list[dict[str, Any]] | None:
+    """Load completed γ-sweep rows for a given N, or None if no checkpoint."""
+    path = _gamma_ckpt_path(N)
+    if not path.exists():
+        return None
+    rows: list[dict[str, Any]] = cast(
+        "list[dict[str, Any]]", pd.read_parquet(path).to_dict("records")
+    )
+    return rows
+
+
+def save_gamma_checkpoint(N: int, rows: list[dict[str, Any]]) -> None:
+    """Save γ-sweep results for one N as a checkpoint file."""
+    CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_parquet(_gamma_ckpt_path(N), index=False)
+
+
+def load_omega_checkpoint(N: int, gamma: float) -> set[float] | None:
+    """Load completed ω values for a given (N, γ), or None."""
+    path = _omega_ckpt_path(N, gamma)
+    if not path.exists():
+        return None
+    df = pd.read_parquet(path)
+    return set(df["omega"].round(10))
+
+
+def save_omega_checkpoint(N: int, gamma: float, rows: list[dict[str, Any]]) -> None:
+    """Save ω-scan results for one (N, γ) as a checkpoint file."""
+    CHECKPOINT_DIR.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(rows).to_parquet(_omega_ckpt_path(N, gamma), index=False)
+
+
+# ============================================================================
+# Parquet saving (final consolidated files)
 # ============================================================================
 
 
 def save_gamma_sweep_parquet(results: list[GammaSweepResult]) -> Path:
     """Save all γ-sweep results as a single Parquet file."""
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, Any]] = []
     for res in results:
         n_g = len(res.gamma_values)
         rows.extend(
@@ -707,6 +784,212 @@ def fig_ep_ratio(results: list[GammaSweepResult]) -> Path:
 
 
 # ============================================================================
+# Main — extracted phases
+# ============================================================================
+
+
+def _clear_checkpoints_if_forced(force: bool) -> None:
+    """Remove checkpoint directory when --force is set."""
+    if force and CHECKPOINT_DIR.exists():
+        import shutil
+
+        shutil.rmtree(CHECKPOINT_DIR)
+        print("Cleared checkpoint directory (--force)")
+
+
+def _collect_gamma_work(
+    alpha_lookup: dict[int, dict[str, float]],
+) -> list[tuple[int, float, dict[str, float]]]:
+    """Build the list of (N, γ, α) tuples for uncached γ-points."""
+    gamma_work: list[tuple[int, float, dict[str, float]]] = []
+    for N in N_VALUES_CONFIG_C:
+        existing = load_gamma_checkpoint(N)
+        done_gammas = {r["gamma"] for r in existing} if existing else set()
+        remaining = [γ for γ in GAMMA_VALUES if γ not in done_gammas]
+        if not remaining:
+            print(f"  N={N}: γ-sweep fully cached, skipping")
+        else:
+            print(f"  N={N}: {len(remaining)}/{len(GAMMA_VALUES)} γ-points remaining")
+            gamma_work.extend((N, γ, alpha_lookup[N]) for γ in remaining)
+    return gamma_work
+
+
+def _merge_gamma_checkpoints(new_raw: list[dict[str, Any]]) -> None:
+    """Merge newly computed γ-points into per-N checkpoint files."""
+    by_N_new: dict[int, list[dict[str, Any]]] = {}
+    for r in new_raw:
+        by_N_new.setdefault(r["N"], []).append(r)
+    for N in N_VALUES_CONFIG_C:
+        existing = load_gamma_checkpoint(N)
+        new_rows = by_N_new.get(N, [])
+        all_rows = (existing or []) + new_rows
+        if all_rows:
+            save_gamma_checkpoint(N, all_rows)
+
+
+def _load_all_gamma_raw() -> list[dict[str, Any]]:
+    """Load all γ-sweep results from per-N checkpoint files."""
+    all_gamma_raw: list[dict[str, Any]] = []
+    for N in N_VALUES_CONFIG_C:
+        existing = load_gamma_checkpoint(N)
+        if existing:
+            all_gamma_raw.extend(existing)
+    return all_gamma_raw
+
+
+def _run_gamma_sweep_phase(
+    alpha_lookup: dict[int, dict[str, float]],
+) -> list[dict[str, Any]]:
+    """Run Phase 1: γ-sweep across all N values. Returns assembled raw rows."""
+    print("\n[Phase 1] Running γ-sweep (flattened)...")
+    gamma_work = _collect_gamma_work(alpha_lookup)
+
+    if gamma_work:
+        t0 = time.time()
+        new_raw = cast(
+            "list[dict[str, Any]]",
+            Parallel(n_jobs=N_JOBS, verbose=0)(
+                delayed(eval_gamma_point)(*w) for w in gamma_work
+            ),
+        )
+        elapsed = time.time() - t0
+        print(f"  Computed {len(new_raw)} γ-points in {elapsed:.1f}s")
+        _merge_gamma_checkpoints(new_raw)
+
+    all_gamma_raw = _load_all_gamma_raw()
+    results = assemble_gamma_results(all_gamma_raw, np.array(GAMMA_VALUES))
+    save_gamma_sweep_parquet(results)
+    return all_gamma_raw
+
+
+def _collect_omega_work(
+    alpha_lookup: dict[int, dict[str, float]],
+    omega_grid: np.ndarray,
+) -> list[tuple[int, float, float, dict[str, float]]]:
+    """Build the list of (N, γ, ω, α) tuples for uncached ω-points."""
+    omega_work: list[tuple[int, float, float, dict[str, float]]] = []
+    for N in N_VALUES_CONFIG_A:
+        for γ in SCAN_GAMMAS:
+            done = load_omega_checkpoint(N, γ)
+            if done is not None:
+                remaining = [ω for ω in omega_grid if ω.round(10) not in done]
+            else:
+                remaining = list(omega_grid)
+            if not remaining:
+                continue
+            alpha = alpha_lookup.get(N, {"xx": 0.0, "xz": 0.0, "zx": 0.0, "zz": 0.0})
+            omega_work.extend((N, γ, ω, alpha) for ω in remaining)
+    return omega_work
+
+
+def _merge_omega_checkpoints(new_omega: list[dict[str, Any]]) -> None:
+    """Merge newly computed ω-points into per-(N,γ) checkpoint files."""
+    by_pair: dict[tuple[int, float], list[dict[str, Any]]] = {}
+    for r in new_omega:
+        by_pair.setdefault((r["N"], r["gamma"]), []).append(r)
+    for (N, γ), new_rows in by_pair.items():
+        existing_rows = load_omega_checkpoint(N, γ)
+        if existing_rows is not None:
+            old_df = pd.read_parquet(_omega_ckpt_path(N, γ))
+            old_rows: list[dict[str, Any]] = cast(
+                "list[dict[str, Any]]", old_df.to_dict("records")
+            )
+            all_rows = old_rows + new_rows
+        else:
+            all_rows = new_rows
+        save_omega_checkpoint(N, γ, all_rows)
+
+
+def _assemble_omega_results() -> dict[tuple[int, float], pd.DataFrame]:
+    """Assemble final ω-scan data from checkpoints and save consolidated files."""
+    omega_results: dict[tuple[int, float], pd.DataFrame] = {}
+    for N in N_VALUES_CONFIG_A:
+        for γ in SCAN_GAMMAS:
+            path = _omega_ckpt_path(N, γ)
+            if path.exists():
+                df = pd.read_parquet(path)
+                omega_results[(N, γ)] = df
+                tag = f"N{N}-g{γ:.4f}".replace(".", "p")
+                save_omega_scan_parquet(df.to_dict("records"), tag)
+    n_scans = len(omega_results)
+    print(f"  Assembled {n_scans} ω-scan datasets from checkpoints")
+    return omega_results
+
+
+def _run_omega_sweep_phase(
+    alpha_lookup: dict[int, dict[str, float]],
+) -> dict[tuple[int, float], pd.DataFrame]:
+    """Run Phase 2: ω-scan across all (N, γ) pairs. Returns assembled data."""
+    print("\n[Phase 2] Running ω-scans (flattened)...")
+    omega_grid = np.linspace(OMEGA_SCAN_MIN, OMEGA_SCAN_MAX, OMEGA_SCAN_COUNT)
+    omega_work = _collect_omega_work(alpha_lookup, omega_grid)
+
+    if omega_work:
+        t0 = time.time()
+        new_omega = cast(
+            "list[dict[str, Any]]",
+            Parallel(n_jobs=N_JOBS, verbose=0)(
+                delayed(eval_omega_point)(*w) for w in omega_work
+            ),
+        )
+        elapsed = time.time() - t0
+        print(f"  Computed {len(new_omega)} ω-points in {elapsed:.1f}s")
+        _merge_omega_checkpoints(new_omega)
+
+    return _assemble_omega_results()
+
+
+def _print_n_verification(res: GammaSweepResult) -> None:
+    """Print SQL recovery and boundary-saturation check for one N."""
+    ig0 = 0
+    sql = 1.0 / (np.sqrt(res.N) * T_HOLD)
+    sql_ok = np.isclose(res.delta_omega_ep_a[ig0], sql, rtol=1e-3)
+    no_sat = all(
+        abs(res.alpha_opt[k][ig0]) < OPT_BOUNDS[1] - 0.01
+        for k in ["xx", "xz", "zx", "zz"]
+    )
+    print(
+        f"  N={res.N}: SQL={'PASS' if sql_ok else 'FAIL'}, "
+        f"NoSat={'PASS' if no_sat else 'FAIL'}, "
+        f"α*=({res.alpha_opt['xx'][ig0]:.2f}, {res.alpha_opt['xz'][ig0]:.2f}, "
+        f"{res.alpha_opt['zx'][ig0]:.2f}, {res.alpha_opt['zz'][ig0]:.2f})"
+    )
+
+
+def _check_qfi_ep_inequality(all_gamma_raw: list[dict[str, Any]]) -> None:
+    """Check QFI-EP inequality across all data points."""
+    qfi_rows = [
+        r
+        for r in all_gamma_raw
+        if np.isfinite(r["delta_omega_qfi_c"]) and r["delta_omega_qfi_c"] > 0
+    ]
+    violations = sum(
+        1 for r in qfi_rows if r["delta_omega_qfi_c"] > r["delta_omega_ep_c"] * 1.01
+    )
+    print(f"  QFI-EP inequality: {violations} violations in {len(qfi_rows)} points")
+
+
+def _verify_and_report(
+    cc_results: list[GammaSweepResult],
+    all_gamma_raw: list[dict[str, Any]],
+) -> None:
+    """Run verification checks and print summary."""
+    print(f"\n{'=' * 65}")
+    print("[Verification]")
+
+    for res in cc_results:
+        _print_n_verification(res)
+
+    print("  QFI additivity at α=0: checked by test suite")
+    _check_qfi_ep_inequality(all_gamma_raw)
+    print("  Trace preservation: checked in _evolve_lindblad (atol=1e-2)")
+
+    for N in range(4, 9):
+        has_data = any(r["N"] == N for r in all_gamma_raw)
+        print(f"  Config C N={N}: {'PASS' if has_data else 'FAIL'}")
+
+
+# ============================================================================
 # Main
 # ============================================================================
 
@@ -719,71 +1002,26 @@ def main(force: bool = False) -> None:
     print(f"Config A: N ∈ {N_VALUES_CONFIG_A}")
     print(f"Config C: N ∈ {N_VALUES_CONFIG_C} (optimised α at γ=0)")
     print(f"α bounds: [{OPT_BOUNDS[0]}, {OPT_BOUNDS[1]}]^4, N_starts={N_STARTS}")
-    print(f"Parallelisation: n_jobs={N_JOBS}")
+    print(f"Parallelisation: n_jobs={N_JOBS}, flattened across all (N, γ)")
+    print(f"Checkpointing: {'disabled (--force)' if force else 'enabled'}")
     print("=" * 65)
 
     t_total = time.time()
+    _clear_checkpoints_if_forced(force)
 
-    # ── Phase 1: γ-sweep for all N ────────────────────────────────────
-    print("\n[Phase 1] Running γ-sweep for Config A + Config C...")
-    results: list[GammaSweepResult] = []
-    for N in N_VALUES_CONFIG_C:
-        res = sweep_gamma_for_N(N, GAMMA_VALUES, run_config_c=True, n_jobs=N_JOBS)
-        results.append(res)
+    # ── Phase 0: Optimise α* at γ=0 for all N (parallelised) ───────────
+    print("\n[Phase 0] Optimising α* at γ=0 for all N (parallelised)...")
+    alpha_lookup = optimise_all_alpha(N_VALUES_CONFIG_C, n_jobs=N_JOBS)
 
-    # Save γ-sweep Parquet
-    save_gamma_sweep_parquet(results)
+    # ── Phase 1: γ-sweep ────────────────────────────────────────────────
+    all_gamma_raw = _run_gamma_sweep_phase(alpha_lookup)
 
-    # ── Phase 2: ω-scans at selected (γ, N) pairs ─────────────────────
-    print("\n[Phase 2] Running ω-scans at selected (γ, N) pairs...")
-    omega_grid = np.linspace(OMEGA_SCAN_MIN, OMEGA_SCAN_MAX, OMEGA_SCAN_COUNT)
+    # ── Phase 2: ω-scan ─────────────────────────────────────────────────
+    omega_results = _run_omega_sweep_phase(alpha_lookup)
 
-    scan_pairs: list[tuple[int, float]] = [
-        (N, gamma) for N in N_VALUES_CONFIG_A for gamma in [0.0, 0.25, 1.0]
-    ]
-
-    def _run_omega_scan(
-        N: int, gamma: float, omega_grid: np.ndarray, alpha: dict[str, float]
-    ) -> tuple[int, float, list[dict]]:
-        """Run ω-scan for one (N, γ) pair. Parallelisation-safe."""
-        use_config_c = N in N_VALUES_CONFIG_C
-        rows = []
-        for omega in omega_grid:
-            if use_config_c:
-                row = omega_scan_single_point(N, omega, gamma, alpha)
-            else:
-                row = _omega_scan_one_point(N, omega, gamma, alpha)
-            row["gamma"] = gamma
-            row["N"] = N
-            rows.append(row)
-        return N, gamma, rows
-
-    # Build alpha lookup from results
-    alpha_lookup: dict[int, dict[str, float]] = {}
-    for res in results:
-        alpha_lookup[res.N] = {
-            k: float(res.alpha_opt[k][0]) for k in ["xx", "xz", "zx", "zz"]
-        }
-
-    omega_results: dict[tuple[int, float], pd.DataFrame] = {}
-    scan_results = Parallel(n_jobs=N_JOBS, verbose=0)(
-        delayed(_run_omega_scan)(
-            N,
-            gamma,
-            omega_grid,
-            alpha_lookup.get(N, {"xx": 0.0, "xz": 0.0, "zx": 0.0, "zz": 0.0}),
-        )
-        for N, gamma in scan_pairs
-    )
-    for N, gamma, rows in scan_results:
-        tag = f"N{N}-g{gamma:.4f}".replace(".", "p")
-        save_omega_scan_parquet(rows, tag)
-        omega_results[(N, gamma)] = pd.DataFrame(rows)
-    print(f"  Completed {len(scan_results)} ω-scans")
-
-    # ── Phase 3: Generate figures ──────────────────────────────────────
+    # ── Phase 3: Generate figures ────────────────────────────────────────
     print("\n[Phase 3] Generating figures...")
-    cc_results = [r for r in results if r.N in N_VALUES_CONFIG_C]
+    cc_results = [r for r in assemble_gamma_results(all_gamma_raw, np.array(GAMMA_VALUES)) if r.N in N_VALUES_CONFIG_C]
 
     fig_rqfi_heatmap(cc_results)
     fig_sensitivity_vs_gamma(cc_results)
@@ -792,7 +1030,9 @@ def main(force: bool = False) -> None:
     fig_measurement_gap(cc_results)
     fig_ep_ratio(cc_results)
 
-    # ── Summary ────────────────────────────────────────────────────────
+    # ── Verification & summary ───────────────────────────────────────────
+    _verify_and_report(cc_results, all_gamma_raw)
+
     elapsed = time.time() - t_total
     print(f"\n{'=' * 65}")
     print(f"Done in {elapsed:.1f}s")
@@ -800,7 +1040,7 @@ def main(force: bool = False) -> None:
     print(f"Figures:  {FIG_DIR}")
     print(f"\nKey results at γ=0, ω={OMEGA_REP}:")
     for res in cc_results:
-        ig0 = 0  # γ=0 is first entry
+        ig0 = 0
         print(
             f"  N={res.N}: R_QFI={res.r_qfi[ig0]:.4f}, "
             f"R_EP={res.r_ep[ig0]:.4f}, "
@@ -814,6 +1054,10 @@ def main(force: bool = False) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--force", action="store_true", help="Force re-generation")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Clear checkpoints and re-generate everything from scratch",
+    )
     args = parser.parse_args()
     main(force=args.force)

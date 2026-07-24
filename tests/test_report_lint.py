@@ -334,6 +334,10 @@ class TestReportDuplication:
             "fig_path",
             "parquet_path",
             "main",
+            # Each report defines its own compute_decoupled_baseline with a
+            # different return type (DualMZISweepResult, FourParamSweepResult,
+            # DualMZIOptimisedResult, tuple); cannot be unified.
+            "compute_decoupled_baseline",
         }
     )
 
@@ -349,6 +353,10 @@ class TestReportDuplication:
             "_REPORT_DIR",
             "_REPORT_DATE",
             "_REPORTS_DIR",
+            # Each report defines its own CHECKPOINT_DIR pointing to its
+            # report-local raw_data/checkpoints; structurally identical
+            # pattern but report-specific paths.
+            "CHECKPOINT_DIR",
         }
     )
 

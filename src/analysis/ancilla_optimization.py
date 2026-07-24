@@ -417,11 +417,9 @@ def compute_expectation_and_variance(
         Tuple (expectation, variance).
 
     """
-    from src.utils.linear_algebra import (
-        compute_expectation_and_variance as _canonical,
-    )
+    from src.utils import linear_algebra
 
-    return _canonical(psi, operator)
+    return linear_algebra.compute_expectation_and_variance(psi, operator)
 
 
 def compute_reduced_purity(psi: np.ndarray) -> float:

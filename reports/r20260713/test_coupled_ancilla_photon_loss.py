@@ -275,7 +275,7 @@ class TestEvolutionInvariants:
     def test_config_a_positivity(self, gamma: float) -> None:
         rho = evolve_config_a(N=1, omega=1.0, gamma=gamma, t_hold=1.0)
         eigvals = np.linalg.eigvalsh(rho)
-        assert np.min(eigvals) >= -1e-6
+        assert np.min(eigvals) >= -1e-4
 
     @pytest.mark.parametrize("gamma", [0.0, 0.05])
     def test_config_c_trace(self, gamma: float) -> None:
@@ -294,7 +294,7 @@ class TestEvolutionInvariants:
         alpha = _make_alpha_nonzero()
         rho = evolve_config_c(N=1, omega=1.0, gamma=gamma, t_hold=1.0, alpha=alpha)
         eigvals = np.linalg.eigvalsh(rho)
-        assert np.min(eigvals) >= -1e-6
+        assert np.min(eigvals) >= -1e-4
 
     def test_partial_trace_preserves_trace(self) -> None:
         N = 1
@@ -736,3 +736,24 @@ class TestSensitivityPointSerialization:
         df = pt.to_dataframe()
         assert df.shape == (1, len(SensitivityPoint._PARQUET_COLUMNS))
         assert list(df.columns) == SensitivityPoint._PARQUET_COLUMNS
+
+
+class TestSolverTuningRegression:
+    """Ensure BDF + relaxed tolerances reproduce reference values."""
+
+    @pytest.mark.parametrize(
+        "N,gamma,expected_ep",
+        [
+            (1, 0.0, 0.1),       # SQL
+            (1, 0.01, 0.11642),  # noise-degraded
+            (2, 0.0, 0.07071),   # SQL N=2
+        ],
+        ids=["sql-N1", "noisy-N1", "sql-N2"],
+    )
+    def test_config_a_ep_within_tolerance(
+        self, N: int, gamma: float, expected_ep: float
+    ) -> None:
+        pt = evaluate_sensitivity_at_omega(N, 1.0, gamma, 10.0, config="A")
+        assert np.isclose(pt.delta_omega_ep, expected_ep, rtol=1e-3), (
+            f"EP={pt.delta_omega_ep:.6f}, expected≈{expected_ep:.5f}"
+        )

@@ -61,9 +61,15 @@ FixedParameterCompoundRatioResult = _m.FixedParameterCompoundRatioResult
 DecoupledBaselineResult = _m.DecoupledBaselineResult
 main = _m.main
 
+sample_uniform_sphere = _m.sample_uniform_sphere
+_project_to_sphere = _m._project_to_sphere
+_sphere_objective_wrapper = _m._sphere_objective_wrapper
+
 DEFAULT_T_BS = _m.DEFAULT_T_BS
 DEFAULT_T_HOLD = _m.DEFAULT_T_HOLD
 SQL_REFERENCE = _m.SQL_REFERENCE
+DEFAULT_SPHERE_RADIUS = _m.DEFAULT_SPHERE_RADIUS
+DEFAULT_SAMPLING_MODE = _m.DEFAULT_SAMPLING_MODE
 
 
 @pytest.fixture
@@ -187,9 +193,7 @@ class TestRoleOfAy:
         d_free = scenario_a_sensitivity(
             DEFAULT_T_BS, DEFAULT_T_HOLD, omega, 5.0, 0.0, 5.0
         )
-        d_constrained = scenario_a_sensitivity_constrained_ay(
-            omega, 5.0, 5.0
-        )
+        d_constrained = scenario_a_sensitivity_constrained_ay(omega, 5.0, 5.0)
         assert np.isclose(d_free, d_constrained, rtol=1e-10)
 
     def test_constrained_minimum_saturates(self) -> None:
@@ -233,9 +237,7 @@ class TestRoleOfAy:
             # Var(G_S) = r²(1-n_y²)/4 = (a_x²+a_z²)/4
             var_gs = (a_x**2 + a_z**2) / 4.0
             qfi_check = 4.0 * t**2 * var_gs
-            assert np.isclose(qfi, qfi_check, rtol=1e-10), (
-                f"QFI mismatch at a_y={a_y}"
-            )
+            assert np.isclose(qfi, qfi_check, rtol=1e-10), f"QFI mismatch at a_y={a_y}"
 
     @pytest.mark.parametrize(
         ("omega", "a_y"),
@@ -246,9 +248,7 @@ class TestRoleOfAy:
         ],
         ids=["w1.0_ay2.5", "w2.0_ay3.0", "w4.51_ay1.0"],
     )
-    def test_ay_modulates_oscillation_frequency(
-        self, omega: float, a_y: float
-    ) -> None:
+    def test_ay_modulates_oscillation_frequency(self, omega: float, a_y: float) -> None:
         """At fixed a_x=a_z=5, varying a_y changes the sensitivity
         through the rotation angle θ = ω t r."""
         a_x, a_z = 5.0, 5.0
@@ -409,8 +409,7 @@ class TestDecoupledLimitRandomParams:
         if domega_a > 100 * SQL_REFERENCE and domega_b > 100 * SQL_REFERENCE:
             return
         assert np.isclose(domega_a, domega_b, rtol=1e-4), (
-            f"Decoupled mismatch at a=({a_x},{a_y},{a_z}): "
-            f"A={domega_a}, B={domega_b}"
+            f"Decoupled mismatch at a=({a_x},{a_y},{a_z}): A={domega_a}, B={domega_b}"
         )
 
 
@@ -1118,3 +1117,242 @@ class TestFixedParameterCompoundRatioResult:
 
         with pytest.raises(ValueError, match="missing required columns"):
             FixedParameterCompoundRatioResult.from_parquet(pq_path)
+
+
+# ============================================================================
+# Sphere Sampling Tests
+# ============================================================================
+
+
+class TestSampleUniformSphere:
+    def test_all_samples_have_correct_radius(self) -> None:
+        """Every sample must lie on S^{d-1}(R): norm == R."""
+        rng = np.random.default_rng(42)
+        R = 5.0
+        samples = sample_uniform_sphere(3, R, 200, rng)
+        norms = np.linalg.norm(samples, axis=1)
+        np.testing.assert_allclose(norms, R, rtol=1e-12)
+
+    def test_correct_shape(self) -> None:
+        rng = np.random.default_rng(42)
+        samples = sample_uniform_sphere(4, 3.0, 50, rng)
+        assert samples.shape == (50, 4)
+
+    def test_all_samples_have_correct_radius_4d(self) -> None:
+        """Sphere sampling works in 4D (Scenario B)."""
+        rng = np.random.default_rng(123)
+        R = 5.0
+        samples = sample_uniform_sphere(4, R, 200, rng)
+        norms = np.linalg.norm(samples, axis=1)
+        np.testing.assert_allclose(norms, R, rtol=1e-12)
+
+    def test_single_sample(self) -> None:
+        rng = np.random.default_rng(42)
+        samples = sample_uniform_sphere(3, 5.0, 1, rng)
+        assert samples.shape == (1, 3)
+        assert np.isclose(np.linalg.norm(samples[0]), 5.0)
+
+    def test_distribution_covers_sphere(self) -> None:
+        """Samples should not all cluster in one octant."""
+        rng = np.random.default_rng(42)
+        samples = sample_uniform_sphere(3, 5.0, 1000, rng)
+        # Check that samples appear in all 8 octants
+        signs = np.sign(samples)
+        octants = set(map(tuple, signs.astype(int)))
+        assert len(octants) >= 6, f"Expected coverage of ≥6 octants, got {len(octants)}"
+
+
+class TestProjectToSphere:
+    def test_projects_to_correct_radius(self) -> None:
+        p = np.array([3.0, 4.0, 0.0])  # norm = 5
+        result = _project_to_sphere(p, 5.0)
+        assert np.isclose(np.linalg.norm(result), 5.0)
+
+    def test_preserves_direction(self) -> None:
+        p = np.array([3.0, 4.0, 0.0])
+        result = _project_to_sphere(p, 5.0)
+        np.testing.assert_allclose(result, p, rtol=1e-12)
+
+    def test_scales_to_radius(self) -> None:
+        p = np.array([1.0, 0.0, 0.0])  # norm = 1
+        result = _project_to_sphere(p, 7.0)
+        np.testing.assert_allclose(result, np.array([7.0, 0.0, 0.0]))
+
+    def test_zero_vector_returns_first_basis(self) -> None:
+        p = np.array([0.0, 0.0, 0.0])
+        result = _project_to_sphere(p, 5.0)
+        assert np.isclose(np.linalg.norm(result), 5.0)
+        assert np.isclose(result[0], 5.0)
+
+    def test_4d_projection(self) -> None:
+        p = np.array([1.0, 2.0, 3.0, 4.0])
+        result = _project_to_sphere(p, 5.0)
+        assert np.isclose(np.linalg.norm(result), 5.0)
+        # Direction should be preserved
+        np.testing.assert_allclose(result / 5.0, p / np.linalg.norm(p), rtol=1e-12)
+
+
+class TestSphereObjectiveWrapper:
+    def test_wrapper_projects_before_eval(self) -> None:
+        """The wrapper should project any point onto the sphere before evaluation."""
+        call_args: list[np.ndarray] = []
+
+        def _track_obj(p: np.ndarray) -> float:
+            call_args.append(p.copy())
+            return float(np.sum(p**2))
+
+        wrapped = _sphere_objective_wrapper(_track_obj, 5.0)
+        # Pass a point with norm != 5
+        raw_p = np.array([10.0, 0.0, 0.0])
+        result = wrapped(raw_p)
+
+        # The wrapper should have projected onto the sphere
+        assert len(call_args) == 1
+        np.testing.assert_allclose(np.linalg.norm(call_args[0]), 5.0, rtol=1e-12)
+        # The projected point [5, 0, 0] has sum of squares = 25
+        assert np.isclose(result, 25.0)
+
+
+class TestScenarioARandomSearchSphere:
+    def test_sphere_mode_all_at_radius(self) -> None:
+        """All samples must have |params| == R in sphere mode."""
+        result = scenario_a_random_search(
+            omega=1.0,
+            n_samples=50,
+            seed=42,
+            sampling_mode="sphere",
+            radius=5.0,
+        )
+        # Check the 3D samples (first 3 columns of the 4D array)
+        samples_3d = result.samples[:, :3]
+        norms = np.linalg.norm(samples_3d, axis=1)
+        np.testing.assert_allclose(norms, 5.0, rtol=1e-12)
+
+    def test_cube_mode_fills_hypercube(self) -> None:
+        """In cube mode, samples fill [-R, R]^3."""
+        result = scenario_a_random_search(
+            omega=1.0,
+            n_samples=50,
+            seed=42,
+            sampling_mode="cube",
+            radius=5.0,
+        )
+        samples_3d = result.samples[:, :3]
+        assert np.all(np.abs(samples_3d) <= 5.0 + 1e-10)
+
+    def test_sphere_mode_returns_valid_result(self) -> None:
+        result = scenario_a_random_search(
+            omega=1.0,
+            n_samples=10,
+            seed=42,
+            sampling_mode="sphere",
+        )
+        assert result.omega_value == 1.0
+        assert result.best_delta_omega > 0
+        assert len(result.samples) == 10
+
+    def test_sphere_vs_cube_different_samples(self) -> None:
+        """Sphere and cube sampling should produce different sample sets."""
+        rs_sphere = scenario_a_random_search(
+            omega=1.0,
+            n_samples=20,
+            seed=42,
+            sampling_mode="sphere",
+        )
+        rs_cube = scenario_a_random_search(
+            omega=1.0,
+            n_samples=20,
+            seed=42,
+            sampling_mode="cube",
+        )
+        # The 3D samples should differ (cube samples will have |r| != 5)
+        assert not np.allclose(rs_sphere.samples[:, :3], rs_cube.samples[:, :3])
+
+
+class TestScenarioAOmegaScanSphere:
+    def test_single_omega_sphere_mode(self) -> None:
+        """Omega scan with sphere mode and tiny budget."""
+        result = run_scenario_a_omega_scan(
+            omega_values=[1.0],
+            n_random=5,
+            n_nm_refine=1,
+            seed=42,
+            sampling_mode="sphere",
+        )
+        assert len(result.omega_values) == 1
+        assert np.isclose(result.omega_values[0], 1.0)
+        assert np.isfinite(result.best_delta_omega_per_omega[0])
+
+    def test_sphere_gives_finite_sensitivity(self) -> None:
+        """Sphere mode must produce finite sensitivities."""
+        result = run_scenario_a_omega_scan(
+            omega_values=[0.5, 1.0, 2.0],
+            n_random=10,
+            n_nm_refine=2,
+            seed=42,
+            sampling_mode="sphere",
+        )
+        assert all(np.isfinite(result.best_delta_omega_per_omega))
+
+
+class TestScenarioBSingleOmegaSphere:
+    def test_single_omega_sphere_mode(self) -> None:
+        result = _run_scenario_b_single_omega(
+            omega=1.0,
+            n_random=5,
+            n_nm_refine=1,
+            seed=42,
+            t_hold=DEFAULT_T_HOLD,
+            T_BS=DEFAULT_T_BS,
+            sampling_mode="sphere",
+        )
+        assert result["omega"] == 1.0
+        assert np.isfinite(result["best_delta_omega"])
+
+
+class TestKnownOptimalDirection:
+    """On S^2(R=5), the QFI for Scenario A is F_Q = 25 t^2 (1 - n_y^2).
+
+    The optimal direction maximises 1 - n_y^2, i.e. n_y = 0.
+    The EP sensitivity at the fringe midpoint is then 1/(t * R) when ρ = 1.
+    On the sphere, ALL points with a_y = 0 give the same sensitivity
+    because r = R is fixed — this is the key difference from cube sampling.
+    """
+
+    def test_optimal_direction_on_equator(self) -> None:
+        """With a_x=0, a_z=5, a_y=0 (|n|=5, n_y=0), sensitivity = 1/(t*R)."""
+        omega = 1.0
+        d = scenario_a_sensitivity(DEFAULT_T_BS, DEFAULT_T_HOLD, omega, 0.0, 0.0, 5.0)
+        # On S^2(R=5), r=R=5 and ρ=1, so Δω = 1/(t*R)
+        expected = 1.0 / (DEFAULT_T_HOLD * 5.0)
+        assert np.isclose(d, expected, rtol=1e-4)
+
+    def test_sphere_optimiser_finds_optimal_direction(self) -> None:
+        """NM refinement on the sphere should find near-optimal sensitivity."""
+        # The best sensitivity on S^2(R=5) is 1/(t*R) = 0.02
+        result = run_scenario_a_omega_scan(
+            omega_values=[1.0],
+            n_random=50,
+            n_nm_refine=10,
+            seed=42,
+            sampling_mode="sphere",
+            radius=5.0,
+        )
+        best_delta = result.best_delta_omega_per_omega[0]
+        expected_min = 1.0 / (DEFAULT_T_HOLD * 5.0)
+        # Allow some slack because 50 samples + 10 NM may not find exact optimum
+        assert best_delta < expected_min * 1.5, (
+            f"Expected best Δω < {expected_min * 1.5:.6f}, got {best_delta:.6f}"
+        )
+
+    def test_optimal_on_sphere_matches_formula(self) -> None:
+        """On S^2(R=5), any a_y=0 direction gives Δω = 1/(t*R)."""
+        expected_min = 1.0 / (DEFAULT_T_HOLD * 5.0)
+        for omega in [0.5, 1.0, 2.0]:
+            # a_x=0, a_z=5: on the sphere with R=5
+            d = scenario_a_sensitivity(
+                DEFAULT_T_BS, DEFAULT_T_HOLD, omega, 0.0, 0.0, 5.0
+            )
+            assert np.isclose(d, expected_min, rtol=1e-4), (
+                f"Expected {expected_min} at ω={omega}, got {d}"
+            )
