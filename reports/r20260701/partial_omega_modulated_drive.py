@@ -21,7 +21,6 @@ Usage:
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -58,6 +57,7 @@ from src.analysis.optimisation_pipeline import (
 )
 from src.analysis.slice_scan import sequential_grid_scan
 from src.utils.constants import I_4
+from src.utils.paths import configure_environment
 from src.utils.serialization import ParquetSerializable
 
 # ============================================================================
@@ -71,19 +71,6 @@ SQL_REFERENCE: float = 1.0 / DEFAULT_T_HOLD  # Δω_SQL = 0.1
 DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)  # Range for all coefficients
 FD_STEP: float = 1e-6  # Finite-difference step for derivatives
 PROB_FLOOR: float = 1e-12  # Floor for probability in CFI denominator
-
-
-def _configure_environment() -> None:
-    """Set non-interactive matplotlib backend and OMP thread limit.
-
-    Must be called before any plotting or numerical routines that spawn
-    threads.  Safe to call multiple times (guard checks existing env vars).
-    """
-    if "MPLBACKEND" not in os.environ:
-        os.environ["MPLBACKEND"] = "Agg"
-    if "OMP_NUM_THREADS" not in os.environ:
-        os.environ["OMP_NUM_THREADS"] = "1"
-    sns.set_theme(style="whitegrid")
 
 
 # ============================================================================

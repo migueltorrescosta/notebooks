@@ -68,6 +68,7 @@ from src.physics.multi_mzi import (
     embed_combined_operators,
     single_bs_unitary,
 )
+from src.physics.mzi_states import dicke_product_state
 from src.utils.enums import OperatorBasis
 from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
@@ -220,23 +221,6 @@ def hold_unitary(
 # ============================================================================
 # Circuit Evolution
 # ============================================================================
-
-
-def initial_state(N: int) -> np.ndarray:
-    """Create the initial product state |J,J⟩_S ⊗ |J,J⟩_A.
-
-    This is the first computational basis vector of length (N+1)².
-
-    Args:
-        N: Particle number per subsystem.
-
-    Returns:
-        Normalised (N+1)²-vector.
-    """
-    dim = (N + 1) ** 2
-    psi = np.zeros(dim, dtype=complex)
-    psi[0] = 1.0
-    return psi
 
 
 def evolve_circuit(
@@ -458,7 +442,7 @@ def optimise_four_params(
         FourParamOptResult with optimal parameters found.
     """
     if psi0 is None:
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
 
     lo, hi = alpha_bounds
     base_seed = seed if seed is not None else 42
@@ -841,7 +825,7 @@ def run_sweep(
     def per_point(N: int, omega: float) -> dict[str, Any]:
         if _cache["last_N"] != N:
             _cache["ops"] = embed_combined_operators(N)
-            _cache["psi0"] = initial_state(N)
+            _cache["psi0"] = dicke_product_state(N)
             _cache["last_N"] = N
         actual_starts = _n_starts_for_N(N) if n_starts is None else n_starts
         opt = optimise_four_params(
@@ -942,7 +926,7 @@ def compute_decoupled_baseline(
     def per_point(N: int, omega: float) -> dict[str, Any]:
         if _cache["last_N"] != N:
             _cache["ops"] = embed_combined_operators(N)
-            _cache["psi0"] = initial_state(N)
+            _cache["psi0"] = dicke_product_state(N)
             _cache["last_N"] = N
         sql = 1.0 / (np.sqrt(N) * t_hold)
         dt, exp_val, var_val, d_exp_val = compute_sensitivity(
@@ -1273,7 +1257,7 @@ def generate_sonly_reproduction(force: bool = False) -> None:
     print("[run]  2026-05-21 reproduction: S-only MZI, N=1, ω=3.8")
 
     ops = embed_combined_operators(N_val)
-    psi0 = initial_state(N_val)
+    psi0 = dicke_product_state(N_val)
     result = optimise_four_params(
         N=N_val,
         omega=omega_val,

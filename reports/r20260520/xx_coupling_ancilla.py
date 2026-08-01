@@ -51,6 +51,7 @@ from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
 )
 from src.utils.constants import I_4
+from src.utils.linear_algebra import compute_reduced_variance_qubit
 from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
@@ -185,51 +186,6 @@ def evolve_xx_circuit(
     return psi
 
 
-def compute_reduced_variance(psi: np.ndarray, meas_op: np.ndarray) -> float:
-    """Compute Var(J_z^S) via partial trace over the ancilla.
-
-    For a two-qubit state |ψ⟩ with computational basis ordering |00⟩, |01⟩,
-    |10⟩, |11⟩, the reduced density matrix of the system is:
-        ρ_S = Tr_A(|ψ⟩⟨ψ|)
-
-    Since (J_z^S)^2 = (1/4) I_2, we compute:
-        Var(J_z^S) = Tr(ρ_S (J_z^S)^2) - (Tr(ρ_S J_z^S))^2
-                  = 1/4 - ⟨J_z^S⟩²
-
-    However, for full rigor we compute via the reduced density matrix.
-
-    Args:
-        psi: 4-vector state (pure).
-        meas_op: Measurement operator (e.g., J_z^S).
-
-    Returns:
-        Variance of the measurement operator after tracing the ancilla.
-    """
-    # Reshape into 2×2 matrix: rows = system, columns = ancilla
-    psi_mat = psi.reshape(2, 2)  # shape (2, 2)
-
-    # Reduced density matrix of system: ρ_S = psi @ psi^† traced over ancilla
-    rho_S = psi_mat @ psi_mat.conj().T  # shape (2, 2)
-
-    # Check trace preservation
-    trace = float(np.real(np.trace(rho_S)))
-    assert np.isclose(trace, 1.0, atol=1e-12), f"Reduced trace = {trace} != 1"
-
-    # J_z^S = σ_z/2
-    Jz_S_sys = np.array([[0.5, 0.0], [0.0, -0.5]], dtype=complex)
-
-    exp_val = float(np.real(np.trace(rho_S @ Jz_S_sys)))
-    exp_sq = float(np.real(np.trace(rho_S @ (Jz_S_sys @ Jz_S_sys))))
-    var_val = exp_sq - exp_val**2
-
-    # Clamp negative variance to zero (numerical round-off)
-    if var_val < 0 and var_val > -1e-12:
-        var_val = 0.0
-
-    assert var_val >= -1e-12, f"Unphysical negative variance: {var_val:.2e}"
-    return float(max(0.0, var_val))
-
-
 def compute_xx_sensitivity(
     psi0: np.ndarray,
     T_BS: float,
@@ -262,7 +218,7 @@ def compute_xx_sensitivity(
 
     # Evaluate at omega_true
     psi = evolve_xx_circuit(psi0, T_BS, t_hold, omega_true, alpha_xx, ops)
-    var = compute_reduced_variance(psi, meas_op)
+    var = compute_reduced_variance_qubit(psi)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂ω
     psi_plus = evolve_xx_circuit(
@@ -558,7 +514,7 @@ def xx_grid_scan(
     if np.isfinite(alpha_opt):
         psi = evolve_xx_circuit(DEFAULT_PSI0, T_BS, t_hold, omega, alpha_opt, ops)
         meas_op = ops["Jz_S"]
-        var_val = compute_reduced_variance(psi, meas_op)
+        var_val = compute_reduced_variance_qubit(psi)
         # Also compute expectation using the reduced state
         psi_m = psi.reshape(2, 2)
         rho = psi_m @ psi_m.conj().T

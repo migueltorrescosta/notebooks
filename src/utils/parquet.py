@@ -37,9 +37,9 @@ def _merge_group(
     Returns:
         Number of rows written.
     """
-    tables = [pq.read_table(p) for p in paths]
+    tables = [pq.read_table(p) for p in paths]  # type: ignore[no-untyped-call]
     merged = pa.concat_tables(tables, promote_options="default")
-    pq.write_table(merged, output_path)
+    pq.write_table(merged, output_path)  # type: ignore[no-untyped-call]
 
     if delete_shards:
         for p in paths:
@@ -91,7 +91,7 @@ def consolidate_raw_parquet(
     # Group by column schema to avoid merging incompatible files
     schema_groups: dict[frozenset[str], list[Path]] = {}
     for path in shard_paths:
-        meta = pq.read_metadata(path)
+        meta = pq.read_metadata(path)  # type: ignore[no-untyped-call]
         key = frozenset(meta.schema.names)
         schema_groups.setdefault(key, []).append(path)
 

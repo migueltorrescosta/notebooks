@@ -12,7 +12,6 @@ import concurrent.futures
 import importlib
 import shutil
 from typing import TYPE_CHECKING
-from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -43,7 +42,7 @@ compute_general_sensitivity_with_diagnostics = (
     _m.compute_general_sensitivity_with_diagnostics
 )
 compute_reduced_expectation = _m.compute_reduced_expectation
-compute_reduced_variance = _m.compute_reduced_variance
+from src.utils.linear_algebra import compute_reduced_variance_qubit
 evolve_general_circuit = _m.evolve_general_circuit
 general_hold_unitary = _m.general_hold_unitary
 run_general_bfgs_optimization = _m.run_general_bfgs_optimization
@@ -204,7 +203,7 @@ class TestCircuitEvolution:
 class TestReducedVariance:
     def test_product_state_variance(self) -> None:
         """For a product state |00⟩, Var(J_z^S) should be zero."""
-        var = compute_reduced_variance(DEFAULT_PSI0)
+        var = compute_reduced_variance_qubit(DEFAULT_PSI0)
         assert var == pytest.approx(0.0, abs=1e-12)
 
     def test_bs_output_variance(self, make_ops: dict) -> None:
@@ -213,7 +212,7 @@ class TestReducedVariance:
         """
         U_bs = system_only_bs_unitary(DEFAULT_T_BS)
         psi = U_bs @ DEFAULT_PSI0
-        var = compute_reduced_variance(psi)
+        var = compute_reduced_variance_qubit(psi)
         assert var == pytest.approx(0.25, abs=1e-12)
 
     @pytest.mark.parametrize(
@@ -234,7 +233,7 @@ class TestReducedVariance:
         psi = evolve_general_circuit(
             DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 0.5, alpha, make_ops
         )
-        var = compute_reduced_variance(psi)
+        var = compute_reduced_variance_qubit(psi)
         assert var >= -1e-12, f"Negative variance at α={alpha}: {var}"
 
     def test_reduced_expectation_matches_full(self, make_ops: dict) -> None:
@@ -378,6 +377,7 @@ class TestDecoupledBaseline:
 
 
 class TestBFGSOptimisation:
+    @pytest.mark.slow
     def test_optimisation_runs(self) -> None:
         """L-BFGS-B should complete without error."""
         result = run_general_bfgs_optimization(
@@ -389,6 +389,7 @@ class TestBFGSOptimisation:
         assert result.n_starts == 3
         assert result.n_converged >= 0
 
+    @pytest.mark.slow
     def test_optimisation_returns_valid_alpha(self) -> None:
         """Optimal α should be within bounds."""
         result = run_general_bfgs_optimization(
@@ -400,6 +401,7 @@ class TestBFGSOptimisation:
         for a_val in result.alpha_opt:
             assert lo <= a_val <= hi, f"α={a_val} outside bounds [{lo}, {hi}]"
 
+    @pytest.mark.slow
     def test_optimisation_omega_recorded(self) -> None:
         result = run_general_bfgs_optimization(
             omega_true=0.7,
@@ -408,6 +410,7 @@ class TestBFGSOptimisation:
         )
         assert result.omega_value == pytest.approx(0.7)
 
+    @pytest.mark.slow
     def test_optimisation_diagnostics_recorded(self) -> None:
         result = run_general_bfgs_optimization(
             omega_true=1.0,
@@ -419,6 +422,7 @@ class TestBFGSOptimisation:
         assert np.isfinite(result.d_exp_d_omega) or np.isinf(result.delta_omega_opt)
 
     @pytest.mark.parametrize("omega_true", [0.1, 1.0, 3.0])
+    @pytest.mark.slow
     def test_optimisation_convergence_variation(self, omega_true: float) -> None:
         """At least some starts should converge at each ω."""
         result = run_general_bfgs_optimization(
@@ -488,6 +492,7 @@ class TestOmegaScan:
             dt = result.delta_omega_opt_per_omega[i]
             assert np.isfinite(dt), f"Non-finite Δω at ω={omega}"
 
+    @pytest.mark.slow
     def test_omega_scan_expectation_variance(self) -> None:
         result = run_general_omega_scan(
             omega_values=[0.1, 1.0],
@@ -498,6 +503,7 @@ class TestOmegaScan:
         assert len(result.variance_Jz_per_omega) == 2
         assert np.all(np.isfinite(result.expectation_Jz_per_omega))
 
+    @pytest.mark.slow
     def test_omega_scan_converged_recorded(self) -> None:
         result = run_general_omega_scan(
             omega_values=[0.1, 1.0],
@@ -668,7 +674,7 @@ class TestPhysicalInvariants:
             psi = evolve_general_circuit(
                 DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha, ops
             )
-            var = compute_reduced_variance(psi)
+            var = compute_reduced_variance_qubit(psi)
             assert var >= -1e-12, f"Negative Var(J_z^S)={var:.2e} at α={alpha}"
 
     def test_hold_hermiticity_all_parameters(self) -> None:
@@ -809,8 +815,7 @@ class TestDeltaLake:
             n_starts=3,
             n_converged=2,
         )
-        with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
-            _upsert_bfgs_result(result)
+        _upsert_bfgs_result(result, table_dir=table_dir)
 
         dt = DeltaTable(table_dir)
         df = dt.to_pandas()
@@ -841,8 +846,7 @@ class TestDeltaLake:
                 n_starts=3,
                 n_converged=2,
             )
-            with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
-                _upsert_bfgs_result(result)
+            _upsert_bfgs_result(result, table_dir=table_dir)
 
         omegas = [0.1 * i for i in range(10)]
         with concurrent.futures.ThreadPoolExecutor(max_workers=10) as exe:
@@ -874,8 +878,7 @@ class TestDeltaLake:
                     n_starts=3,
                     n_converged=2,
                 )
-                with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
-                    _upsert_bfgs_result(result)
+                _upsert_bfgs_result(result, table_dir=table_dir)
 
         # Write 3 rows
         _write_n_rows(3)
@@ -912,8 +915,7 @@ class TestDeltaLake:
                 n_starts=3,
                 n_converged=2,
             )
-            with patch.object(_m, "BFGS_TABLE_DIR", table_dir):
-                _upsert_bfgs_result(result)
+            _upsert_bfgs_result(result, table_dir=table_dir)
 
         # Read back via DeltaTable
         dt = DeltaTable(table_dir)

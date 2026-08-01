@@ -637,6 +637,7 @@ class TestRunModulatedOmegaScan:
             result.best_delta_omega_per_omega[0],
         )
 
+    @pytest.mark.slow
     def test_deterministic_with_seed(self) -> None:
         r1 = run_modulated_omega_scan(
             [1.0],

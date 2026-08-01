@@ -1328,6 +1328,7 @@ class TestPlotOrchestration:
 
 
 class TestGenerateAll:
+    @pytest.mark.slow
     def test_generate_all_sv_only(self, tmp_path: Path) -> None:
         """generate_all with --only sv runs end-to-end for SV."""
         # Use a small omega grid and single resource value for speed.

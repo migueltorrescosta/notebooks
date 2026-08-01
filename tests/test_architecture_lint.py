@@ -463,7 +463,7 @@ class TestDuplicationBaseline:
     # Update these whenever a deliberate deduplication campaign completes.
     _BASELINES: ClassVar[dict[str, float]] = {
         "src": 0.59,  # 278 duplicated / 47521 total = 0.585%
-        "reports": 5.95,  # 3941 duplicated / 66237 total = 5.950%
+        "reports": 5.20,  # 4038 duplicated / 78218 total = 5.16%
     }
 
     _JSCPD_CMD: ClassVar[str] = "jscpd"

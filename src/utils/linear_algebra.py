@@ -203,3 +203,37 @@ def quantum_fisher_information_dm(rho: np.ndarray, generator: np.ndarray) -> flo
     fq += _sld_zero_pairs(eigenvectors, pos_idx, zero_idx, eigenvalues, generator)
 
     return float(np.real(fq))
+
+
+def compute_reduced_variance_qubit(psi: np.ndarray) -> float:
+    """Compute Var(J_z^S) via partial trace over the ancilla for a two-qubit state.
+
+    For a two-qubit state |ψ⟩ with computational basis ordering |00⟩, |01⟩,
+    |10⟩, |11⟩, the reduced density matrix of the system is:
+        ρ_S = Tr_A(|ψ⟩⟨ψ|)
+
+    Then Var(J_z^S) = Tr(ρ_S (J_z^S)^2) - (Tr(ρ_S J_z^S))^2
+                    = 1/4 - ⟨J_z^S⟩²
+
+    Args:
+        psi: 4-vector state (pure).
+
+    Returns:
+        Variance of J_z^S after tracing the ancilla.
+    """
+    psi_mat = psi.reshape(2, 2)
+    rho_S = psi_mat @ psi_mat.conj().T
+
+    trace = float(np.real(np.trace(rho_S)))
+    assert np.isclose(trace, 1.0, atol=1e-12), f"Reduced trace = {trace} != 1"
+
+    Jz_S_sys = np.array([[0.5, 0.0], [0.0, -0.5]], dtype=complex)
+    exp_val = float(np.real(np.trace(rho_S @ Jz_S_sys)))
+    exp_sq = float(np.real(np.trace(rho_S @ (Jz_S_sys @ Jz_S_sys))))
+    var_val = exp_sq - exp_val**2
+
+    if var_val < 0 and var_val > -1e-12:
+        var_val = 0.0
+
+    assert var_val >= -1e-12, f"Unphysical negative variance: {var_val:.2e}"
+    return float(max(0.0, var_val))

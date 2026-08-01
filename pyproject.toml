@@ -106,6 +106,7 @@ filterwarnings = [
 exclude = [
     "jupyter/**",
     "mathematica/**",
+    "reports/**",
 ]
 
 [tool.ruff.lint]

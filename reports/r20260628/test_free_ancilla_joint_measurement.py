@@ -820,6 +820,7 @@ class TestQubitNelderMead:
 
 class TestBipartiteNelderMead:
     @pytest.mark.parametrize("make_N", [1])
+    @pytest.mark.slow
     def test_given_nm_then_converges(self, make_N: int) -> None:
         result = run_bipartite_free_ancilla_joint_nelder_mead(
             N=make_N,
@@ -832,6 +833,7 @@ class TestBipartiteNelderMead:
         assert result.params_opt.shape == (7,)
 
     @pytest.mark.parametrize("make_N", [1])
+    @pytest.mark.slow
     def test_given_nm_then_expectation_finite(self, make_N: int) -> None:
         result = run_bipartite_free_ancilla_joint_nelder_mead(
             N=make_N,

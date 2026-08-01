@@ -42,7 +42,7 @@ evolve_circuit = _m.evolve_circuit
 fit_scaling_exponents = _m.fit_scaling_exponents
 full_state_expectation_and_variance = _m.full_state_expectation_and_variance
 hold_unitary_dicke = _m.hold_unitary_dicke
-initial_state = _m.initial_state
+from src.physics.mzi_states import dicke_product_state
 optimise_joint = _m.optimise_joint
 run_sweep = _m.run_sweep
 single_bs_unitary = _m.single_bs_unitary
@@ -151,7 +151,7 @@ class TestFullStateMeasurement:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_initial_state_variance_zero(self, N: int) -> None:
         """For |J,J⟩_S ⊗ |J,J⟩_A, Var(M) = 0 for any φ."""
-        psi = initial_state(N)
+        psi = dicke_product_state(N)
         ops = _embed_ops_for_tests(N)
         for psi_val in [0.0, np.pi / 4, np.pi / 2]:
             meas_op = build_measurement_operator(N, psi_val, ops)
@@ -164,7 +164,7 @@ class TestFullStateMeasurement:
     def test_variance_positive(self, N: int) -> None:
         """Var(M) >= 0 for all parameters."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         for alpha_xx in [0.0, 1.0, 5.0]:
             for psi_weight in [0.0, np.pi / 4, np.pi / 2]:
                 psi_state = evolve_circuit(
@@ -180,7 +180,7 @@ class TestFullStateMeasurement:
     def test_phi_zero_equals_jz_s_expectation(self, N: int) -> None:
         """At φ=0, ⟨M⟩ = ⟨J_z^S⟩ (compute via full state)."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         psi_weight = 0.0
         meas_op = build_measurement_operator(N, psi_weight, ops)
         Jz_S_op = ops["Jz_S"]
@@ -239,13 +239,13 @@ class TestUnitarity:
 class TestCircuitEvolution:
     @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_initial_state_normalised(self, N: int) -> None:
-        psi = initial_state(N)
+        psi = dicke_product_state(N)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_normalisation_preserved(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         psi = evolve_circuit(N, psi0, omega=0.5, alpha_xx=0.0, ops=ops)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
@@ -254,7 +254,7 @@ class TestCircuitEvolution:
     )
     def test_normalisation_with_coupling(self, N: int, alpha_xx: float) -> None:
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         psi = evolve_circuit(N, psi0, omega=1.0, alpha_xx=alpha_xx, ops=ops)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
@@ -262,7 +262,7 @@ class TestCircuitEvolution:
     def test_no_op_identity(self, N: int) -> None:
         """T_BS=0, t_hold=0 should give the initial state back."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         U_bs_zero = dual_bs_unitary(N, T_BS=0.0)
         psi = U_bs_zero @ psi0
         psi = hold_unitary_dicke(N, t_hold=0.0, omega=0.0, alpha_xx=0.0, ops=ops) @ psi
@@ -275,7 +275,7 @@ class TestSensitivity:
     def test_decoupled_phi_zero_matches_n_sql(self, N: int) -> None:
         """At α_xx = 0, φ = 0: Δω = 1/(√N t_hold) (N-SQL)."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         omega = 1.0
         dt, *_ = compute_sensitivity_full(
             N,
@@ -294,7 +294,7 @@ class TestSensitivity:
     def test_decoupled_phi_pi_over_four_matches_2n_sql(self, N: int) -> None:
         """At α_xx = 0, φ = π/4: Δω = 1/(√(2N) t_hold) (2N-SQL)."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         omega = 1.0
         dt, *_ = compute_sensitivity_full(
             N,
@@ -313,7 +313,7 @@ class TestSensitivity:
     def test_decoupled_phi_pi_over_four_all_omega(self, N: int, omega: float) -> None:
         """At α_xx=0, φ=π/4, Δω = 2N-SQL for any ω."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         dt, _, _, _ = compute_sensitivity_full(
             N,
             psi0,
@@ -331,7 +331,7 @@ class TestSensitivity:
     def test_n_sql_vs_2n_sql_ratio(self, N: int, omega: float) -> None:
         """Ratio of Δω(φ=0) to Δω(φ=π/4) should be √2 at α_xx=0."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         dt_phi0, *_ = compute_sensitivity_full(
             N,
             psi0,
@@ -356,7 +356,7 @@ class TestSensitivity:
     def test_sensitivity_finite_with_coupling(self, N: int) -> None:
         """With non-zero α_xx and φ, sensitivity should be finite."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         for alpha_xx in [0.1, 1.0, 5.0]:
             for psi_weight in [0.0, np.pi / 4, -1.0]:
                 dt, _, _, _ = compute_sensitivity_full(
@@ -375,7 +375,7 @@ class TestSensitivity:
     def test_sensitivity_positive(self, N: int) -> None:
         """Sensitivity should always be positive."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         for alpha_xx in [0.0, 0.5, 2.0]:
             for psi_weight in [0.0, np.pi / 4, -0.5]:
                 dt, _, _, _ = compute_sensitivity_full(
@@ -394,7 +394,7 @@ class TestSensitivity:
         """Δω should be stable across a range of fd_step values."""
         N = 3
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         dt_vals = []
         for fd_step in [1e-5, 1e-6, 1e-7]:
             dt, _, _, _ = compute_sensitivity_full(
@@ -426,7 +426,7 @@ class TestSensitivity:
         """
         N = 20
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         dt_vals = []
         for fd_step in [1e-5, 1e-6, 1e-7]:
             dt, _, _, _ = compute_sensitivity_full(
@@ -804,7 +804,7 @@ class TestPhysicalInvariants:
     def test_var_positive_all_couplings(self, N: int) -> None:
         """Var(M) >= 0 for all α_xx and φ at representative ω."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         for alpha_xx in [0.0, 0.5, 2.0, 5.0]:
             for psi_weight in [0.0, np.pi / 4, np.pi / 2, -1.0]:
                 psi_state = evolve_circuit(
@@ -820,7 +820,7 @@ class TestPhysicalInvariants:
     def test_sql_recovery_at_zero_coupling(self, N: int) -> None:
         """At α_xx=0, φ=π/4: must recover 2N-SQL exactly."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         sql_2n = 1.0 / (np.sqrt(2 * N) * DEFAULT_t_hold)
         for omega in [0.1, 1.0, 5.0]:
             dt, _, _, _ = compute_sensitivity_full(
@@ -859,7 +859,7 @@ class TestPhysicalInvariants:
     def test_phi_zero_n_sql_relationship(self, N: int) -> None:
         """At φ=0, the sensitivity is the N-SQL (factor √2 worse than 2N-SQL)."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         dt_phi0, *_ = compute_sensitivity_full(
             N,
             psi0,

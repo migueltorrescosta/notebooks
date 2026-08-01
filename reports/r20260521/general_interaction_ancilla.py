@@ -69,6 +69,7 @@ from src.analysis.decoupled_baseline import (
 )
 from src.utils.constants import I_4
 from src.utils.paths import report_path_fn
+from src.utils.linear_algebra import compute_reduced_variance_qubit
 from src.utils.serialization import ParquetSerializable
 
 sns.set_theme(style="whitegrid")
@@ -191,47 +192,6 @@ def evolve_general_circuit(
 # ============================================================================
 
 
-def compute_reduced_variance(psi: np.ndarray) -> float:
-    """Compute Var(J_z^S) via partial trace over the ancilla.
-
-    For a two-qubit state |ψ⟩ with computational basis ordering |00⟩, |01⟩,
-    |10⟩, |11⟩, the reduced density matrix of the system is:
-        ρ_S = Tr_A(|ψ⟩⟨ψ|)
-
-    Then Var(J_z^S) = Tr(ρ_S (J_z^S)^2) - (Tr(ρ_S J_z^S))^2
-                    = 1/4 - ⟨J_z^S⟩²
-
-    Args:
-        psi: 4-vector state (pure).
-
-    Returns:
-        Variance of J_z^S after tracing the ancilla.
-    """
-    # Reshape into 2×2 matrix: rows = system, columns = ancilla
-    psi_mat = psi.reshape(2, 2)  # shape (2, 2)
-
-    # Reduced density matrix of system: ρ_S = psi @ psi^† traced over ancilla
-    rho_S = psi_mat @ psi_mat.conj().T  # shape (2, 2)
-
-    # Check trace preservation
-    trace = float(np.real(np.trace(rho_S)))
-    assert np.isclose(trace, 1.0, atol=1e-12), f"Reduced trace = {trace} != 1"
-
-    # J_z^S = σ_z/2  (for a single qubit)
-    Jz_S_sys = np.array([[0.5, 0.0], [0.0, -0.5]], dtype=complex)
-
-    exp_val = float(np.real(np.trace(rho_S @ Jz_S_sys)))
-    exp_sq = float(np.real(np.trace(rho_S @ (Jz_S_sys @ Jz_S_sys))))
-    var_val = exp_sq - exp_val**2
-
-    # Clamp negative variance to zero (numerical round-off)
-    if var_val < 0 and var_val > -1e-12:
-        var_val = 0.0
-
-    assert var_val >= -1e-12, f"Unphysical negative variance: {var_val:.2e}"
-    return float(max(0.0, var_val))
-
-
 def compute_reduced_expectation(psi: np.ndarray) -> float:
     """Compute ⟨J_z^S⟩ via partial trace over the ancilla.
 
@@ -277,7 +237,7 @@ def compute_general_sensitivity(
     """
     # Evaluate at omega_true
     psi = evolve_general_circuit(psi0, T_BS, t_hold, omega_true, alpha, ops)
-    var = compute_reduced_variance(psi)
+    var = compute_reduced_variance_qubit(psi)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂ω
     psi_plus = evolve_general_circuit(
@@ -323,7 +283,7 @@ def compute_general_sensitivity_with_diagnostics(
     """
     # Evaluate at omega_true
     psi = evolve_general_circuit(psi0, T_BS, t_hold, omega_true, alpha, ops)
-    var = compute_reduced_variance(psi)
+    var = compute_reduced_variance_qubit(psi)
     exp_val = compute_reduced_expectation(psi)
 
     # Central finite difference for ∂⟨J_z^S⟩/∂ω
@@ -1057,13 +1017,23 @@ BFGS_TABLE_DIR = str(REPORTS_DIR / f"r{DATE_TAG}" / "raw_data" / "bfgs-results")
 _parquet_path, _fig_path = report_path_fn(REPORTS_DIR, DATE_TAG)
 
 
-def _upsert_bfgs_result(result: GeneralBFGSOptimizationResult) -> None:
-    """Append one row to the Delta table (concurrent-writer safe)."""
+def _upsert_bfgs_result(
+    result: GeneralBFGSOptimizationResult, table_dir: str | None = None
+) -> None:
+    """Append one row to the Delta table (concurrent-writer safe).
+
+    Args:
+        result: BFGS optimisation result to append.
+        table_dir: Path to the Delta table directory.  When *None*, falls back
+            to the module-level ``BFGS_TABLE_DIR`` constant.
+    """
+    if table_dir is None:
+        table_dir = BFGS_TABLE_DIR
     row = result.to_dataframe()
-    Path(BFGS_TABLE_DIR).parent.mkdir(parents=True, exist_ok=True)
+    Path(table_dir).parent.mkdir(parents=True, exist_ok=True)
     for attempt in range(5):
         try:
-            write_deltalake(BFGS_TABLE_DIR, row, mode="append")
+            write_deltalake(table_dir, row, mode="append")
             return
         except (OSError, ValueError, CommitFailedError):
             if attempt < 4:
@@ -1077,11 +1047,13 @@ def _upsert_bfgs_result(result: GeneralBFGSOptimizationResult) -> None:
 # ── Generator functions ───────────────────────────────────────────────────
 
 
-def _run_single_bfgs(omega: float, force: bool) -> None:
+def _run_single_bfgs(
+    omega: float, force: bool, table_dir: str | None = None
+) -> None:
     """Run L-BFGS-B optimisation for a single ω value, upserting to Delta table."""
     print(f"  [run]  Computing L-BFGS-B at ω={omega} ({N_BFGS_STARTS} starts)...")
     result = run_general_bfgs_optimization(omega_true=omega)
-    _upsert_bfgs_result(result)
+    _upsert_bfgs_result(result, table_dir=table_dir)
 
 
 def generate_bfgs_omega_scan(force: bool = False) -> None:
@@ -1094,10 +1066,10 @@ def generate_bfgs_omega_scan(force: bool = False) -> None:
     n = len(OMEGA_VALS)
     print(f"[run]  L-BFGS-B scans at {n} ω values (parallel)")
 
-    # Wrap _run_single_bfgs to fix the force argument
+    # Wrap _run_single_bfgs to fix the force and table_dir arguments
     from functools import partial as _partial
 
-    _worker = _partial(_run_single_bfgs, force=force)
+    _worker = _partial(_run_single_bfgs, force=force, table_dir=BFGS_TABLE_DIR)
     parallel_map(_worker, OMEGA_VALS, desc="L-BFGS-B optimisation per ω")
 
     # Compact small files into fewer larger ones for efficient reads

@@ -48,6 +48,7 @@ import pandas as pd
 import seaborn as sns
 from scipy.optimize import minimize
 
+from src.physics.mzi_states import dicke_product_state
 from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 from src.visualization.coupling_heatmaps import (
@@ -114,23 +115,6 @@ N_MAX: int = 20
 # ============================================================================
 # Circuit Evolution
 # ============================================================================
-
-
-def initial_state(N: int) -> np.ndarray:
-    """Create the initial product state |J,J⟩_S ⊗ |J,J⟩_A.
-
-    This is the first computational basis vector of length (N+1)².
-
-    Args:
-        N: Particle number per subsystem.
-
-    Returns:
-        Normalised (N+1)²-vector.
-    """
-    dim = (N + 1) ** 2
-    psi = np.zeros(dim, dtype=complex)
-    psi[0] = 1.0
-    return psi
 
 
 # ============================================================================
@@ -410,7 +394,7 @@ def _resolve_defaults(
     N: int, psi0: np.ndarray | None, maxiter: int | None
 ) -> tuple[np.ndarray, int]:
     """Resolve optional psi0 and maxiter to concrete values."""
-    _psi0 = initial_state(N) if psi0 is None else psi0
+    _psi0 = dicke_product_state(N) if psi0 is None else psi0
     _maxiter = _maxiter_for_n(N) if maxiter is None else maxiter
     return _psi0, _maxiter
 
@@ -672,7 +656,7 @@ def _optimise_one_point(
     """
     N, omega, t_hold, n_starts, fd_step, seed = args
     ops = embed_combined_operators(N)
-    psi0 = initial_state(N)
+    psi0 = dicke_product_state(N)
     result = optimise_joint(
         N=N,
         omega=omega,
@@ -786,7 +770,7 @@ def _compute_sweep_serial(
     def per_point(N: int, omega: float) -> dict[str, Any]:
         if _cache["last_N"] != N:
             _cache["ops"] = embed_combined_operators(N)
-            _cache["psi0"] = initial_state(N)
+            _cache["psi0"] = dicke_product_state(N)
             _cache["last_N"] = N
         r = _optimise_one_point(
             (N, omega, t_hold, n_starts_fn(N), FD_STEP, global_start_seed),
@@ -1042,7 +1026,7 @@ def compute_sensitivity_at_psi(
         Tuple (delta_omega, expectation, variance, derivative).
     """
     if psi0 is None:
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
     meas_op = build_measurement_operator(N, psi, ops)
     return compute_sensitivity_full(
         N,
@@ -1088,7 +1072,7 @@ def compute_decoupled_baseline(
     def per_point(N: int, omega: float) -> dict[str, Any]:
         if _cache["last_N"] != N:
             _cache["ops"] = embed_combined_operators(N)
-            _cache["psi0"] = initial_state(N)
+            _cache["psi0"] = dicke_product_state(N)
             _cache["last_N"] = N
         sql = 1.0 / (np.sqrt(2 * N) * t_hold)
         dt, exp_val, var_val, d_exp_val = compute_sensitivity_at_psi(
@@ -1523,7 +1507,7 @@ def evaluate_coarse_grid(
     axx_vals = np.linspace(AXX_BOUNDS[0], AXX_BOUNDS[1], n_axx)
     psi_vals = np.linspace(PSI_BOUNDS[0], PSI_BOUNDS[1], n_psi)
     ops = embed_combined_operators(N)
-    psi0 = initial_state(N)
+    psi0 = dicke_product_state(N)
 
     delta_map = np.full((n_axx, n_psi), np.nan, dtype=float)
     grid_best = float("inf")

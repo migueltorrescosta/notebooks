@@ -33,7 +33,7 @@ XXGridScanResult = _m.XXGridScanResult
 XXOmegaScanResult = _m.XXOmegaScanResult
 build_xx_hold_hamiltonian = _m.build_xx_hold_hamiltonian
 build_xx_interaction = _m.build_xx_interaction
-compute_reduced_variance = _m.compute_reduced_variance
+from src.utils.linear_algebra import compute_reduced_variance_qubit
 compute_xx_decoupled_baseline = _m.compute_xx_decoupled_baseline
 compute_xx_sensitivity = _m.compute_xx_sensitivity
 evolve_xx_circuit = _m.evolve_xx_circuit
@@ -150,7 +150,7 @@ class TestReducedVariance:
     def test_product_state_variance(self, make_ops: dict) -> None:
         """For a product state |00⟩, Var(J_z^S) should be zero."""
         psi = DEFAULT_PSI0.copy()
-        var = compute_reduced_variance(psi, make_ops["Jz_S"])
+        var = compute_reduced_variance_qubit(psi)
         assert var == pytest.approx(0.0, abs=1e-12)
 
     def test_bs_output_variance(self, make_ops: dict) -> None:
@@ -159,7 +159,7 @@ class TestReducedVariance:
         """
         U_bs = system_only_bs_unitary(DEFAULT_T_BS)
         psi = U_bs @ DEFAULT_PSI0
-        var = compute_reduced_variance(psi, make_ops["Jz_S"])
+        var = compute_reduced_variance_qubit(psi)
         assert var == pytest.approx(0.25, abs=1e-12)
 
     def test_variance_positive(self, make_ops: dict) -> None:
@@ -168,7 +168,7 @@ class TestReducedVariance:
             psi = evolve_xx_circuit(
                 DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 0.5, alpha_xx, make_ops
             )
-            var = compute_reduced_variance(psi, make_ops["Jz_S"])
+            var = compute_reduced_variance_qubit(psi)
             assert var >= -1e-12, f"Negative variance at alpha_xx={alpha_xx}: {var}"
 
 
@@ -482,7 +482,7 @@ class TestPhysicalInvariants:
             psi = evolve_xx_circuit(
                 DEFAULT_PSI0, DEFAULT_T_BS, DEFAULT_t_hold, 1.0, alpha_xx, ops
             )
-            var = compute_reduced_variance(psi, ops["Jz_S"])
+            var = compute_reduced_variance_qubit(psi)
             assert var >= -1e-12, f"Negative Var(J_z^S)={var:.2e} at α_xx={alpha_xx}"
 
     def test_hold_hermiticity(self) -> None:

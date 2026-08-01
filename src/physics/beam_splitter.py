@@ -62,7 +62,6 @@ from functools import cache
 
 import numpy as np
 import scipy.linalg
-import scipy.sparse
 
 from src.physics.dicke_basis import jx_operator
 from src.utils.constants import I_2, SIGMA_X
@@ -74,8 +73,7 @@ def bs_fock(
     theta: float,
     phi_bs: float,
     max_photons: int,
-    auto_sparse_threshold: int = 50,
-) -> np.ndarray | scipy.sparse.spmatrix:
+) -> np.ndarray:
     r"""Two-mode Fock space beam-splitter unitary.
 
     Mode transformation:
@@ -91,26 +89,18 @@ def bs_fock(
     which avoids a full (M+1)²× (M+1)² matrix exponential by computing
     expm on each (N+1)×(N+1) subspace independently.
 
-    For ``max_photons > auto_sparse_threshold`` (default 50), the unitary is
-    stored as a ``scipy.sparse.csr_matrix`` to avoid allocating O(dim²) memory.
-    The sparse format is fully compatible with ``@`` (matvec and matmul),
-    ``.shape``, ``.conj().T``, and ``np.kron``.
-
     Args:
         theta: Beam-splitter transmittance angle. θ = 0 gives identity,
             θ = π/4 gives 50/50.
         phi_bs: Phase shift applied to reflected photons.
         max_photons: Maximum photon number per mode for truncation.
-        auto_sparse_threshold: ``max_photons`` above this value uses sparse CSR.
 
     Returns:
-        Unitary (dense ndarray or sparse CSR matrix) of dimension
-        (max_photons + 1)² × (max_photons + 1)².
+        Dense unitary matrix of dimension (max_photons + 1)² × (max_photons + 1)².
 
     """
     dim = (max_photons + 1) ** 2
-    use_sparse = max_photons > auto_sparse_threshold
-    U = _allocate_bs_matrix(dim, use_sparse)
+    U = np.zeros((dim, dim), dtype=complex)
 
     for n_total in range(2 * max_photons + 1):
         k_min = max(0, n_total - max_photons)
@@ -121,25 +111,8 @@ def bs_fock(
         U_sub = _build_bs_subspace_block(n_total, k_min, k_max, phi_bs, theta)
         _place_subspace_block(U, U_sub, n_total, k_min, k_max, max_photons)
 
-    if use_sparse:
-        U_lil: scipy.sparse.lil_matrix = U  # type: ignore[assignment]
-        U_csr = U_lil.tocsr()
-        _verify_sparse_bs_unitarity(U_csr, max_photons)
-        return U_csr
-
-    U_dense: np.ndarray = U  # type: ignore[assignment]
-    _verify_dense_bs_unitarity(U_dense, max_photons)
-    return U_dense
-
-
-def _allocate_bs_matrix(
-    dim: int,
-    use_sparse: bool,
-) -> scipy.sparse.lil_matrix | np.ndarray:
-    """Allocate a dim×dim matrix for the beam-splitter unitary."""
-    if use_sparse:
-        return scipy.sparse.lil_matrix((dim, dim), dtype=complex)
-    return np.zeros((dim, dim), dtype=complex)
+    _verify_dense_bs_unitarity(U, max_photons)
+    return U
 
 
 def _build_bs_subspace_block(
@@ -164,7 +137,7 @@ def _build_bs_subspace_block(
 
 
 def _place_subspace_block(
-    U: np.ndarray | scipy.sparse.lil_matrix,
+    U: np.ndarray,
     U_sub: np.ndarray,
     n_total: int,
     k_min: int,
@@ -196,22 +169,6 @@ def _verify_dense_bs_unitarity(
             f"Beam splitter column norms deviate from 1: "
             f"max_dev={np.max(np.abs(norms - 1.0))}"
         )
-
-
-def _verify_sparse_bs_unitarity(
-    U: scipy.sparse.csr_matrix,
-    max_photons: int,
-) -> None:
-    """Verify unitarity of a sparse BS matrix via column-norm sampling."""
-    n_cols = min(10, U.shape[1])
-    # Extract columns as dense submatrix (small: n_cols <= 10)
-    cols_dense = U[:, :n_cols].toarray()
-    norms = np.sum(np.abs(cols_dense) ** 2, axis=0)
-    assert np.allclose(norms, 1.0, atol=1e-10), (
-        f"Sparse beam splitter column norms deviate from 1: "
-        f"max_dev={np.max(np.abs(norms - 1.0))} "
-        f"for max_photons={max_photons}"
-    )
 
 
 @cache

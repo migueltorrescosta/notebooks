@@ -20,29 +20,22 @@ Sampling modes:
   - "sphere" (default): Marsaglia method on S^{d-1}(R), with NM
     projection back onto sphere. Separates direction from magnitude.
   - "cube" (legacy): uniform sampling on [-R, R]^d with bound penalty.
-
-Usage:
-    uv run python reports/r20260709/compound_comparison.py --force
-    uv run python reports/r20260709/compound_comparison.py --force --sampling-mode sphere --radius 5
 """
 
 from __future__ import annotations
 
-import argparse
 import concurrent.futures
 import multiprocessing as _mp
 import os
-import sys
-from dataclasses import dataclass
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, ClassVar
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
-import pandas as pd
 
+from reports.r20260709.compound_comparison_results import (
+    CompoundRatioResult,
+    FixedParameterCompoundRatioResult,
+    ScenarioACompoundResult,
+)
 from src.analysis.ancilla_drive_results import (
     DriveOmegaScanResult,
     DriveRandomSearchResult,
@@ -52,13 +45,17 @@ from src.analysis.ancilla_optimization import (
     compute_expectation_and_variance,
     two_qubit_bs_unitary,
 )
-from src.analysis.optimisation_pipeline import (
-    run_nelder_mead,
-)
+from src.analysis.optimisation_pipeline import run_nelder_mead
 from src.physics.beam_splitter import bs_qubit
 from src.utils.constants import J_X, J_Y, J_Z
-from src.utils.paths import report_path_fn
-from src.utils.serialization import ParquetSerializable
+from src.utils.sampling import (
+    project_to_sphere,
+    sample_uniform_sphere,
+    sphere_objective_wrapper,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # ============================================================================
 # Physical Constants
@@ -70,83 +67,7 @@ SQL_REFERENCE: float = 1.0 / DEFAULT_T_HOLD  # Δω_SQL = 0.1
 DRIVE_BOUNDS: tuple[float, float] = (-5.0, 5.0)
 DEFAULT_SPHERE_RADIUS: float = 5.0  # Radius R for sphere sampling
 DEFAULT_SAMPLING_MODE: str = "sphere"  # "cube" (legacy) or "sphere" (default)
-OMEGA_MIN: float = 0.01  # Minimum ω for scan
-OMEGA_MAX: float = 5.0  # Maximum ω for scan
-DEFAULT_N_OMEGA: int = 500  # Default number of ω points
-OMEGA_VALS: list[float] = [
-    round(v, 2) for v in np.linspace(OMEGA_MIN, OMEGA_MAX, DEFAULT_N_OMEGA)
-]
 FD_STEP: float = 1e-6  # Finite-difference step
-
-REPORTS_DIR = Path(__file__).resolve().parent.parent
-REPORT_DATE = "20260709"
-_parquet_path, _fig_path = report_path_fn(REPORTS_DIR, REPORT_DATE)
-
-
-def _configure_environment() -> None:
-    """Set non-interactive matplotlib backend.
-
-    Must be called before any plotting or numerical routines that spawn
-    threads.  Safe to call multiple times (guard checks existing env vars).
-    """
-    if "MPLBACKEND" not in os.environ:
-        os.environ["MPLBACKEND"] = "Agg"
-
-
-# ============================================================================
-# Sphere Sampling (Marsaglia Method)
-# ============================================================================
-
-
-def sample_uniform_sphere(
-    d: int,
-    R: float,
-    n: int,
-    rng: np.random.Generator,
-) -> np.ndarray:
-    """Sample *n* uniform random points on S^{d-1}(R).
-
-    Uses the Marsaglia method: draw *d* i.i.d. N(0,1) components per
-    point, normalise to unit length, then scale by *R*.
-
-    Args:
-        d: Dimensionality of the parameter space.
-        R: Radius of the sphere.
-        n: Number of samples.
-        rng: NumPy random generator.
-
-    Returns:
-        Array of shape ``(n, d)`` with each row on S^{d-1}(R).
-    """
-    raw = rng.standard_normal(size=(n, d))
-    norms = np.linalg.norm(raw, axis=1, keepdims=True)
-    # Guard against the astronomically unlikely zero-norm sample
-    norms = np.where(norms < 1e-15, 1.0, norms)
-    return (raw / norms) * R
-
-
-def _project_to_sphere(p: np.ndarray, R: float) -> np.ndarray:
-    """Project a vector onto S^{d-1}(R): normalise and scale by *R*."""
-    norm = np.linalg.norm(p)
-    if norm < 1e-15:
-        # Zero vector has no preferred direction; return the first basis
-        # vector scaled by R to ensure a well-defined projection.
-        result = np.zeros_like(p)
-        result[0] = R
-        return result
-    return (p / norm) * R
-
-
-def _sphere_objective_wrapper(
-    raw_objective: Callable[[np.ndarray], float],
-    R: float,
-) -> Callable[[np.ndarray], float]:
-    """Wrap an objective so that candidates are projected onto S^{d-1}(R) before evaluation."""
-
-    def _wrapped(p: np.ndarray) -> float:
-        return raw_objective(_project_to_sphere(p, R))
-
-    return _wrapped
 
 
 # ============================================================================
@@ -466,267 +387,6 @@ def _scenario_b_objective_4d(
 
 
 # ============================================================================
-# Result Dataclasses
-# ============================================================================
-
-
-@dataclass
-class DecoupledBaselineResult(ParquetSerializable):
-    """Decoupled baseline result for both scenarios.
-
-    Stores delta omega for Scenario A and B at the standard MZI encoding
-    point (a_z=1, all other coefficients zero). Both should equal 1/t_hold.
-    """
-
-    _PARQUET_COLUMNS: ClassVar[list[str]] = [
-        "scenario",
-        "delta_omega",
-        "sql",
-        "ratio_to_sql",
-        "t_hold",
-    ]
-
-    scenarios: list[str]
-    delta_omega_values: np.ndarray
-    sql_values: np.ndarray
-    ratio_to_sql_values: np.ndarray
-    t_hold_value: float
-
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "scenario": self.scenarios,
-                "delta_omega": self.delta_omega_values,
-                "sql": self.sql_values,
-                "ratio_to_sql": self.ratio_to_sql_values,
-                "t_hold": [self.t_hold_value] * len(self.scenarios),
-            }
-        )
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> DecoupledBaselineResult:
-        df = pd.read_parquet(path)
-        cls._validate_columns(df)
-        return cls(
-            scenarios=list(df["scenario"]),
-            delta_omega_values=df["delta_omega"].to_numpy(dtype=float),
-            sql_values=df["sql"].to_numpy(dtype=float),
-            ratio_to_sql_values=df["ratio_to_sql"].to_numpy(dtype=float),
-            t_hold_value=float(df["t_hold"].iloc[0]),
-        )
-
-
-@dataclass
-class ScenarioACompoundResult(ParquetSerializable):
-    """Result for Scenario A (system-only ω-modulated drive).
-
-    Stores all input parameters alongside computed results for
-    self-describing Parquet serialization.
-    """
-
-    _PARQUET_COLUMNS: ClassVar[list[str]] = [
-        "omega",
-        "best_delta_omega",
-        "sql",
-        "a_x",
-        "a_y",
-        "a_z",
-        "t_hold",
-        "expectation_Jz",
-        "variance_Jz",
-    ]
-
-    omega_values: np.ndarray
-    best_delta_omega_per_omega: np.ndarray
-    best_params_per_omega: list[tuple[float, float, float]]
-    sql_values: np.ndarray
-    t_hold_value: float
-    expectation_Jz_per_omega: np.ndarray
-    variance_Jz_per_omega: np.ndarray
-
-    def to_dataframe(self) -> pd.DataFrame:
-        rows: list[dict[str, Any]] = []
-        for i, omega in enumerate(self.omega_values):
-            best = (
-                float(self.best_delta_omega_per_omega[i])
-                if i < len(self.best_delta_omega_per_omega)
-                else float("inf")
-            )
-            sql = (
-                float(self.sql_values[i]) if i < len(self.sql_values) else float("nan")
-            )
-            params = (
-                self.best_params_per_omega[i]
-                if i < len(self.best_params_per_omega)
-                else (0.0, 0.0, 0.0)
-            )
-            rows.append(
-                {
-                    "omega": float(omega),
-                    "best_delta_omega": best,
-                    "sql": sql,
-                    "ratio_to_sql": best / sql
-                    if np.isfinite(best) and sql > 0
-                    else float("inf"),
-                    "a_x": float(params[0]),
-                    "a_y": float(params[1]),
-                    "a_z": float(params[2]),
-                    "t_hold": float(self.t_hold_value),
-                    "expectation_Jz": (
-                        float(self.expectation_Jz_per_omega[i])
-                        if i < len(self.expectation_Jz_per_omega)
-                        else 0.0
-                    ),
-                    "variance_Jz": (
-                        float(self.variance_Jz_per_omega[i])
-                        if i < len(self.variance_Jz_per_omega)
-                        else 0.0
-                    ),
-                }
-            )
-        return pd.DataFrame(rows)
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> ScenarioACompoundResult:
-        df = pd.read_parquet(path)
-        cls._validate_columns(df)
-        return cls(
-            omega_values=df["omega"].to_numpy(dtype=float),
-            best_delta_omega_per_omega=df["best_delta_omega"].to_numpy(dtype=float),
-            best_params_per_omega=[
-                (float(r["a_x"]), float(r["a_y"]), float(r["a_z"]))
-                for _, r in df.iterrows()
-            ],
-            sql_values=df["sql"].to_numpy(dtype=float),
-            t_hold_value=float(df["t_hold"].iloc[0]),
-            expectation_Jz_per_omega=df["expectation_Jz"].to_numpy(dtype=float),
-            variance_Jz_per_omega=df["variance_Jz"].to_numpy(dtype=float),
-        )
-
-
-@dataclass
-class CompoundRatioResult(ParquetSerializable):
-    """Comparison result between Scenario A and Scenario B.
-
-    Stores the compound ratio R_compound = Δω_A / Δω_B at each ω.
-    """
-
-    _PARQUET_COLUMNS: ClassVar[list[str]] = [
-        "omega",
-        "delta_omega_A",
-        "delta_omega_B",
-        "compound_ratio",
-        "sql",
-        "ratio_A_to_sql",
-        "ratio_B_to_sql",
-    ]
-
-    omega_values: np.ndarray
-    delta_omega_A: np.ndarray
-    delta_omega_B: np.ndarray
-    compound_ratio: np.ndarray  # R = Δω_A / Δω_B
-    sql_values: np.ndarray
-    ratio_A_to_sql: np.ndarray  # R_A = Δω_SQL / Δω_A
-    ratio_B_to_sql: np.ndarray  # R_B = Δω_SQL / Δω_B
-
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "omega": self.omega_values,
-                "delta_omega_A": self.delta_omega_A,
-                "delta_omega_B": self.delta_omega_B,
-                "compound_ratio": self.compound_ratio,
-                "sql": self.sql_values,
-                "ratio_A_to_sql": self.ratio_A_to_sql,
-                "ratio_B_to_sql": self.ratio_B_to_sql,
-            }
-        )
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> CompoundRatioResult:
-        df = pd.read_parquet(path)
-        cls._validate_columns(df)
-        return cls(
-            omega_values=df["omega"].to_numpy(dtype=float),
-            delta_omega_A=df["delta_omega_A"].to_numpy(dtype=float),
-            delta_omega_B=df["delta_omega_B"].to_numpy(dtype=float),
-            compound_ratio=df["compound_ratio"].to_numpy(dtype=float),
-            sql_values=df["sql"].to_numpy(dtype=float),
-            ratio_A_to_sql=df["ratio_A_to_sql"].to_numpy(dtype=float),
-            ratio_B_to_sql=df["ratio_B_to_sql"].to_numpy(dtype=float),
-        )
-
-
-@dataclass
-class FixedParameterCompoundRatioResult(ParquetSerializable):
-    """Fixed-parameter compound ratio between Scenario A and Scenario B.
-
-    At each ω, evaluates Scenario B at Scenario A's optimal (a_x, a_y, a_z)
-    with Scenario B's optimal a_zz.  This isolates the interaction-only
-    contribution: how much does a_zz improve B when the drive parameters
-    are held at A's optimum?
-
-    The free-optimisation ratio (CompoundRatioResult) compares independently
-    optimised results and measures total compound advantage.  This fixed-
-    parameter ratio measures the marginal gain from the Ising interaction
-    alone, at A's optimal drive parameters.
-    """
-
-    _PARQUET_COLUMNS: ClassVar[list[str]] = [
-        "omega",
-        "delta_omega_A_opt",
-        "a_x_A",
-        "a_y_A",
-        "a_z_A",
-        "a_zz_B",
-        "delta_omega_B_fixed",
-        "fixed_ratio",
-        "sql",
-    ]
-
-    omega_values: np.ndarray
-    delta_omega_A_opt: np.ndarray
-    a_x_A: np.ndarray
-    a_y_A: np.ndarray
-    a_z_A: np.ndarray
-    a_zz_B: np.ndarray
-    delta_omega_B_fixed: np.ndarray
-    fixed_ratio: np.ndarray  # R_fixed = Δω_A^opt / Δω_B(at A's params, B's a_zz)
-    sql_values: np.ndarray
-
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame(
-            {
-                "omega": self.omega_values,
-                "delta_omega_A_opt": self.delta_omega_A_opt,
-                "a_x_A": self.a_x_A,
-                "a_y_A": self.a_y_A,
-                "a_z_A": self.a_z_A,
-                "a_zz_B": self.a_zz_B,
-                "delta_omega_B_fixed": self.delta_omega_B_fixed,
-                "fixed_ratio": self.fixed_ratio,
-                "sql": self.sql_values,
-            }
-        )
-
-    @classmethod
-    def from_parquet(cls, path: str | Path) -> FixedParameterCompoundRatioResult:
-        df = pd.read_parquet(path)
-        cls._validate_columns(df)
-        return cls(
-            omega_values=df["omega"].to_numpy(dtype=float),
-            delta_omega_A_opt=df["delta_omega_A_opt"].to_numpy(dtype=float),
-            a_x_A=df["a_x_A"].to_numpy(dtype=float),
-            a_y_A=df["a_y_A"].to_numpy(dtype=float),
-            a_z_A=df["a_z_A"].to_numpy(dtype=float),
-            a_zz_B=df["a_zz_B"].to_numpy(dtype=float),
-            delta_omega_B_fixed=df["delta_omega_B_fixed"].to_numpy(dtype=float),
-            fixed_ratio=df["fixed_ratio"].to_numpy(dtype=float),
-            sql_values=df["sql"].to_numpy(dtype=float),
-        )
-
-
-# ============================================================================
 # Decoupled Baseline
 # ============================================================================
 
@@ -861,11 +521,22 @@ def scenario_a_sensitivity_constrained_ay(
     return scenario_a_sensitivity(T_BS, t_hold, omega, a_x, 0.0, a_z)
 
 
+def _print_ay_progress(
+    i: int, n_omega: int, delta_free: np.ndarray, delta_constrained: np.ndarray
+) -> None:
+    """Print progress line for the a_y verification sweep."""
+    if (i + 1) % max(1, n_omega // 10) != 0:
+        return
+    pct = 100.0 * (i + 1) / n_omega
+    ratio = delta_free[i] / delta_constrained[i]
+    print(f"  a_y verification: {i + 1}/{n_omega} ({pct:.0f}%), ratio = {ratio:.4f}")
+
+
 def run_constrained_ay_verification(
     omega_values: list[float] | np.ndarray,
     n_random: int = 500,
     n_nm_refine: int = 50,
-    seed: int | None = 42,
+    seed: int = 42,
     t_hold: float = DEFAULT_T_HOLD,
     T_BS: float = DEFAULT_T_BS,
 ) -> dict[str, Any]:
@@ -890,7 +561,7 @@ def run_constrained_ay_verification(
     """
     omega_arr = np.asarray(omega_values, dtype=float)
     n_omega = len(omega_arr)
-    base_seed = seed if seed is not None else 42
+    base_seed = seed
 
     delta_free = np.full(n_omega, np.inf)
     delta_constrained = np.full(n_omega, np.inf)
@@ -914,7 +585,7 @@ def run_constrained_ay_verification(
         best_free_delta = np.inf
         best_free_params = (0.0, 0.0, 0.0)
 
-        def _make_obj_free(ov: float) -> Any:
+        def _make_obj_free(ov: float) -> Callable[[np.ndarray], float]:
             def _obj(p: np.ndarray) -> float:
                 return _scenario_a_objective_3d(p, ov, t_hold, T_BS)
 
@@ -954,7 +625,9 @@ def run_constrained_ay_verification(
         best_con_delta = np.inf
         best_con_params = (0.0, 0.0)
 
-        def _make_obj_constrained(ov: float) -> Any:
+        def _make_obj_constrained(
+            ov: float,
+        ) -> Callable[[np.ndarray], float]:
             def _obj(p2: np.ndarray) -> float:
                 return scenario_a_sensitivity_constrained_ay(
                     ov, float(p2[0]), float(p2[1]), t_hold, T_BS
@@ -977,17 +650,7 @@ def run_constrained_ay_verification(
         delta_constrained[i] = best_con_delta
         params_constrained[i] = best_con_params
 
-        if (i + 1) % max(1, n_omega // 10) == 0:
-            pct = 100.0 * (i + 1) / n_omega
-            ratio = (
-                delta_free[i] / delta_constrained[i]
-                if np.isfinite(delta_constrained[i]) and delta_constrained[i] > 0
-                else np.nan
-            )
-            print(
-                f"  a_y verification: {i + 1}/{n_omega} ({pct:.0f}%), "
-                f"ratio = {ratio:.4f}"
-            )
+        _print_ay_progress(i, n_omega, delta_free, delta_constrained)
 
     with np.errstate(divide="ignore", invalid="ignore"):
         ratio_ay = np.where(
@@ -1049,7 +712,7 @@ def _refine_nm_scenario_a(
         return _scenario_a_objective_3d(p, omega_val, t_hold, T_BS)
 
     if sampling_mode == "sphere":
-        wrapped_obj = _sphere_objective_wrapper(_obj_a, radius)
+        wrapped_obj = sphere_objective_wrapper(_obj_a, radius)
     else:
         wrapped_obj = _obj_a
 
@@ -1058,7 +721,7 @@ def _refine_nm_scenario_a(
         if sampling_mode == "sphere":
             # Project initial point onto sphere; use bounds=(-R, R) so
             # NM stays within the bounding box of the sphere.
-            x0_3d = _project_to_sphere(x0_3d, radius)
+            x0_3d = project_to_sphere(x0_3d, radius)
             nm = run_nelder_mead(
                 wrapped_obj,
                 x0=x0_3d,
@@ -1066,7 +729,7 @@ def _refine_nm_scenario_a(
                 maxiter=5000,
             )
             # Project the NM result back onto the sphere
-            x_opt_3d = _project_to_sphere(nm["x_opt"], radius)
+            x_opt_3d = project_to_sphere(nm["x_opt"], radius)
         else:
             nm = run_nelder_mead(
                 wrapped_obj,
@@ -1224,23 +887,21 @@ def _run_scenario_b_single_omega(
     # Stage 3: Nelder-Mead refinement
     best_nm_delta = np.inf
     best_nm_params = (0.0, 0.0, 0.0, 0.0)
-    exp_val_best = 0.0
-    var_val_best = 0.0
 
     if sampling_mode == "sphere":
-        wrapped_obj = _sphere_objective_wrapper(_raw_obj, radius)
+        wrapped_obj = sphere_objective_wrapper(_raw_obj, radius)
     else:
         wrapped_obj = _raw_obj
 
     for idx in top_idx:
         x0 = samples[idx].copy()
         if sampling_mode == "sphere":
-            x0 = _project_to_sphere(x0, radius)
+            x0 = project_to_sphere(x0, radius)
             nm = run_nelder_mead(
                 wrapped_obj, x0=x0, bounds=(-radius, radius), maxiter=5000
             )
             # Project the NM result back onto the sphere
-            x_opt = _project_to_sphere(nm["x_opt"], radius)
+            x_opt = project_to_sphere(nm["x_opt"], radius)
         else:
             nm = run_nelder_mead(wrapped_obj, x0=x0, bounds=(-5.0, 5.0), maxiter=5000)
             x_opt = nm["x_opt"]
@@ -1528,349 +1189,3 @@ def compute_fixed_parameter_compound_ratio(
         fixed_ratio=fixed_ratio,
         sql_values=sql,
     )
-
-
-# ============================================================================
-# CLI / Data Generation Pipeline
-# ============================================================================
-
-
-def generate_decoupled_baseline(force: bool = False) -> DecoupledBaselineResult | None:
-    """Compute and save the decoupled baseline verification.
-
-    Returns:
-        The computed (or loaded) DecoupledBaselineResult, or None on cache hit.
-    """
-    tag = "decoupled-baseline"
-    pq_path = _parquet_path(tag)
-    if pq_path.exists() and not force:
-        print(f"[skip] {pq_path.name} exists")
-        return None
-
-    domega_a, domega_b = compute_decoupled_baseline()
-    result = DecoupledBaselineResult(
-        scenarios=["A", "B"],
-        delta_omega_values=np.array([domega_a, domega_b], dtype=float),
-        sql_values=np.full(2, SQL_REFERENCE, dtype=float),
-        ratio_to_sql_values=np.array(
-            [domega_a / SQL_REFERENCE, domega_b / SQL_REFERENCE], dtype=float
-        ),
-        t_hold_value=DEFAULT_T_HOLD,
-    )
-    result.save_parquet(pq_path)
-    print(f"[save] {pq_path}")
-    print(f"  Scenario A: Δω = {domega_a:.6f} (ratio = {domega_a / SQL_REFERENCE:.4f})")
-    print(f"  Scenario B: Δω = {domega_b:.6f} (ratio = {domega_b / SQL_REFERENCE:.4f})")
-    return result
-
-
-def generate_scenario_a_scan(
-    omega_vals: list[float] | None = None,
-    force: bool = False,
-    sampling_mode: str = DEFAULT_SAMPLING_MODE,
-    radius: float = DEFAULT_SPHERE_RADIUS,
-    n_random: int = 500,
-    n_refine: int = 50,
-) -> None:
-    """Run Scenario A ω-scan and save results.
-
-    Args:
-        omega_vals: ω values to scan (default: OMEGA_VALS).
-        force: Re-run even if output exists.
-        sampling_mode: ``"sphere"`` or ``"cube"``.
-        radius: Sphere radius.
-        n_random: Number of random search samples per omega.
-        n_refine: Number of Nelder-Mead refinements per omega.
-    """
-    if omega_vals is None:
-        omega_vals = OMEGA_VALS
-    tag_a = "scenario-a-omega-scan"
-    pq_path_a = _parquet_path(tag_a)
-
-    if pq_path_a.exists() and not force:
-        print(f"[skip] {pq_path_a.name} exists")
-    else:
-        result_a = run_scenario_a_omega_scan(
-            omega_vals,
-            n_random=n_random,
-            n_nm_refine=n_refine,
-            sampling_mode=sampling_mode,
-            radius=radius,
-        )
-        pq_path_a.parent.mkdir(parents=True, exist_ok=True)
-        result_a.save_parquet(pq_path_a)
-        print(f"[save] {pq_path_a}")
-
-        # Print summary
-        valid = np.isfinite(result_a.best_delta_omega_per_omega)
-        if np.any(valid):
-            best_idx = int(
-                np.nanargmin(
-                    np.where(valid, result_a.best_delta_omega_per_omega, np.inf)
-                )
-            )
-            best_d = result_a.best_delta_omega_per_omega[best_idx]
-            best_w = result_a.omega_values[best_idx]
-            best_r = best_d / SQL_REFERENCE
-            print(f"  Best Δω_A = {best_d:.6f} at ω = {best_w:.2f} ({best_r:.2f}× SQL)")
-
-
-def generate_scenario_b_scan(
-    omega_vals: list[float] | None = None,
-    force: bool = False,
-    sampling_mode: str = DEFAULT_SAMPLING_MODE,
-    radius: float = DEFAULT_SPHERE_RADIUS,
-    n_random: int = 500,
-    n_refine: int = 50,
-) -> None:
-    """Run Scenario B ω-scan and save results.
-
-    Args:
-        omega_vals: ω values to scan (default: OMEGA_VALS).
-        force: Re-run even if output exists.
-        sampling_mode: ``"sphere"`` or ``"cube"``.
-        radius: Sphere radius.
-        n_random: Number of random search samples per omega.
-        n_refine: Number of Nelder-Mead refinements per omega.
-    """
-    if omega_vals is None:
-        omega_vals = OMEGA_VALS
-    tag_b = "scenario-b-omega-scan"
-    pq_path_b = _parquet_path(tag_b)
-
-    if pq_path_b.exists() and not force:
-        print(f"[skip] {pq_path_b.name} exists")
-    else:
-        result_b = run_scenario_b_omega_scan(
-            omega_vals,
-            n_random=n_random,
-            n_nm_refine=n_refine,
-            sampling_mode=sampling_mode,
-            radius=radius,
-        )
-        pq_path_b.parent.mkdir(parents=True, exist_ok=True)
-        result_b.save_parquet(pq_path_b)
-        print(f"[save] {pq_path_b}")
-
-        # Print summary
-        valid = np.isfinite(result_b.best_delta_omega_per_omega)
-        if np.any(valid):
-            best_idx = int(
-                np.nanargmin(
-                    np.where(valid, result_b.best_delta_omega_per_omega, np.inf)
-                )
-            )
-            best_d = result_b.best_delta_omega_per_omega[best_idx]
-            best_w = result_b.omega_values[best_idx]
-            best_r = best_d / SQL_REFERENCE
-            print(f"  Best Δω_B = {best_d:.6f} at ω = {best_w:.2f} ({best_r:.2f}× SQL)")
-
-
-def generate_compound_ratio(force: bool = False) -> None:
-    """Compute compound ratio from existing Scenario A and B results."""
-    tag_cr = "compound-ratio"
-    pq_path_cr = _parquet_path(tag_cr)
-
-    tag_a = "scenario-a-omega-scan"
-    tag_b = "scenario-b-omega-scan"
-    pq_path_a = _parquet_path(tag_a)
-    pq_path_b = _parquet_path(tag_b)
-
-    if not pq_path_a.exists():
-        print(f"[skip] {tag_a} not found — run generate_scenario_a_scan first")
-        return
-    if not pq_path_b.exists():
-        print(f"[skip] {tag_b} not found — run generate_scenario_b_scan first")
-        return
-
-    if pq_path_cr.exists() and not force:
-        print(f"[skip] {pq_path_cr.name} exists")
-    else:
-        result_a = ScenarioACompoundResult.from_parquet(pq_path_a)
-        result_b = DriveOmegaScanResult.from_parquet(pq_path_b)
-        cr = compute_compound_ratio(result_a, result_b)
-        pq_path_cr.parent.mkdir(parents=True, exist_ok=True)
-        cr.save_parquet(pq_path_cr)
-        print(f"[save] {pq_path_cr}")
-
-        # Print summary
-        valid = np.isfinite(cr.compound_ratio)
-        if np.any(valid):
-            best_cr_idx = int(np.nanargmax(np.where(valid, cr.compound_ratio, 0.0)))
-            best_cr = cr.compound_ratio[best_cr_idx]
-            best_w = cr.omega_values[best_cr_idx]
-            print(f"  Best compound ratio = {best_cr:.4f}× at ω = {best_w:.2f}")
-            print(f"  Best R_A = {cr.ratio_A_to_sql[best_cr_idx]:.4f}× SQL")
-            print(f"  Best R_B = {cr.ratio_B_to_sql[best_cr_idx]:.4f}× SQL")
-
-
-def generate_fixed_parameter_ratio(force: bool = False) -> None:
-    """Compute fixed-parameter compound ratio from existing Scenario A and B results."""
-    tag_fpr = "fixed-parameter-ratio"
-    pq_path_fpr = _parquet_path(tag_fpr)
-
-    tag_a = "scenario-a-omega-scan"
-    tag_b = "scenario-b-omega-scan"
-    pq_path_a = _parquet_path(tag_a)
-    pq_path_b = _parquet_path(tag_b)
-
-    if not pq_path_a.exists():
-        print(f"[skip] {tag_a} not found — run generate_scenario_a_scan first")
-        return
-    if not pq_path_b.exists():
-        print(f"[skip] {tag_b} not found — run generate_scenario_b_scan first")
-        return
-
-    if pq_path_fpr.exists() and not force:
-        print(f"[skip] {pq_path_fpr.name} exists")
-    else:
-        result_a = ScenarioACompoundResult.from_parquet(pq_path_a)
-        result_b = DriveOmegaScanResult.from_parquet(pq_path_b)
-        fpr = compute_fixed_parameter_compound_ratio(result_a, result_b)
-        pq_path_fpr.parent.mkdir(parents=True, exist_ok=True)
-        fpr.save_parquet(pq_path_fpr)
-        print(f"[save] {pq_path_fpr}")
-
-        # Print summary
-        valid = np.isfinite(fpr.fixed_ratio)
-        if np.any(valid):
-            best_idx = int(np.nanargmax(np.where(valid, fpr.fixed_ratio, 0.0)))
-            best_r = fpr.fixed_ratio[best_idx]
-            best_w = fpr.omega_values[best_idx]
-            print(f"  Best fixed-param ratio = {best_r:.4f}× at ω = {best_w:.2f}")
-            print(
-                f"  A's params: ({fpr.a_x_A[best_idx]:.2f}, "
-                f"{fpr.a_y_A[best_idx]:.2f}, {fpr.a_z_A[best_idx]:.2f})"
-            )
-            print(f"  B's a_zz: {fpr.a_zz_B[best_idx]:.2f}")
-
-        # Verify azz=0 decoupled limit
-        decoupled_mask = np.abs(fpr.a_zz_B) < 1e-10
-        if np.any(decoupled_mask):
-            decoupled_ratios = fpr.fixed_ratio[decoupled_mask]
-            print(
-                f"  Decoupled limit (a_zz=0): ratios = "
-                f"{np.unique(decoupled_ratios)} (expect 1.0)"
-            )
-
-
-def main(argv: list[str] | None = None) -> None:
-    """CLI entry point for data generation."""
-    _configure_environment()
-    parser = argparse.ArgumentParser(
-        description="Symmetric ω-Modulated Drive: Bounded-Compound Comparison"
-    )
-    parser.add_argument(
-        "--force", action="store_true", help="Re-run even if output exists"
-    )
-    parser.add_argument(
-        "--only",
-        type=str,
-        default=None,
-        help="Run only a specific step: decoupled-baseline, scenario-a, scenario-b, compound-ratio, fixed-parameter-ratio",
-    )
-    parser.add_argument(
-        "--n-omega",
-        type=int,
-        default=DEFAULT_N_OMEGA,
-        help=f"Number of ω points (default {DEFAULT_N_OMEGA})",
-    )
-    parser.add_argument(
-        "--omega-min",
-        type=float,
-        default=OMEGA_MIN,
-        help=f"Minimum ω value (default {OMEGA_MIN})",
-    )
-    parser.add_argument(
-        "--omega-max",
-        type=float,
-        default=OMEGA_MAX,
-        help=f"Maximum ω value (default {OMEGA_MAX})",
-    )
-    parser.add_argument(
-        "--sampling-mode",
-        type=str,
-        default=DEFAULT_SAMPLING_MODE,
-        choices=["sphere", "cube"],
-        help=f"Sampling mode: sphere (Marsaglia) or cube (legacy) (default {DEFAULT_SAMPLING_MODE})",
-    )
-    parser.add_argument(
-        "--radius",
-        type=float,
-        default=DEFAULT_SPHERE_RADIUS,
-        help=f"Sphere radius R (default {DEFAULT_SPHERE_RADIUS})",
-    )
-    parser.add_argument(
-        "--n-random",
-        type=int,
-        default=500,
-        help="Number of random search samples per omega (default 500)",
-    )
-    parser.add_argument(
-        "--n-refine",
-        type=int,
-        default=50,
-        help="Number of Nelder-Mead refinements per omega (default 50)",
-    )
-    args = parser.parse_args(argv)
-
-    # Build ω grid from CLI args
-    omega_vals = [
-        round(v, 2) for v in np.linspace(args.omega_min, args.omega_max, args.n_omega)
-    ]
-    print(
-        f"  ω grid: {len(omega_vals)} points from {omega_vals[0]} to {omega_vals[-1]}"
-    )
-    print(f"  Sampling: mode={args.sampling_mode}, R={args.radius}")
-
-    # Wrap generate functions to pass omega_vals and sphere params where needed
-    def _run_scenario_a() -> None:
-        generate_scenario_a_scan(
-            omega_vals=omega_vals,
-            force=args.force,
-            sampling_mode=args.sampling_mode,
-            radius=args.radius,
-            n_random=args.n_random,
-            n_refine=args.n_refine,
-        )
-
-    def _run_scenario_b() -> None:
-        generate_scenario_b_scan(
-            omega_vals=omega_vals,
-            force=args.force,
-            sampling_mode=args.sampling_mode,
-            radius=args.radius,
-            n_random=args.n_random,
-            n_refine=args.n_refine,
-        )
-
-    steps: dict[str, tuple[Any, dict[str, Any]]] = {
-        "decoupled-baseline": (generate_decoupled_baseline, {"force": args.force}),
-        "scenario-a": (_run_scenario_a, {}),
-        "scenario-b": (_run_scenario_b, {}),
-        "compound-ratio": (generate_compound_ratio, {"force": args.force}),
-        "fixed-parameter-ratio": (
-            generate_fixed_parameter_ratio,
-            {"force": args.force},
-        ),
-    }
-
-    def _run_step(name: str, fn: Any, kwargs: dict[str, Any]) -> None:
-        print(f"\n{'=' * 60}")
-        print(f"  Step: {name}")
-        print(f"{'=' * 60}")
-        fn(**kwargs)
-
-    if args.only:
-        if args.only not in steps:
-            print(f"Unknown step: {args.only}. Valid: {list(steps.keys())}")
-            sys.exit(1)
-        fn, kwargs = steps[args.only]
-        _run_step(args.only, fn, kwargs)
-    else:
-        for name, (fn, kwargs) in steps.items():
-            _run_step(name, fn, kwargs)
-
-
-if __name__ == "__main__":
-    main()

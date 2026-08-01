@@ -1,13 +1,19 @@
 """
 Random sampling utilities for parameter sweeps and initial guesses.
 
-Provides Marsaglia's method for uniform 3-ball sampling and a 6D
-configuration sampler used by the free-ancilla protocol.
+Provides Marsaglia's method for uniform 3-ball sampling, a 6D
+configuration sampler used by the free-ancilla protocol, and
+*d*-dimensional uniform surface sampling on S^{d-1}(R).
 """
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def sample_ball_3d(
@@ -70,3 +76,59 @@ def sample_6d_config(
     a_zz = float(rng.uniform(azz_bounds[0], azz_bounds[1]))
 
     return theta_A, phi_A, a_x, a_y, a_z, a_zz
+
+
+# ============================================================================
+# Uniform Surface Sampling on S^{d-1}(R)
+# ============================================================================
+
+
+def sample_uniform_sphere(
+    d: int,
+    R: float,
+    n: int,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """Sample *n* uniform random points on S^{d-1}(R).
+
+    Uses the Marsaglia method: draw *d* i.i.d. N(0,1) components per
+    point, normalise to unit length, then scale by *R*.
+
+    Args:
+        d: Dimensionality of the parameter space.
+        R: Radius of the sphere.
+        n: Number of samples.
+        rng: NumPy random generator.
+
+    Returns:
+        Array of shape ``(n, d)`` with each row on S^{d-1}(R).
+    """
+    raw = rng.standard_normal(size=(n, d))
+    norms = np.linalg.norm(raw, axis=1, keepdims=True)
+    # Guard against the astronomically unlikely zero-norm sample
+    norms = np.where(norms < 1e-15, 1.0, norms)
+    return (raw / norms) * R
+
+
+def project_to_sphere(p: np.ndarray, R: float) -> np.ndarray:
+    """Project a vector onto S^{d-1}(R): normalise and scale by *R*."""
+    norm = np.linalg.norm(p)
+    if norm < 1e-15:
+        # Zero vector has no preferred direction; return the first basis
+        # vector scaled by R to ensure a well-defined projection.
+        result = np.zeros_like(p)
+        result[0] = R
+        return result
+    return (p / norm) * R
+
+
+def sphere_objective_wrapper(
+    raw_objective: Callable[[np.ndarray], float],
+    R: float,
+) -> Callable[[np.ndarray], float]:
+    """Wrap an objective so that candidates are projected onto S^{d-1}(R) before evaluation."""
+
+    def _wrapped(p: np.ndarray) -> float:
+        return raw_objective(project_to_sphere(p, R))
+
+    return _wrapped

@@ -74,6 +74,7 @@ from src.physics.multi_mzi import (
     hold_unitary_dicke,
     single_bs_unitary,
 )
+from src.physics.mzi_states import dicke_product_state
 from src.utils.paths import report_path_fn
 from src.utils.serialization import ParquetSerializable
 from src.visualization.coupling_heatmaps import (
@@ -113,23 +114,6 @@ N_MAX: int = 20
 # ============================================================================
 # Circuit Evolution
 # ============================================================================
-
-
-def initial_state(N: int) -> np.ndarray:
-    """Create the initial product state |J,J⟩_S ⊗ |J,J⟩_A.
-
-    This is the first computational basis vector of length (N+1)².
-
-    Args:
-        N: Particle number per subsystem.
-
-    Returns:
-        Normalised (N+1)²-vector.
-    """
-    dim = (N + 1) ** 2
-    psi = np.zeros(dim, dtype=complex)
-    psi[0] = 1.0
-    return psi
 
 
 # ============================================================================
@@ -184,7 +168,7 @@ def optimise_alpha_xx(
             'sql': SQL = 1/(√N * t_hold) reference.
     """
     if psi0 is None:
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
 
     sql = 1.0 / (np.sqrt(N) * t_hold)
 
@@ -377,7 +361,7 @@ def run_sweep(
     def per_point(N: int, omega: float) -> dict[str, float]:
         if _cache["last_N"] != N:
             _cache["ops"] = embed_combined_operators(N)
-            _cache["psi0"] = initial_state(N)
+            _cache["psi0"] = dicke_product_state(N)
             _cache["last_N"] = N
         r = optimise_alpha_xx(
             N=N, omega=omega, ops=_cache["ops"], psi0=_cache["psi0"], t_hold=t_hold
@@ -443,7 +427,7 @@ def compute_decoupled_baseline(
     def per_point(N: int, omega: float) -> dict[str, float]:
         if _cache["last_N"] != N:
             _cache["ops"] = embed_combined_operators(N)
-            _cache["psi0"] = initial_state(N)
+            _cache["psi0"] = dicke_product_state(N)
             _cache["last_N"] = N
         dt, exp_val, var_val, d_exp_val = compute_sensitivity(
             N, _cache["psi0"], omega, 0.0, _cache["ops"], t_hold=t_hold, fd_step=fd_step

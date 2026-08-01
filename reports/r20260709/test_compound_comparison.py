@@ -17,6 +17,7 @@ import importlib
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
+import pandas as pd
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
@@ -24,15 +25,24 @@ from hypothesis import strategies as st
 if TYPE_CHECKING:
     from pathlib import Path
 
+from src.analysis.ancilla_drive_results import DriveOmegaScanResult
 from src.analysis.ancilla_optimization import (
     build_two_qubit_operators,
     two_qubit_bs_unitary,
 )
 from src.utils.constants import I_2, I_4, J_X, J_Y, J_Z
+from src.utils.sampling import (
+    project_to_sphere,
+    sample_uniform_sphere,
+    sphere_objective_wrapper,
+)
 from src.utils.serialization import assert_roundtrip_fields
 
 _m = importlib.import_module("reports.r20260709.compound_comparison")
+_cli = importlib.import_module("reports.r20260709.compound_comparison_cli")
+_results = importlib.import_module("reports.r20260709.compound_comparison_results")
 
+# Physics functions (from compound_comparison)
 scenario_a_state = _m.scenario_a_state
 scenario_a_bs = _m.scenario_a_bs
 scenario_a_hamiltonian = _m.scenario_a_hamiltonian
@@ -55,16 +65,17 @@ run_scenario_b_omega_scan = _m.run_scenario_b_omega_scan
 _run_scenario_b_single_omega = _m._run_scenario_b_single_omega
 compute_compound_ratio = _m.compute_compound_ratio
 compute_fixed_parameter_compound_ratio = _m.compute_fixed_parameter_compound_ratio
-ScenarioACompoundResult = _m.ScenarioACompoundResult
-CompoundRatioResult = _m.CompoundRatioResult
-FixedParameterCompoundRatioResult = _m.FixedParameterCompoundRatioResult
-DecoupledBaselineResult = _m.DecoupledBaselineResult
-main = _m.main
 
-sample_uniform_sphere = _m.sample_uniform_sphere
-_project_to_sphere = _m._project_to_sphere
-_sphere_objective_wrapper = _m._sphere_objective_wrapper
+# Dataclasses (from compound_comparison_results)
+ScenarioACompoundResult = _results.ScenarioACompoundResult
+CompoundRatioResult = _results.CompoundRatioResult
+FixedParameterCompoundRatioResult = _results.FixedParameterCompoundRatioResult
+DecoupledBaselineResult = _results.DecoupledBaselineResult
 
+# CLI entry point (from compound_comparison_cli)
+main = _cli.main
+
+# Constants (from compound_comparison)
 DEFAULT_T_BS = _m.DEFAULT_T_BS
 DEFAULT_T_HOLD = _m.DEFAULT_T_HOLD
 SQL_REFERENCE = _m.SQL_REFERENCE
@@ -649,7 +660,7 @@ class TestComputeCompoundRatio:
             variance_Jz_per_omega=np.ones(3) * 0.25,
         )
 
-        result_b = _m.DriveOmegaScanResult(
+        result_b = DriveOmegaScanResult(
             omega_values=omega_vals.copy(),
             best_params_per_omega=[(0.0, 0.0, 0.0, 0.0)] * 3,
             best_delta_omega_per_omega=delta.copy(),
@@ -678,7 +689,7 @@ class TestComputeCompoundRatio:
             variance_Jz_per_omega=np.ones(1) * 0.25,
         )
 
-        result_b = _m.DriveOmegaScanResult(
+        result_b = DriveOmegaScanResult(
             omega_values=omega_vals.copy(),
             best_delta_omega_per_omega=np.array([0.05]),
             best_params_per_omega=[(0.0, 0.0, 0.0, 0.0)],
@@ -730,9 +741,9 @@ class TestGenerateDecoupledBaseline:
     ) -> None:
         """generate_decoupled_baseline should compute and save to parquet."""
         monkeypatch.setattr(
-            _m, "_parquet_path", lambda tag: tmp_path / f"{tag}.parquet"
+            _cli, "_parquet_path", lambda tag: tmp_path / f"{tag}.parquet"
         )
-        _m.generate_decoupled_baseline(force=True)
+        _cli.generate_decoupled_baseline(force=True)
         pq_path = tmp_path / "decoupled-baseline.parquet"
         assert pq_path.exists()
         loaded = DecoupledBaselineResult.from_parquet(pq_path)
@@ -757,14 +768,14 @@ class TestGenerateScenarioAScan:
             variance_Jz_per_omega=np.ones(1) * 0.25,
         )
         monkeypatch.setattr(
-            _m, "run_scenario_a_omega_scan", lambda *a, **kw: stub_result
+            _cli, "run_scenario_a_omega_scan", lambda *a, **kw: stub_result
         )
         monkeypatch.setattr(
-            _m,
+            _cli,
             "_parquet_path",
             lambda tag: tmp_path / f"{tag}.parquet",
         )
-        _m.generate_scenario_a_scan(force=True)
+        _cli.generate_scenario_a_scan(force=True)
         pq_path = tmp_path / "scenario-a-omega-scan.parquet"
         assert pq_path.exists()
 
@@ -773,7 +784,7 @@ class TestGenerateCompoundRatio:
     def test_with_stub_parquet_files(self, monkeypatch, tmp_path: Path) -> None:
         """Create stub parquet files and test compound ratio generation."""
         monkeypatch.setattr(
-            _m,
+            _cli,
             "_parquet_path",
             lambda tag: tmp_path / f"{tag}.parquet",
         )
@@ -791,7 +802,7 @@ class TestGenerateCompoundRatio:
         result_a.save_parquet(tmp_path / "scenario-a-omega-scan.parquet")
 
         # Stub Scenario B result
-        result_b = _m.DriveOmegaScanResult(
+        result_b = DriveOmegaScanResult(
             omega_values=np.array([1.0]),
             best_delta_omega_per_omega=np.array([0.05]),
             best_params_per_omega=[(0.0, 0.0, 0.0, 0.0)],
@@ -801,12 +812,12 @@ class TestGenerateCompoundRatio:
         )
         result_b.save_parquet(tmp_path / "scenario-b-omega-scan.parquet")
 
-        _m.generate_compound_ratio(force=True)
+        _cli.generate_compound_ratio(force=True)
         pq_path = tmp_path / "compound-ratio.parquet"
         assert pq_path.exists()
 
         # Verify correct ratio was computed
-        df = _m.pd.read_parquet(pq_path)
+        df = pd.read_parquet(pq_path)
         assert np.isclose(df["compound_ratio"].iloc[0], 2.0)
 
 
@@ -856,7 +867,7 @@ class TestMainCLI:
     ) -> None:
         """Running --only decoupled-baseline should dispatch correctly."""
         monkeypatch.setattr(
-            _m, "_parquet_path", lambda tag: tmp_path / f"{tag}.parquet"
+            _cli, "_parquet_path", lambda tag: tmp_path / f"{tag}.parquet"
         )
         main(["--only", "decoupled-baseline", "--force"])
         pq_path = tmp_path / "decoupled-baseline.parquet"
@@ -1017,7 +1028,7 @@ class TestFixedParameterCompoundRatio:
             variance_Jz_per_omega=np.ones(3) * 0.25,
         )
 
-        result_b = _m.DriveOmegaScanResult(
+        result_b = DriveOmegaScanResult(
             omega_values=omega_vals.copy(),
             best_params_per_omega=[(ax, ay, az, 0.0)] * 3,
             best_delta_omega_per_omega=deltas_b,
@@ -1058,7 +1069,7 @@ class TestFixedParameterCompoundRatio:
             expectation_Jz_per_omega=np.array([0.0]),
             variance_Jz_per_omega=np.array([0.25]),
         )
-        result_b = _m.DriveOmegaScanResult(
+        result_b = DriveOmegaScanResult(
             omega_values=np.array([omega]),
             best_params_per_omega=[(a_x, a_y, a_z, a_zz)],
             best_delta_omega_per_omega=np.array([domega_b]),
@@ -1165,28 +1176,28 @@ class TestSampleUniformSphere:
 class TestProjectToSphere:
     def test_projects_to_correct_radius(self) -> None:
         p = np.array([3.0, 4.0, 0.0])  # norm = 5
-        result = _project_to_sphere(p, 5.0)
+        result = project_to_sphere(p, 5.0)
         assert np.isclose(np.linalg.norm(result), 5.0)
 
     def test_preserves_direction(self) -> None:
         p = np.array([3.0, 4.0, 0.0])
-        result = _project_to_sphere(p, 5.0)
+        result = project_to_sphere(p, 5.0)
         np.testing.assert_allclose(result, p, rtol=1e-12)
 
     def test_scales_to_radius(self) -> None:
         p = np.array([1.0, 0.0, 0.0])  # norm = 1
-        result = _project_to_sphere(p, 7.0)
+        result = project_to_sphere(p, 7.0)
         np.testing.assert_allclose(result, np.array([7.0, 0.0, 0.0]))
 
     def test_zero_vector_returns_first_basis(self) -> None:
         p = np.array([0.0, 0.0, 0.0])
-        result = _project_to_sphere(p, 5.0)
+        result = project_to_sphere(p, 5.0)
         assert np.isclose(np.linalg.norm(result), 5.0)
         assert np.isclose(result[0], 5.0)
 
     def test_4d_projection(self) -> None:
         p = np.array([1.0, 2.0, 3.0, 4.0])
-        result = _project_to_sphere(p, 5.0)
+        result = project_to_sphere(p, 5.0)
         assert np.isclose(np.linalg.norm(result), 5.0)
         # Direction should be preserved
         np.testing.assert_allclose(result / 5.0, p / np.linalg.norm(p), rtol=1e-12)
@@ -1201,7 +1212,7 @@ class TestSphereObjectiveWrapper:
             call_args.append(p.copy())
             return float(np.sum(p**2))
 
-        wrapped = _sphere_objective_wrapper(_track_obj, 5.0)
+        wrapped = sphere_objective_wrapper(_track_obj, 5.0)
         # Pass a point with norm != 5
         raw_p = np.array([10.0, 0.0, 0.0])
         result = wrapped(raw_p)

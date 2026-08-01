@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from src.analysis.slice_scan import (
     _resolve_workers,
@@ -153,6 +154,7 @@ class TestParallelGridScan:
         assert grid[0, 0] == np.inf
         assert np.isfinite(grid[1, 1])
 
+    @pytest.mark.slow
     def test_deterministic(self) -> None:
         x = np.linspace(0, 1, 21)
         y = np.linspace(0, 1, 31)

@@ -25,6 +25,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 # Import from the (digit-prefixed) core module via importlib because Python's
 # static import syntax cannot handle package components starting with a digit.
@@ -33,7 +34,6 @@ DEFAULT_PSI0 = _core.DEFAULT_PSI0
 DEFAULT_T_BS = _core.DEFAULT_T_BS
 DEFAULT_T_HOLD = _core.DEFAULT_T_HOLD
 DRIVE_BOUNDS = _core.DRIVE_BOUNDS
-_configure_environment = _core._configure_environment
 _make_rs_nm_fns = _core._make_rs_nm_fns
 compute_all_sensitivities = _core.compute_all_sensitivities
 partial_2d_slice = _core.partial_2d_slice
@@ -56,7 +56,7 @@ from src.analysis.optimisation_pipeline import (  # noqa: E402
     run_two_phase_pipeline,
 )
 from src.utils.parallel import parallel_map  # noqa: E402
-from src.utils.paths import report_path_fn  # noqa: E402
+from src.utils.paths import configure_environment, report_path_fn  # noqa: E402
 from src.visualization.ancilla_drive_plots import (  # noqa: E402
     plot_combined_sensitivity,
     plot_drive_2d_slice_heatmap,
@@ -661,7 +661,8 @@ def run_cli() -> None:
     """CLI entry point dispatched from the core module's ``main()``."""
     global _SUPPRESS_EXTRA_FIGURES  # noqa: PLW0603  # allow module-level flag override
 
-    _configure_environment()
+    configure_environment()
+    sns.set_theme(style="whitegrid")
     parser = argparse.ArgumentParser(
         description="Generate 2026-07-01 report figures and Parquet data",
     )

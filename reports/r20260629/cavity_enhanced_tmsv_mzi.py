@@ -404,11 +404,20 @@ def _load_partial(finesse: float) -> list[dict] | None:
 
 def _save_partial(finesse: float, rows: list[dict]) -> None:
     """Persist a per-finesse checkpoint as a Parquet file."""
+    if not rows:
+        return
     d = _partial_dir()
     d.mkdir(parents=True, exist_ok=True)
     pq = d / f"F{int(finesse)}.parquet"
     combined = _row_dicts_to_result(rows)
     combined.to_dataframe().to_parquet(pq, index=False)
+
+
+def _try_checkpoint(Fi: float, force: bool) -> list[dict] | None:
+    """Return cached checkpoint rows for *Fi*, or ``None`` if unavailable."""
+    if force:
+        return None
+    return _load_partial(Fi)
 
 
 def generate_full_data(
@@ -432,10 +441,8 @@ def generate_full_data(
     Returns:
         Combined sensitivity data across all (⟨N⟩, ℱ) combinations.
     """
-    if mean_total_range is None:
-        mean_total_range = MEAN_TOTAL_RANGE
-    if finesse_range is None:
-        finesse_range = FINESSE_RANGE
+    mean_total_range = mean_total_range or MEAN_TOTAL_RANGE
+    finesse_range = finesse_range or FINESSE_RANGE
     finesse_range = _resolve_finesse_range(finesse_range, only)
 
     all_rows: list[dict] = []
@@ -443,13 +450,13 @@ def generate_full_data(
 
     for idx, Fi in enumerate(finesse_range, start=1):
         # --- checkpoint recovery ---
-        partial = _load_partial(Fi)
-        if partial is not None and not force:
+        cached = _try_checkpoint(Fi, force)
+        if cached is not None:
             print(
                 f"  ℱ={Fi} ({idx}/{len(finesse_range)}) — loaded from checkpoint",
                 flush=True,
             )
-            all_rows.extend(partial)
+            all_rows.extend(cached)
             continue
 
         print(f"  Sweeping ℱ={Fi} ({idx}/{len(finesse_range)})", flush=True)
@@ -458,12 +465,11 @@ def generate_full_data(
 
         for n_idx, Ni in enumerate(mean_total_range, start=1):
             row_data = generate_single_cavity_point(Ni, Fi)
-            if row_data is not None:
-                fi_rows.append(row_data)
             beam_splitter_unitary.cache_clear()
             _malloc_trim()
 
             if row_data is not None:
+                fi_rows.append(row_data)
                 dt_min = float(np.min(row_data["delta_omega_c"]))
             else:
                 dt_min = 0.0
@@ -474,10 +480,8 @@ def generate_full_data(
                 flush=True,
             )
 
-        # --- checkpoint save ---
-        if fi_rows:
-            _save_partial(Fi, fi_rows)
-            all_rows.extend(fi_rows)
+        _save_partial(Fi, fi_rows)
+        all_rows.extend(fi_rows)
 
         fi_elapsed = __import__("time").monotonic() - t_start_fi
         print(f"  ℱ={Fi} total: {fi_elapsed:.1f}s ({fi_elapsed / 60:.1f}m)")

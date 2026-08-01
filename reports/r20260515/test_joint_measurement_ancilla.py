@@ -51,6 +51,21 @@ plot_interaction_robustness = _m.plot_interaction_robustness
 plot_omega_scan = _m.plot_omega_scan
 
 # ============================================================================
+# Autouse fixture: protect module-level globals from test mutations
+# ============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _restore_module_globals() -> None:  # type: ignore[misc]
+    """Save and restore ``_m.REPORTS_DIR`` / ``_m.REPORT_DATE`` around each test."""
+    saved_dir = _m.REPORTS_DIR
+    saved_date = _m.REPORT_DATE
+    yield  # type: ignore[misc]
+    _m.REPORTS_DIR = saved_dir
+    _m.REPORT_DATE = saved_date
+
+
+# ============================================================================
 # Helpers
 # ============================================================================
 

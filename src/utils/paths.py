@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -85,3 +86,15 @@ def report_path_fn(
         partial(parquet_path, reports_dir, date),
         partial(fig_path, reports_dir, date),
     )
+
+
+def configure_environment() -> None:
+    """Set non-interactive matplotlib backend and OMP thread limit.
+
+    Must be called before any plotting or numerical routines that spawn
+    threads.  Safe to call multiple times (guard checks existing env vars).
+    """
+    if "MPLBACKEND" not in os.environ:
+        os.environ["MPLBACKEND"] = "Agg"
+    if "OMP_NUM_THREADS" not in os.environ:
+        os.environ["OMP_NUM_THREADS"] = "1"

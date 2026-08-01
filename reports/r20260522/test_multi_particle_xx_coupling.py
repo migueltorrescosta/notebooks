@@ -40,7 +40,7 @@ embed_combined_operators = _m.embed_combined_operators
 evolve_circuit = _m.evolve_circuit
 fit_scaling_exponents = _m.fit_scaling_exponents
 hold_unitary_dicke = _m.hold_unitary_dicke
-initial_state = _m.initial_state
+from src.physics.mzi_states import dicke_product_state
 optimise_alpha_xx = _m.optimise_alpha_xx
 run_sweep = _m.run_sweep
 single_bs_unitary = _m.single_bs_unitary
@@ -156,13 +156,13 @@ class TestUnitarity:
 class TestCircuitEvolution:
     @pytest.mark.parametrize("N", [1, 2, 3, 5])
     def test_initial_state_normalised(self, N: int) -> None:
-        psi = initial_state(N)
+        psi = dicke_product_state(N)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_normalisation_preserved(self, N: int) -> None:
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         psi = evolve_circuit(N, psi0, omega=0.5, alpha_xx=0.0, ops=ops)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
@@ -171,7 +171,7 @@ class TestCircuitEvolution:
     )
     def test_normalisation_with_coupling(self, N: int, alpha_xx: float) -> None:
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         psi = evolve_circuit(N, psi0, omega=1.0, alpha_xx=alpha_xx, ops=ops)
         assert abs(np.linalg.norm(psi) - 1.0) < 1e-12
 
@@ -179,7 +179,7 @@ class TestCircuitEvolution:
     def test_no_op_identity(self, N: int) -> None:
         """T_BS=0, t_hold=0 should give the initial state back."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         # T_BS=0 is identity, t_hold=0 is identity
         U_bs_zero = dual_bs_unitary(N, T_BS=0.0)
         psi = U_bs_zero @ psi0
@@ -192,7 +192,7 @@ class TestReducedVariance:
     @pytest.mark.parametrize("N", [1, 2, 5])
     def test_product_state_variance_zero(self, N: int) -> None:
         """For the initial product state |J,J⟩_S⊗|J,J⟩_A, Var(J_z^S)=0."""
-        psi = initial_state(N)
+        psi = dicke_product_state(N)
         Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
         _, var = compute_reduced_expectation_and_variance(psi, N, Jz_single)
         assert var == pytest.approx(0.0, abs=1e-12), f"Var != 0 for N={N}"
@@ -201,7 +201,7 @@ class TestReducedVariance:
     def test_trace_preservation(self, N: int) -> None:
         """Tr(ρ_S) = 1 after partial trace."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         psi = evolve_circuit(N, psi0, omega=0.5, alpha_xx=2.0, ops=ops)
         psi_mat = psi.reshape(N + 1, N + 1)
         rho_S = psi_mat @ psi_mat.conj().T
@@ -212,7 +212,7 @@ class TestReducedVariance:
     def test_variance_positive(self, N: int) -> None:
         """Var(J_z^S) >= 0 for all couplings."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
         for alpha_xx in [0.0, 1.0, 5.0, 10.0]:
             psi = evolve_circuit(N, psi0, omega=0.5, alpha_xx=alpha_xx, ops=ops)
@@ -225,7 +225,7 @@ class TestSensitivity:
     def test_decoupled_sensitivity_matches_sql(self, N: int) -> None:
         """At α_xx = 0, Δω should equal SQL = 1/(√N t_hold)."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         omega = 1.0
         dt, *_ = compute_sensitivity(
             N,
@@ -243,7 +243,7 @@ class TestSensitivity:
     def test_decoupled_all_omega(self, N: int, omega: float) -> None:
         """At α_xx = 0, Δω = SQL for any ω."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         dt, _, _, _ = compute_sensitivity(
             N,
             psi0,
@@ -260,7 +260,7 @@ class TestSensitivity:
     def test_sensitivity_finite_with_coupling(self, N: int) -> None:
         """With non-zero α_xx, sensitivity should be finite."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         for alpha_xx in [0.1, 1.0, 5.0, 10.0]:
             dt, _, _, _ = compute_sensitivity(
                 N,
@@ -275,7 +275,7 @@ class TestSensitivity:
     def test_sensitivity_positive(self, N: int) -> None:
         """Sensitivity should always be positive."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         for alpha_xx in [0.0, 0.5, 2.0, 10.0]:
             dt, _, _, _ = compute_sensitivity(
                 N,
@@ -290,7 +290,7 @@ class TestSensitivity:
         """Δω should be stable across a range of fd_step values."""
         N = 3
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         dt_vals = []
         for fd_step in [1e-5, 1e-6, 1e-7]:
             dt, _, _, _ = compute_sensitivity(
@@ -598,7 +598,7 @@ class TestPhysicalInvariants:
     def test_var_positive_all_couplings(self, N: int) -> None:
         """Var(J_z^S) >= 0 for all α_xx at representative ω."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         Jz_single = jz_operator(N, basis=OperatorBasis.DICKE)
         for alpha_xx in [0.0, 0.5, 2.0, 5.0, 10.0]:
             psi = evolve_circuit(N, psi0, omega=1.0, alpha_xx=alpha_xx, ops=ops)
@@ -611,7 +611,7 @@ class TestPhysicalInvariants:
     def test_sql_recovery_at_zero_coupling(self, N: int) -> None:
         """At α_xx=0, must recover SQL exactly."""
         ops = _embed_ops_for_tests(N)
-        psi0 = initial_state(N)
+        psi0 = dicke_product_state(N)
         sql = 1.0 / (np.sqrt(N) * DEFAULT_t_hold)
         for omega in [0.1, 1.0, 5.0]:
             dt, _, _, _ = compute_sensitivity(

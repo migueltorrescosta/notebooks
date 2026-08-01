@@ -1059,6 +1059,7 @@ class TestPhysicalInvariants:
             assert dt > SQL_REFERENCE, f"γ_φ={gamma}: Δω={dt:.10f} should be > SQL"
             assert np.isfinite(dt), f"γ_φ={gamma}: Δω={dt:.10f} should be finite"
 
+    @pytest.mark.slow
     def test_noise_free_reproduction(self) -> None:
         """At γ_φ=10^{-4} (negligible noise), optimised Δω should be
         sub-SQL.  A short optimisation run (random search + Nelder-Mead)

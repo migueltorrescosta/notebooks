@@ -42,6 +42,31 @@ from src.physics.mzi_simulation import noon_state
 from src.utils.validators import validate_state_mzi
 
 
+def dicke_product_state(N: int) -> np.ndarray:
+    """Create the Dicke product state |J,J⟩_S ⊗ |J,J⟩_A for N particles per subsystem.
+
+    This is the first computational basis vector of length (N+1)²,
+    representing all particles in the top Dicke state on both subsystems.
+
+    Args:
+        N: Particle number per subsystem.
+
+    Returns:
+        Normalised (N+1)²-vector.
+
+    Example:
+        >>> state = dicke_product_state(N=1)
+        >>> np.isclose(np.sum(np.abs(state)**2), 1.0)
+        True
+        >>> np.isclose(state[0], 1.0)
+        True
+    """
+    dim = (N + 1) ** 2
+    psi = np.zeros(dim, dtype=complex)
+    psi[0] = 1.0
+    return psi
+
+
 def twin_fock_state(N: int, max_photons: int | None = None) -> np.ndarray:
     """Twin-Fock state as the uniform superposition over all |n, N-n⟩.
 

@@ -537,6 +537,7 @@ class TestGenerateFullData:
 
 
 class TestMaybeGenerateFullData:
+    @pytest.mark.slow
     def test_maybe_generate_creates_and_loads(
         self,
         tmp_path: Path,
@@ -569,6 +570,7 @@ class TestMaybeGenerateFullData:
         assert data2.state_type == "sv_parity"
         np.testing.assert_array_equal(data1.resource_values, data2.resource_values)
 
+    @pytest.mark.slow
     def test_maybe_generate_force(
         self,
         tmp_path: Path,
@@ -891,6 +893,7 @@ print("OK")
 
 
 class TestGenerateAll:
+    @pytest.mark.slow
     def test_generate_all_small(self, tmp_path: Path) -> None:
         """generate_all runs end-to-end with a small parameter range."""
         orig_sv = _m.SV_N_RANGE
