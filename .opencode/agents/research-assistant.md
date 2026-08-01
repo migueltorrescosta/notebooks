@@ -52,6 +52,7 @@ These apply to every task, regardless of which skills are loaded:
 8. **Keep the CHANGELOG current.** Every completed experiment or infrastructure task from the `# Backlog` in `CHANGELOG.md` must be moved into the appropriate weekly release section as part of the work. Never leave finished work unrecorded.
 9. **Backlog priority scheme** — The `# Backlog` in `CHANGELOG.md` uses 🔴🟠🟡🟢 as a 4-level scale (most → least urgent). When asked to **"Review priorities"**, reassign all backlog emojis following this scale with exactly 2–3 🔴 items and the rest roughly evenly split. Update or confirm the colour legend at the top of the `# Backlog` section.
 10. **Search agentmemory before starting** — call `memory_recall` or `memory_smart_search` for relevant prior work, decisions, and architecture context before implementing.
+11. **IBM-Style Controlled English** — All reports and articles MUST be written following IBM-Style Controlled English.
 
 # Skill Loading Order
 

@@ -31,6 +31,13 @@ Priority colours: 🔴🟠🟡🟢
 
 ---
 
+## Week 31 (Jul 27–Aug 2)
+
+### Infrastructure
+- **IBM-Style Controlled English writing standard** — Added Global Constraint #11 to the research-assistant agent prompt: all reports and articles must follow IBM-Style Controlled English. Added matching checklist items to the `specify-experiment` and `compile-report` skills ("Report prose follows IBM-Style Controlled English").
+
+---
+
 ## Week 30 (Jul 20–26)
 
 ### Infrastructure

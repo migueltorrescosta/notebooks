@@ -48,6 +48,7 @@ Guide the creation of a new simulation report from initial research question thr
 - [ ] Read relevant code for existing patterns
 
 ### After implementation
+- [ ] Report prose follows IBM-Style Controlled English
 - [ ] Report follows section order, emoji placement, and formatting rules exactly
 - [ ] Hypothesis is falsifiable and maps 1:1 to success criteria
 - [ ] No code was modified

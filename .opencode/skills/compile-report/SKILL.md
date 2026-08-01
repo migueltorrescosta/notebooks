@@ -67,6 +67,7 @@ Review a report in `reports/` after simulations have been run and results genera
 - [ ] Read the findings document (`reports/findings/interferometric_sensitivity_improvements.md`) to prepare for updating it
 
 ### After implementation
+- [ ] Report prose follows IBM-Style Controlled English
 - [ ] All CSVs and Parquet files in `raw_data/` inspected and validated against physical invariants
 - [ ] All SVGs in `figures/` checked for existence and embedded in the report
 - [ ] Results section updated with actual PASS/FAIL status
