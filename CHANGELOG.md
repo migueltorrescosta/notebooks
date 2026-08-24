@@ -27,7 +27,7 @@ Priority colours: 🔴🟠🟡🟢
 
 ## Infrastructure & Tooling
 - 🔴 **3D slice visualization** — Heatmap infrastructure currently supports 2D slices only. For studying all three drive components simultaneously, 3D volumetric plots or 2D projections of 3D landscapes are needed.
-
+- 🔴 Evaluate ast-grep and Serena for this repository and recommend the better choice for OpenCode, using the repository itself as the primary source of evidence rather than relying on generic feature comparisons; investigate how each tool performs for the repository's actual code-navigation, algorithm-implementation, and surgical-editing workflows, with particular attention to robustness when semantic or type information is incomplete, structural versus semantic navigation, OpenCode integration, setup complexity, agent usability, and failure modes; provide a concise pros/cons comparison, a minimal implementation plan for each, and a clear overall recommendation, including whether the non-selected tool should still be used as a complement and what evidence would justify choosing the alternative; do not modify the repository during the evaluation.
 
 ---
 
