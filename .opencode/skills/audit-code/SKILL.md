@@ -79,7 +79,7 @@ After the full audit, provide:
 # Workflow Verification
 
 ### Before implementation
-- [ ] Searched agentmemory for relevant prior decisions and standards (`project:notebooks`)
+- [ ] Searched beads memory for relevant prior decisions and standards
 - [ ] Read the report (Hilbert space, operators, protocol)
 - [ ] Read all relevant source files (report's experiment module and its test file, plus affected modules in `src/`, `pages/`, `tests/`)
 - [ ] Consulted CHANGELOG backlog if applicable
@@ -100,4 +100,4 @@ After the full audit, provide:
 - [ ] Each violation recorded with file, line, standard violated, severity, description, and suggested fix
 - [ ] CHANGELOG updated with entry under the appropriate weekly section if the audit uncovered actionable items; any errors that predated the current session added to the backlog
 - [ ] Ran dead code detection — `vulture . --exclude '.venv,.opencode,.git,__pycache__' --sort-by-size` (review findings manually; expect ~75% noise from mock `return_value`, pytest hooks, argparse-dispatch, and public API functions)
-- [ ] Saved key findings to agentmemory (`project:notebooks`)
+- [ ] Saved key findings to beads memory (`bd remember`)

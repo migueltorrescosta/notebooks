@@ -37,7 +37,7 @@ The skill proceeds in four phases:
    - Any inline `**Verify**:` instructions or expected outputs.
    - Any explicit dependencies or blocking annotations (e.g., "Blocked on:", "See #YYYYMMDD").
 2. **Check for dependencies** — If the item mentions a dependency or prerequisite (another backlog item, a specific task, or a `See #YYYYMMDD` reference to an incomplete report), flag it to the user and ask whether they want to defer, tackle the dependency first, or proceed anyway.
-3. **Search agentmemory** — Call `memory_recall` or `memory_smart_search` with keywords from the backlog item to find prior context, decisions, or related work.
+3. **Search beads memory** — Run `bd memories <keyword>` with keywords from the backlog item to find prior context, decisions, or related work.
 4. **Read relevant files** — Based on the backlog item, read:
    - Configuration files that may need changes (`pyproject.toml`, `conftest.py`, `opencode.json`, `.streamlit/config.toml`).
    - Source files or test files referenced in the item's description.
@@ -95,10 +95,7 @@ The skill proceeds in four phases:
    - `uvx pyright src/ pages/`
 3. **Run inline `Verify:` steps** — Execute any verification commands specified in the backlog item (e.g., `**Verify**: uv run radon cc <file> -n B`). Confirm each returns the expected result.
 4. **Verify backward compatibility** — Run `uv run pytest reports/*/test_*.py -q --tb=short` to confirm no report-level regressions.
-5. **Save lessons to agentmemory** — Call `agentmemory_memory_save()` with:
-   - Type: `"workflow"`
-   - Tags: `"tackle-backlog", "infrastructure", <backlog-item-keywords>`
-   - Content: summary of what was implemented, key decisions made, verification results, and any open items.
+5. **Save lessons to beads memory** — Run `bd remember "lesson: <summary>"` with a summary of what was implemented, key decisions made, verification results, and any open items.
 6. **Show verification checklist** — Display a structured summary to the user with all verification steps and their results.
 
 # Workflow Verification
@@ -106,7 +103,7 @@ The skill proceeds in four phases:
 ### Before implementation
 - [ ] Read the specific backlog item (CHANGELOG location, priority, `Verify:` steps, dependencies)
 - [ ] Checked for dependencies or blockers (flagged to user if found)
-- [ ] Searched agentmemory for relevant prior context (`project:notebooks`)
+- [ ] Searched beads memory for relevant prior context
 - [ ] Read all relevant files (config, source, tests, skills, agent definition)
 - [ ] Ran full test suite — pre-existing failures reported and added to backlog as new items with 🟢 priority
 - [ ] Obtained user approval on the implementation plan before any code changes
@@ -122,5 +119,5 @@ The skill proceeds in four phases:
 - [ ] Agent config updated if needed (`.opencode/agents/research-assistant.md`, `opencode.json`)
 - [ ] Skills updated if the change introduces new conventions (`.opencode/skills/*/SKILL.md`)
 - [ ] CHANGELOG updated: backlog item moved to appropriate weekly `### Infrastructure` section, using the established format
-- [ ] Lessons saved to agentmemory (`agentmemory_memory_save()` with type `"workflow"`, tags `"tackle-backlog"`)
+- [ ] Lessons saved to beads memory (`bd remember "lesson: <summary>"`)
 - [ ] Verification checklist presented to user

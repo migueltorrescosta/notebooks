@@ -82,7 +82,7 @@ Every simulation run follows a strict four-step sequence. Execute these in order
 # Workflow Verification
 
 ### Before implementation
-- [ ] Searched agentmemory for relevant prior results and decisions (`project:notebooks`)
+- [ ] Searched beads memory for relevant prior results and decisions
 - [ ] Read the report (parameter sweeps, expected outputs, success criteria)
 - [ ] Explored existing code in `src/` and the report's experiment module
 - [ ] Consulted CHANGELOG backlog before starting
@@ -93,4 +93,4 @@ Every simulation run follows a strict four-step sequence. Execute these in order
 - [ ] All figures saved as SVG in `reports/{date}/figures/`
 - [ ] Linting and formatting pass (ruff, mypy, pyright) after any code fixes
 - [ ] CHANGELOG updated with entry under the appropriate weekly section; backlog entry removed if task came from backlog; any errors that predated the current session added to the backlog
-- [ ] Saved key decisions to agentmemory (`project:notebooks`)
+- [ ] Saved key decisions to beads memory (`bd remember`)

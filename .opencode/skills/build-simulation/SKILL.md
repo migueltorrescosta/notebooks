@@ -43,7 +43,7 @@ Before considering implementation complete, verify all items in the Workflow Ver
 # Workflow Verification
 
 ### Before implementation
-- [ ] Searched agentmemory for relevant prior implementations and decisions (`project:notebooks`)
+- [ ] Searched beads memory for relevant prior implementations and decisions
 - [ ] Read the report (Hilbert space, operators, protocol)
 - [ ] Read relevant existing code in `src/` and the report's experiment module for patterns
 - [ ] Consulted CHANGELOG backlog before starting
@@ -61,4 +61,4 @@ Before considering implementation complete, verify all items in the Workflow Ver
 - [ ] No discrepancies between the report and the code implementation
 - [ ] Trial simulation run completes and validates output format
 - [ ] CHANGELOG updated with entry under the appropriate weekly section; backlog entry removed if task came from backlog; any errors that predated the current session added to the backlog
-- [ ] Saved key decisions to agentmemory (`project:notebooks`), consolidated if more than 5 saves, and reflected
+- [ ] Saved key decisions to beads memory (`bd remember`), consolidated if more than 5 saves, and reflected

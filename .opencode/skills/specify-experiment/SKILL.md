@@ -39,7 +39,7 @@ Guide the creation of a new simulation report from initial research question thr
 # Workflow Verification
 
 ### Before implementation
-- [ ] Searched agentmemory for relevant prior reports and decisions (`project:notebooks`)
+- [ ] Searched beads memory for relevant prior reports and decisions
 - [ ] Read the findings document (`reports/findings/interferometric_sensitivity_improvements.md`)
 - [ ] Surveyed existing reports in `reports/`
 - [ ] Consulted CHANGELOG backlog for existing entry
@@ -53,4 +53,4 @@ Guide the creation of a new simulation report from initial research question thr
 - [ ] Hypothesis is falsifiable and maps 1:1 to success criteria
 - [ ] No code was modified
 - [ ] CHANGELOG updated with entry under the appropriate weekly section; backlog entry added if this is a new experiment
-- [ ] Saved key decisions to agentmemory (`project:notebooks`)
+- [ ] Saved key decisions to beads memory (`bd remember`)

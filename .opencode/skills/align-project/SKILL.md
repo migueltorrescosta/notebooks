@@ -9,7 +9,7 @@ Keep the project on track through three pillars:
 
 1. **Priority alignment** — Ensure the backlog 🔴🟠🟡🟢 priorities reflect current reality and the CHANGELOG is structurally sound.
 2. **Sanity check** — Detect stale files, shared-infrastructure promotion opportunities, and toolchain regressions.
-3. **Product focus** — Verify agentmemory health, skill consistency, and OpenCode configuration integrity.
+3. **Product focus** — Verify beads memory health, skill consistency, and OpenCode configuration integrity.
 
 This skill inspects, reports, and auto-fixes only purely mechanical issues (formatting, colour legend). Substantive decisions (priority reassignment, file deletion, promotion) are surfaced as suggested actions for human approval.
 
@@ -27,7 +27,7 @@ This skill inspects, reports, and auto-fixes only purely mechanical issues (form
 
 ## 1. Preparation
 
-1. **Search agentmemory** — Call `memory_recall` or `memory_smart_search` with query "align-project backlog priorities repo health" to find prior runs, decisions, and patterns.
+1. **Search beads memory** — Run `bd memories <keyword>` with query "align-project backlog priorities repo health" to find prior runs, decisions, and patterns.
 2. **Read the CHANGELOG.md** — Open `CHANGELOG.md` and note:
    - The colour legend at the top of the `# Backlog` section.
    - The full `# Backlog` section — list every item, its priority emoji, and theme group.
@@ -96,13 +96,10 @@ For any failure, report the full command output and flag as a regression. Do not
 
 ## 4. Product Focus Review
 
-### 4a. Agentmemory health
+### 4a. Beads memory health
 
-1. **Diagnose** — Run `agentmemory_memory_diagnose()`. Look for:
-   - Stuck or orphaned sessions.
-   - Inconsistent memory counts.
-2. **Consolidate** — Run `agentmemory_memory_consolidate()` with tier `"semantic"`, then tier `"procedural"`. These are the two tiers flagged as empty in the backlog.
-3. **Report** — Note the number of memories before and after consolidation. If both tiers remain empty, flag for investigation.
+1. **Diagnose** — Run `bd doctor`. Look for any issues or inconsistencies.
+2. **Report** — Note the health status. If issues are found, flag for investigation.
 
 ### 4b. Skill cross-reference check
 
@@ -142,12 +139,12 @@ After all 8 actions, produce a summary structured as:
 - (recommended date or trigger for next run)
 ```
 
-Save this summary to agentmemory via `agentmemory_memory_save()` with type `"pattern"` and tags `"align-project", "maintenance"`.
+Save this summary to beads memory via `bd remember "<summary>"`.
 
 # Workflow Verification
 
 ### Before implementation
-- [ ] Searched agentmemory for prior align-project runs and relevant decisions (`project:notebooks`)
+- [ ] Searched beads memory for prior align-project runs and relevant decisions
 - [ ] Read CHANGELOG.md (colour legend, full Backlog, current weekly section)
 - [ ] Surveyed reports directory (`ls reports/`)
 - [ ] Reviewed findings document (`reports/findings/interferometric_sensitivity_improvements.md`) for currency
@@ -180,9 +177,8 @@ Save this summary to agentmemory via `agentmemory_memory_save()` with type `"pat
   - [ ] If coverage run was unacceptably slow due to slow tests, add a backlog item to reduce the runtime of the longest running slow test
   - [ ] Reported any toolchain failures as blockers (do not proceed if toolchain is broken)
 - **Product focus (§4)**:
-  - [ ] Ran `agentmemory_memory_diagnose()` — checked for stuck/orphaned sessions, inconsistent memory counts
-  - [ ] Ran `agentmemory_memory_consolidate(tier="semantic")` and `agentmemory_memory_consolidate(tier="procedural")` — recorded results
-  - [ ] Verified every SKILL.md under `.opencode/skills/` has a `description` front-matter field, references the CHANGELOG, and uses consistent section naming
+- [ ] Ran `bd doctor` — checked for issues
+- [ ] Verified every SKILL.md under `.opencode/skills/` has a `description` front-matter field, references the CHANGELOG, and uses consistent section naming
   - [ ] Checked all cross-skill references by name (e.g., `audit-code` → `build-simulation`) — verified accuracy
   - [ ] Verified `opencode.json`: `default_agent` matches an existing agent definition; no stale skill references
   - [ ] Verified every `.opencode/skills/*/` directory has a valid `SKILL.md`; no orphaned skill directories
@@ -193,10 +189,10 @@ Save this summary to agentmemory via `agentmemory_memory_save()` with type `"pat
 - [ ] Stale file scan completed (runner scripts, unreferenced Parquets, orphaned dirs)
 - [ ] Shared-infrastructure cross-report analysis completed (promotion table generated)
 - [ ] Toolchain health verified (ruff, mypy, pyright, pytest, coverage all pass — or regressions reported)
-- [ ] Agentmemory health checked and semantic/procedural tiers consolidated
+- [ ] Beads memory health checked
 - [ ] Skill cross-references verified (all SKILL.md files consistent)
 - [ ] OpenCode configuration verified (agents, skills, config all consistent)
 - [ ] Summary produced with sections: Changed, Suggested, Blockers, Next review
-- [ ] Summary saved to agentmemory via `agentmemory_memory_save()` with type `"pattern"` and tags `"align-project", "maintenance"`
+- [ ] Summary saved to beads memory via `bd remember "<summary>"`
 - [ ] CHANGELOG updated with entry under the appropriate weekly section using the format `- **Project alignment review** — backlog priorities refreshed, sanity checks completed. [# of backlog items reviewed, # of actions taken/suggested].`; backlog item removed if one was completed by this run
 - [ ] No simulation code (`src/`, `pages/`, `reports/*/*.py` experiment modules, tests) was modified — only CHANGELOG formatting, agent definition, and skill files were touched

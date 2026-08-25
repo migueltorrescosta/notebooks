@@ -60,7 +60,7 @@ Review a report in `reports/` after simulations have been run and results genera
 # Workflow Verification
 
 ### Before implementation
-- [ ] Searched agentmemory for relevant prior context (`project:notebooks`)
+- [ ] Searched beads memory for relevant prior context
 - [ ] Read the report (hypothesis, success criteria, expected results)
 - [ ] Surveyed raw data in `reports/{date}/raw_data/`
 - [ ] Surveyed figures in `reports/{date}/figures/`
@@ -77,4 +77,4 @@ Review a report in `reports/` after simulations have been run and results genera
 - [ ] Internal consistency verified: Results match Success Criteria match Conclusions
 - [ ] **Update findings document** — Read `reports/findings/interferometric_sensitivity_improvements.md`, add an entry for this experiment following the same format as existing entries, and update the summary table and "Top Enhancement Mechanisms" section if this experiment qualifies. Preserve the existing structure.
 - [ ] CHANGELOG updated with entry under the appropriate weekly section using the format `- **Title** (#YYYYMMDD) — description`; backlog entry removed if task came from backlog; any errors that predated the current session added to the backlog
-- [ ] Saved key decisions to agentmemory (`project:notebooks`)
+- [ ] Saved key decisions to beads memory (`bd remember`)
