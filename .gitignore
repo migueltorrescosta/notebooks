@@ -16,3 +16,6 @@ revise/
 
 # JetBrains IDE
 .idea/
+
+# orchestrator agent worktrees
+.worktrees/

@@ -4,18 +4,50 @@
   "mcp": {
     "agentmemory": {
       "type": "local",
-      "command": ["/home/miguel/.agentmemory/mcp-lazy.sh"],
+      "command": [
+        "/home/miguel/.agentmemory/mcp-lazy.sh"
+      ],
       "enabled": true
     }
   },
   "lsp": {
     "pyright": {
-      "command": ["pyright-langserver", "--stdio"],
+      "command": [
+        "pyright-langserver",
+        "--stdio"
+      ],
       "disabled": false
     },
     "yaml-ls": {
-      "command": ["yaml-language-server", "--stdio"],
+      "command": [
+        "yaml-language-server",
+        "--stdio"
+      ],
       "disabled": false
+    }
+  },
+  "permission": {
+    "edit": "allow",
+    "webfetch": "allow",
+    "external_directory": "allow",
+    "bash": {
+      "*": "ask",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git add*": "allow",
+      "git commit*": "allow",
+      "git branch*": "allow",
+      "git checkout*": "allow",
+      "git restore*": "allow",
+      "git push*": "deny",
+      "git remote*": "deny",
+      "gh *": "deny",
+      "sudo*": "deny",
+      "ssh*": "deny",
+      "curl *": "deny",
+      "wget *": "deny",
+      "docker *": "deny"
     }
   }
 }
