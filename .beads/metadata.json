@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "notebooks",
+  "project_id": "624c8689-b258-447e-b579-158b8d44745d"
+}
