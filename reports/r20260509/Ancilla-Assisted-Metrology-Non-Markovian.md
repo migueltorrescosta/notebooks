@@ -35,7 +35,7 @@ $\text{Index} = (n \times 2 + s) \times (K + 1) + k$, where $n$ is the oscillato
 $s \in \{0, 1\}$ is the spin state ($0 = \vert{\downarrow}\rangle$, $1 = \vert{\uparrow}\rangle$),
 and $k$ is the pseudomode Fock index. The total dimension is $2 (N + 1) (K + 1)$.
 
-The **total Hamiltonian** comprises four terms: $H = H_{\text{osc}} + H_{\text{sa}} + H_{\text{sp}} + H_{\text{pm}}$.
+The **total Hamiltonian** has four terms: $H = H_{\text{osc}} + H_{\text{sa}} + H_{\text{sp}} + H_{\text{pm}}$.
 The **oscillator free energy** is $H_{\text{osc}} = 0$, measured relative to the oscillator
 resonance in the chosen working frame — no rotating-wave approximation is made, so no
 frequency terms are discarded. The **system-ancilla direct coupling** (the controllable
@@ -82,18 +82,18 @@ The ancilla coupling $H_{\text{sa}}$ is turned off during decoherence — the an
 entangles with the oscillator during Step 2 (pulsed protection), not continuously,
 isolating the ancilla's benefit to its initial entanglement. (5) **QFI evaluation**:
 The final state $\rho(T)$ is generally mixed. The **QFI with respect to φ** is computed
-via the SLD eigen-decomposition formula:
+using the symmetric logarithmic derivative (SLD) eigen-decomposition formula:
 $F_Q(\phi; \rho(T)) = 2 \sum_{i \lt j} (\lambda_i - \lambda_j)^2 / (\lambda_i + \lambda_j) \vert\langle i\vert G\vert j\rangle\vert^2 + 4 \sum_i \lambda_i \Delta G_{ii}^2$,
 where $\rho(T) = \sum_i \lambda_i \vert i\rangle\langle i\vert$ is the eigen-decomposition,
 $G = a^\dagger a$ is the **phase generator**, and
 $\Delta G_{ii} = \langle i\vert G\vert i\rangle - \operatorname{Tr}(\rho G)$.
 
-The pseudomode (environment) is not accessible in a real experiment, so for
-metrological purposes we trace it out before computing QFI. If the ancilla (spin)
-is retained, we obtain $\rho_{\text{osc+spin}} = \operatorname{Tr}_{\text{pm}}[\rho]$
-and compute $\mathcal{S}_{\text{with}} = F_Q(T; \rho_{\text{osc+spin}})$. If the
-ancilla is also discarded (to simulate ancilla-less metrology), we further trace
-out the spin: $\mathcal{S}_{\text{without}} = F_Q(T; \rho_{\text{osc}})$. The **QFI preservation ratio** is
+The pseudomode (environment) is not accessible in a real experiment, so it is
+traced out before QFI computation. If the ancilla (spin) is retained, tracing the
+pseudomode gives $\rho_{\text{osc+spin}} = \operatorname{Tr}_{\text{pm}}[\rho]$
+and $\mathcal{S}_{\text{with}} = F_Q(T; \rho_{\text{osc+spin}})$. If the
+ancilla is also discarded (to simulate ancilla-less metrology), the spin is traced
+out further: $\mathcal{S}_{\text{without}} = F_Q(T; \rho_{\text{osc}})$. The **QFI preservation ratio** is
 $\mathcal{R}(T) = F_Q(T) / F_Q(0)$.
 
 The central observable is $F_Q(\theta, T, \lambda, N, K, g_{\text{sp}}, \omega_0, \alpha)$.
@@ -107,16 +107,16 @@ $\theta^* = \operatorname{argmax} \mathcal{R}(T)$.
 
 ## 💻 Numerical Simulation
 
-### Implementation Strategy
+### Implementation strategy
 
-1. **Operator construction** — Create pseudomode operators $b, b^\dagger, b^\dagger b$ in a truncated Fock basis (dimension $K+1$) and extend existing hybrid operators to the tripartite space via Kronecker products: $O_{\text{total}} = O_{\text{osc}} \otimes O_{\text{spin}} \otimes \mathbb{1}_{\text{pm}}$.
+1. **Operator construction** — Create pseudomode operators $b, b^\dagger, b^\dagger b$ in a truncated Fock basis (dimension $K+1$) and extend existing hybrid operators to the tripartite space using Kronecker products: $O_{\text{total}} = O_{\text{osc}} \otimes O_{\text{spin}} \otimes \mathbb{1}_{\text{pm}}$.
 2. **Hamiltonian assembly** — Build $H_{\text{sa}}$, $H_{\text{sp}}$, and $H_{\text{pm}}$ from the constructed operators, using a configuration dataclass with pseudomode parameters $(K, g_{\text{sp}}, \omega_0, \lambda)$.
 3. **Lindblad simulation** — Reuse existing dimension-agnostic RK4 and scipy-based Lindblad integrators; the single dissipator is $L_{\text{pm}} = \sqrt{\lambda} \cdot \mathbb{1}_{\text{osc}} \otimes \mathbb{1}_{\text{spin}} \otimes b$, with trace preservation, Hermiticity, and positivity verified at each step.
 4. **QFI computation** — Trace out the pseudomode to obtain the reduced oscillator-spin density matrix, then apply the SLD formulation (eigen-decomposition with eigenvalue threshold $10^{-12}$). The phase generator is $G = a^\dagger a \otimes \mathbb{1}_{\text{spin}}$. Compare two scenarios: with ancilla ($F_Q$ on $\rho_{\text{osc+spin}}$) and without ancilla ($F_Q$ on $\rho_{\text{osc}} = \operatorname{Tr}_{\text{spin}}[\rho_{\text{osc+spin}}]$).
 5. **Control parameter handling** — The dimensionless product $\theta = g_{\text{sa}} \cdot \tau$ (ancilla rotation angle) is the primary control. Implement three sweep types: `ancilla_sweep` over $\theta$, `memory_sweep` over $\lambda$, and `time_sweep` over $T$.
-6. **Dimension management** — Total Hilbert space dimension $2(N+1)(K+1)$. Monitor pseudomode occupancy $\langle b^\dagger b \rangle$ via ``check_pseudomode_occupancy`` and fail immediately if it exceeds $0.8\,K$, ensuring no population reflection at the Fock-space boundary. Increase $K$ manually when occupancy grows too large.
+6. **Dimension management** — Total Hilbert space dimension $2(N+1)(K+1)$. Monitor pseudomode occupancy $\langle b^\dagger b \rangle$ using ``check_pseudomode_occupancy`` and fail immediately if it exceeds $0.8\,K$, ensuring no population reflection at the Fock-space boundary. Increase $K$ manually when occupancy grows too large.
 
-### Parameter Sweep
+### Parameter sweep
 
 | Parameter | Default | Range | Purpose |
 |-----------|---------|-------|---------|
@@ -157,7 +157,7 @@ assert np.isfinite(F_Q), "QFI must be finite"
 # Both must agree to machine precision.
 ```
 
-#### 🔧 Implementation Status
+#### 🔧 Implementation status
 
 The full simulation code described in this plan has been implemented and unit-tested.
 
@@ -165,7 +165,7 @@ The full simulation code described in this plan has been implemented and unit-te
 |-----------|-------------|
 | **Configuration** | Dataclass with pseudomode parameters and validation |
 | **Operators** | Pseudomode creation/annihilation/number, tripartite Kronecker construction |
-| **Hamiltonian** | Builder with `include_sa` flag for entanglement vs. decoherence steps |
+| **Hamiltonian** | Builder with `include_sa` flag for entanglement versus decoherence steps |
 | **Lindblad** | Single dissipator $L_{\text{pm}} = \sqrt{\lambda} \cdot I\otimes I\otimes b$ |
 | **State preparation** | $\vert\alpha\rangle \otimes \vert{\downarrow}\rangle \otimes \vert0\rangle$ |
 | **Entanglement** | $\exp(-i H_{\text{sa}} \cdot \tau)$ with $\sigma_x$ coupling |
@@ -191,9 +191,9 @@ All tests passing.
 | Pseudomode truncation artifacts | If $g_{\text{sp}}$ or T is too large, the pseudomode population grows beyond K, causing reflection at the Fock-space boundary that feeds spurious population back into the system. | Enforced in ``run_metrology_protocol``: ``RuntimeError`` if $\langle b^\dagger b\rangle > 0.8 \cdot K$ at final time. Increase K manually when occupancy grows too large. |
 | Hilbert space explosion | The total dimension $2(N+1)(K+1)$ grows as $N \cdot K$. For N = 50 and K = 30, the density matrix has $\sim 10^7$ elements ($\sim 80$ MB), manageable but pushing RK4 to $\sim 10$–100 ms per step. | Keep N ≤ 30, K ≤ 20 for initial sweeps; use sparse methods or vectorized Liouvillian if scaling to larger systems. |
 | Kronecker-product ordering mismatch | If the index convention disagrees with the np.kron call order, every Hamiltonian matrix element is silently wrong while dimensions remain correct. | Unit-test the operator builder against a hand-constructed reference for a tiny system (N=2, K=2) verified to machine precision. |
-| Over-rotation at strong coupling | For large $\theta = g_{\text{sa}} \cdot \tau$, the ancilla entanglement wraps around ($\theta > \pi/2$), reducing rather than protecting QFI. | Plot $\mathcal{R}(T)$ vs θ; expect a peak at moderate $\theta^*$, not monotonic or flat behavior. |
-| Small λ (deeply non-Markovian) regime | When λ is very small, the pseudomode behaves almost coherently, and the combined oscillator-pseudomode system may exhibit coherent oscillations rather than dissipative dynamics, causing QFI to oscillate rather than decay monotonically. | Output the full $\mathcal{R}(t)$ trajectory, not just the endpoint at T. |
-| Phase generator ambiguity | The phase generator $G = a^\dagger a \otimes \mathbb{1}_{\text{spin}}$ acts on the oscillator only. When the ancilla is traced out, phase information stored in spin-oscillator correlations is discarded. | Always compare $\mathcal{R}_{\text{full}}$ (ancilla retained) vs $\mathcal{R}_{\text{partial}}$ (ancilla traced out). The difference $\Delta\mathcal{R}$ is the ancilla benefit. |
+| Over-rotation at strong coupling | For large $\theta = g_{\text{sa}} \cdot \tau$, the ancilla entanglement wraps around ($\theta > \pi/2$), reducing rather than protecting QFI. | Plot $\mathcal{R}(T)$ versus $\theta$; expect a peak at moderate $\theta^*$, not monotonic or flat behavior. |
+| Small λ (deeply non-Markovian) regime | When λ is very small, the pseudomode behaves almost coherently, and the combined oscillator-pseudomode system might exhibit coherent oscillations rather than dissipative dynamics, causing QFI to oscillate rather than decay monotonically. | Output the full $\mathcal{R}(t)$ trajectory, not just the endpoint at T. |
+| Phase generator ambiguity | The phase generator $G = a^\dagger a \otimes \mathbb{1}_{\text{spin}}$ acts on the oscillator only. When the ancilla is traced out, phase information stored in spin-oscillator correlations is discarded. | Always compare $\mathcal{R}_{\text{full}}$ (ancilla retained) with $\mathcal{R}_{\text{partial}}$ (ancilla traced out). The difference $\Delta\mathcal{R}$ is the ancilla benefit. |
 | QFI numerical instability for highly mixed states | The SLD formula divides by $(\lambda_i + \lambda_j)$, which becomes singular for near-zero eigenvalues. | Threshold eigenvalues at $\epsilon = 10^{-12}$; skip terms where $\lambda_i + \lambda_j < \epsilon$. Check purity $\operatorname{Tr}(\rho^2)$ and warn if $< 0.05$. |
 
 ## 🔬 Results
@@ -209,9 +209,9 @@ non-Markovian setting ($\mathcal{R}(T) > 1$). This is a genuine non-Markovian ef
 information backflow from the pseudomode bath enhances the system's phase sensitivity.
 The ancilla dramatically amplifies this enhancement.
 
-### Ancilla Sweep ($\theta$ at fixed $\lambda=1.0$, $T=2.0$)
+### Ancilla sweep ($\theta$ at fixed $\lambda=1.0$, $T=2.0$)
 
-![Ancilla sweep: $\mathcal{R}$ vs $\theta$](figures/20260509-ancilla-sweep.svg)
+![Ancilla sweep: $\mathcal{R}$ versus $\theta$](figures/20260509-ancilla-sweep.svg)
 
 | Metric | Value |
 |--------|-------|
@@ -233,9 +233,9 @@ $K=10$ truncation.
 enhancement $\mathcal{R}_{\text{with}} = 4.37$ — a factor of $3.2\times$ over the
 no-ancilla baseline at $T=2.0$, $\lambda=1.0$.
 
-### Memory Sweep ($\lambda$ at $\theta^*=\pi/2$, $T=2.0$)
+### Memory sweep ($\lambda$ at $\theta^*=\pi/2$, $T=2.0$)
 
-![Memory sweep: $\Delta\mathcal{R}$ vs $\lambda$](figures/20260509-memory-sweep.svg)
+![Memory sweep: $\Delta\mathcal{R}$ versus $\lambda$](figures/20260509-memory-sweep.svg)
 
 | $\lambda$ regime | $\mathcal{R}_{\text{with}}$ | $\mathcal{R}_{\text{without}}$ | $\Delta\mathcal{R}$ |
 |-----------------|---------------------------|------------------------------|-------------------|
@@ -256,7 +256,7 @@ Markovian limit is approached asymptotically as $\lambda\to\infty$.
 ($\Delta\mathcal{R}=0.86$ at $\lambda=10.0$). Non-Markovian bath memory is the resource
 that the ancilla leverages.
 
-### Time Sweep ($T$ at fixed $\lambda=1.0$)
+### Time sweep ($T$ at fixed $\lambda=1.0$)
 
 ![Time sweep: $\mathcal{R}(T)$ for four $\theta$ values](figures/20260509-time-sweep.svg)
 
@@ -281,7 +281,7 @@ a classic non-Markovian signature of initial QFI decay followed by information b
 | # | Test | Expectation | Status |
 |---|------|-------------|--------|
 | 1 | Pseudomode Lindblad reproduces Markovian limit ($\lambda \to \infty$) | $\mathcal{R}(T)$ matches standard Lindblad at $\gamma = g_{\text{sp}}^2 / \lambda$ | PARTIAL — $\Delta\mathcal{R}$ decreases with $\lambda$ as expected, but full Markovian limit requires larger $\lambda$ |
-| 2 | Ancilla improves QFI at moderate θ | $\mathcal{R}_{\text{with}} > \mathcal{R}_{\text{without}}$ at fixed $T > 0$ | PASS — $\mathcal{R}_{\text{with}} = 4.37$ vs $\mathcal{R}_{\text{without}} = 1.35$ at $\theta^*$ |
+| 2 | Ancilla improves QFI at moderate θ | $\mathcal{R}_{\text{with}} > \mathcal{R}_{\text{without}}$ at fixed $T > 0$ | PASS — $\mathcal{R}_{\text{with}} = 4.37$ versus $\mathcal{R}_{\text{without}} = 1.35$ at $\theta^*$ |
 | 3 | Optimal $\theta^*$ exists at finite value | $\mathcal{R}(T)$ is concave in θ | PASS — $\theta^* = \pi/2$, concave peak confirmed |
 | 4 | Non-Markovian advantage | $\Delta\mathcal{R}$ larger for smaller λ | PASS — $\Delta\mathcal{R}=3.97$ at $\lambda=0.05$, $0.86$ at $\lambda=10$ |
 | 5 | Numerical validity | Trace, Hermiticity, positivity | PASS — verified through 100 unit tests |
@@ -291,12 +291,12 @@ a classic non-Markovian signature of initial QFI decay followed by information b
 
 | # | Check | Expectation | Result |
 |---|-------|-------------|--------|
-| 1 | **Ancilla benefit** | $\exists\,\theta > 0$ such that $\mathcal{R}_{\text{with}}(T) > \mathcal{R}_{\text{without}}(T)$ at fixed $T > 0$, verified with tolerance-based significance | PASS — $\mathcal{R}_{\text{with}} = 4.37$ vs $\mathcal{R}_{\text{without}} = 1.35$ at $\theta^*=\pi/2$, $T=2.0$, $\lambda=1.0$ |
+| 1 | **Ancilla benefit** | $\exists\,\theta > 0$ such that $\mathcal{R}_{\text{with}}(T) > \mathcal{R}_{\text{without}}(T)$ at fixed $T > 0$, verified with tolerance-based significance | PASS — $\mathcal{R}_{\text{with}} = 4.37$ versus $\mathcal{R}_{\text{without}} = 1.35$ at $\theta^*=\pi/2$, $T=2.0$, $\lambda=1.0$ |
 | 2 | **Optimal coupling** | $\mathcal{R}(T)$ as a function of $\theta$ shows a clear maximum at some finite $\theta^* > 0$, not at the boundaries ($\theta^*$ not at 0 or $\pi$) | PASS — $\theta^*=1.571$ ($\pi/2$), clear concave maximum |
-| 3 | **Non-Markovian scaling** | The ancilla improvement $\Delta\mathcal{R}$ increases as $\lambda$ decreases (more non-Markovian), confirming that bath memory is the resource | PASS — $\Delta\mathcal{R}=3.97$ at $\lambda=0.05$ vs $0.86$ at $\lambda=10$ |
+| 3 | **Non-Markovian scaling** | The ancilla improvement $\Delta\mathcal{R}$ increases as $\lambda$ decreases (more non-Markovian), confirming that bath memory is the resource | PASS — $\Delta\mathcal{R}=3.97$ at $\lambda=0.05$ versus $0.86$ at $\lambda=10$ |
 | 4 | **Markovian recovery** | As $\lambda \to \infty$, $\mathcal{R}_{\text{with}}(T) \to \mathcal{R}_{\text{without}}(T)$, converging to the known Lindblad result | PARTIAL — $\Delta\mathcal{R}=0.86$ at $\lambda=10$ (trend correct, but $\lambda=10$ does not yet reach full Markovian limit) |
 | 5 | **Numerical validity** | Trace preservation, Hermiticity, and positivity hold at all times; pseudomode truncation does not cause artifacts ($\langle b^\dagger b\rangle \le 0.8\,K$ at all times) | PASS — verified through 100 unit tests; max pm occupancy $1.97 \ll 8$ |
-| 6 | **MZI compatibility** | The protocol can be embedded into the existing MZI pipeline for a full interferometric readout | PENDING — not yet tested; requires QFI-to-CFI translation with measurement optimization |
+| 6 | **MZI compatibility** | The protocol can be embedded into the existing Mach-Zehnder interferometer (MZI) pipeline for a full interferometric readout | PENDING — not yet tested; requires QFI-to-CFI translation with measurement optimization |
 
 Numerical validity (criterion 5) is confirmed by 100 passing tests — trace preservation,
 Hermiticity, positivity, and pseudomode truncation safety all hold. The ancilla benefit
@@ -324,7 +324,7 @@ The most striking finding is that this non-Markovian system exhibits $\mathcal{R
 from the pseudomode bath. The ancilla amplifies this effect dramatically, pushing
 $\mathcal{R}$ up to $12.6$ at $\theta^*=\pi/2$, $T=5$, $\lambda=1.0$, representing a
 $4.8\times$ improvement over the no-ancilla baseline. The memory sweep confirms the
-mechanism: $\Delta\mathcal{R} = 3.97$ at $\lambda=0.05$ (strongly non-Markovian) vs
+mechanism: $\Delta\mathcal{R} = 3.97$ at $\lambda=0.05$ (strongly non-Markovian) versus
 $\Delta\mathcal{R} = 0.86$ at $\lambda=10$ (near-Markovian), demonstrating that bath memory
 is the resource the ancilla leverages.
 
@@ -333,4 +333,4 @@ $\lambda$ as expected, but asymptotic convergence to the standard Lindblad resul
 ($\Delta\mathcal{R} \to 0$) requires larger $\lambda$ values. The existing data is
 consistent with the theoretical prediction.
 
-**Open items**: (a) What is the optimal initial state (coherent vs squeezed vs Fock) for the oscillator? (b) Does multiple ancilla entanglement (using the spin as a multi-level system) provide additional benefit beyond the two-level case? (c) How does the optimal ancilla coupling depend on the bath central frequency $\omega_0$ (off-resonant vs resonant)? (d) Can the ancilla-assisted protocol be combined with existing high-order squeezing (n=3,4) for further enhancement? (e) What is the physical mechanism behind $\mathcal{R}(T) > 1$ — can it be derived analytically from the pseudomode master equation? (f) Does the QFI enhancement translate to a practical sensitivity advantage in a full MZI readout, or is it washed out by the measurement step?
+**Open items**: (a) What is the optimal initial state (coherent, squeezed, or Fock) for the oscillator? (b) Does multiple ancilla entanglement (using the spin as a multi-level system) provide additional benefit beyond the two-level case? (c) How does the optimal ancilla coupling depend on the bath central frequency $\omega_0$ (off-resonant or resonant)? (d) Can the ancilla-assisted protocol be combined with existing high-order squeezing (n=3,4) for further enhancement? (e) What is the physical mechanism behind $\mathcal{R}(T) > 1$ — can it be derived analytically from the pseudomode master equation? (f) Does the QFI enhancement translate to a practical sensitivity advantage in a full MZI readout, or is it washed out by the measurement step?
