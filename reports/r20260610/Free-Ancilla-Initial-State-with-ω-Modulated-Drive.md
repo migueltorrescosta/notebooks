@@ -2,7 +2,7 @@
 
 ## 🧪 Hypothesis
 
-For a system--ancilla pair of single-particle two-mode bosonic systems where the system S couples to the unknown phase $\omega$ via $H_S = \omega J_z^S$ and the ancilla A is driven by the same unknown phase via $H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)$, the sensitivity $\Delta\omega$ (error-propagation uncertainty in estimating $\omega$ via a $J_z^S$ measurement on the system) can be improved by additionally freeing the ancilla initial state from the fixed $\vert 1,0\rangle$ (the 20260519 baseline) to an arbitrary pure qubit state $|\psi_A\rangle = \cos(\theta_A/2)|1,0\rangle_A + e^{i\phi_A}\sin(\theta_A/2)|0,1\rangle_A$. The holding time is fixed at $T_H = 10$ for all experiments, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$.
+Consider a system-ancilla pair of single-particle two-mode bosonic systems. The system S couples to the unknown phase $\omega$ through $H_S = \omega J_z^S$, and the ancilla A is driven by the same unknown phase through $H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)$. The sensitivity $\Delta\omega$ (the error-propagation uncertainty in estimating $\omega$ through a $J_z^S$ measurement on the system) can be improved by additionally freeing the ancilla initial state from the fixed $\vert 1,0\rangle$ (the 20260519 baseline) to an arbitrary pure qubit state $|\psi_A\rangle = \cos(\theta_A/2)|1,0\rangle_A + e^{i\phi_A}\sin(\theta_A/2)|0,1\rangle_A$. The holding time is fixed at $T_H = 10$ for all experiments, giving a standard quantum limit (SQL) reference of $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$.
 
 The central hypothesis decomposes into three specific, testable claims:
 
@@ -16,7 +16,7 @@ The central hypothesis decomposes into three specific, testable claims:
 
 ## ⚛️ Theoretical Model
 
-The total Hilbert space is $\mathcal{H}_{\text{tot}} = \mathcal{H}_S \otimes \mathcal{H}_A$, where each subsystem is a **two-mode bosonic Fock space** truncated at one particle per mode. The single-particle sector $\mathcal{H}_{1} = \text{span}\{\vert1,0\rangle, \vert0,1\rangle\}$ (dimension 2) is isomorphic to a spin-$1/2$, and the full space has dimension 4 with ordered computational basis $\{\vert00\rangle, \vert01\rangle, \vert10\rangle, \vert11\rangle\}$ where $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). The **angular momentum operators** for each subsystem satisfy SU(2) algebra $[J_i, J_j] = i \epsilon_{ijk} J_k$ and are represented by $J_k = \sigma_k/2$ (the $2\times2$ Pauli matrices). These are embedded into the full space via Kronecker products: $J_k^S = \sigma_k/2 \otimes \mathbb{1}_2$ and $J_k^A = \mathbb{1}_2 \otimes \sigma_k/2$.
+The total Hilbert space is $\mathcal{H}_{\text{tot}} = \mathcal{H}_S \otimes \mathcal{H}_A$, where each subsystem is a **two-mode bosonic Fock space** truncated at one particle per mode. The single-particle sector $\mathcal{H}_{1} = \text{span}\{\vert1,0\rangle, \vert0,1\rangle\}$ (dimension 2) is isomorphic to a spin-$1/2$, and the full space has dimension 4 with ordered computational basis $\{\vert00\rangle, \vert01\rangle, \vert10\rangle, \vert11\rangle\}$ where $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). The **angular momentum operators** for each subsystem satisfy SU(2) algebra $[J_i, J_j] = i \epsilon_{ijk} J_k$ and are represented by $J_k = \sigma_k/2$ (the $2\times2$ Pauli matrices). These are embedded into the full space by Kronecker products: $J_k^S = \sigma_k/2 \otimes \mathbb{1}_2$ and $J_k^A = \mathbb{1}_2 \otimes \sigma_k/2$.
 
 The **initial state** is $\vert\Psi_0\rangle = \vert1,0\rangle_S \otimes \vert\psi_A\rangle$, where $\vert\psi_A\rangle = \alpha\vert1,0\rangle_A + \beta\vert0,1\rangle_A$ with $\vert\alpha\vert^2 + \vert\beta\vert^2 = 1$. Parameterised on the Bloch sphere: $\alpha = \cos(\theta_A/2)$, $\beta = e^{i\phi_A}\sin(\theta_A/2)$, with $\theta_A \in [0, \pi]$ and $\phi_A \in [0, 2\pi)$. The fixed-ancilla baseline is the special case $\theta_A = 0$, $\phi_A = 0$ (ancilla in $\vert 1,0\rangle$), which is the configuration used throughout the 20260519 report.
 
@@ -33,11 +33,11 @@ The **circuit protocol** proceeds in four steps:
 
 3. **Beam splitter on system only:** A second 50/50 beam splitter (identical to step 1) acts on the system: $U_{\text{BS}}^{(S)}$.
 
-4. **Measurement:** $J_z^S$ is measured on the system qubit. The expectation value is $\langle J_z^S \rangle = \langle\Psi_{\text{final}}\vert J_z^S \vert\Psi_{\text{final}}\rangle$ and the variance is $\text{Var}(J_z^S) = \langle (J_z^S)^2 \rangle - \langle J_z^S \rangle^2$.
+4. **Measurement:** We measure $J_z^S$ on the system qubit. The expectation value is $\langle J_z^S \rangle = \langle\Psi_{\text{final}}\vert J_z^S \vert\Psi_{\text{final}}\rangle$, and the variance is $\text{Var}(J_z^S) = \langle (J_z^S)^2 \rangle - \langle J_z^S \rangle^2$.
 
 The **complete evolution** is: $\vert\Psi_{\text{final}}\rangle = U_{\text{BS}}^{(S)} \, U_{\text{hold}}(T_H) \, U_{\text{BS}}^{(S)} \, \vert\Psi_0\rangle$.
 
-The **sensitivity** via error propagation is: $\Delta\omega = \sqrt{\text{Var}(J_z^S)} / \vert\partial\langle J_z^S\rangle / \partial\omega\vert$, where the derivative is computed via central finite differences with step $\delta = 10^{-6}$. The **standard quantum limit** for $N=1$ particle is $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$.
+We compute the **sensitivity** by error propagation: $\Delta\omega = \sqrt{\text{Var}(J_z^S)} / \vert\partial\langle J_z^S\rangle / \partial\omega\vert$, where the derivative is computed by central finite differences with step $\delta = 10^{-6}$. The **standard quantum limit** for $N=1$ particle is $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$.
 
 **Physical mechanism:** The $\omega$-modulated drive creates a parametric amplification effect because $\partial H/\partial\omega = J_z^S + H_A^{\text{norm}}$ (where $H_A^{\text{norm}} = a_x J_x^A + a_y J_y^A + a_z J_z^A$), providing an additional channel for $\omega$-dependence beyond the standard phase encoding. The free ancilla initial state modifies how this $\partial H/\partial\omega$ term couples into the final $J_z^S$ expectation at the start of the evolution. When $\theta_A \neq 0$, the ancilla begins in a superposition of $J_z^A$ eigenstates, making it immediately sensitive to the $a_x$ and $a_y$ drive components. This could amplify the contribution of $H_A^{\text{norm}}$ to $\partial\langle J_z^S\rangle/\partial\omega$ beyond what is achievable with the fixed $\vert 1,0\rangle$ ancilla, which is a $J_z^A$ eigenstate and therefore initially insensitive to transverse drive components.
 
@@ -52,20 +52,20 @@ The **sensitivity** via error propagation is: $\Delta\omega = \sqrt{\text{Var}(J
 | **C** (no $\omega$-modulation control) | Free $(\theta_A,\phi_A)$ | $\omega$-independent | Free | $\Delta\omega = 0.1$ (SQL) | 20260528 |
 | **D** (decoupled control) | Free $(\theta_A,\phi_A)$ | $\omega$-modulated | **None** ($a_{zz}=0$) | $\Delta\omega = 0.1$ (SQL) | This work |
 
-**Expected scaling:** The 20260519 protocol achieved $\Delta\omega \approx 0.0204$ near $\omega = 0.2$ with fixed ancilla, corresponding to a sensitivity enhancement ratio $\mathcal{R} = \Delta\omega_{\text{SQL}} / \Delta\omega \approx 4.91$. If the free ancilla can increase the effective contribution of $H_A^{\text{norm}}$ to $\partial\langle J_z^S\rangle/\partial\omega$, the enhancement ratio could approach the full $\sqrt{a_x^2 + a_y^2 + a_z^2} \lesssim 8.7$ bound (for $\vert a_k\vert \le 5$), suggesting a potential best $\Delta\omega \approx 0.011$ ($\sim 9\times$ below SQL). However, this is an upper bound — the actual improvement depends on how $H_{\text{int}}$ mediates the ancilla dynamics back onto the $J_z^S$ measurement.
+**Expected scaling:** The 20260519 protocol achieved $\Delta\omega \approx 0.0204$ near $\omega = 0.2$ with fixed ancilla, corresponding to a sensitivity enhancement ratio $\mathcal{R} = \Delta\omega_{\text{SQL}} / \Delta\omega \approx 4.91$. If the free ancilla can increase the effective contribution of $H_A^{\text{norm}}$ to $\partial\langle J_z^S\rangle/\partial\omega$, the enhancement ratio could approach the full $\sqrt{a_x^2 + a_y^2 + a_z^2} \lesssim 8.7$ bound (for $\vert a_k\vert \le 5$), suggesting a potential best $\Delta\omega \approx 0.011$ (about $9\times$ below SQL). However, this is an upper bound — the actual improvement depends on how $H_{\text{int}}$ mediates the ancilla dynamics back onto the $J_z^S$ measurement.
 
 ## 💻 Numerical Simulation
 
 ### Implementation Strategy
 
-1. **Reuse existing infrastructure** — The $\omega$-modulated Hamiltonian builders (`build_phase_modulated_hold_hamiltonian`), circuit evolution (`evolve_drive_circuit` from `src.analysis.ancilla_drive_metrology`), sensitivity computation (`compute_drive_sensitivity`), and Nelder--Mead refinement (`run_drive_nelder_mead`) already accept an arbitrary 4-vector `psi0` as the initial state. The sensitivity function `compute_drive_sensitivity` has the signature `(psi0, T_BS, T_hold, omega, a_x, a_y, a_z, a_zz, ops)` — no core changes are needed. The free-ancilla initial state function `free_ancilla_initial_state(theta_A, phi_A)` is already implemented in `reports/r20260528/free_ancilla_initial_state.py`.
+1. **Reuse existing infrastructure** — The $\omega$-modulated Hamiltonian builders (`build_phase_modulated_hold_hamiltonian`), circuit evolution (`evolve_drive_circuit` from `src.analysis.ancilla_drive_metrology`), sensitivity computation (`compute_drive_sensitivity`), and Nelder--Mead refinement (`run_drive_nelder_mead`) already accept an arbitrary 4-vector `psi0` as the initial state. The sensitivity function `compute_drive_sensitivity` has the signature `(psi0, T_BS, T_hold, omega, a_x, a_y, a_z, a_zz, ops)`. No core changes are needed. The free-ancilla initial state function `free_ancilla_initial_state(theta_A, phi_A)` is already implemented in `reports/r20260528/free_ancilla_initial_state.py`.
 
-2. **Parameter dimension** — Scenario B searches 6 parameters: $(\theta_A, \phi_A, a_x, a_y, a_z, a_{zz})$ at each $\omega$ value. The 20260519 baseline (Scenario A) searched 4 parameters $(a_x, a_y, a_z, a_{zz})$ with $\theta_A = \phi_A = 0$. Every result dataclass must store all input parameters alongside computed results — theta_A, phi_A, a_x, a_y, a_z, a_zz, omega, T_H, SQL, and ratio — so that Parquet files are fully self-describing.
+2. **Parameter dimension** — Scenario B searches six parameters: $(\theta_A, \phi_A, a_x, a_y, a_z, a_{zz})$ at each $\omega$ value. The 20260519 baseline (Scenario A) searched four parameters $(a_x, a_y, a_z, a_{zz})$ with $\theta_A = \phi_A = 0$. Every result dataclass must store all input parameters (theta_A, phi_A, a_x, a_y, a_z, a_zz, omega, T_H, SQL, and ratio) alongside computed results, so that Parquet files are fully self-describing.
 
-3. **Staged optimisation** — The 7D parameter space (6 free + $\omega$ as external) is too large for a single brute-force sweep. Use a three-stage approach:
+3. **Staged optimisation** — The 7D parameter space (six free parameters and the external $\omega$) is too large for a single brute-force sweep. Use a three-stage approach:
    - **Stage 1 (2D slice):** For each $\omega$ value, fix the drive parameters $(a_x, a_y, a_z, a_{zz})$ to the 20260519 optimal found in that report. Scan $(\theta_A, a_{zz})$ on a $101 \times 101$ grid with $\phi_A = 0$. This tests whether any $\theta_A$ at the known-optimal drive improves the sensitivity.
    - **Stage 2 (6D random search):** For each $\omega$ value, generate $N_{\text{samp}} = 3000$ random configurations with $\theta_A \sim U[0, \pi]$, $\phi_A \sim U[0, 2\pi)$, $(a_x, a_y, a_z)$ sampled from the 3-ball $\|\mathbf{a}\| \leq R = 10$ using Marsaglia's method, and $a_{zz} \sim U[-5, 5]$.
-   - **Stage 3 (Nelder--Mead refinement):** For each $\omega$ value, refine the best 40 random-search points via Nelder--Mead. The objective function is 6D: $f(\theta_A, \phi_A, a_x, a_y, a_z, a_{zz}) = \Delta\omega$ at fixed $\omega$.
+   - **Stage 3 (Nelder--Mead refinement):** For each $\omega$ value, refine the best 40 random-search points with Nelder--Mead. The objective function is 6D: $f(\theta_A, \phi_A, a_x, a_y, a_z, a_{zz}) = \Delta\omega$ at fixed $\omega$.
 
 4. **$\omega$ values** — Match the 20260519 scan for direct comparison: $\omega \in \{0.1, 0.2, 0.5, 1.0, 2.0, 5.0\}$ (6 values). The 20260519 best was at $\omega = 0.2$. Include $\omega = 0.1$ and $\omega = 0.5$ to resolve the small-$\omega$ region where the enhancement is strongest.
 
@@ -88,7 +88,7 @@ The **sensitivity** via error propagation is: $\Delta\omega = \sqrt{\text{Var}(J
 | $J_x$ drive coeff. | $a_x$ | 3-ball $\|\mathbf{a}\| \le 10$ | Non-commuting drive component |
 | $J_y$ drive coeff. | $a_y$ | 3-ball $\|\mathbf{a}\| \le 10$ | Non-commuting drive component |
 | $J_z$ drive coeff. | $a_z$ | 3-ball $\|\mathbf{a}\| \le 10$ | Commuting drive component |
-| Ising coupling | $a_{zz}$ | $[-5, 5]$ (Stage 1: 101 pts) | System--ancilla interaction strength |
+| Ising coupling | $a_{zz}$ | $[-5, 5]$ (Stage 1: 101 pts) | System-ancilla interaction strength |
 | Random samples per $\omega$ | $N_{\text{samp}}$ | 3000 | Stage 2 sampling density |
 | NM refinements per $\omega$ | $N_{\text{NM}}$ | 40 | Stage 3 local optimisation |
 | Finite-difference step | $\delta$ | $10^{-6}$ | Central-difference derivative |
@@ -116,7 +116,7 @@ To be built during the implementation phase:
 - **Cross-scenario comparison plot** — Bar chart of best-$\Delta\omega$ for Scenario A vs B at each $\omega$, with SQL reference line.
 - **2D slice heatmaps** — For each $\omega$, a heatmap of $\log_{10}(\Delta\omega/\text{SQL})$ over $(\theta_A, a_{zz})$ with the 20260519 optimal fixed drive.
 
-Test count target: ~35 new test functions covering the 6D objective, Stage 1/2/3 dispatchers, optimal-state characterisation, Parquet roundtrip for the new dataclasses, and cross-scenario comparison.
+Test count target: about 35 new test functions covering the 6D objective, Stage 1/2/3 dispatchers, optimal-state characterisation, Parquet roundtrip for the new dataclasses, and cross-scenario comparison.
 
 ## ⚠️ Expected Failure Conditions
 
@@ -124,10 +124,10 @@ Test count target: ~35 new test functions covering the 6D objective, Stage 1/2/3
 |---------|------------|
 | **Free ancilla provides no improvement over fixed baseline** — Scenario B best $\Delta\omega$ equals the Scenario A best at all $\omega$ to within $10^{-6}$, confirming the null hypothesis that the $J=1/2$ "spectral radius" bound is already saturated by the fixed-ancilla configuration. | Report the negative result. The 2D slice $(\theta_A, a_{zz})$ provides supporting visual evidence: if the landscape is flat in $\theta_A$ at the optimal drive, the initial ancilla state is irrelevant. Compare best-ratio vs $\omega$ curves for fixed vs free ancilla. |
 | **Optimal ancilla state is $\theta_A^* \approx 0$ at all $\omega$** — The Nelder--Mead refinement converges to $\theta_A \approx 0$ regardless of initial conditions, even when random-search samples explore the full Bloch sphere. The free ancilla is a redundant degree of freedom. | Run Nelder--Mead from multiple random seeds per $\omega$ to verify that $\theta_A = 0$ is not a local minimum but a global optimum. Report the fraction of refinement runs that converge away from $\theta_A = 0$. |
-| **Optimal ancilla state varies randomly with $\omega$** — $\theta_A^*(\omega)$ fluctuates without a systematic trend, suggesting the sensitivity landscape is nearly flat in $\theta_A$ and the optimizer finds noise-level minima. | This is already an interesting finding: it means the free ancilla is neither harmful nor helpful, and the protocol is insensitive to the ancilla initial state at the optimal drive. Report the standard deviation of $\theta_A^*$ across $\omega$ as a metric of flatness. |
+| **Optimal ancilla state varies randomly with $\omega$** — $\theta_A^*(\omega)$ fluctuates without a systematic trend, suggesting the sensitivity landscape is nearly flat in $\theta_A$ and the optimiser finds noise-level minima. | This is already an interesting finding: it means the free ancilla is neither harmful nor helpful, and the protocol is insensitive to the ancilla initial state at the optimal drive. Report the standard deviation of $\theta_A^*$ across $\omega$ as a metric of flatness. |
 | **Stage 1 2D slice shows improvement, but Stage 2 + 3 cannot improve further** — Fixing the drive parameters to the 20260519 optimal may already be near-global; the full 6D optimisation cannot improve upon the 2D slice best. | This is a clean result: it means the optimal drive is independent of the ancilla initial state, and the best the free ancilla can do is to match the fixed-ancilla performance at that drive. Report the slice results as definitive. |
 | **Fringe extremum dominates for many free-ancilla configurations** — The derivative $\partial\langle J_z^S\rangle/\partial\omega$ vanishes at certain $(\theta_A, \phi_A)$, producing $\Delta\omega = \infty$. | Flag and exclude fringe-extremum points. Report the fraction of finite points for each $\omega$. The envelope analysis considers only finite-$\Delta\omega$ configurations. |
-| **Compute budget is too large for 6D random search** — 3000 samples $\times$ 6 $\omega$ values $\times$ 4 scenario variants = 72,000 evaluations minimum. Each evaluation is a $4\times4$ matrix exponential plus finite-difference (3 exponentials) = $\sim 216,000$ exponentials, which is still fast ($\sim 1$ minute total). Nelder--Mead adds another $\sim 600$ iterations $\times$ 40 refinements $\times$ 6 $\omega$ values $\approx 144,000$ exponentials. | The $4\times4$ matrix exponential is extremely fast ($\sim 10\,\mu$s per `expm` call). The full sweep should complete in under 5 minutes. If budget becomes a concern, reduce to 4 $\omega$ values (omit $\omega = 0.5$ and $5.0$) or reduce NM refinements to 20. |
+| **Compute budget is too large for 6D random search** — 3000 samples $\times$ 6 $\omega$ values $\times$ 4 scenario variants = 72,000 evaluations minimum. Each evaluation is a $4\times4$ matrix exponential plus finite-difference (3 exponentials) = about 216,000 exponentials, which is still fast (about 1 minute total). Nelder--Mead adds about 600 iterations $\times$ 40 refinements $\times$ 6 $\omega$ values $\approx 144,000$ exponentials. | The $4\times4$ matrix exponential is extremely fast (about $10\,\mu$s per `expm` call). The full sweep should complete in under five minutes. If budget becomes a concern, reduce to 4 $\omega$ values (omit $\omega = 0.5$ and $5.0$) or reduce NM refinements to 20. |
 
 ## 🔬 Results
 
@@ -141,15 +141,15 @@ All three pipeline stages were executed successfully with the audit-fixed code (
 
 **Primary hypothesis CONFIRMED**: The free ancilla improves sensitivity. Best overall $\Delta\omega = 0.01364$ at $\omega=0.1$, which is $7.3\times$ below SQL and beats the 20260519 fixed-ancilla best of $\Delta\omega = 0.02036$ ($4.91\times$ SQL).
 
-### 1: Fixed-Ancilla Baseline (Scenario A) — PASS
+### 1: Fixed-ancilla baseline (Scenario A) — PASS
 
-The fixed-ancilla baseline $\theta_A=0$ with 20260519 optimal drives is verified across all $\omega$ values via the Stage 1 slices (the $\theta_A=0$ row of each slice). At $\omega=0.2$, $\theta_A=0$, $(a_x,a_y,a_z)=(5.0,-5.0,4.0)$, $a_{zz}=4.0$: $\Delta\omega=0.02036$ reproduces the 20260519 report value exactly.
+The fixed-ancilla baseline $\theta_A=0$ with 20260519 optimal drives is verified across all $\omega$ values by the Stage 1 slices (the $\theta_A=0$ row of each slice). At $\omega=0.2$, $\theta_A=0$, $(a_x,a_y,a_z)=(5.0,-5.0,4.0)$, $a_{zz}=4.0$: $\Delta\omega=0.02036$ reproduces the 20260519 report value exactly.
 
 | Experiment | Status | Expected Outcome |
 |-----------|--------|-----------------|
 | **1: Fixed-ancilla baseline (Scenario A)** | PASS | $\Delta\omega = 0.02036$ at $\omega=0.2$ (verified) |
 
-### 2: Free-Ancilla $\omega$-Modulated (Scenario B) — PASS
+### 2: Free-ancilla $\omega$-modulated (Scenario B) — PASS
 
 The full 7D optimisation ($\theta_A$, $\phi_A$, $a_x$, $a_y$, $a_z$, $a_{zz}$) at each $\omega$ was executed. The free ancilla improves sensitivity at all $\omega$ values:
 
@@ -166,7 +166,7 @@ At $\omega \le 0.5$, the free ancilla improves over the fixed-ancilla optimum. A
 
 **Key Finding**: The free ancilla provides a genuine sensitivity improvement at low $\omega$ ($\omega \le 0.5$), with the largest gain at $\omega=0.1$ ($1.49\times$ over the fixed-ancilla baseline). At higher $\omega$, the 20260519 optimal drive was already near-optimal, and the free ancilla provides little additional benefit.
 
-### 3: 2D Slice $(\theta_A, a_{zz})$ at Optimal Drive — PASS
+### 3: 2D slice $(\theta_A, a_{zz})$ at optimal drive — PASS
 
 Six 2D slice parquet files and heatmaps were regenerated with the correct 20260519 optimal drive parameters. The slices show SQL-beating regions at all $\omega$:
 
@@ -183,7 +183,7 @@ The minimum ratio in each slice matches the fixed-ancilla baseline ($\theta_A=0$
 
 **Key Finding**: Stage 1 with the fixed 20260519 drive cannot outperform the fixed-ancilla baseline because the drive was tuned for $\theta_A\approx 0$. The full 6D optimisation in Stages 2+3 is necessary to realise the free-ancilla advantage.
 
-### 4: Optimal Ancilla State vs $\omega$ — PASS
+### 4: Optimal ancilla state vs $\omega$ — PASS
 
 The optimal ancilla parameters $\theta_A^*(\omega)$ and $\phi_A^*(\omega)$ vary systematically with $\omega$:
 
@@ -196,7 +196,7 @@ The optimal ancilla parameters $\theta_A^*(\omega)$ and $\phi_A^*(\omega)$ vary 
 | 2.0 | 3.126 | 3.758 | 9.34 |
 | 5.0 | 0.000 | 2.419 | 7.02 |
 
-The optimiser consistently prefers near-maximum norm $\|\mathbf{a}\| \sim 10$ at small $\omega$, dropping to ~7 at $\omega=5.0$. The optimal $\theta_A$ is non-zero for $\omega \le 2.0$ (confirming the free ancilla is actively useful) and collapses to $\theta_A \approx 0$ at $\omega=5.0$ (where the fixed-ancilla limit suffices). The optimal $\phi_A$ shows no monotonic trend, but is well-determined in each case.
+The optimiser consistently prefers a near-maximum norm $\|\mathbf{a}\| \approx 10$ at small $\omega$, dropping to about 7 at $\omega=5.0$. The optimal $\theta_A$ is non-zero for $\omega \le 2.0$ (confirming the free ancilla is actively useful) and collapses to $\theta_A \approx 0$ at $\omega=5.0$ (where the fixed-ancilla limit suffices). The optimal $\phi_A$ shows no monotonic trend, but is well-determined in each case.
 
 **Key Finding**: The secondary hypothesis is confirmed — $\theta_A^*(\omega)$ varies systematically with $\omega$. At low $\omega$ ($\omega=0.1$), the optimal ancilla state is nearly orthogonal ($\theta_A\approx 2.0$) to the $\vert 1,0\rangle$ fixed state, maximising the benefit of the free ancilla. At high $\omega$, $\theta_A^*$ approaches 0, recovering the fixed-ancilla limit.
 
@@ -228,4 +228,4 @@ This report confirms that **freeing the ancilla initial state improves sensitivi
 
 ### Open items
 
-(a) **Mechanism via BCH expansion**: The exact mechanism by which $\theta_A$ enters the derivative $\partial\langle J_z^S\rangle/\partial\omega$ should be analysed via a Baker--Campbell--Hausdorff expansion of $U_{\text{hold}}$. The current results show the effect exists but are silent on why. (b) **Control D — no interaction**: A sweep with $a_{zz}=0$ would isolate the role of the Ising interaction in the free-ancilla enhancement. (c) **Larger systems**: The present work is at $N=1$ per subsystem. Extending to $N>1$ would test whether the scaling advantage generalises. (d) **$T_H$ scaling**: The holding time is fixed at $T_H=10$. Sweeping $T_H$ with the optimal free-ancilla state could reveal whether the $1/T_H$ SQL scaling is preserved or modified by the free ancilla. (e) **Higher sensitivity at intermediate $\omega$**: The jump in $\theta_A^*$ at $\omega=2.0$ ($\theta_A^*=3.126$) is intriguing — it suggests a second optimal branch exists. A multi-start optimisation could explore this further.
+(a) **Mechanism from the Baker--Campbell--Hausdorff (BCH) expansion**: The exact mechanism by which $\theta_A$ enters the derivative $\partial\langle J_z^S\rangle/\partial\omega$ should be analysed using the BCH expansion of $U_{\text{hold}}$. The current results show the effect exists but are silent on why. (b) **Control D — no interaction**: A sweep with $a_{zz}=0$ would isolate the role of the Ising interaction in the free-ancilla enhancement. (c) **Larger systems**: The present work is at $N=1$ per subsystem. Extending to $N>1$ would test whether the scaling advantage generalises. (d) **$T_H$ scaling**: The holding time is fixed at $T_H=10$. Sweeping $T_H$ with the optimal free-ancilla state could reveal whether the $1/T_H$ SQL scaling is preserved or modified by the free ancilla. (e) **Higher sensitivity at intermediate $\omega$**: The jump in $\theta_A^*$ at $\omega=2.0$ ($\theta_A^*=3.126$) is intriguing — it suggests a second optimal branch exists. A multi-start optimisation could explore this further.
