@@ -2,7 +2,7 @@
 
 ## 🧪 Hypothesis
 
-Reports #20260519 and #20260521 demonstrated two distinct mechanisms for beating the standard quantum limit (SQL) with a single-particle ($N=1$) system--ancilla pair:
+Reports #20260519 and #20260521 demonstrated two distinct mechanisms for beating the standard quantum limit (SQL) with a single-particle ($N=1$) system-ancilla pair:
 
 - **#20260519** ($\omega$-modulated drive + Ising interaction): $H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)$ with $H_{\text{int}} = \alpha_{zz} J_z^S J_z^A$ achieves $\Delta\omega = 0.02036$ ($4.91\times$ below SQL at $\omega=0.2$). The mechanism relies on $\partial H/\partial\omega = J_z^S + H_A^{\text{norm}}$, where the ancilla drive contributes an extra channel for $\omega$-dependence mediated by the Ising coupling.
 
@@ -28,7 +28,7 @@ The central hypothesis decomposes into three specific, testable claims:
 
 2. **Arrested $R(N)$ decay with $J_A = 1/2$**: At $N>1$ with a fixed single-particle ancilla ($J_A = 1/2$), the SQL-violation ratio $R(N) = \Delta\omega_{\text{SQL}} / \Delta\omega_{\text{opt}}$ decays more slowly than in the $\omega$-modulated-only protocol (#20260611, where $R(N)-1 \propto N^{-1}$). The 4-parameter interaction provides additional channels (Classes 1 and 3) that can partially compensate for the decaying ancilla contribution. Specifically, $R_{\text{combined}}(N) > R_{\text{mod-only}}(N)$ for $N \ge 2$.
 
-3. **$F_Q \propto N^2$ with $J_A = N/2$**: When both the system and ancilla scale with $N$ ($J_S = J_A = N/2$), the three O(N) classes compound to produce $F_Q \propto N^2$ scaling, i.e., $\Delta\omega_{\text{opt}} \propto N^{-1}$ (Heisenberg limit). The $N$-scaling exponent $\alpha$ from $\Delta\omega_{\text{opt}} \propto N^\alpha$ satisfies $\alpha \leq -1.0$ for the optimal configuration, compared to $\alpha = -0.5$ for SQL.
+3. **$F_Q \propto N^2$ with $J_A = N/2$**: When both the system and ancilla scale with $N$ ($J_S = J_A = N/2$), the three O(N) classes compound to produce $F_Q \propto N^2$ scaling, that is, $\Delta\omega_{\text{opt}} \propto N^{-1}$ (Heisenberg limit). The $N$-scaling exponent $\alpha$ from $\Delta\omega_{\text{opt}} \propto N^\alpha$ satisfies $\alpha \leq -1.0$ for the optimal configuration, compared with $\alpha = -0.5$ for SQL.
 
 **Null hypotheses**:
 - The three classes destructively interfere or cancel, yielding no improvement over the individual protocols at $N=1$.
@@ -43,7 +43,7 @@ The total Hilbert space is $\mathcal{H}_{\text{tot}} = \mathcal{H}_S \otimes \ma
 - **$N>1$, $J_A = 1/2$ (Step 2)**: The system is an $N$-particle symmetric subspace (Dicke basis, dimension $N+1$, $J_S = N/2$) while the ancilla is a single particle (dimension 2, $J_A = 1/2$), giving $\dim\mathcal{H}_{\text{tot}} = 2(N+1)$.
 - **$N>1$, $J_A = N/2$ (Step 3)**: Both subsystems are $N$-particle symmetric subspaces (Dicke bases, dimension $N+1$ each, $J_S = J_A = N/2$), giving $\dim\mathcal{H}_{\text{tot}} = (N+1)^2$.
 
-The **angular momentum operators** satisfy $[J_i, J_j] = i \epsilon_{ijk} J_k$. For the spin-$1/2$ case, $J_k = \sigma_k/2$ (Pauli matrices). For the Dicke basis, $J_k$ are $(N+1)\times(N+1)$ matrices from $J_z(N)$, $J_x(N)$, $J_y(N)$ with descending eigenvalue ordering ($m = +J$ to $-J$). Operators are embedded via Kronecker products:
+The **angular momentum operators** satisfy $[J_i, J_j] = i \epsilon_{ijk} J_k$. For the spin-$1/2$ case, $J_k = \sigma_k/2$ (Pauli matrices). For the Dicke basis, $J_k$ are $(N+1)\times(N+1)$ matrices from $J_z(N)$, $J_x(N)$, $J_y(N)$ with descending eigenvalue ordering ($m = +J$ to $-J$). Operators are embedded by Kronecker products:
 
 - $J_k^S = J_k(\dim\mathcal{H}_S) \otimes \mathbb{1}_{\dim\mathcal{H}_A}$
 - $J_k^A = \mathbb{1}_{\dim\mathcal{H}_S} \otimes J_k(\dim\mathcal{H}_A)$
@@ -52,27 +52,27 @@ The **initial state** is a pure product state $\vert\Psi_0\rangle = \vert1,0\ran
 
 The **circuit protocol** follows the established four-step sequence:
 
-1. **Beam splitter on system only**: A 50/50 symmetric beam splitter acts on the system via $U_{\text{BS}}^{(S)} = \exp(-i(\pi/2) J_x^S)$, acting as identity on the ancilla. This converts the input Fock state into a coherent superposition.
+1. **Beam splitter on system only**: A 50/50 symmetric beam splitter acts on the system through $U_{\text{BS}}^{(S)} = \exp(-i(\pi/2) J_x^S)$, acting as identity on the ancilla. This converts the input Fock state into a coherent superposition.
 
 2. **Holding period**: The full state evolves under $H = H_S + H_A + H_{\text{int}}$ for duration $T_H = 10$ with:
    - $H_S = \omega J_z^S$ — the unknown phase rate encoded on the system,
    - $H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)$ — the $\omega$-modulated ancilla drive,
    - $H_{\text{int}} = \alpha_{xx} J_x^S J_x^A + \alpha_{xz} J_x^S J_z^A + \alpha_{zx} J_z^S J_x^A + \alpha_{zz} J_z^S J_z^A$ — the general 4-parameter interaction.
 
-   The hold unitary is $U_{\text{hold}}(T_H) = \exp(-i T_H H)$, computed via `scipy.linalg.expm`. Matrix dimensions range from $4\times4$ ($N=1$, Step 1) to $(N+1)^2 \times (N+1)^2$ ($N$-particle S and A, Step 3).
+   The hold unitary is $U_{\text{hold}}(T_H) = \exp(-i T_H H)$, computed by `scipy.linalg.expm`. Matrix dimensions range from $4\times4$ ($N=1$, Step 1) to $(N+1)^2 \times (N+1)^2$ ($N$-particle S and A, Step 3).
 
 3. **Second beam splitter on system only**: Same $U_{\text{BS}}^{(S)}$ as step 1.
 
 4. **Measurement**: $J_z^S = J_z \otimes \mathbb{1}$ is measured on the system. The expectation and variance are computed from the pure final state $\vert\Psi_{\text{final}}\rangle$.
 
-The **sensitivity** via error propagation is:
+We compute the **sensitivity** by error propagation:
 $\Delta\omega = \frac{\sqrt{\text{Var}(J_z^S)}}{\vert \partial\langle J_z^S\rangle / \partial\omega \vert},$
-where the derivative is computed via central finite differences with step $\delta = 10^{-6}$. The finite-difference captures the full $\omega$-dependence from both $H_S$ and $H_A$ automatically.
+where the derivative is computed by central finite differences with step $\delta = 10^{-6}$. The finite-difference captures the full $\omega$-dependence from both $H_S$ and $H_A$ automatically.
 
 The **standard quantum limit** for $N$ system particles with holding time $T_H$ is:
 $\Delta\omega_{\text{SQL}} = \frac{1}{\sqrt{N} \, T_H} = \frac{0.1}{\sqrt{N}}.$
 
-**Decoupled limit** ($a_x = a_y = a_z = 0$, $\alpha_{xx} = \alpha_{xz} = \alpha_{zx} = \alpha_{zz} = 0$): When all drive and interaction parameters are zero, the circuit reduces to the standard $N$-particle MZI. The evolution factorises and the sensitivity $\Delta\omega = 1/(\sqrt{N} T_H)$ is exactly the SQL. Recovery of this limit is a key validation check.
+**Decoupled limit** ($a_x = a_y = a_z = 0$, $\alpha_{xx} = \alpha_{xz} = \alpha_{zx} = \alpha_{zz} = 0$): When all drive and interaction parameters are zero, the circuit reduces to the standard $N$-particle Mach-Zehnder interferometer (MZI). The evolution factorises and the sensitivity $\Delta\omega = 1/(\sqrt{N} T_H)$ is exactly the SQL. Recovery of this limit is a key validation check.
 
 **Three O(N) classes — BCH analysis**: The second-order BCH expansion of $U_{\text{hold}} = \exp(-i T_H H)$ gives:
 
@@ -95,15 +95,15 @@ The **QFI** for a pure state $|\psi(\omega)\rangle$ generated by $H$ is $F_Q = 4
 
 ### Implementation Strategy
 
-1. **Operator construction** — For $N=1$, use $4\times4$ Kronecker products of Pauli matrices (reusing `src.analysis.ancilla_optimization.build_two_qubit_operators()`). For $N>1$, use $(N+1)\times(N+1)$ Dicke-basis operators from `src.physics.dicke_basis.jz_operator()`, `jx_operator()`, `jy_operator()`. Embed into the full space via Kronecker products. Construct $H_{\text{int}}$ from the four tensor-product operators $J_i^S J_j^A$ weighted by $\alpha_{ij}$.
+1. **Operator construction** — For $N=1$, use $4\times4$ Kronecker products of Pauli matrices (reusing `src.analysis.ancilla_optimization.build_two_qubit_operators()`). For $N>1$, use $(N+1)\times(N+1)$ Dicke-basis operators from `src.physics.dicke_basis.jz_operator()`, `jx_operator()`, `jy_operator()`. Embed into the full space by Kronecker products. Construct $H_{\text{int}}$ from the four tensor-product operators $J_i^S J_j^A$ weighted by $\alpha_{ij}$.
 
 2. **State preparation** — The initial state $\vert\Psi_0\rangle$ is the first computational basis vector: $[1, 0, \dots, 0]^T$ of length $\dim\mathcal{H}_{\text{tot}}$.
 
-3. **Beam-splitter unitary** — $U_{\text{BS}}^{(S)} = \exp(-i\pi/2 J_x^S) \otimes \mathbb{1}$, cached per $N$. Computed via `scipy.linalg.expm`.
+3. **Beam-splitter unitary** — $U_{\text{BS}}^{(S)} = \exp(-i\pi/2 J_x^S) \otimes \mathbb{1}$, cached per $N$. Computed by `scipy.linalg.expm`.
 
-4. **Hold unitary** — $U_{\text{hold}}(T_H) = \exp(-i T_H H)$ via `scipy.linalg.expm`. Hamiltonian is Hermitian-symmetrised $H \leftarrow \frac12(H + H^\dagger)$ after construction.
+4. **Hold unitary** — $U_{\text{hold}}(T_H) = \exp(-i T_H H)$ by `scipy.linalg.expm`. Hamiltonian is Hermitian-symmetrised $H \leftarrow \frac12(H + H^\dagger)$ after construction.
 
-5. **Sensitivity computation** — $\langle J_z^S \rangle$ and $\text{Var}(J_z^S)$ via vector-matrix-vector products. $\partial\langle J_z^S\rangle/\partial\omega$ via central finite differences with $\delta = 10^{-6}$, re-evaluating the full circuit at $\omega \pm \delta$.
+5. **Sensitivity computation** — $\langle J_z^S \rangle$ and $\text{Var}(J_z^S)$ by vector-matrix-vector products. $\partial\langle J_z^S\rangle/\partial\omega$ by central finite differences with $\delta = 10^{-6}$, re-evaluating the full circuit at $\omega \pm \delta$.
 
 6. **Optimisation** — The objective is $f(a_x, a_y, a_z, \alpha_{xx}, \alpha_{xz}, \alpha_{zx}, \alpha_{zz}) = \Delta\omega$ to be minimised. This is a **7-dimensional** parameter space. Use a two-stage approach:
    - **Stage 1**: Random search with 5000 points in $[-5, 5]^3 \times [-20, 20]^4$ for the 7D space (drive bounds $|a_k| \leq 5$ as in #20260519, interaction bounds $|\alpha_{ij}| \leq 20$ as in #20260521).
@@ -129,7 +129,7 @@ The **QFI** for a pure state $|\psi(\omega)\rangle$ generated by $H$ is $F_Q = 4
 | L-BFGS-B refinements per ($N$, $\omega$) | 200 | Stage 2 local refinement from top points |
 | 2D slice resolution (Step 1 only) | 201 $\times$ 201 | Landscape characterisation at $N=1$ |
 
-Total optimisation effort: Step 1 (50 $\omega$ values $\times$ (5000 random + 200 L-BFGS-B) = 260k evaluations), Step 2 (20 $N$ $\times$ 5 $\omega$ $\times$ (5000 + 200) = 520k evaluations), Step 3 (10 $N$ $\times$ 5 $\omega$ $\times$ (5000 + 200) = 260k evaluations). Total: $\sim 1$M circuit evaluations.
+Total optimisation effort: Step 1 (50 $\omega$ values $\times$ (5000 random + 200 L-BFGS-B) = 260,000 evaluations), Step 2 (20 $N$ $\times$ 5 $\omega$ $\times$ (5000 + 200) = 520,000 evaluations), Step 3 (10 $N$ $\times$ 5 $\omega$ $\times$ (5000 + 200) = 260,000 evaluations). Total: about 1 million circuit evaluations.
 
 ### Validation
 
@@ -157,9 +157,9 @@ All components below refer to code to be implemented in `reports/r20260616/gener
 - **4-parameter interaction Hamiltonian** — $H_{\text{int}} = \sum_{i,j} \alpha_{ij} J_i^S J_j^A$ with all four terms.
 - **State preparation** — $\vert\Psi_0\rangle$ as first basis vector.
 - **Beam-splitter unitary** — $\exp(-i\pi/2 J_x^S) \otimes \mathbb{1}$, cached per $N$.
-- **Hold unitary** — $\exp(-i T_H H)$ via `scipy.linalg.expm`.
+- **Hold unitary** — $\exp(-i T_H H)$ by `scipy.linalg.expm`.
 - **Full circuit evolution** — BS$_S$ $\to$ Hold $\to$ BS$_S$, with normalisation checks at every stage.
-- **Sensitivity computation** — $\Delta\omega = \sqrt{\text{Var}(J_z^S)} / \vert\partial\langle J_z^S\rangle/\partial\omega\vert$ via central finite differences.
+- **Sensitivity computation** — $\Delta\omega = \sqrt{\text{Var}(J_z^S)} / \vert\partial\langle J_z^S\rangle/\partial\omega\vert$ by central finite differences.
 - **7D random search** — 5000 points per ($N$, $\omega$) over the 7D parameter space.
 - **L-BFGS-B refinement** — 200 refinements per ($N$, $\omega$) from top random-search points.
 - **2D slice scan (Step 1)** — 201 $\times$ 201 grids for landscape visualisation at selected $\omega$.
@@ -184,7 +184,7 @@ All components below refer to code to be implemented in `reports/r20260616/gener
 | **L-BFGS-B convergence rate too low** — Fewer than 20% of refinement runs converge, indicating the landscape is too rough for gradient-based optimisation | Fall back to Nelder--Mead refinement (as in #20260519) for a subset of ($N$, $\omega$) pairs. Increase the number of random search points. Consider Bayesian optimisation or evolutionary strategies. |
 | **$N=1$ consistency check fails** — The optimiser does not recover the known #20260519 or #20260521 optima when parameters are constrained to those subsets | Debug the operator construction and circuit evolution before proceeding with full sweeps. Verify that the 7D code path reduces correctly when drive or interaction parameters are set to zero. |
 | **Class 2 term dominates destructively** — The $J_z^S J_z^A$ term generated by Class 2 may increase $\text{Var}(J_z^S)$ without increasing the derivative, worsening sensitivity | Check the variance-to-derivative ratio at the optimal point. If Class 2 creates noise without signal, its contribution can be suppressed by setting $a_y = 0$ or $\alpha_{zx} = 0$ in a control experiment. |
-| **Computational time for 1M circuit evaluations** — With $N$ up to 20 and $(N+1)^2$ dimensions up to $441 \times 441$, the matrix exponentiation becomes slower at large $N$ | Use parallel dispatch across ($N$, $\omega$) pairs. Pre-compute and cache the BS unitary per $N$. Estimate runtime: $\sim 1$M evaluations $\times$ 3 (central diff.) $\times$ 1 ms (at $N=20$) $\approx 50$ minutes serial, $\sim 5$ minutes with 10-way parallelisation. Monitor and report actual wall time. |
+| **Computational time for 1 million circuit evaluations** — With $N$ up to 20 and $(N+1)^2$ dimensions up to $441 \times 441$, the matrix exponentiation becomes slower at large $N$ | Use parallel dispatch across ($N$, $\omega$) pairs. Pre-compute and cache the BS unitary per $N$. Estimate runtime: about 1 million evaluations $\times$ 3 (central diff.) $\times$ 1 ms (at $N=20$) $\approx 50$ minutes serial, about 5 minutes with 10-way parallelisation. Monitor and report actual wall time. |
 
 ## 🔬 Results
 
@@ -201,12 +201,12 @@ All experiments use a holding time $T_H = 10$, giving an SQL reference of $\Delt
 | Step 3: $N$-scaling, $J_A = N/2$ (13 $N$ $\times$ 5 $\omega$) | FAIL | No $F_Q \propto N^2$; scaling exponents $\alpha \approx 0.09-0.34$ |
 | $F_Q$ scaling analysis | FAIL | $\alpha > 0$ for all $\omega$ in both Step 2 and Step 3 |
 
-### Decoupled Baseline
+### Decoupled baseline
 All 100 ($N$, $\omega$) pairs across the full $N$ range ($1$--$13$) and $\omega$ values ($0.1$--$2.0$) produce $\Delta\omega$ within $10^{-8}$ relative tolerance of the SQL $1/(\sqrt{N} \times 10)$. This confirms that the circuit evolution, operator construction, and finite-difference derivative are correct for both the fixed-ancilla ($J_A=1/2$) and full-ancilla ($J_A=N/2$) operator paths.
 
 **Key Finding**: The decoupled baseline passes for all configurations — the simulation is validated.
 
-### $N=1$ Consistency
+### $N=1$ consistency
 The combined protocol at $N=1$ was optimised at the two reference $\omega$ values from the individual protocols:
 
 | Regime | $\omega$ | $\Delta\omega_{\text{combined}}$ | Reference | Ratio $R$ | Result |
@@ -218,7 +218,7 @@ At $\omega=0.2$, the combined protocol achieves $\Delta\omega = 0.02025$, margin
 
 **Key Finding**: Both $N=1$ consistency checks **PASS** — the combined protocol improves upon both individual protocols, particularly in the 4-parameter interaction regime where the $\omega$-modulated drive adds a qualitatively new information channel.
 
-### $N=1$ Full $\omega$ Scan
+### $N=1$ full $\omega$ scan
 The 7D optimisation was run across 50 $\omega$ values from $0.1$ to $5.0$. Every $\omega$ value beats SQL (minimum ratio $R = 3.31$ at $\omega=4.6$, maximum $R = 5.51$ at $\omega=0.7$).
 
 | Metric | Value |
@@ -239,17 +239,17 @@ The optimal drive parameters saturate the $[-5, 5]$ bounds at many $\omega$ valu
 
 **Key Finding**: The combined protocol achieves $\Delta\omega$ as low as $0.01814$ at $N=1$ — a $5.51\times$ SQL violation — beating all previously reported single-particle protocols. The $\omega$-modulated drive and 4-parameter interaction complement each other across the full $\omega$ range.
 
-### $N=1$ 2D Slice Scans
+### $N=1$ 2D slice scans
 A 2D slice scan over $(\alpha_{xx}, \alpha_{zz})$ at $\omega=0.2$ with all drive and other $\alpha$ parameters set to zero confirms a critical structural insight: **without the drive ($a_x = a_y = a_z = 0$), the combined protocol never beats SQL**. The sensitivity $\Delta\omega$ equals exactly $0.1$ (SQL) only at $(\alpha_{xx}, \alpha_{zz}) = (0, 0)$ and degrades rapidly away from the origin, reaching $\Delta\omega > 10^5$ at large $|\alpha_{xx}|$ or $|\alpha_{zz}|$.
 
 This validates the BCH analysis: the Class 2 and Class 3 terms require the drive to be non-zero ($a_y \neq 0$, $a_x \neq 0$) to generate the cross-terms $[H_A, H_{\text{int}}]$. Without the drive, only Class 1 terms remain, and they alone are insufficient to produce SQL violation.
 
 ![2D slice: $\Delta\omega$ over $(\alpha_{xx}, \alpha_{zz})$ at $\omega=0.2$, $a=0$](figures/20260616-n1-2d-slice.svg)
 
-**Key Finding**: The drive is **necessary** for SQL violation — the $\alpha$ interaction alone (without drive) cannot beat SQL. This confirms the BCH structure: the $[H_A, H_{\text{int}}$ cross-terms (Classes 2 and 3) require both $H_A \neq 0$ and $H_{\text{int}} \neq 0$ simultaneously.
+**Key Finding**: The drive is **necessary** for SQL violation — the $\alpha$ interaction alone (without drive) cannot beat SQL. This confirms the BCH structure: the $[H_A, H_{\text{int}}]$ cross-terms (Classes 2 and 3) require both $H_A \neq 0$ and $H_{\text{int}} \neq 0$ simultaneously.
 
-### Step 2: $N$-Scaling with $J_A = 1/2$
-The fixed-ancilla ($J_A = 1/2$) N-scaling scan covers $N = 1$ to $13$ at five $\omega$ values ($0.1, 0.2, 0.5, 1.0, 2.0$). All 65 ($N$, $\omega$) pairs were optimised via 5000 random samples + L-BFGS-B refinement.
+### Step 2: $N$-scaling with $J_A = 1/2$
+The fixed-ancilla ($J_A = 1/2$) N-scaling scan covers $N = 1$ to $13$ at five $\omega$ values ($0.1, 0.2, 0.5, 1.0, 2.0$). All 65 ($N$, $\omega$) pairs were optimised with 5000 random samples + L-BFGS-B refinement.
 
 The ratio $R(N) = \Delta\omega_{\text{SQL}} / \Delta\omega_{\text{opt}}$ decays rapidly with $N$:
 
@@ -263,7 +263,7 @@ The ratio $R(N) = \Delta\omega_{\text{SQL}} / \Delta\omega_{\text{opt}}$ decays 
 | 10 | $1.02$ | $1.23$ | $0.86$ |
 | 13 | $0.82$ | $1.03$ | $0.68$ |
 
-By $N=8$, the mean ratio is essentially at SQL ($R \approx 1.09$). At $N=13$, only $2$ out of $5$ $\omega$ values beat SQL (and barely). The scaling exponents $\alpha$ from $\log\Delta\omega = \alpha\log N + C$ are **positive** for all $\omega$:
+By $N=8$, the mean ratio is essentially at SQL ($R \approx 1.09$). At $N=13$, only two out of five $\omega$ values beat SQL (and barely). The scaling exponents $\alpha$ from $\log\Delta\omega = \alpha\log N + C$ are **positive** for all $\omega$:
 
 | $\omega$ | $\alpha$ (Step 2) | Interpretation |
 |----------|------------------|----------------|
@@ -277,8 +277,8 @@ These positive exponents are **worse than SQL** ($\alpha = -0.5$) and **worse th
 
 **Key Finding**: Hypothesis 2 **FAILS** — the 4-parameter interaction does not arrest the $R(N)$ decay at $J_A = 1/2$. The scaling exponents are positive ($\alpha \approx 0.09$--$0.30$), meaning the optimiser finds progressively **worse** sensitivity relative to SQL as $N$ grows.
 
-### Step 3: $N$-Scaling with $J_A = N/2$
-The full-ancilla ($J_A = N/2$) N-scaling scan covers $N = 1$ to $13$ at five $\omega$ values. The search used adaptive random sampling (5000 samples for $N=1$, down to 100--200 for $N \ge 10$) with Nelder-Mead refinement for larger $N$.
+### Step 3: $N$-scaling with $J_A = N/2$
+The full-ancilla ($J_A = N/2$) N-scaling scan covers $N = 1$ to $13$ at five $\omega$ values. The search used adaptive random sampling (5000 samples for $N=1$, down to 100--200 for $N \ge 10$) with Nelder--Mead refinement for larger $N$.
 
 Some individual points achieve notable SQL violation at moderate $N$:
 
@@ -304,7 +304,7 @@ Notably, Step 3 exponents are systematically **larger** (more positive) than Ste
 
 **Key Finding**: Hypothesis 3 **FAILS** — the three O(N) BCH classes do not compound to produce $F_Q \propto N^2$. The scaling exponents are positive ($\alpha \approx 0.20$--$0.34$) for Step 3, and are systematically worse than Step 2. The optimiser fails to leverage the larger $J_A=N/2$ Hilbert space for better $N$-scaling.
 
-### $F_Q$ Scaling Analysis
+### $F_Q$ scaling analysis
 Scaling exponents are uniformly positive across both ancilla configurations and all $\omega$ values. This is the most striking negative result: the combined protocol's sensitivity **degrades** with $N$ rather than improving, even relative to the SQL baseline.
 
 ![Scaling exponents vs $\omega$: Step 2 ($J_A=1/2$) and Step 3 ($J_A=N/2$)](figures/20260616-scaling-exponents.svg)
@@ -331,7 +331,7 @@ Several factors likely contribute to this failure:
 - **Numerical validity** — Unitarity, Hermiticity, normalisation, variance positivity, derivative stability all verified across all simulation runs. All unitarity and Hermiticity assertions pass; variance is non-negative; finite-difference derivatives produce finite $\Delta\omega$. — **PASS**
 - **Parquet roundtrip** — All metadata fields survive serialisation/deserialisation; fail-fast on missing columns. Verified by roundtrip tests in `test_general_4param_omega_drive.py`. — **PASS**
 
-Of the 10 success criteria, **7 PASS** and **3 FAIL**. The three failures (Hypothesis 2: ratio improvement at $J_A=1/2$; Hypothesis 3: $F_Q \propto N^2$ at $J_A=N/2$; scaling analysis) are the central N-scaling predictions of the combined-protocol hypothesis. The N=1 results uniformly pass — the combined protocol works at the single-particle level — but the mechanism stubbornly refuses to scale. The most likely explanation is that the 7D optimisation landscape becomes intractable at larger N: the fixed random-search budget cannot explore a 7D hypercube whose relevant features scale with Hilbert space dimension. Increasing the search budget (e.g., 50,000 random samples) or using more sophisticated optimisation (Bayesian optimisation, evolutionary strategies) could potentially reveal the predicted $F_Q \propto N^2$ scaling, but the present results clearly show that the basic random-search + L-BFGS-B pipeline is insufficient at $N > 8$.
+Of the 10 success criteria, **seven PASS** and **three FAIL**. The three failures (Hypothesis 2: ratio improvement at $J_A=1/2$; Hypothesis 3: $F_Q \propto N^2$ at $J_A=N/2$; scaling analysis) are the central N-scaling predictions of the combined-protocol hypothesis. The N=1 results uniformly pass — the combined protocol works at the single-particle level — but the mechanism stubbornly refuses to scale. The most likely explanation is that the 7D optimisation landscape becomes intractable at larger N: the fixed random-search budget cannot explore a 7D hypercube whose relevant features scale with Hilbert space dimension. Increasing the search budget (e.g., 50,000 random samples) or using more sophisticated optimisation (Bayesian optimisation, evolutionary strategies) could potentially reveal the predicted $F_Q \propto N^2$ scaling, but the present results clearly show that the basic random-search + L-BFGS-B pipeline is insufficient at $N > 8$.
 
 ## ⚖️ Physical Invariants and Analytical Bounds
 
