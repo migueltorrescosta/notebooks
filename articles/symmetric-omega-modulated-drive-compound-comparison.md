@@ -10,7 +10,7 @@ In an $\omega$-modulated system--ancilla metrology protocol, does the ancilla ma
 
 The preceding report (#20260519) established that an ancilla-only $\omega$-modulated drive achieves $4.07\times$ below the Standard Quantum Limit with $N=2$ particles. The Ising interaction $a_{zz} J_z^S \otimes J_z^A$ was identified as the metrological engine: without it, no sub-SQL performance is possible. The ancilla qubit, driven at the unknown frequency $\omega$ and coupled to the system through $a_{zz}$, converts the $\omega$ signal into measurable population differences via BCH cross-terms.
 
-The natural follow-up is: what happens if the system qubit carries its own $\omega$-modulated drive? /newDoes it improve sensitivity, or does the ancilla already capture the available gain?
+The natural follow-up is: what happens if the system qubit carries its own $\omega$-modulated drive? Does it improve sensitivity, or does the ancilla already capture the available gain?
 
 This article answers that question through three acts:
 
@@ -24,7 +24,7 @@ The key insight in one sentence: the system's own drive is substantially more ef
 
 ---
 
-## 2. Physical Setup
+## 2. Physical setup
 
 **Scenario A (system-only, $N=1$):** The Hilbert space is $\mathcal{H}_S = \text{span}\{\vert0\rangle, \vert1\rangle\}$ with dimension 2. The basis convention maps $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). Operators are $J_k = \sigma_k/2$ (Pauli matrices divided by 2), with $J_z = \frac{1}{2}\text{diag}(1, -1)$. The initial state is $\vert0\rangle_S$.
 
@@ -34,7 +34,7 @@ The key insight in one sentence: the system's own drive is substantially more ef
 
 ---
 
-## 3. Circuit Protocol
+## 3. Circuit protocol
 
 **Scenario A (single-qubit MZI):**
 
@@ -56,7 +56,7 @@ The sensitivity is computed via the error-propagation formula $\Delta\omega = \s
 
 ---
 
-## 4. The $\omega$-Modulated Drive Hamiltonian
+## 4. The $\omega$-modulated drive Hamiltonian
 
 The Hamiltonian for Scenario B decomposes as $H = H_S + H_A + H_{\text{int}}$ where:
 
@@ -77,7 +77,7 @@ The Hamiltonian for Scenario B decomposes as $H = H_S + H_A + H_{\text{int}}$ wh
 
 ---
 
-## 5. Numerical Implementation
+## 5. Numerical implementation
 
 1. **Operator construction**: Kronecker products for Scenario B ($4\times 4$ matrices), direct $2\times 2$ matrices for Scenario A. Reuses `build_two_qubit_operators()` from `src.analysis.ancilla_optimization` for Scenario B.
 
@@ -91,7 +91,7 @@ The Hamiltonian for Scenario B decomposes as $H = H_S + H_A + H_{\text{int}}$ wh
 
 ---
 
-## 6. Parameter Space and Optimisation Strategy
+## 6. Parameter space and optimisation strategy
 
 Parameter vectors are sampled uniformly on the sphere $S^{d-1}(R=5)$ using the **Marsaglia method**: draw $d$ i.i.d. standard normal components per point, normalise to unit length, then scale by $R=5$. This guarantees every candidate has fixed total magnitude $R=5$, ensuring the comparison depends only on direction, not magnitude. Nelder--Mead refinement projects candidates back onto the sphere after each simplex step.
 
@@ -109,7 +109,7 @@ Parameter vectors are sampled uniformly on the sphere $S^{d-1}(R=5)$ using the *
 
 ## 7. Results
 
-### 7.1 Scenario A: The System-Only Surprise
+### 7.1 Scenario A: The system-only surprise
 
 Scenario A achieves sub-SQL sensitivity at **all 500 $\omega$ values** (using $N=1$ SQL of $1/t_{\text{hold}} = 0.1$). On the sphere $S^2(R=5)$, the QFI bound $\Delta\omega_Q = 1/(t_{\text{hold}} R) = 0.02$ is the theoretical optimum when all budget is allocated to the $x$-$z$ plane ($\rho = 1$). The optimiser achieves this optimum uniformly: $\Delta\omega = 0.020000$ at every $\omega$, giving a ratio of $5\times$ below the single-particle SQL.
 
@@ -127,7 +127,7 @@ The $a_y$ axis is omitted from parameter plots because $a_y$ drops out of the am
 
 *Figure 2: Optimal $(a_x, a_y, a_z)$ coloured by $\Delta\omega$, all on $S^2(R=5)$. All parameter norms are exactly $R=5$. The optimiser consistently finds $a_y = 0$ (budget in the $x$-$z$ plane), maximising the QFI-active fraction $\rho = (a_x^2+a_z^2)/R^2 = 1$.*
 
-### 7.2 Scenario B: The Compound Extension
+### 7.2 Scenario B: The compound extension
 
 Scenario B achieves sub-SQL sensitivity at all 500 $\omega$ values. On the sphere $S^3(R=5)$, the drive components and Ising coupling share a fixed budget: when $a_{zz} \neq 0$, the effective drive norm is $\sqrt{R^2 - a_{zz}^2} < R$. The best sensitivity is $\Delta\omega = 0.015866$ at $\omega = 0.01$, giving a ratio of $6.30\times$ below the single-particle SQL. The mean ratio across all $\omega$ is $5.07\times$.
 
@@ -143,7 +143,7 @@ The compound advantage at $\omega = 0.01$ is $\mathcal{R}_{\text{compound}} = 1.
 
 *Figure 4: Optimal $(a_x, a_z, a_{zz})$ coloured by $\Delta\omega$, all on $S^3(R=5)$. The $a_y$ axis is omitted for the same reason as in Scenario A. All parameter norms are exactly $R=5$.*
 
-### 7.3 Compound Ratio
+### 7.3 Compound ratio
 
 The compound ratio $\mathcal{R}_{\text{compound}} = \Delta\omega_A^{\text{opt}} / \Delta\omega_B^{\text{opt}}$ at each $\omega$ compares each scenario's independently optimised sensitivity. On the sphere, $\Delta\omega_A = 0.02$ uniformly, so $\mathcal{R}_{\text{compound}} = 0.02 / \Delta\omega_B^{\text{opt}}$:
 
@@ -163,7 +163,7 @@ The compound ratio $\mathcal{R}_{\text{compound}} = \Delta\omega_A^{\text{opt}} 
 
 *Figure 5: Compound ratio $\mathcal{R}_{\text{compound}} = \Delta\omega_A / \Delta\omega_B$ vs $\omega$. Values above 1 indicate Scenario B outperforms Scenario A at the same $\omega$. The best ratio is $1.2605\times$ at $\omega = 0.01$. B beats A in $82.4\%$ of $\omega$ values.*
 
-### 7.4 Cross-Protocol Comparison
+### 7.4 Cross-protocol comparison
 
 | Protocol | Sensitivity | Mechanism |
 |----------|-------------|-----------|
@@ -183,9 +183,9 @@ The mechanism difference is fundamental: #20260519 relies on BCH cross-terms $[\
 
 ---
 
-## 8. Analytical Understanding
+## 8. Analytical understanding
 
-### 8.1 Scenario A: Closed-Form Probability
+### 8.1 Scenario A: Closed-form probability
 
 Define $r = \sqrt{a_x^2 + a_y^2 + a_z^2}$, unit vector $\hat{n} = (a_x, a_y, a_z)/r$, and rotation angle $\theta = \omega\,t_{\text{hold}}\,r$. The hold unitary is $U_{\text{hold}} = e^{-i\theta\,\hat{n}\cdot\vec{\sigma}/2}$.
 
@@ -209,7 +209,7 @@ Note $a_y$ does not appear in $F_Q^{(A)}$ — the QFI is determined solely by dr
 
 The CFI for the binary $J_z$ measurement is $F_C^{(A)} = \rho\,r^2\,t_{\text{hold}}^2\,\cos^2(\theta/2) \big/ \bigl(1 - \rho\,\sin^2(\theta/2)\bigr)$. EP and CFI sensitivities are identical for this binary measurement.
 
-### 8.3 Scenario B: Block Diagonalisation
+### 8.3 Scenario B: Block diagonalisation
 
 **Basis choice**: Bell-like basis $\{\vert00\rangle, \vert{+}\rangle_m, \vert{-}\rangle_m, \vert11\rangle\}$ where $\vert{\pm}\rangle_m = (\vert01\rangle \pm \vert10\rangle)/\sqrt{2}$.
 
@@ -229,7 +229,7 @@ The CFI for the binary $J_z$ measurement is $F_C^{(A)} = \rho\,r^2\,t_{\text{hol
 
 **Closed-form subspace** ($a_x = a_y = 0$): $P_B(+)\big\vert_{a_x=a_y=0} = \frac{1}{2}\!\left(1 - \cos(\omega\,a_z\,t_{\text{hold}})\,\cos\!\left(\frac{a_{zz}\,t_{\text{hold}}}{2}\right)\right)$. Verification: at $a_{zz}=0$, this reduces to $P_A(+)$ with $a_x=a_y=0$.
 
-### 8.4 Scenario B: QFI and Resource-Counting Bound
+### 8.4 Scenario B: QFI and resource-counting bound
 
 The generator is $G_{\text{tot}} = G_S + G_A$ on different tensor factors. Since the post-BS state is a product state with Bloch vectors $(0,-1,0)$ on each subsystem, the cross-covariance vanishes: $\operatorname{Var}(G_{\text{tot}}) = \operatorname{Var}(G_S) + \operatorname{Var}(G_A) = (a_x^2+a_z^2)/2$.
 
@@ -241,7 +241,7 @@ The spectral-radius bound of $2\times$ overcounts because the BS-constrained sta
 
 The free-optimisation compound ratio $1.2605$ achieves $89\%$ of the $\sqrt{2}$ QFI bound, indicating that the $J_z^S$ measurement efficiently extracts most of the available improvement from the doubled particle number.
 
-### 8.5 Decoupled Limit and Consistency
+### 8.5 Decoupled limit and consistency
 
 At $a_{zz} = 0$: Scenario B separates into independent subsystems. $\Delta\omega_B(a_{zz}=0) = \Delta\omega_A$ to machine precision for the same $(a_x, a_y, a_z, \omega)$.
 
@@ -249,7 +249,7 @@ At $a_z = 1, a_x = a_y = a_{zz} = 0$: both scenarios recover $\Delta\omega = 1/t
 
 ---
 
-## 9. Related Work and Series
+## 9. Related work and series
 
 The three-protocol arc:
 
@@ -267,7 +267,7 @@ The narrative arc: #20260519 asked whether the ancilla matters — the answer wa
 
 ---
 
-## 10. Conclusions and Open Questions
+## 10. Conclusions and open questions
 
 ### 10.1 Summary
 
@@ -276,13 +276,13 @@ The narrative arc: #20260519 asked whether the ancilla matters — the answer wa
 - On the sphere, the ancilla provides marginal benefit in $82.4\%$ of $\omega$ values — a qualitatively different conclusion from hypercube sampling where the ancilla was detrimental at high $\omega$. The previous cube artefact arose because parameter saturation inflated Scenario A's sensitivity by allowing norms up to $\sqrt{75} \approx 8.66$.
 - Both scenarios beat SQL at every $\omega$ value ($500/500$ each).
 
-### 10.2 Direction Optimality on the Sphere
+### 10.2 Direction optimality on the sphere
 
 On the sphere $S^{d-1}(R=5)$, all parameter vectors have fixed total magnitude $R=5$. The question shifts from "how large can the parameters be?" to "which direction is optimal?" In Scenario A, the optimiser consistently finds $a_y = 0$ (budget in the $x$-$z$ plane), maximising the QFI-active fraction $\rho = (a_x^2+a_z^2)/R^2 = 1$. In Scenario B, the optimal direction includes a modest Ising coupling ($|a_{zz}| \approx 0.6$), trading off drive norm for interaction strength.
 
 The fixed-parameter ratio (fixed $a_x, a_z$ from Scenario A, swept $a_{zz}$) confirms this picture: the mean ratio is $0.601$ and only $3.6\%$ of $\omega$ values benefit. The interaction alone cannot outperform the jointly optimised direction — the improvement in Scenario B comes from the freedom to choose a different point on the sphere where the interaction complements the drive.
 
-### 10.3 Open Questions
+### 10.3 Open questions
 
 1. **Sphere-radius sweep**: How do the results depend on $R \in [1, 10]$? The QFI bound $1/(t_{\text{hold}} R)$ predicts sensitivity improves with $R$, but the compound ratio may saturate or reverse at different radii.
 2. **Multi-particle scaling**: Does the compound ratio scale with $N$? The $\sqrt{2}$ bound for $N=2$ suggests a $\sqrt{N}$ scaling, but this needs verification.
