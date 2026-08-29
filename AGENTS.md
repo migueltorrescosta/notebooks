@@ -1,8 +1,8 @@
-# Agent Instructions
+# Agent instructions
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
-## Quick Reference
+## Quick reference
 
 ```bash
 bd ready              # Find available work
@@ -12,11 +12,11 @@ bd close <id>         # Complete work
 bd dolt push          # Push beads data to remote
 ```
 
-## Non-Interactive Shell Commands
+## Non-interactive shell commands
 
-**ALWAYS use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
+**Always use non-interactive flags** with file operations to avoid hanging on confirmation prompts.
 
-Shell commands like `cp`, `mv`, and `rm` may be aliased to include `-i` (interactive) mode on some systems, causing the agent to hang indefinitely waiting for y/n input.
+Shell commands like `cp`, `mv`, and `rm` might be aliased to include `-i` (interactive) mode on some systems, causing you to wait indefinitely for a y/n prompt.
 
 **Use these forms instead:**
 ```bash
@@ -30,7 +30,7 @@ rm -rf directory            # NOT: rm -r directory
 cp -rf source dest          # NOT: cp -r source dest
 ```
 
-**Other commands that may prompt:**
+**Other commands that might prompt:**
 - `scp` - use `-o BatchMode=yes` for non-interactive
 - `ssh` - use `-o BatchMode=yes` to fail instead of prompting
 - `apt-get` - use `-y` flag
