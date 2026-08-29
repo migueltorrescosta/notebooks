@@ -2,7 +2,7 @@
 
 ## 🧪 Hypothesis
 
-For a system--ancilla pair of single-particle two-mode bosonic systems where both the system S and the ancilla A couple to the unknown phase rate $\omega$ via $H_S = \omega J_z^S$ and $H_A = \omega J_z^A$, and the system--ancilla interaction is the transverse (XX) type $H_{\text{int}} = \alpha_{xx} \, J_x^S \otimes J_x^A$, the sensitivity $\Delta\omega$ (error-propagation uncertainty in estimating $\omega$ via a $J_z^S$ measurement on the system after tracing out the ancilla) can **beat** the standard quantum limit (SQL) $\Delta\omega = 1/T_H$ despite using only $N=1$ particle in the interferometer. The holding time is fixed at $T_H = 10$ for all experiments, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 0.1$.
+For a system--ancilla pair of single-particle two-mode bosonic systems where both the system S and the ancilla A couple to the unknown phase rate $\omega$ through $H_S = \omega J_z^S$ and $H_A = \omega J_z^A$, and the system--ancilla interaction is the transverse (XX) type $H_{\text{int}} = \alpha_{xx} \, J_x^S \otimes J_x^A$, the sensitivity $\Delta\omega$ (error-propagation uncertainty in estimating $\omega$ by a $J_z^S$ measurement on the system after tracing out the ancilla) can **beat** the standard quantum limit (SQL) $\Delta\omega = 1/T_H$ despite using only $N=1$ particle in the interferometer. The holding time is fixed at $T_H = 10$ for all experiments, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 0.1$.
 
 The central hypothesis decomposes into three specific, testable claims:
 
@@ -28,7 +28,7 @@ $\vert01\rangle = \vert1,0\rangle_S \otimes \vert0,1\rangle_A$
 $\vert10\rangle = \vert0,1\rangle_S \otimes \vert1,0\rangle_A$
 $\vert11\rangle = \vert0,1\rangle_S \otimes \vert0,1\rangle_A$
 
-where $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). The **angular momentum operators** for each subsystem satisfy SU(2) algebra $[J_i, J_j] = i \epsilon_{ijk} J_k$ and are represented by $J_k = \sigma_k/2$ (the $2\times2$ Pauli matrices). These are embedded into the full space via Kronecker products: $J_k^S = \sigma_k/2 \otimes \mathbb{1}_2$ and $J_k^A = \mathbb{1}_2 \otimes \sigma_k/2$.
+where $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). The **angular momentum operators** for each subsystem satisfy SU(2) algebra $[J_i, J_j] = i \epsilon_{ijk} J_k$ and are represented by $J_k = \sigma_k/2$ (the $2\times2$ Pauli matrices). These are embedded into the full space by Kronecker products: $J_k^S = \sigma_k/2 \otimes \mathbb{1}_2$ and $J_k^A = \mathbb{1}_2 \otimes \sigma_k/2$.
 
 The **initial state** is a pure product state $\vert\Psi_0\rangle = \vert1,0\rangle_S \otimes \vert1,0\rangle_A$, which is $\vert00\rangle$ in the computational basis.
 
@@ -57,9 +57,9 @@ The **circuit protocol** proceeds in six steps:
 The **complete evolution** is:
 $\vert\Psi_{\text{final}}\rangle = U_{\text{BS}}^{(S)} \, U_{\text{hold}}(T_H) \, U_{\text{BS}}^{(S)} \, \vert\Psi_0\rangle.$
 
-The **sensitivity** via **error propagation** is:
+The **sensitivity** by **error propagation** is:
 $\Delta\omega = \frac{\sqrt{\text{Var}(J_z^S)}}{\vert \partial\langle J_z^S\rangle / \partial\omega \vert},$
-where the derivative is computed via central finite differences with step $\delta = 10^{-6}$. The **standard quantum limit** for $N=1$ particle is $\Delta\omega_{\text{SQL}} = 1/T_H$, corresponding to the maximum QFI $F_Q = T_H^2$ for a single qubit under $J_z$ rotation.
+where the derivative is computed by central finite differences with step $\delta = 10^{-6}$. The **standard quantum limit** for $N=1$ particle is $\Delta\omega_{\text{SQL}} = 1/T_H$, corresponding to the maximum quantum Fisher information (QFI) $F_Q = T_H^2$ for a single qubit under $J_z$ rotation.
 
 **Physical mechanism**: In the interaction picture with respect to $H_0 = \omega(J_z^S + J_z^A)$, the interaction Hamiltonian becomes time-dependent:
 $H_{\text{int}}^I(t) = \alpha_{xx} \left[\cos(\omega t/2) J_x^S + \sin(\omega t/2) J_y^S\right] \otimes \left[\cos(\omega t/2) J_x^A + \sin(\omega t/2) J_y^A\right],$
@@ -73,11 +73,11 @@ Because $J_z^A$ is traced out, channel 1 contributes only through the system com
 
 **Decoupled limit ($\alpha_{xx} = 0$)**: When $H_{\text{int}} = 0$, the evolution factorises:
 $U_{\text{hold}} = e^{-i T_H \omega J_z^S} \otimes e^{-i T_H \omega J_z^A}.$
-The ancilla factor acts purely on the ancilla and is traced out, contributing nothing to $\langle J_z^S\rangle$ (since $\text{Tr}_A(e^{-i T_H \omega J_z^A} \vert 0\rangle\langle 0\vert_A e^{i T_H \omega J_z^A}) = \vert 0\rangle\langle 0\vert_A$, a pure phase shift on an eigenstate). The system factor gives the standard single-qubit MZI, so $\Delta\omega = 1/T_H = 0.1$. Recovery of this limit is a key validation check.
+The ancilla factor acts purely on the ancilla and is traced out, contributing nothing to $\langle J_z^S\rangle$ (since $\text{Tr}_A(e^{-i T_H \omega J_z^A} \vert 0\rangle\langle 0\vert_A e^{i T_H \omega J_z^A}) = \vert 0\rangle\langle 0\vert_A$, a pure phase shift on an eigenstate). The system factor gives the standard single-qubit Mach-Zehnder interferometer (MZI), so $\Delta\omega = 1/T_H = 0.1$. Recovery of this limit is a key validation check.
 
 ## 💻 Numerical Simulation
 
-### Implementation Strategy
+### Implementation strategy
 
 1. **Operator construction** — Build $J_z^S$, $J_z^A$, $J_x^S$, $J_x^A$, $J_y^S$, $J_y^A$ as $4\times4$ Kronecker products from Pauli matrices, reusing the existing `build_two_qubit_operators()` in `src.analysis.ancilla_optimization`. Construct $H_{\text{int}} = \alpha_{xx} J_x^S \otimes J_x^A$.
 
@@ -85,17 +85,17 @@ The ancilla factor acts purely on the ancilla and is traced out, contributing no
 
 3. **Beam-splitter unitaries** — The standard 50/50 symmetric BS is $U_{\text{BS}} = \exp(-i \pi/2 J_x)$. This acts only on the system: $U_{\text{BS}}^{(S)} = U_{\text{BS}} \otimes \mathbb{1}_2$.
 
-4. **Hold unitary** — Compute $U_{\text{hold}}(T_H) = \exp(-i T_H H)$ via `scipy.linalg.expm`, fast and exact for $4\times4$ matrices. The full Hamiltonian is $H = \omega(J_z^S + J_z^A) + \alpha_{xx} J_x^S \otimes J_x^A$.
+4. **Hold unitary** — Compute $U_{\text{hold}}(T_H) = \exp(-i T_H H)$ using `scipy.linalg.expm`, fast and exact for $4\times4$ matrices. The full Hamiltonian is $H = \omega(J_z^S + J_z^A) + \alpha_{xx} J_x^S \otimes J_x^A$.
 
 5. **Tracing out the ancilla** — For the two-qubit pure state $\vert\psi\rangle = [c_{00}, c_{01}, c_{10}, c_{11}]^T$ in the computational basis, the reduced density matrix of S is:
    $\rho_S = \begin{pmatrix} |c_{00}|^2 + |c_{01}|^2 & c_{00}c_{10}^* + c_{01}c_{11}^* \\ c_{10}c_{00}^* + c_{11}c_{01}^* & |c_{10}|^2 + |c_{11}|^2 \end{pmatrix}.$
    Since $J_z^S = \sigma_z/2 \otimes \mathbb{1}_2$ is block-diagonal in the ancilla index, the expectation $\langle J_z^S \rangle = \text{Tr}(\rho_S \cdot \sigma_z/2) = \frac12(|c_{00}|^2 + |c_{01}|^2 - |c_{10}|^2 - |c_{11}|^2)$ is identical whether computed on the full state or the reduced density matrix. However, the variance $\text{Var}(J_z^S)$ requires the reduced picture for correctness when the ancilla is entangled.
 
-6. **Sensitivity computation** — Compute $\langle J_z^S \rangle$ and $\text{Var}(J_z^S)$ from the post-trace reduced density matrix $\rho_S$. Compute $\partial\langle J_z^S\rangle / \partial\omega$ via central finite differences with $\delta = 10^{-6}$, re-evaluating the full circuit (including tracing) at $\omega \pm \delta$.
+6. **Sensitivity computation** — Compute $\langle J_z^S \rangle$ and $\text{Var}(J_z^S)$ from the post-trace reduced density matrix $\rho_S$. Compute $\partial\langle J_z^S\rangle / \partial\omega$ by central finite differences with $\delta = 10^{-6}$, re-evaluating the full circuit (including tracing) at $\omega \pm \delta$.
 
 7. **Optimisation** — Since the only free parameter is $\alpha_{xx} \in [0, 20]$, the "optimisation" reduces to a 1D scan at each $\omega$ value with sufficiently dense sampling. A grid of 2001 points ($\Delta\alpha = 0.01$) is computationally trivial and captures any oscillatory features in the sensitivity landscape.
 
-### Parameter Sweep
+### Parameter sweep
 
 | Parameter | Range | Purpose |
 |-----------|-------|---------|
@@ -129,10 +129,10 @@ The following physical invariants are verified throughout every simulation run:
 - **XX Interaction Hamiltonian** — $H_{\text{int}} = \alpha_{xx} J_x^S \otimes J_x^A$.
 - **State preparation** — Fixed $\vert00\rangle$ initial state.
 - **Beam-splitter unitaries** — $U_{\text{BS}} = \exp(-i\pi/2 J_x)$ on system only; identity on ancilla.
-- **Holding unitary** — $\exp(-i T_H [\omega(J_z^S + J_z^A) + \alpha_{xx} J_x^S \otimes J_x^A])$ via `scipy.linalg.expm`.
+- **Holding unitary** — $\exp(-i T_H [\omega(J_z^S + J_z^A) + \alpha_{xx} J_x^S \otimes J_x^A])$ using `scipy.linalg.expm`.
 - **Ancilla trace-out** — Explicit $2\times2$ reduced density matrix construction.
 - **Full circuit evolution** — BS$_S$ $\to$ Hold $\to$ BS$_S$ $\to$ Tr$_A$ $\to$ measurement.
-- **Sensitivity** — $\Delta\omega = \sqrt{\text{Var}(J_z^S)} / \vert\partial\langle J_z^S\rangle/\partial\omega\vert$ via central finite differences ($\delta = 10^{-6}$).
+- **Sensitivity** — $\Delta\omega = \sqrt{\text{Var}(J_z^S)} / \vert\partial\langle J_z^S\rangle/\partial\omega\vert$ by central finite differences ($\delta = 10^{-6}$).
 - **Grid scan** — 1D $\alpha_{xx}$ scan (2001 pts) $\times$ 50 $\omega$ values.
 - **Decoupled baseline** — $\alpha_{xx} = 0$ verification at all 50 $\omega$ values.
 - **Validation helpers** — Hermiticity, unitarity, trace preservation, SQL baseline recovery.
@@ -143,11 +143,11 @@ The following physical invariants are verified throughout every simulation run:
 
 | Failure | Expected Outcome | Actual Outcome |
 |---------|------------------|----------------|
-| **SQL bound holds for all $\alpha_{xx}$** | **Uncertain** — the XX coupling mechanism may or may not suffice | **Observed** — null hypothesis supported; $\Delta\omega \geq 0.1$ for all $\alpha_{xx} \in [0, 20]$ at all 50 $\omega$ values. The simplest ancilla phase encoding with XX coupling is insufficient to beat the SQL. |
-| **SQL violation requires large $\alpha_{xx}$** | **Possible** — strong coupling may be needed for appreciable entanglement | **Avoided** — the optimal $\alpha_{xx}^*$ is always $0.0$ (the decoupled limit). Any non-zero $\alpha_{xx}$ degrades sensitivity, with $\Delta\omega$ worsening by $1.5\times$ to $5.1\times$ SQL as $\alpha_{xx}$ increases. |
+| **SQL bound holds for all $\alpha_{xx}$** | **Uncertain** — the XX coupling mechanism might or might not suffice | **Observed** — null hypothesis supported; $\Delta\omega \geq 0.1$ for all $\alpha_{xx} \in [0, 20]$ at all 50 $\omega$ values. The simplest ancilla phase encoding with XX coupling is insufficient to beat the SQL. |
+| **SQL violation requires large $\alpha_{xx}$** | **Possible** — strong coupling might be needed for appreciable entanglement | **Avoided** — the optimal $\alpha_{xx}^*$ is always $0.0$ (the decoupled limit). Any non-zero $\alpha_{xx}$ degrades sensitivity, with $\Delta\omega$ worsening by $1.5\times$ to $5.1\times$ SQL as $\alpha_{xx}$ increases. |
 | **Sensitivity oscillates with $\alpha_{xx}$** | **Expected** — the XX coupling creates Rabi-like oscillations | **Observed** — $\Delta\omega(\alpha_{xx})$ oscillates with $\alpha_{xx}$ at fixed $\omega$, but the minimum is always at $\alpha_{xx} = 0$. The grid spacing $\Delta\alpha_{xx} = 0.01$ adequately resolves the oscillations. |
 | **Enhancement strongest at small $\omega$** | **Possible** — parallels the 2026-05-19 finding | **Not applicable** — no enhancement at any $\omega$. The sensitivity is uniformly SQL-limited for all $\omega$. |
-| **Fringe extremum** | **Expected** — some $\alpha_{xx}$ values may yield vanishing $\partial\langle J_z^S\rangle/\partial\omega$ | **Observed** — some $\alpha_{xx}$ values produce $\Delta\omega = \infty$ (flagged in data). The derivative at $\alpha_{xx}=0$ is always finite and yields $\Delta\omega = \text{SQL}$. |
+| **Fringe extremum** | **Expected** — some $\alpha_{xx}$ values might yield vanishing $\partial\langle J_z^S\rangle/\partial\omega$ | **Observed** — some $\alpha_{xx}$ values produce $\Delta\omega = \infty$ (flagged in data). The derivative at $\alpha_{xx}=0$ is always finite and yields $\Delta\omega = \text{SQL}$. |
 | **Decoupled baseline violated** | **Not expected** — independent evolution must recover SQL | **Avoided** — $\Delta\omega = 0.1$ exactly at $\alpha_{xx} = 0$ for all 50 $\omega$ values, confirming the numerical implementation is correct. |
 
 ## 🔬 Results
@@ -183,7 +183,7 @@ The $\Delta\omega(\alpha_{xx})$ curve oscillates due to the Rabi-like dynamics i
 
 The $\omega$ scan collects the optimal sensitivity (over $\alpha_{xx}$) for each of the 50 $\omega$ values:
 
-![XX-coupling sensitivity vs $\omega$](figures/20260520-xx-theta-scan.svg)
+![XX-coupling sensitivity versus $\omega$](figures/20260520-xx-theta-scan.svg)
 
 The optimal $\alpha_{xx}^*$ is **zero for all 50 $\omega$ values** — no non-zero XX coupling improves the sensitivity at any $\omega$ value tested. The achieved $\Delta\omega$ is uniformly $0.100000$ (the SQL) across the entire $\omega$ range.
 
@@ -265,8 +265,8 @@ The analytical bound predicted a possible enhancement for large $\alpha_{xx} T_H
 
 ### Comparison with prior reports
 
-- **2026-05-18** (fixed-drive, Ising coupling): Also found no SQL violation. The present result extends this negative finding to a different interaction type (XX vs Ising) and a different ancilla phase encoding scheme.
-- **2026-05-19** (phase-modulated drive, Ising coupling): Found SQL violation, with the enhancement coming from the *tunable direction* of the ancilla drive ($a_x J_x^A + a_y J_y^A$) combined with Ising coupling. The present result shows that simply making the ancilla "feel" $\omega$ via $H_A = \omega J_z^A$ is insufficient — non-commuting drive components (at least one of $a_x$ or $a_y$) and an interaction that preserves the signal (Ising-type rather than XX) are both necessary.
+- **2026-05-18** (fixed-drive, Ising coupling): Also found no SQL violation. The present result extends this negative finding to a different interaction type (XX versus Ising) and a different ancilla phase encoding scheme.
+- **2026-05-19** (phase-modulated drive, Ising coupling): Found SQL violation, with the enhancement coming from the *tunable direction* of the ancilla drive ($a_x J_x^A + a_y J_y^A$) combined with Ising coupling. The present result shows that simply making the ancilla "feel" $\omega$ through $H_A = \omega J_z^A$ is insufficient — non-commuting drive components (at least one of $a_x$ or $a_y$) and an interaction that preserves the signal (Ising-type rather than XX) are both necessary.
 
 ### Open items
 

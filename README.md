@@ -1,24 +1,24 @@
 # Miguel's Playground
 
-Streamlit apps + Jupyter notebooks for quantum physics simulations.
+Streamlit apps and Jupyter notebooks for quantum physics simulations.
 
-## UI Colour Scheme
+## UI color scheme
 
-The application uses a **semantic colour scheme** for consistent visual language across all pages. Each colour conveys meaning about the type of content being displayed.
+The application uses a semantic color scheme for consistent visual language across all pages. Each color conveys meaning about the type of content being displayed.
 
-### Semantic Colour Mapping
+### Semantic color mapping
 
-| Colour | Semantic Purpose | Usage |
-|--------|-------------------|-------|
-| `blue` | **PRIMARY** | Main page header, page title, key concepts |
-| `gray` | **SETUP/CONFIG** | Sidebar settings, configuration sections, parameter inputs |
-| `blue` | **METHODOLOGY** | Explanatory sections, methodology (consistent with PRIMARY) |
-| `green` | **RESULTS/SUCCESS** | Energy levels, computation results, positive outcomes, potential V(x) |
-| `orange` | **DATA/WARNING** | Raw data sections, intermediate steps, Likelihood, Ancillary sections |
-| `red` | **SUMMARY/CRITICAL** | Final results, conclusions, summaries, Evolution sections |
-| `violet` | **SPECIAL** | Ancilla systems, special quantum features (Density Matrix in MZI_Ancilla) |
+| Color | Semantic purpose | Usage |
+|-------|------------------|-------|
+| `blue` | PRIMARY | Main page header, page title, key concepts |
+| `gray` | SETUP/CONFIG | Sidebar settings, configuration sections, parameter inputs |
+| `blue` | METHODOLOGY | Explanatory sections, methodology (consistent with PRIMARY) |
+| `green` | RESULTS/SUCCESS | Energy levels, computation results, positive outcomes, potential V(x) |
+| `orange` | DATA/WARNING | Raw data sections, intermediate steps, Likelihood, Ancillary sections |
+| `red` | SUMMARY/CRITICAL | Final results, conclusions, summaries, Evolution sections |
+| `violet` | SPECIAL | Ancilla systems, special quantum features (Density Matrix in MZI_Ancilla) |
 
-### Usage in Code
+### Usage in code
 
 ```python
 # Page header (PRIMARY)
@@ -41,13 +41,13 @@ st.header("Summary", divider="red")
 st.header("Density Matrix", divider="violet")
 ```
 
-## Testing Conventions
+## Testing conventions
 
-### Slow Tests
+### Slow tests
 
-Tests that take longer than 5 seconds MUST be decorated with `@pytest.mark.slow`.
+Tests that take longer than 5 seconds must be decorated with `@pytest.mark.slow`.
 By default, slow tests are excluded via `addopts = "-m 'not slow'"` in `pyproject.toml`.
-To run all tests including slow ones:
+To run all the tests, including the slow ones:
 
 ```bash
 uv run pytest . -m "not slow"          # default: fast tests only
@@ -55,18 +55,18 @@ uv run pytest . -m slow                # slow tests only
 uv run pytest . -m ""                  # ALL tests (slow and fast)
 ```
 
-### Parquet Test Fixtures
+### Parquet test fixtures
 
-Tests that generate full-size Parquet datasets (e.g., `reports/r20260625/`) use
+Tests that generate full-size Parquet datasets (for example, `reports/r20260625/`) use
 pre-computed reference fixtures under `reports/*/tests/fixtures/` instead of
-regenerating data from scratch. To regenerate fixtures when data schemas change:
+regenerating data from scratch. To regenerate the fixtures when the data schemas change:
 
 ```bash
 uv run pytest . --regenerate-fixtures   # re-generates all fixtures
 ```
 
-Fixture files are committed to the repository. They become stale if data schemas
-change — run with `--regenerate-fixtures` in CI or locally when schemas are updated.
+The fixture files are committed to the repository. They become stale if the data schemas
+change. Run them with `--regenerate-fixtures` in CI or locally when the schemas are updated.
 
 ## Setup
 
@@ -79,7 +79,7 @@ uv pip install ipykernel
 python -m ipykernel install --user --name=playground
 ```
 
-## Dev Commands
+## Dev commands
 
 | Command | Description |
 |---------|-------------|
@@ -95,10 +95,10 @@ python -m ipykernel install --user --name=playground
 
 ## Projects
 
-- `pages/` — Streamlit pages (MZI simulations)
-- `src/` — Core physics modules
-- `jupyter/` — Notebooks by category
-- `mathematica/` — Mathematica notebooks
+- `pages/`: Streamlit pages (MZI simulations)
+- `src/`: Core physics modules
+- `jupyter/`: Notebooks by category
+- `mathematica/`: Mathematica notebooks
 
 ## Notebooks
 
@@ -107,7 +107,7 @@ python -m ipykernel install --user --name=playground
 jupyter notebook
 ```
 
-Add new kernels via `python -m ipykernel install --user --name=<name>`.
+Add new kernels with `python -m ipykernel install --user --name=<name>`.
 
 ## Mathematica
 

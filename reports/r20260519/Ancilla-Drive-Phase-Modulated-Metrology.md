@@ -1,6 +1,6 @@
-# Ancilla-Drive Phase-Modulated Metrology: Beating the SQL by Exposing the Ancilla Drive to the Unknown Phase
+# Ancilla-drive phase-modulated metrology: Beating the SQL by exposing the ancilla drive to the unknown phase
 
-## 🧪 Hypothesis
+## Hypothesis
 
 For a system--ancilla pair of single-particle two-mode bosonic systems where the system S couples to the unknown phase $\omega$ via $H_S = \omega J_z^S$, the ancilla A is driven **by the same unknown phase** during the holding period via a controllable local Hamiltonian $H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)$, and the system--ancilla interaction remains the Ising-type $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, the sensitivity $\Delta\omega$ (error-propagation uncertainty in estimating $\omega$ via a $J_z^S$ measurement on the system) can **beat** the standard quantum limit (SQL) $\Delta\omega = 1/T_H$ despite using only $N=1$ particle in the interferometer. The holding time is fixed at $T_H = 10$ for all experiments, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 0.1$.
 
@@ -16,7 +16,7 @@ The central hypothesis decomposes into three specific, testable claims:
 
 **Null hypothesis**: No combination of $(a_x, a_y, a_z, a_{zz})$ can produce $\Delta\omega < 1/T_H$ even with $\omega$-modulated ancilla drive. The system's $J=1/2$ spectral radius bound remains insurmountable.
 
-## ⚛️ Theoretical Model
+## Theoretical model
 
 The total Hilbert space is $\mathcal{H}_{\text{tot}} = \mathcal{H}_S \otimes \mathcal{H}_A$, where each subsystem is a **two-mode bosonic Fock space** truncated at one particle per mode. The single-particle sector $\mathcal{H}_{1} = \text{span}\{\vert1,0\rangle,\, \vert0,1\rangle\}$ (dimension 2) is isomorphic to a spin-$1/2$, and the full space has dimension 4 with ordered computational basis $\{\vert00\rangle, \vert01\rangle, \vert10\rangle, \vert11\rangle\}$ where $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). The **angular momentum operators** for each subsystem satisfy SU(2) algebra $[J_i, J_j] = i \epsilon_{ijk} J_k$ and are represented by $J_k = \sigma_k/2$ (the $2\times2$ Pauli matrices). These are embedded into the full space via Kronecker products: $J_k^S = \sigma_k/2 \otimes \mathbb{1}_2$ and $J_k^A = \mathbb{1}_2 \otimes \sigma_k/2$.
 
@@ -62,9 +62,9 @@ In the interaction picture, the $\omega$-dependence of $H_A$ means the time-depe
 
 **Key contrast with prior work (2026-05-18)**: In the prior report, $H_A$ was independent of $\omega$, so any enhancement had to come purely from the non-commuting structure of $J_z^A(t)$ with $H_A$ at fixed amplitude. Here, the drive amplitude scales with $\omega$, giving a **parametric gain**: as $\omega$ increases, both the signal ($H_S$) and the ancilla readout amplification ($H_A$) grow together. This is analogous to a feedback-amplified measurement where the unknown parameter boosts its own signal.
 
-## 💻 Numerical Simulation
+## Numerical simulation
 
-### Implementation Strategy
+### Implementation strategy
 
 1. **Operator construction** — Build $J_z^S$, $J_z^A$, $J_x^S$, $J_x^A$, $J_y^S$, $J_y^A$ as $4\times4$ Kronecker products from Pauli matrices, reusing the existing `build_two_qubit_operators()` in `src.analysis.ancilla_optimization`. Construct $H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)$ where $\omega$ is the evaluation-phase parameter. Construct $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$. The total hold Hamiltonian is $H = \omega J_z^S + H_A + H_{\text{int}} = \omega\big[J_z^S + a_x J_x^A + a_y J_y^A + a_z J_z^A\big] + a_{zz} J_z^S \otimes J_z^A$.
 
@@ -80,7 +80,7 @@ In the interaction picture, the $\omega$-dependence of $H_A$ means the time-depe
 
 7. **Store optimal parameters** — For each $\omega$ value, record the full tuple of optimal parameters $(a_x^*, a_y^*, a_z^*, a_{zz}^*)$ together with the achieved $\Delta\omega(\omega)$, the expectation $\langle J_z^S\rangle$, the variance $\text{Var}(J_z^S)$, and the derivative $\partial\langle J_z^S\rangle/\partial\omega$. These per-$\omega$ optimal configurations are stored for later analysis of how the optimal drive depends on the unknown phase.
 
-### Parameter Sweep
+### Parameter sweep
 
 | Parameter | Range | Purpose |
 |-----------|-------|---------|
@@ -116,7 +116,7 @@ The following physical invariants are verified throughout every simulation run:
 - **Commutation relation**: $[J_z^S, J_x^S] = i J_y^S$ is verified to machine precision.
 - **Hermiticity**: Both $H_A$ and $H_{\text{int}}$ satisfy $H^\dagger = H$.
 
-#### 🔧 Implementation Status (All Complete ✅)
+#### Implementation status (all complete)
 
 - **Operator construction** — Pauli matrices, $J_z$, $J_x$, $J_y$ as $4\times4$ Kronecker products (reuses existing `build_two_qubit_operators()`).
 - **Ancilla drive Hamiltonian** — $H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)$ (modified from original: $\omega$ factor multiplies the drive).
@@ -135,7 +135,7 @@ The following physical invariants are verified throughout every simulation run:
 
 **Tests**: The companion test module `tests/test_ancilla_drive_phase_modulated.py` contains **51 tests** covering all functionality. All tests pass.
 
-## ⚠️ Failure Conditions — Actual Outcomes
+## Failure conditions — Actual outcomes
 
 | Failure | Expected Outcome | Actual Outcome |
 |---------|------------------|----------------|
@@ -147,11 +147,11 @@ The following physical invariants are verified throughout every simulation run:
 | **Optimal $a_z$-only drive** | **Possible** — commuting drive may suffice | **Avoided**: All optimal solutions have $a_x \neq 0$ and/or $a_y \neq 0$; $a_z$-only solutions do not appear |
 | **Phase-dependent sensitivity** | **Expected** — optimal $a_k$ should depend on $\omega$ | **Confirmed**: Optimal parameters vary significantly with $\omega$ (e.g., $a_z^*$ varies from 5.0 at $\omega=0.1$ to 0.0 at $\omega=5.0$). Adaptive strategies needed. |
 
-## 🔬 Results
+## Results
 
 All experiments used a holding time $T_H = 10$, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$. The 2D slices were computed on 201×201 grids (40,401 points per slice, 100 slices × 40,401 = 4,040,100 evaluations). The 4D random search used 500 points per $\omega$ value (50 × 500 = 25,000 total), and the Nelder--Mead refinement refined the best 50 random-search points per $\omega$ value (50 × 50 = 2,500 refinement runs total). The fine $\omega$ scan used 500 $\omega$ values from 0.01 to 5.00 (step 0.01), each with 4D random search (500 pts) plus Nelder--Mead refinement.
 
-### Decoupled Baseline
+### Decoupled baseline
 
 The decoupled configuration $(a_x, a_y, a_z, a_{zz}) = (0, 0, 0, 0)$ gives $\Delta\omega = 0.1000000000$, which matches the SQL exactly:
 
@@ -161,7 +161,7 @@ The decoupled configuration $(a_x, a_y, a_z, a_{zz}) = (0, 0, 0, 0)$ gives $\Del
 
 **Status: PASS** — The decoupled baseline recovers the standard single-qubit MZI, confirming the simulation infrastructure works correctly.
 
-### 2D Slice: $(a_x, a_{zz})$
+### 2D slice: $(a_x, a_{zz})$
 
 201×201 grids over $a_x \in [-5, 5]$ and $a_{zz} \in [-5, 5]$ at 50 $\omega$ values (100 slices total). All 50 $\omega$ values produced SQL violation. The full trend across $\omega$ is shown below.
 
@@ -179,19 +179,19 @@ The best result across both $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices was:
 - The optimal $a_x$ is always at a large magnitude ($\vert a_x\vert \approx 4\text{--}5$), confirming the **non-commuting drive is essential** — $a_y = a_z = 0$ in these scans, so $[H_A, J_z^A] \neq 0$ is sufficient.
 - The enhancement is **strongest at small $\omega$**: at $\omega = 0.1$, the best $\Delta\omega$ is nearly $5\times$ below SQL. The full 50-$\omega$ scan confirms this trend continues monotonically from $\omega=0.1$ to $\omega=5.0$, with the best $\Delta\omega$ increasing (worsening) as $\omega$ increases.
 
-### 2D Slice: $(a_y, a_{zz})$
+### 2D slice: $(a_y, a_{zz})$
 
 201×201 grids over $a_y \in [-5, 5]$ and $a_{zz} \in [-5, 5]$ at 50 $\omega$ values. Results are nearly identical to the $(a_x, a_{zz})$ slice (see the combined-sensitivity figure above) — confirming symmetry between the $J_x^A$ and $J_y^A$ drive components.
 
 The symmetry between $a_x$ and $a_y$ slices confirms that any non-commuting drive component (either $J_x^A$ or $J_y^A$) is sufficient to generate the enhancement. The slight numerical differences (e.g., 16,058 vs 16,071 below SQL at $\omega=1.0$) are within expected floating-point variation due to the different sampling grids. The 50-$\omega$ resolution confirms this symmetry holds across the full $\omega$ range.
 
-### 4D Random Search
+### Random search in 4D
 
 500 random points in $[-5, 5]^4$ for each of the 50 $\omega$ values (25,000 total evaluations). All 50 $\omega$ values produced SQL violation. The full distribution across $\omega$ is shown below. The key trend is that the fraction of random points below SQL drops from 50.4% at $\omega = 0.1$ to 3.6% at $\omega = 5.0$, confirming that the enhancement window narrows as the effective drive strength increases.
 
 ![Fraction of random search points below SQL across $\omega$](figures/20260519-phase-fraction-below-sql.svg)
 
-### Longitudinal-Only $(a_z, a_{zz})$ Verification
+### Longitudinal-only $(a_z, a_{zz})$ verification
 
 The article (Sec 7.4) describes extracting the optimal $(a_z, a_{zz})$ from the 4D random search. To clarify the role of transverse drives, we perform a dedicated verification scan:
 
@@ -200,7 +200,7 @@ The article (Sec 7.4) describes extracting the optimal $(a_z, a_{zz})$ from the 
 
 **Status: PASS** — Longitudinal-only case never beats SQL, consistent with the analytical prediction of Sec 8.1.
 
-### Nelder--Mead Refinement and $\omega$ Scan
+### Nelder--Mead refinement and $\omega$ scan
 
 The $\omega$ scan combines 4D random search (500 pts) with Nelder--Mead refinement (top 50 points) at each of the 500 $\omega$ values from $\omega = 0.01$ to $\omega = 5.00$ (step 0.01). The refined results are the **best achieved across the entire parameter search**.
 
@@ -210,7 +210,7 @@ The $\omega$ scan combines 4D random search (500 pts) with Nelder--Mead refineme
 
 The best overall sensitivity is $\Delta\omega = 0.017388$ at $\omega = 0.06$, which is **5.75× below the SQL**. All 500 $\omega$ values from $\omega = 0.01$ to $\omega = 5.00$ beat the SQL (100%), and Nelder--Mead refinement consistently improves the random-search best by 10–20%.
 
-### Optimal Parameter Dependence on $\omega$
+### Optimal parameter dependence on $\omega$
 
 The optimal parameters show clear systematic trends:
 
@@ -224,7 +224,7 @@ The optimal parameters show clear systematic trends:
 
 5. **Comparison with fixed-drive (2026-05-18)**: See the dedicated subsection below.
 
-### Comparison with Fixed-Drive (2026-05-18)
+### Comparison with fixed-drive (2026-05-18)
 
 ![Comparison between $\omega$-modulated and fixed-drive protocols](figures/20260519-phase-cross-experiment-comparison.svg)
 
@@ -241,7 +241,7 @@ The fixed-drive protocol achieves $\Delta\omega = 0.1$ (exactly SQL) for all $\o
 | Nelder--Mead refinement (2,500 runs) | **Completed** (50 $\omega$ values) | Best $\Delta\omega = 0.02036$ ($\omega=0.2$), 0.204× SQL |
 | $\omega$ scan (500 values) | **Completed** | All 500 $\omega$ values beat SQL; best at $\omega=0.06$ ($\Delta\omega=0.017388$, 5.75× SQL) |
 
-## ✅ Success Criteria — Actual Outcomes
+## Success criteria — Actual outcomes
 
 | Criterion | Expected | Actual | Verdict |
 |-----------|----------|--------|---------|
@@ -254,7 +254,7 @@ The fixed-drive protocol achieves $\Delta\omega = 0.1$ (exactly SQL) for all $\o
 | **Finite derivative** | $\vert\partial\langle J_z^S\rangle/\partial\omega\vert > 10^{-12}$ | All reported $\Delta\omega$ finite | **PASS** |
 | **Optimal params recorded** | Full tuple per $\omega$ | 500 optimal tuples recorded in Parquet | **PASS** |
 
-## ⚖️ Analytical Bounds
+## Analytical bounds
 
 For the decoupled case ($a_{zz} = 0$), the total Hamiltonian is:
 $H = \omega J_z^S + \omega(a_x J_x^A + a_y J_y^A + a_z J_z^A) = \omega\big[J_z^S + a_x J_x^A + a_y J_y^A + a_z J_z^A\big].$
@@ -281,7 +281,7 @@ However, this is a crude estimate — the actual sensitivity depends on how $H_{
 
 **Numerical prediction vs. actual outcome**: We predicted $\Delta\omega < 0.1$ for some region of the $(a_x, a_y, a_z, a_{zz})$ parameter space — **confirmed**. The prediction of strongest enhancement at large $\vert a_{zz}\vert$ and large $\vert a_x\vert, \vert a_y\vert$ — **confirmed**. The $\omega$-dependence prediction was **partially incorrect**: we expected minimal enhancement at small $\omega$ and maximal at large $\omega$, but the actual result shows the best enhancement at $\omega = 0.06$ (ratio 0.174), with a non-monotonic trend including local minima near $\omega \approx 0.15$ and $\omega \approx 0.23$. The predicted optimal $\omega$ range $\omega \sim 1\text{--}5$ was too high; the true optimum is at $\omega \approx 0.06$. The predicted $\Delta\omega$ value of $\sim 0.02$ at optimal parameters was **remarkably accurate**: the actual best is $0.0174$.
 
-## 🏁 Conclusions
+## Conclusions
 
 The $\omega$-modulated ancilla drive protocol **unequivocally beats the standard quantum limit**, confirming the central hypothesis. The null hypothesis — that no combination of $(a_x, a_y, a_z, a_{zz})$ can produce $\Delta\omega < 1/T_H$ — is **rejected**.
 
