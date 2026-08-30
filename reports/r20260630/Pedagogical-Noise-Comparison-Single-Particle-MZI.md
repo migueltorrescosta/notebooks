@@ -1,4 +1,4 @@
-# Pedagogical Noise Comparison in a Single-Particle MZI: Phase Diffusion vs One-Body Loss
+# Pedagogical Noise Comparison in a Single-Particle MZI: Phase Diffusion versus One-Body Loss
 
 ## 🧪 Hypothesis
 
@@ -25,7 +25,7 @@ The **Hilbert space** is a two-mode bosonic Fock space truncated at one photon p
 
 The **input state** is $\vert\psi_0\rangle = \vert 1,0\rangle$ (one particle in mode 0, vacuum in mode 1). The **beam splitter** is 50:50: $U_{\text{BS}} = \exp(-i(\pi/4)(a_0^\dagger a_1 + a_1^\dagger a_0))$. In the physical subspace, $U_{\text{BS}}$ maps $\vert 1,0\rangle \to (\vert 1,0\rangle + i\vert 0,1\rangle)/\sqrt{2}$, creating an equal superposition of the particle being in either arm.
 
-**Conventions** — Phase is encoded via $H = \omega J_z$ with generator $J_z = (n_1 - n_2)/2$ acting on mode 1 (the second arm). The beam-splitter unitary uses the standard $\pi/4$ convention for 50:50 splitting. All quantities are dimensionless ($\hbar = 1$).
+**Conventions** — Phase is encoded by $H = \omega J_z$ with generator $J_z = (n_1 - n_2)/2$ acting on mode 1 (the second arm). The beam-splitter unitary uses the standard $\pi/4$ convention for 50:50 splitting. All quantities are dimensionless ($\hbar = 1$).
 
 The **holding period** evolves the system under the Lindblad master equation for duration $t_{\text{hold}}$:
 
@@ -50,11 +50,11 @@ The **measurement** is $M = J_z = (n_1 - n_2)/2$ on the final state. For a mixed
 
 $\langle J_z \rangle = \operatorname{Tr}(J_z \rho_{\text{final}})$, $\operatorname{Var}(J_z) = \operatorname{Tr}(J_z^2 \rho_{\text{final}}) - \operatorname{Tr}(J_z \rho_{\text{final}})^2.$
 
-The **sensitivity** via error propagation:
+The **sensitivity** by error propagation:
 
 $\Delta\omega = \sqrt{\operatorname{Var}(J_z)} / \big\vert\partial\langle J_z\rangle/\partial\omega\big\vert,$
 
-with the derivative computed via central finite differences $\delta = 10^{-6}$, re-evaluating the full Lindblad evolution at $\omega \pm \delta$. The **standard quantum limit** for a single particle is $\Delta\omega_{\text{SQL}} = 1/t_{\text{hold}}$.
+with the derivative computed by central finite differences $\delta = 10^{-6}$, re-evaluating the full Lindblad evolution at $\omega \pm \delta$. The **standard quantum limit (SQL)** for a single particle is $\Delta\omega_{\text{SQL}} = 1/t_{\text{hold}}$.
 
 **Units**: Dimensionless throughout ($\hbar = 1$). $\omega$ is the phase rate, $t_{\text{hold}}$ is the holding time, $\gamma_\phi$, $\gamma_1$ are noise rates in units of inverse time.
 
@@ -62,9 +62,9 @@ with the derivative computed via central finite differences $\delta = 10^{-6}$, 
 
 ## 💻 Numerical Simulation
 
-### Implementation Strategy
+### Implementation strategy
 
-1. **Operator construction** — Build creation and annihilation operators $a_0, a_1, a_0^\dagger, a_1^\dagger$ in the two-mode Fock basis (dimension 4) via tensor products of single-mode ladder operators. Construct $J_z = (n_1 - n_2)/2$ and the beam-splitter unitary $U_{\text{BS}} = \exp(-i(\pi/4)(a_0^\dagger a_1 + a_1^\dagger a_0))$ via matrix exponentiation (`scipy.linalg.expm`).
+1. **Operator construction** — Build creation and annihilation operators $a_0, a_1, a_0^\dagger, a_1^\dagger$ in the two-mode Fock basis (dimension 4) by tensor products of single-mode ladder operators. Construct $J_z = (n_1 - n_2)/2$ and the beam-splitter unitary $U_{\text{BS}} = \exp(-i(\pi/4)(a_0^\dagger a_1 + a_1^\dagger a_0))$ by matrix exponentiation (`scipy.linalg.expm`).
 
 2. **Initial state** — $\vert 1,0\rangle$ as a 4-component complex vector, converted to a pure density matrix $\rho_0 = \vert 1,0\rangle\langle1,0\vert$ for input to the Lindblad solver.
 
@@ -90,7 +90,7 @@ with the derivative computed via central finite differences $\delta = 10^{-6}$, 
 
 6. **Result dataclass** — A structured container storing all input parameters ($\omega$, $t_{\text{hold}}$, $\gamma_\phi$, $\gamma_1$, $T_H$, SQL, $\delta$, seed) alongside computed results ($\langle J_z\rangle$, $\operatorname{Var}(J_z)$, $\partial\langle J_z\rangle/\partial\omega$, $\Delta\omega$, $\Delta\omega/\text{SQL}$). Serialised with full self-describing metadata (all input parameters alongside computed columns) for complete reproducibility.
 
-### Parameter Sweeps
+### Parameter sweeps
 
 **Sweep A — Holding-time degradation curves**
 
@@ -119,7 +119,7 @@ with the derivative computed via central finite differences $\delta = 10^{-6}$, 
 | $t_{\text{hold}}$ | $\pi/2 \approx 1.57$ (mid-fringe) | Fixed operating point with maximal derivative |
 | $\omega$ | $1.0$ (fixed) | Same true phase rate |
 
-Total circuit evaluations: $(200 \times 4) + (30 \times 3) + (40 \times 40) = 800 + 90 + 1600 = 2490$ configurations, each requiring 3 Lindblad calls (finite-difference derivative) = 7470 solver runs. Feasible in ~seconds on a 4D Hilbert space.
+Total circuit evaluations: $(200 \times 4) + (30 \times 3) + (40 \times 40) = 800 + 90 + 1600 = 2490$ configurations, each requiring 3 Lindblad calls (finite-difference derivative) = 7470 solver runs. Feasible in a few seconds on a 4D Hilbert space.
 
 ### Validation
 
@@ -131,11 +131,11 @@ Total circuit evaluations: $(200 \times 4) + (30 \times 3) + (40 \times 40) = 80
 - **Loss-only CSS limit**: As $\gamma_1 \to \infty$, the particle is lost with certainty ($\rho \to \vert 0,0\rangle\langle0,0\vert$), giving $\langle J_z\rangle = 0$ and $\Delta\omega \to \infty$.
 - **Finite-difference stability**: $\delta = 10^{-6}$ validated against analytical formula at $\gamma = 0$; relative difference $< 10^{-8}$.
 
-### Implementation Status
+### Implementation status
 
-- **Operator construction** — $a_0, a_1, a_0^\dagger, a_1^\dagger$ in 4D two-mode Fock basis via tensor products of single-mode ladder operators. Reuses existing operator tests.
-- **Beam-splitter unitary** — $U_{\text{BS}} = \exp(-i(\pi/4)(a_0^\dagger a_1 + a_1^\dagger a_0))$ via matrix exponentiation. Unitarity check.
-- **Lindblad evolution** — $H = \omega J_z$ + noise via Lindblad master equation (QuTiP `mesolve`). Trace, Hermiticity, positivity assertions; reuses existing Lindblad tests.
+- **Operator construction** — $a_0, a_1, a_0^\dagger, a_1^\dagger$ in 4D two-mode Fock basis by tensor products of single-mode ladder operators. Reuses existing operator tests.
+- **Beam-splitter unitary** — $U_{\text{BS}} = \exp(-i(\pi/4)(a_0^\dagger a_1 + a_1^\dagger a_0))$ by matrix exponentiation. Unitarity check.
+- **Lindblad evolution** — $H = \omega J_z$ plus noise through the Lindblad master equation (QuTiP `mesolve`). Trace, Hermiticity, positivity assertions; reuses existing Lindblad tests.
 - **Sensitivity computation** — Error-propagation $\Delta\omega = \sqrt{\text{Var}(J_z)} / \vert\partial\langle J_z\rangle/\partial\omega\vert$ with central finite differences. Clean-baseline recovery ($\Delta\omega \times t_{\text{hold}} = 1$).
 - **Sweep orchestrators** — Three sweep functions (A: $t_{\text{hold}}$ scan, B: $\gamma$ scan, C: 2D landscape) generating Parquet files. Roundtrip, metadata completeness, fail-fast deserialization.
 - **2D heatmap visualization** — $\gamma_\phi \times \gamma_1$ landscape with colour scale and contour lines. Figure generation test.
@@ -162,12 +162,12 @@ All three sweeps (A, B, C) completed successfully. 63/63 tests pass. Raw data sa
 | Dephasing degrades faster than loss at equal $\gamma$ (large $t_{\text{hold}}$) | PASS |
 | Optimal $t_{\text{hold}}^*$ exists for each $\gamma > 0$ | PASS |
 | Dephasing $t_{\text{hold}}^*$ < Loss $t_{\text{hold}}^*$ at equal $\gamma$ | FAIL |
-| 2D landscape shows distinct contours for dephasing vs loss axes | PASS |
+| 2D landscape shows distinct contours for dephasing versus loss axes | PASS |
 | Trace, Hermiticity, positivity pass for $>99\%$ of evaluations | PASS |
 | Parquet roundtrip with full metadata | PASS |
 | Fail-fast on missing Parquet columns | PASS |
 
-### E1 — Holding-Time Degradation Curves (Sweep A)
+### E1 — Holding-time degradation curves (Sweep A)
 
 ![Degradation curves](figures/20260630-degradation-curves.svg)
 
@@ -182,17 +182,17 @@ Four curves at fixed $\gamma = 0.1$, $t_{\text{hold}} \in [0.1, 100]$ (200 log-s
 | Loss | $[0.103, 12.265]$ | $[1.036, 461.2]$ | $20.255$ | $0.103$ |
 | Both | $[0.225, 311.040]$ | $[1.108, 31104.0]$ | $10.844$ | $0.225$ |
 
-At large $t_{\text{hold}} > 10$, dephasing produces substantially worse sensitivity than loss — mean ratio 46.6 vs 33.0 ($\sim 41\%$ larger), confirming that dephasing attacks the interference contrast more effectively. The combined channel is dramatically worse than the sum of individual degradations at large $t_{\text{hold}}$ (mean ratio 1789.5 for both vs 46.6 and 33.0 individually — a $22\times$ amplification).
+At large $t_{\text{hold}} > 10$, dephasing produces substantially worse sensitivity than loss — mean ratio 46.6 versus 33.0 (about 41% larger), confirming that dephasing attacks the interference contrast more effectively. The combined channel is dramatically worse than the sum of individual degradations at large $t_{\text{hold}}$ (mean ratio 1789.5 for both versus 46.6 and 33.0 individually — a $22\times$ amplification).
 
 **Optimal holding time**: At $\gamma = 0.1$, both dephasing-only and loss-only have the same finite optimal holding time $t_{\text{hold}}^* \approx 20.255$, contradicting the hypothesis that dephasing's optimal would be shorter. This is because for a single particle, both channels suppress the off-diagonal coherence $\rho_{01}$ at the same effective rate $\gamma/2$ — the Lindblad decay rates are identical in the single-particle subspace. The combined channel produces a shorter optimal $t_{\text{hold}}^* \approx 10.844$, as the combined decoherence rate is larger.
 
 **Key Finding**: Dephasing degrades sensitivity faster than loss at equal $\gamma$, confirming the primary hypothesis. However, the optimal holding times for individual channels are identical (not shorter for dephasing) at $\gamma=0.1$, because for a single particle both channels suppress $\rho_{01}$ at the same rate $\gamma/2$. The combined channel is super-multiplicative at large $t_{\text{hold}}$.
 
-### E2 — Noise-Rate Scaling (Sweep B)
+### E2 — Noise-rate scaling (Sweep B)
 
 ![Noise-rate scaling](figures/20260630-noise-rate-scaling.svg)
 
-Ratio $\Delta\omega/\Delta\omega_{\text{SQL}}$ vs $\gamma \in [10^{-3}, 10^0]$ at fixed $t_{\text{hold}} = \pi/2 \approx 1.57$, $\omega = 1.0$. Three noisy scenarios.
+Ratio $\Delta\omega/\Delta\omega_{\text{SQL}}$ versus $\gamma \in [10^{-3}, 10^0]$ at fixed $t_{\text{hold}} = \pi/2 \approx 1.57$, $\omega = 1.0$. Three noisy scenarios.
 
 **Quantitative results:**
 
@@ -205,13 +205,13 @@ Ratio $\Delta\omega/\Delta\omega_{\text{SQL}}$ vs $\gamma \in [10^{-3}, 10^0]$ a
 Dephasing ratio grows $2.2\times$ above SQL at $\gamma=1.0$, while loss ratio grows only $1.7\times$. The ratio $R_{\text{both}}$ exceeds $R_\phi + R_1 - 1$ at every $\gamma$ value in the sweep (30/30 points), confirming **super-additive degradation**:
 
 - At $\gamma=0.001$ (weak noise): $R_{\text{both}} \approx R_\phi + R_1 - 1$ (essentially additive, relative excess $< 0.04\%$).
-- At $\gamma=1.0$ (strong noise): $R_{\text{both}} = 3.738$ vs $R_\phi + R_1 - 1 = 2.898$: both is **$29\%$ worse** than additive.
+- At $\gamma=1.0$ (strong noise): $R_{\text{both}} = 3.738$ versus $R_\phi + R_1 - 1 = 2.898$: both is **$29\%$ worse** than additive.
 
 This validates the hypothesis that the combined effect is super-additive because dephasing destroys the coherence that carries the residual signal, making each subsequent loss event more damaging.
 
 **Key Finding**: Super-additivity confirmed at all 30 noise rates. The effect is negligible at weak noise and grows to $29\%$ excess degradation at $\gamma=1.0$, consistent with the mechanism that dephasing weakens the coherence that each loss event would otherwise have a smaller impact on.
 
-### E3 — 2D Noise Landscape (Sweep C)
+### E3 — 2D noise landscape (Sweep C)
 
 ![2D noise landscape](figures/20260630-noise-landscape-2d.svg)
 
@@ -241,7 +241,7 @@ The landscape confirms all expected features:
 ## ✅ Success Criteria
 
 - **Clean baseline recovery** — At $\gamma_\phi = \gamma_1 = 0$, $\Delta\omega \times t_{\text{hold}} = 1$ for all $t_{\text{hold}} \in [0.1, 100]$. — **PASS** (max $\vert\text{ratio} - 1\vert = 1.23 \times 10^{-8}$, all 200 points).
-- **Dephasing faster than loss** — For equal $\gamma = 0.1$ and $t_{\text{hold}} \ge 10$, $\Delta\omega_{\text{dephase}} > \Delta\omega_{\text{loss}}$ (dephasing is more damaging). — **PASS** (mean ratio 46.6 vs 33.0, a $\sim 41\%$ difference).
+- **Dephasing faster than loss** — For equal $\gamma = 0.1$ and $t_{\text{hold}} \ge 10$, $\Delta\omega_{\text{dephase}} > \Delta\omega_{\text{loss}}$ (dephasing is more damaging). — **PASS** (mean ratio 46.6 versus 33.0, a difference of about 41%).
 - **Optimal $t_{\text{hold}}^*$ exists** — At $\gamma = 0.1$, each noisy scenario has a finite optimal $t_{\text{hold}}^*$ (dephasing/loss: $20.255$, both: $10.844$). — **PASS** (finite interior minima confirmed).
 - **Dephasing optimal shorter** — $t_{\text{hold}}^*(\gamma, \text{dephase}) < t_{\text{hold}}^*(\gamma, \text{loss})$ at $\gamma = 0.1$. — **FAIL** (both have $t_{\text{hold}}^* \approx 20.255$; for a single particle both channels suppress $\rho_{01}$ at the same rate $\gamma/2$, producing identical optima). The "both" scenario does have a shorter optimum ($10.844$), consistent with combined decoherence.
 - **2D landscape structure** — The contour at ratio $= 2$ intersects the $\gamma_\phi$ axis at a smaller $\gamma$ than the $\gamma_1$ axis. — **PASS** (ratio $= 2$ crosses at $\gamma_\phi \approx 1.0$; it never intersects the $\gamma_1$ axis at all, confirming that dephasing is strictly more damaging).
@@ -251,15 +251,15 @@ The landscape confirms all expected features:
 
 **Summary**: 7/8 success criteria PASS, 1/8 FAIL. The primary hypothesis — that dephasing degrades sensitivity faster than loss at equal rates — is strongly confirmed across all three sweeps. The single unexpected result is that dephasing and loss produce identical optimal holding times at $\gamma = 0.1$, because for a single particle the Lindblad decay rate of $\rho_{01}$ is $\gamma/2$ for both channels. This is a genuine physical feature of the single-particle subspace, not a code error: with only one particle, $J_z$ has eigenvalues $\pm 1/2$, so $L_\phi = \sqrt{\gamma_\phi} J_z$ and $L_1 = \sqrt{\gamma_1} a_1$ both suppress the off-diagonal element $\rho_{01}$ at rate $\gamma/2$. The sub-hypothesis that dephasing's optimal would be shorter is therefore incorrect for $N=1$; this prediction would likely hold for $N > 1$ where $J_z$ has a larger spectral radius.
 
-**Possible next steps**: (a) Extend the comparison to multi-particle states (TMSV, squeezed vacuum, NOON) where the two channels have genuinely different $N$-scaling. (b) Add two-body loss to probe nonlinear decoherence. (c) Compute QFI for the mixed state to determine whether the error-propagation degradation faithfully tracks the fundamental quantum limit under each noise channel.
+**Possible next steps**: (a) Extend the comparison to multi-particle states (TMSV, squeezed vacuum, NOON) where the two channels have genuinely different $N$-scaling. (b) Add two-body loss to probe nonlinear decoherence. (c) Compute the quantum Fisher information for the mixed state to determine whether the error-propagation degradation faithfully tracks the fundamental quantum limit under each noise channel.
 
 ## 🏁 Conclusions
 
-The pedagogical comparison confirms that **phase diffusion degrades single-particle MZI sensitivity faster than one-body loss at equal rates**, supporting the primary hypothesis. The 2D landscape and degradation curves lay out the difference visually and quantitatively across three orders of magnitude in noise rate and holding time.
+The pedagogical comparison confirms that **phase diffusion degrades single-particle MZI sensitivity faster than one-body loss at equal rates**, supporting the primary hypothesis. The 2D landscape and degradation curves show the difference visually and quantitatively across three orders of magnitude in noise rate and holding time.
 
 **Key quantitative results:**
 
-- At $\gamma = 0.1$ and $t_{\text{hold}} > 10$, dephasing is $\sim 41\%$ more damaging than loss (mean ratio 46.6 vs 33.0). At $\gamma = 1.0$ and $t_{\text{hold}} = \pi/2$, dephasing ratio 2.19 vs loss ratio 1.71.
+- At $\gamma = 0.1$ and $t_{\text{hold}} > 10$, dephasing is about 41% more damaging than loss (mean ratio 46.6 versus 33.0). At $\gamma = 1.0$ and $t_{\text{hold}} = \pi/2$, dephasing ratio 2.19 versus loss ratio 1.71.
 - Super-additivity is confirmed at all noise rates: the combined-channel degradation exceeds the sum of individual degradations minus SQL, with $29\%$ excess at $\gamma = 1.0$.
 - The 2D landscape's ratio=2 contour never reaches the loss axis — within $[10^{-3}, 10^0]$, dephasing alone degrades sensitivity to twice the SQL, but loss alone never does.
 
@@ -267,4 +267,4 @@ The pedagogical comparison confirms that **phase diffusion degrades single-parti
 
 The results serve as a self-contained educational reference demonstrating how distinct Markovian decoherence mechanisms manifest in interferometric sensitivity, with the 2D landscape providing a comprehensive visual answer to "which noise is worse and by how much?" across the full parameter range.
 
-**Open items** — (a) Extending the comparison to multi-particle states (TMSV, squeezed vacuum, NOON) would test whether the relative ordering of dephasing vs loss changes with entanglement — expected to favour loss resilience for states with strong mode correlations. (b) Adding two-body loss ($\gamma_2 a_1^2$) would test whether nonlinear noise amplifies the loss disadvantage, potentially making loss more damaging than dephasing in certain regimes. (c) Computing QFI for the mixed state would confirm whether the error-propagation degradation faithfully tracks the fundamental quantum limit under each noise channel.
+**Open items**: (a) Extending the comparison to multi-particle states (TMSV, squeezed vacuum, NOON) would test whether the relative ordering of dephasing versus loss changes with entanglement — expected to favour loss resilience for states with strong mode correlations. (b) Adding two-body loss ($\gamma_2 a_1^2$) would test whether nonlinear noise amplifies the loss disadvantage, potentially making loss more damaging than dephasing in certain regimes. (c) Computing the quantum Fisher information for the mixed state would confirm whether the error-propagation degradation faithfully tracks the fundamental quantum limit under each noise channel.

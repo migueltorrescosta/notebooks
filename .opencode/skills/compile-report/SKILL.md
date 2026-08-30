@@ -5,13 +5,13 @@ description: MUST be used when reviewing and updating a report in reports/ with 
 
 # Purpose
 
-Review a report in `reports/` after simulations have been run and results generated. Inspect the raw data and figures, update the report's Results and Conclusions sections with actual outcomes, and verify the report is internally consistent. This skill exclusively edits the report markdown — never modifies code in `src/`, `pages/`, or tests.
+Review a report in `reports/` after simulations have been run and results generated. Inspect the raw data and figures, update the report's Results and Conclusions sections with actual outcomes, and verify the report is internally consistent. This skill exclusively edits the report markdown. It never modifies code in `src/`, `pages/`, or tests.
 
 # Rules
 
-1. Read the report first — understand the hypothesis, success criteria, and expected results.
-2. Inspect all raw data CSVs and Parquet files in `reports/{date}/raw_data/` and figures in `reports/{date}/figures/` associated with this report (where `{date}` is the YYYYMMDD report directory).
-3. Update only the report markdown file. Never modify code.
+1. Read the report first. Understand the hypothesis, success criteria, and expected results.
+2. Inspect all raw data CSVs and Parquet files in `reports/{date}/raw_data/` and figures in `reports/{date}/figures/` that are associated with this report, where `{date}` is the YYYYMMDD report directory.
+3. Update only the report markdown file. Do not modify code.
 4. Mark each success criterion as PASS or FAIL based on actual data.
 5. Update the Results section with quantitative findings and Key Finding paragraphs.
 6. Update the Conclusions section with a summary of what was learned.
@@ -23,13 +23,13 @@ Review a report in `reports/` after simulations have been run and results genera
 
 ## 1. Preparation
 
-1. **Read the report** — Open the target report in `reports/` and note:
+1. **Read the report.** Open the target report in `reports/` and note:
    - The hypothesis and success criteria
    - The parameter sweeps that were specified
    - The expected physical invariants and bounds
    - Any pre-experiment status tables that need updating
-2. **Survey the raw data** — List all files in `reports/{date}/raw_data/` matching the report's date prefix (where `{date}` is the YYYYMMDD report directory).
-3. **Survey the figures** — List all files in `reports/{date}/figures/` matching the report's date prefix.
+2. **Survey the raw data.** List all files in `reports/{date}/raw_data/` matching the report's date prefix (where `{date}` is the YYYYMMDD report directory).
+3. **Survey the figures.** List all files in `reports/{date}/figures/` matching the report's date prefix.
 
 ## 2. Reviewing results
 
@@ -45,7 +45,7 @@ Review a report in `reports/` after simulations have been run and results genera
 
 ## 3. Updating the report
 
-1. **Results section** — For each experiment subsection:
+1. **Results section.** For each experiment subsection:
    - Replace `PENDING` status with actual `PASS`/`FAIL`
    - Add quantitative results from the CSV data (key numerical values, exponents, comparisons)
    - Add a **Key Finding** paragraph at the end of each subsection
@@ -75,6 +75,6 @@ Review a report in `reports/` after simulations have been run and results genera
 - [ ] Success Criteria updated with PASS/FAIL annotations
 - [ ] Conclusions updated with summary of findings
 - [ ] Internal consistency verified: Results match Success Criteria match Conclusions
-- [ ] **Update findings document** — Read `reports/findings/interferometric_sensitivity_improvements.md`, add an entry for this experiment following the same format as existing entries, and update the summary table and "Top Enhancement Mechanisms" section if this experiment qualifies. Preserve the existing structure.
+- [ ] **Update findings document.** Read `reports/findings/interferometric_sensitivity_improvements.md`, add an entry for this experiment following the same format as existing entries, and update the summary table and "Top Enhancement Mechanisms" section if this experiment qualifies. Preserve the existing structure.
 - [ ] CHANGELOG updated with entry under the appropriate weekly section using the format `- **Title** (#YYYYMMDD) — description`; backlog entry removed if task came from backlog; any errors that predated the current session added to the backlog
 - [ ] Saved key decisions to beads memory (`bd remember`)

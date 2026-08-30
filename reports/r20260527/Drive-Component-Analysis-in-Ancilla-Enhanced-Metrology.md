@@ -1,12 +1,12 @@
 # Drive-Component Analysis in Ancilla-Enhanced Metrology: 2D Slices and Norm-Constrained Landscape
 
-## 🧪 Hypothesis
+## Hypothesis
 
-The original driven-ancilla experiment (2026-05-18) found that **no configuration** of $(a_x, a_y, a_z, a_{zz})$ can beat the $N=1$ SQL $\Delta\omega = 1/T_H$ when measuring $J_z^S$ on the system. The present report asks two questions about that negative result: which drive components are "important" (i.e., most strongly affect the sensitivity), and how does the available drive magnitude $\|\mathbf{a}\|$ control the best achievable sensitivity?
+The original driven-ancilla experiment (2026-05-18) found that **no configuration** of $(a_x, a_y, a_z, a_{zz})$ can beat the $N=1$ SQL $\Delta\omega = 1/T_H$ when measuring $J_z^S$ on the system. The present report asks two questions about that negative result: which drive components are "important" (that is, most strongly affect the sensitivity), and how does the available drive magnitude $\|\mathbf{a}\|$ control the best achievable sensitivity?
 
 For a system--ancilla pair of single-particle two-mode bosonic systems with the driven-ancilla protocol (system-only BS, hold Hamiltonian $H = \omega J_z^S + a_x J_x^A + a_y J_y^A + a_z J_z^A + a_{zz} J_z^S \otimes J_z^A$, measurement $J_z^S$), the hypotheses are:
 
-1. **Non-commuting vs commuting drive have qualitatively different sensitivity landscapes.** The 2D slice $(a_z, a_{zz})$ with $a_x = a_y = 0$ (commuting drive, $[a_z J_z^A, J_z^A] = 0$) should show a qualitatively different $\Delta\omega$ landscape from the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices (non-commuting drive, $[a_x J_x^A, J_z^A] \neq 0$). In particular, the commuting $a_z$ drive should produce a simpler, more structured landscape because it does not generate time-dependent $J_z^A(t)$ during the hold. The best achievable ratio $\min \Delta\omega/\text{SQL}$ per slice is expected to be 1.0 (SQL) for all three slice types, consistent with the original null result.
+1. **Non-commuting versus commuting drive have qualitatively different sensitivity landscapes.** The 2D slice $(a_z, a_{zz})$ with $a_x = a_y = 0$ (commuting drive, $[a_z J_z^A, J_z^A] = 0$) should show a qualitatively different $\Delta\omega$ landscape from the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices (non-commuting drive, $[a_x J_x^A, J_z^A] \neq 0$). In particular, the commuting $a_z$ drive should produce a simpler, more structured landscape because it does not generate time-dependent $J_z^A(t)$ during the hold. The best achievable ratio $\min \Delta\omega/\text{SQL}$ per slice is expected to be 1.0 (SQL) for all three slice types, consistent with the original null result.
 
 2. **Larger drive magnitude $\|\mathbf{a}\|$ does not enable beating the SQL.** The best achievable sensitivity ratio $\min_{\|\mathbf{a}\| \leq r, \, a_{zz} \in [-5,5]} \Delta\omega/\text{SQL}$ is a non-increasing function of $r$ (larger drive budget cannot hurt), but it never drops below 1.0 (SQL) for any $r \leq 10$. The curve saturates at $\text{ratio}(r) = 1.0$ for all $r$, confirming that the SQL ceiling is absolute regardless of drive strength.
 
@@ -14,7 +14,7 @@ For a system--ancilla pair of single-particle two-mode bosonic systems with the 
 
 **Null hypothesis**: The three drive components $(a_x, a_y, a_z)$ are all equivalent in their effect on the sensitivity: no slice type achieves $\Delta\omega/\text{SQL} < 1$, and the norm-constrained envelope never dips below 1.0 for any $r \in [0, 10]$.
 
-## ⚛️ Theoretical Model
+## Theoretical model
 
 The total Hilbert space is $\mathcal{H}_{\text{tot}} = \mathcal{H}_S \otimes \mathcal{H}_A$, where each subsystem is a **two-mode bosonic Fock space** truncated at one particle per mode. The single-particle sector $\mathcal{H}_{1} = \text{span}\{\vert1,0\rangle,\, \vert0,1\rangle\}$ (dimension 2) is isomorphic to a spin-$1/2$, and the full space has dimension 4 with ordered computational basis $\{\vert00\rangle, \vert01\rangle, \vert10\rangle, \vert11\rangle\}$ where $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). The **angular momentum operators** for each subsystem satisfy SU(2) algebra $[J_i, J_j] = i \epsilon_{ijk} J_k$ and are represented by $J_k = \sigma_k/2$ (the $2\times2$ Pauli matrices). These are embedded into the full space via Kronecker products: $J_k^S = \sigma_k/2 \otimes \mathbb{1}_2$ and $J_k^A = \mathbb{1}_2 \otimes \sigma_k/2$.
 
@@ -26,9 +26,9 @@ The complete evolution is $\vert\Psi_{\text{final}}\rangle = U_{\text{BS}}^{(S)}
 
 The **drive vector norm** is $\|\mathbf{a}\| = \sqrt{a_x^2 + a_y^2 + a_z^2}$. The norm-ball $\{\mathbf{a} \in \mathbb{R}^3 \mid \|\mathbf{a}\| \leq R\}$ constrains the total drive magnitude while allowing the direction (relative weighting of $x$, $y$, $z$ components) to vary arbitrarily. The interaction coefficient $a_{zz}$ is **not** constrained by the norm; it varies independently in $[-5, 5]$.
 
-## 💻 Numerical Simulation
+## Numerical simulation
 
-### Implementation Strategy
+### Implementation strategy
 
 1. **Reuse existing infrastructure** — The core operators, circuit evolution, sensitivity computation, and 2D-slice scanning are already implemented in `src.analysis.ancilla_drive_metrology`. The existing `drive_2d_slice()` function supports `slice_type='ax'` and `slice_type='ay'`. A new `slice_type='az'` must be added (trivially: set $a_x = a_y = 0$, scan $a_z$ against $a_{zz}$).
 
@@ -57,7 +57,7 @@ The **drive vector norm** is $\|\mathbf{a}\| = \sqrt{a_x^2 + a_y^2 + a_z^2}$. Th
    - Experiment type (`slice_ax`, `slice_ay`, `slice_az`, `normball`)
    - Norm-ball constraint $R$ (for `normball` experiments)
 
-### Parameter Sweep
+### Parameter sweep
 
 | Parameter | Range | Purpose |
 |-----------|-------|---------|
@@ -80,19 +80,19 @@ The **drive vector norm** is $\|\mathbf{a}\| = \sqrt{a_x^2 + a_y^2 + a_z^2}$. Th
 - **Norm-ball uniformity**: The Marsaglia sampling is validated by verifying that the empirical distribution of $\|\mathbf{a}\|$ matches $P(\|\mathbf{a}\| \leq r) = (r/R)^3$ for the 3-ball within statistical tolerance (Kolmogorov--Smirnov test at 5% significance).
 - **Slice consistency**: The $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices reproduce the original report's results to within $10^{-10}$.
 
-#### 🔧 Implementation Status
+#### Implementation status
 
 To be built during the implementation phase:
 - **`slice_type='az'` support** in `drive_2d_slice()` — 1-line logical addition (set $a_x = a_y = 0$, scan $a_z$).
 - **`norm_ball_sampling()`** — A new function in `reports/r20260527/drive_component_analysis.py` implementing Marsaglia's method for the 3-ball, driving `drive_sensitivity_objective` for each sample, and returning a structured array with all metadata.
 - **`extract_envelope_curve()`** — Post-processing: given all norm-ball data, compute $\text{best\_ratio}(r)$ for each $r$ and $\omega$, producing the envelope plot.
 - **Plot: 2D slice heatmaps** — All 15 SVG heatmaps (3 slice types $\times$ 5 $\omega$ values) reusing the existing `plot_drive_2d_slice_heatmap`.
-- **Plot: Norm-envelope curve** — New figure: $\min \Delta\omega/\text{SQL}$ vs $r$, with separate curves for each $\omega$ and an overall minimum across $\omega$.
+- **Plot: Norm-envelope curve** — New figure: $\min \Delta\omega/\text{SQL}$ versus $r$, with separate curves for each $\omega$ and an overall minimum across $\omega$.
 - **Plot: Best-ratio-by-slice bar chart** — Comparing the minimum $\Delta\omega/\text{SQL}$ across the three slice types for each $\omega$.
 
 Test count target: ~30 new test functions covering norm-ball sampling, envelope extraction, $(a_z, a_{zz})$ slice, floating-point stability of best-ratio computation, and Parquet roundtrip for the new dataclasses.
 
-## ⚠️ Expected Failure Conditions
+## Expected failure conditions
 
 | Failure | Mitigation |
 |---------|------------|
@@ -102,13 +102,13 @@ Test count target: ~30 new test functions covering norm-ball sampling, envelope 
 | **Fringe extremum dominates** — For many $\omega$ values and large $a_{zz}$, the derivative $\partial\langle J_z^S\rangle/\partial\omega$ vanishes, producing $\Delta\omega = \infty$ for most samples. | Flag and exclude fringe-extremum points. Report the fraction of valid (finite) points per $\omega$ and $r$. The envelope is computed only over finite-$\Delta\omega$ configurations. |
 | **Optimal at decoupled limit** — The best ratio is always achieved at $a_{zz} = 0$, regardless of $\|\mathbf{a}\|$ or $\omega$. | This would indicate the ancilla drive is always detrimental when the interaction is active, consistent with the original report. Report best-ratio curves both with and without the $a_{zz}=0$ configuration included. |
 
-## 🔬 Results
+## Results
 
 All experiments have been completed. The null hypothesis is confirmed: no configuration of drive or interaction parameters yields $\Delta\omega/\text{SQL} < 1$. However, a striking qualitative difference between the commuting ($a_z$) and non-commuting ($a_x$, $a_y$) drive components was discovered.
 
-### Experiment 1a: 2D Slice $(a_x, a_{zz})$ at 5 $\omega$ Values
+### Experiment 1a: 2D slice $(a_x, a_{zz})$ at 5 $\omega$ values
 
-**Status: PASS**
+**Status:** PASS
 
 The $(a_x, a_{zz})$ slices reproduce the original 2026-05-18 report results exactly. The minimum ratio is $\min \Delta\omega/\text{SQL} = 1.00000000$ (within float64 precision) for all five $\omega$ values. The sensitivity landscape shows strong degradation away from the $a_{zz}=0$ line: on average 78–87% of points have $\Delta\omega/\text{SQL} > 1.001$, with a maximum observed ratio of $16\,309\times\text{SQL}$ (at $\omega=0.1$). Only about 1.5–2.5% of points lie within $10^{-6}$ of SQL. A single fringe-extremum point ($\Delta\omega = \infty$) appears at the corner of parameter space for all $\omega < 5.0$.
 
@@ -120,9 +120,9 @@ The $(a_x, a_{zz})$ slices reproduce the original 2026-05-18 report results exac
 
 **Key Finding**: The $(a_x, a_{zz})$ slice confirms the original null result: the SQL is the best achievable sensitivity, and the ancilla drive with $a_x \neq 0$ produces large degradation over most of parameter space.
 
-### Experiment 1b: 2D Slice $(a_y, a_{zz})$ at 5 $\omega$ Values
+### Experiment 1b: 2D slice $(a_y, a_{zz})$ at 5 $\omega$ values
 
-**Status: PASS**
+**Status:** PASS
 
 The $(a_y, a_{zz})$ slices are effectively identical to the $(a_x, a_{zz})$ slices: same minimum ratio $(1.00000000)$, same mean ratio (within $10^{-7}$), same percentage of degraded points (78–87%), and the same single fringe-extremum point at each $\omega$. Only 0.06% of points differ by more than $10^{-6}$ in absolute $\Delta\omega$, and the maximum relative difference ($2\times 10^{-6}$) occurs at extreme sensitivity values ($\Delta\omega \sim 10^3$), consistent with standard floating-point roundoff from different computation paths. This confirms the $x \leftrightarrow y$ symmetry of the system: the two non-commuting drive components are interchangeable.
 
@@ -134,9 +134,9 @@ The $(a_y, a_{zz})$ slices are effectively identical to the $(a_x, a_{zz})$ slic
 
 **Key Finding**: The $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices produce identical sensitivity landscapes to machine precision, confirming the expected $SU(2)$ symmetry between the $J_x$ and $J_y$ drive directions.
 
-### Experiment 1c: 2D Slice $(a_z, a_{zz})$ at 5 $\omega$ Values
+### Experiment 1c: 2D slice $(a_z, a_{zz})$ at 5 $\omega$ values
 
-**Status: PASS — with unexpected qualitative difference**
+**Status:** PASS — with unexpected qualitative difference
 
 The $(a_z, a_{zz})$ slice produces a **fundamentally different** sensitivity landscape from the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices. While the minimum ratio is $1.00000000$ (matching the other slices), **every valid point** (40 200 out of 40 401 for $\omega \leq 2.0$, all 40 401 at $\omega=5.0$) has $\Delta\omega/\text{SQL}$ within $5\times 10^{-9}$ of 1.0 (max deviation $4.61\times 10^{-9}$ at $\omega=5.0$, standard deviation $\lesssim 3\times 10^{-10}$). No point shows meaningful degradation.
 
@@ -152,9 +152,9 @@ This is consistent with the theory: $[a_z J_z^A, H] = 0$ (the $a_z$ drive commut
 
 **Key Finding**: The commuting $(a_z, a_{zz})$ slice is qualitatively different from the non-commuting $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices. All valid configurations achieve SQL, with zero sensitivity degradation across the entire parameter grid. This contradicts the original expectation (Hypothesis 3) that all three slices would show similar degradation patterns.
 
-### Experiment 1d: Barycentric Sensitivity Heatmap (Combined Slice View)
+### Experiment 1d: barycentric sensitivity heatmap (combined slice view)
 
-**Status: PASS**
+**Status:** PASS
 
 A combined RGB heatmap was constructed from the three 2D slices at each $\omega$. At each point in the $(a_{zz}, a_{\mathrm{drive}})$ plane, the colour encodes which drive component dominates the $\log_{10}(\Delta\omega/\mathrm{SQL})$ degradation:
 
@@ -174,9 +174,9 @@ The resulting maps are dominated by **yellow** (red + green) across the vast maj
 
 **Key Finding**: The barycentric heatmaps provide a single-panel visual summary of the slice-comparison result: the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices are effectively indistinguishable (yellow), the $(a_z, a_{zz})$ slice is invisible (zero weight, always at SQL), and the decoupled $a_{zz}=0$ line is the only region where all three components simultaneously achieve SQL.
 
-### Experiment 2a: Norm-Ball Sampling and Envelope Curve (Marsaglia Method)
+### Experiment 2a: norm-ball sampling and envelope curve (Marsaglia method)
 
-**Status: PASS**
+**Status:** PASS
 
 The norm-ball Monte Carlo sampling scanned 50 $\omega$ values $\times$ 5000 samples = 250 000 evaluations total, with $(a_x, a_y, a_z)$ drawn uniformly from the 3-ball $\|\mathbf{a}\| \leq 10$ and $a_{zz} \sim U[-5, 5]$ using Marsaglia's method.
 
@@ -191,13 +191,13 @@ The norm-ball Monte Carlo sampling scanned 50 $\omega$ values $\times$ 5000 samp
 
 The envelope curve $\text{best_{ratio}}(r) = \min_{\|\mathbf{a}\| \leq r} (\Delta\omega/\text{SQL})$ is a **non-increasing function** of $r$ for all $\omega$. At small $r \lesssim 2$, the envelope appears noisy with ratios of 1.02–2.84, attributed to sparse Monte Carlo coverage (only $\sim 1\%$ of samples have $\|\mathbf{a}\| \leq 2.15$, consistent with the expected $(r/R)^3$ volume scaling of Marsaglia's method). The envelope decreases as $r$ increases, approaching $\text{best\_ratio} = 1.0$ at $r = 10.0$ for all $\omega$.
 
-![Norm-envelope curve (Marsaglia): best_ratio(r) vs drive norm](figures/20260527-norm-envelope.svg)
+![Norm-envelope curve (Marsaglia): best_ratio(r) versus drive norm](figures/20260527-norm-envelope.svg)
 
 **Key Finding**: The Marsaglia envelope curve saturates at exactly SQL for large $r$, confirming that larger drive amplitudes never unlock SQL violation. The small-$r$ region is noisy due to under-sampling; a dedicated stratified follow-up (Experiment 2b) was conducted to resolve this.
 
-### Experiment 2b: Stratified Norm-Ball Sampling (Small-$r$ Resolution)
+### Experiment 2b: stratified norm-ball sampling (small-$r$ resolution)
 
-**Status: PASS — resolves the small-$r$ sampling limitation**
+**Status:** PASS — resolves the small-$r$ sampling limitation
 
 The stratified sampling method divides the radial interval $[0, R]$ into 50 equal-width strata and draws 100 samples per stratum (5000 samples total per $\omega$), giving **uniform linear density** in $\|\mathbf{a}\|$ rather than the $\propto r^2$ density of Marsaglia's method. The same 50 $\omega$ values and $a_{zz} \sim U[-5, 5]$ are used, for 250 000 evaluations total.
 
@@ -215,13 +215,13 @@ The envelope curve from stratified sampling reveals that the **best ratio reache
 
 The apparent small-$r$ degradation in the Marsaglia data (ratios of 1.02–2.84 at $r \lesssim 2$) was **entirely a sampling artifact**: the Marsaglia method's $r^2$ volume density places only ${\sim}0.1\%$ of samples at $\|\mathbf{a}\| \leq 1$, so the envelope at these radii was being evaluated from sparse, sub-optimal configurations rather than the true minimum.
 
-![Norm-envelope curve (stratified): best_ratio(r) vs drive norm](figures/20260527-norm-envelope-stratified.svg)
+![Norm-envelope curve (stratified): best_ratio(r) versus drive norm](figures/20260527-norm-envelope-stratified.svg)
 
 **Key Finding**: The SQL is attainable at **any** drive magnitude $\|\mathbf{a}\| > 0$. The best achievable sensitivity ratio is flat at 1.0 (SQL) for all resolved $r \in [0.1, 10.0]$, rejecting the possibility that small drive amplitudes meaningfully degrade sensitivity. The earlier apparent degradation was a Monte Carlo sampling artifact resolved by stratified sampling.
 
-### Experiment 3: Best-Ratio-by-Slice Comparison
+### Experiment 3: best-ratio-by-slice comparison
 
-**Status: PASS**
+**Status:** PASS
 
 All three slice types achieve a minimum $\Delta\omega/\text{SQL}$ ratio of $1.00000000$ at each $\omega$ value, confirming that the SQL ceiling holds regardless of which drive component is used. However, the comparison reveals the striking qualitative difference noted above:
 
@@ -247,7 +247,7 @@ All three slice types achieve a minimum $\Delta\omega/\text{SQL}$ ratio of $1.00
 | Norm-ball envelope (stratified) | PASS | Min ratio = 1.0 for **all** $r \in [0.1, 10.0]$, flat at SQL |
 | Best-ratio-by-slice comparison | PASS | All min at 1.0, az qualitatively different |
 
-## ✅ Success Criteria
+## Success criteria
 
 - **Slice equivalence** — All three slice types ($a_x$, $a_y$, $a_z$) achieve minimum $\Delta\omega/\text{SQL} = 1.0$ to within numerical precision ($10^{-8}$ relative). — **PASS**. All three have min = $1.00000000$ (within float64 precision). The full-slice statistics, however, differ dramatically (see commuting drive equivalence below).
 
@@ -257,7 +257,7 @@ All three slice types achieve a minimum $\Delta\omega/\text{SQL}$ ratio of $1.00
 
 - **Small-$r$ resolution** — Stratified sampling resolves the envelope at $\|\mathbf{a}\| \leq 1$ to determine whether small drive amplitudes are meaningfully worse than SQL. — **PASS**. The stratified envelope is flat at 1.0 from the smallest resolved $r$ ($0.101$). No meaningful degradation exists at small drive; the apparent degradation in the Marsaglia data was a sampling artifact.
 
-- **Commuting drive equivalence** — The $(a_z, a_{zz})$ slice's best ratio and SQL-achieving fraction are comparable to the $(a_x, a_{zz})$ slice (within 10% relative). — **PARTIAL**. The best ratio criterion is met (both are $1.0$). However, the SQL-achieving fraction is $100\%$ for the $a_z$ slice vs $\sim 4.5\%$ for the $a_x$ slice — a $22\times$ difference, far exceeding the $10\%$ threshold. This criterion was based on the (incorrect) Hypothesis 3 that all slice types would be similar; the data show a qualitative difference that invalidates the underlying assumption.
+- **Commuting drive equivalence** — The $(a_z, a_{zz})$ slice's best ratio and SQL-achieving fraction are comparable to the $(a_x, a_{zz})$ slice (within 10% relative). — **PARTIAL**. The best ratio criterion is met (both are $1.0$). However, the SQL-achieving fraction is $100\%$ for the $a_z$ slice compared with $\sim 4.5\%$ for the $a_x$ slice — a $22\times$ difference, far exceeding the $10\%$ threshold. This criterion was based on the (incorrect) Hypothesis 3 that all slice types would be similar; the data show a qualitative difference that invalidates the underlying assumption.
 
 - **Reproducibility** — The $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices reproduce the original 2026-05-18 results: same min ratio (1.0), same SQL-achieving points count, same degradation patterns. — **PASS**. The $(a_x, a_{zz})$ and $(a_y, a_{zz})$ data match the original report's qualitative findings (SQL ceiling at $a_{zz}=0$, degradation away from the line). The two slice types agree to within $10^{-7}$ on average, with residual differences of $< 2\times 10^{-6}$ relative at extreme sensitivity values due to floating-point roundoff.
 
@@ -265,7 +265,7 @@ All three slice types achieve a minimum $\Delta\omega/\text{SQL}$ ratio of $1.00
 
 **Summary**: Six of seven criteria pass outright. The commuting-drive equivalence criterion is marked PARTIAL because the original expectation that all three slices would have similar statistics was incorrect — the $(a_z, a_{zz})$ slice is in fact qualitatively different, with every valid point achieving SQL. This is itself a significant finding. The null hypothesis (SQL cannot be beaten) is confirmed across all experiments, and the monotonicity of the envelope is verified. The small-$r$ resolution criterion is satisfied: stratified sampling confirms the envelope is flat at SQL for all drive magnitudes, and the apparent small-drive degradation in the Marsaglia data was a sampling artifact. A full analytical derivation of this flatness is provided in the **Analytical Bounds** section below.
 
-## ⚖️ Analytical Bounds: Proof of $(a_z, a_{zz})$ SQL Flatness
+## Analytical bounds: proof of $(a_z, a_{zz})$ SQL flatness
 
 We provide an analytical proof that when $a_x = a_y = 0$ (the commuting-drive slice), the error-propagation sensitivity satisfies $\Delta\omega = 1/T_H$ for all $(a_z, a_{zz})$ and all $\omega$, confirming the numerical observation of Section 1c. The hold Hamiltonian is $H = \omega J_z^S + a_z J_z^A + a_{zz} J_z^S \otimes J_z^A$ with $J_k = \sigma_k/2$ for each spin-$1/2$, the initial state is $|\Psi_0\rangle = |00\rangle$, the beam-splitter unitary is $U_{\rm BS} = \exp(-i\pi J_x^S/2)$, the hold duration is $T_H$, and the measurement is $J_z^S$.
 
@@ -279,11 +279,11 @@ The argument fails for non-commuting drives such as $a_x J_x^A$ or $a_y J_y^A$ b
 
 The exact SQL flatness of the $(a_z, a_{zz})$ landscape is therefore a direct consequence of the conservation law $[J_z^A, H] = 0$: the $a_z$ drive contributes only a global phase, the Ising interaction reduces to a static frequency shift $\omega \to \omega + a_{zz}/2$, and the protocol becomes unitarily equivalent to a standard single-spin Ramsey interferometer, yielding $\Delta\omega = 1/T_H$ for every $(a_z, a_{zz})$ configuration.
 
-## 🏁 Conclusions
+## Conclusions
 
 The experiments completed in this report confirm the original null result (no SQL violation across any drive configuration or magnitude) and reveal a surprising and important qualitative difference between commuting and non-commuting drive components.
 
-**Hypothesis 1** (qualitatively different landscapes for commuting vs non-commuting drive) is **strongly supported**. The $(a_z, a_{zz})$ slice produces a fundamentally different sensitivity landscape from the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices: every valid point achieves exactly SQL, with zero degradation across the entire parameter grid. This contrasts sharply with the $a_x$ and $a_y$ slices, where 78–87% of points show significant degradation (up to $16\,309\times\text{SQL}$). The difference arises because $[a_z J_z^A, H] = 0$ — the commuting drive commutes with the Ising interaction, leaving $J_z^A(t) = J_z^A(0)$ constant in time.
+**Hypothesis 1** (qualitatively different landscapes for commuting versus non-commuting drive) is **strongly supported**. The $(a_z, a_{zz})$ slice produces a fundamentally different sensitivity landscape from the $(a_x, a_{zz})$ and $(a_y, a_{zz})$ slices: every valid point achieves exactly SQL, with zero degradation across the entire parameter grid. This contrasts sharply with the $a_x$ and $a_y$ slices, where 78–87% of points show significant degradation (up to $16\,309\times\text{SQL}$). The difference arises because $[a_z J_z^A, H] = 0$ — the commuting drive commutes with the Ising interaction, leaving $J_z^A(t) = J_z^A(0)$ constant in time.
 
 **Hypothesis 2** (larger drive magnitude $\|\mathbf{a}\|$ does not enable beating the SQL) is **confirmed**. Across 250 000 norm-ball samples with $\|\mathbf{a}\| \leq 10$, zero configurations produce $\Delta\omega/\text{SQL} < 1.0$. The envelope curve $\text{best\_ratio}(r)$ is non-increasing and saturates at exactly $1.0$ for large $r$. The SQL is a hard bound that cannot be surpassed regardless of drive strength up to $\|\mathbf{a}\| = 10$.
 

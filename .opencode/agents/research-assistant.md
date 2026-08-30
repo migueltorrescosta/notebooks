@@ -24,21 +24,21 @@ You create simulations to improve knowledge around these quantum concepts:
 - **Quantum metrology:** achieving precision beyond the standard quantum limit
 - **Decoherence effects:** modeling loss, dephasing, and noise in interferometers
 
-# Skills Architecture
+# Skills architecture
 
 This agent uses modular skills for specialized workflows. Load the relevant skill when the task matches its description:
 
 | Load this skill | When the task involves... |
 |----------------|--------------------------|
-| `specify-experiment` | Writing a new report in `reports/` based on a user request — surveys, hypothesis, and formatting |
-| `build-simulation` | Implementing code in the codebase based on a report — architecture, testing, and numerical correctness |
+| `specify-experiment` | Writing a new report in `reports/` based on a user request: surveys, hypothesis, and formatting |
+| `build-simulation` | Implementing code in the codebase based on a report: architecture, testing, and numerical correctness |
 | `generate-results` | Running simulations to generate raw_data and figures for a report |
 | `compile-report` | Reviewing and updating a report with actual results from raw_data and figures |
 | `audit-code` | Auditing code implementation against project standards and suggesting fixes |
-| `align-project` | Periodic project-level maintenance — priority alignment, sanity checks, and product-focus review |
-| `tackle-backlog` | Infrastructure/non-report tasks from the CHANGELOG backlog — plans, implements, and verifies with user approval per item |
+| `align-project` | Periodic project-level maintenance: priority alignment, sanity checks, and product-focus review |
+| `tackle-backlog` | Infrastructure/non-report tasks from the CHANGELOG backlog: plans, implements, and verifies with user approval per item |
 
-# Global Constraints
+# Global constraints
 
 These apply to every task, regardless of which skills are loaded:
 
@@ -46,15 +46,15 @@ These apply to every task, regardless of which skills are loaded:
 2. **Package management**: Use `uv` only.
 3. **Simplicity**: When in doubt, prefer **simplicity, explicitness, and reuse**.
 4. **Project root**: The root `conftest.py` inserts the project root into `sys.path`, enabling absolute imports like `from src.physics.mzi_states import ...` in both `pages/` and `tests/`.
-5. **New code in experiment module**: All new report-specific simulation code must be added to a descriptive-name Python file in the report's `reports/rYYYYMMDD/` directory (e.g., `phase_modulated_drive.py`). Only promote code to `src/` when it is demonstrably reusable across multiple reports.
+5. **New code in experiment module**: All new report-specific simulation code must be added to a descriptive-name Python file in the report's `reports/rYYYYMMDD/` directory (for example, `phase_modulated_drive.py`). Only promote code to `src/` when it is demonstrably reusable across multiple reports.
 6. **No module-level constants in `src/`**: Shared modules under `src/` must not define module-level constants for default parameters, bounds, or reference values. Use function-level defaults or `@dataclass` config objects instead.
-7. **No imports from report experiment modules**: Code inside a report's experiment module must never be imported by modules outside its own report directory — including `src/`, `tests/`, and `pages/`. If a function in a report module is needed externally, promote it to a `src/` module first.
+7. **No imports from report experiment modules**: Code inside a report's experiment module must never be imported by modules outside its own report directory, including `src/`, `tests/`, and `pages/`. If a function in a report module is needed externally, promote it to a `src/` module first.
 8. **Keep the CHANGELOG current.** Every completed experiment or infrastructure task from the `# Backlog` in `CHANGELOG.md` must be moved into the appropriate weekly release section as part of the work. Never leave finished work unrecorded.
-9. **Backlog priority scheme** — The `# Backlog` in `CHANGELOG.md` uses 🔴🟠🟡🟢 as a 4-level scale (most → least urgent). When asked to **"Review priorities"**, reassign all backlog emojis following this scale with exactly 2–3 🔴 items and the rest roughly evenly split. Update or confirm the colour legend at the top of the `# Backlog` section.
-10. **Search beads memories before starting** — call `bd memories <keyword>` for relevant prior work, decisions, and architecture context before implementing. Save key insights with `bd remember "insight"`.
-11. **IBM-Style Controlled English** — All reports and articles MUST be written following IBM-Style Controlled English.
+9. **Backlog priority scheme.** The `# Backlog` in `CHANGELOG.md` uses 🔴🟠🟡🟢 as a 4-level scale (most → least urgent). When asked to **"Review priorities"**, reassign all backlog emojis following this scale with exactly 2–3 🔴 items and the rest roughly evenly split. Update or confirm the colour legend at the top of the `# Backlog` section.
+10. **Search beads memories before starting.** Call `bd memories <keyword>` for relevant prior work, decisions, and architecture context before implementing. Save key insights with `bd remember "insight"`.
+11. **IBM-Style Controlled English.** All reports and articles must be written following IBM-Style Controlled English.
 
-# Skill Loading Order
+# Skill loading order
 
 Load skills based on the current stage of work:
 
@@ -67,11 +67,11 @@ Load skills based on the current stage of work:
 | Auditing implementation against standards | `audit-code` |
 | Tackling infrastructure/non-report backlog items | `tackle-backlog` |
 
-# Project Conventions
+# Project conventions
 
-## Code Architecture
+## Code architecture
 
-### Project Structure
+### Project structure
 
 ```
 ├── .streamlit/             # Streamlit configuration directory
@@ -99,19 +99,19 @@ Load skills based on the current stage of work:
 Key notes:
 - Unit tests live alongside source modules in `src/` subdirectories.
 - Integration and E2E tests live in `tests/`.
-- The root `conftest.py` inserts the project root into `sys.path` — this enables absolute imports like `from src.physics.mzi_states import ...` in both `pages/` and `tests/`.
+- The root `conftest.py` inserts the project root into `sys.path`, enabling absolute imports like `from src.physics.mzi_states import ...` in both `pages/` and `tests/`.
 - Each report directory under `reports/` contains a descriptive-name experiment module with all report-specific simulation code and a co-located `test_{slug}.py` for its tests.
 
-### Code Style
+### Code style
 
 - **Functional style** preferred for physics and computation functions.
-- Use **`@dataclass`** for configuration and result structures (e.g., `NoiseConfig`, `SensitivityScalingResult`).
-- **Minimal abstractions** — extract small reusable functions, but avoid over-engineering.
+- Use **`@dataclass`** for configuration and result structures (for example, `NoiseConfig`, `SensitivityScalingResult`).
+- **Minimal abstractions.** Extract small reusable functions, but avoid over-engineering.
 - **Package management**: `uv` only.
 
 ### Serialization
 
-- **Completeness**: Every result dataclass with `to_dataframe()` / `save_parquet()` must serialize all input parameters alongside computed results — theta_value, T_H, SQL, bounds, and any other configuration. The Parquet file must be fully self-describing.
+- **Completeness**: Every result dataclass with `to_dataframe()` / `save_parquet()` must serialize all input parameters alongside computed results: theta_value, T_H, SQL, bounds, and any other configuration. The Parquet file must be fully self-describing.
 - **Fail-fast deserialization**: Every `from_parquet()` must require all expected columns. No silent fallback defaults for metadata fields. Raise a `ValueError` listing every missing column.
 - **Legacy Parquet failures**: When encountering a Parquet file missing required columns, raise a `ValueError` listing every missing column and directing the user to re-run the simulation that generated it. Never attempt to infer or fill in missing metadata.
 - **Roundtrip testing**: Every result dataclass with Parquet roundtrip must have a test verifying that all metadata fields survive the roundtrip (theta_value, T_H, sql, slice_type, etc.). Do not restrict roundtrip tests to computed arrays only.
@@ -119,28 +119,28 @@ Key notes:
 
 ### Delta Lake
 
-Multi-worker parallel pipelines (e.g., BFGS theta scans) use Delta Lake for results storage via the `deltalake` Python library. The Delta table stores one row per optimisation run, built from a `@dataclass.to_dataframe()` call.
+Multi-worker parallel pipelines (for example, BFGS theta scans) use Delta Lake for results storage by using the `deltalake` Python library. The Delta table stores one row per optimisation run, built from a `@dataclass.to_dataframe()` call.
 
-- **Append**: Each worker appends its row via `write_deltalake(table_dir, row, mode="append")`. A retry wrapper (`_upsert_bfgs_result`) handles concurrent-writer conflicts with up to 5 attempts and exponential backoff.
+- **Append**: Each worker appends its row by calling `write_deltalake(table_dir, row, mode="append")`. A retry wrapper (`_upsert_bfgs_result`) handles concurrent-writer conflicts with up to 5 attempts and exponential backoff.
 - **Compact**: After all workers finish, call `DeltaTable(table_dir).optimize.compact()` to merge many tiny parquet files (one per row) into a single compact file. This reduces read overhead for downstream aggregation.
-- **Vacuum**: After compaction, tombstoned files remain on disk. Physically delete them via `DeltaTable(table_dir).vacuum(retention_hours=0, dry_run=False)`. The table's `delta.deletedFileRetentionDuration` must be set to `"interval 0 days"` for immediate cleanup (done via `dt.alter.set_table_properties(...)`).
+- **Vacuum**: After compaction, tombstoned files remain on disk. Physically delete them by calling `DeltaTable(table_dir).vacuum(retention_hours=0, dry_run=False)`. The table's `delta.deletedFileRetentionDuration` must be set to `"interval 0 days"` for immediate cleanup (done by calling `dt.alter.set_table_properties(...)`).
 - **Aggregation**: The aggregated result is constructed by reading the Delta table into a sorted DataFrame and passing each column into the appropriate `@dataclass` field. A secondary static Parquet file (`{date}-theta-scan.parquet`) is written for backward compatibility with report-loading code.
 - **Force re-creation**: Pass `--force` to delete the entire Delta table directory with `shutil.rmtree` before re-running, ensuring a clean slate.
 
-### Streamlit Page Conventions
+### Streamlit page conventions
 
 Each page in `pages/` follows:
 
-1. **Colour scheme** — use semantic dividers as documented in README.md (blue=primary, gray=setup, green=results, orange=data, red=summary, violet=special).
-2. **No physics logic** — all computation lives in `src/` modules; pages import from `src.*` and only orchestrate UI rendering. Pages must never import from report experiment modules in `reports/`. If report-specific code is needed by a page, promote it to `src/` first.
-3. **Imports** — use `from src.physics.module import ...` (the project root is on `sys.path` via `conftest.py`).
-4. **Error handling** — wrap simulation calls in `try/except` and display errors via `st.error`; never let exceptions propagate unhandled.
-5. **State** — use `st.session_state` for persistent UI state (widget values, cached results); use function return values for transient simulation results.
-6. **Seeds** — accept an optional user-provided seed; fall back to a deterministic default when none is given.
-7. **Page naming** — use `Snake_Case.py`; Streamlit converts underscores to spaces in the sidebar navigation.
-8. **Page config** — every page calls `st.set_page_config(page_title=..., page_icon=..., layout="wide")` as its first Streamlit call.
+1. **Colour scheme.** Use semantic dividers as documented in README.md (blue=primary, gray=setup, green=results, orange=data, red=summary, violet=special).
+2. **No physics logic.** All computation lives in `src/` modules; pages import from `src.*` and only orchestrate UI rendering. Pages must never import from report experiment modules in `reports/`. If report-specific code is needed by a page, promote it to `src/` first.
+3. **Imports.** Use `from src.physics.module import ...` (the project root is on `sys.path` through `conftest.py`).
+4. **Error handling.** Wrap simulation calls in `try/except` and display errors by calling `st.error`; never let exceptions propagate unhandled.
+5. **State.** Use `st.session_state` for persistent UI state (widget values, cached results); use function return values for transient simulation results.
+6. **Seeds.** Accept an optional user-provided seed; fall back to a deterministic default when none is given.
+7. **Page naming.** Use `Snake_Case.py`; Streamlit converts underscores to spaces in the sidebar navigation.
+8. **Page config.** Every page calls `st.set_page_config(page_title=..., page_icon=..., layout="wide")` as its first Streamlit call.
 
-## Numerical Guidelines
+## Numerical guidelines
 
 ### Stability
 
@@ -148,14 +148,14 @@ Each page in `pages/` follows:
 - **Never** invert matrices directly (`np.linalg.inv`).
 - Prefer `numpy.linalg.solve` for linear systems.
 
-### Data Structures
+### Data structures
 
 - Numerical arrays: `numpy.ndarray`.
 - Structured data: `@dataclass` (avoid raw dictionaries).
 - Tolerance-based comparisons: `np.isclose(a, b, rtol=1e-5, atol=1e-8)`.
-- **Serialization**: Follow the conventions in Code Architecture §Serialization.
+- **Serialization**: Follow the conventions in Code architecture §Serialization.
 
-### Invariance Checks
+### Invariance checks
 
 Include assertions for physical validity:
 
@@ -164,11 +164,11 @@ assert np.isclose(np.sum(probabilities), 1.0), "Probability must be conserved"
 assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be unitary"
 ```
 
-### Error Handling
+### Error handling
 
-- Physics/simulation code must raise exceptions or use `assert` — never silently fail.
-- **Fail-fast principle**: A silent default today is a subtle data corruption tomorrow. See Code Architecture §Serialization for Parquet deserialization conventions.
-- UI (`pages/`) code must catch and display exceptions gracefully to the user via `st.error`.
+- Physics/simulation code must raise exceptions or use `assert`. Never silently fail.
+- **Fail-fast principle**: A silent default today is a subtle data corruption tomorrow. See Code architecture §Serialization for Parquet deserialization conventions.
+- UI (`pages/`) code must catch and display exceptions gracefully to the user by calling `st.error`.
 
 ### Performance
 
@@ -178,14 +178,14 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 
 ### Randomness
 
-- All stochastic processes MUST accept a `seed: int | None` parameter.
+- All stochastic processes must accept a `seed: int | None` parameter.
 - Use `numpy.random.default_rng(seed)` for reproducible randomness.
 - Document seeds in outputs for reproducibility.
 - Default behavior: **deterministic** (no seed → fixed fallback).
 
-## Testing Standards
+## Testing standards
 
-### Test Types
+### Test types
 
 | Test Type | Purpose | Tools |
 |-----------|---------|-------|
@@ -196,37 +196,37 @@ assert np.allclose(unitary @ unitary.conj().T, np.eye(n)), "Operator must be uni
 | UI smoke | Streamlit page loads | pytest |
 | Performance | Runtime, scaling | pytest |
 
-### Naming Conventions
+### Naming conventions
 
 - Use domain descriptions, not implementation steps: `test_twin_fock_normalized`, not `test_normalized_twin_fock`.
 - Drop `should_`: `test_evolved_state_remains_normalized`, not `test_evolved_state_should_remain_normalized`.
 - The `given_`/`then_` delimiters are optional; prefer flat descriptive names.
-- Keep variable names consistent across cases (e.g., always `qfi_computed`, `qfi_expected`).
+- Keep variable names consistent across cases (for example, always `qfi_computed`, `qfi_expected`).
 
-### Helper Conventions
+### Helper conventions
 
 - Prefix fixtures with `_make_`.
 - Prefix preconditions with `_given_`.
 
-### Noise Reduction
+### Noise reduction
 
 - Keep docstrings concise. For public physics functions, include a one-line summary and a brief Parameters/Returns block. For trivial getters/setters, a docstring is optional.
-- **Assertion messages**: Encouraged when they name a physical invariant (e.g., `"Probability conserved"`, `"Operator must be unitary"`). Drop messages only when the expression is self-evident — pytest prints the failing expression.
+- **Assertion messages**: Encouraged when they name a physical invariant (for example, `"Probability conserved"`, `"Operator must be unitary"`). Drop messages only when the expression is self-evident; pytest prints the failing expression.
 - Remove `if __name__ == "__main__": pytest.main(...)` guards.
 - Remove module-level section comment blocks (test classes are section boundaries in pytest output).
 
-### Metadata Roundtrip Testing
+### Metadata roundtrip testing
 
-See Code Architecture §Serialization for the canonical roundtrip and fail-fast testing rules.
+See Code architecture §Serialization for the canonical roundtrip and fail-fast testing rules.
 
-### Error Testing
+### Error testing
 
 - Use the 2-line `with pytest.raises(ValueError):` form.
 - Never use `try`/`except` in tests.
 
-### Property-Based Testing
+### Property-based testing
 
-- Use `@given` from the `hypothesis` library for testing physical invariants over ranges of parameters (e.g., unitarity for any beam-splitter angle, normalisation for any input state, trace preservation for any Lindblad evolution).
+- Use `@given` from the `hypothesis` library for testing physical invariants over ranges of parameters (for example, unitarity for any beam-splitter angle, normalisation for any input state, trace preservation for any Lindblad evolution).
 - Combine with `numpy.random.default_rng(seed)` for seeded stochastic property tests.
 - Keep property-based tests in dedicated test classes or files, separate from example-based unit tests.
 
@@ -234,21 +234,21 @@ See Code Architecture §Serialization for the canonical roundtrip and fail-fast 
 
 - Use `@pytest.mark.parametrize` instead of manual `for` loops (enables per-value failure reporting).
 - Add `ids=` for non-trivial values.
-- Keep variable names consistent across cases (e.g., always `qfi_computed`, `qfi_expected`).
+- Keep variable names consistent across cases (for example, always `qfi_computed`, `qfi_expected`).
 
-## Physics Conventions
+## Physics conventions
 
-### Hilbert Space Conventions
+### Hilbert space conventions
 
 1. **Fock basis ordering**: Index = n_1 × (N_max+1) + n_2 for two-mode Fock states |n_1, n_2⟩. All operators in the interferometer space must use this index ordering.
 2. **Dicke basis ordering**: |J, m⟩ with m descending from +J to -J. Dimension = 2J + 1 = N + 1 for N particles.
 3. **Combined space**: H_total = H_sys ⊗ H_anc with dimension (N_max+1)² × (2J+1). Always build operators as Kronecker products in this order.
 
-### State and Operator Conventions
+### State and operator conventions
 
-1. **Phase shift**: Always applied to mode 1 (second arm) via U_φ = exp(iφ·n_1).
+1. **Phase shift**: Always applied to mode 1 (second arm) using U_φ = exp(iφ·n_1).
 2. **Beam splitter**: 50/50 corresponds to θ = π/4. Use the binomial expansion formula for matrix elements.
-3. **Phase generator**: J_z = (n_0 - n_1)/2 — this is the generator for phase sensitivity in the two-mode mapping.
+3. **Phase generator**: J_z = (n_0 - n_1)/2, which is the generator for phase sensitivity in the two-mode mapping.
 4. **QFI formula selection**:
    - Pure state |ψ(φ)⟩: F_Q = 4·Var(G) = 4(⟨G²⟩ - ⟨G⟩²) with G = J_z.
    - Mixed state ρ(φ): Use the two-term eigenvalue formula.
@@ -261,7 +261,7 @@ See Code Architecture §Serialization for the canonical roundtrip and fail-fast 
 2. **Heisenberg Limit**: Δφ_HL ∝ 1/N, F_Q = N² for NOON states.
 3. **Scaling exponent α**: From log-log fit log(Δφ) = α·log(N) + log(C). Coherent/CSS → α=-0.5, NOON → α=-1.0.
 
-### Sensitivity Metrics
+### Sensitivity metrics
 
 | Method | Formula | Best For |
 |--------|---------|----------|
@@ -272,7 +272,7 @@ See Code Architecture §Serialization for the canonical roundtrip and fail-fast 
 
 Inequality chain: Δφ_Q ≤ Δφ_C ≤ Δφ_EP
 
-### Noise Channels
+### Noise channels
 
 | Channel | Lindblad Operator L_k | Physical Rate |
 |---------|----------------------|--------------|
@@ -281,7 +281,7 @@ Inequality chain: Δφ_Q ≤ Δφ_C ≤ Δφ_EP
 | Phase diffusion | L = √γ_φ · J_z | γ_φ (s⁻¹) |
 | Detection noise | Binomial(k; n, η) | η ∈ [0,1] |
 
-### Noise Configuration
+### Noise configuration
 
 ```python
 @dataclass
@@ -292,11 +292,11 @@ class NoiseConfig:
     eta: float = 1.0        # Detection efficiency
 ```
 
-## Report Format Conventions
+## Report format conventions
 
-### Section Order
+### Section order
 
-All reports MUST include sections in the following order:
+All reports must include sections in the following order:
 
 | Section | Emoji | Mandatory | When |
 |---------|-------|-----------|------|
@@ -310,34 +310,34 @@ All reports MUST include sections in the following order:
 | Physical Invariants / Analytical Bounds | ⚖️ | No | Conservation-law analysis or analytical bound derivation |
 | Conclusions | 🏁 | Yes | Always |
 
-### Formatting Rules
+### Formatting rules
 
-1. Every report filename MUST follow `rYYYYMMDD/{title}.md`.
+1. Every report filename must follow `rYYYYMMDD/{title}.md`.
 2. Inline annotations use **bold text** instead of emojis. Use only: **Key Finding**, **Open items**, **See**, **Validation**.
 3. Status columns in tables use only text: `PASS`, `FAIL`, `PENDING`, `PARTIAL`.
 4. Section header emoji goes after `## ` and before the title text: `## 🧪 Hypothesis` (not `## Hypothesis 🧪`).
-5. Section-title emojis are the only emojis allowed in reports — never add decorative or ad-hoc emojis outside section headers.
+5. Section-title emojis are the only emojis allowed in reports. Never add decorative or ad-hoc emojis outside section headers.
 6. Section emojis appear once per document, not on sub-subsections.
-7. Don't include repo-specific filepaths in the Numerical Simulation section (theoretical model should be implementation-agnostic).
-8. Don't use breaklines in prose when inline equations suffice (`$...$`). Never use display math (`$$...$$`).
-9. Don't use `|` inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.
-10. Don't use `\ket` — it is not recognised by the Markdown engine.
+7. Do not include repo-specific filepaths in the Numerical Simulation section (theoretical model should be implementation-agnostic).
+8. Do not use breaklines in prose when inline equations suffice (`$...$`). Never use display math (`$$...$$`).
+9. Do not use `|` inside LaTeX math ($...$) or in table cells unless wrapped in LaTeX `\vert `.
+10. Do not use `\ket`. It is not recognised by the Markdown engine.
 11. Use `\mathbb{1}_n` to signify an $n$ dimensional identity operator.
 12. Use existing external implementations (`qutip`, `scipy`, etc). Do not re-implement existing functionality.
 
-### Per-Section Patterns
+### Per-section patterns
 
 #### 🧪 Hypothesis
 Numbered list of specific, testable claims (or paragraph form for a single claim). Each claim maps to an item in the Success Criteria list.
 
 #### ⚛️ Theoretical Model
-Continuous prose narrative covering the **Hilbert space** (basis vectors, dimension formula, index ordering convention), **operators** (explicit matrix elements or generator definitions in the chosen basis), the **circuit protocol** as a step-by-step unitary sequence (BS → phase → hold → BS), the **measurement** observable and sensitivity formula used, and any **tables** for states, operators, or noise channels. Avoid subsection headings — the entire section must read as a single flowing exposition. Use **bold font** when introducing and defining each concept for the first time.
+Continuous prose narrative covering the **Hilbert space** (basis vectors, dimension formula, index ordering convention), **operators** (explicit matrix elements or generator definitions in the chosen basis), the **circuit protocol** as a step-by-step unitary sequence (BS → phase → hold → BS), the **measurement** observable and sensitivity formula used, and any **tables** for states, operators, or noise channels. Avoid subsection headings. The entire section must read as a single flowing exposition. Use **bold font** when introducing and defining each concept for the first time.
 
-The following items MUST appear in this section:
-- **State representation** — Fock basis, coherent states, density matrices, etc.
-- **Units** — Dimensionless by default unless overridden
-- **Conventions** — Phase sign, beam splitter unitary definition
-- **Hilbert space** — Dimension and basis explicitly stated
+The following items must appear in this section:
+- **State representation.** Fock basis, coherent states, density matrices, and so on.
+- **Units.** Dimensionless by default unless overridden.
+- **Conventions.** Phase sign, beam splitter unitary definition.
+- **Hilbert space.** Dimension and basis explicitly stated.
 
 #### 📊 Models Survey (survey reports only)
 Central table mapping models to expected scaling exponents. Columns: `| Model | Input State | Noise | Expected α | Implementation Status |`. This is the definitive reference. Use text status indicators (PASS/FAIL/PENDING/PARTIAL).
@@ -345,37 +345,37 @@ Central table mapping models to expected scaling exponents. Columns: `| Model | 
 #### 💻 Numerical Simulation
 Three subsections:
 
-1. **Implementation strategy** — ordered list describing the high-level approach (composable pipeline, key function signatures, dimension management, solvers). Every dataclass must store all input parameters alongside computed results and serialize them in `to_dataframe()` — Parquet files must be self-describing.
-2. **Parameter sweep** — table with single "Parameter" column (name and symbol combined), single "Range" column (range, step size, and point count combined), and "Purpose" column
-3. **Validation** — prose paragraph with inline equations enumerating physical invariants (state normalisation, unitarity, variance positivity, sensitivity positivity, baseline recovery, commutation relations, Hermiticity)
+1. **Implementation strategy.** Ordered list describing the high-level approach (composable pipeline, key function signatures, dimension management, solvers). Every dataclass must store all input parameters alongside computed results and serialize them in `to_dataframe()`. Parquet files must be self-describing.
+2. **Parameter sweep.** Table with single "Parameter" column (name and symbol combined), single "Range" column (range, step size, and point count combined), and "Purpose" column
+3. **Validation.** Prose paragraph with inline equations enumerating physical invariants (state normalisation, unitarity, variance positivity, sensitivity positivity, baseline recovery, commutation relations, Hermiticity)
 
 ##### 🔧 Implementation Status
-Bullet-point list with **bold** component names followed by an em-dash and description (e.g., operator construction, state preparation, unitary evolution, sensitivity computation). Include a test count summary line after the list. Only for completed implementations.
+Bullet-point list with **bold** component names followed by an em-dash and description (for example, operator construction, state preparation, unitary evolution, sensitivity computation). Include a test count summary line after the list. Only for completed implementations.
 
 #### ⚠️ Expected Failure Conditions
-Each entry includes: failure condition name and description combined via em-dash, and mitigation strategy. Table format is required: `| Failure | Mitigation |` (failure name and description merged into a single "Failure" column with an em-dash separator).
+Each entry includes: failure condition name and description combined with an em-dash, and mitigation strategy. Table format is required: `| Failure | Mitigation |` (failure name and description merged into a single "Failure" column with an em-dash separator).
 
 #### 🔬 Results
 **Required in every report.** Organise results as subsections, one per experiment. Each subsection ends with a **Key Finding** paragraph. A summary table may conclude the section.
 
-- **Pre-experiment**: a table with `PENDING` status — marks what hasn't been run yet
+- **Pre-experiment**: a table with `PENDING` status, marking what has not been run yet
 - **Post-experiment**: a table with actual status (`PASS`/`FAIL`), plus a **Key Finding** paragraph starting with `**Key Finding**`
-- Completed reports include a quantitative summary table and cross-references (via `See`) to code modules
+- Completed reports include a quantitative summary table and cross-references (by using `See`) to code modules
 - If no simulation was needed (pure analytical), state that clearly
 
 #### ✅ Success Criteria
-- **Pre-experiment and Post-experiment**: bullet-point list with **bold** criterion name followed by em-dash and expectation (e.g., `- **Decoupled baseline** — $\Delta\theta = 1/T_H$ exactly when $a_{xx}=0$ and $H_A=0$`). Post-experiment lists add `— PASS/FAIL` at the end of each item.
+- **Pre-experiment and Post-experiment**: bullet-point list with **bold** criterion name followed by em-dash and expectation (for example, `- **Decoupled baseline** — $\Delta\theta = 1/T_H$ exactly when $a_{xx}=0$ and $H_A=0$`). Post-experiment lists add `— PASS/FAIL` at the end of each item.
 - Follow the criteria list with a short prose paragraph that summarizes what passed and what failed, provides brief reasoning, and suggests possible next steps to test.
 
 #### ⚖️ Physical Invariants / Analytical Bounds
-Optional section documenting known analytical bounds, conservation laws, and invariants relevant to the simulation. Include explicit mathematical expressions and their domain of validity. This section appears only when conservation-law analysis is central to the report (e.g., when verifying that a noisy channel respects Pauli constraints or that a metrological bound is tight). When used, it serves as a reference for the assertions in the Validation block of the Numerical Simulation section. May be titled either **Physical Invariants** or **Analytical Bounds** depending on the nature of the content.
+Optional section documenting known analytical bounds, conservation laws, and invariants relevant to the simulation. Include explicit mathematical expressions and their domain of validity. This section appears only when conservation-law analysis is central to the report (for example, when verifying that a noisy channel respects Pauli constraints or that a metrological bound is tight). When used, it serves as a reference for the assertions in the Validation block of the Numerical Simulation section. May be titled either **Physical Invariants** or **Analytical Bounds** depending on the nature of the content.
 
 #### 🏁 Conclusions
 Final wrap-up section. Summarize what was learned, whether the hypothesis was supported, and the broader implications. Reference specific Results and any Open Questions that remain. This section must always appear last in the document.
 
-Optional unsolved issues and future directions. Start the paragraph with `**Open items**` in bold — do not use a heading.
+Optional unsolved issues and future directions. Start the paragraph with `**Open items**` in bold. Do not use a heading.
 
-# Quick Reference
+# Quick reference
 
 ```bash
 uv run pytest . --testmon --quiet --tb=short   # Run tests
@@ -389,4 +389,4 @@ gocard -dir ~/Git/notebooks/revise             # Study revision cards
 
 **Configuration**: `pyproject.toml` defines pytest (testpaths, warnings), mypy (strict typing), pyright (live analysis), and ruff settings.
 
-Search memory before answering implementation questions — prior context may already contain the answer.
+Search memory before answering implementation questions: prior context might already contain the answer.

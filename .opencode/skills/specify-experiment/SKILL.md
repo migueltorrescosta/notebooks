@@ -5,29 +5,29 @@ description: MUST be used when writing a new report in reports/ based on a user 
 
 # Purpose
 
-Guide the creation of a new simulation report from initial research question through to a complete, formatted markdown document in `reports/`. This skill covers the planning, hypothesis formulation, and writing stages only — never implementation or result generation.
+Guide the creation of a new simulation report from initial research question through to a complete, formatted markdown document in `reports/`. This skill covers the planning, hypothesis formulation, and writing stages only. Do not use it for implementation or result generation.
 
 # Rules
 
 1. Always survey existing reports in `reports/` before proposing a new simulation.
 2. Distill every physics claim into a specific, testable hypothesis with a clear null and alternative.
-3. Determine the minimum Hilbert space needed — never overbuild.
+3. Determine the minimum Hilbert space needed. Do not overbuild.
 4. Proactively identify likely mistakes in the user's assumptions before drafting a plan.
 5. Follow the prescribed report section order, emoji conventions, and formatting rules exactly.
-6. Never use bare `|` inside `$...$` in Markdown tables — it collides with the table column delimiter. Use `\vert ` instead (e.g., `$P(m\vert \omega)$` not `$P(m|\omega)$`). For prose (non-table) locations, use `\vert` for consistency.
-7. Do not generate figures, run simulations, or modify code — this skill is for planning and writing only.
+6. Do not use bare `|` inside `$...$` in Markdown tables. It collides with the table column delimiter. Use `\vert ` instead (for example, `$P(m\vert \omega)$` not `$P(m|\omega)$`). For prose (non-table) locations, use `\vert` for consistency.
+7. Do not generate figures, run simulations, or modify code. This skill is for planning and writing only.
 
 # Workflow
 
 ## 1. Before writing
 
-1. **Read the findings document** — Read `reports/findings/interferometric_sensitivity_improvements.md` to understand all prior experiments, their outcomes, and the overall narrative. This ensures the new experiment does not duplicate past work and is correctly positioned in the broader story.
-2. **Survey existing reports** — Read `reports/` to identify gaps not yet covered by prior simulations.
-3. **Check the CHANGELOG backlog** — If a backlog entry for this experiment already exists, note its section and theme group. If not, consider adding one in the appropriate theme group using the format: `- **Title** (#YYYYMMDD) — description. Next step: plan report.`
-4. **Clarify the research question** — Distill the physics claim into a specific, testable hypothesis with a clear null and alternative.
-5. **Determine the minimum Hilbert space** — Determine the dimension, basis, and operators needed to answer the question without unnecessary overhead.
-6. **Challenge assumptions** — Highlight likely mistakes present in the user's request before drafting the plan.
-7. **Iterate with the user** — Ask questions and refine the plan until the user is satisfied. Only then write the report file.
+1. **Read the findings document**. Read `reports/findings/interferometric_sensitivity_improvements.md` to understand all prior experiments, their outcomes, and the overall narrative. This ensures the new experiment does not duplicate past work and is correctly positioned in the broader story.
+2. **Survey existing reports**. Read `reports/` to identify gaps not yet covered by prior simulations.
+3. **Check the CHANGELOG backlog**. If a backlog entry for this experiment already exists, note its section and theme group. If not, consider adding one in the appropriate theme group using the format: `- **Title** (#YYYYMMDD) — description. Next step: plan report.`
+4. **Clarify the research question**. Distill the physics claim into a specific, testable hypothesis with a clear null and alternative.
+5. **Determine the minimum Hilbert space**. Determine the dimension, basis, and operators needed to answer the question without unnecessary overhead.
+6. **Challenge assumptions**. Highlight likely mistakes present in the user's request before drafting the plan.
+7. **Iterate with the user**. Ask questions and refine the plan until the user is satisfied. Only then write the report file.
 
 ## 2. Writing the report
 

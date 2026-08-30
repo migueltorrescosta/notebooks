@@ -10,19 +10,19 @@ Define a disciplined, repeatable process for implementing physics simulations fr
 # Rules
 
 1. Always run tests before starting any code change.
-2. Read the report in `reports/` thoroughly — understand the Hilbert space, operators, and protocol before coding.
-3. Read relevant existing code first — understand existing patterns in `src/`, and the target report's experiment module.
-4. Plan the physical model — document Hilbert space, basis, and operators before coding.
-5. Add tests first (TDD) — unit tests co-located in `src/` subdirectories, integration/E2E tests in `tests/`, report-specific tests in the report's `test_{slug}.py`.
+2. Read the report in `reports/` thoroughly. Understand the Hilbert space, operators, and protocol before coding.
+3. Read relevant existing code first. Understand existing patterns in `src/`, and the target report's experiment module.
+4. Plan the physical model. Document Hilbert space, basis, and operators before coding.
+5. Add tests first (TDD): unit tests co-located in `src/` subdirectories, integration/E2E tests in `tests/`, report-specific tests in the report's `test_{slug}.py`.
 6. Check `src/` for available code. Do not reimplement already existing functionality.
-6. **New code goes to experiment module** — New code should be added to a descriptive-name Python file in `reports/rYYYYMMDD/` (e.g., `phase_modulated_drive.py`). Only promote code to `src/` when it is demonstrably reusable across multiple reports.
+7. **New code goes to experiment module**: New code should be added to a descriptive-name Python file in `reports/rYYYYMMDD/` (for example, `phase_modulated_drive.py`). Only promote code to `src/` when it is demonstrably reusable across multiple reports.
 
 # Workflow
 
 ## 1. Before starting work
 
-1. **Run checks**: Ensure nothing is broken before starting changes — tests (`uv run pytest . --testmon --quiet --tb=short`), linter (`uv run ruff check . --fix && uv run ruff format .`), type checks (`uv run mypy .` and `uvx pyright src/ pages/`). Pre-existing bugs must be fixed before continuing.
-2. **Read the report** — Open the target report in `reports/` and extract: Hilbert space dimensions, basis ordering, operator definitions, circuit protocol, measurement observable, and sensitivity formula.
+1. **Run checks**: Ensure nothing is broken before starting changes: tests (`uv run pytest . --testmon --quiet --tb=short`), linter (`uv run ruff check . --fix && uv run ruff format .`), type checks (`uv run mypy .` and `uvx pyright src/ pages/`). Pre-existing bugs must be fixed before continuing.
+2. **Read the report**: Open the target report in `reports/` and extract: Hilbert space dimensions, basis ordering, operator definitions, circuit protocol, measurement observable, and sensitivity formula.
 3. **Clarify ambiguity**: Ask the user to clarify any unclear requirements before making any code changes.
 4. **Read relevant code**: Understand existing patterns in `pages/`, `src/`, and the target report's experiment module that match the report's requirements.
 5. **Plan the physical model**: Determine the Hilbert space, basis, operators, and any new dataclasses needed.
@@ -34,7 +34,7 @@ Define a disciplined, repeatable process for implementing physics simulations fr
    - Unit tests co-located with modules in `src/` subdirectories.
    - Integration/E2E tests in `tests/`.
    - Report-specific tests for the experiment module in the report's own `test_{slug}.py`.
-2. **Add new code to experiment module** — write all new report-specific simulation functions in a descriptive-name Python file in `reports/rYYYYMMDD/` (e.g., `phase_modulated_drive.py`). Do not add them to `src/` modules unless they are needed by multiple reports.
+2. **Add new code to experiment module**: write all new report-specific simulation functions in a descriptive-name Python file in `reports/rYYYYMMDD/` (for example, `phase_modulated_drive.py`). Do not add them to `src/` modules unless they are needed by multiple reports.
 
 ## 3. At the end
 
@@ -51,10 +51,10 @@ Before considering implementation complete, verify all items in the Workflow Ver
 - [ ] Challenged assumptions and ambiguities clarified
 
 ### After implementation
-- [ ] Followed YAGNI/KISS — no speculative abstractions
+- [ ] Followed YAGNI/KISS: no speculative abstractions
 - [ ] Tests pass after changes (`uv run pytest . --testmon --quiet --tb=short`)
 - [ ] Linting and formatting pass (`uv run ruff check . --fix && uv run ruff format .`)
-- [ ] Type checks pass — mypy (`uv run mypy .`) and pyright (`uvx pyright src/ pages/`)
+- [ ] Type checks pass: mypy (`uv run mypy .`) and pyright (`uvx pyright src/ pages/`)
 - [ ] No existing function signatures changed
 - [ ] No new code duplicates existing code from `src/` or other report experiment modules
 - [ ] No unused variables or parameters
