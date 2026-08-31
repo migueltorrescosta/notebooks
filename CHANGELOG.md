@@ -31,6 +31,13 @@ Priority colours: 🔴🟠🟡🟢
 
 ---
 
+## Week 36 (Aug 31–Sep 6)
+
+### Infrastructure
+- **Default branch migrated `master` → `main`** — GitHub default branch renamed to `main`; remote `HEAD` symbol and local tracking updated. Jupyter Book edit-on-repo `branch:` target in `_config.yml` updated to match.
+
+---
+
 ## Week 31 (Jul 27–Aug 2)
 
 ### Infrastructure
