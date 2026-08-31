@@ -35,8 +35,7 @@ Priority colours: 🔴🟠🟡🟢
 
 ### Infrastructure
 - **Default branch migrated `master` → `main`** — GitHub default branch renamed to `main`; remote `HEAD` symbol and local tracking updated. Jupyter Book edit-on-repo `branch:` target in `_config.yml` updated to match.
-
----
+- **Adopt Serena MCP for agent code navigation; keep ast-grep as CLI complement** (#20260831) — Repository-based evaluation (mg-v2um) concluded: Serena 1.7.0 (MCP, 23 symbol/reference/diagnostic tools) is the bigger marginal win for agent workflows — `find_symbol`/`find_referencing_symbols` matched rg ground truth with 0 false positives, `get_diagnostics_for_file` returns pyright diagnostics, and targeted calls cost ~11x fewer tokens than full-file reads. ast-grep 0.45.2 (CLI, structural) is ~20x faster than rg on 3k+ `function_definition` scans, does exact codemods, and is the right tool for `reports/` lint rules (excels where ruff/mypy are absent and pdf/analysis patterns in `pages/`). Neither provides semantic embedding search; Serena trailers a separate `start-project-server` for `query_project`. Both MIT. Integration: `opencode.json` gains a project-level `serena` local MCP server; `.gitignore` ignores `.serena/`.
 
 ## Week 31 (Jul 27–Aug 2)
 

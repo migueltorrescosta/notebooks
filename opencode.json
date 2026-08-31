@@ -1,6 +1,25 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "default_agent": "research-assistant",
+  "mcp": {
+    "serena": {
+      "type": "local",
+      "command": [
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "claude-code",
+        "--add-mode",
+        "query-projects",
+        "--project",
+        ".",
+        "--enable-web-dashboard",
+        "false",
+        "--enable-gui-log-window",
+        "false"
+      ]
+    }
+  },
   "lsp": {
     "pyright": {
       "command": [

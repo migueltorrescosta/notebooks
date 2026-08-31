@@ -20,6 +20,9 @@ revise/
 # orchestrator agent worktrees
 .worktrees/
 
+# Serena project cache
+.serena/
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 *.db
