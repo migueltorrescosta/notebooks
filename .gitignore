@@ -27,3 +27,4 @@ revise/
 .dolt/
 *.db
 .beads-credential-key
+.beads/
