@@ -25,12 +25,15 @@ Conventions:
   phase shift, which is correct for indefinite-N states.
 """
 
-from collections.abc import Callable
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 import numpy as np
 import qutip
 import scipy
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # =============================================================================
 # State Preparation

@@ -3,7 +3,7 @@ name = "collapsedwave"
 version = "0.1.0"
 description = ""
 authors = [{ name = "migueltorrescosta", email = "miguelptcosta1995@gmail.com" }]
-requires-python = "~=3.12.0"
+requires-python = ">=3.14"
 readme = "README.md"
 dependencies = [
     "bokeh>=3.4.1,<4",
@@ -39,7 +39,6 @@ dependencies = [
     "snakeviz>=2.2.2,<3",
     "streamlit>=1.41.1,<2",
     "sympy>=1.14.0,<1.15",
-    "tensorflow[gpu]>=2.18.0,<3",
     "torch>=2.6.0,<3",
     "torchaudio>=2.2.2,<3",
     "torchvision>=0.21.0,<0.28",
@@ -74,6 +73,9 @@ dev = [
     "tach>=0.35.0",
 ]
 test = ["pytest>=8.2.0,<9", "playwright>=1.42.0,<2"]
+# Opt-in (uv sync --group tensorflow). tensorflow has no stable cp314 wheels,
+# so the marker leaves the group empty on 3.14; relax it once wheels ship.
+tensorflow = ["tensorflow[and-cuda]>=2.18.0,<3; python_version < '3.14'"]
 
 [tool.uv]
 package = true

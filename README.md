@@ -71,13 +71,22 @@ change. Run them with `--regenerate-fixtures` in CI or locally when the schemas 
 ## Setup
 
 ```bash
-# Python dependencies
+# Python dependencies (Python 3.14, pinned in .python-version)
 uv sync
 
 # Jupyter kernels
 uv pip install ipykernel
 python -m ipykernel install --user --name=playground
 ```
+
+### Optional `tensorflow` group
+
+TensorFlow is not a default dependency. It is only used by
+`jupyter/phd/2504_CreateNthQuantumEnergyLevelWithTensorflow.ipynb` and lives in the
+opt-in `tensorflow` dependency group (`tensorflow[and-cuda]`, marker
+`python_version < '3.14'`). TensorFlow has no stable cp314 wheels yet, so on the
+pinned Python 3.14 `uv sync --group tensorflow` installs nothing extra. Relax the
+marker in `pyproject.toml` once cp314 wheels ship.
 
 ## Dev commands
 
