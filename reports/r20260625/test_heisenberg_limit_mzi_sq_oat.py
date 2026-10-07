@@ -1244,17 +1244,19 @@ class TestPlots:
         with pytest.raises(ValueError, match="At least one"):
             plot_scaling([None, None], ["a", "b"], save_path=tmp_path / "none.svg")
 
-    def test_plot_overlay_no_save_path(self, sample_data: MziSensitivityDataSV) -> None:
+    def test_plot_overlay_no_save_path(
+        self,
+        sample_data: MziSensitivityDataSV,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """plot_delta_omega_overlay works without save_path (auto-names)."""
-        # Allows SVG in the default location; clean up after.
-        path = _fig_path(f"{sample_data.state_type}_delta_omega_comparison")
-        try:
-            created = plot_delta_omega_overlay(sample_data)
-            assert created is not None
-            assert created.suffix == ".svg"
-        finally:
-            if path.exists():
-                path.unlink()
+        # Redirect auto-naming so the committed report figure is not clobbered.
+        monkeypatch.setattr(_m, "_fig_path", lambda name: tmp_path / _fig_path(name).name)
+        created = plot_delta_omega_overlay(sample_data)
+        name = f"{sample_data.state_type}_delta_omega_comparison"
+        assert created == tmp_path / _fig_path(name).name
+        assert created.suffix == ".svg"
 
     def test_plot_overlay_non_existent_R(
         self, sample_data: MziSensitivityDataSV, tmp_path: Path
@@ -1264,16 +1266,18 @@ class TestPlots:
         plot_delta_omega_overlay(sample_data, selected_R=[999.0], save_path=svg)
         assert svg.exists()
 
-    def test_plot_scaling_no_save_path(self, sample_data: MziSensitivityDataSV) -> None:
+    def test_plot_scaling_no_save_path(
+        self,
+        sample_data: MziSensitivityDataSV,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """plot_scaling works without save_path (auto-names)."""
-        path = _fig_path("scaling_comparison")
-        try:
-            created = plot_scaling([sample_data], ["SV"])
-            assert created is not None
-            assert created.suffix == ".svg"
-        finally:
-            if path.exists():
-                path.unlink()
+        # Redirect auto-naming so the committed report figure is not clobbered.
+        monkeypatch.setattr(_m, "_fig_path", lambda name: tmp_path / _fig_path(name).name)
+        created = plot_scaling([sample_data], ["SV"])
+        assert created == tmp_path / _fig_path("scaling_comparison").name
+        assert created.suffix == ".svg"
 
     def test_plot_scaling_valid_fit(self, tmp_path: Path) -> None:
         """plot_scaling with SQL-like data triggers the fit-valid branch."""
