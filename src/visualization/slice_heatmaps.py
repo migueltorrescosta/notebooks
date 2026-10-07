@@ -154,6 +154,58 @@ def plot_slice_heatmap(
     return save_path
 
 
+def _z_tolerance(z_unique: np.ndarray) -> float:
+    """Return the absolute tolerance for matching requested slices to grid z values."""
+    z_range = z_unique[-1] - z_unique[0] if len(z_unique) > 1 else 1.0
+    return max(1e-10 * abs(z_range), 1e-15)
+
+
+def _matching_slice_index(z_unique: np.ndarray, zs: float, z_tol: float) -> int | None:
+    """Return the grid index nearest *zs*, or ``None`` if outside *z_tol*."""
+    idx = int(np.argmin(np.abs(z_unique - zs)))
+    if abs(z_unique[idx] - zs) > z_tol:
+        return None
+    return idx
+
+
+def _shared_color_range(
+    z_unique: np.ndarray,
+    grid: np.ndarray,
+    z_slices: list[float],
+    z_tol: float,
+    vmin: float | None,
+    vmax: float | None,
+) -> tuple[float | None, float | None]:
+    """Fill missing *vmin*/*vmax* from the finite values of the matched slices."""
+    slice_grids = [
+        grid[idx]
+        for zs in z_slices
+        if (idx := _matching_slice_index(z_unique, zs, z_tol)) is not None
+    ]
+    if not slice_grids:
+        return vmin, vmax
+    combined = np.concatenate([g.ravel() for g in slice_grids])
+    finite = combined[np.isfinite(combined)]
+    if len(finite) == 0:
+        return vmin, vmax
+    if vmin is None:
+        vmin = float(np.min(finite))
+    if vmax is None:
+        vmax = float(np.max(finite))
+    return vmin, vmax
+
+
+def _as_2d_axes(axes: np.ndarray, nrows: int, ncols: int) -> np.ndarray:
+    """Normalise ``plt.subplots`` output to a 2D ``(nrows, ncols)`` axes array."""
+    if nrows == 1 and ncols == 1:
+        return np.array([[axes]])
+    if nrows == 1:
+        return axes[np.newaxis, :]
+    if ncols == 1:
+        return axes[:, np.newaxis]
+    return axes
+
+
 def plot_slice_panel(
     x_values: np.ndarray,
     y_values: np.ndarray,
@@ -206,44 +258,24 @@ def plot_slice_panel(
 
     n_slices = len(z_slices)
     nrows = int(np.ceil(n_slices / ncols))
+    z_tol = _z_tolerance(z_unique)
 
     # Determine shared colour range if not provided
     if vmin is None or vmax is None:
-        slice_grids = []
-        z_range = z_unique[-1] - z_unique[0] if len(z_unique) > 1 else 1.0
-        z_tol = max(1e-10 * abs(z_range), 1e-15)
-        for zs in z_slices:
-            idx = int(np.argmin(np.abs(z_unique - zs)))
-            if abs(z_unique[idx] - zs) <= z_tol:
-                slice_grids.append(grid[idx])
-        if slice_grids:
-            combined = np.concatenate([g.ravel() for g in slice_grids])
-            finite = combined[np.isfinite(combined)]
-            if len(finite) > 0:
-                if vmin is None:
-                    vmin = float(np.min(finite))
-                if vmax is None:
-                    vmax = float(np.max(finite))
+        vmin, vmax = _shared_color_range(z_unique, grid, z_slices, z_tol, vmin, vmax)
 
     fig, axes = plt.subplots(
         nrows, ncols,
         figsize=(figsize_per_subplot[0] * ncols, figsize_per_subplot[1] * nrows),
     )
-    if nrows == 1 and ncols == 1:
-        axes = np.array([[axes]])
-    elif nrows == 1:
-        axes = axes[np.newaxis, :]
-    elif ncols == 1:
-        axes = axes[:, np.newaxis]
+    axes = _as_2d_axes(axes, nrows, ncols)
 
-    z_range = z_unique[-1] - z_unique[0] if len(z_unique) > 1 else 1.0
-    z_tol = max(1e-10 * abs(z_range), 1e-15)
-
+    im = None
     for idx, zs in enumerate(z_slices):
         row, col = divmod(idx, ncols)
         ax = axes[row, col]
-        z_idx = int(np.argmin(np.abs(z_unique - zs)))
-        if abs(z_unique[z_idx] - zs) > z_tol:
+        z_idx = _matching_slice_index(z_unique, zs, z_tol)
+        if z_idx is None:
             ax.set_visible(False)
             continue
         im = ax.pcolormesh(
@@ -260,13 +292,14 @@ def plot_slice_panel(
         axes[row, col].set_visible(False)
 
     # Add shared colour bar
-    if n_slices > 0:
-        z_idx_first = int(np.argmin(np.abs(z_unique - z_slices[0])))
-        if abs(z_unique[z_idx_first] - z_slices[0]) <= z_tol:
-            fig.colorbar(
-                im, ax=axes.ravel().tolist(), label=cbar_label,
-                shrink=0.8, pad=0.02,
-            )
+    first_valid = (
+        n_slices > 0 and _matching_slice_index(z_unique, z_slices[0], z_tol) is not None
+    )
+    if first_valid and im is not None:
+        fig.colorbar(
+            im, ax=axes.ravel().tolist(), label=cbar_label,
+            shrink=0.8, pad=0.02,
+        )
 
     if title:
         fig.suptitle(title, fontsize=12, y=1.02)
