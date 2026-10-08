@@ -1,6 +1,6 @@
 # Ancilla-drive phase-modulated metrology: Beating the SQL by exposing the ancilla drive to the unknown phase
 
-## Hypothesis
+## 🧪 Hypothesis
 
 For a system--ancilla pair of single-particle two-mode bosonic systems where the system S couples to the unknown phase $\omega$ via $H_S = \omega J_z^S$, the ancilla A is driven **by the same unknown phase** during the holding period via a controllable local Hamiltonian $H_A = \omega\,(a_x J_x^A + a_y J_y^A + a_z J_z^A)$, and the system--ancilla interaction remains the Ising-type $H_{\text{int}} = a_{zz} J_z^S \otimes J_z^A$, the sensitivity $\Delta\omega$ (error-propagation uncertainty in estimating $\omega$ via a $J_z^S$ measurement on the system) can **beat** the standard quantum limit (SQL) $\Delta\omega = 1/T_H$ despite using only $N=1$ particle in the interferometer. The holding time is fixed at $T_H = 10$ for all experiments, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 0.1$.
 
@@ -16,7 +16,7 @@ The central hypothesis decomposes into three specific, testable claims:
 
 **Null hypothesis**: No combination of $(a_x, a_y, a_z, a_{zz})$ can produce $\Delta\omega < 1/T_H$ even with $\omega$-modulated ancilla drive. The system's $J=1/2$ spectral radius bound remains insurmountable.
 
-## Theoretical model
+## ⚛️ Theoretical model
 
 The total Hilbert space is $\mathcal{H}_{\text{tot}} = \mathcal{H}_S \otimes \mathcal{H}_A$, where each subsystem is a **two-mode bosonic Fock space** truncated at one particle per mode. The single-particle sector $\mathcal{H}_{1} = \text{span}\{\vert1,0\rangle,\, \vert0,1\rangle\}$ (dimension 2) is isomorphic to a spin-$1/2$, and the full space has dimension 4 with ordered computational basis $\{\vert00\rangle, \vert01\rangle, \vert10\rangle, \vert11\rangle\}$ where $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). The **angular momentum operators** for each subsystem satisfy SU(2) algebra $[J_i, J_j] = i \epsilon_{ijk} J_k$ and are represented by $J_k = \sigma_k/2$ (the $2\times2$ Pauli matrices). These are embedded into the full space via Kronecker products: $J_k^S = \sigma_k/2 \otimes \mathbb{1}_2$ and $J_k^A = \mathbb{1}_2 \otimes \sigma_k/2$.
 
@@ -62,7 +62,7 @@ In the interaction picture, the $\omega$-dependence of $H_A$ means the time-depe
 
 **Key contrast with prior work (2026-05-18)**: In the prior report, $H_A$ was independent of $\omega$, so any enhancement had to come purely from the non-commuting structure of $J_z^A(t)$ with $H_A$ at fixed amplitude. Here, the drive amplitude scales with $\omega$, giving a **parametric gain**: as $\omega$ increases, both the signal ($H_S$) and the ancilla readout amplification ($H_A$) grow together. This is analogous to a feedback-amplified measurement where the unknown parameter boosts its own signal.
 
-## Numerical simulation
+## 💻 Numerical simulation
 
 ### Implementation strategy
 
@@ -135,7 +135,7 @@ The following physical invariants are verified throughout every simulation run:
 
 **Tests**: The companion test module `tests/test_ancilla_drive_phase_modulated.py` contains **51 tests** covering all functionality. All tests pass.
 
-## Failure conditions — Actual outcomes
+## ⚠️ Failure conditions — Actual outcomes
 
 | Failure | Expected Outcome | Actual Outcome |
 |---------|------------------|----------------|
@@ -147,7 +147,7 @@ The following physical invariants are verified throughout every simulation run:
 | **Optimal $a_z$-only drive** | **Possible** — commuting drive may suffice | **Avoided**: All optimal solutions have $a_x \neq 0$ and/or $a_y \neq 0$; $a_z$-only solutions do not appear |
 | **Phase-dependent sensitivity** | **Expected** — optimal $a_k$ should depend on $\omega$ | **Confirmed**: Optimal parameters vary significantly with $\omega$ (e.g., $a_z^*$ varies from 5.0 at $\omega=0.1$ to 0.0 at $\omega=5.0$). Adaptive strategies needed. |
 
-## Results
+## 🔬 Results
 
 All experiments used a holding time $T_H = 10$, giving an SQL reference of $\Delta\omega_{\text{SQL}} = 1/T_H = 0.1$. The 2D slices were computed on 201×201 grids (40,401 points per slice, 100 slices × 40,401 = 4,040,100 evaluations). The 4D random search used 500 points per $\omega$ value (50 × 500 = 25,000 total), and the Nelder--Mead refinement refined the best 50 random-search points per $\omega$ value (50 × 50 = 2,500 refinement runs total). The fine $\omega$ scan used 500 $\omega$ values from 0.01 to 5.00 (step 0.01), each with 4D random search (500 pts) plus Nelder--Mead refinement.
 
@@ -241,7 +241,7 @@ The fixed-drive protocol achieves $\Delta\omega = 0.1$ (exactly SQL) for all $\o
 | Nelder--Mead refinement (2,500 runs) | **Completed** (50 $\omega$ values) | Best $\Delta\omega = 0.02036$ ($\omega=0.2$), 0.204× SQL |
 | $\omega$ scan (500 values) | **Completed** | All 500 $\omega$ values beat SQL; best at $\omega=0.06$ ($\Delta\omega=0.017388$, 5.75× SQL) |
 
-## Success criteria — Actual outcomes
+## ✅ Success criteria — Actual outcomes
 
 | Criterion | Expected | Actual | Verdict |
 |-----------|----------|--------|---------|
@@ -254,7 +254,7 @@ The fixed-drive protocol achieves $\Delta\omega = 0.1$ (exactly SQL) for all $\o
 | **Finite derivative** | $\vert\partial\langle J_z^S\rangle/\partial\omega\vert > 10^{-12}$ | All reported $\Delta\omega$ finite | **PASS** |
 | **Optimal params recorded** | Full tuple per $\omega$ | 500 optimal tuples recorded in Parquet | **PASS** |
 
-## Analytical bounds
+## ⚖️ Analytical bounds
 
 For the decoupled case ($a_{zz} = 0$), the total Hamiltonian is:
 $H = \omega J_z^S + \omega(a_x J_x^A + a_y J_y^A + a_z J_z^A) = \omega\big[J_z^S + a_x J_x^A + a_y J_y^A + a_z J_z^A\big].$
@@ -281,7 +281,7 @@ However, this is a crude estimate — the actual sensitivity depends on how $H_{
 
 **Numerical prediction vs. actual outcome**: We predicted $\Delta\omega < 0.1$ for some region of the $(a_x, a_y, a_z, a_{zz})$ parameter space — **confirmed**. The prediction of strongest enhancement at large $\vert a_{zz}\vert$ and large $\vert a_x\vert, \vert a_y\vert$ — **confirmed**. The $\omega$-dependence prediction was **partially incorrect**: we expected minimal enhancement at small $\omega$ and maximal at large $\omega$, but the actual result shows the best enhancement at $\omega = 0.06$ (ratio 0.174), with a non-monotonic trend including local minima near $\omega \approx 0.15$ and $\omega \approx 0.23$. The predicted optimal $\omega$ range $\omega \sim 1\text{--}5$ was too high; the true optimum is at $\omega \approx 0.06$. The predicted $\Delta\omega$ value of $\sim 0.02$ at optimal parameters was **remarkably accurate**: the actual best is $0.0174$.
 
-## Conclusions
+## 🏁 Conclusions
 
 The $\omega$-modulated ancilla drive protocol **unequivocally beats the standard quantum limit**, confirming the central hypothesis. The null hypothesis — that no combination of $(a_x, a_y, a_z, a_{zz})$ can produce $\Delta\omega < 1/T_H$ — is **rejected**.
 

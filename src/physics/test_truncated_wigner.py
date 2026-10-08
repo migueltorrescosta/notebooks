@@ -8,9 +8,10 @@ Physical Validation Tests:
 - Phase sensitivity scaling matches SQL/Heisenberg limits
 """
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pytest
-from numpy.random import Generator
 
 from .truncated_wigner import (
     _euler_maruyama_step,
@@ -22,6 +23,9 @@ from .truncated_wigner import (
     validate_bloch_vector,
     wigner_sde_trajectory,
 )
+
+if TYPE_CHECKING:
+    from numpy.random import Generator
 
 # Fixtures
 

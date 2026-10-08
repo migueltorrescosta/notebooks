@@ -35,7 +35,7 @@ from src.visualization.ancilla_drive_plots import (
 
 
 @pytest.fixture
-def tmp_svg() -> Generator[Path, None, None]:
+def tmp_svg() -> Generator[Path]:
     """Yield a temporary SVG path and clean up after the test."""
     with tempfile.NamedTemporaryFile(suffix=".svg", delete=False) as f:
         path = Path(f.name)

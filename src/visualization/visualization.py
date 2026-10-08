@@ -10,12 +10,15 @@ All functions use Matplotlib for rendering and include appropriate
 assertions to validate physical constraints (Hermiticity, normalization).
 """
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.fft import fft, fftfreq
 from scipy.linalg import expm
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def fourier_transform(

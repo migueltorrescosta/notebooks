@@ -17,9 +17,8 @@ Units:
 - Energy in same units as position⁻²
 """
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import scipy.sparse
@@ -29,6 +28,9 @@ from src.utils.enums import BoundaryCondition
 from src.utils.validators import (
     validate_orthonormality,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Alias for backward compatibility
 # Agent Notes: This re-exports validators from src.utils.validators

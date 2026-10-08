@@ -1,8 +1,7 @@
 """Numerical Quantum Time Evolution UI page - imports physics from src.quantum_time_evolution."""
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
@@ -19,6 +18,9 @@ from src.evolution.quantum_time_evolution import (
 )
 from src.utils.enums import BoundaryCondition, PotentialFunction, WavePacket
 from src.visualization.plotting import plot_array
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 st.set_page_config(
     page_title="QM | Numerical Quantum Time Evolution",

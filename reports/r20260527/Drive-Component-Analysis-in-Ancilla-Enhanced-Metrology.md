@@ -1,6 +1,6 @@
 # Drive-Component Analysis in Ancilla-Enhanced Metrology: 2D Slices and Norm-Constrained Landscape
 
-## Hypothesis
+## 🧪 Hypothesis
 
 The original driven-ancilla experiment (2026-05-18) found that **no configuration** of $(a_x, a_y, a_z, a_{zz})$ can beat the $N=1$ SQL $\Delta\omega = 1/T_H$ when measuring $J_z^S$ on the system. The present report asks two questions about that negative result: which drive components are "important" (that is, most strongly affect the sensitivity), and how does the available drive magnitude $\|\mathbf{a}\|$ control the best achievable sensitivity?
 
@@ -14,7 +14,7 @@ For a system--ancilla pair of single-particle two-mode bosonic systems with the 
 
 **Null hypothesis**: The three drive components $(a_x, a_y, a_z)$ are all equivalent in their effect on the sensitivity: no slice type achieves $\Delta\omega/\text{SQL} < 1$, and the norm-constrained envelope never dips below 1.0 for any $r \in [0, 10]$.
 
-## Theoretical model
+## ⚛️ Theoretical model
 
 The total Hilbert space is $\mathcal{H}_{\text{tot}} = \mathcal{H}_S \otimes \mathcal{H}_A$, where each subsystem is a **two-mode bosonic Fock space** truncated at one particle per mode. The single-particle sector $\mathcal{H}_{1} = \text{span}\{\vert1,0\rangle,\, \vert0,1\rangle\}$ (dimension 2) is isomorphic to a spin-$1/2$, and the full space has dimension 4 with ordered computational basis $\{\vert00\rangle, \vert01\rangle, \vert10\rangle, \vert11\rangle\}$ where $\vert0\rangle = \vert1,0\rangle$ (particle in mode 0) and $\vert1\rangle = \vert0,1\rangle$ (particle in mode 1). The **angular momentum operators** for each subsystem satisfy SU(2) algebra $[J_i, J_j] = i \epsilon_{ijk} J_k$ and are represented by $J_k = \sigma_k/2$ (the $2\times2$ Pauli matrices). These are embedded into the full space via Kronecker products: $J_k^S = \sigma_k/2 \otimes \mathbb{1}_2$ and $J_k^A = \mathbb{1}_2 \otimes \sigma_k/2$.
 
@@ -26,7 +26,7 @@ The complete evolution is $\vert\Psi_{\text{final}}\rangle = U_{\text{BS}}^{(S)}
 
 The **drive vector norm** is $\|\mathbf{a}\| = \sqrt{a_x^2 + a_y^2 + a_z^2}$. The norm-ball $\{\mathbf{a} \in \mathbb{R}^3 \mid \|\mathbf{a}\| \leq R\}$ constrains the total drive magnitude while allowing the direction (relative weighting of $x$, $y$, $z$ components) to vary arbitrarily. The interaction coefficient $a_{zz}$ is **not** constrained by the norm; it varies independently in $[-5, 5]$.
 
-## Numerical simulation
+## 💻 Numerical simulation
 
 ### Implementation strategy
 
@@ -92,7 +92,7 @@ To be built during the implementation phase:
 
 Test count target: ~30 new test functions covering norm-ball sampling, envelope extraction, $(a_z, a_{zz})$ slice, floating-point stability of best-ratio computation, and Parquet roundtrip for the new dataclasses.
 
-## Expected failure conditions
+## ⚠️ Expected failure conditions
 
 | Failure | Mitigation |
 |---------|------------|
@@ -102,7 +102,7 @@ Test count target: ~30 new test functions covering norm-ball sampling, envelope 
 | **Fringe extremum dominates** — For many $\omega$ values and large $a_{zz}$, the derivative $\partial\langle J_z^S\rangle/\partial\omega$ vanishes, producing $\Delta\omega = \infty$ for most samples. | Flag and exclude fringe-extremum points. Report the fraction of valid (finite) points per $\omega$ and $r$. The envelope is computed only over finite-$\Delta\omega$ configurations. |
 | **Optimal at decoupled limit** — The best ratio is always achieved at $a_{zz} = 0$, regardless of $\|\mathbf{a}\|$ or $\omega$. | This would indicate the ancilla drive is always detrimental when the interaction is active, consistent with the original report. Report best-ratio curves both with and without the $a_{zz}=0$ configuration included. |
 
-## Results
+## 🔬 Results
 
 All experiments have been completed. The null hypothesis is confirmed: no configuration of drive or interaction parameters yields $\Delta\omega/\text{SQL} < 1$. However, a striking qualitative difference between the commuting ($a_z$) and non-commuting ($a_x$, $a_y$) drive components was discovered.
 
@@ -247,7 +247,7 @@ All three slice types achieve a minimum $\Delta\omega/\text{SQL}$ ratio of $1.00
 | Norm-ball envelope (stratified) | PASS | Min ratio = 1.0 for **all** $r \in [0.1, 10.0]$, flat at SQL |
 | Best-ratio-by-slice comparison | PASS | All min at 1.0, az qualitatively different |
 
-## Success criteria
+## ✅ Success criteria
 
 - **Slice equivalence** — All three slice types ($a_x$, $a_y$, $a_z$) achieve minimum $\Delta\omega/\text{SQL} = 1.0$ to within numerical precision ($10^{-8}$ relative). — **PASS**. All three have min = $1.00000000$ (within float64 precision). The full-slice statistics, however, differ dramatically (see commuting drive equivalence below).
 
@@ -265,7 +265,7 @@ All three slice types achieve a minimum $\Delta\omega/\text{SQL}$ ratio of $1.00
 
 **Summary**: Six of seven criteria pass outright. The commuting-drive equivalence criterion is marked PARTIAL because the original expectation that all three slices would have similar statistics was incorrect — the $(a_z, a_{zz})$ slice is in fact qualitatively different, with every valid point achieving SQL. This is itself a significant finding. The null hypothesis (SQL cannot be beaten) is confirmed across all experiments, and the monotonicity of the envelope is verified. The small-$r$ resolution criterion is satisfied: stratified sampling confirms the envelope is flat at SQL for all drive magnitudes, and the apparent small-drive degradation in the Marsaglia data was a sampling artifact. A full analytical derivation of this flatness is provided in the **Analytical Bounds** section below.
 
-## Analytical bounds: proof of $(a_z, a_{zz})$ SQL flatness
+## ⚖️ Analytical bounds: proof of $(a_z, a_{zz})$ SQL flatness
 
 We provide an analytical proof that when $a_x = a_y = 0$ (the commuting-drive slice), the error-propagation sensitivity satisfies $\Delta\omega = 1/T_H$ for all $(a_z, a_{zz})$ and all $\omega$, confirming the numerical observation of Section 1c. The hold Hamiltonian is $H = \omega J_z^S + a_z J_z^A + a_{zz} J_z^S \otimes J_z^A$ with $J_k = \sigma_k/2$ for each spin-$1/2$, the initial state is $|\Psi_0\rangle = |00\rangle$, the beam-splitter unitary is $U_{\rm BS} = \exp(-i\pi J_x^S/2)$, the hold duration is $T_H$, and the measurement is $J_z^S$.
 
@@ -279,7 +279,7 @@ The argument fails for non-commuting drives such as $a_x J_x^A$ or $a_y J_y^A$ b
 
 The exact SQL flatness of the $(a_z, a_{zz})$ landscape is therefore a direct consequence of the conservation law $[J_z^A, H] = 0$: the $a_z$ drive contributes only a global phase, the Ising interaction reduces to a static frequency shift $\omega \to \omega + a_{zz}/2$, and the protocol becomes unitarily equivalent to a standard single-spin Ramsey interferometer, yielding $\Delta\omega = 1/T_H$ for every $(a_z, a_{zz})$ configuration.
 
-## Conclusions
+## 🏁 Conclusions
 
 The experiments completed in this report confirm the original null result (no SQL violation across any drive configuration or magnitude) and reveal a surprising and important qualitative difference between commuting and non-commuting drive components.
 

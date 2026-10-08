@@ -45,7 +45,7 @@ def _wait_for_server(
 
 
 @pytest.fixture(scope="module")
-def streamlit_server() -> Generator[tuple[subprocess.Popen, int], None, None]:
+def streamlit_server() -> Generator[tuple[subprocess.Popen, int]]:
     """Start Streamlit server in the background and yield the process and port."""
     # Find an available port
     import socket

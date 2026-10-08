@@ -9,10 +9,12 @@ Units:
 - Dimensionless.
 """
 
-from collections.abc import Callable
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # =============================================================================
 # Test Functions

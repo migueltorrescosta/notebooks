@@ -698,27 +698,31 @@ class TestPlots:
         plot_scaling(data, save_path=svg)
         assert svg.exists()
 
-    def test_overlay_no_save_path(self, sample_data: MziSensitivityDataSV) -> None:
+    def test_overlay_no_save_path(
+        self,
+        sample_data: MziSensitivityDataSV,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """plot_delta_omega_overlay works without save_path (auto-names)."""
-        path = _fig_path("sv_parity_delta_omega_comparison")
-        try:
-            created = plot_delta_omega_overlay(sample_data)
-            assert created is not None
-            assert created.suffix == ".svg"
-        finally:
-            if path.exists():
-                path.unlink()
+        # Redirect auto-naming so the committed report figure is not clobbered.
+        monkeypatch.setattr(_m, "_fig_path", lambda name: tmp_path / _fig_path(name).name)
+        created = plot_delta_omega_overlay(sample_data)
+        assert created == tmp_path / _fig_path("sv_parity_delta_omega_comparison").name
+        assert created.suffix == ".svg"
 
-    def test_scaling_no_save_path(self, sample_data: MziSensitivityDataSV) -> None:
+    def test_scaling_no_save_path(
+        self,
+        sample_data: MziSensitivityDataSV,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         """plot_scaling works without save_path (auto-names)."""
-        path = _fig_path("sv_parity_scaling")
-        try:
-            created = plot_scaling(sample_data)
-            assert created is not None
-            assert created.suffix == ".svg"
-        finally:
-            if path.exists():
-                path.unlink()
+        # Redirect auto-naming so the committed report figure is not clobbered.
+        monkeypatch.setattr(_m, "_fig_path", lambda name: tmp_path / _fig_path(name).name)
+        created = plot_scaling(sample_data)
+        assert created == tmp_path / _fig_path("sv_parity_scaling").name
+        assert created.suffix == ".svg"
 
 
 # ============================================================================
