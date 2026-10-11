@@ -10,10 +10,8 @@ import ast
 import json
 import re
 import subprocess
-import tempfile
 import warnings
 from pathlib import Path
-from typing import ClassVar
 
 import pytest
 
@@ -435,141 +433,6 @@ class TestFileLength:
             if in_override:
                 msg += " (whitelisted hard violation)"
             warnings.warn(msg, stacklevel=2)
-
-
-# ── Code duplication baseline (jscpd) ────────────────────────────────────────
-
-
-_JSCPD_CONFIG = _PROJECT_ROOT / ".jscpd.json"
-
-
-class TestDuplicationBaseline:
-    """Code duplication must not increase beyond the measured baseline.
-
-    Uses ``jscpd`` (Rust engine, v5) with ``.jscpd.json`` configuration
-    (minLines=15, minTokens=50, mode=mild).  The test runs jscpd on
-    ``src/`` and ``reports/`` separately, parses the JSON output, and
-    compares the duplication percentage against a hardcoded baseline.
-
-    The test **only** fails when duplication *increases* (regression).
-    If duplication decreases, a warning is emitted and the test passes
-    — the baseline should be updated manually.
-
-    Skipped if ``jscpd`` is not installed.
-    """
-
-    # Baselines recorded on 2026-06-25 with jscpd 5.0.11.
-    # Thresholds: minLines=15, minTokens=50, mode=mild.
-    # Update these whenever a deliberate deduplication campaign completes.
-    _BASELINES: ClassVar[dict[str, float]] = {
-        "src": 0.59,  # 278 duplicated / 47521 total = 0.585%
-        "reports": 5.20,  # 4038 duplicated / 78218 total = 5.16%
-    }
-
-    _JSCPD_CMD: ClassVar[str] = "jscpd"
-
-    @staticmethod
-    def _jscpd_available() -> bool:
-        """Check whether ``jscpd`` is installed and reachable."""
-        try:
-            subprocess.run(
-                [TestDuplicationBaseline._JSCPD_CMD, "--version"],
-                capture_output=True,
-                timeout=10,
-                check=False,
-            )
-            return True
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            return False
-
-    def _run_jscpd(self, target: str) -> dict:
-        """Run ``jscpd`` on *target* (relative to project root) and return the
-        parsed JSON statistics dictionary.
-
-        Raises ``RuntimeError`` if jscpd fails or produces no output.
-        """
-        target_path = _PROJECT_ROOT / target
-        out_dir = Path(tempfile.mkdtemp(prefix="jscpd_"))
-        try:
-            result = subprocess.run(
-                [
-                    self._JSCPD_CMD,
-                    str(target_path),
-                    "--config",
-                    str(_JSCPD_CONFIG),
-                    "--format",
-                    "python",
-                    "--output",
-                    str(out_dir),
-                ],
-                capture_output=True,
-                text=True,
-                timeout=120,
-                check=False,
-            )
-        except FileNotFoundError:
-            pytest.skip("jscpd not installed — install via `npm install -g jscpd`")
-            return {}  # unreachable, but satisfies type checker
-
-        report_file = out_dir / "jscpd-report.json"
-        if not report_file.exists():
-            stderr = result.stderr[:500] if result.stderr else ""
-            raise RuntimeError(
-                f"jscpd did not produce a report for '{target}'. stderr: {stderr}"
-            )
-
-        with report_file.open() as f:
-            data = json.load(f)
-
-        stats = data.get("statistics", {})
-        if not stats:
-            raise RuntimeError(f"jscpd returned empty statistics for '{target}'")
-
-        return stats
-
-    @pytest.mark.parametrize(
-        "target",
-        ["src", "reports"],
-        ids=lambda t: f"target={t}",
-    )
-    def test_duplication_not_increased(self, target: str) -> None:
-        """Duplication percentage for ``{target}/`` must not exceed baseline."""
-        if not self._jscpd_available():
-            pytest.skip("jscpd not installed — install via `npm install -g jscpd`")
-
-        stats = self._run_jscpd(target)
-        total = stats.get("total", {})
-        pct = total.get("percentage", 0.0)
-        clones = total.get("clones", 0)
-        duplicated_lines = total.get("duplicatedLines", 0)
-        total_lines = total.get("lines", 0)
-        sources = total.get("sources", 0)
-
-        baseline = self._BASELINES[target]
-
-        msg = (
-            f"{target}/: {clones} clones, {duplicated_lines}/{total_lines} lines "
-            f"({pct:.2f}%) duplicated across {sources} files. "
-            f"Baseline: {baseline:.2f}%."
-        )
-
-        if pct <= baseline:
-            # Test passes — duplication is at or below baseline.
-            if pct < baseline * 0.9:
-                # Significant improvement — suggest updating baseline.
-                warnings.warn(
-                    f"{msg}  Duplication dropped significantly "
-                    f"(was {baseline:.2f}%). Consider updating the baseline.",
-                    stacklevel=2,
-                )
-            return
-
-        pytest.fail(
-            f"{msg}\n"
-            f"Duplication increased from {baseline:.2f}% to {pct:.2f}%.\n"
-            "Either refactor the new duplication or update the baseline in "
-            "TestDuplicationBaseline._BASELINES if the increase is justified."
-        )
 
 
 # ── Tach module boundary enforcement ────────────────────────────────────

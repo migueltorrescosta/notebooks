@@ -1,3 +1,2 @@
-raw_data/** filter=lfs diff=lfs merge=lfs -text
-figures/** filter=lfs diff=lfs merge=lfs -text
+# Only parquet is in LFS; svg figures are plain blobs.
 *.parquet filter=lfs diff=lfs merge=lfs -text
