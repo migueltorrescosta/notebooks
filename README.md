@@ -107,7 +107,7 @@ marker in `pyproject.toml` once cp314 wheels ship.
 | `uv run ruff check . --fix` | Lint |
 | `uv run ruff format .` | Format |
 | `uv run tach check` | Layered-import check |
-| `jupyter-book build .` | Build docs to `_build/` |
+| `uv run jupyter book build --html` | Build the Jupyter Book (v2, `myst.yml`) to `_build/`; does not execute notebooks |
 
 ## Projects
 
