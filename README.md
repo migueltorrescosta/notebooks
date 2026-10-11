@@ -1,4 +1,11 @@
-# Miguel's Playground
+# notebooks (collapsedwave) - frozen archive
+
+## Status
+
+Frozen since 2026-10. The successor is the `interferometry` repo. The quality
+gates are kept green so the archive stays runnable. Experiment reports may contain
+PENDING success criteria that will not be executed here. The CHANGELOG Backlog is
+historical.
 
 Streamlit apps and Jupyter notebooks for quantum physics simulations.
 
@@ -75,8 +82,7 @@ change. Run them with `--regenerate-fixtures` in CI or locally when the schemas 
 uv sync
 
 # Jupyter kernels
-uv pip install ipykernel
-python -m ipykernel install --user --name=playground
+uv run python -m ipykernel install --user --name=playground
 ```
 
 ### Optional `tensorflow` group
@@ -100,6 +106,7 @@ marker in `pyproject.toml` once cp314 wheels ship.
 | `uv run mypy .` | Type check |
 | `uv run ruff check . --fix` | Lint |
 | `uv run ruff format .` | Format |
+| `uv run tach check` | Layered-import check |
 | `jupyter-book build .` | Build docs to `_build/` |
 
 ## Projects
@@ -120,6 +127,4 @@ Add new kernels with `python -m ipykernel install --user --name=<name>`.
 
 ## Mathematica
 
-1. Download from [julialang.org](https://julialang.org/downloads/)
-2. Extract: `tar zxvf julia-*-linux-x86_64.tar.gz`
-3. Run: `./julia`
+`mathematica/Examples.ipynb` is the only file.

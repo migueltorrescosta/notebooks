@@ -1,6 +1,6 @@
 # notebooks (collapsedwave)
 
-Quantum physics simulations for MZI metrology, ancilla-driven systems, and quantum information processing. Python 3.12, managed with `uv`. This repo is a **frozen archive** — `interferometry` is its active successor. Read as source material but coordinate with the user before modifying.
+Quantum physics simulations for MZI metrology, ancilla-driven systems, and quantum information processing. Python 3.14, managed with `uv`. This repo is a **frozen archive** — `interferometry` is its active successor. Read as source material but coordinate with the user before modifying.
 
 ## Quality Gates
 
@@ -12,7 +12,7 @@ uv run mypy .
 uv run tach check
 ```
 
-- Test coverage must stay >= 85%.
+- Coverage is configured in pyproject.toml (fail_under = 85) but is not a gate; run `uv run coverage run -m pytest -q && uv run coverage report` only on request.
 - Ruff: ALL rules with physics-domain exclusions.
 - mypy: strict (disallow_untyped_calls, disallow_untyped_defs, disallow_incomplete_defs).
 - tach: enforces layered architecture (utils -> algorithms -> evolution -> physics -> analysis -> visualization).

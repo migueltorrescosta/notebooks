@@ -8,7 +8,7 @@ with weekly groupings corresponding to experimental campaigns.
 ---
 
 
-# Backlog
+# Backlog (historical - repo frozen 2026-10; open items carried to interferometry)
 
 Priority colours: 🔴🟠🟡🟢
 

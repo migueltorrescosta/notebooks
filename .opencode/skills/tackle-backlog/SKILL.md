@@ -110,7 +110,7 @@ The skill proceeds in four phases:
 
 ### After implementation
 - [ ] Full test suite passes (`uv run pytest . --testmon --quiet --tb=short`)
-- [ ] Coverage >= 85%. Run `uv run coverage run -m pytest -q --tb=short ; uv run coverage report --fail-under=85`
+- [ ] Coverage report (informational, not a gate). Run `uv run coverage run -m pytest -q --tb=short ; uv run coverage report --fail-under=85`
 - [ ] Linting and formatting pass (`uv run ruff check . --fix && uv run ruff format . --check`)
 - [ ] Static type checking passes (`uv run mypy .`)
 - [ ] Live type checking passes (`uvx pyright src/ pages/`)
