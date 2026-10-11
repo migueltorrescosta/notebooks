@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -62,7 +63,7 @@ def streamlit_server() -> Generator[tuple[subprocess.Popen, int]]:
     env["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 
     process = subprocess.Popen(
-        ["python", "-m", "streamlit", "run", str(HOMEPY)],
+        [sys.executable, "-m", "streamlit", "run", str(HOMEPY)],
         env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
