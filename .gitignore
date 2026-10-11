@@ -28,3 +28,12 @@ revise/
 *.db
 .beads-credential-key
 .beads/
+
+# Generated artefacts
+.coverage
+.coverage.*
+*.prof
+htmlcov/
+.hypothesis/
+tach_module_graph.dot
+_build/

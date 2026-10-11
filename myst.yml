@@ -1,0 +1,98 @@
+# Jupyter Book v2 (MyST) configuration. Notebook execution is off: never build with --execute.
+version: 1
+project:
+  title: Notebooks
+  authors:
+    - name: Miguel Torres Costa
+  github: https://github.com/migueltorrescosta/notebooks
+  toc:
+    - file: README.md
+    - title: PhD Research
+      children:
+        - file: jupyter/phd/2503_PhaseEstimation.ipynb
+        - file: jupyter/phd/2503_PhaseEstimationWithoutAncillary.ipynb
+        - file: jupyter/phd/2503_DeltaOptimisation.ipynb
+        - file: jupyter/phd/2504_CreateNthQuantumEnergyLevel.ipynb
+        - file: jupyter/phd/2504_CreateNthQuantumEnergyLevelWithTorch.ipynb
+        - file: jupyter/phd/2504_CreateNthQuantumEnergyLevelWithTensorflow.ipynb
+        - file: jupyter/phd/2504_JuliaPlayground.ipynb
+        - file: jupyter/phd/2505_HermitePolynomialsAndQuantumHarmonicOscillator.ipynb
+        - file: jupyter/phd/2506_DMRGonTFIM.ipynb
+        - file: jupyter/phd/2506_DoubleWellPhaseEstimation.ipynb
+        - file: jupyter/phd/2506_GraphBasedTensorNetworks.ipynb
+        - file: jupyter/phd/2506_MZPhaseEstimation.ipynb
+        - file: jupyter/phd/2506_QuantumHarmonicOscillatorSpacialScaling.ipynb
+        - file: jupyter/phd/2506_TensorNetworksTutorial.ipynb
+        - file: jupyter/phd/2507_EnergyLevelsBoseHubbard.ipynb
+    - title: Quantum Computing
+      children:
+        - file: jupyter/quantum/2503_1DWaveFunctionNumericalEvolution.ipynb
+        - file: jupyter/quantum/2503_FiniteDimentionalQuantumStateEvolution.ipynb
+        - file: jupyter/quantum/2503_FourierTransform.ipynb
+        - file: jupyter/quantum/2503_InfiniteDoubleSquareWell.ipynb
+        - file: jupyter/quantum/2503_Kronecker.ipynb
+        - file: jupyter/quantum/2503_MachineLearningCatalysisOfQuantumTunneling.ipynb
+        - file: jupyter/quantum/2503_Measurement_Operators.ipynb
+        - file: jupyter/quantum/2503_MetropolisHastingsAppliedToADoublet.ipynb
+        - file: jupyter/quantum/2503_Plotting_1D_waves.ipynb
+        - file: jupyter/quantum/2503_QutipPlayground.ipynb
+        - file: jupyter/quantum/2503_QuantumErrorCorrectionWithQiskit.ipynb
+        - file: jupyter/quantum/2503_VisualizingPotentials.ipynb
+        - file: jupyter/quantum/2503_VisualizeQuantumCircuits.ipynb
+        - file: jupyter/quantum/2503_deBruijnNewmanConstantExploration.ipynb
+    - title: Numerical Analysis
+      children:
+        - file: jupyter/numerical_analysis/2503_ApproximatingPIviaMonteCarlo.ipynb
+        - file: jupyter/numerical_analysis/2503_DaskPlayground.ipynb
+        - file: jupyter/numerical_analysis/2503_NumericalIntegration.ipynb
+        - file: jupyter/numerical_analysis/2503_SigmoidVsExponential.ipynb
+    - title: Study Cases
+      children:
+        - file: jupyter/study_cases/2500_00_harmonic_oscillator_state_preparation.ipynb
+        - file: jupyter/study_cases/2500_01_machzehnder_on_a_shaken_lattice.ipynb
+        - file: jupyter/study_cases/2500_02_delta_estimation_through_an_ancilla.ipynb
+    - title: Graph Theory
+      children:
+        - file: jupyter/graph_theory/2503_AStartAlgorithm.ipynb
+    - title: Project Euler
+      children:
+        - file: jupyter/project_euler/2503_167.ipynb
+    - title: DevOps
+      children:
+        - file: jupyter/devops/2503_MigratingClusters.ipynb
+    - title: Hackathons
+      children:
+        - file: jupyter/hackathons/2507_AqoraHackathon.ipynb
+    - title: Tournaments
+      children:
+        - file: jupyter/tournaments/2503_coins_doe.ipynb
+        - file: jupyter/tournaments/2503_liars_game.ipynb
+    - title: Scribbles
+      children:
+        - file: jupyter/scribbles/2502_BrokenLinkChecker.ipynb
+        - file: jupyter/scribbles/2502_Sperners_Lemma.ipynb
+        - file: jupyter/scribbles/2503_DesktopOSMarketShare.ipynb
+        - file: jupyter/scribbles/2503_EpidemicTestingAccuracy.ipynb
+        - file: jupyter/scribbles/2504_ExpectedOpportunityLoss.ipynb
+        - file: jupyter/scribbles/2504_FunctionGrowthComparison.ipynb
+        - file: jupyter/scribbles/2505_GraphFlowAnalysis.ipynb
+        - file: jupyter/scribbles/2505_LogisticFunctionBehaviour.ipynb
+        - file: jupyter/scribbles/2505_MedicalTestAccuracy.ipynb
+        - file: jupyter/scribbles/2505_Monocrata.ipynb
+        - file: jupyter/scribbles/2506_MultiArmedBandit.ipynb
+        - file: jupyter/scribbles/2506_MutualInformation.ipynb
+        - file: jupyter/scribbles/2506_Numerai.ipynb
+        - file: jupyter/scribbles/2506_PhasePlanes.ipynb
+        - file: jupyter/scribbles/2506_Playground.ipynb
+        - file: jupyter/scribbles/2507_ProductionLineOptimization.ipynb
+        - file: jupyter/scribbles/2507_QuantXHackathon.ipynb
+        - file: jupyter/scribbles/2507_SparseMatrixOperations.ipynb
+        - file: jupyter/scribbles/2508_ackerman_function.ipynb
+        - file: jupyter/scribbles/2509_bayesian_updating.ipynb
+        - file: jupyter/scribbles/2508_SynapticPatternFormationDuringCellularRecognition.ipynb
+        - file: jupyter/scribbles/2508_TimeComplexityProfiling.ipynb
+        - file: jupyter/scribbles/2508_WebsocketsUsedOnTwoMillionCheckboxes.ipynb
+site:
+  template: book-theme
+  options:
+    logo: og-image.png

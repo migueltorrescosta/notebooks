@@ -10,8 +10,6 @@ import streamlit as st
 
 st.set_page_config(page_title="Miguel's dashboard", page_icon="⚛️", layout="wide")
 
-# TODO: Random generator for different distributions. Include random angle in a n-sphere.
-
 st.header("Miguel's dashboard", divider="blue")
 st.markdown("""
     I build my code into interactive apps, shown here.
@@ -22,7 +20,7 @@ st.markdown("""
 quicklinks = {
     "🌊️ Collapsed Wave Notes": "https://collapsedwave.com",
     "〰 MAWI Project": "https://mawi-net.eu/",
-    "📺 Source code": "https://github.com/migueltorrescosta/notebooks/tree/master/pages",
+    "📺 Source code": "https://github.com/migueltorrescosta/notebooks/tree/main/pages",
     "GitHub": "https://github.com/migueltorrescosta",
     "LinkedIn": "https://www.linkedin.com/in/miguel-torres-costa/",
 }

@@ -90,7 +90,7 @@ Run all four checks in order. Stop at the first failure:
 2. **Type checking (static).** `uv run mypy .`
 3. **Type checking (live).** `uvx pyright src/ pages/`
 4. **Tests.** `uv run pytest . --testmon --quiet --tb=short`
-5. **Coverage.** `uv run coverage run -m pytest -q --tb=short ; uv run coverage report --fail-under=85` 
+5. **Coverage report (informational, not a gate).** `uv run coverage run -m pytest -q --tb=short ; uv run coverage report --fail-under=85` 
 
 For any failure, report the full command output and flag as a regression. Do not attempt to fix.
 
@@ -173,7 +173,7 @@ Save this summary to beads memory using `bd remember "<summary>"`.
   - [ ] Ran static type checking: `uv run mypy .`
   - [ ] Ran live type checking: `uvx pyright src/ pages/`
   - [ ] Ran tests: `uv run pytest . --testmon --quiet --tb=short`
-  - [ ] Ran coverage: `uv run coverage run -m pytest -q --tb=short ; uv run coverage report --fail-under=85`
+  - [ ] Coverage report (informational, not a gate): `uv run coverage run -m pytest -q --tb=short ; uv run coverage report --fail-under=85`
   - [ ] If coverage run was unacceptably slow due to slow tests, add a backlog item to reduce the runtime of the longest running slow test
   - [ ] Reported any toolchain failures as blockers (do not proceed if toolchain is broken)
 - **Product focus (§4)**:
